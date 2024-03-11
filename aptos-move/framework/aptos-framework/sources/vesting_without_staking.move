@@ -401,55 +401,61 @@ module aptos_framework::vesting_without_staking {
 
     /// Unlock any vested portion of the grant.
     public entry fun vest(contract_address: address) acquires VestingContract {
+        {
+            let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
+            // Short-circuit if vesting hasn't started yet.
+            if (vesting_contract.vesting_schedule.start_timestamp_secs > timestamp::now_seconds()) {
+                return
+            };
 
-        // Unlock the vested amount. This amount will become withdrawable when the underlying stake pool's lockup
-        // expires.
-        let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
-        // Short-circuit if vesting hasn't started yet.
-        if (vesting_contract.vesting_schedule.start_timestamp_secs > timestamp::now_seconds()) {
-            return
+            // Check if the next vested period has already passed. If not, short-circuit since there's nothing to vest.
+            let vesting_schedule = &mut vesting_contract.vesting_schedule;
+            let last_vested_period = vesting_schedule.last_vested_period;
+            let next_period_to_vest = last_vested_period + 1;
+            let last_completed_period =
+                (timestamp::now_seconds() - vesting_schedule.start_timestamp_secs) / vesting_schedule.period_duration;
+            if (last_completed_period < next_period_to_vest) {
+                return
+            };
+
+            // Index is 0-based while period is 1-based so we need to subtract 1.
+            let schedule = &vesting_schedule.schedule;
+            let schedule_index = next_period_to_vest - 1;
+            let vesting_fraction = if (schedule_index < vector::length(schedule)) {
+                *vector::borrow(schedule, schedule_index)
+            } else {
+                // Last vesting schedule fraction will repeat until the grant runs out.
+                *vector::borrow(schedule, vector::length(schedule) - 1)
+            };
+            let total_grant = pool_u64::total_coins(&vesting_contract.grant_pool);
+            let vested_amount = fixed_point32::multiply_u64(total_grant, vesting_fraction);
+            // Cap vested amount by the remaining grant amount so we don't try to distribute more than what's remaining.
+            vested_amount = min(vested_amount, vesting_contract.remaining_grant);
+            vesting_contract.remaining_grant = vesting_contract.remaining_grant - vested_amount;
+            vesting_schedule.last_vested_period = next_period_to_vest;
+            // Every shareholder should receive the money in proportion to their shares.
+
+            emit_event(
+                &mut vesting_contract.vest_events,
+                VestEvent {
+                    admin: vesting_contract.admin,
+                    vesting_contract_address: contract_address,
+                    period_vested: next_period_to_vest,
+                    amount: vested_amount,
+                },
+            );
         };
 
-        // Check if the next vested period has already passed. If not, short-circuit since there's nothing to vest.
-        let vesting_schedule = &mut vesting_contract.vesting_schedule;
-        let last_vested_period = vesting_schedule.last_vested_period;
-        let next_period_to_vest = last_vested_period + 1;
-        let last_completed_period =
-            (timestamp::now_seconds() - vesting_schedule.start_timestamp_secs) / vesting_schedule.period_duration;
-        if (last_completed_period < next_period_to_vest) {
-            return
-        };
-
-        // Calculate how much has vested, excluding rewards.
-        // Index is 0-based while period is 1-based so we need to subtract 1.
-        let schedule = &vesting_schedule.schedule;
-        let schedule_index = next_period_to_vest - 1;
-        let vesting_fraction = if (schedule_index < vector::length(schedule)) {
-            *vector::borrow(schedule, schedule_index)
-        } else {
-            // Last vesting schedule fraction will repeat until the grant runs out.
-            *vector::borrow(schedule, vector::length(schedule) - 1)
-        };
-        let total_grant = pool_u64::total_coins(&vesting_contract.grant_pool);
-        let vested_amount = fixed_point32::multiply_u64(total_grant, vesting_fraction);
-        // Cap vested amount by the remaining grant amount so we don't try to distribute more than what's remaining.
-        vested_amount = min(vested_amount, vesting_contract.remaining_grant);
-        vesting_contract.remaining_grant = vesting_contract.remaining_grant - vested_amount;
-        vesting_schedule.last_vested_period = next_period_to_vest;
-        // Every shareholder should receive the money in proportion to their shares.
 
         // Call distribute here
-        // Call redeem share for all shareholders
-        // 1000 coins 10 per share    20 % to be vested 60 - 12
-        emit_event(
-            &mut vesting_contract.vest_events,
-            VestEvent {
-                admin: vesting_contract.admin,
-                vesting_contract_address: contract_address,
-                period_vested: next_period_to_vest,
-                amount: vested_amount,
-            },
-        );
+        distribute(contract_address);
+
+        // // Call redeem share for all shareholders
+        // let shareholders = shareholders(contract_address);
+        // vector::for_each_ref(&shareholders, |shareholder| {
+        //     pool_u64::redeem_shares(&vesting_contract.grant_pool, *shareholder);
+        // });
+
     }
 
     /// Call `vest` for many vesting contracts.
@@ -465,16 +471,15 @@ module aptos_framework::vesting_without_staking {
     }
 
     /// Distribute any withdrawable stake from the stake pool.
-    /// do not call this function directly
-    /// Do not require singer here, get it from the vesting contract
-    public entry fun distribute(admin: &signer, contract_address: address) acquires VestingContract {
+    public fun distribute(contract_address: address) acquires VestingContract {
         assert_active_vesting_contract(contract_address);
         debug::print_stack_trace();
 
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
         let withdrawn_coins = coin::balance<AptosCoin>(contract_address);
         debug::print<u64>(&withdrawn_coins);
-        let coins = coin::withdraw<AptosCoin>(admin, withdrawn_coins);
+        let admin = get_vesting_account_signer_internal(vesting_contract);
+        let coins = coin::withdraw<AptosCoin>(&admin, withdrawn_coins);
         let total_distribution_amount = coin::value(&coins);
         if (total_distribution_amount == 0) {
             coin::destroy_zero(coins);
@@ -518,7 +523,7 @@ module aptos_framework::vesting_without_staking {
 
         vector::for_each_ref(&contract_addresses, |contract_address| {
             let contract_address = *contract_address;
-            distribute(admin, contract_address);
+            distribute(contract_address);
         });
     }
 
@@ -527,7 +532,7 @@ module aptos_framework::vesting_without_staking {
         assert_active_vesting_contract(contract_address);
 
         // Distribute all withdrawable coins, which should have been from previous rewards withdrawal or vest.
-        distribute(admin, contract_address);
+        distribute(contract_address);
 
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
         verify_admin(admin, vesting_contract);
@@ -861,7 +866,6 @@ module aptos_framework::vesting_without_staking {
         // // Fast forward to stake lockup expiration so rewards are fully unlocked.
         // // In the mean time, rewards still earn rewards.
         // // Calling distribute() should send rewards to the shareholders.
-        distribute(admin, contract_address);
         // let shareholder_1_bal = coin::balance<AptosCoin>(shareholder_1_address);
         // let shareholder_2_bal = coin::balance<AptosCoin>(shareholder_2_address);
         // // Distribution goes by the shares of the vesting contract.
