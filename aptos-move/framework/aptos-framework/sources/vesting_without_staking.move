@@ -445,29 +445,8 @@ module aptos_framework::vesting_without_staking {
                 },
             );
         };
-
-
         // Call distribute here
         distribute(contract_address);
-
-        // // Call redeem share for all shareholders
-        // let shareholders = shareholders(contract_address);
-        // vector::for_each_ref(&shareholders, |shareholder| {
-        //     pool_u64::redeem_shares(&vesting_contract.grant_pool, *shareholder);
-        // });
-
-    }
-
-    /// Call `vest` for many vesting contracts.
-    public entry fun vest_many(contract_addresses: vector<address>) acquires VestingContract {
-        let len = vector::length(&contract_addresses);
-
-        assert!(len != 0, error::invalid_argument(EVEC_EMPTY_FOR_MANY_FUNCTION));
-
-        vector::for_each_ref(&contract_addresses, |contract_address| {
-            let contract_address = *contract_address;
-            vest(contract_address);
-        });
     }
 
     /// Distribute any withdrawable stake from the stake pool.
@@ -488,6 +467,7 @@ module aptos_framework::vesting_without_staking {
 
         // Distribute coins to all shareholders in the vesting contract.
         let grant_pool = &vesting_contract.grant_pool;
+        // let grant_pool = &mut vesting_contract.grant_pool;
         let shareholders = &pool_u64::shareholders(grant_pool);
         vector::for_each_ref(shareholders, |shareholder| {
             let shareholder = *shareholder;
@@ -496,6 +476,7 @@ module aptos_framework::vesting_without_staking {
             let share_of_coins = coin::extract(&mut coins, amount);
             let recipient_address = get_beneficiary(vesting_contract, shareholder);
             aptos_account::deposit_coins(recipient_address, share_of_coins);
+            // pool_u64::redeem_shares(grant_pool, shareholder, shares);
         });
 
         // Send any remaining "dust" (leftover due to rounding error) to the withdrawal address.
@@ -513,18 +494,6 @@ module aptos_framework::vesting_without_staking {
                 amount: total_distribution_amount,
             },
         );
-    }
-
-    /// Call `distribute` for many vesting contracts.
-    public entry fun distribute_many(admin: &signer, contract_addresses: vector<address>) acquires VestingContract {
-        let len = vector::length(&contract_addresses);
-
-        assert!(len != 0, error::invalid_argument(EVEC_EMPTY_FOR_MANY_FUNCTION));
-
-        vector::for_each_ref(&contract_addresses, |contract_address| {
-            let contract_address = *contract_address;
-            distribute(contract_address);
-        });
     }
 
     /// Terminate the vesting contract and send all funds back to the withdrawal address.
@@ -862,7 +831,8 @@ module aptos_framework::vesting_without_staking {
         timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)+1);
         debug::print<u64>(&coin::balance<AptosCoin>(contract_address));
         vest(contract_address);
-
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*2+1);
+        vest(contract_address);
         // // Fast forward to stake lockup expiration so rewards are fully unlocked.
         // // In the mean time, rewards still earn rewards.
         // // Calling distribute() should send rewards to the shareholders.
