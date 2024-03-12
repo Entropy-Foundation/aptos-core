@@ -108,9 +108,7 @@ module aptos_framework::vesting_without_staking {
         signer_cap: SignerCapability,
 
         // Events.
-        reset_lockup_events: EventHandle<ResetLockupEvent>,
         set_beneficiary_events: EventHandle<SetBeneficiaryEvent>,
-        unlock_rewards_events: EventHandle<UnlockRewardsEvent>,
         vest_events: EventHandle<VestEvent>,
         distribute_events: EventHandle<DistributeEvent>,
         terminate_events: EventHandle<TerminateEvent>,
@@ -137,24 +135,12 @@ module aptos_framework::vesting_without_staking {
         vesting_contract_address: address,
     }
 
-    struct ResetLockupEvent has drop, store {
-        admin: address,
-        vesting_contract_address: address,
-        new_lockup_expiration_secs: u64,
-    }
-
     struct SetBeneficiaryEvent has drop, store {
         admin: address,
         vesting_contract_address: address,
         shareholder: address,
         old_beneficiary: address,
         new_beneficiary: address,
-    }
-
-    struct UnlockRewardsEvent has drop, store {
-        admin: address,
-        vesting_contract_address: address,
-        amount: u64,
     }
 
     struct VestEvent has drop, store {
@@ -375,9 +361,7 @@ module aptos_framework::vesting_without_staking {
             vesting_schedule,
             withdrawal_address,
             signer_cap: contract_signer_cap,
-            reset_lockup_events: new_event_handle<ResetLockupEvent>(&contract_signer),
             set_beneficiary_events: new_event_handle<SetBeneficiaryEvent>(&contract_signer),
-            unlock_rewards_events: new_event_handle<UnlockRewardsEvent>(&contract_signer),
             vest_events: new_event_handle<VestEvent>(&contract_signer),
             distribute_events: new_event_handle<DistributeEvent>(&contract_signer),
             terminate_events: new_event_handle<TerminateEvent>(&contract_signer),
