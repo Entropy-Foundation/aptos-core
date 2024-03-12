@@ -406,7 +406,7 @@ module aptos_framework::vesting_without_staking {
 
     /// Distribute any withdrawable stake from the stake pool.
     /// This is no entry function anymore as it's called from within the vest.
-    public fun distribute(vesting_fraction: FixedPoint32, contract_address: address) acquires VestingContract {
+    fun distribute(vesting_fraction: FixedPoint32, contract_address: address) acquires VestingContract {
         assert_active_vesting_contract(contract_address);
 
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
