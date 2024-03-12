@@ -486,7 +486,6 @@ module aptos_framework::vesting_without_staking {
             coin::destroy_zero(coins);
             return
         };
-        aptos_account::deposit_coins(vesting_contract.withdrawal_address, coins);
 
         emit_event(
             &mut vesting_contract.admin_withdraw_events,
@@ -513,12 +512,7 @@ module aptos_framework::vesting_without_staking {
 
         let old_beneficiary = get_beneficiary(vesting_contract, shareholder);
         let beneficiaries = &mut vesting_contract.beneficiaries;
-        if (simple_map::contains_key(beneficiaries, &shareholder)) {
-            let beneficiary = simple_map::borrow_mut(beneficiaries, &shareholder);
-            *beneficiary = new_beneficiary;
-        } else {
-            simple_map::add(beneficiaries, shareholder, new_beneficiary);
-        };
+        simple_map::upsert(beneficiaries, shareholder, new_beneficiary);
 
         emit_event(
             &mut vesting_contract.set_beneficiary_events,
@@ -569,11 +563,7 @@ module aptos_framework::vesting_without_staking {
             })
         };
         let roles = &mut borrow_global_mut<VestingAccountManagement>(contract_address).roles;
-        if (simple_map::contains_key(roles, &role)) {
-            *simple_map::borrow_mut(roles, &role) = role_holder;
-        } else {
-            simple_map::add(roles, role, role_holder);
-        };
+        simple_map::upsert(roles, role, role_holder);
     }
 
     public entry fun set_beneficiary_resetter(
