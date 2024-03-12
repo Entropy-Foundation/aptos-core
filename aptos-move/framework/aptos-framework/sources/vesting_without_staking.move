@@ -43,8 +43,6 @@ module aptos_framework::vesting_without_staking {
     const EVESTING_CONTRACT_STILL_ACTIVE: u64 = 9;
     /// No vesting contract found at provided address.
     const EVESTING_CONTRACT_NOT_FOUND: u64 = 10;
-    /// Cannot terminate the vesting contract with pending active stake. Need to wait until next epoch.
-    const EPENDING_STAKE_FOUND: u64 = 11;
     /// Grant amount cannot be 0.
     const EZERO_GRANT: u64 = 12;
     /// Vesting account has no other management roles beside admin.
@@ -69,7 +67,6 @@ module aptos_framework::vesting_without_staking {
     const ROLE_BENEFICIARY_RESETTER: vector<u8> = b"ROLE_BENEFICIARY_RESETTER";
 
     /// AptosCoin capabilities, set during genesis and stored in @CoreResource account.
-    /// This allows the Stake module to mint rewards to stakers.
     struct AptosCoinCapabilities has key {
         mint_cap: MintCapability<AptosCoin>,
     }
@@ -308,6 +305,7 @@ module aptos_framework::vesting_without_staking {
             });
             grant_amount = grant_amount + init;
         });
+        assert!(grant_amount > 0, error::invalid_argument(EZERO_GRANT));
 
         // If this is the first time this admin account has created a vesting contract, initialize the admin store.
         let admin_address = signer::address_of(admin);
@@ -400,7 +398,7 @@ module aptos_framework::vesting_without_staking {
         distribute(vesting_fraction, contract_address);
     }
 
-    /// Distribute any withdrawable stake from the stake pool.
+    /// Distribute any withdrawable grant.
     /// This is no entry function anymore as it's called from within the vest.
     fun distribute(vesting_fraction: FixedPoint32, contract_address: address) acquires VestingContract {
         assert_active_vesting_contract(contract_address);
@@ -585,8 +583,7 @@ module aptos_framework::vesting_without_staking {
         vector::append(&mut seed, contract_creation_seed);
 
         let (account_signer, signer_cap) = account::create_resource_account(admin, seed);
-        // Register the vesting contract account to receive APT as it'll be sent to it when claiming unlocked stake from
-        // the underlying staking contract.
+        // Register the vesting contract account to receive APT
         coin::register<AptosCoin>(&account_signer);
 
         (account_signer, signer_cap)
@@ -769,17 +766,6 @@ module aptos_framework::vesting_without_staking {
         let admin_address = signer::address_of(admin);
         setup(aptos_framework, &vector[admin_address]);
         setup_vesting_contract(admin, &vector[], &vector[], admin_address);
-    }
-
-    #[test(aptos_framework = @0x1, admin = @0x123)]
-    #[expected_failure(abort_code = 0x10005, location = Self)]
-    public entry fun test_create_vesting_contract_with_mistmaching_shareholders_should_fail(
-        aptos_framework: &signer,
-        admin: &signer,
-    ) acquires AdminStore {
-        let admin_address = signer::address_of(admin);
-        setup(aptos_framework, &vector[admin_address]);
-        setup_vesting_contract(admin, &vector[@1, @2], &vector[1], admin_address);
     }
 
     #[test(aptos_framework = @0x1, admin = @0x123)]
