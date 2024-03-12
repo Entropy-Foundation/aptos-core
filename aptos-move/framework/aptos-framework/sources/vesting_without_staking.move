@@ -90,7 +90,7 @@ module aptos_framework::vesting_without_staking {
         last_vested_period: u64,
     }
 
-    struct Amount has store {
+    struct Amount has store, drop {
         buy_in: u64,
         left: u64
     }
@@ -686,7 +686,6 @@ module aptos_framework::vesting_without_staking {
 
     #[test_only]
     use aptos_framework::account::create_account_for_test;
-    use aptos_std::math64::min;
 
     #[test_only]
     const GRANT_AMOUNT: u64 = 1000; // 1000 APT coins with 8 decimals.
