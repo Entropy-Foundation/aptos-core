@@ -471,6 +471,16 @@ module aptos_framework::vesting_without_staking {
         );
     }
 
+    /// Remove the lockup period for the vesting contract. This can only be called by the admin of the vesting contract.
+    /// Example usage: If admin find shareholder suspicious, admin can remove it.
+    public entry fun remove_shareholder(admin: &signer, contract_address: address, shareholder_address: address) acquires VestingContract {
+        let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
+        verify_admin(admin, vesting_contract);
+        let shareholders = &mut vesting_contract.shareholders;
+        simple_map::remove(shareholders, &shareholder_address);
+        assert!(simple_map::contains_key(shareholders, &shareholder_address), 0);
+    }
+
     /// Terminate the vesting contract and send all funds back to the withdrawal address.
     public entry fun terminate_vesting_contract(admin: &signer, contract_address: address) acquires VestingContract {
         assert_active_vesting_contract(contract_address);
