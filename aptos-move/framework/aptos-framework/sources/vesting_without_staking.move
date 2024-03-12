@@ -293,10 +293,6 @@ module aptos_framework::vesting_without_staking {
         assert_account_is_registered_for_apt(withdrawal_address);
         let shareholders_address = &simple_map::keys(&buy_ins);
         assert!(vector::length(shareholders_address) > 0, error::invalid_argument(ENO_SHAREHOLDERS));
-        assert!(
-            simple_map::length(&buy_ins) == vector::length(shareholders_address),
-            error::invalid_argument(ESHARES_LENGTH_MISMATCH),
-        );
 
         let shareholders = simple_map::create<address, Amount>();
         let grant = coin::zero<AptosCoin>();
@@ -684,7 +680,6 @@ module aptos_framework::vesting_without_staking {
             VESTING_PERIOD,
         );
 
-        let admin_address = signer::address_of(admin);
         let buy_ins = simple_map::create<address, Coin<AptosCoin>>();
         vector::enumerate_ref(shares, |i, share| {
             let shareholder = *vector::borrow(shareholders, i);
