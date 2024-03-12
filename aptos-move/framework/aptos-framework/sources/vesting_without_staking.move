@@ -771,6 +771,7 @@ module aptos_framework::vesting_without_staking {
         };
         let total_grant = pool_u64::total_coins(&vesting_contract.grant_pool);
         let vested_amount = fixed_point32::multiply_u64(total_grant, vesting_fraction);
+        vested_amount = min(vested_amount, vesting_contract.remaining_grant);
         vested_amount
     }
 
@@ -877,6 +878,11 @@ module aptos_framework::vesting_without_staking {
         assert!(remaining_grant(contract_address) == grant_left, 0);
 
         timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*8);
+        grant_left = grant_left - get_vested_amount(contract_address);
+        vest(contract_address);
+        assert!(remaining_grant(contract_address) == grant_left, 0);
+
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*9);
         grant_left = grant_left - get_vested_amount(contract_address);
         vest(contract_address);
         assert!(remaining_grant(contract_address) == grant_left, 0);
