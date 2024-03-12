@@ -479,20 +479,16 @@ module aptos_framework::vesting_without_staking {
 
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
         verify_admin(admin, vesting_contract);
-        let withdrawn_coins = coin::balance<AptosCoin>(contract_address);
-        let coins = coin::withdraw<AptosCoin>(admin, withdrawn_coins);
-        let amount = coin::value(&coins);
-        if (amount == 0) {
-            coin::destroy_zero(coins);
-            return
-        };
+        let total_balance = coin::balance<AptosCoin>(contract_address);
+        let vesting_signer  = get_vesting_account_signer_internal(vesting_contract);
+        coin::transfer<AptosCoin>(&vesting_signer, vesting_contract.withdrawal_address, total_balance);
 
         emit_event(
             &mut vesting_contract.admin_withdraw_events,
             AdminWithdrawEvent {
                 admin: vesting_contract.admin,
                 vesting_contract_address: contract_address,
-                amount,
+                amount: total_balance,
             },
         );
     }
