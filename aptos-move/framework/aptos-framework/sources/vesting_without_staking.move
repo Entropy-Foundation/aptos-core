@@ -110,7 +110,6 @@ module aptos_framework::vesting_without_staking {
         // Events.
         set_beneficiary_events: EventHandle<SetBeneficiaryEvent>,
         vest_events: EventHandle<VestEvent>,
-        distribute_events: EventHandle<DistributeEvent>,
         terminate_events: EventHandle<TerminateEvent>,
         admin_withdraw_events: EventHandle<AdminWithdrawEvent>,
     }
@@ -147,11 +146,6 @@ module aptos_framework::vesting_without_staking {
         admin: address,
         vesting_contract_address: address,
         period_vested: u64,
-    }
-
-    struct DistributeEvent has drop, store {
-        admin: address,
-        vesting_contract_address: address,
     }
 
     struct TerminateEvent has drop, store {
@@ -363,7 +357,6 @@ module aptos_framework::vesting_without_staking {
             signer_cap: contract_signer_cap,
             set_beneficiary_events: new_event_handle<SetBeneficiaryEvent>(&contract_signer),
             vest_events: new_event_handle<VestEvent>(&contract_signer),
-            distribute_events: new_event_handle<DistributeEvent>(&contract_signer),
             terminate_events: new_event_handle<TerminateEvent>(&contract_signer),
             admin_withdraw_events: new_event_handle<AdminWithdrawEvent>(&contract_signer),
         });
@@ -445,14 +438,6 @@ module aptos_framework::vesting_without_staking {
         } else {
             coin::destroy_zero(coins);
         };
-
-        emit_event(
-            &mut vesting_contract.distribute_events,
-            DistributeEvent {
-                admin: vesting_contract.admin,
-                vesting_contract_address: contract_address,
-            },
-        );
     }
 
     /// Remove the lockup period for the vesting contract. This can only be called by the admin of the vesting contract.
