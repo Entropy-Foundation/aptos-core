@@ -475,22 +475,12 @@ module aptos_framework::vesting_without_staking {
     public entry fun terminate_vesting_contract(admin: &signer, contract_address: address) acquires VestingContract {
         assert_active_vesting_contract(contract_address);
 
-        let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
-        verify_admin(admin, vesting_contract);
-        let withdrawn_coins = coin::balance<AptosCoin>(contract_address);
-        let admin = get_vesting_account_signer_internal(vesting_contract);
-        let coins = coin::withdraw<AptosCoin>(&admin, withdrawn_coins);
-
         vest(contract_address);
 
-        vesting_contract.state = VESTING_POOL_TERMINATED;
+        let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
+        verify_admin(admin, vesting_contract);
 
-        // Send any remaining "dust" (leftover due to rounding error) to the withdrawal address.
-        if (coin::value(&coins) > 0) {
-            aptos_account::deposit_coins(vesting_contract.withdrawal_address, coins);
-        } else {
-            coin::destroy_zero(coins);
-        };
+        vesting_contract.state = VESTING_POOL_TERMINATED;
 
         emit_event(
             &mut vesting_contract.terminate_events,
