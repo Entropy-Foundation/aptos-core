@@ -12,7 +12,7 @@ module aptos_framework::vesting_without_staking {
     use aptos_std::simple_map::{Self, SimpleMap};
 
     use aptos_framework::account::{Self, SignerCapability, new_event_handle};
-    use aptos_framework::aptos_account::{Self, assert_account_is_registered_for_apt};
+    use aptos_framework::aptos_account::{assert_account_is_registered_for_apt};
     use aptos_framework::aptos_coin::AptosCoin;
     use aptos_framework::coin::{Self, Coin, MintCapability};
     use aptos_framework::event::{EventHandle, emit_event};
@@ -410,10 +410,7 @@ module aptos_framework::vesting_without_staking {
         assert_active_vesting_contract(contract_address);
 
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
-        let withdrawn_coins = coin::balance<AptosCoin>(contract_address);
         let vesting_signer = get_vesting_account_signer_internal(vesting_contract);
-        // Withdraw all coins and will deposit them back later if there is remaining
-        let coins = coin::withdraw<AptosCoin>(&vesting_signer, withdrawn_coins);
         let shareholders_address = simple_map::keys(&vesting_contract.shareholders);
 
         // Distribute coins to shareholders.
@@ -422,22 +419,11 @@ module aptos_framework::vesting_without_staking {
             let amount = fixed_point32::multiply_u64(simple_map::borrow(& vesting_contract.shareholders, &shareholder).init_amount, vesting_fraction);
             debug::print(&simple_map::borrow(&mut vesting_contract.shareholders, &shareholder).init_amount);
             debug::print(&amount);
-            debug::print(&coin::value(&coins));
-            let share_of_coins = coin::extract(&mut coins, amount);
-            debug::print(&coin::value(&coins));
-
             let recipient_address = get_beneficiary(vesting_contract, shareholder);
-            aptos_account::deposit_coins(recipient_address, share_of_coins);
+            coin::transfer<AptosCoin>(&vesting_signer, recipient_address, amount);
             let left = simple_map::borrow_mut(&mut vesting_contract.shareholders, &shareholder).left_amount;
             left = left - amount;
         });
-
-        // Send any remaining "dust" (leftover due to rounding error) to the withdrawal address.
-        if (coin::value(&coins) > 0) {
-            aptos_account::deposit_coins(vesting_contract.withdrawal_address, coins);
-        } else {
-            coin::destroy_zero(coins);
-        };
     }
 
     /// Remove the lockup period for the vesting contract. This can only be called by the admin of the vesting contract.
