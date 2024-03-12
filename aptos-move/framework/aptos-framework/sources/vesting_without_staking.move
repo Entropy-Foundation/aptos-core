@@ -440,7 +440,8 @@ module aptos_framework::vesting_without_staking {
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
         let withdrawn_coins = coin::balance<AptosCoin>(contract_address);
         let admin = get_vesting_account_signer_internal(vesting_contract);
-        let coins = coin::withdraw<AptosCoin>(&admin, fixed_point32::multiply_u64(withdrawn_coins, vesting_fraction));
+        // Withdraw all coins and will deposit them back later if there is remaining
+        let coins = coin::withdraw<AptosCoin>(&admin, withdrawn_coins);
         let shareholders_address = simple_map::keys(&vesting_contract.shareholders);
 
         // Distribute coins to shareholders.
@@ -476,24 +477,12 @@ module aptos_framework::vesting_without_staking {
 
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
         verify_admin(admin, vesting_contract);
-        let shareholders_address = simple_map::keys(&vesting_contract.shareholders);
         let withdrawn_coins = coin::balance<AptosCoin>(contract_address);
         let admin = get_vesting_account_signer_internal(vesting_contract);
         let coins = coin::withdraw<AptosCoin>(&admin, withdrawn_coins);
 
-        // TODO revisit logic here
-        // Distribute coins to shareholders.
-        vector::for_each_ref(&shareholders_address, |shareholder| {
-            let shareholder = *shareholder;
-            let amount = simple_map::borrow(&mut vesting_contract.shareholders, &shareholder).left;
-            let share_of_coins = coin::extract(&mut coins, amount);
-            let recipient_address = get_beneficiary(vesting_contract, shareholder);
-            aptos_account::deposit_coins(recipient_address, share_of_coins);
-            let left = simple_map::borrow_mut(&mut vesting_contract.shareholders, &shareholder).left;
-            left = left - amount;
-        });
+        vest(contract_address);
 
-        // Unlock all remaining active stake.
         vesting_contract.state = VESTING_POOL_TERMINATED;
 
         // Send any remaining "dust" (leftover due to rounding error) to the withdrawal address.
