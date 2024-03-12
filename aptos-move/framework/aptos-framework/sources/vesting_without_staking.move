@@ -2,6 +2,7 @@
 /// Vesting without staking contract
 ///
 /// Workflow:
+/// TODO check pool values
 module aptos_framework::vesting_without_staking {
     use std::bcs;
     use std::error;
