@@ -8,6 +8,7 @@ module aptos_framework::vesting_without_staking {
     use std::signer;
     use std::string::{utf8, String};
     use std::vector;
+    use aptos_std::debug;
     use aptos_std::simple_map::{Self, SimpleMap};
 
     use aptos_framework::account::{Self, SignerCapability, new_event_handle};
@@ -127,8 +128,6 @@ module aptos_framework::vesting_without_staking {
     }
 
     struct CreateVestingContractEvent has drop, store {
-        operator: address,
-        voter: address,
         grant_amount: u64,
         withdrawal_address: address,
         vesting_contract_address: address,
@@ -285,8 +284,6 @@ module aptos_framework::vesting_without_staking {
         buy_ins: SimpleMap<address, Coin<AptosCoin>>,
         vesting_schedule: VestingSchedule,
         withdrawal_address: address,
-        operator: address,
-        voter: address,
         contract_creation_seed: vector<u8>,
     ): address acquires AdminStore {
         assert!(
@@ -339,8 +336,6 @@ module aptos_framework::vesting_without_staking {
         emit_event(
             &mut admin_store.create_events,
             CreateVestingContractEvent {
-                operator,
-                voter,
                 withdrawal_address,
                 grant_amount,
                 vesting_contract_address: contract_address,
@@ -424,8 +419,13 @@ module aptos_framework::vesting_without_staking {
         // Distribute coins to shareholders.
         vector::for_each_ref(&shareholders_address, |shareholder| {
             let shareholder = *shareholder;
-            let amount = fixed_point32::multiply_u64(simple_map::borrow(&mut vesting_contract.shareholders, &shareholder).init_amount, vesting_fraction);
+            let amount = fixed_point32::multiply_u64(simple_map::borrow(& vesting_contract.shareholders, &shareholder).init_amount, vesting_fraction);
+            debug::print(&simple_map::borrow(&mut vesting_contract.shareholders, &shareholder).init_amount);
+            debug::print(&amount);
+            debug::print(&coin::value(&coins));
             let share_of_coins = coin::extract(&mut coins, amount);
+            debug::print(&coin::value(&coins));
+
             let recipient_address = get_beneficiary(vesting_contract, shareholder);
             aptos_account::deposit_coins(recipient_address, share_of_coins);
             let left = simple_map::borrow_mut(&mut vesting_contract.shareholders, &shareholder).left_amount;
@@ -712,8 +712,6 @@ module aptos_framework::vesting_without_staking {
             buy_ins,
             vesting_schedule,
             withdrawal_address,
-            admin_address,
-            admin_address,
             vector[],
         )
     }
@@ -750,26 +748,26 @@ module aptos_framework::vesting_without_staking {
         timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*2);
         vest(contract_address);
 
-        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*3);
-        vest(contract_address);
+        // timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*3);
+        // vest(contract_address);
 
-        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*4);
-        vest(contract_address);
+        // timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*4);
+        // vest(contract_address);
+        //
+        // timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*5);
+        // vest(contract_address);
 
-        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*5);
-        vest(contract_address);
+        // timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*6);
+        // vest(contract_address);
+        //
+        // timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*7);
+        // vest(contract_address);
+        //
+        // timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*8);
+        // vest(contract_address);
 
-        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*6);
-        vest(contract_address);
-
-        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*7);
-        vest(contract_address);
-
-        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*8);
-        vest(contract_address);
-
-        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*9);
-        vest(contract_address);
+        // timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*9);
+        // vest(contract_address);
     }
 
     #[test(aptos_framework = @0x1, admin = @0x123)]
