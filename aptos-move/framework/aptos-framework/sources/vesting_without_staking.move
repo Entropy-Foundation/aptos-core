@@ -8,8 +8,8 @@ module aptos_framework::vesting_without_staking {
     use std::signer;
     use std::string::{utf8, String};
     use std::vector;
-    use aptos_std::debug;
     use aptos_std::simple_map::{Self, SimpleMap};
+    use aptos_std::math64::min;
 
     use aptos_framework::account::{Self, SignerCapability, new_event_handle};
     use aptos_framework::aptos_account::{assert_account_is_registered_for_apt};
@@ -416,13 +416,11 @@ module aptos_framework::vesting_without_staking {
         // Distribute coins to shareholders.
         vector::for_each_ref(&shareholders_address, |shareholder| {
             let shareholder = *shareholder;
-            let amount = fixed_point32::multiply_u64(simple_map::borrow(& vesting_contract.shareholders, &shareholder).init_amount, vesting_fraction);
-            debug::print(&simple_map::borrow(&mut vesting_contract.shareholders, &shareholder).init_amount);
-            debug::print(&amount);
+            let amount = min(simple_map::borrow(& vesting_contract.shareholders, &shareholder).left_amount,fixed_point32::multiply_u64(simple_map::borrow(& vesting_contract.shareholders, &shareholder).init_amount, vesting_fraction));
             let recipient_address = get_beneficiary(vesting_contract, shareholder);
             coin::transfer<AptosCoin>(&vesting_signer, recipient_address, amount);
-            let left = simple_map::borrow_mut(&mut vesting_contract.shareholders, &shareholder).left_amount;
-            left = left - amount;
+            let shareholder_amount = simple_map::borrow_mut(&mut vesting_contract.shareholders, &shareholder);
+            shareholder_amount.left_amount = shareholder_amount.left_amount - amount;
         });
     }
 
@@ -734,26 +732,26 @@ module aptos_framework::vesting_without_staking {
         timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*2);
         vest(contract_address);
 
-        // timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*3);
-        // vest(contract_address);
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*3);
+        vest(contract_address);
 
-        // timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*4);
-        // vest(contract_address);
-        //
-        // timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*5);
-        // vest(contract_address);
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*4);
+        vest(contract_address);
 
-        // timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*6);
-        // vest(contract_address);
-        //
-        // timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*7);
-        // vest(contract_address);
-        //
-        // timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*8);
-        // vest(contract_address);
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*5);
+        vest(contract_address);
 
-        // timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*9);
-        // vest(contract_address);
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*6);
+        vest(contract_address);
+
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*7);
+        vest(contract_address);
+
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*8);
+        vest(contract_address);
+
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*9);
+        vest(contract_address);
     }
 
     #[test(aptos_framework = @0x1, admin = @0x123)]
