@@ -592,8 +592,6 @@ module aptos_framework::vesting_without_staking {
     }
 
     /// For emergency use in case the admin needs emergency control of vesting contract account.
-    /// This doesn't give the admin total power as the admin would still need to follow the rules set by
-    /// staking_contract and stake modules.
     public fun get_vesting_account_signer(admin: &signer, contract_address: address): signer acquires VestingContract {
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
         verify_admin(admin, vesting_contract);
