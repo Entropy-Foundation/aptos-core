@@ -282,7 +282,6 @@ module aptos_framework::vesting_without_staking {
     /// Create a vesting contract with a given configurations.
     public fun create_vesting_contract(
         admin: &signer,
-        shareholders_address: &vector<address>,
         buy_ins: SimpleMap<address, Coin<AptosCoin>>,
         vesting_schedule: VestingSchedule,
         withdrawal_address: address,
@@ -295,6 +294,7 @@ module aptos_framework::vesting_without_staking {
             error::invalid_argument(EINVALID_WITHDRAWAL_ADDRESS),
         );
         assert_account_is_registered_for_apt(withdrawal_address);
+        let shareholders_address = &simple_map::keys(&buy_ins);
         assert!(vector::length(shareholders_address) > 0, error::invalid_argument(ENO_SHAREHOLDERS));
         assert!(
             simple_map::length(&buy_ins) == vector::length(shareholders_address),
@@ -724,7 +724,6 @@ module aptos_framework::vesting_without_staking {
 
         create_vesting_contract(
             admin,
-            shareholders,
             buy_ins,
             vesting_schedule,
             withdrawal_address,
