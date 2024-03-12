@@ -91,8 +91,8 @@ module aptos_framework::vesting_without_staking {
     }
 
     struct Amount has store, drop {
-        buy_in: u64,
-        left: u64
+        init_amount: u64,
+        left_amount: u64
     }
 
     struct VestingContract has key {
@@ -203,7 +203,7 @@ module aptos_framework::vesting_without_staking {
     /// Return the remaining grant of shareholder
     public fun remaining_grant(vesting_contract_address: address, shareholder_address: address): u64 acquires VestingContract {
         assert_vesting_contract_exists(vesting_contract_address);
-        simple_map::borrow(&borrow_global<VestingContract>(vesting_contract_address).shareholders, &shareholder_address).left
+        simple_map::borrow(&borrow_global<VestingContract>(vesting_contract_address).shareholders, &shareholder_address).left_amount
     }
 
     #[view]
@@ -327,13 +327,13 @@ module aptos_framework::vesting_without_staking {
         vector::for_each_ref(shareholders_address, |shareholder| {
             let shareholder: address = *shareholder;
             let (_, buy_in) = simple_map::remove(&mut buy_ins, &shareholder);
-            let buy_in_amount = coin::value(&buy_in);
+            let init = coin::value(&buy_in);
             coin::merge(&mut grant, buy_in);
             simple_map::add(&mut shareholders, shareholder, Amount {
-                buy_in: buy_in_amount,
-                left: buy_in_amount,
+                init_amount: init,
+                left_amount: init,
             });
-            grant_amount = grant_amount + buy_in_amount;
+            grant_amount = grant_amount + init;
         });
 
         // If this is the first time this admin account has created a vesting contract, initialize the admin store.
@@ -447,11 +447,11 @@ module aptos_framework::vesting_without_staking {
         // Distribute coins to shareholders.
         vector::for_each_ref(&shareholders_address, |shareholder| {
             let shareholder = *shareholder;
-            let amount = fixed_point32::multiply_u64(simple_map::borrow(&mut vesting_contract.shareholders, &shareholder).buy_in, vesting_fraction);
+            let amount = fixed_point32::multiply_u64(simple_map::borrow(&mut vesting_contract.shareholders, &shareholder).init_amount, vesting_fraction);
             let share_of_coins = coin::extract(&mut coins, amount);
             let recipient_address = get_beneficiary(vesting_contract, shareholder);
             aptos_account::deposit_coins(recipient_address, share_of_coins);
-            let left = simple_map::borrow_mut(&mut vesting_contract.shareholders, &shareholder).left;
+            let left = simple_map::borrow_mut(&mut vesting_contract.shareholders, &shareholder).left_amount;
             left = left - amount;
         });
 
