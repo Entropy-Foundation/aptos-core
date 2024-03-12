@@ -411,9 +411,9 @@ module aptos_framework::vesting_without_staking {
 
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
         let withdrawn_coins = coin::balance<AptosCoin>(contract_address);
-        let admin = get_vesting_account_signer_internal(vesting_contract);
+        let vesting_signer = get_vesting_account_signer_internal(vesting_contract);
         // Withdraw all coins and will deposit them back later if there is remaining
-        let coins = coin::withdraw<AptosCoin>(&admin, withdrawn_coins);
+        let coins = coin::withdraw<AptosCoin>(&vesting_signer, withdrawn_coins);
         let shareholders_address = simple_map::keys(&vesting_contract.shareholders);
 
         // Distribute coins to shareholders.
