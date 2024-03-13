@@ -425,7 +425,8 @@ module aptos_framework::vesting_without_staking {
         verify_admin(admin, vesting_contract);
         let shareholders = &mut vesting_contract.shareholders;
         simple_map::remove(shareholders, &shareholder_address);
-        simple_map::remove(&mut vesting_contract.beneficiaries, &shareholder_address);
+        let shareholder_baneficiary = simple_map::borrow(&vesting_contract.beneficiaries, &shareholder_address);
+        simple_map::remove(&mut vesting_contract.beneficiaries, shareholder_baneficiary);
         assert!(simple_map::contains_key(shareholders, &shareholder_address), 0);
     }
 
