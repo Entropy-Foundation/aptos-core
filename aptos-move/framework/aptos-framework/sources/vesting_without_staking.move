@@ -838,44 +838,38 @@ module aptos_framework::vesting_without_staking {
             1);
     }
 
+    #[test(aptos_framework = @0x1, admin = @0x123, shareholder = @0x234)]
+    public entry fun test_last_vest_should_distribute_remaining_amount(
+        aptos_framework: &signer,
+        admin: &signer,
+        shareholder: &signer,
+    ) acquires AdminStore, VestingContract {
+        let admin_address = signer::address_of(admin);
+        let shareholder_address = signer::address_of(shareholder);
+        setup(aptos_framework, &vector[admin_address, shareholder_address]);
+        let contract_address = setup_vesting_contract_with_schedule(
+            admin,
+            &vector[shareholder_address],
+            &vector[GRANT_AMOUNT],
+            admin_address,
+            // First vest = 3/4 but last vest should only be for the remaining 1/4.
+            &vector[3],
+            4,
+        );
 
-    // #[test(aptos_framework = @0x1, admin = @0x123, shareholder = @0x234)]
-    // public entry fun test_last_vest_should_distribute_remaining_amount(
-    //     aptos_framework: &signer,
-    //     admin: &signer,
-    //     shareholder: &signer,
-    // ) acquires AdminStore, VestingContract {
-    //     let admin_address = signer::address_of(admin);
-    //     let shareholder_address = signer::address_of(shareholder);
-    //     setup(aptos_framework, &vector[admin_address, shareholder_address]);
-    //     let contract_address = setup_vesting_contract_with_schedule(
-    //         admin,
-    //         &vector[shareholder_address],
-    //         &vector[GRANT_AMOUNT],
-    //         admin_address,
-    //         0,
-    //         // First vest = 3/4 but last vest should only be for the remaining 1/4.
-    //         &vector[3],
-    //     );
-    //
-    //     // First vest is 3/48
-    //     timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address) + VESTING_PERIOD);
-    //     vest(contract_address);
-    //     let vested_amount = fraction(GRANT_AMOUNT, 3, 4);
-    //     let remaining_grant = GRANT_AMOUNT - vested_amount;
-    //     stake::assert_stake_pool(stake_pool_address, remaining_grant, 0, 0, vested_amount);
-    //     assert!(remaining_grant(contract_address) == remaining_grant, 0);
-    //
-    //     timestamp::fast_forward_seconds(VESTING_PERIOD);
-    //     // Distribute the previous vested amount.
-    //     distribute(admin, contract_address);
-    //     // Last vest should be the remaining amount (1/4).
-    //     vest(contract_address);
-    //     let vested_amount = remaining_grant;
-    //     remaining_grant = 0;
-    //     stake::assert_stake_pool(stake_pool_address, remaining_grant, 0, 0, vested_amount);
-    //     assert!(remaining_grant(contract_address) == remaining_grant, 0);
-    // }
+        // First vest is 3/4
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address) + VESTING_PERIOD);
+        vest(contract_address);
+        let vested_amount = fraction(GRANT_AMOUNT, 3, 4);
+        let remaining_grant = GRANT_AMOUNT - vested_amount;
+        assert!(remaining_grant(contract_address, shareholder_address) == remaining_grant, 0);
+
+        timestamp::fast_forward_seconds(VESTING_PERIOD);
+        // Last vest should be the remaining amount (1/4).
+        vest(contract_address);
+        remaining_grant = 0;
+        assert!(remaining_grant(contract_address, shareholder_address) == remaining_grant, 0);
+    }
 
     #[test(aptos_framework = @0x1, admin = @0x123, shareholder = @0x234)]
     #[expected_failure(abort_code = 0x30008, location = Self)]
@@ -957,30 +951,26 @@ module aptos_framework::vesting_without_staking {
         set_beneficiary(admin, contract_address, @1, @11);
     }
 
-    // #[test(aptos_framework = @0x1, admin = @0x123)]
-    // public entry fun test_set_beneficiary_should_send_distribution(
-    //     aptos_framework: &signer,
-    //     admin: &signer,
-    // ) acquires AdminStore, VestingContract {
-    //     let admin_address = signer::address_of(admin);
-    //     setup(aptos_framework, &vector[admin_address, @11]);
-    //     let contract_address = setup_vesting_contract(
-    //         admin, &vector[@1], &vector[GRANT_AMOUNT], admin_address, 0);
-    //     set_beneficiary(admin, contract_address, @1, @11);
-    //     assert!(beneficiary(contract_address, @1) == @11, 0);
-    //
-    //     // Fast forward to the end of the first period. vest() should now unlock 3/48 of the tokens.
-    //     timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address) + VESTING_PERIOD);
-    //     vest(contract_address);
-    //
-    //     // Distribution should go to the beneficiary account.
-    //     stake::end_epoch();
-    //     // No rewards as validator never joined the validator set.
-    //     let vested_amount = fraction(GRANT_AMOUNT, 3, 48);
-    //     distribute(admin, contract_address);
-    //     let balance = coin::balance<AptosCoin>(@11);
-    //     assert!(balance == vested_amount, balance);
-    // }
+    #[test(aptos_framework = @0x1, admin = @0x123)]
+    public entry fun test_set_beneficiary_should_send_distribution(
+        aptos_framework: &signer,
+        admin: &signer,
+    ) acquires AdminStore, VestingContract {
+        let admin_address = signer::address_of(admin);
+        setup(aptos_framework, &vector[admin_address, @11]);
+        let contract_address = setup_vesting_contract(
+            admin, &vector[@1], &vector[GRANT_AMOUNT], admin_address);
+        set_beneficiary(admin, contract_address, @1, @11);
+        assert!(beneficiary(contract_address, @1) == @11, 0);
+
+        // Fast forward to the end of the first period. vest() should now unlock 2/10 of the tokens.
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address) + VESTING_PERIOD);
+        vest(contract_address);
+
+        let vested_amount = fraction(GRANT_AMOUNT, 2, 10);
+        let balance = coin::balance<AptosCoin>(@11);
+        assert!(balance == vested_amount, balance);
+    }
 
     #[test(aptos_framework = @0x1, admin = @0x123)]
     public entry fun test_set_management_role(
@@ -998,33 +988,29 @@ module aptos_framework::vesting_without_staking {
         assert!(get_role_holder(contract_address, role) == @13, 0);
     }
 
-    // #[test(aptos_framework = @0x1, admin = @0x123)]
-    // public entry fun test_reset_beneficiary(
-    //     aptos_framework: &signer,
-    //     admin: &signer,
-    // ) acquires AdminStore, VestingAccountManagement, VestingContract {
-    //     let admin_address = signer::address_of(admin);
-    //     setup(aptos_framework, &vector[admin_address, @11, @12]);
-    //     let contract_address = setup_vesting_contract(
-    //         admin, &vector[@11], &vector[GRANT_AMOUNT], admin_address, 0);
-    //     set_beneficiary(admin, contract_address, @11, @12);
-    //     assert!(beneficiary(contract_address, @11) == @12, 0);
-    //
-    //     // Fast forward to the end of the first period. vest() should now unlock 3/48 of the tokens.
-    //     timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address) + VESTING_PERIOD);
-    //     vest(contract_address);
-    //
-    //     // Reset the beneficiary.
-    //     reset_beneficiary(admin, contract_address, @11);
-    //
-    //     // Distribution should go to the original account.
-    //     stake::end_epoch();
-    //     // No rewards as validator never joined the validator set.
-    //     let vested_amount = fraction(GRANT_AMOUNT, 3, 48);
-    //     distribute(admin, contract_address);
-    //     assert!(coin::balance<AptosCoin>(@11) == vested_amount, 0);
-    //     assert!(coin::balance<AptosCoin>(@12) == 0, 1);
-    // }
+    #[test(aptos_framework = @0x1, admin = @0x123)]
+    public entry fun test_reset_beneficiary(
+        aptos_framework: &signer,
+        admin: &signer,
+    ) acquires AdminStore, VestingAccountManagement, VestingContract {
+        let admin_address = signer::address_of(admin);
+        setup(aptos_framework, &vector[admin_address, @11, @12]);
+        let contract_address = setup_vesting_contract(
+            admin, &vector[@11], &vector[GRANT_AMOUNT], admin_address);
+        set_beneficiary(admin, contract_address, @11, @12);
+        assert!(beneficiary(contract_address, @11) == @12, 0);
+
+        // Fast forward to the end of the first period. vest() should now unlock 2/10 of the tokens.
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address));
+        vest(contract_address);
+
+        // Reset the beneficiary.
+        reset_beneficiary(admin, contract_address, @11);
+
+        let vested_amount = fraction(GRANT_AMOUNT, 2, 10);
+        assert!(coin::balance<AptosCoin>(@12) == vested_amount, 0);
+        assert!(coin::balance<AptosCoin>(@11) == 0, 1);
+    }
 
     #[test(aptos_framework = @0x1, admin = @0x123, resetter = @0x234)]
     public entry fun test_reset_beneficiary_with_resetter_role(
