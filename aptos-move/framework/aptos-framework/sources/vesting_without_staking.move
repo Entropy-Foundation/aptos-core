@@ -438,6 +438,16 @@ module aptos_framework::vesting_without_staking {
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
         verify_admin(admin, vesting_contract);
 
+        // Distribute remaining coins to withdrawal address of vesting contract.
+        let vesting_signer = get_vesting_account_signer_internal(vesting_contract);
+        let shareholders_address = simple_map::keys(&vesting_contract.shareholders);
+        vector::for_each_ref(&shareholders_address, |shareholder| {
+            let shareholder = *shareholder;
+            let amount = simple_map::borrow(& vesting_contract.shareholders, &shareholder).left_amount;
+            coin::transfer<AptosCoin>(&vesting_signer, vesting_contract.withdrawal_address, amount);
+            let shareholder_amount = simple_map::borrow_mut(&mut vesting_contract.shareholders, &shareholder);
+            shareholder_amount.left_amount = 0;
+        });
         vesting_contract.state = VESTING_POOL_TERMINATED;
 
         emit_event(
