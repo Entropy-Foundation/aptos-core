@@ -3,6 +3,16 @@ spec aptos_framework::vesting_without_staking {
         pragma verify = false;
     }
 
+    spec Amount {
+        invariant init_amount >= left_amount;
+    }
+
+    spec VestingContract {
+        // let shareholders_address = simple_map::spec
+        // let amount = simple_map::values(shareholders);
+        // invariant
+    }
+
     spec remove_shareholder {
         pragma verify = true;
         let vesting_contract = borrow_global<VestingContract>(contract_address);
