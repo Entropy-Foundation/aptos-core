@@ -53,9 +53,8 @@ module aptos_framework::vesting_without_staking {
     const EPERMISSION_DENIED: u64 = 15;
     /// Zero items were provided to a *_many function.
     const EVEC_EMPTY_FOR_MANY_FUNCTION: u64 = 16;
-
-    /// Maximum number of shareholders a vesting pool can support.
-    const MAXIMUM_SHAREHOLDERS: u64 = 30;
+    /// Balance is the same in the contract and the shareholders' left amount.
+    const EBALANCE_THE_SAME: u64 = 17;
 
     /// Vesting contract states.
     /// Vesting contract is active and distributions can be made.
@@ -383,7 +382,6 @@ module aptos_framework::vesting_without_staking {
             *vector::borrow(schedule, vector::length(schedule) - 1)
         };
 
-
         vesting_schedule.last_vested_period = next_period_to_vest;
 
         emit_event(
@@ -406,7 +404,7 @@ module aptos_framework::vesting_without_staking {
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
         let vesting_signer = get_vesting_account_signer_internal(vesting_contract);
         let shareholders_address = simple_map::keys(&vesting_contract.shareholders);
-
+        let total_amount_left = 0;
         // Distribute coins to shareholders.
         vector::for_each_ref(&shareholders_address, |shareholder| {
             let shareholder = *shareholder;
@@ -415,7 +413,15 @@ module aptos_framework::vesting_without_staking {
             coin::transfer<AptosCoin>(&vesting_signer, recipient_address, amount);
             let shareholder_amount = simple_map::borrow_mut(&mut vesting_contract.shareholders, &shareholder);
             shareholder_amount.left_amount = shareholder_amount.left_amount - amount;
+            total_amount_left = total_amount_left + shareholder_amount.left_amount;
         });
+        let total_balance = coin::balance<AptosCoin>(contract_address);
+        assert!(total_amount_left == total_balance, EBALANCE_THE_SAME);
+        if (total_balance == 0) {
+            let coins = coin::withdraw<AptosCoin>(&vesting_signer, 0);
+            coin::destroy_zero(coins);
+            set_terminate_vesting_contract(contract_address);
+        }
     }
 
     /// Remove the lockup period for the vesting contract. This can only be called by the admin of the vesting contract.
@@ -440,24 +446,12 @@ module aptos_framework::vesting_without_staking {
         verify_admin(admin, vesting_contract);
 
         // Distribute remaining coins to withdrawal address of vesting contract.
-        let vesting_signer = get_vesting_account_signer_internal(vesting_contract);
         let shareholders_address = simple_map::keys(&vesting_contract.shareholders);
         vector::for_each_ref(&shareholders_address, |shareholder| {
-            let shareholder = *shareholder;
-            let amount = simple_map::borrow(& vesting_contract.shareholders, &shareholder).left_amount;
-            coin::transfer<AptosCoin>(&vesting_signer, vesting_contract.withdrawal_address, amount);
-            let shareholder_amount = simple_map::borrow_mut(&mut vesting_contract.shareholders, &shareholder);
+            let shareholder_amount = simple_map::borrow_mut(&mut vesting_contract.shareholders, shareholder);
             shareholder_amount.left_amount = 0;
         });
-        vesting_contract.state = VESTING_POOL_TERMINATED;
-
-        emit_event(
-            &mut vesting_contract.terminate_events,
-            TerminateEvent {
-                admin: vesting_contract.admin,
-                vesting_contract_address: contract_address,
-            },
-        );
+        set_terminate_vesting_contract(contract_address);
     }
 
     /// Withdraw all funds to the preset vesting contract's withdrawal address. This can only be called if the contract
@@ -622,6 +616,18 @@ module aptos_framework::vesting_without_staking {
         }
     }
 
+    fun set_terminate_vesting_contract(contract_address: address) acquires VestingContract {
+        let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
+        vesting_contract.state = VESTING_POOL_TERMINATED;
+        emit_event(
+            &mut vesting_contract.terminate_events,
+            TerminateEvent {
+                admin: vesting_contract.admin,
+                vesting_contract_address: contract_address,
+            },
+        );
+    }
+
 
     #[test_only]
     use aptos_framework::stake;
@@ -724,37 +730,77 @@ module aptos_framework::vesting_without_staking {
             aptos_framework, &vector[admin_address, withdrawal_address, shareholder_1_address, shareholder_2_address]);
         let contract_address = setup_vesting_contract(admin, shareholders, shares, withdrawal_address);
         assert!(vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) == 1, 0);
-
+        let vested_amount_1 = 0;
+        let vested_amount_2 = 0;
         // Because the time is behind the start time, vest will do nothing.
         vest(contract_address);
+        assert!(coin::balance<AptosCoin>(contract_address) == GRANT_AMOUNT, 0);
+        assert!(coin::balance<AptosCoin>(shareholder_1_address) == vested_amount_1, 0);
+        assert!(coin::balance<AptosCoin>(shareholder_2_address) == vested_amount_2, 0);
 
         // Time is now at the start time, vest will unlock the first period, which is 2/10.
         timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address));
         vest(contract_address);
+        vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 2, 10);
+        vested_amount_2 = vested_amount_2 + fraction(shareholder_2_share, 2, 10);
+        assert!(coin::balance<AptosCoin>(shareholder_1_address) == vested_amount_1, 0);
+        assert!(coin::balance<AptosCoin>(shareholder_2_address) == vested_amount_2, 0);
 
         timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*2);
         vest(contract_address);
+        vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 2, 10);
+        vested_amount_2 = vested_amount_2 + fraction(shareholder_2_share, 2, 10);
+        assert!(coin::balance<AptosCoin>(shareholder_1_address) == vested_amount_1, 0);
+        assert!(coin::balance<AptosCoin>(shareholder_2_address) == vested_amount_2, 0);
 
         timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*3);
         vest(contract_address);
+        vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 1, 10);
+        vested_amount_2 = vested_amount_2 + fraction(shareholder_2_share, 1, 10);
+        assert!(coin::balance<AptosCoin>(shareholder_1_address) == vested_amount_1, 0);
+        assert!(coin::balance<AptosCoin>(shareholder_2_address) == vested_amount_2, 0);
 
         timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*4);
         vest(contract_address);
+        vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 1, 10);
+        vested_amount_2 = vested_amount_2 + fraction(shareholder_2_share, 1, 10);
+        assert!(coin::balance<AptosCoin>(shareholder_1_address) == vested_amount_1, 0);
+        assert!(coin::balance<AptosCoin>(shareholder_2_address) == vested_amount_2, 0);
 
         timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*5);
         vest(contract_address);
+        vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 1, 10);
+        vested_amount_2 = vested_amount_2 + fraction(shareholder_2_share, 1, 10);
+        assert!(coin::balance<AptosCoin>(shareholder_1_address) == vested_amount_1, 0);
+        assert!(coin::balance<AptosCoin>(shareholder_2_address) == vested_amount_2, 0);
 
         timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*6);
         vest(contract_address);
+        vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 1, 10);
+        vested_amount_2 = vested_amount_2 + fraction(shareholder_2_share, 1, 10);
+        assert!(coin::balance<AptosCoin>(shareholder_1_address) == vested_amount_1, 0);
+        assert!(coin::balance<AptosCoin>(shareholder_2_address) == vested_amount_2, 0);
 
         timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*7);
         vest(contract_address);
+        vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 1, 10);
+        vested_amount_2 = vested_amount_2 + fraction(shareholder_2_share, 1, 10);
+        assert!(coin::balance<AptosCoin>(shareholder_1_address) == vested_amount_1, 0);
+        assert!(coin::balance<AptosCoin>(shareholder_2_address) == vested_amount_2, 0);
 
         timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*8);
         vest(contract_address);
+        vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 1, 10);
+        vested_amount_2 = vested_amount_2 + fraction(shareholder_2_share, 1, 10);
+        assert!(coin::balance<AptosCoin>(shareholder_1_address) == vested_amount_1, 0);
+        assert!(coin::balance<AptosCoin>(shareholder_2_address) == vested_amount_2, 0);
 
         timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address)*9);
         vest(contract_address);
+        vested_amount_1 = shareholder_1_share;
+        vested_amount_2 = shareholder_2_share;
+        assert!(coin::balance<AptosCoin>(shareholder_1_address) == vested_amount_1, 0);
+        assert!(coin::balance<AptosCoin>(shareholder_2_address) == vested_amount_2, 0);
     }
 
     #[test(aptos_framework = @0x1, admin = @0x123)]
