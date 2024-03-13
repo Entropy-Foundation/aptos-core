@@ -2,6 +2,13 @@ spec aptos_framework::vesting_without_staking {
     spec module {
         pragma verify = false;
     }
+
+    spec remove_shareholder {
+        pragma verify = true;
+        let vesting_contract = borrow_global<VestingContract>(contract_address);
+        ensures !simple_map::spec_contains_key(vesting_contract.shareholders, shareholder_address);
+        ensures !simple_map::spec_contains_key(vesting_contract.beneficiaries, simple_map::spec_get(vesting_contract.beneficiaries, shareholder_address));
+    }
     // spec terminate_vesting_contract {
     //     pragma verify = true;
     //     // include AdminAborts;
@@ -37,5 +44,11 @@ spec aptos_framework::vesting_without_staking {
         contract_address: address;
         let vesting_contract = borrow_global<VestingContract>(contract_address);
         aborts_if !(vesting_contract.state == VESTING_POOL_ACTIVE);
+    }
+
+    spec get_beneficiary {
+        pragma verify = true;
+        ensures simple_map::spec_contains_key(contract.beneficiaries, shareholder) ==> result == simple_map::spec_get(contract.beneficiaries, shareholder);
+        ensures !simple_map::spec_contains_key(contract.beneficiaries, shareholder) ==> result == shareholder;
     }
 }
