@@ -320,16 +320,14 @@ module aptos_framework::vesting_without_staking {
         let contract_signer_address = signer::address_of(&contract_signer);
         coin::deposit(contract_signer_address, grant);
 
-        // Add the newly created vesting contract's address to the admin store.
-        let contract_address = signer::address_of(&contract_signer);
         let admin_store = borrow_global_mut<AdminStore>(admin_address);
-        vector::push_back(&mut admin_store.vesting_contracts, contract_address);
+        vector::push_back(&mut admin_store.vesting_contracts, contract_signer_address);
         emit_event(
             &mut admin_store.create_events,
             CreateVestingContractEvent {
                 withdrawal_address,
                 grant_amount,
-                vesting_contract_address: contract_address,
+                vesting_contract_address: contract_signer_address,
             },
         );
 
@@ -348,7 +346,7 @@ module aptos_framework::vesting_without_staking {
         });
 
         vector::destroy_empty(buy_ins);
-        contract_address
+        contract_signer_address
     }
 
     /// Unlock any vested portion of the grant.
