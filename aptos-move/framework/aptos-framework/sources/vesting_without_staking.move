@@ -415,8 +415,6 @@ module aptos_framework::vesting_without_staking {
         let total_balance = coin::balance<AptosCoin>(contract_address);
         assert!(total_amount_left == total_balance, EBALANCE_MISMATCH);
         if (total_balance == 0) {
-            let coins = coin::withdraw<AptosCoin>(&vesting_signer, 0);
-            coin::destroy_zero(coins);
             set_terminate_vesting_contract(contract_address);
         }
     }
