@@ -290,9 +290,10 @@ module aptos_framework::vesting_without_staking {
         let shareholders = simple_map::create<address, VestingRecord>();
         let grant = coin::zero<AptosCoin>();
         let grant_amount = 0;
-        vector::for_each_ref(shareholders_address, |shareholder| {
-            let shareholder: address = *shareholder;
-            let (_, buy_in) = simple_map::remove(&mut buy_ins, &shareholder);
+        let (shareholders_address, buy_ins) = simple_map::to_vec_pair(buy_ins);
+        while (vector::length(&shareholders_address) > 0) {
+            let shareholder = vector::pop_back(&mut shareholders_address);
+            let buy_in = vector::pop_back(&mut buy_ins);
             let init = coin::value(&buy_in);
             coin::merge(&mut grant, buy_in);
             simple_map::add(&mut shareholders, shareholder, VestingRecord {
@@ -300,7 +301,7 @@ module aptos_framework::vesting_without_staking {
                 left_amount: init,
             });
             grant_amount = grant_amount + init;
-        });
+        };
         assert!(grant_amount > 0, error::invalid_argument(EZERO_GRANT));
 
         // If this is the first time this admin account has created a vesting contract, initialize the admin store.
@@ -346,7 +347,7 @@ module aptos_framework::vesting_without_staking {
             admin_withdraw_events: new_event_handle<AdminWithdrawEvent>(&contract_signer),
         });
 
-        simple_map::destroy_empty(buy_ins);
+        vector::destroy_empty(buy_ins);
         contract_address
     }
 
