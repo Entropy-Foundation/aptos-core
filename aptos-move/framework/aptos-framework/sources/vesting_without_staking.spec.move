@@ -13,6 +13,14 @@ spec aptos_framework::vesting_without_staking {
         // invariant
     }
 
+    spec distribute {
+        pragma verify = true;
+
+        let post vesting_contract_post = borrow_global<VestingContract>(contract_address);
+        let post total_balance = coin::balance<AptosCoin>(contract_address);
+        ensures total_balance == 0 ==> vesting_contract_post.state == VESTING_POOL_TERMINATED; //Proved
+    }
+
     spec remove_shareholder {
         pragma verify = true;
         let vesting_contract = borrow_global<VestingContract>(contract_address);

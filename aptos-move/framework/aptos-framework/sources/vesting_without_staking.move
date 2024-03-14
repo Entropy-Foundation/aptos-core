@@ -428,6 +428,17 @@ module aptos_framework::vesting_without_staking {
     public entry fun remove_shareholder(admin: &signer, contract_address: address, shareholder_address: address) acquires VestingContract {
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
         verify_admin(admin, vesting_contract);
+        let vesting_signer = get_vesting_account_signer_internal(vesting_contract);
+        let shareholder_amount = simple_map::borrow(&vesting_contract.shareholders, &shareholder_address).left_amount;
+        coin::transfer<AptosCoin>(&vesting_signer, vesting_contract.withdrawal_address, shareholder_amount);
+        emit_event(
+            &mut vesting_contract.admin_withdraw_events,
+            AdminWithdrawEvent {
+                admin: vesting_contract.admin,
+                vesting_contract_address: contract_address,
+                amount: shareholder_amount,
+            },
+        );
         let shareholders = &mut vesting_contract.shareholders;
         simple_map::remove(shareholders, &shareholder_address);
         let shareholder_baneficiary = *simple_map::borrow(&vesting_contract.beneficiaries, &shareholder_address);
