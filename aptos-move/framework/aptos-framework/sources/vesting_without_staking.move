@@ -14,7 +14,7 @@ module aptos_framework::vesting_without_staking {
     use aptos_framework::account::{Self, SignerCapability, new_event_handle};
     use aptos_framework::aptos_account::{assert_account_is_registered_for_apt};
     use aptos_framework::aptos_coin::AptosCoin;
-    use aptos_framework::coin::{Self, Coin, MintCapability};
+    use aptos_framework::coin::{Self, Coin};
     use aptos_framework::event::{EventHandle, emit_event};
     use aptos_framework::system_addresses;
     use aptos_framework::timestamp;
@@ -64,11 +64,6 @@ module aptos_framework::vesting_without_staking {
 
     /// Roles that can manage certain aspects of the vesting account beyond the main admin.
     const ROLE_BENEFICIARY_RESETTER: vector<u8> = b"ROLE_BENEFICIARY_RESETTER";
-
-    /// AptosCoin capabilities, set during genesis and stored in @CoreResource account.
-    struct AptosCoinCapabilities has key {
-        mint_cap: MintCapability<AptosCoin>,
-    }
 
     struct VestingSchedule has copy, drop, store {
         // The vesting schedule as a list of fractions that vest for each period. The last number is repeated until the
