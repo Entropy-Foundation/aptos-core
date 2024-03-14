@@ -87,7 +87,7 @@ module aptos_framework::vesting_without_staking {
         last_vested_period: u64,
     }
 
-    struct Amount has store, drop {
+    struct VestingRecord has store, drop {
         init_amount: u64,
         left_amount: u64
     }
@@ -96,7 +96,7 @@ module aptos_framework::vesting_without_staking {
         state: u64,
         admin: address,
         beneficiaries: SimpleMap<address, address>,
-        shareholders: SimpleMap<address, Amount>,
+        shareholders: SimpleMap<address, VestingRecord>,
         vesting_schedule: VestingSchedule,
         // Withdrawal address where all funds would be released back to if the admin ends the vesting for a specific
         // account or terminates the entire vesting contract.
@@ -241,14 +241,13 @@ module aptos_framework::vesting_without_staking {
         };
         let vesting_contract = borrow_global<VestingContract>(vesting_contract_address);
         let result = @0x0;
-        vector::any(shareholders, |shareholder| {
-            if (shareholder_or_beneficiary == get_beneficiary(vesting_contract, *shareholder)) {
-                result = *shareholder;
-                true
-            } else {
-                false
-            }
-        });
+        let (sh_vec,ben_vec) = simple_map::to_vec_pair(&beneficiaries);
+        let (found,found_index) = vector::index_of(&ben_vec,shareholder_or_beneficiary);
+        if(found)
+        {
+            result = *vector::borrow(&sh_vec,i); 
+        }
+        
 
         result
     }
@@ -416,7 +415,7 @@ module aptos_framework::vesting_without_staking {
             total_amount_left = total_amount_left + shareholder_amount.left_amount;
         });
         let total_balance = coin::balance<AptosCoin>(contract_address);
-        assert!(total_amount_left == total_balance, EBALANCE_THE_SAME);
+        assert!(total_amount_left == total_balance, EBALANCE_MISMATCH);
         if (total_balance == 0) {
             let coins = coin::withdraw<AptosCoin>(&vesting_signer, 0);
             coin::destroy_zero(coins);
