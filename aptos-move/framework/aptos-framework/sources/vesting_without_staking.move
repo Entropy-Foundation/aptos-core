@@ -87,7 +87,7 @@ module aptos_framework::vesting_without_staking {
         last_vested_period: u64,
     }
 
-    struct VestingRecord has store, drop {
+    struct VestingRecord has copy, store, drop {
         init_amount: u64,
         left_amount: u64
     }
@@ -399,18 +399,19 @@ module aptos_framework::vesting_without_staking {
 
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
         let vesting_signer = get_vesting_account_signer_internal(vesting_contract);
-        let shareholders_address = simple_map::keys(&vesting_contract.shareholders);
         let total_amount_left = 0;
         // Distribute coins to shareholders.
-        vector::for_each_ref(&shareholders_address, |shareholder| {
-            let shareholder = *shareholder;
-            let amount = min(simple_map::borrow(& vesting_contract.shareholders, &shareholder).left_amount,fixed_point32::multiply_u64(simple_map::borrow(& vesting_contract.shareholders, &shareholder).init_amount, vesting_fraction));
+        let (shareholders_address, shareholders) = simple_map::to_vec_pair(vesting_contract.shareholders);
+        while (vector::length(&shareholders_address) > 0) {
+            let shareholder = vector::pop_back(&mut shareholders_address);
+            let shareholder_record = vector::pop_back(&mut shareholders);
+            let amount = min(shareholder_record.left_amount, fixed_point32::multiply_u64(shareholder_record.init_amount, vesting_fraction));
             let recipient_address = get_beneficiary(vesting_contract, shareholder);
             coin::transfer<AptosCoin>(&vesting_signer, recipient_address, amount);
             let shareholder_amount = simple_map::borrow_mut(&mut vesting_contract.shareholders, &shareholder);
             shareholder_amount.left_amount = shareholder_amount.left_amount - amount;
             total_amount_left = total_amount_left + shareholder_amount.left_amount;
-        });
+        };
         let total_balance = coin::balance<AptosCoin>(contract_address);
         assert!(total_amount_left == total_balance, EBALANCE_MISMATCH);
         if (total_balance == 0) {
