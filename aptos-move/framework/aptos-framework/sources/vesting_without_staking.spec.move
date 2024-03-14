@@ -3,7 +3,7 @@ spec aptos_framework::vesting_without_staking {
         pragma verify = false;
     }
 
-    spec Amount {
+    spec VestingRecord {
         invariant init_amount >= left_amount;
     }
 

@@ -54,7 +54,7 @@ module aptos_framework::vesting_without_staking {
     /// Zero items were provided to a *_many function.
     const EVEC_EMPTY_FOR_MANY_FUNCTION: u64 = 16;
     /// Balance is the same in the contract and the shareholders' left amount.
-    const EBALANCE_THE_SAME: u64 = 17;
+    const EBALANCE_MISMATCH: u64 = 17;
 
     /// Vesting contract states.
     /// Vesting contract is active and distributions can be made.
@@ -241,14 +241,12 @@ module aptos_framework::vesting_without_staking {
         };
         let vesting_contract = borrow_global<VestingContract>(vesting_contract_address);
         let result = @0x0;
-        let (sh_vec,ben_vec) = simple_map::to_vec_pair(&beneficiaries);
-        let (found,found_index) = vector::index_of(&ben_vec,shareholder_or_beneficiary);
+        let (sh_vec,ben_vec) = simple_map::to_vec_pair(vesting_contract.beneficiaries);
+        let (found,found_index) = vector::index_of(&ben_vec,&shareholder_or_beneficiary);
         if(found)
         {
-            result = *vector::borrow(&sh_vec,i); 
-        }
-        
-
+            result = *vector::borrow(&sh_vec,found_index);
+        };
         result
     }
 
@@ -289,7 +287,7 @@ module aptos_framework::vesting_without_staking {
         let shareholders_address = &simple_map::keys(&buy_ins);
         assert!(vector::length(shareholders_address) > 0, error::invalid_argument(ENO_SHAREHOLDERS));
 
-        let shareholders = simple_map::create<address, Amount>();
+        let shareholders = simple_map::create<address, VestingRecord>();
         let grant = coin::zero<AptosCoin>();
         let grant_amount = 0;
         vector::for_each_ref(shareholders_address, |shareholder| {
@@ -297,7 +295,7 @@ module aptos_framework::vesting_without_staking {
             let (_, buy_in) = simple_map::remove(&mut buy_ins, &shareholder);
             let init = coin::value(&buy_in);
             coin::merge(&mut grant, buy_in);
-            simple_map::add(&mut shareholders, shareholder, Amount {
+            simple_map::add(&mut shareholders, shareholder, VestingRecord {
                 init_amount: init,
                 left_amount: init,
             });
