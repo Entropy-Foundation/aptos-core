@@ -109,6 +109,8 @@ module aptos_framework::vesting_without_staking {
         vest_events: EventHandle<VestEvent>,
         terminate_events: EventHandle<TerminateEvent>,
         admin_withdraw_events: EventHandle<AdminWithdrawEvent>,
+        shareholder_removed_events: EventHandle<ShareHolderRemovedEvent>,
+
     }
 
     struct VestingAccountManagement has key {
@@ -151,6 +153,12 @@ module aptos_framework::vesting_without_staking {
     struct AdminWithdrawEvent has drop, store {
         admin: address,
         vesting_contract_address: address,
+        amount: u64,
+    }
+
+    struct ShareHolderRemovedEvent has drop, store {
+        shareholder: address,
+        beneficiary: address,
         amount: u64,
     }
 
@@ -343,6 +351,7 @@ module aptos_framework::vesting_without_staking {
             vest_events: new_event_handle<VestEvent>(&contract_signer),
             terminate_events: new_event_handle<TerminateEvent>(&contract_signer),
             admin_withdraw_events: new_event_handle<AdminWithdrawEvent>(&contract_signer),
+            shareholder_removed_events: new_event_handle<ShareHolderRemovedEvent>(&contract_signer),
         });
 
         vector::destroy_empty(buy_ins);
@@ -429,6 +438,16 @@ module aptos_framework::vesting_without_staking {
         let shareholder_baneficiary = *simple_map::borrow(&vesting_contract.beneficiaries, &shareholder_address);
         simple_map::remove(&mut vesting_contract.beneficiaries, &shareholder_baneficiary);
         assert!(simple_map::contains_key(shareholders, &shareholder_address), 0);
+
+        // Emit ShareHolderRemovedEvent
+        emit_event(
+            &mut vesting_contract.shareholder_removed_events,
+            ShareHolderRemovedEvent {
+                shareholder: shareholder_address,
+                beneficiary: shareholder_baneficiary,
+                amount: simple_map::borrow(shareholders, &shareholder_address).left_amount,
+            },
+        );
     }
 
     /// Terminate the vesting contract and send all funds back to the withdrawal address.
