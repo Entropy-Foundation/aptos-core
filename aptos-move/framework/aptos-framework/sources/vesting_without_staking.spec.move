@@ -112,10 +112,6 @@ spec aptos_framework::vesting_without_staking {
 
     spec set_beneficiary {
         pragma verify = true;
-    }
-
-    spec set_beneficiary {
-        pragma verify = true;
         pragma aborts_if_is_partial = true;
         let vesting_contract_pre = borrow_global<VestingContract>(contract_address);
         let post vesting_contract_post = borrow_global<VestingContract>(contract_address);
