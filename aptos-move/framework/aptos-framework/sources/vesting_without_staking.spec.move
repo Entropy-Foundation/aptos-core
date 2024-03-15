@@ -188,5 +188,8 @@ spec aptos_framework::vesting_without_staking {
 
     spec set_terminate_vesting_contract {
         pragma verify = true;
+        aborts_if !exists<VestingContract>(contract_address);
+        let post vesting_contract_post = borrow_global_mut<VestingContract>(contract_address);
+        ensures vesting_contract_post.state == VESTING_POOL_TERMINATED;
     }
 }
