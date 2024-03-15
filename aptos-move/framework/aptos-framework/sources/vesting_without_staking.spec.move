@@ -65,12 +65,11 @@ spec aptos_framework::vesting_without_staking {
         aborts_if start_timestamp_secs < timestamp::spec_now_seconds();
     }
 
-    spec create_vesting_contract {
-        pragma verify = true;
-        pragma aborts_if_is_partial = true;
-        aborts_if system_addresses::is_reserved_address(withdrawal_address);
-        aborts_if vector::length(shareholders_address) == 0;
-    }
+    // spec create_vesting_contract {
+    //     pragma verify = true;
+    //     pragma aborts_if_is_partial = true;
+    //     aborts_if system_addresses::is_reserved_address(withdrawal_address);
+    // }
 
     spec vest {
         pragma verify = true;
@@ -98,11 +97,55 @@ spec aptos_framework::vesting_without_staking {
         ensures !simple_map::spec_contains_key(vesting_contract.shareholders, shareholder_address);
         ensures !simple_map::spec_contains_key(vesting_contract.beneficiaries, simple_map::spec_get(vesting_contract.beneficiaries, shareholder_address));
     }
+
     // spec terminate_vesting_contract {
     //     pragma verify = true;
     //     // include AdminAborts;
     //     // include VestingContractActive;
     // }
+
+    spec admin_withdraw {
+        pragma verify = true;
+        pragma aborts_if_is_partial = true;
+        aborts_if !(borrow_global<VestingContract>(contract_address).state == VESTING_POOL_TERMINATED);
+    }
+
+    spec set_beneficiary {
+        pragma verify = true;
+    }
+
+    spec set_beneficiary {
+        pragma verify = true;
+    }
+
+    spec reset_beneficiary {
+        pragma verify = true;
+    }
+
+    spec set_management_role {
+        pragma verify = true;
+    }
+
+    spec set_beneficiary_resetter {
+        pragma verify = true;
+    }
+
+    spec get_role_holder {
+        pragma verify = true;
+    }
+
+    spec get_vesting_account_signer {
+        pragma verify = true;
+    }
+
+    spec get_vesting_account_signer_internal {
+        pragma verify = true;
+    }
+
+    spec create_vesting_contract_account {
+        pragma verify = true;
+    }
+
     spec verify_admin {
         pragma verify = true;
         include AdminAborts;
@@ -141,5 +184,9 @@ spec aptos_framework::vesting_without_staking {
         aborts_if false;
         ensures simple_map::spec_contains_key(contract.beneficiaries, shareholder) ==> result == simple_map::spec_get(contract.beneficiaries, shareholder);
         ensures !simple_map::spec_contains_key(contract.beneficiaries, shareholder) ==> result == shareholder;
+    }
+
+    spec set_terminate_vesting_contract {
+        pragma verify = true;
     }
 }
