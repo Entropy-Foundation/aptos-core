@@ -13,16 +13,50 @@ spec aptos_framework::vesting_without_staking {
         // invariant
     }
 
+    spec vesting_start_secs {
+        pragma verify = true;
+        include VestingContractExists{contract_address: vesting_contract_address};
+    }
+
+    spec period_duration_secs {
+        pragma verify = true;
+        include VestingContractExists{contract_address: vesting_contract_address};
+    }
+
+    spec remaining_grant {
+        pragma verify = true;
+        include VestingContractExists{contract_address: vesting_contract_address};
+        aborts_if !simple_map::spec_contains_key(borrow_global<VestingContract>(vesting_contract_address).shareholders, shareholder_address);
+        ensures result == simple_map::spec_get(borrow_global<VestingContract>(vesting_contract_address).shareholders, shareholder_address).left_amount;
+    }
+
+    spec beneficiary {
+        pragma verify = true;
+        include VestingContractExists{contract_address: vesting_contract_address};
+    }
+
+    spec vest {
+        pragma verify = true;
+        pragma aborts_if_is_partial = true;
+        include VestingContractActive;
+        let vesting_contract_pre = borrow_global<VestingContract>(contract_address);
+        let post vesting_contract_post = borrow_global<VestingContract>(contract_address);
+        // ensures vesting_contract.vesting_schedule.start_timestamp_secs <= time::current_timestamp() ==> vesting_contract_pre == vesting_contract_post;
+    }
+
     spec distribute {
         pragma verify = true;
-
+        pragma aborts_if_is_partial = true;
+        include VestingContractActive;
         let post vesting_contract_post = borrow_global<VestingContract>(contract_address);
         let post total_balance = coin::balance<AptosCoin>(contract_address);
-        ensures total_balance == 0 ==> vesting_contract_post.state == VESTING_POOL_TERMINATED; //Proved
+        ensures total_balance == 0 ==> vesting_contract_post.state == VESTING_POOL_TERMINATED;
     }
 
     spec remove_shareholder {
         pragma verify = true;
+        pragma aborts_if_is_partial = true;
+        include AdminAborts;
         let vesting_contract = borrow_global<VestingContract>(contract_address);
         ensures !simple_map::spec_contains_key(vesting_contract.shareholders, shareholder_address);
         ensures !simple_map::spec_contains_key(vesting_contract.beneficiaries, simple_map::spec_get(vesting_contract.beneficiaries, shareholder_address));
@@ -66,6 +100,8 @@ spec aptos_framework::vesting_without_staking {
 
     spec get_beneficiary {
         pragma verify = true;
+        pragma opaque;
+        aborts_if false;
         ensures simple_map::spec_contains_key(contract.beneficiaries, shareholder) ==> result == simple_map::spec_get(contract.beneficiaries, shareholder);
         ensures !simple_map::spec_contains_key(contract.beneficiaries, shareholder) ==> result == shareholder;
     }
