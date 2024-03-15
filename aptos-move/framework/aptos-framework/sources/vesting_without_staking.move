@@ -55,6 +55,8 @@ module aptos_framework::vesting_without_staking {
     const EVEC_EMPTY_FOR_MANY_FUNCTION: u64 = 16;
     /// Balance is the same in the contract and the shareholders' left amount.
     const EBALANCE_MISMATCH: u64 = 17;
+    /// Shareholder address is not exist
+    const ESHAREHOLDER_NOT_EXIST: u64 = 18;
 
     /// Vesting contract states.
     /// Vesting contract is active and distributions can be made.
@@ -439,11 +441,16 @@ module aptos_framework::vesting_without_staking {
                 amount: shareholder_amount,
             },
         );
+
+        // remove `shareholder_address`` from `vesting_contract.shareholders`
         let shareholders = &mut vesting_contract.shareholders;
-        simple_map::remove(shareholders, &shareholder_address);
-        let shareholder_baneficiary = *simple_map::borrow(&vesting_contract.beneficiaries, &shareholder_address);
-        simple_map::remove(&mut vesting_contract.beneficiaries, &shareholder_baneficiary);
-        assert!(simple_map::contains_key(shareholders, &shareholder_address), 0);
+        assert!(simple_map::contains_key(shareholders, &shareholder_address), error::not_found(ESHAREHOLDER_NOT_EXIST));
+        let (_, shareholders_vesting) = simple_map::remove(shareholders, &shareholder_address);
+
+        // remove `shareholder_address` from `vesting_contract.beneficiaries`
+        let shareholder_beneficiaries = &mut vesting_contract.beneficiaries;
+        assert!(simple_map::contains_key(shareholder_beneficiaries, &shareholder_address), error::not_found((ESHAREHOLDER_NOT_EXIST)));
+        let (_, shareholder_baneficiary) = simple_map::remove(shareholder_beneficiaries, &shareholder_address);
 
         // Emit ShareHolderRemovedEvent
         emit_event(
@@ -451,7 +458,7 @@ module aptos_framework::vesting_without_staking {
             ShareHolderRemovedEvent {
                 shareholder: shareholder_address,
                 beneficiary: shareholder_baneficiary,
-                amount: simple_map::borrow(shareholders, &shareholder_address).left_amount,
+                amount: shareholders_vesting.left_amount,
             },
         );
     }
@@ -1118,7 +1125,7 @@ module aptos_framework::vesting_without_staking {
         reset_beneficiary(random, contract_address, @11);
     }
 
-    #[test(aptos_framework = @0x1, admin = @0x123, resetter = @0x234, random = @0x345)]
+    #[test(aptos_framework = @0x1, admin = @0x123)]
     public entry fun test_shareholder(
         aptos_framework: &signer,
         admin: &signer,
@@ -1142,6 +1149,11 @@ module aptos_framework::vesting_without_staking {
 
         // Confirm that it returns 0x0 when the address is not in the map.
         assert!(shareholder(contract_address, @33) == @0x0, 0);
+
+        remove_shareholder(admin, contract_address, @11);
+
+        // Confirm that shareholder address does't exist in the map
+        assert!(shareholder(contract_address, @11) == @0x0, 0);
     }
 
 
