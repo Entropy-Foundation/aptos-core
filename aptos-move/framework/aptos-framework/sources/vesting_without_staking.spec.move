@@ -42,6 +42,12 @@ spec aptos_framework::vesting_without_staking {
         ensures exists<AdminStore>(admin) ==> result == borrow_global<AdminStore>(admin).vesting_contracts;
     }
 
+    spec vesting_schedule {
+        pragma verify = true;
+        include VestingContractExists{contract_address: vesting_contract_address};
+        ensures result == borrow_global<VestingContract>(vesting_contract_address).vesting_schedule;
+    }
+
     spec vest {
         pragma verify = true;
         pragma aborts_if_is_partial = true;
