@@ -261,7 +261,11 @@ module aptos_framework::vesting_without_staking {
         start_timestamp_secs: u64,
         period_duration: u64,
     ): VestingSchedule {
-        assert!(vector::length(&schedule) > 0, error::invalid_argument(EEMPTY_VESTING_SCHEDULE));
+        let schedule_len =  vector::length(&schedule);
+        assert!(schedule_len > 0, error::invalid_argument(EEMPTY_VESTING_SCHEDULE));
+        assert!(fixed_point32::get_raw_value(*vector::borrow(&schedule, 0)) != 0, error::invalid_argument(EEMPTY_VESTING_SCHEDULE));
+        assert!(fixed_point32::get_raw_value(*vector::borrow(&schedule, schedule_len - 1)) != 0, error::invalid_argument(EEMPTY_VESTING_SCHEDULE));
+
         assert!(period_duration > 0, error::invalid_argument(EZERO_VESTING_SCHEDULE_PERIOD));
         assert!(
             start_timestamp_secs >= timestamp::now_seconds(),
@@ -892,6 +896,20 @@ module aptos_framework::vesting_without_staking {
     public entry fun test_create_empty_vesting_schedule_should_fail(aptos_framework: &signer) {
         setup(aptos_framework, &vector[]);
         create_vesting_schedule(vector[], 1, 1);
+    }
+
+    #[test(aptos_framework = @0x1)]
+    #[expected_failure(abort_code = 0x10002, location = Self)]
+    public entry fun test_create_first_element_zero_vesting_schedule_should_fail(aptos_framework: &signer) {
+        setup(aptos_framework, &vector[]);
+        create_vesting_schedule(vector[fixed_point32::create_from_raw_value(0), fixed_point32::create_from_raw_value(8)], 1, 1);
+    }
+
+    #[test(aptos_framework = @0x1)]
+    #[expected_failure(abort_code = 0x10002, location = Self)]
+    public entry fun test_create_last_element_zero_vesting_schedule_should_fail(aptos_framework: &signer) {
+        setup(aptos_framework, &vector[]);
+        create_vesting_schedule(vector[ fixed_point32::create_from_raw_value(8), fixed_point32::create_from_raw_value(0)], 1, 1);
     }
 
     #[test(aptos_framework = @0x1)]
