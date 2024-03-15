@@ -136,6 +136,9 @@ spec aptos_framework::vesting_without_staking {
 
     spec get_vesting_account_signer {
         pragma verify = true;
+        let vesting_contract = borrow_global<VestingContract>(contract_address);
+        include AdminAborts;
+        aborts_if !exists<VestingContract>(contract_address);
     }
 
     spec get_vesting_account_signer_internal {
