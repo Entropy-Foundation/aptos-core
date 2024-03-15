@@ -116,6 +116,11 @@ spec aptos_framework::vesting_without_staking {
 
     spec set_beneficiary {
         pragma verify = true;
+        pragma aborts_if_is_partial = true;
+        let vesting_contract_pre = borrow_global<VestingContract>(contract_address);
+        let post vesting_contract_post = borrow_global<VestingContract>(contract_address);
+        include AdminAborts{vesting_contract: vesting_contract_pre};
+        ensures simple_map::spec_get(vesting_contract_post.beneficiaries, shareholder) == new_beneficiary;
     }
 
     spec reset_beneficiary {
