@@ -140,10 +140,15 @@ spec aptos_framework::vesting_without_staking {
 
     spec get_vesting_account_signer_internal {
         pragma verify = true;
+        aborts_if false;
+        let address = vesting_contract.signer_cap.account;
+        ensures signer::address_of(result) == address;
     }
 
     spec create_vesting_contract_account {
         pragma verify = true;
+        pragma aborts_if_is_partial = true;
+        aborts_if !exists<AdminStore>(signer::address_of(admin));
     }
 
     spec verify_admin {
