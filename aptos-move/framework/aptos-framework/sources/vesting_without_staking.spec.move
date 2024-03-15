@@ -48,6 +48,23 @@ spec aptos_framework::vesting_without_staking {
         ensures result == borrow_global<VestingContract>(vesting_contract_address).vesting_schedule;
     }
 
+    // spec shareholders {
+    //     pragma verify = true;
+    //     include VestingContractActive{contract_address: vesting_contract_address};
+    // }
+
+    // spec shareholder {
+    //     pragma verify = true;
+    // }
+
+    spec create_vesting_schedule {
+        pragma verify = true;
+        pragma aborts_if_is_partial = true;
+        aborts_if vector::length(schedule) == 0;
+        aborts_if period_duration <= 0;
+        aborts_if start_timestamp_secs < timestamp::spec_now_seconds();
+    }
+
     spec vest {
         pragma verify = true;
         pragma aborts_if_is_partial = true;
