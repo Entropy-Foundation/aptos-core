@@ -65,6 +65,13 @@ spec aptos_framework::vesting_without_staking {
         aborts_if start_timestamp_secs < timestamp::spec_now_seconds();
     }
 
+    spec create_vesting_contract {
+        pragma verify = true;
+        pragma aborts_if_is_partial = true;
+        aborts_if system_addresses::is_reserved_address(withdrawal_address);
+        aborts_if vector::length(shareholders_address) == 0;
+    }
+
     spec vest {
         pragma verify = true;
         pragma aborts_if_is_partial = true;
