@@ -77,8 +77,15 @@ spec aptos_framework::vesting_without_staking {
         include VestingContractActive;
         let vesting_contract_pre = borrow_global<VestingContract>(contract_address);
         let post vesting_contract_post = borrow_global<VestingContract>(contract_address);
+        let vesting_schedule = vesting_contract_pre.vesting_schedule;
+        let last_vested_period = vesting_schedule.last_vested_period;
+        let next_period_to_vest = last_vested_period + 1;
+        let last_completed_period =
+            (timestamp::spec_now_seconds() - vesting_schedule.start_timestamp_secs) / vesting_schedule.period_duration;
         // TODO : whenever it is changed, time is already passed
-        // ensures vesting_contract.vesting_schedule.start_timestamp_secs <= time::current_timestamp() ==> vesting_contract_pre == vesting_contract_post;
+        ensures vesting_contract_pre.vesting_schedule.start_timestamp_secs > timestamp::spec_now_seconds() ==> vesting_contract_pre == vesting_contract_post;
+        ensures last_completed_period < next_period_to_vest ==> vesting_contract_pre == vesting_contract_post;
+        // ensures last_completed_period > next_period_to_vest ==> TRACE(vesting_contract_post.vesting_schedule.last_vested_period) == TRACE(next_period_to_vest);
     }
 
     spec distribute {
@@ -100,7 +107,7 @@ spec aptos_framework::vesting_without_staking {
         let post balance_post = coin::balance<AptosCoin>(vesting_contract_post.withdrawal_address);
         let beneficiary = simple_map::spec_get(vesting_contract.beneficiaries, shareholder_address);
         let shareholder_amount = simple_map::spec_get(vesting_contract.shareholders, shareholder_address).left_amount;
-        ensures vesting_contract_post.withdrawal_address != vesting_contract.signer_cap.account ==> TRACE(balance_post) == TRACE(balance_pre) + shareholder_amount;
+        ensures vesting_contract_post.withdrawal_address != vesting_contract.signer_cap.account ==> balance_post == balance_pre + shareholder_amount;
         ensures !simple_map::spec_contains_key(vesting_contract_post.shareholders, shareholder_address);
         ensures !simple_map::spec_contains_key(vesting_contract_post.beneficiaries, beneficiary);
     }
