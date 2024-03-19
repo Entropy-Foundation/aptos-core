@@ -263,7 +263,9 @@ module aptos_framework::vesting_without_staking {
     ): VestingSchedule {
         let schedule_len =  vector::length(&schedule);
         assert!(schedule_len > 0, error::invalid_argument(EEMPTY_VESTING_SCHEDULE));
+//If the first vesting fraction is zero, we can replace it with nonzero by increasing start time
         assert!(fixed_point32::get_raw_value(*vector::borrow(&schedule, 0)) != 0, error::invalid_argument(EEMPTY_VESTING_SCHEDULE));
+// last vesting fraction must be non zero to ensure that no amount remains unvested forever.
         assert!(fixed_point32::get_raw_value(*vector::borrow(&schedule, schedule_len - 1)) != 0, error::invalid_argument(EEMPTY_VESTING_SCHEDULE));
 
         assert!(period_duration > 0, error::invalid_argument(EZERO_VESTING_SCHEDULE_PERIOD));
