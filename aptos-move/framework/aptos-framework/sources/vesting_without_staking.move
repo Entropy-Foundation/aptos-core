@@ -743,6 +743,53 @@ module aptos_framework::vesting_without_staking {
     }
 
     #[test(aptos_framework = @0x1, admin = @0x123, shareholder_1 = @0x234, shareholder_2 = @0x345, withdrawal = @111)]
+    #[expected_failure(abort_code = 0x30008, location = Self)]
+    public entry fun test_termination_after_successful_vesting(
+        aptos_framework: &signer,
+        admin: &signer,
+        shareholder_1: &signer,
+        shareholder_2: &signer,
+        withdrawal: &signer,
+    ) acquires AdminStore, VestingContract {
+        let admin_address = signer::address_of(admin);
+        let withdrawal_address = signer::address_of(withdrawal);
+        let shareholder_1_address = signer::address_of(shareholder_1);
+        let shareholder_2_address = signer::address_of(shareholder_2);
+        let shareholders = &vector[shareholder_1_address, shareholder_2_address];
+        let shareholder_1_share = GRANT_AMOUNT / 4;
+        let shareholder_2_share = GRANT_AMOUNT * 3 / 4;
+        let shares = &vector[shareholder_1_share, shareholder_2_share];
+        // Create the vesting contract.
+        setup(
+            aptos_framework, &vector[admin_address, withdrawal_address, shareholder_1_address, shareholder_2_address]);
+        // let contract_address = setup_vesting_contract(admin, shareholders, shares, withdrawal_address);
+        let contract_address = setup_vesting_contract_with_schedule(
+            admin,
+            shareholders,
+            shares,
+            withdrawal_address,
+            &vector[1],
+            1,
+        );
+        assert!(vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) == 1, 0);
+        let vested_amount_1 = 0;
+        let vested_amount_2 = 0;
+
+        assert!(coin::balance<AptosCoin>(contract_address) == GRANT_AMOUNT, 0);
+        assert!(coin::balance<AptosCoin>(shareholder_1_address) == vested_amount_1, 0);
+        assert!(coin::balance<AptosCoin>(shareholder_2_address) == vested_amount_2, 0);
+
+        // Time is now at the start time, vest will unlock the first period, which is 2/10.
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address)+period_duration_secs(contract_address));
+        vest(contract_address);
+
+        assert!(coin::balance<AptosCoin>(shareholder_1_address) == shareholder_1_share, 0);
+        assert!(coin::balance<AptosCoin>(shareholder_2_address) == shareholder_2_share, 0);
+
+        vest(contract_address);
+    }
+
+    #[test(aptos_framework = @0x1, admin = @0x123, shareholder_1 = @0x234, shareholder_2 = @0x345, withdrawal = @111)]
     public entry fun test_end_to_end(
         aptos_framework: &signer,
         admin: &signer,
