@@ -77,6 +77,7 @@ spec aptos_framework::vesting_without_staking {
         include VestingContractActive;
         let vesting_contract_pre = borrow_global<VestingContract>(contract_address);
         let post vesting_contract_post = borrow_global<VestingContract>(contract_address);
+        // TODO : whenever it is changed, time is already passed
         // ensures vesting_contract.vesting_schedule.start_timestamp_secs <= time::current_timestamp() ==> vesting_contract_pre == vesting_contract_post;
     }
 
@@ -94,8 +95,14 @@ spec aptos_framework::vesting_without_staking {
         pragma aborts_if_is_partial = true;
         include AdminAborts;
         let vesting_contract = borrow_global<VestingContract>(contract_address);
-        ensures !simple_map::spec_contains_key(vesting_contract.shareholders, shareholder_address);
-        ensures !simple_map::spec_contains_key(vesting_contract.beneficiaries, simple_map::spec_get(vesting_contract.beneficiaries, shareholder_address));
+        let post vesting_contract_post = borrow_global<VestingContract>(contract_address);
+        let balance_pre = coin::balance<AptosCoin>(vesting_contract.withdrawal_address);
+        let post balance_post = coin::balance<AptosCoin>(vesting_contract_post.withdrawal_address);
+        let beneficiary = simple_map::spec_get(vesting_contract.beneficiaries, shareholder_address);
+        let shareholder_amount = simple_map::spec_get(vesting_contract.shareholders, shareholder_address).left_amount;
+        ensures vesting_contract_post.withdrawal_address != vesting_contract.signer_cap.account ==> TRACE(balance_post) == TRACE(balance_pre) + shareholder_amount;
+        ensures !simple_map::spec_contains_key(vesting_contract_post.shareholders, shareholder_address);
+        ensures !simple_map::spec_contains_key(vesting_contract_post.beneficiaries, beneficiary);
     }
 
     // spec terminate_vesting_contract {
