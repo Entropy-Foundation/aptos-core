@@ -454,10 +454,9 @@ module aptos_framework::vesting_without_staking {
         let (_, shareholders_vesting) = simple_map::remove(shareholders, &shareholder_address);
 
         // remove `shareholder_address` from `vesting_contract.beneficiaries`
-        let shareholder_baneficiary = *simple_map::borrow(&vesting_contract.beneficiaries, &shareholder_address);
         let shareholder_beneficiaries = &mut vesting_contract.beneficiaries;
         assert!(simple_map::contains_key(shareholder_beneficiaries, &shareholder_address), error::not_found((ESHAREHOLDER_NOT_EXIST)));
-        let (_, shareholder_baneficiary) = simple_map::remove(shareholder_beneficiaries, &shareholder_baneficiary);
+        let (_, shareholder_baneficiary) = simple_map::remove(shareholder_beneficiaries, &shareholder_address);
 
         // Emit ShareHolderRemovedEvent
         emit_event(

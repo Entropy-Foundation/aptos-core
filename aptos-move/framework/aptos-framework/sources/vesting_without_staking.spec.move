@@ -105,11 +105,10 @@ spec aptos_framework::vesting_without_staking {
         let post vesting_contract_post = borrow_global<VestingContract>(contract_address);
         let balance_pre = coin::balance<AptosCoin>(vesting_contract.withdrawal_address);
         let post balance_post = coin::balance<AptosCoin>(vesting_contract_post.withdrawal_address);
-        let beneficiary = simple_map::spec_get(vesting_contract.beneficiaries, shareholder_address);
         let shareholder_amount = simple_map::spec_get(vesting_contract.shareholders, shareholder_address).left_amount;
         ensures vesting_contract_post.withdrawal_address != vesting_contract.signer_cap.account ==> balance_post == balance_pre + shareholder_amount;
         ensures !simple_map::spec_contains_key(vesting_contract_post.shareholders, shareholder_address);
-        ensures !simple_map::spec_contains_key(vesting_contract_post.beneficiaries, beneficiary);
+        ensures !simple_map::spec_contains_key(vesting_contract_post.beneficiaries, shareholder_address);
     }
 
     // spec terminate_vesting_contract {
