@@ -215,6 +215,7 @@ module aptos_framework::dora_committee {
         simple_map::upsert(&mut committee_store.committee_map, id, committee_info);
     }
 
+    /// Add the committee in bulk
     public entry fun upsert_committee_bulk(com_store_addr: address, owner_signer:&signer, ids:vector<u64>, committee_member_bulk:vector<CommitteeInfo>) acquires CommitteeInfoStore {
         assert!(vector::length(&ids) == vector::length(&committee_member_bulk), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
         while(vector::length(&ids) > 0) {
@@ -224,11 +225,12 @@ module aptos_framework::dora_committee {
         }
     }
 
-    public entry fun remove_committee(owner_signer:&signer, resource_addr:address, id:u64) acquires CommitteeInfoStore {
+    /// Remove the committee from the store
+    public entry fun remove_committee(com_store_addr:address, owner_signer:&signer , id:u64) acquires CommitteeInfoStore {
         // Only the OwnerCap capability can access it
         let _acquire = &capability::acquire(owner_signer, &OwnerCap {});
 
-        let committee_store = borrow_global_mut<CommitteeInfoStore>(resource_addr);
+        let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
         let (id, committee_info) = simple_map::remove(&mut committee_store.committee_map, &id);
         emit_event(
             &mut committee_store.remove_committee_event,
@@ -237,18 +239,20 @@ module aptos_framework::dora_committee {
                 committee_info: committee_info},)
     }
 
-    public entry fun remove_committee_bulk(owner_signer:&signer, resource_addr:address, ids:vector<u64>) acquires CommitteeInfoStore {
+    /// Remove the committee in bulk
+    public entry fun remove_committee_bulk(com_store_addr:address, owner_signer:&signer, ids:vector<u64>) acquires CommitteeInfoStore {
         while(vector::length(&ids) > 0) {
             let id = vector::pop_back(&mut ids);
-            remove_committee(owner_signer, resource_addr, id);
+            remove_committee(com_store_addr, owner_signer, id);
         }
     }
 
-    public entry fun add_committee_member(owner_signer:&signer, resource_addr:address, id:u64, node_addr: address, doar_node_info:DoraNodeInfo) acquires CommitteeInfoStore {
+    /// Add the node to the committee
+    public entry fun add_committee_member( com_store_addr:address, owner_signer:&signer, id:u64, node_addr: address, doar_node_info:DoraNodeInfo) acquires CommitteeInfoStore {
         // Only the OwnerCap capability can access it
         let _acquire = &capability::acquire(owner_signer, &OwnerCap {});
 
-        let committee_store = borrow_global_mut<CommitteeInfoStore>(resource_addr);
+        let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
         let committee = simple_map::borrow_mut(&mut committee_store.committee_map, &id);
         let dora_node_vec = simple_map::borrow_mut(&mut committee.map, &node_addr);
         vector::push_back(dora_node_vec, doar_node_info);
@@ -259,33 +263,34 @@ module aptos_framework::dora_committee {
                 committee_member: doar_node_info},)
     }
 
-    public entry fun add_committee_member_bulk(owner_signer:&signer, resource_addr:address, ids:vector<u64>, node_addr_bulk: vector<address>, doar_node_infos:vector<DoraNodeInfo>) acquires CommitteeInfoStore {
+    /// Add dora nodes to the committee
+    public entry fun add_committee_member_bulk(com_store_addr:address, owner_signer:&signer, ids:vector<u64>, node_addr_bulk: vector<address>, doar_node_infos:vector<DoraNodeInfo>) acquires CommitteeInfoStore {
         assert!(vector::length(&ids) == vector::length(&doar_node_infos), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
         while(vector::length(&ids) > 0) {
             let id = vector::pop_back(&mut ids);
             let doar_node_info = vector::pop_back(&mut doar_node_infos);
             let node_addr = vector::pop_back(&mut node_addr_bulk);
-            add_committee_member(owner_signer, resource_addr, id, node_addr, doar_node_info);
+            add_committee_member(com_store_addr, owner_signer, id, node_addr, doar_node_info);
         }
     }
 
-    ///
-    public entry fun remove_committee_member(owner_signer:&signer, resource_addr:address, id:u64, node_addr: address) acquires CommitteeInfoStore {
+    /// Remove the node from the committee
+    public entry fun remove_committee_member(com_store_addr:address, owner_signer:&signer, id:u64, node_addr: address) acquires CommitteeInfoStore {
         // Only the OwnerCap capability can access it
         let _acquire = &capability::acquire(owner_signer, &OwnerCap {});
 
-        let committee_store = borrow_global_mut<CommitteeInfoStore>(resource_addr);
+        let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
         let committee = simple_map::borrow_mut(&mut committee_store.committee_map, &id);
         simple_map::remove(&mut committee.map, &node_addr);
     }
 
     /// The node can update its information
     /// If the node is not here, report errors
-    public entry fun update_node_info(owner_signer:&signer, resource_addr:address, id:u64, node_addr: address, old_node_info:DoraNodeInfo ,new_node_info:DoraNodeInfo) acquires CommitteeInfo, CommitteeInfoStore {
+    public entry fun update_node_info(com_store_addr:address, owner_signer:&signer, id:u64, node_addr: address, old_node_info:DoraNodeInfo ,new_node_info:DoraNodeInfo) acquires CommitteeInfo, CommitteeInfoStore {
         // Only the OwnerCap capability can access it
         let _acquire = &capability::acquire(owner_signer, &OwnerCap {});
 
-        let committee_store = borrow_global_mut<CommitteeInfoStore>(resource_addr);
+        let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
         let committee = simple_map::borrow_mut(&mut committee_store.committee_map, &id);
         let dora_node_vec = simple_map::borrow_mut(&mut committee.map, &node_addr);
         let (_,index) = vector::index_of(dora_node_vec, &old_node_info);
@@ -299,6 +304,7 @@ module aptos_framework::dora_committee {
                 new_node_info: new_node_info},)
 
     }
+
     /// Find the node in the committee
     public fun find_node_in_committee(com_store_add:address, id:u64, node_address: address): (bool, NodeData) acquires CommitteeInfoStore {
         let committee_store = borrow_global<CommitteeInfoStore>(com_store_add);
