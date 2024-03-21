@@ -32,6 +32,7 @@ module aptos_framework::dora_committee {
         create_events: EventHandle<CreateCommitteeInfoStoreEvent>,
         add_committee_event: EventHandle<AddCommitteeEvent>,
         remove_committee_event: EventHandle<RemoveCommitteeEvent>,
+        update_committee_event: EventHandle<UpdateCommitteeEvent>
     }
 
     struct CommitteeInfo has store, copy, drop{
@@ -68,6 +69,12 @@ module aptos_framework::dora_committee {
         committee_info: CommitteeInfo
     }
 
+    struct UpdateCommitteeEvent has drop, store {
+        committee_id: u64,
+        old_committee_info: CommitteeInfo,
+        new_committee_info: CommitteeInfo
+    }
+
     struct AddCommitteeMemberEvent {
         committee_id: u64,
         committee_member: DoraNodeInfo
@@ -102,7 +109,8 @@ module aptos_framework::dora_committee {
             node_to_committee_map: simple_map::new(),
             create_events: new_event_handle<CreateCommitteeInfoStoreEvent>(owner_signer),
             add_committee_event: new_event_handle<AddCommitteeEvent>(owner_signer),
-            remove_committee_event: new_event_handle<RemoveCommitteeEvent>(owner_signer),});
+            remove_committee_event: new_event_handle<RemoveCommitteeEvent>(owner_signer),
+            update_committee_event: new_event_handle<UpdateCommitteeEvent>(owner_signer)});
     }
 
     /// Its Initial function which will be executed automatically while deployed packages
@@ -113,18 +121,22 @@ module aptos_framework::dora_committee {
 
     #[view]
     /// Get the committee's dora node vector
-    public fun get_committee_info(id:u64, com_store_addr:address, operator_addr:address):vector<NodeData> acquires CommitteeInfoStore {
+    public fun get_committee_info(com_store_addr:address, id:u64 ):vector<NodeData> acquires CommitteeInfoStore {
         let committee_store = borrow_global<CommitteeInfoStore>(com_store_addr);
-        // TODO do borrow
-        let dora_node_info_vec= find_dora_nodes(id, committee_store);
-        let node_data_vec = vector::map(dora_node_info_vec, |dora_node_info| {
-            NodeData {
-                operator: operator_addr,
+        let committee= simple_map::borrow(&committee_store.committee_map, &id);
+        let (addrs, dora_nodes) = simple_map::to_vec_pair(committee.map);
+        let node_data_vec = vector::empty<NodeData>();
+        while (vector::length(&addrs) > 0) {
+            let addr = vector::pop_back(&mut addrs);
+            let dora_node_info = vector::pop_back(&mut dora_nodes);
+            let node_data = NodeData {
+                operator: addr,
                 ip_public_address: dora_node_info.ip_public_address,
                 dora_public_key: dora_node_info.dora_public_key,
                 network_public_key: dora_node_info.network_public_key,
-            }
-        });
+            };
+            vector::push_back(&mut node_data_vec, node_data);
+        };
         node_data_vec
     }
 
@@ -136,16 +148,28 @@ module aptos_framework::dora_committee {
     }
 
     #[view]
-    public fun get_committee_id(com_store_addr:address) : u64 {
-
+    /// Get
+    public fun get_committee_id(com_store_addr:address, commitee: CommitteeInfo) : u64 acquires CommitteeInfoStore {
+        let committee_store = borrow_global<CommitteeInfoStore>(com_store_addr);
+        let committee_map = commitee.map;
+        let (addrs, _) = simple_map::to_vec_pair(committee_map);
+        let node_address = vector::pop_back(&mut addrs);
+        let id = *simple_map::borrow(&committee_store.node_to_committee_map, &node_address);
+        id
     }
 
     #[view]
     /// Get the node's information
-    public fun get_node_info(com_store_addr:address, id:u64, node_address:address): NodeData acquires CommitteeInfo {
-        let committee_store = borrow_global<CommitteeInfo>(com_store_addr);
-        /// TODO what information is needed to get the data?
-        // committee.map[id]
+    public fun get_node_info(com_store_addr:address, id:u64, operator_address:address): NodeData acquires CommitteeInfoStore {
+        let committee_store = borrow_global<CommitteeInfoStore>(com_store_addr);
+        let committee = simple_map::borrow(&committee_store.committee_map, &id);
+        let dora_node_info = simple_map::borrow(&committee.map, &operator_address);
+        NodeData {
+            operator: operator_address,
+            ip_public_address: dora_node_info.ip_public_address,
+            dora_public_key: dora_node_info.dora_public_key,
+            network_public_key: dora_node_info.network_public_key,
+        }
     }
 
     #[view]
@@ -159,33 +183,44 @@ module aptos_framework::dora_committee {
     #[view]
     /// Get the dora node peers vector for a single node
     public fun get_peers_for_node(com_store_addr:address, node_address:address):vector<NodeData> acquires CommitteeInfoStore {
-        //TODO Question: Does the peer consider itself as a peer? No itself
         let committee_id = get_committee_id_for_node(node_address, com_store_addr);
-        get_committee_info(committee_id, com_store_addr, node_address)
+        let this_node = get_node_info(com_store_addr, committee_id, node_address);
+        let dora_node_info = get_committee_info(com_store_addr, committee_id);
+        let (_,index) = vector::index_of(&dora_node_info, &this_node);
+        vector::remove(&mut dora_node_info, index);
+        dora_node_info
     }
 
     /// This function is used to add a new committee to the store
-    public entry fun upsert_committee(owner_signer:&signer, resource_addr:address, id:u64, committee_info:CommitteeInfo) acquires CommitteeInfoStore {
+    public entry fun upsert_committee(com_store_addr:address, owner_signer:&signer, id:u64, committee_info:CommitteeInfo) acquires CommitteeInfoStore {
         // Only the OwnerCap capability can access it
         let _acquire = &capability::acquire(owner_signer, &OwnerCap {});
-
-        let committee_store = borrow_global_mut<CommitteeInfoStore>(resource_addr);
-        // Add the committee member to the store
-        simple_map::upsert(&mut committee_store.committee_map, id, committee_info);
-        // TODO two different events for add and update
-        emit_event(
+        let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
+        if (simple_map::contains_key(&committee_store.committee_map, &id)) {
+            emit_event(
             &mut committee_store.add_committee_event,
             AddCommitteeEvent{
                 committee_id: id,
                 committee_info: committee_info},)
+        } else {
+            let old_committee_info = *simple_map::borrow(&committee_store.committee_map, &id);
+            emit_event(
+            &mut committee_store.update_committee_event,
+                UpdateCommitteeEvent{
+                    committee_id: id,
+                    old_committee_info: old_committee_info,
+                    new_committee_info: committee_info},
+            )
+        };
+        simple_map::upsert(&mut committee_store.committee_map, id, committee_info);
     }
 
-    public entry fun upsert_committee_bulk(owner_signer:&signer, resource_addr:address, ids:vector<u64>, committee_member_bulk:vector<CommitteeInfo>) acquires CommitteeInfoStore {
+    public entry fun upsert_committee_bulk(com_store_addr: address, owner_signer:&signer, ids:vector<u64>, committee_member_bulk:vector<CommitteeInfo>) acquires CommitteeInfoStore {
         assert!(vector::length(&ids) == vector::length(&committee_member_bulk), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
         while(vector::length(&ids) > 0) {
             let id = vector::pop_back(&mut ids);
             let committee_member = vector::pop_back(&mut committee_member_bulk);
-            upsert_committee(owner_signer, resource_addr, id, committee_member);
+            upsert_committee(com_store_addr, owner_signer, id, committee_member);
         }
     }
 
@@ -235,16 +270,13 @@ module aptos_framework::dora_committee {
     }
 
     ///
-    public entry fun remove_committee_member(owner_signer:&signer, resource_addr:address, id:u64, node_addr: address, doar_node_info:DoraNodeInfo) acquires CommitteeInfo, CommitteeInfoStore {
+    public entry fun remove_committee_member(owner_signer:&signer, resource_addr:address, id:u64, node_addr: address) acquires CommitteeInfoStore {
         // Only the OwnerCap capability can access it
         let _acquire = &capability::acquire(owner_signer, &OwnerCap {});
 
         let committee_store = borrow_global_mut<CommitteeInfoStore>(resource_addr);
         let committee = simple_map::borrow_mut(&mut committee_store.committee_map, &id);
-        let dora_node_vec = simple_map::borrow_mut(&mut committee.map, &node_addr);
-        let (_,index) = vector::index_of(dora_node_vec, &doar_node_info);
-        vector::remove(dora_node_vec, index);
-        assert!(!vector::contains(dora_node_vec, &doar_node_info), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        simple_map::remove(&mut committee.map, &node_addr);
     }
 
     /// The node can update its information
@@ -267,8 +299,24 @@ module aptos_framework::dora_committee {
                 new_node_info: new_node_info},)
 
     }
-
-    public fun find_node_in_committee(id:u64, node_address: address): (bool, NodeData) {
-
+    /// Find the node in the committee
+    public fun find_node_in_committee(com_store_add:address, id:u64, node_address: address): (bool, NodeData) acquires CommitteeInfoStore {
+        let committee_store = borrow_global<CommitteeInfoStore>(com_store_add);
+        let committee = simple_map::borrow(&committee_store.committee_map, &id);
+        if (!simple_map::contains_key(&committee.map, &node_address)) {
+            return (false, NodeData {
+                operator: node_address,
+                ip_public_address: vector::empty(),
+                dora_public_key: vector::empty(),
+                network_public_key: vector::empty(),
+            });
+        };
+        let dora_node_info = simple_map::borrow(&committee.map, &node_address);
+        (true, NodeData {
+            operator: node_address,
+            ip_public_address: dora_node_info.ip_public_address,
+            dora_public_key: dora_node_info.dora_public_key,
+            network_public_key: dora_node_info.network_public_key,
+        })
     }
 }
