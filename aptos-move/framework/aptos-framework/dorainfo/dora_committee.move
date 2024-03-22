@@ -37,7 +37,7 @@ module aptos_framework::dora_committee {
 
     struct CommitteeInfo has store, copy, drop{
         map: SimpleMap<address, DoraNodeInfo>,
-
+        has_valid_dkg:bool,
         // events
         add_committee_member_event: EventHandle<AddCommitteeMemberEvent>,
         remove_committee_member_event: EventHandle<RemoveCommitteeMemberEvent>,
@@ -47,7 +47,9 @@ module aptos_framework::dora_committee {
         ip_public_address: vector<u8>,
         dora_public_key: vector<u8>,
         network_public_key: vector<u8>,
-
+        elgamal_pub_key:vector<u8>,
+        network_port:u16,
+        rpc_port:u16,
         // events
         update_node_info_event: EventHandle<UpdateNodeInfoEvent>,
     }
@@ -189,6 +191,23 @@ module aptos_framework::dora_committee {
         let (_,index) = vector::index_of(&dora_node_info, &this_node);
         vector::remove(&mut dora_node_info, index);
         dora_node_info
+    }
+
+    #[view]
+    /// Check if the committee has a valid dkg
+    public fun does_com_have_dkg(com_store_addr:address, com_id:u64):bool acquires CommitteeInfoStore {
+        let committee_store = borrow_global<CommitteeInfoStore>(com_store_addr);
+        let committee = simple_map::borrow(&committee_store.committee_map, &com_id);
+        committee.has_valid_dkg
+    }
+
+    /// Update the dkg flag
+    public fun update_dkg_flag(com_store_addr:address, owner_signer:&signer, com_id:u64,flag_value:bool) acquires CommitteeInfoStore {
+        // Only the OwnerCap capability can access it
+        let _acquire = &capability::acquire(owner_signer, &OwnerCap {});
+        let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
+        let committee = simple_map::borrow_mut(&mut committee_store.committee_map, &com_id);
+        committee.has_valid_dkg = flag_value;
     }
 
     /// This function is used to add a new committee to the store
