@@ -5,6 +5,7 @@ module aptos_framework::vesting_without_staking {
     use std::bcs;
     use std::error;
     use std::fixed_point32::{Self, FixedPoint32};
+    use std::option::{Self, Option};
     use std::signer;
     use std::string::{utf8, String};
     use std::vector;
@@ -155,7 +156,7 @@ module aptos_framework::vesting_without_staking {
 
     struct ShareHolderRemovedEvent has drop, store {
         shareholder: address,
-        beneficiary: address,
+        beneficiary: Option<address>,
         amount: u64,
     }
 
@@ -454,16 +455,20 @@ module aptos_framework::vesting_without_staking {
         let (_, shareholders_vesting) = simple_map::remove(shareholders, &shareholder_address);
 
         // remove `shareholder_address` from `vesting_contract.beneficiaries`
+        let beneficiary = option::none();
         let shareholder_beneficiaries = &mut vesting_contract.beneficiaries;
-        assert!(simple_map::contains_key(shareholder_beneficiaries, &shareholder_address), error::not_found((ESHAREHOLDER_NOT_EXIST)));
-        let (_, shareholder_baneficiary) = simple_map::remove(shareholder_beneficiaries, &shareholder_address);
+        // Not all shareholders have their beneficiaries, so before removing them, we need to check if the beneficiary exists
+        if (simple_map::contains_key(shareholder_beneficiaries, &shareholder_address)) {
+            let (_, shareholder_baneficiary) = simple_map::remove(shareholder_beneficiaries, &shareholder_address);
+            beneficiary = option::some(shareholder_baneficiary);
+        };
 
         // Emit ShareHolderRemovedEvent
         emit_event(
             &mut vesting_contract.shareholder_removed_events,
             ShareHolderRemovedEvent {
                 shareholder: shareholder_address,
-                beneficiary: shareholder_baneficiary,
+                beneficiary,
                 amount: shareholders_vesting.left_amount,
             },
         );
