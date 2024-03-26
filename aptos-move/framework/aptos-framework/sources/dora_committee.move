@@ -16,7 +16,7 @@ module aptos_framework::dora_committee {
     use aptos_std::simple_map::SimpleMap;
     use aptos_framework::account;
     use aptos_framework::account::new_event_handle;
-    use aptos_framework::event::{emit_event, EventHandle, emit};
+    use aptos_framework::event::{emit_event, EventHandle};
 
     /// The signer is not the admin of the committee contract.
     const ENOT_ADMIN: u64 = 1;
@@ -47,7 +47,7 @@ module aptos_framework::dora_committee {
         node_to_committee_map: SimpleMap<address, u64>,
     }
 
-    struct CommitteeInfo has store, drop {
+    struct CommitteeInfo has store, drop, copy {
         map_key: vector<address>,
         map_value: vector<DoraNodeInfo>,
         has_valid_dkg:bool,
@@ -188,7 +188,7 @@ module aptos_framework::dora_committee {
         let committee_store = borrow_global<CommitteeInfoStore>(com_store_addr);
         let committee = simple_map::borrow(&committee_store.committee_map, &id);
         let (flag, index) = vector::index_of(&committee.map_key, &node_address);
-        let dora_node_info = committee.map_value[index];
+        let dora_node_info = vector::borrow(&committee.map_value, index);
         assert!(flag, error::invalid_argument(NODE_NOT_FOUND));
         NodeData {
             operator: node_address,
@@ -377,7 +377,7 @@ module aptos_framework::dora_committee {
         let owner_address = signer::address_of(owner_signer);
         let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(owner_address);
         let (flag, index) = vector::index_of(&committee.map_key, &node_address);
-        let old_node_info = committee.map_value[index];
+        let old_node_info = *vector::borrow(&mut committee.map_value, index);
         if (!flag) {
             vector::push_back(&mut committee.map_key, node_address);
             vector::push_back(&mut committee.map_value, dora_node_info);
@@ -387,13 +387,13 @@ module aptos_framework::dora_committee {
                     committee_id: id,
                     committee_member: dora_node_info},)
         } else {
-            committee.map_value[index] = dora_node_info;
+            *vector::borrow_mut(&mut committee.map_value, index) = dora_node_info;
             emit_event(
                 &mut event_handler.update_node_info,
                 UpdateNodeInfoEvent{
                     committee_id: id,
-                    old_node_info: dora_node_info,
-                    new_node_info: old_node_info},)
+                    old_node_info: old_node_info,
+                    new_node_info: dora_node_info},)
         };
     }
 
@@ -474,7 +474,7 @@ module aptos_framework::dora_committee {
         let committee = simple_map::borrow_mut(&mut committee_store.committee_map, &id);
         let (flag, index) = vector::index_of(&committee.map_key, &node_address);
         assert!(flag, error::invalid_argument(NODE_NOT_FOUND));
-        let old_node_info = committee.map_value[index];
+        let old_node_info = *vector::borrow(&committee.map_value, index);
         let new_node_info = DoraNodeInfo {
             ip_public_address: copy ip_public_address,
             dora_public_key: copy dora_public_key,
@@ -483,7 +483,7 @@ module aptos_framework::dora_committee {
             network_port: network_port,
             rpc_port: rpc_port,
         };
-        committee.map_value[index] = new_node_info;
+        *vector::borrow_mut(&mut committee.map_value, index) = new_node_info;
         let owner_address = signer::address_of(owner_signer);
         let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(owner_address);
         emit_event(
@@ -508,7 +508,7 @@ module aptos_framework::dora_committee {
                 network_public_key: vector::empty(),
             })
         } else {
-            let dora_node_info = committee.map_value[index];
+            let dora_node_info = vector::borrow(&committee.map_value, index);
             (true, NodeData {
                 operator: copy node_address,
                 ip_public_address: dora_node_info.ip_public_address,
