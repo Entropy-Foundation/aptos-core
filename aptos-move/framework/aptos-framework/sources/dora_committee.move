@@ -17,6 +17,8 @@ module aptos_framework::dora_committee {
     use aptos_framework::account;
     use aptos_framework::account::new_event_handle;
     use aptos_framework::event::{emit_event, EventHandle};
+    #[test_only]
+    use aptos_framework::timestamp;
 
     /// The signer is not the admin of the committee contract.
     const ENOT_ADMIN: u64 = 1;
@@ -107,7 +109,7 @@ module aptos_framework::dora_committee {
         committee_id: u64,
         committee_info: CommitteeInfo
     }
-
+    /// Internal - create event handler
     fun create_event_handler(owner_signer: &signer) {
         move_to(owner_signer, SupraCommitteeEventHandler {
             create: new_event_handle<CreateCommitteeInfoStoreEvent>(owner_signer),
@@ -255,6 +257,14 @@ module aptos_framework::dora_committee {
         network_port:vector<u16>,
         rpc_port:vector<u16>
     ) acquires CommitteeInfoStore, SupraCommitteeEventHandler {
+        // Assert the length of the vector for two are the same
+        assert!(vector::length(&map_key) == vector::length(&node_addresses), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&map_key) == vector::length(&ip_public_address), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&map_key) == vector::length(&dora_public_key), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&map_key) == vector::length(&network_public_key), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&map_key) == vector::length(&elgamal_pub_key), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&map_key) == vector::length(&network_port), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&map_key) == vector::length(&rpc_port), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
         // Only the OwnerCap capability can access it
         let _acquire = &capability::acquire(owner_signer, &OwnerCap {});
         let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
@@ -318,7 +328,15 @@ module aptos_framework::dora_committee {
         network_port_bulk:vector<vector<u16>>,
         rpc_por_bulkt:vector<vector<u16>>,
     ) acquires CommitteeInfoStore, SupraCommitteeEventHandler {
-        // TODO assert the length
+        // Assert the length of the vector for two are the same
+        assert!(vector::length(&ids) == vector::length(&map_key_bulk), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&ids) == vector::length(&node_addresses_bulk), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&ids) == vector::length(&ip_public_address_bulk), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&ids) == vector::length(&dora_public_key_bulk), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&ids) == vector::length(&network_public_key_bulk), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&ids) == vector::length(&elgamal_pub_key_bulk), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&ids) == vector::length(&network_port_bulk), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&ids) == vector::length(&rpc_por_bulkt), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
         while(vector::length(&ids) > 0) {
             let id = vector::pop_back(&mut ids);
             let map_key = vector::pop_back(&mut map_key_bulk);
@@ -423,7 +441,14 @@ module aptos_framework::dora_committee {
         network_port:vector<u16>,
         rpc_port:vector<u16>
     ) acquires CommitteeInfoStore, SupraCommitteeEventHandler {
-        // TODO assert the length
+        // Assert the length of the vector for two are the same
+        assert!(vector::length(&ids) == vector::length(&node_addresses), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&ids) == vector::length(&ip_public_address), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&ids) == vector::length(&dora_public_key), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&ids) == vector::length(&network_public_key), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&ids) == vector::length(&elgamal_pub_key), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&ids) == vector::length(&network_port), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
+        assert!(vector::length(&ids) == vector::length(&rpc_port), error::invalid_argument(INVALID_COMMITTEE_NUMBERS));
         while(vector::length(&ids) > 0) {
             let id = vector::pop_back(&mut ids);
             let node_address = vector::pop_back(&mut node_addresses);
@@ -536,32 +561,16 @@ module aptos_framework::dora_committee {
     }
 
     #[test_only]
-    public fun initialize(owner_signer:&signer) {
+    public entry fun setup(owner_signer:&signer) {
+        account::create_account_for_test(signer::address_of(owner_signer));
         init_module(owner_signer);
     }
 
-    // #[test]
-    // public entry fun test_add_committee_member(com_store_addr: address,owner_signer:&signer) acquires CommitteeInfoStore {
-    //     init_module(owner_signer);
-    //     let committee_info = CommitteeInfo {
-    //         map: simple_map::new(),
-    //         has_valid_dkg: false,
-    //         add_committee_member_event: new_event_handle<AddCommitteeMemberEvent>(owner_signer),
-    //         remove_committee_member_event: new_event_handle<RemoveCommitteeMemberEvent>(owner_signer),
-    //     };
-    //     upsert_committee(com_store_addr, owner_signer, 1, committee_info);
-    //     let node_addr = @0x1;
-    //     let dora_node_info = DoraNodeInfo {
-    //         ip_public_address: vector::empty(),
-    //         dora_public_key: vector::empty(),
-    //         network_public_key: vector::empty(),
-    //         elgamal_pub_key: vector::empty(),
-    //         network_port: 0,
-    //         rpc_port: 0,
-    //         update_node_info_event: new_event_handle<UpdateNodeInfoEvent>(owner_signer),
-    //     };
-    //     add_committee_member(com_store_addr, owner_signer, 1, node_addr, dora_node_info);
-    //     let node_data = get_node_info(com_store_addr, 1, node_addr);
-    // }
+    #[test(com_store_addr = @0x1, owner_signer = @0x123)]
+    public entry fun test_upsert_committee(com_store_addr: address,owner_signer:&signer) acquires CommitteeInfoStore, SupraCommitteeEventHandler {
+        setup(owner_signer);
+        // Add node to the committee
+        upsert_committee(com_store_addr, owner_signer, 1, vector[@0x1], vector[@0x2], vector[vector[123]], vector[vector[123]], vector[vector[123]], vector[vector[123]], vector[123], vector[123]);
+    }
 
 }
