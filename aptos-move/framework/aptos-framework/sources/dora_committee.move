@@ -44,7 +44,6 @@ module aptos_framework::dora_committee {
 
     struct CommitteeInfoStore has key {
         committee_map: SimpleMap<u64, CommitteeInfo>,
-        // TODO make every insert, remove also udpate this map
         node_to_committee_map: SimpleMap<address, u64>,
     }
 
@@ -234,7 +233,7 @@ module aptos_framework::dora_committee {
     }
 
     /// Update the dkg flag
-    public fun update_dkg_flag(com_store_addr:address, owner_signer:&signer, com_id:u64,flag_value:bool) acquires CommitteeInfoStore {
+    public fun update_dkg_flag(com_store_addr:address, owner_signer:&signer, com_id:u64, flag_value:bool) acquires CommitteeInfoStore {
         // Only the OwnerCap capability can access it
         let _acquire = &capability::acquire(owner_signer, &OwnerCap {});
         let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
@@ -277,6 +276,9 @@ module aptos_framework::dora_committee {
                 rpc_port: rpc_port,
             };
             vector::push_back(&mut dora_node_info, dora_node);
+            // Also update the node_to_committee_map
+            let node_address = vector::pop_back(&mut node_addresses);
+            simple_map::upsert(&mut committee_store.node_to_committee_map, node_address, id);
         };
         let committee_info = CommitteeInfo {
             map: simple_map::new_from(map_key, dora_node_info),
@@ -338,6 +340,12 @@ module aptos_framework::dora_committee {
 
         let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
         let (id, committee_info) = simple_map::remove(&mut committee_store.committee_map, &id);
+        // Also remove the node_to_committee_map
+        let (addrs, _) = simple_map::to_vec_pair(committee_info.map);
+        while(vector::length(&addrs) > 0) {
+            let addr = vector::pop_back(&mut addrs);
+            simple_map::remove(&mut committee_store.node_to_committee_map, &addr);
+        };
         let owner_address = signer::address_of(owner_signer);
         let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(owner_address);
         emit_event(
@@ -384,14 +392,12 @@ module aptos_framework::dora_committee {
         let owner_address = signer::address_of(owner_signer);
         let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(owner_address);
         if (!simple_map::contains_key(&committee.map, &node_address)) {
-            simple_map::upsert(&mut committee.map, node_address, dora_node_info);
             emit_event(
                 &mut event_handler.add_committee_member,
                 AddCommitteeMemberEvent{
                     committee_id: id,
                     committee_member: dora_node_info},)
         } else {
-            simple_map::upsert(&mut committee.map, node_address, dora_node_info);
             emit_event(
                 &mut event_handler.update_node_info,
                 UpdateNodeInfoEvent{
@@ -399,6 +405,9 @@ module aptos_framework::dora_committee {
                     old_node_info: *simple_map::borrow(&committee.map, &node_address),
                     new_node_info: dora_node_info},)
         };
+        simple_map::upsert(&mut committee.map, node_address, dora_node_info);
+        // Also update the node_to_committee_map
+        simple_map::upsert(&mut committee_store.node_to_committee_map, node_address, id);
     }
 
     /// Upsert dora nodes to the committee
@@ -453,6 +462,8 @@ module aptos_framework::dora_committee {
                 }
             }
         );
+        // Remove the node from the node_to_committee_map
+        simple_map::remove(&mut committee_store.node_to_committee_map, &node_address);
     }
 
     /// The node can update its information
@@ -493,7 +504,6 @@ module aptos_framework::dora_committee {
                 committee_id: id,
                 old_node_info: old_node_info,
                 new_node_info: new_node_info},)
-
     }
 
     /// Find the node in the committee
