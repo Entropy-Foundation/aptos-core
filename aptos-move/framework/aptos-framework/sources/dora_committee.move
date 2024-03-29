@@ -6,20 +6,14 @@
 /// requirements:
 /// 1. two committee has different id
 /// 2. two indentical node should not be in the same committee
-/// 3. the operator
 module aptos_framework::dora_committee {
     use std::error;
     use std::signer;
     use std::vector;
     use aptos_std::capability;
-    use aptos_std::simple_map;
-    use aptos_std::simple_map::SimpleMap;
-    use aptos_framework::account;
-    use aptos_framework::account::new_event_handle;
     use aptos_framework::event::{emit_event, EventHandle};
-
-    /// The signer is not the admin of the committee contract.
-    const ENOT_ADMIN: u64 = 1;
+    use aptos_std::simple_map::{Self, SimpleMap};
+    use aptos_framework::account::{Self, new_event_handle};
 
     /// The number of committee is not equal to the number of committee member
     const INVALID_COMMITTEE_NUMBERS: u64 = 2;
@@ -106,6 +100,15 @@ module aptos_framework::dora_committee {
     struct CreateCommitteeInfoStoreEvent has store, drop {
         committee_id: u64,
         committee_info: CommitteeInfo
+    }
+    /// Internal - check if the node exists in the committee
+    fun does_node_exist(committee: &CommitteeInfo, node_address: address): bool {
+        let res = simple_map::contains_key(&committee.map, &node_address);
+        res
+    }
+    /// Internal - Assert if the node exists in the committee
+    fun ensure_node_address_exist(committee: &CommitteeInfo, node_address: address) {
+        assert!(does_node_exist(committee, node_address), error::invalid_argument(NODE_NOT_FOUND))
     }
 
     /// Internal - create event handler
@@ -271,28 +274,29 @@ module aptos_framework::dora_committee {
         rpc_port: vector<u16>
     ) acquires CommitteeInfoStore, SupraCommitteeEventHandler {
         // Assert the length of the vector for two are the same
+        let node_address_len = vector::length(&node_addresses);
         assert!(
-            vector::length(&node_addresses) == vector::length(&ip_public_address),
+            node_address_len == vector::length(&ip_public_address),
             error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
         );
         assert!(
-            vector::length(&node_addresses) == vector::length(&dora_public_key),
+            node_address_len == vector::length(&dora_public_key),
             error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
         );
         assert!(
-            vector::length(&node_addresses) == vector::length(&network_public_key),
+            node_address_len == vector::length(&network_public_key),
             error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
         );
         assert!(
-            vector::length(&node_addresses) == vector::length(&elgamal_pub_key),
+            node_address_len == vector::length(&elgamal_pub_key),
             error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
         );
         assert!(
-            vector::length(&node_addresses) == vector::length(&network_port),
+            node_address_len == vector::length(&network_port),
             error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
         );
         assert!(
-            vector::length(&node_addresses) == vector::length(&rpc_port),
+            node_address_len == vector::length(&rpc_port),
             error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
         );
         // Only the OwnerCap capability can access it
@@ -361,32 +365,33 @@ module aptos_framework::dora_committee {
         rpc_por_bulkt: vector<vector<u16>>,
     ) acquires CommitteeInfoStore, SupraCommitteeEventHandler {
         // Assert the length of the vector for two are the same
+        let ids_len = vector::length(&ids);
         assert!(
-            vector::length(&ids) == vector::length(&node_addresses_bulk),
+            ids_len == vector::length(&node_addresses_bulk),
             error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
         );
         assert!(
-            vector::length(&ids) == vector::length(&ip_public_address_bulk),
+            ids_len == vector::length(&ip_public_address_bulk),
             error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
         );
         assert!(
-            vector::length(&ids) == vector::length(&dora_public_key_bulk),
+            ids_len == vector::length(&dora_public_key_bulk),
             error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
         );
         assert!(
-            vector::length(&ids) == vector::length(&network_public_key_bulk),
+            ids_len == vector::length(&network_public_key_bulk),
             error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
         );
         assert!(
-            vector::length(&ids) == vector::length(&elgamal_pub_key_bulk),
+            ids_len == vector::length(&elgamal_pub_key_bulk),
             error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
         );
         assert!(
-            vector::length(&ids) == vector::length(&network_port_bulk),
+            ids_len == vector::length(&network_port_bulk),
             error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
         );
         assert!(
-            vector::length(&ids) == vector::length(&rpc_por_bulkt),
+            ids_len == vector::length(&rpc_por_bulkt),
             error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
         );
         while (vector::length(&ids) > 0) {
@@ -480,7 +485,7 @@ module aptos_framework::dora_committee {
         };
         let owner_address = signer::address_of(owner_signer);
         let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(owner_address);
-        if (!simple_map::contains_key(&committee.map, &node_address)) {
+        if (does_node_exist(committee, node_address) == false) {
             emit_event(
                 &mut event_handler.add_committee_member,
                 AddCommitteeMemberEvent {
@@ -579,7 +584,7 @@ module aptos_framework::dora_committee {
 
         let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
         let committee = simple_map::borrow_mut(&mut committee_store.committee_map, &id);
-        assert!(simple_map::contains_key(&committee.map, &node_address), error::invalid_argument(NODE_NOT_FOUND));
+        ensure_node_address_exist(committee, node_address);
         let (_, node_info) = simple_map::remove(&mut committee.map, &node_address);
         let owner_address = signer::address_of(owner_signer);
         let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(owner_address);
@@ -620,7 +625,7 @@ module aptos_framework::dora_committee {
 
         let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
         let committee = simple_map::borrow_mut(&mut committee_store.committee_map, &id);
-        assert!(simple_map::contains_key(&committee.map, &node_address), error::invalid_argument(NODE_NOT_FOUND));
+        ensure_node_address_exist(committee, node_address);
         let new_node_info = DoraNodeInfo {
             ip_public_address: copy ip_public_address,
             dora_public_key: copy dora_public_key,
