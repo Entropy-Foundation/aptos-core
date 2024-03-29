@@ -44,6 +44,7 @@ module aptos_framework::dora_committee {
     struct CommitteeInfo has store, drop, copy {
         map: SimpleMap<address, DoraNodeInfo>,
         has_valid_dkg: bool,
+        committee_type: u8
     }
 
     struct DoraNodeInfo has store, copy, drop {
@@ -328,6 +329,7 @@ module aptos_framework::dora_committee {
         let committee_info = CommitteeInfo {
             map: simple_map::new_from(node_addresses, dora_node_info),
             has_valid_dkg: false,
+            committee_type: (node_address_len as u8)
         };
         let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(owner_address);
         if (!simple_map::contains_key(&committee_store.committee_map, &id)) {
