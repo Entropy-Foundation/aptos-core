@@ -26,8 +26,8 @@ spec aptos_framework::vesting_without_staking {
     spec remaining_grant {
         pragma verify = true;
         include VestingContractExists{contract_address: vesting_contract_address};
-        aborts_if !simple_map::spec_contains_key(borrow_global<VestingContract>(vesting_contract_address).shareholders, shareholder_address);
-        ensures result == simple_map::spec_get(borrow_global<VestingContract>(vesting_contract_address).shareholders, shareholder_address).left_amount;
+        aborts_if !simple_map::spec_contains_key(global<VestingContract>(vesting_contract_address).shareholders, shareholder_address);
+        ensures result == simple_map::spec_get(global<VestingContract>(vesting_contract_address).shareholders, shareholder_address).left_amount;
     }
 
     spec beneficiary {
@@ -39,13 +39,13 @@ spec aptos_framework::vesting_without_staking {
         pragma verify = true;
         aborts_if false;
         ensures !exists<AdminStore>(admin) ==> result == vector::empty<address>();
-        ensures exists<AdminStore>(admin) ==> result == borrow_global<AdminStore>(admin).vesting_contracts;
+        ensures exists<AdminStore>(admin) ==> result == global<AdminStore>(admin).vesting_contracts;
     }
 
     spec vesting_schedule {
         pragma verify = true;
         include VestingContractExists{contract_address: vesting_contract_address};
-        ensures result == borrow_global<VestingContract>(vesting_contract_address).vesting_schedule;
+        ensures result == global<VestingContract>(vesting_contract_address).vesting_schedule;
     }
 
     // spec shareholders {
@@ -75,8 +75,8 @@ spec aptos_framework::vesting_without_staking {
         pragma verify = true;
         pragma aborts_if_is_partial = true;
         include VestingContractActive;
-        let vesting_contract_pre = borrow_global<VestingContract>(contract_address);
-        let post vesting_contract_post = borrow_global<VestingContract>(contract_address);
+        let vesting_contract_pre = global<VestingContract>(contract_address);
+        let post vesting_contract_post = global<VestingContract>(contract_address);
         let vesting_schedule = vesting_contract_pre.vesting_schedule;
         let last_vested_period = vesting_schedule.last_vested_period;
         let next_period_to_vest = last_vested_period + 1;
@@ -92,7 +92,7 @@ spec aptos_framework::vesting_without_staking {
         pragma verify = true;
         pragma aborts_if_is_partial = true;
         include VestingContractActive;
-        let post vesting_contract_post = borrow_global<VestingContract>(contract_address);
+        let post vesting_contract_post = global<VestingContract>(contract_address);
         let post total_balance = coin::balance<AptosCoin>(contract_address);
         ensures total_balance == 0 ==> vesting_contract_post.state == VESTING_POOL_TERMINATED;
     }
@@ -101,8 +101,8 @@ spec aptos_framework::vesting_without_staking {
         pragma verify = true;
         pragma aborts_if_is_partial = true;
         include AdminAborts;
-        let vesting_contract = borrow_global<VestingContract>(contract_address);
-        let post vesting_contract_post = borrow_global<VestingContract>(contract_address);
+        let vesting_contract = global<VestingContract>(contract_address);
+        let post vesting_contract_post = global<VestingContract>(contract_address);
         let balance_pre = coin::balance<AptosCoin>(vesting_contract.withdrawal_address);
         let post balance_post = coin::balance<AptosCoin>(vesting_contract_post.withdrawal_address);
         let shareholder_amount = simple_map::spec_get(vesting_contract.shareholders, shareholder_address).left_amount;
@@ -123,14 +123,14 @@ spec aptos_framework::vesting_without_staking {
     spec admin_withdraw {
         pragma verify = true;
         pragma aborts_if_is_partial = true;
-        aborts_if !(borrow_global<VestingContract>(contract_address).state == VESTING_POOL_TERMINATED);
+        aborts_if !(global<VestingContract>(contract_address).state == VESTING_POOL_TERMINATED);
     }
 
     spec set_beneficiary {
         pragma verify = true;
         pragma aborts_if_is_partial = true;
-        let vesting_contract_pre = borrow_global<VestingContract>(contract_address);
-        let post vesting_contract_post = borrow_global<VestingContract>(contract_address);
+        let vesting_contract_pre = global<VestingContract>(contract_address);
+        let post vesting_contract_post = global<VestingContract>(contract_address);
         include AdminAborts{vesting_contract: vesting_contract_pre};
         ensures simple_map::spec_get(vesting_contract_post.beneficiaries, shareholder) == new_beneficiary;
     }
@@ -153,7 +153,7 @@ spec aptos_framework::vesting_without_staking {
 
     spec get_vesting_account_signer {
         pragma verify = true;
-        let vesting_contract = borrow_global<VestingContract>(contract_address);
+        let vesting_contract = global<VestingContract>(contract_address);
         include AdminAborts;
         aborts_if !exists<VestingContract>(contract_address);
     }
@@ -199,7 +199,7 @@ spec aptos_framework::vesting_without_staking {
     spec schema VestingContractActive {
         include VestingContractExists;
         contract_address: address;
-        let vesting_contract = borrow_global<VestingContract>(contract_address);
+        let vesting_contract = global<VestingContract>(contract_address);
         aborts_if !(vesting_contract.state == VESTING_POOL_ACTIVE);
     }
 
@@ -214,7 +214,7 @@ spec aptos_framework::vesting_without_staking {
     spec set_terminate_vesting_contract {
         pragma verify = true;
         aborts_if !exists<VestingContract>(contract_address);
-        let post vesting_contract_post = borrow_global_mut<VestingContract>(contract_address);
+        let post vesting_contract_post = global<VestingContract>(contract_address);
         ensures vesting_contract_post.state == VESTING_POOL_TERMINATED;
     }
 }
