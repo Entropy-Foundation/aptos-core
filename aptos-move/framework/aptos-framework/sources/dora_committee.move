@@ -104,8 +104,7 @@ module aptos_framework::dora_committee {
     }
     /// Internal - check if the node exists in the committee
     fun does_node_exist(committee: &CommitteeInfo, node_address: address): bool {
-        let res = simple_map::contains_key(&committee.map, &node_address);
-        res
+        simple_map::contains_key(&committee.map, &node_address)
     }
     /// Internal - Assert if the node exists in the committee
     fun ensure_node_address_exist(committee: &CommitteeInfo, node_address: address) {
@@ -487,7 +486,7 @@ module aptos_framework::dora_committee {
         };
         let owner_address = signer::address_of(owner_signer);
         let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(owner_address);
-        if (does_node_exist(committee, node_address) == false) {
+        if (!does_node_exist(committee, node_address)) {
             emit_event(
                 &mut event_handler.add_committee_member,
                 AddCommitteeMemberEvent {
