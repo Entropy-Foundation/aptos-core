@@ -416,20 +416,26 @@ module aptos_framework::vesting_without_staking {
         // Distribute coins to shareholders.
         let (shareholders_address, vesting_records) = simple_map::to_vec_pair(vesting_contract.shareholders);
         while (vector::length(&shareholders_address) > 0) {
-            let shareholder = vector::pop_back(&mut shareholders_address);
-            let shareholder_record = vector::pop_back(&mut vesting_records);
-            let amount = min(shareholder_record.left_amount, fixed_point32::multiply_u64(shareholder_record.init_amount, vesting_fraction));
-            let recipient_address = get_beneficiary(vesting_contract, shareholder);
-            coin::transfer<AptosCoin>(&vesting_signer, recipient_address, amount);
-            let shareholder_amount = simple_map::borrow_mut(&mut vesting_contract.shareholders, &shareholder);
-            shareholder_amount.left_amount = shareholder_amount.left_amount - amount;
-            total_amount_left = total_amount_left + shareholder_amount.left_amount;
+            let amount_to_add = distribute_to_shareholder(vesting_contract, &mut shareholders_address, &mut vesting_records, vesting_fraction);
+            total_amount_left = total_amount_left + amount_to_add;
         };
         let total_balance = coin::balance<AptosCoin>(contract_address);
         assert!(total_amount_left == total_balance, EBALANCE_MISMATCH);
         if (total_balance == 0) {
             set_terminate_vesting_contract(contract_address);
         }
+    }
+
+    fun distribute_to_shareholder(vesting_contract: &mut VestingContract, shareholders_address: &mut vector<address>, vesting_records: &mut vector<VestingRecord>, vesting_fraction: FixedPoint32) : u64 {
+        let vesting_signer = get_vesting_account_signer_internal(vesting_contract);
+        let shareholder = vector::pop_back(shareholders_address);
+        let shareholder_record = vector::pop_back(vesting_records);
+        let amount = min(shareholder_record.left_amount, fixed_point32::multiply_u64(shareholder_record.init_amount, vesting_fraction));
+        let recipient_address = get_beneficiary(vesting_contract, shareholder);
+        coin::transfer<AptosCoin>(&vesting_signer, recipient_address, amount);
+        let shareholder_amount = simple_map::borrow_mut(&mut vesting_contract.shareholders, &shareholder);
+        shareholder_amount.left_amount = shareholder_amount.left_amount - amount;
+        shareholder_amount.left_amount
     }
 
     /// Remove the lockup period for the vesting contract. This can only be called by the admin of the vesting contract.
