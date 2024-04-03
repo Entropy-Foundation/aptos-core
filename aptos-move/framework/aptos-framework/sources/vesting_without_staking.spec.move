@@ -97,6 +97,28 @@ spec aptos_framework::vesting_without_staking {
         ensures total_balance == 0 ==> vesting_contract_post.state == VESTING_POOL_TERMINATED;
     }
 
+    spec distribute_to_shareholder {
+        pragma verify = true;
+        let shareholder = shareholders_address[len(shareholders_address) - 1];
+        let shareholder_record = vesting_records[len(vesting_records) - 1];
+        let amount = min(shareholder_record.left_amount, fixed_point32::spec_multiply_u64(shareholder_record.init_amount, vesting_fraction));
+        let shareholder_amount = simple_map::spec_get(vesting_contract.shareholders, shareholder);
+        let post shareholder_amount_post = simple_map::spec_get(vesting_contract.shareholders, shareholder);
+        let address_from = signer::address_of(vesting_signer);
+        let address_to_beneficiary = simple_map::spec_get(vesting_contract.beneficiaries, shareholder);
+        let flag = simple_map::spec_contains_key(vesting_contract.beneficiaries, shareholder);
+        // Ensure that the amount is transferred to the beneficiary and the amount is substract from left_amount if the beneficiary exists
+        ensures (flag && address_from != address_to_beneficiary)
+            ==> (coin::balance<AptosCoin>(address_to_beneficiary) == old(coin::balance<AptosCoin>(address_to_beneficiary)) + amount
+                && coin::balance<AptosCoin>(address_from) == old(coin::balance<AptosCoin>(address_from)) - amount
+                && shareholder_amount_post.left_amount == shareholder_amount.left_amount - amount);
+        // Ensure that the amount is transferred to the shareholder and the amount is substract from left_amount if the beneficiary doesn't exist
+        ensures (!flag && address_from != shareholder)
+            ==> (coin::balance<AptosCoin>(shareholder) == old(coin::balance<AptosCoin>(shareholder)) + amount
+                && coin::balance<AptosCoin>(address_from) == old(coin::balance<AptosCoin>(address_from)) - amount
+                && shareholder_amount_post.left_amount == shareholder_amount.left_amount - amount);
+    }
+
     spec remove_shareholder {
         pragma verify = true;
         pragma aborts_if_is_partial = true;
@@ -106,7 +128,7 @@ spec aptos_framework::vesting_without_staking {
         let balance_pre = coin::balance<AptosCoin>(vesting_contract.withdrawal_address);
         let post balance_post = coin::balance<AptosCoin>(vesting_contract_post.withdrawal_address);
         let shareholder_amount = simple_map::spec_get(vesting_contract.shareholders, shareholder_address).left_amount;
-// ensure that `withdrawal address` receives the `shareholder_amount`
+        // ensure that `withdrawal address` receives the `shareholder_amount`
         ensures vesting_contract_post.withdrawal_address != vesting_contract.signer_cap.account ==> balance_post == balance_pre + shareholder_amount;
         // ensure that `shareholder_address` is indeed removed from the contract
         ensures !simple_map::spec_contains_key(vesting_contract_post.shareholders, shareholder_address);
