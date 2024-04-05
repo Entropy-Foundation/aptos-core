@@ -122,6 +122,7 @@ spec aptos_framework::vesting_without_staking {
             ==> (coin::balance<AptosCoin>(shareholder) == old(coin::balance<AptosCoin>(shareholder)) + amount
                 && coin::balance<AptosCoin>(address_from) == old(coin::balance<AptosCoin>(address_from)) - amount
                 && shareholder_amount_post.left_amount == shareholder_amount.left_amount - amount);
+        // Ensure the length of the shareholders_address and vesting_records are the same if they are the same before the function call
         ensures (len(old(shareholders_address)) == len(old(vesting_records))) ==> (len(shareholders_address) == len(vesting_records));
     }
 
