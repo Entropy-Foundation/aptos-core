@@ -96,10 +96,14 @@ spec aptos_framework::vesting_without_staking {
         let post total_balance = coin::balance<AptosCoin>(contract_address);
         // ensure if the total balance is 0, the vesting contract is terminated
         ensures total_balance == 0 ==> vesting_contract_post.state == VESTING_POOL_TERMINATED;
+        // // ensure if the total balance is not 0, the vesting contract is active
+        // ensures total_balance != 0 ==> vesting_contract_post.state == VESTING_POOL_ACTIVE;
     }
 
     spec distribute_to_shareholder {
         pragma verify = true;
+        pragma opaque;
+        modifies global<coin::CoinStore<AptosCoin>>(address_from);
         let shareholder = shareholders_address[len(shareholders_address) - 1];
         let shareholder_record = vesting_records[len(vesting_records) - 1];
         let amount = min(shareholder_record.left_amount, fixed_point32::spec_multiply_u64(shareholder_record.init_amount, vesting_fraction));
