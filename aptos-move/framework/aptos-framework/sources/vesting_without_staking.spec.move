@@ -8,12 +8,6 @@ spec aptos_framework::vesting_without_staking {
         invariant init_amount >= left_amount;
     }
 
-    spec VestingContract {
-        // let shareholders_address = simple_map::spec
-        // let amount = simple_map::values(shareholders);
-        // invariant
-    }
-
     spec vesting_start_secs {
         pragma verify = true;
         include VestingContractExists{contract_address: vesting_contract_address};
@@ -28,6 +22,7 @@ spec aptos_framework::vesting_without_staking {
         pragma verify = true;
         include VestingContractExists{contract_address: vesting_contract_address};
         aborts_if !simple_map::spec_contains_key(global<VestingContract>(vesting_contract_address).shareholders, shareholder_address);
+        // ensure that the remaining grant is equal to the left amount of the shareholder
         ensures result == simple_map::spec_get(global<VestingContract>(vesting_contract_address).shareholders, shareholder_address).left_amount;
     }
 
@@ -39,13 +34,16 @@ spec aptos_framework::vesting_without_staking {
     spec vesting_contracts {
         pragma verify = true;
         aborts_if false;
+        // ensure that an empty vector is returned if the admin doesn't exist
         ensures !exists<AdminStore>(admin) ==> result == vector::empty<address>();
+        // ensure that the vesting contracts are returned if the admin exists
         ensures exists<AdminStore>(admin) ==> result == global<AdminStore>(admin).vesting_contracts;
     }
 
     spec vesting_schedule {
         pragma verify = true;
         include VestingContractExists{contract_address: vesting_contract_address};
+        // ensure that the vesting schedule is returned if the vesting contract exists
         ensures result == global<VestingContract>(vesting_contract_address).vesting_schedule;
     }
 
@@ -83,8 +81,9 @@ spec aptos_framework::vesting_without_staking {
         let next_period_to_vest = last_vested_period + 1;
         let last_completed_period =
             (timestamp::spec_now_seconds() - vesting_schedule.start_timestamp_secs) / vesting_schedule.period_duration;
-        // TODO : whenever it is changed, time is already passed
+        // ensure the vesting contract is the same if the vesting period is not reached
         ensures vesting_contract_pre.vesting_schedule.start_timestamp_secs > timestamp::spec_now_seconds() ==> vesting_contract_pre == vesting_contract_post;
+        // ensure the vesting contract is the same if the last completed period is greater than the next period to vest
         ensures last_completed_period < next_period_to_vest ==> vesting_contract_pre == vesting_contract_post;
         // ensures last_completed_period > next_period_to_vest ==> TRACE(vesting_contract_post.vesting_schedule.last_vested_period) == TRACE(next_period_to_vest);
     }
