@@ -4,6 +4,7 @@ spec aptos_framework::vesting_without_staking {
     }
 
     spec VestingRecord {
+        // The initial amount should be greater than or equal to the left amount
         invariant init_amount >= left_amount;
     }
 
@@ -94,6 +95,7 @@ spec aptos_framework::vesting_without_staking {
         include VestingContractActive;
         let post vesting_contract_post = global<VestingContract>(contract_address);
         let post total_balance = coin::balance<AptosCoin>(contract_address);
+        // ensure if the total balance is 0, the vesting contract is terminated
         ensures total_balance == 0 ==> vesting_contract_post.state == VESTING_POOL_TERMINATED;
     }
 
@@ -145,7 +147,15 @@ spec aptos_framework::vesting_without_staking {
     spec admin_withdraw {
         pragma verify = true;
         pragma aborts_if_is_partial = true;
+        let vesting_contract = global<VestingContract>(contract_address);
+        let balance_pre = coin::balance<AptosCoin>(vesting_contract.withdrawal_address);
+        let post balance_post = coin::balance<AptosCoin>(vesting_contract.withdrawal_address);
+        let post balance_contract = coin::balance<AptosCoin>(contract_address);
         aborts_if !(global<VestingContract>(contract_address).state == VESTING_POOL_TERMINATED);
+        // // ensure that the `withdrawal_address` receives the remaining balance
+        // ensures (vesting_contract.signer_cap.account != vesting_contract.withdrawal_address) ==> balance_post == balance_pre + coin::balance<AptosCoin>(contract_address);
+        // // ensure that the contract balance is 0
+        // ensures (vesting_contract.signer_cap.account != vesting_contract.withdrawal_address) ==> balance_contract == 0;
     }
 
     spec set_beneficiary {
@@ -154,11 +164,15 @@ spec aptos_framework::vesting_without_staking {
         let vesting_contract_pre = global<VestingContract>(contract_address);
         let post vesting_contract_post = global<VestingContract>(contract_address);
         include AdminAborts{vesting_contract: vesting_contract_pre};
+        // ensure that the beneficiary is set to the new_beneficiary
         ensures simple_map::spec_get(vesting_contract_post.beneficiaries, shareholder) == new_beneficiary;
     }
 
     spec reset_beneficiary {
         pragma verify = true;
+        let post vesting_contract = global<VestingContract>(contract_address);
+        // ensure that the beneficiary is removed for the shareholder
+        ensures !simple_map::spec_contains_key(vesting_contract.beneficiaries, shareholder);
     }
 
     spec set_management_role {
@@ -184,6 +198,7 @@ spec aptos_framework::vesting_without_staking {
         pragma verify = true;
         aborts_if false;
         let address = vesting_contract.signer_cap.account;
+        // ensure that the address is returned if the vesting contract exists
         ensures signer::address_of(result) == address;
     }
 
@@ -229,7 +244,9 @@ spec aptos_framework::vesting_without_staking {
         pragma verify = true;
         pragma opaque;
         aborts_if false;
+        // ensure that the beneficiary is returned if it exists, note this is used in distribute_to_shareholder function
         ensures simple_map::spec_contains_key(contract.beneficiaries, shareholder) ==> result == simple_map::spec_get(contract.beneficiaries, shareholder);
+        // ensure that the shareholder is returned if the beneficiary doesn't exist, note this is used in distribute_to_shareholder function
         ensures !simple_map::spec_contains_key(contract.beneficiaries, shareholder) ==> result == shareholder;
     }
 
@@ -237,6 +254,7 @@ spec aptos_framework::vesting_without_staking {
         pragma verify = true;
         aborts_if !exists<VestingContract>(contract_address);
         let post vesting_contract_post = global<VestingContract>(contract_address);
+        // ensure that the state of the vesting contract is set to VESTING_POOL_TERMINATED
         ensures vesting_contract_post.state == VESTING_POOL_TERMINATED;
     }
 }

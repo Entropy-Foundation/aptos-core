@@ -415,9 +415,25 @@ module aptos_framework::vesting_without_staking {
         let total_amount_left = 0;
         // Distribute coins to shareholders.
         let (shareholders_address, vesting_records) = simple_map::to_vec_pair(vesting_contract.shareholders);
-        while (vector::length(&shareholders_address) > 0) {
+        // spec {
+        //     update ghost_address_num = len(shareholders_address);
+        //     update ghost_records_num = len(vesting_records);
+        // };
+        while (
+            // {
+            // spec {
+            //     invariant len(shareholders_address) == len(vesting_records);
+            // };
+            vector::length(&shareholders_address) > 0
+            // }
+        )
+         {
             let amount_to_add = distribute_to_shareholder(&vesting_signer, vesting_contract, &mut shareholders_address, &mut vesting_records, vesting_fraction);
             total_amount_left = total_amount_left + amount_to_add;
+            // spec {
+            //     update ghost_address_num = ghost_address_num - 1;
+            //     update ghost_records_num = ghost_records_num - 1;
+            // };
         };
 
         let total_balance = coin::balance<AptosCoin>(contract_address);
