@@ -37,22 +37,30 @@ module aptos_framework::dora_committee {
     }
 
     struct CommitteeInfoStore has key {
+    // map from unique committee id -> CommitteeInfo
         committee_map: SimpleMap<u64, CommitteeInfo>,
+       // map from node address to committee to which the node belongs
         node_to_committee_map: SimpleMap<address, u64>,
     }
 
     struct CommitteeInfo has store, drop, copy {
+    // map from node address to DoraNodeInfo which provides other details pertaining to the node
         map: SimpleMap<address, DoraNodeInfo>,
+     // a flag that indicates whether the committee already has performed DKG successfully or not, thus indicating whether corresponding public key are valid to be used for threshold signing
         has_valid_dkg: bool,
         committee_type: u8
     }
 
     struct DoraNodeInfo has store, copy, drop {
         ip_public_address: vector<u8>,
+        // public key to be used for voting 
         dora_public_key: vector<u8>,
+        // public key for secure TLS connection
         network_public_key: vector<u8>,
         elgamal_pub_key: vector<u8>,
+        // port number at which the node listens to for connection attempts by peers
         network_port: u16,
+        // port number to serve RPC requests
         rpc_port: u16
     }
 
@@ -185,8 +193,7 @@ module aptos_framework::dora_committee {
     ): u64 acquires CommitteeInfoStore {
         let committee_store = borrow_global<CommitteeInfoStore>(com_store_addr);
         let node_address = vector::pop_back(&mut map_key);
-        let id = *simple_map::borrow(&committee_store.node_to_committee_map, &node_address);
-        id
+        *simple_map::borrow(&committee_store.node_to_committee_map, &node_address);
     }
 
     #[view]
@@ -200,8 +207,9 @@ module aptos_framework::dora_committee {
         let committee = simple_map::borrow(&committee_store.committee_map, &id);
         let (addrs, dora_nodes) = simple_map::to_vec_pair(committee.map);
         let (flag, index) = vector::index_of(&addrs, &node_address);
-        let dora_node_info = vector::borrow(&dora_nodes, index);
         assert!(flag, error::invalid_argument(NODE_NOT_FOUND));
+        let dora_node_info = vector::borrow(&dora_nodes, index);
+  
         NodeData {
             operator: node_address,
             ip_public_address: dora_node_info.ip_public_address,
