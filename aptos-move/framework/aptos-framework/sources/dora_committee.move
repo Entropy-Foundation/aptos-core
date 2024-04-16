@@ -386,7 +386,7 @@ module aptos_framework::dora_committee {
         let committee_info = CommitteeInfo {
             map: simple_map::new_from(node_addresses, dora_node_info),
             has_valid_dkg: false,
-            committee_type: get_committee_type(committee_type, node_address_len)
+            committee_type: validate_committee_type(committee_type, node_address_len)
         };
         let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(get_committeeInfo_address(owner_signer));
         let (_, value) = simple_map::upsert(&mut committee_store.committee_map, id, committee_info);
