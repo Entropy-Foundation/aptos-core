@@ -181,18 +181,18 @@ module aptos_framework::dora_committee {
         create_event_handler(&resource_signer);
     }
 
-    // Function to get the committee type from an integer
-    fun get_committee_type(committee_type: u8, num_of_nodes: u64): u8 {
+    // Function to validate the committee type from an integer
+    fun validate_committee_type(committee_type: u8, num_of_nodes: u64): u8 {
         assert!(committee_type >= FAMILY && committee_type <= TRIBE, INVALID_COMMITTEE_TYPE);
         if (committee_type == FAMILY) {
             // f+1, number of nodes in a family committee should be greater than 1
             assert!(num_of_nodes > 1, INVALID_NODE_NUMBERS);
         } else if (committee_type == CLAN) {
             // 2f+1, number of nodes in a clan committee should be odd and greater than 3
-            assert!(num_of_nodes > 3 && num_of_nodes % 2 == 1, INVALID_NODE_NUMBERS);
+            assert!(num_of_nodes >= 3 && num_of_nodes % 2 == 1, INVALID_NODE_NUMBERS);
         } else {
             // 3f+1, number of nodes in a tribe committee should be in the format of 3f+1 and greater than 4
-            assert!(num_of_nodes > 4 && (num_of_nodes - 1) % 3 == 0, INVALID_NODE_NUMBERS);
+            assert!(num_of_nodes >= 4 && (num_of_nodes - 1) % 3 == 0, INVALID_NODE_NUMBERS);
         };
         committee_type
     }
