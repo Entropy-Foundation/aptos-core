@@ -1287,7 +1287,7 @@ module supra_framework::staking_contract {
 
         // Operator joins the validator set so rewards are generated.
         let (_sk, pk) = stake::generate_identity();
-        stake::join_validator_set_for_test(&pk, operator, pool_address, true);
+        stake::join_validator_set_for_test(&pk,  operator, pool_address, true);
         assert!(stake::get_validator_state(pool_address) == VALIDATOR_STATUS_ACTIVE, 1);
 
         // Fast forward to generate rewards.
@@ -1370,7 +1370,7 @@ module supra_framework::staking_contract {
 
         // Operator joins the validator set so rewards are generated.
         let (_sk, pk) = stake::generate_identity();
-        stake::join_validator_set_for_test(&pk, operator, pool_address, true);
+        stake::join_validator_set_for_test(&pk,  operator, pool_address, true);
         assert!(stake::get_validator_state(pool_address) == VALIDATOR_STATUS_ACTIVE, 1);
 
         // Fast forward to generate rewards.
