@@ -35,7 +35,7 @@
 /// Note that this multisig account model is not designed to use with a large number of owners. The more owners there
 /// are, the more expensive voting on transactions will become. If a large number of owners is designed, such as in a
 /// flat governance structure, clients are encouraged to write their own modules on top of this multisig account module
-/// and implement the governance voting logic on top.'
+/// and implement the governance voting logic on top.
 module supra_framework::multisig_account {
     use supra_framework::account::{Self, SignerCapability, new_event_handle, create_resource_address};
     use supra_framework::supra_coin::SupraCoin;
