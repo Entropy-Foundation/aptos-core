@@ -916,9 +916,11 @@ module supra_framework::multisig_account {
             table::contains(&multisig_account_resource.transactions, sequence_number),
             error::not_found(ETRANSACTION_NOT_FOUND),
         );
+        let creation_time_secs = table::borrow(&multisig_account_resource.transactions, sequence_number).creation_time_secs;
         let (_, num_rejections) = remove_executed_transaction(multisig_account_resource);
         assert!(
-            num_rejections >= multisig_account_resource.num_signatures_required,
+            // Can be removed if the number of rejections is greater than or equal to the number of signatures required or if the transaction has timed out.
+            num_rejections >= multisig_account_resource.num_signatures_required || multisig_account_resource.timeout_duration < now_seconds() - creation_time_secs,
             error::invalid_state(ENOT_ENOUGH_REJECTIONS),
         );
 
@@ -1941,6 +1943,25 @@ module supra_framework::multisig_account {
         reject_transaction(owner_2, multisig_account, 1);
         execute_rejected_transaction(owner_3, multisig_account);
     }
+
+    #[test(owner_1 = @0x123, owner_2 = @0x124, owner_3 = @0x125)]
+    #[expected_failure(abort_code = 0x3000A, location = Self)]
+    public entry fun test_execute_rejected_transaction_timeout_should_success(
+        owner_1: &signer, owner_2: &signer, owner_3: &signer) acquires MultisigAccount {
+        setup();
+        let owner_1_addr = address_of(owner_1);
+        let owner_2_addr = address_of(owner_2);
+        let owner_3_addr = address_of(owner_3);
+        create_account(owner_1_addr);
+        let multisig_account = get_next_multisig_account_address(owner_1_addr);
+        create_with_owners(owner_1, vector[owner_2_addr, owner_3_addr], 2, vector[], vector[], MINIMAL_TIMEOUT_DURATION);
+
+        create_transaction(owner_1, multisig_account, PAYLOAD);
+        reject_transaction(owner_2, multisig_account, 1);
+        fast_forward_seconds(MINIMAL_TIMEOUT_DURATION);
+        execute_rejected_transaction(owner_3, multisig_account);
+    }
+
 
     #[test(
         owner_1 = @0x123,
