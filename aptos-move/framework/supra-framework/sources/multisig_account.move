@@ -143,6 +143,7 @@ module supra_framework::multisig_account {
         execute_transaction_events: EventHandle<TransactionExecutionSucceededEvent>,
         transaction_execution_failed_events: EventHandle<TransactionExecutionFailedEvent>,
         metadata_updated_events: EventHandle<MetadataUpdatedEvent>,
+        TimeoutDurationUpdatedEvent: EventHandle<TimeoutDurationUpdatedEvent>,
     }
 
     /// A transaction to be executed in a multisig account.
@@ -261,6 +262,12 @@ module supra_framework::multisig_account {
     struct MetadataUpdatedEvent has drop, store {
         old_metadata: SimpleMap<String, vector<u8>>,
         new_metadata: SimpleMap<String, vector<u8>>,
+    }
+
+    /// Event emitted when a transaction's timeout duration is updated.
+    struct TimeoutDurationUpdatedEvent has drop, store {
+        old_timeout_duration: u64,
+        new_timeout_duration: u64,
     }
 
     ////////////////////////// View functions ///////////////////////////////
@@ -622,6 +629,7 @@ module supra_framework::multisig_account {
             execute_transaction_events: new_event_handle<TransactionExecutionSucceededEvent>(multisig_account),
             transaction_execution_failed_events: new_event_handle<TransactionExecutionFailedEvent>(multisig_account),
             metadata_updated_events: new_event_handle<MetadataUpdatedEvent>(multisig_account),
+            TimeoutDurationUpdatedEvent: new_event_handle<TimeoutDurationUpdatedEvent>(multisig_account),
         });
 
         update_metadata_internal(multisig_account, metadata_keys, metadata_values, false);
@@ -805,8 +813,15 @@ module supra_framework::multisig_account {
         multisig_account: &signer, timeout_duration: u64) acquires MultisigAccount {
         assert_multisig_account_exists(address_of(multisig_account));
         let multisig_account_resource = borrow_global_mut<MultisigAccount>(address_of(multisig_account));
-        assert_is_owner(multisig_account, multisig_account_resource);
+        let old_timeout_duration = multisig_account_resource.timeout_duration;
         multisig_account_resource.timeout_duration = timeout_duration;
+        emit_event(
+            &mut multisig_account_resource.TimeoutDurationUpdatedEvent,
+            TimeoutDurationUpdatedEvent {
+                old_timeout_duration,
+                new_timeout_duration: timeout_duration,
+            }
+        );
     }
 
     ////////////////////////// Multisig transaction flow ///////////////////////////////
@@ -1516,6 +1531,18 @@ module supra_framework::multisig_account {
     }
 
     #[test(owner = @0x123)]
+    public entry fun test_update_timeout(owner: &signer) acquires MultisigAccount {
+        setup();
+        let owner_addr = address_of(owner);
+        create_account(owner_addr);
+        create(owner,1, vector[], vector[], MINIMAL_TIMEOUT_DURATION);
+        let multisig_account = get_next_multisig_account_address(owner_addr);
+        update_timeout_duration(&create_signer(multisig_account), 1000);
+        let updated_timeout = timeout_duration(multisig_account);
+        assert!(updated_timeout == 1000, 0);
+    }
+
+    #[test(owner = @0x123)]
     #[expected_failure(abort_code = 0x1000B, location = Self)]
     public entry fun test_update_with_zero_signatures_required_should_fail(
         owner:& signer) acquires MultisigAccount {
@@ -1961,7 +1988,6 @@ module supra_framework::multisig_account {
         fast_forward_seconds(MINIMAL_TIMEOUT_DURATION);
         execute_rejected_transaction(owner_3, multisig_account);
     }
-
 
     #[test(
         owner_1 = @0x123,
