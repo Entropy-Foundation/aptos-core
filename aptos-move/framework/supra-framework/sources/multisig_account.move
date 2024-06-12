@@ -368,8 +368,8 @@ module supra_framework::multisig_account {
         let transaction = table::borrow(&multisig_account_resource.transactions, sequence_number);
         let (_, num_rejections) = num_approvals_and_rejections(&multisig_account_resource.owners, transaction);
         sequence_number == multisig_account_resource.last_executed_sequence_number + 1 &&
-            (num_rejections >= multisig_account_resource.num_signatures_required ||
-            multisig_account_resource.timeout_duration < now_seconds() - transaction.creation_time_secs)
+           ( (num_rejections >= multisig_account_resource.num_signatures_required) ||
+            (multisig_account_resource.timeout_duration < now_seconds() - transaction.creation_time_secs))
     }
 
     #[view]
