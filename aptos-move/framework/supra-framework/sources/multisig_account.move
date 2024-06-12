@@ -266,6 +266,7 @@ module supra_framework::multisig_account {
 
     /// Event emitted when a transaction's timeout duration is updated.
     struct TimeoutDurationUpdatedEvent has drop, store {
+        executor: address,
         old_timeout_duration: u64,
         new_timeout_duration: u64,
     }
@@ -811,6 +812,7 @@ module supra_framework::multisig_account {
     /// Update the timeout duration for the multisig account.
     entry fun update_timeout_duration(
         multisig_account: &signer, timeout_duration: u64) acquires MultisigAccount {
+        assert!(timeout_duration >= MINIMAL_TIMEOUT_DURATION, error::invalid_argument(EINVALID_TIMEOUT_DURATION));
         assert_multisig_account_exists(address_of(multisig_account));
         let multisig_account_resource = borrow_global_mut<MultisigAccount>(address_of(multisig_account));
         let old_timeout_duration = multisig_account_resource.timeout_duration;
@@ -818,6 +820,7 @@ module supra_framework::multisig_account {
         emit_event(
             &mut multisig_account_resource.TimeoutDurationUpdatedEvent,
             TimeoutDurationUpdatedEvent {
+                executor: address_of(multisig_account),
                 old_timeout_duration,
                 new_timeout_duration: timeout_duration,
             }
