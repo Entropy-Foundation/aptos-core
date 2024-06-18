@@ -31,14 +31,43 @@ module supra_framework::genesis {
     use supra_framework::transaction_validation;
     use supra_framework::version;
     use supra_framework::vesting;
+	use supra_framework::vesting_without_staking;
 
-    const EDUPLICATE_ACCOUNT: u64 = 1;
+    
+	const VESTING_CONTRACT_SEED: vector<u8> = b"VESTING_WIHOUT_STAKING_SEED";
+	
+	const EDUPLICATE_ACCOUNT: u64 = 1;
     const EACCOUNT_DOES_NOT_EXIST: u64 = 2;
+	const EVESTING_SCHEDULE_IS_ZERO: u64 = 3;
+	const ENUMERATOR_IS_ZERO: u64 = 4;
+	const ENO_SHAREHOLDERS: u64 = 5;
+	const EVESTING_PERCENTAGE_INVALID: u64 = 6;
+	const ENUMERATOR_GREATER_THAN_DENOMINATOR: u64 = 7;
+	const EDENOMINATOR_IS_ZERO: u64 = 8;
+	const EACCOUNT_NOT_REGISTERED_FOR_COIN: u64 = 9;
+	
 
     struct AccountMap has drop {
         account_address: address,
         balance: u64,
     }
+
+	struct VestingPoolsMap has copy, drop {
+		// Address of the admin of the vesting pool
+		admin_address: address,
+		// Percentage of account balance should be put in vesting pool
+		vesting_percentage : u8,
+		vesting_numerators : vector<u64>,
+		vesting_denominator : u64,
+		//Withdrawal address for the pool
+		withdrawal_address: address,
+		// Shareholders in the vesting pool
+		shareholders : vector<address>,
+		//Cliff duration in seconds
+		cliff_period_in_seconds: u64,
+		// Each vesting period duration in seconds
+		period_duration_in_seconds: u64,
+	}
 
     struct EmployeeAccountMap has copy, drop {
         accounts: vector<address>,
@@ -208,6 +237,76 @@ module supra_framework::genesis {
         }
     }
 
+	fun create_vesting_without_staking_pools(
+		vesting_pool_map : vector<VestingPoolsMap>
+	) {
+		let unique_accounts: vector<address> = vector::empty();
+		vector::for_each_ref(&vesting_pool_map, |pool_config|
+		{
+			
+			let pool_config: &VestingPoolsMap = pool_config;
+			let schedule  = vector::empty();
+			let schedule_length = vector::length(&pool_config.vesting_numerators);
+			assert!(schedule_length>0, error::invalid_argument(EVESTING_SCHEDULE_IS_ZERO));
+			assert!(pool_config.vesting_denominator>0, error::invalid_argument(EDENOMINATOR_IS_ZERO));
+			assert!(pool_config.vesting_percentage > 0 && pool_config.vesting_percentage <=100 ,
+				error::invalid_argument(EVESTING_PERCENTAGE_INVALID));
+
+			
+			//assert that withdrawal_address is registered to receive SupraCoin
+			assert!(coin::is_account_registered<SupraCoin>(pool_config.withdrawal_address), error::invalid_argument(EACCOUNT_NOT_REGISTERED_FOR_COIN));
+			//assertion on admin_address?
+			let admin = create_signer(pool_config.admin_address);
+
+			//Create the vesting schedule
+			let j=0;
+			while ( j < schedule_length)
+			{
+				let numerator = *vector::borrow(&pool_config.vesting_numerators,j);
+				assert!(numerator>0, error::invalid_argument(ENUMERATOR_IS_ZERO));
+				assert!(numerator <= pool_config.vesting_denominator, 
+					error::invalid_argument(ENUMERATOR_GREATER_THAN_DENOMINATOR));
+				let event = fixed_point32::create_from_rational(numerator,pool_config.vesting_denominator);
+				vector::push_back(&mut schedule,event);
+				j = j+1;
+			};
+			
+			let vesting_schedule = vesting_without_staking::create_vesting_schedule(
+				schedule,
+				timestamp::now_seconds() + pool_config.cliff_period_in_seconds,
+				pool_config.period_duration_in_seconds,
+			);
+
+
+
+			let buy_ins  = simple_map::create();
+			let num_shareholders = vector::length(&pool_config.shareholders);
+			assert!(num_shareholders>0, error::invalid_argument(ENO_SHAREHOLDERS));
+			let j = 0;
+			while ( j < num_shareholders)
+			{
+				let shareholder = *vector::borrow(&pool_config.shareholders,j);
+				assert!(!vector::contains(&unique_accounts,&shareholder), error::already_exists(EDUPLICATE_ACCOUNT));
+				vector::push_back(&mut unique_accounts,shareholder);
+				let shareholder_signer = create_signer(shareholder);
+				let amount = coin::balance<SupraCoin>(shareholder);
+				let amount_to_extract = (amount * (pool_config.vesting_percentage as u64)) / 100;
+				let coin_share = coin::withdraw<SupraCoin>(&shareholder_signer,amount_to_extract);
+				simple_map::add(&mut buy_ins,shareholder,coin_share);
+			};
+
+			vesting_without_staking::create_vesting_contract(
+				&admin,
+				buy_ins,
+				vesting_schedule,
+				pool_config.withdrawal_address,
+				VESTING_CONTRACT_SEED
+
+			);
+			
+
+		});
+	}
     fun create_employee_validators(
         employee_vesting_start: u64,
         employee_vesting_period_duration: u64,
