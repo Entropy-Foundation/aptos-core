@@ -4,6 +4,10 @@ module supra_framework::genesis {
     use std::vector;
 
     use aptos_std::simple_map;
+    use supra_framework::delegation_pool;
+    use supra_framework::stake::withdraw;
+    use supra_framework::pbo_delegation_pool;
+    use supra_framework::coin::Coin;
 
     use supra_framework::account;
     use supra_framework::aggregator_factory;
@@ -60,6 +64,19 @@ module supra_framework::genesis {
         validator_config: ValidatorConfiguration,
         commission_percentage: u64,
         join_during_genesis: bool,
+    }
+
+    struct DelegatorConfiguration has copy, drop {
+        owner_address: address,
+        delegation_pool_creation_seed: vector<u8>,
+        operator_commission_percentage: u64,
+    }
+
+    struct PboDelegatorConfiguration has copy, drop {
+        delegatorConfig: DelegatorConfiguration,
+        delegator_address: vector<address>,
+        principle_stake: vector<u64>,
+        principle_lockup_time: u64,
     }
 
     /// Genesis step 1: Initialize aptos framework account and core modules on chain.
@@ -355,6 +372,80 @@ module supra_framework::genesis {
         if (commission_config.join_during_genesis) {
             initialize_validator(pool_address, validator);
         };
+    }
+
+    fun create_delegation_pools(
+        supra_framework: &signer,
+        delegatorsConfigs: vector<DelegatorConfiguration>,
+    ) {
+        let unique_accounts:vector<address> = vector::empty();
+        vector::for_each_ref(&delegatorsConfigs, |delegator| {
+            let delegator: &DelegatorConfiguration = delegator;
+            let delegator_address = delegator.owner_address;
+            assert!(
+                !vector::contains(&unique_accounts, &delegator_address),
+                error::already_exists(EDUPLICATE_ACCOUNT),
+            );
+            vector::push_back(&mut unique_accounts, delegator_address);
+            create_delegation_pool(supra_framework, delegator);
+        });
+        stake::on_new_epoch();
+    }
+
+    fun create_delegation_pool(
+        supra_framework: &signer,
+        delegator: &DelegatorConfiguration,
+    ) {
+        let owner = &create_account(supra_framework, delegator.owner_address, 0);
+        delegation_pool::initialize_delegation_pool(
+            owner,
+            delegator.operator_commission_percentage,
+            delegator.delegation_pool_creation_seed,
+        );
+    }
+
+    fun create_pbo_delegation_pools(
+        supra_framework: &signer,
+        delegatorsConfigs: vector<PboDelegatorConfiguration>,
+    ) {
+        let unique_accounts:vector<address> = vector::empty();
+        vector::for_each_ref(&delegatorsConfigs, |delegator| {
+            let delegator: &PboDelegatorConfiguration = delegator;
+            let delegator_address = delegator.delegatorConfig.owner_address;
+            assert!(
+                !vector::contains(&unique_accounts, &delegator_address),
+                error::already_exists(EDUPLICATE_ACCOUNT),
+            );
+            vector::push_back(&mut unique_accounts, delegator_address);
+            create_pbo_delegation_pool(supra_framework, delegator);
+        });
+        stake::on_new_epoch();
+    }
+
+    fun create_pbo_delegation_pool(
+        supra_framework: &signer,
+        delegator: &PboDelegatorConfiguration,
+    ) {
+        let owner = &create_account(supra_framework, delegator.delegatorConfig.owner_address, 0);
+        // get a list of delegator addresses, withdraw the coin from them and merge them into a single account
+        let delegator_addresses = delegator.delegator_address;
+        let coinInitialization = coin::zero<SupraCoin>();
+        vector::for_each(delegator_addresses, |delegator_address| {
+            let delegator = &create_signer(delegator_address);
+            let total = coin::balance<SupraCoin>(delegator_address);
+            let coins = coin::withdraw<SupraCoin>(delegator, total);
+            coin::merge(&mut coinInitialization, coins);
+        });
+
+        pbo_delegation_pool::initialize_delegation_pool(
+            owner,
+            delegator.delegatorConfig.operator_commission_percentage,
+            delegator.delegatorConfig.delegation_pool_creation_seed,
+            delegator.delegator_address,
+            delegator.principle_stake,
+            coinInitialization,
+            delegator.principle_lockup_time,
+        );
     }
 
     fun initialize_validator(pool_address: address, validator: &ValidatorConfiguration) {
