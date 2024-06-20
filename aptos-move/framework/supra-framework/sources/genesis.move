@@ -5,9 +5,7 @@ module supra_framework::genesis {
 
     use aptos_std::simple_map;
     use supra_framework::delegation_pool;
-    use supra_framework::stake::withdraw;
     use supra_framework::pbo_delegation_pool;
-    use supra_framework::coin::Coin;
 
     use supra_framework::account;
     use supra_framework::aggregator_factory;
@@ -406,10 +404,13 @@ module supra_framework::genesis {
 
     fun create_pbo_delegation_pools(
         supra_framework: &signer,
-        delegatorsConfigs: vector<PboDelegatorConfiguration>,
+        delegators_configs: vector<PboDelegatorConfiguration>,
+        delegation_percentage: u64,
     ) {
+        assert!(delegation_percentage > 0, error::invalid_argument(0));
+        assert!(delegation_percentage <= 1, error::invalid_argument(1));
         let unique_accounts:vector<address> = vector::empty();
-        vector::for_each_ref(&delegatorsConfigs, |delegator| {
+        vector::for_each_ref(&delegators_configs, |delegator| {
             let delegator: &PboDelegatorConfiguration = delegator;
             let delegator_address = delegator.delegatorConfig.owner_address;
             assert!(
@@ -417,7 +418,7 @@ module supra_framework::genesis {
                 error::already_exists(EDUPLICATE_ACCOUNT),
             );
             vector::push_back(&mut unique_accounts, delegator_address);
-            create_pbo_delegation_pool(supra_framework, delegator);
+            create_pbo_delegation_pool(supra_framework, delegator, delegation_percentage);
         });
         stake::on_new_epoch();
     }
@@ -425,6 +426,7 @@ module supra_framework::genesis {
     fun create_pbo_delegation_pool(
         supra_framework: &signer,
         delegator: &PboDelegatorConfiguration,
+        delegation_percentage: u64,
     ) {
         let owner = &create_account(supra_framework, delegator.delegatorConfig.owner_address, 0);
         // get a list of delegator addresses, withdraw the coin from them and merge them into a single account
@@ -433,7 +435,8 @@ module supra_framework::genesis {
         vector::for_each(delegator_addresses, |delegator_address| {
             let delegator = &create_signer(delegator_address);
             let total = coin::balance<SupraCoin>(delegator_address);
-            let coins = coin::withdraw<SupraCoin>(delegator, total);
+            let withdraw_amount = total * delegation_percentage;
+            let coins = coin::withdraw<SupraCoin>(delegator, withdraw_amount);
             coin::merge(&mut coinInitialization, coins);
         });
 
