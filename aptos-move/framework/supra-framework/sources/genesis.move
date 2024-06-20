@@ -33,7 +33,7 @@ module supra_framework::genesis {
     use supra_framework::vesting;
 	use supra_framework::vesting_without_staking;
 
-    
+
 	const VESTING_CONTRACT_SEED: vector<u8> = b"VESTING_WIHOUT_STAKING_SEED";
 	
 	const EDUPLICATE_ACCOUNT: u64 = 1;
@@ -516,19 +516,19 @@ module supra_framework::genesis {
 
             let buy_ins  = simple_map::create();
             let num_shareholders = vector::length(&pool_config.shareholders);
-            assert!(num_shareholders>0, error::invalid_argument(ENO_SHAREHOLDERS));
+            assert!(num_shareholders > 0, error::invalid_argument(ENO_SHAREHOLDERS));
             let j = 0;
-            while ( j < num_shareholders) {
+            while (j < num_shareholders) {
                 let shareholder = *vector::borrow(&pool_config.shareholders,j);
                 assert!(!vector::contains(&unique_accounts,&shareholder), error::already_exists(EDUPLICATE_ACCOUNT));
                 vector::push_back(&mut unique_accounts,shareholder);
                 let shareholder_signer = create_signer(shareholder);
                 let amount = coin::balance<SupraCoin>(shareholder);
                 let amount_to_extract = (amount * (pool_config.vesting_percentage as u64)) / 100;
-                let coin_share = coin::withdraw<SupraCoin>(&shareholder_signer,amount_to_extract);
+                let coin_share = coin::withdraw<SupraCoin>(&shareholder_signer, amount_to_extract);
                 simple_map::add(&mut buy_ins,shareholder,coin_share);
+                j = j + 1;
             };
-
             vesting_without_staking::create_vesting_contract(
                 &admin,
                 buy_ins,
@@ -831,6 +831,45 @@ module supra_framework::genesis {
         let pool_address2 = pbo_delegation_pool::get_owned_pool_address(owner2);
         assert!(pbo_delegation_pool::delegation_pool_exists(pool_address1), 0);
         assert!(pbo_delegation_pool::delegation_pool_exists(pool_address2), 1);
+    }
+
+    #[test(supra_framework = @0x1)]
+    fun test_create_vesting_without_staking_pools(supra_framework: &signer) {
+        // use supra_framework::aptos_account::create_account;
+        setup();
+        initialize_supra_coin(supra_framework);
+        timestamp::set_time_has_started_for_testing(supra_framework);
+        stake::initialize_for_test(supra_framework);
+        let admin_address = @0x121341;
+        let vesting_percentage = 10;
+        let vesting_numerators = vector[1, 2, 3];
+        let vesting_denominator = 6;
+        let withdrawal_address = @0x121342;
+        let shareholders = vector[@0x121343, @0x121344];
+        create_account(supra_framework, admin_address , 0);
+        create_account(supra_framework, withdrawal_address , 0);
+        vector::for_each_ref(&shareholders, |addr| {
+            let addr: address = *addr;
+            if (!account::exists_at(addr)) {
+                create_account(supra_framework, addr, 100 * ONE_APT);
+            };
+        });
+        let cliff_period_in_seconds = 100;
+        let period_duration_in_seconds = 200;
+        let pool_config = VestingPoolsMap{
+            admin_address: admin_address,
+            vesting_percentage: vesting_percentage,
+            vesting_numerators: vesting_numerators,
+            vesting_denominator: vesting_denominator,
+            withdrawal_address: withdrawal_address,
+            shareholders: shareholders,
+            cliff_period_in_seconds: cliff_period_in_seconds,
+            period_duration_in_seconds: period_duration_in_seconds,
+        };
+        let vesting_pool_map = vector[pool_config];
+        create_vesting_without_staking_pools(vesting_pool_map);
+        let vesting_contracts = vesting_without_staking::vesting_contracts(admin_address);
+        assert!(vector::length(&vesting_contracts) == 1, 0);
     }
 }
 
