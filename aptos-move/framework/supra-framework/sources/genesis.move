@@ -97,12 +97,12 @@ module supra_framework::genesis {
         owner_address: address,
         delegation_pool_creation_seed: vector<u8>,
         operator_commission_percentage: u64,
+        delegator_addresses: vector<address>,
+        delegator_stakes: vector<u64>,
     }
 
     struct PboDelegatorConfiguration has copy, drop {
-        delegatorConfig: DelegatorConfiguration,
-        delegator_address: vector<address>,
-        principle_stake: vector<u64>,
+        delegator_config: DelegatorConfiguration,
         principle_lockup_time: u64,
     }
 
@@ -402,62 +402,70 @@ module supra_framework::genesis {
     }
 
     fun create_delegation_pools(
-        supra_framework: &signer,
-        delegatorsConfigs: vector<DelegatorConfiguration>,
+        delegator_configs: vector<DelegatorConfiguration>,
     ) {
-        let unique_accounts:vector<address> = vector::empty();
-        vector::for_each_ref(&delegatorsConfigs, |delegator| {
-            let delegator: &DelegatorConfiguration = delegator;
-            let delegator_address = delegator.owner_address;
-            assert!(
-                !vector::contains(&unique_accounts, &delegator_address),
-                error::already_exists(EDUPLICATE_ACCOUNT),
-            );
-            vector::push_back(&mut unique_accounts, delegator_address);
-            create_delegation_pool(supra_framework, delegator);
+        vector::for_each_ref(&delegator_configs, |delegator_config| {
+            let delegator_config: &DelegatorConfiguration = delegator_config;
+            create_delegation_pool(delegator_config);
         });
-        stake::on_new_epoch();
     }
 
     fun create_delegation_pool(
-        supra_framework: &signer,
-        delegator: &DelegatorConfiguration,
+        delegator_config: &DelegatorConfiguration,
     ) {
-        let owner = &create_account(supra_framework, delegator.owner_address, 0);
+        let unique_accounts:vector<address> = vector::empty();
+        vector::for_each_ref(&delegator_config.delegator_addresses, |delegator_address| {
+            let delegator_address: &address = delegator_address;
+            assert!(
+                !vector::contains(&unique_accounts, delegator_address),
+                error::already_exists(EDUPLICATE_ACCOUNT),
+            );
+            vector::push_back(&mut unique_accounts, *delegator_address);
+        });
+        let owner_signer = create_signer(delegator_config.owner_address);
         delegation_pool::initialize_delegation_pool(
-            owner,
-            delegator.operator_commission_percentage,
-            delegator.delegation_pool_creation_seed,
+            &owner_signer,
+            delegator_config.operator_commission_percentage,
+            delegator_config.delegation_pool_creation_seed,
         );
+        let pool_address = delegation_pool::get_owned_pool_address(delegator_config.owner_address);
+        let i = 0;
+        while (i < vector::length(&delegator_config.delegator_addresses)) {
+            let delegator_address = *vector::borrow(&delegator_config.delegator_addresses, i);
+            let delegator = &create_signer(delegator_address);
+            let delegator_stake = *vector::borrow(&delegator_config.delegator_stakes, i);
+            delegation_pool::add_stake(delegator, pool_address, delegator_stake);
+            i = i + 1;
+        };
     }
 
     fun create_pbo_delegation_pools(
-        supra_framework: &signer,
-        delegators_configs: vector<PboDelegatorConfiguration>,
+        pbo_delegator_configs: vector<PboDelegatorConfiguration>,
         delegation_percentage: u64,
     ) {
         assert!(delegation_percentage > 0 && delegation_percentage <= 100, error::invalid_argument(PERCENTAGE_INVALID));
-        let unique_accounts:vector<address> = vector::empty();
-        vector::for_each_ref(&delegators_configs, |delegator| {
-            let delegator: &PboDelegatorConfiguration = delegator;
-            let delegator_address = delegator.delegatorConfig.owner_address;
-            assert!(
-                !vector::contains(&unique_accounts, &delegator_address),
-                error::already_exists(EDUPLICATE_ACCOUNT),
-            );
-            vector::push_back(&mut unique_accounts, delegator_address);
-            create_pbo_delegation_pool(supra_framework, delegator, delegation_percentage);
+        vector::for_each_ref(&pbo_delegator_configs, |pbo_delegator_config| {
+            let pbo_delegator_config: &PboDelegatorConfiguration = pbo_delegator_config;
+            create_pbo_delegation_pool(pbo_delegator_config, delegation_percentage);
         });
     }
 
     fun create_pbo_delegation_pool(
-        supra_framework: &signer,
-        delegator: &PboDelegatorConfiguration,
+        pbo_delegator_config: &PboDelegatorConfiguration,
         delegation_percentage: u64,
     ) {
-        let owner = &create_account(supra_framework, delegator.delegatorConfig.owner_address, 0);
+        let unique_accounts:vector<address> = vector::empty();
+        vector::for_each_ref(&pbo_delegator_config.delegator_config.delegator_addresses, |delegator_address| {
+            let delegator_address: &address = delegator_address;
+            assert!(
+                !vector::contains(&unique_accounts, delegator_address),
+                error::already_exists(EDUPLICATE_ACCOUNT),
+            );
+            vector::push_back(&mut unique_accounts, *delegator_address);
+        });
+        let owner_signer = create_signer(pbo_delegator_config.delegator_config.owner_address);
         // get a list of delegator addresses, withdraw the coin from them and merge them into a single account
-        let delegator_addresses = delegator.delegator_address;
+        let delegator_addresses = pbo_delegator_config.delegator_config.delegator_addresses;
         let coinInitialization = coin::zero<SupraCoin>();
         vector::for_each(delegator_addresses, |delegator_address| {
             let delegator = &create_signer(delegator_address);
@@ -467,13 +475,13 @@ module supra_framework::genesis {
             coin::merge(&mut coinInitialization, coins);
         });
         pbo_delegation_pool::initialize_delegation_pool(
-            owner,
-            delegator.delegatorConfig.operator_commission_percentage,
-            delegator.delegatorConfig.delegation_pool_creation_seed,
-            delegator.delegator_address,
-            delegator.principle_stake,
+            &owner_signer,
+            pbo_delegator_config.delegator_config.operator_commission_percentage,
+            pbo_delegator_config.delegator_config.delegation_pool_creation_seed,
+            pbo_delegator_config.delegator_config.delegator_addresses,
+            pbo_delegator_config.delegator_config.delegator_stakes,
             coinInitialization,
-            delegator.principle_lockup_time,
+            pbo_delegator_config.principle_lockup_time,
         );
     }
 
@@ -491,6 +499,7 @@ module supra_framework::genesis {
                 error::invalid_argument(PERCENTAGE_INVALID));
             //check the sum of numerator are <= denominator.
             let sum = vector::fold(pool_config.vesting_numerators,0,|acc, x| acc + x);
+            // Check that total of all fraction in `vesting_schedule` is not greater than 1
             assert!(sum <= pool_config.vesting_denominator,
                 error::invalid_argument(ENUMERATOR_GREATER_THAN_DENOMINATOR));
             //assert that withdrawal_address is registered to receive SupraCoin
@@ -631,7 +640,7 @@ module supra_framework::genesis {
             x"13",
             1,
             0,
-            10000000000,
+            1000 * ONE_APT,
             1,
             true,
             1,
@@ -700,16 +709,28 @@ module supra_framework::genesis {
         setup();
         initialize_supra_coin(supra_framework);
         let owner = @0x121341;
+        create_account(supra_framework, owner, 0);
         let operator_commission_percentage = 10;
         let delegation_pool_creation_seed = x"121341";
-        let delegator = DelegatorConfiguration{
+        let delegator_addresses = vector[@0x121342, @0x121343];
+        let delegator_stakes = vector[100 * ONE_APT, 200 * ONE_APT];
+        let i = 0;
+        while (i < vector::length(&delegator_addresses)) {
+            create_account(supra_framework, *vector::borrow(&delegator_addresses, i), *vector::borrow(&delegator_stakes, i));
+            i = i + 1;
+        };
+        let delegator_config = DelegatorConfiguration{
             owner_address: owner,
             operator_commission_percentage: operator_commission_percentage,
             delegation_pool_creation_seed: delegation_pool_creation_seed,
+            delegator_addresses,
+            delegator_stakes
         };
-        create_delegation_pool(supra_framework, &delegator);
+        create_delegation_pool(&delegator_config);
         let pool_address = delegation_pool::get_owned_pool_address(owner);
         assert!(delegation_pool::delegation_pool_exists(pool_address), 0);
+        delegation_pool::assert_delegation(@0x121342, pool_address, 100 * ONE_APT, 0, 0);
+        delegation_pool::assert_delegation(@0x121343, pool_address, 200 * ONE_APT, 0, 0);
     }
 
     #[test(supra_framework = @0x1)]
@@ -717,23 +738,43 @@ module supra_framework::genesis {
         setup();
         initialize_supra_coin(supra_framework);
         let owner1 = @0x121341;
+        create_account(supra_framework, owner1, 0);
         let operator_commission_percentage1 = 10;
         let delegation_pool_creation_seed1 = x"121341";
-        let delegator1 = DelegatorConfiguration{
+        let delegator_addresses1 = vector[@0x121342, @0x121343];
+        let delegator_stakes1 = vector[100 * ONE_APT, 200 * ONE_APT];
+        let i = 0;
+        while (i < vector::length(&delegator_addresses1)) {
+            create_account(supra_framework, *vector::borrow(&delegator_addresses1, i), *vector::borrow(&delegator_stakes1, i));
+            i = i + 1;
+        };
+        let delegator_config1 = DelegatorConfiguration{
             owner_address: owner1,
             operator_commission_percentage: operator_commission_percentage1,
             delegation_pool_creation_seed: delegation_pool_creation_seed1,
+            delegator_addresses: delegator_addresses1,
+            delegator_stakes: delegator_stakes1
         };
-        let owner2 = @0x121342;
+        let owner2 = @0x121344;
+        create_account(supra_framework, owner2, 0);
         let operator_commission_percentage2 = 20;
-        let delegation_pool_creation_seed2 = x"121342";
-        let delegator2 = DelegatorConfiguration{
+        let delegation_pool_creation_seed2 = x"121344";
+        let delegator_addresses2 = vector[@0x121345, @0x121346];
+        let delegator_stakes2 = vector[100 * ONE_APT, 200 * ONE_APT];
+        let i = 0;
+        while (i < vector::length(&delegator_addresses2)) {
+            create_account(supra_framework, *vector::borrow(&delegator_addresses2, i), *vector::borrow(&delegator_stakes2, i));
+            i = i + 1;
+        };
+        let delegator_config2 = DelegatorConfiguration{
             owner_address: owner2,
             operator_commission_percentage: operator_commission_percentage2,
             delegation_pool_creation_seed: delegation_pool_creation_seed2,
+            delegator_addresses: delegator_addresses2,
+            delegator_stakes: delegator_stakes2
         };
-        let delegators = vector[delegator1, delegator2];
-        create_delegation_pools(supra_framework, delegators);
+        let delegator_configs = vector[delegator_config1, delegator_config2];
+        create_delegation_pools(delegator_configs);
         let pool_address1 = delegation_pool::get_owned_pool_address(owner1);
         let pool_address2 = delegation_pool::get_owned_pool_address(owner2);
         assert!(delegation_pool::delegation_pool_exists(pool_address1), 0);
@@ -747,28 +788,28 @@ module supra_framework::genesis {
         let owner = @0x121341;
         let operator_commission_percentage = 10;
         let delegation_pool_creation_seed = x"121341";
-        let delegator_address = vector[@0x121342, @0x121343];
+        let delegator_addresses = vector[@0x121342, @0x121343];
         let initial_balance = vector[100 * ONE_APT, 200 * ONE_APT];
         let i = 0;
-        let principle_stake:vector<u64> = vector::empty();
         let delegation_percentage = 10;
-        while (i < vector::length(&delegator_address)) {
-            create_account(supra_framework, *vector::borrow(&delegator_address, i), *vector::borrow(&initial_balance, i));
-            vector::push_back(&mut principle_stake, *vector::borrow(&initial_balance, i) * delegation_percentage / 100);
+        let delegator_stakes : vector<u64> = vector::empty();
+        while (i < vector::length(&delegator_addresses)) {
+            create_account(supra_framework, *vector::borrow(&delegator_addresses, i), *vector::borrow(&initial_balance, i));
+            vector::push_back(&mut delegator_stakes, *vector::borrow(&initial_balance, i) * delegation_percentage / 100);
             i = i + 1;
         };
         let principle_lockup_time = 100;
-        let delegator = PboDelegatorConfiguration{
-            delegatorConfig: DelegatorConfiguration{
+        let pbo_delegator_config = PboDelegatorConfiguration{
+            delegator_config: DelegatorConfiguration{
                 owner_address: owner,
-                operator_commission_percentage: operator_commission_percentage,
-                delegation_pool_creation_seed: delegation_pool_creation_seed,
+                operator_commission_percentage,
+                delegation_pool_creation_seed,
+                delegator_addresses,
+                delegator_stakes,
             },
-            delegator_address: delegator_address,
-            principle_stake: principle_stake,
-            principle_lockup_time: principle_lockup_time,
+            principle_lockup_time,
         };
-        create_pbo_delegation_pool(supra_framework, &delegator, delegation_percentage);
+        create_pbo_delegation_pool(&pbo_delegator_config, delegation_percentage);
         let pool_address = pbo_delegation_pool::get_owned_pool_address(owner);
         assert!(pbo_delegation_pool::delegation_pool_exists(pool_address), 0);
     }
@@ -782,51 +823,51 @@ module supra_framework::genesis {
         let delegation_pool_creation_seed1 = x"121341";
         let delegator_address1 = vector[@0x121342, @0x121343];
         let initial_balance1 = vector[100 * ONE_APT, 200 * ONE_APT];
-        let i = 0;
-        let principle_stake1:vector<u64> = vector::empty();
+        let delegator_stakes1:vector<u64> = vector::empty();
         let delegation_percentage = 10;
+        let i = 0;
         while (i < vector::length(&delegator_address1)) {
             create_account(supra_framework, *vector::borrow(&delegator_address1, i), *vector::borrow(&initial_balance1, i));
-            vector::push_back(&mut principle_stake1, *vector::borrow(&initial_balance1, i) * delegation_percentage / 100);
+            vector::push_back(&mut delegator_stakes1, *vector::borrow(&initial_balance1, i) * delegation_percentage / 100);
             i = i + 1;
         };
         let principle_lockup_time1 = 100;
-        let delegator1 = PboDelegatorConfiguration{
-            delegatorConfig: DelegatorConfiguration{
+        let pbo_delegator_config1 = PboDelegatorConfiguration{
+            delegator_config: DelegatorConfiguration{
                 owner_address: owner1,
                 operator_commission_percentage: operator_commission_percentage1,
                 delegation_pool_creation_seed: delegation_pool_creation_seed1,
+                delegator_addresses: delegator_address1,
+                delegator_stakes: delegator_stakes1,
             },
-            delegator_address: delegator_address1,
-            principle_stake: principle_stake1,
             principle_lockup_time: principle_lockup_time1,
         };
 
-        let owner2 = @0x121342;
+        let owner2 = @0x121344;
         let operator_commission_percentage2 = 20;
-        let delegation_pool_creation_seed2 = x"121342";
-        let delegator_address2 = vector[@0x121344, @0x121345];
+        let delegation_pool_creation_seed2 = x"121344";
+        let delegator_address2 = vector[@0x121345, @0x121346];
         let initial_balance2 = vector[300 * ONE_APT, 400 * ONE_APT];
         let j = 0;
-        let principle_stake2:vector<u64> = vector::empty();
+        let delegator_stakes2:vector<u64> = vector::empty();
         while (j < vector::length(&delegator_address2)) {
             create_account(supra_framework, *vector::borrow(&delegator_address2, j), *vector::borrow(&initial_balance2, j));
-            vector::push_back(&mut principle_stake2, *vector::borrow(&initial_balance2, j) * delegation_percentage / 100);
+            vector::push_back(&mut delegator_stakes2, *vector::borrow(&initial_balance2, j) * delegation_percentage / 100);
             j = j + 1;
         };
         let principle_lockup_time2 = 200;
-        let delegator2 = PboDelegatorConfiguration{
-            delegatorConfig: DelegatorConfiguration{
+        let pbo_delegator_config2 = PboDelegatorConfiguration{
+            delegator_config: DelegatorConfiguration{
                 owner_address: owner2,
                 operator_commission_percentage: operator_commission_percentage2,
                 delegation_pool_creation_seed: delegation_pool_creation_seed2,
+                delegator_addresses: delegator_address2,
+                delegator_stakes: delegator_stakes2,
             },
-            delegator_address: delegator_address2,
-            principle_stake: principle_stake2,
             principle_lockup_time: principle_lockup_time2,
         };
-        let delegators = vector[delegator1, delegator2];
-        create_pbo_delegation_pools(supra_framework, delegators, delegation_percentage);
+        let pbo_delegator_configs = vector[pbo_delegator_config1, pbo_delegator_config2];
+        create_pbo_delegation_pools(pbo_delegator_configs, delegation_percentage);
         let pool_address1 = pbo_delegation_pool::get_owned_pool_address(owner1);
         let pool_address2 = pbo_delegation_pool::get_owned_pool_address(owner2);
         assert!(pbo_delegation_pool::delegation_pool_exists(pool_address1), 0);
