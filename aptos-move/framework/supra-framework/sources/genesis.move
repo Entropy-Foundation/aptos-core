@@ -96,7 +96,7 @@ module supra_framework::genesis {
     struct DelegatorConfiguration has copy, drop {
         owner_address: address,
         delegation_pool_creation_seed: vector<u8>,
-        operator_commission_percentage: u64,
+        validator: ValidatorConfigurationWithCommission,
         delegator_addresses: vector<address>,
         delegator_stakes: vector<u64>,
     }
@@ -404,8 +404,14 @@ module supra_framework::genesis {
     fun create_delegation_pools(
         delegator_configs: vector<DelegatorConfiguration>,
     ) {
+		let unique_accounts: vector<address> = vector::empty();
         vector::for_each_ref(&delegator_configs, |delegator_config| {
             let delegator_config: &DelegatorConfiguration = delegator_config;
+			//Ensure that there is a unique owner_address for each pool
+			//This is needed otherwise move_to of DelegationPoolOwnership at owner_address would fail 
+			assert!(!vector::contains(&unique_accounts,&delegator_config.owner_address),
+				error::already_exists(EDUPLICATE_ACCOUNT));
+				vector::push_back(&mut unique_accounts,delegator_config.owner_address);
             create_delegation_pool(delegator_config);
         });
     }
@@ -425,10 +431,11 @@ module supra_framework::genesis {
         let owner_signer = create_signer(delegator_config.owner_address);
         delegation_pool::initialize_delegation_pool(
             &owner_signer,
-            delegator_config.operator_commission_percentage,
+            delegator_config.validator.commission_percentage,
             delegator_config.delegation_pool_creation_seed,
         );
         let pool_address = delegation_pool::get_owned_pool_address(delegator_config.owner_address);
+
         let i = 0;
         while (i < vector::length(&delegator_config.delegator_addresses)) {
             let delegator_address = *vector::borrow(&delegator_config.delegator_addresses, i);
@@ -437,15 +444,27 @@ module supra_framework::genesis {
             delegation_pool::add_stake(delegator, pool_address, delegator_stake);
             i = i + 1;
         };
+		
+		let validator = delegator_config.validator.validator_config;
+		assert_validator_addresses_check(&validator);
+
+        if (delegator_config.validator.join_during_genesis) {
+                initialize_validator(pool_address,&validator);
+            };
+
     }
 
     fun create_pbo_delegation_pools(
         pbo_delegator_configs: vector<PboDelegatorConfiguration>,
         delegation_percentage: u64,
     ) {
+		let unique_accounts: vector<address> = vector::empty();
         assert!(delegation_percentage > 0 && delegation_percentage <= 100, error::invalid_argument(PERCENTAGE_INVALID));
         vector::for_each_ref(&pbo_delegator_configs, |pbo_delegator_config| {
             let pbo_delegator_config: &PboDelegatorConfiguration = pbo_delegator_config;
+			assert!(!vector::contains(&unique_accounts,&pbo_delegator_config.delegator_config.owner_address),
+				error::invalid_argument(EDUPLICATE_ACCOUNT));
+				vector::push_back(&mut unique_accounts,pbo_delegator_config.delegator_config.owner_address);
             create_pbo_delegation_pool(pbo_delegator_config, delegation_percentage);
         });
     }
@@ -476,15 +495,39 @@ module supra_framework::genesis {
         });
         pbo_delegation_pool::initialize_delegation_pool(
             &owner_signer,
-            pbo_delegator_config.delegator_config.operator_commission_percentage,
+            pbo_delegator_config.delegator_config.validator.commission_percentage,
             pbo_delegator_config.delegator_config.delegation_pool_creation_seed,
             pbo_delegator_config.delegator_config.delegator_addresses,
             pbo_delegator_config.delegator_config.delegator_stakes,
             coinInitialization,
             pbo_delegator_config.principle_lockup_time,
         );
-    }
 
+        let pool_address = delegation_pool::get_owned_pool_address(pbo_delegator_config.delegator_config.owner_address);
+		let validator = pbo_delegator_config.delegator_config.validator.validator_config;
+		assert_validator_addresses_check(&validator);
+        
+		if (pbo_delegator_config.delegator_config.validator.join_during_genesis) {
+                initialize_validator(pool_address,&validator);
+            };
+
+    }
+	fun assert_validator_addresses_check(validator: &ValidatorConfiguration)
+	{
+		 assert!(
+                account::exists_at(validator.owner_address),
+                error::not_found(EACCOUNT_DOES_NOT_EXIST),
+            );
+            assert!(
+                account::exists_at(validator.operator_address),
+                error::not_found(EACCOUNT_DOES_NOT_EXIST),
+            );
+            assert!(
+                account::exists_at(validator.voter_address),
+                error::not_found(EACCOUNT_DOES_NOT_EXIST),
+            );
+
+	}
     fun create_vesting_without_staking_pools(
         vesting_pool_map : vector<VestingPoolsMap>
     ) {
