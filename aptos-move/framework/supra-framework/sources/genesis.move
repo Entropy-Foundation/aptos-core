@@ -913,4 +913,3 @@ module supra_framework::genesis {
         assert!(vector::length(&vesting_contracts) == 1, 0);
     }
 }
-
