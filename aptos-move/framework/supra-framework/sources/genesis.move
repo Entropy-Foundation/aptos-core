@@ -503,31 +503,30 @@ module supra_framework::genesis {
             pbo_delegator_config.principle_lockup_time,
         );
 
-        let pool_address = delegation_pool::get_owned_pool_address(pbo_delegator_config.delegator_config.owner_address);
+        let pool_address = pbo_delegation_pool::get_owned_pool_address(pbo_delegator_config.delegator_config.owner_address);
 		let validator = pbo_delegator_config.delegator_config.validator.validator_config;
 		assert_validator_addresses_check(&validator);
         
 		if (pbo_delegator_config.delegator_config.validator.join_during_genesis) {
-                initialize_validator(pool_address,&validator);
-            };
-
+            initialize_validator(pool_address,&validator);
+        };
     }
-	fun assert_validator_addresses_check(validator: &ValidatorConfiguration)
-	{
-		 assert!(
-                account::exists_at(validator.owner_address),
-                error::not_found(EACCOUNT_DOES_NOT_EXIST),
-            );
-            assert!(
-                account::exists_at(validator.operator_address),
-                error::not_found(EACCOUNT_DOES_NOT_EXIST),
-            );
-            assert!(
-                account::exists_at(validator.voter_address),
-                error::not_found(EACCOUNT_DOES_NOT_EXIST),
-            );
 
+	fun assert_validator_addresses_check(validator: &ValidatorConfiguration) {
+        assert!(
+            account::exists_at(validator.owner_address),
+            error::not_found(EACCOUNT_DOES_NOT_EXIST),
+        );
+        assert!(
+            account::exists_at(validator.operator_address),
+            error::not_found(EACCOUNT_DOES_NOT_EXIST),
+        );
+        assert!(
+            account::exists_at(validator.voter_address),
+            error::not_found(EACCOUNT_DOES_NOT_EXIST),
+        );
 	}
+
     fun create_vesting_without_staking_pools(
         vesting_pool_map : vector<VestingPoolsMap>
     ) {
@@ -753,7 +752,19 @@ module supra_framework::genesis {
         initialize_supra_coin(supra_framework);
         let owner = @0x121341;
         create_account(supra_framework, owner, 0);
-        let operator_commission_percentage = 10;
+        let validator_config_commission = ValidatorConfigurationWithCommission{
+            validator_config: ValidatorConfiguration{
+                owner_address: @0x121342,
+                operator_address: @0x121343,
+                voter_address: @0x121344,
+                stake_amount: 100 * ONE_APT,
+                consensus_pubkey: x"111111",
+                network_addresses: x"222222",
+                full_node_network_addresses: x"333333",
+            },
+            commission_percentage: 10,
+            join_during_genesis: true,
+        };
         let delegation_pool_creation_seed = x"121341";
         let delegator_addresses = vector[@0x121342, @0x121343];
         let delegator_stakes = vector[100 * ONE_APT, 200 * ONE_APT];
@@ -764,7 +775,7 @@ module supra_framework::genesis {
         };
         let delegator_config = DelegatorConfiguration{
             owner_address: owner,
-            operator_commission_percentage: operator_commission_percentage,
+            validator: validator_config_commission,
             delegation_pool_creation_seed: delegation_pool_creation_seed,
             delegator_addresses,
             delegator_stakes
@@ -782,6 +793,19 @@ module supra_framework::genesis {
         initialize_supra_coin(supra_framework);
         let owner1 = @0x121341;
         create_account(supra_framework, owner1, 0);
+        let validator_config_commission1 = ValidatorConfigurationWithCommission{
+            validator_config: ValidatorConfiguration{
+                owner_address: @0x121342,
+                operator_address: @0x121343,
+                voter_address: @0x121344,
+                stake_amount: 100 * ONE_APT,
+                consensus_pubkey: x"111111",
+                network_addresses: x"222222",
+                full_node_network_addresses: x"333333",
+            },
+            commission_percentage: 10,
+            join_during_genesis: true,
+        };
         let operator_commission_percentage1 = 10;
         let delegation_pool_creation_seed1 = x"121341";
         let delegator_addresses1 = vector[@0x121342, @0x121343];
@@ -793,14 +817,26 @@ module supra_framework::genesis {
         };
         let delegator_config1 = DelegatorConfiguration{
             owner_address: owner1,
-            operator_commission_percentage: operator_commission_percentage1,
+            validator: validator_config_commission1,
             delegation_pool_creation_seed: delegation_pool_creation_seed1,
             delegator_addresses: delegator_addresses1,
             delegator_stakes: delegator_stakes1
         };
         let owner2 = @0x121344;
         create_account(supra_framework, owner2, 0);
-        let operator_commission_percentage2 = 20;
+        let validator_config_commission2 = ValidatorConfigurationWithCommission{
+            validator_config: ValidatorConfiguration{
+                owner_address: @0x121345,
+                operator_address: @0x121346,
+                voter_address: @0x121347,
+                stake_amount: 100 * ONE_APT,
+                consensus_pubkey: x"111111",
+                network_addresses: x"222222",
+                full_node_network_addresses: x"333333",
+            },
+            commission_percentage: 20,
+            join_during_genesis: true,
+        };
         let delegation_pool_creation_seed2 = x"121344";
         let delegator_addresses2 = vector[@0x121345, @0x121346];
         let delegator_stakes2 = vector[100 * ONE_APT, 200 * ONE_APT];
@@ -811,7 +847,7 @@ module supra_framework::genesis {
         };
         let delegator_config2 = DelegatorConfiguration{
             owner_address: owner2,
-            operator_commission_percentage: operator_commission_percentage2,
+            validator: validator_config_commission2,
             delegation_pool_creation_seed: delegation_pool_creation_seed2,
             delegator_addresses: delegator_addresses2,
             delegator_stakes: delegator_stakes2
@@ -829,7 +865,20 @@ module supra_framework::genesis {
         setup();
         initialize_supra_coin(supra_framework);
         let owner = @0x121341;
-        let operator_commission_percentage = 10;
+        create_account(supra_framework, owner, 0);
+        let validator_config_commission = ValidatorConfigurationWithCommission{
+            validator_config: ValidatorConfiguration{
+                owner_address: @0x121341,
+                operator_address: @0x121342,
+                voter_address: @0x121343,
+                stake_amount: 0,
+                consensus_pubkey: x"111111",
+                network_addresses: x"222222",
+                full_node_network_addresses: x"333333",
+            },
+            commission_percentage: 10,
+            join_during_genesis: true,
+        };
         let delegation_pool_creation_seed = x"121341";
         let delegator_addresses = vector[@0x121342, @0x121343];
         let initial_balance = vector[100 * ONE_APT, 200 * ONE_APT];
@@ -845,7 +894,7 @@ module supra_framework::genesis {
         let pbo_delegator_config = PboDelegatorConfiguration{
             delegator_config: DelegatorConfiguration{
                 owner_address: owner,
-                operator_commission_percentage,
+                validator: validator_config_commission,
                 delegation_pool_creation_seed,
                 delegator_addresses,
                 delegator_stakes,
@@ -862,7 +911,19 @@ module supra_framework::genesis {
         setup();
         initialize_supra_coin(supra_framework);
         let owner1 = @0x121341;
-        let operator_commission_percentage1 = 10;
+        let validator_config_commission1 = ValidatorConfigurationWithCommission{
+            validator_config: ValidatorConfiguration{
+                owner_address: @0x121342,
+                operator_address: @0x121343,
+                voter_address: @0x121344,
+                stake_amount: 100 * ONE_APT,
+                consensus_pubkey: x"111111",
+                network_addresses: x"222222",
+                full_node_network_addresses: x"333333",
+            },
+            commission_percentage: 10,
+            join_during_genesis: true,
+        };
         let delegation_pool_creation_seed1 = x"121341";
         let delegator_address1 = vector[@0x121342, @0x121343];
         let initial_balance1 = vector[100 * ONE_APT, 200 * ONE_APT];
@@ -878,7 +939,7 @@ module supra_framework::genesis {
         let pbo_delegator_config1 = PboDelegatorConfiguration{
             delegator_config: DelegatorConfiguration{
                 owner_address: owner1,
-                operator_commission_percentage: operator_commission_percentage1,
+                validator: validator_config_commission1,
                 delegation_pool_creation_seed: delegation_pool_creation_seed1,
                 delegator_addresses: delegator_address1,
                 delegator_stakes: delegator_stakes1,
@@ -887,7 +948,19 @@ module supra_framework::genesis {
         };
 
         let owner2 = @0x121344;
-        let operator_commission_percentage2 = 20;
+        let validator_config_commission2 = ValidatorConfigurationWithCommission{
+            validator_config: ValidatorConfiguration{
+                owner_address: @0x121344,
+                operator_address: @0x121345,
+                voter_address: @0x121346,
+                stake_amount: 100 * ONE_APT,
+                consensus_pubkey: x"111111",
+                network_addresses: x"222222",
+                full_node_network_addresses: x"333333",
+            },
+            commission_percentage: 20,
+            join_during_genesis: true,
+        };
         let delegation_pool_creation_seed2 = x"121344";
         let delegator_address2 = vector[@0x121345, @0x121346];
         let initial_balance2 = vector[300 * ONE_APT, 400 * ONE_APT];
@@ -902,7 +975,7 @@ module supra_framework::genesis {
         let pbo_delegator_config2 = PboDelegatorConfiguration{
             delegator_config: DelegatorConfiguration{
                 owner_address: owner2,
-                operator_commission_percentage: operator_commission_percentage2,
+                validator: validator_config_commission2,
                 delegation_pool_creation_seed: delegation_pool_creation_seed2,
                 delegator_addresses: delegator_address2,
                 delegator_stakes: delegator_stakes2,
