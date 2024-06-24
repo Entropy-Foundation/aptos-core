@@ -56,7 +56,7 @@ module supra_framework::genesis {
 		// Address of the admin of the vesting pool
 		admin_address: address,
 		// Percentage of account balance should be put in vesting pool
-		vesting_percentage : u8,
+		vpool_locking_percentage : u8,
 		vesting_numerators : vector<u64>,
 		vesting_denominator : u64,
 		//Withdrawal address for the pool
@@ -541,7 +541,7 @@ module supra_framework::genesis {
             let schedule_length = vector::length(&pool_config.vesting_numerators);
             assert!(schedule_length > 0, error::invalid_argument(EVESTING_SCHEDULE_IS_ZERO));
             assert!(pool_config.vesting_denominator > 0, error::invalid_argument(EDENOMINATOR_IS_ZERO));
-            assert!(pool_config.vesting_percentage > 0 && pool_config.vesting_percentage <=100 ,
+            assert!(pool_config.vpool_locking_percentage > 0 && pool_config.vpool_locking_percentage <=100 ,
                 error::invalid_argument(PERCENTAGE_INVALID));
             //check the sum of numerator are <= denominator.
             let sum = vector::fold(pool_config.vesting_numerators,0,|acc, x| acc + x);
@@ -579,7 +579,7 @@ module supra_framework::genesis {
                 vector::push_back(&mut unique_accounts,shareholder);
                 let shareholder_signer = create_signer(shareholder);
                 let amount = coin::balance<SupraCoin>(shareholder);
-                let amount_to_extract = (amount * (pool_config.vesting_percentage as u64)) / 100;
+                let amount_to_extract = (amount * (pool_config.vpool_locking_percentage as u64)) / 100;
                 let coin_share = coin::withdraw<SupraCoin>(&shareholder_signer, amount_to_extract);
                 simple_map::add(&mut buy_ins,shareholder,coin_share);
                 j = j + 1;
@@ -1006,7 +1006,7 @@ module supra_framework::genesis {
         timestamp::set_time_has_started_for_testing(supra_framework);
         stake::initialize_for_test(supra_framework);
         let admin_address = @0x121341;
-        let vesting_percentage = 10;
+        let vpool_locking_percentage = 10;
         let vesting_numerators = vector[1, 2, 3];
         let vesting_denominator = 6;
         let withdrawal_address = @0x121342;
@@ -1023,7 +1023,7 @@ module supra_framework::genesis {
         let period_duration_in_seconds = 200;
         let pool_config = VestingPoolsMap{
             admin_address: admin_address,
-            vesting_percentage: vesting_percentage,
+            vpool_locking_percentage: vpool_locking_percentage,
             vesting_numerators: vesting_numerators,
             vesting_denominator: vesting_denominator,
             withdrawal_address: withdrawal_address,
