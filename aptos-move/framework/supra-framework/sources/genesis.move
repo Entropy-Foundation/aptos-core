@@ -4,6 +4,7 @@ module supra_framework::genesis {
     use std::vector;
 
     use aptos_std::simple_map;
+	use aptos_std::debug;
     use supra_framework::delegation_pool;
     use supra_framework::pbo_delegation_pool;
 
@@ -41,7 +42,7 @@ module supra_framework::genesis {
 	const EVESTING_SCHEDULE_IS_ZERO: u64 = 3;
 	const ENUMERATOR_IS_ZERO: u64 = 4;
 	const ENO_SHAREHOLDERS: u64 = 5;
-	const PERCENTAGE_INVALID: u64 = 6;
+	const EPERCENTAGE_INVALID: u64 = 6;
 	const ENUMERATOR_GREATER_THAN_DENOMINATOR: u64 = 7;
 	const EDENOMINATOR_IS_ZERO: u64 = 8;
 	const EACCOUNT_NOT_REGISTERED_FOR_COIN: u64 = 9;
@@ -461,7 +462,7 @@ module supra_framework::genesis {
         delegation_percentage: u64,
     ) {
 		let unique_accounts: vector<address> = vector::empty();
-        assert!(delegation_percentage > 0 && delegation_percentage <= 100, error::invalid_argument(PERCENTAGE_INVALID));
+        assert!(delegation_percentage > 0 && delegation_percentage <= 100, error::invalid_argument(EPERCENTAGE_INVALID));
         vector::for_each_ref(&pbo_delegator_configs, |pbo_delegator_config| {
             let pbo_delegator_config: &PboDelegatorConfiguration = pbo_delegator_config;
 			assert!(!vector::contains(&unique_accounts,&pbo_delegator_config.delegator_config.owner_address),
@@ -475,6 +476,7 @@ module supra_framework::genesis {
         pbo_delegator_config: &PboDelegatorConfiguration,
         delegation_percentage: u64,
     ) {
+		assert!(delegation_percentage>0 && delegation_percentage<=100,error::invalid_argument(EPERCENTAGE_INVALID));
         let unique_accounts:vector<address> = vector::empty();
         vector::for_each_ref(&pbo_delegator_config.delegator_config.delegator_addresses, |delegator_address| {
             let delegator_address: &address = delegator_address;
@@ -490,8 +492,11 @@ module supra_framework::genesis {
         let coinInitialization = coin::zero<SupraCoin>();
         vector::for_each(delegator_addresses, |delegator_address| {
             let delegator = &create_signer(delegator_address);
+			debug::print<address>(&delegator_address);
             let total = coin::balance<SupraCoin>(delegator_address);
+			debug::print<u64>(&total);
             let withdraw_amount = total * delegation_percentage / 100;
+			debug::print<u64>(&withdraw_amount);
             let coins = coin::withdraw<SupraCoin>(delegator, withdraw_amount);
             coin::merge(&mut coinInitialization, coins);
         });
@@ -542,7 +547,7 @@ module supra_framework::genesis {
             assert!(schedule_length > 0, error::invalid_argument(EVESTING_SCHEDULE_IS_ZERO));
             assert!(pool_config.vesting_denominator > 0, error::invalid_argument(EDENOMINATOR_IS_ZERO));
             assert!(pool_config.vpool_locking_percentage > 0 && pool_config.vpool_locking_percentage <=100 ,
-                error::invalid_argument(PERCENTAGE_INVALID));
+                error::invalid_argument(EPERCENTAGE_INVALID));
             //check the sum of numerator are <= denominator.
             let sum = vector::fold(pool_config.vesting_numerators,0,|acc, x| acc + x);
             // Check that total of all fraction in `vesting_schedule` is not greater than 1
@@ -750,6 +755,10 @@ module supra_framework::genesis {
         assert!(coin::balance<SupraCoin>(addr0) == 12345, 2);
     }
 
+	#[test_only]
+	use aptos_std::ed25519;
+	
+
     #[test(supra_framework = @0x1)]
     fun test_create_delegation_pool(supra_framework: &signer) {
         setup();
@@ -757,13 +766,15 @@ module supra_framework::genesis {
         let owner = @0x121341;
         create_account(supra_framework, owner, 0);
 		create_account(supra_framework,@0x121344,0);
+		let (sk_1,pk_1) = stake::generate_identity();
+		let _pk_1 = ed25519::unvalidated_public_key_to_bytes(&pk_1);
         let validator_config_commission = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
                 owner_address: @0x121342,
                 operator_address: @0x121343,
                 voter_address: @0x121344,
                 stake_amount: 100 * ONE_APT,
-                consensus_pubkey: x"111111",
+                consensus_pubkey: _pk_1,
                 network_addresses: x"222222",
                 full_node_network_addresses: x"333333",
             },
@@ -798,13 +809,18 @@ module supra_framework::genesis {
         initialize_supra_coin(supra_framework);
         let owner1 = @0x121341;
         create_account(supra_framework, owner1, 0);
+
+		let (sk_1,pk_1)=stake::generate_identity();
+		let (sk_2,pk_2)=stake::generate_identity();
+		let _pk_1 = ed25519::unvalidated_public_key_to_bytes(&pk_1);
+		let _pk_2 = ed25519::unvalidated_public_key_to_bytes(&pk_2);
         let validator_config_commission1 = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
                 owner_address: @0x121342,
                 operator_address: @0x121343,
                 voter_address: @0x121344,
                 stake_amount: 100 * ONE_APT,
-                consensus_pubkey: x"111111",
+                consensus_pubkey: _pk_1,
                 network_addresses: x"222222",
                 full_node_network_addresses: x"333333",
             },
@@ -836,7 +852,7 @@ module supra_framework::genesis {
                 operator_address: @0x121346,
                 voter_address: @0x121347,
                 stake_amount: 100 * ONE_APT,
-                consensus_pubkey: x"111111",
+                consensus_pubkey: _pk_2,
                 network_addresses: x"222222",
                 full_node_network_addresses: x"333333",
             },
@@ -871,6 +887,8 @@ module supra_framework::genesis {
         setup();
         initialize_supra_coin(supra_framework);
         let owner = @0x121341;
+		let (sk_1,pk_1) = stake::generate_identity();
+		let _pk_1 = ed25519::unvalidated_public_key_to_bytes(&pk_1);
         create_account(supra_framework, owner, 0);
         let validator_config_commission = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
@@ -878,7 +896,7 @@ module supra_framework::genesis {
                 operator_address: @0x121342,
                 voter_address: @0x121343,
                 stake_amount: 0,
-                consensus_pubkey: x"111111",
+                consensus_pubkey: _pk_1,
                 network_addresses: x"222222",
                 full_node_network_addresses: x"333333",
             },
@@ -918,13 +936,17 @@ module supra_framework::genesis {
         initialize_supra_coin(supra_framework);
         let owner1 = @0x121341;
 		create_account(supra_framework,@0x121344,0);
+		let (sk_1,pk_1)=stake::generate_identity();
+		let (sk_2,pk_2)=stake::generate_identity();
+		let _pk_1 = ed25519::unvalidated_public_key_to_bytes(&pk_1);
+		let _pk_2 = ed25519::unvalidated_public_key_to_bytes(&pk_2);
         let validator_config_commission1 = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
                 owner_address: @0x121342,
                 operator_address: @0x121343,
                 voter_address: @0x121344,
                 stake_amount: 100 * ONE_APT,
-                consensus_pubkey: x"111111",
+                consensus_pubkey: _pk_1,
                 network_addresses: x"222222",
                 full_node_network_addresses: x"333333",
             },
@@ -935,7 +957,7 @@ module supra_framework::genesis {
         let delegator_address1 = vector[@0x121342, @0x121343];
         let initial_balance1 = vector[100 * ONE_APT, 200 * ONE_APT];
         let delegator_stakes1:vector<u64> = vector::empty();
-        let delegation_percentage = 10;
+        let delegation_percentage: u64 = 10;
         let i = 0;
         while (i < vector::length(&delegator_address1)) {
             create_account(supra_framework, *vector::borrow(&delegator_address1, i), *vector::borrow(&initial_balance1, i));
@@ -962,7 +984,7 @@ module supra_framework::genesis {
                 operator_address: @0x121345,
                 voter_address: @0x121346,
                 stake_amount: 100 * ONE_APT,
-                consensus_pubkey: x"111111",
+                consensus_pubkey: _pk_2,
                 network_addresses: x"222222",
                 full_node_network_addresses: x"333333",
             },
@@ -975,8 +997,10 @@ module supra_framework::genesis {
         let j = 0;
         let delegator_stakes2:vector<u64> = vector::empty();
         while (j < vector::length(&delegator_address2)) {
-            create_account(supra_framework, *vector::borrow(&delegator_address2, j), *vector::borrow(&initial_balance2, j));
-            vector::push_back(&mut delegator_stakes2, *vector::borrow(&initial_balance2, j) * delegation_percentage / 100);
+			let bal = vector::borrow(&initial_balance2,j);
+			debug::print<u64>(bal);
+            create_account(supra_framework, *vector::borrow(&delegator_address2, j), *bal);
+            vector::push_back(&mut delegator_stakes2, (*bal) * delegation_percentage / 100);
             j = j + 1;
         };
         let principle_lockup_time2 = 200;
