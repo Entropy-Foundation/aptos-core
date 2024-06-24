@@ -435,6 +435,8 @@ module supra_framework::genesis {
             delegator_config.delegation_pool_creation_seed,
         );
         let pool_address = delegation_pool::get_owned_pool_address(delegator_config.owner_address);
+		delegation_pool::set_operator(&owner_signer,delegator_config.validator.validator_config.operator_address);
+		delegation_pool::set_delegated_voter(&owner_signer,delegator_config.validator.validator_config.voter_address);
 
         let i = 0;
         while (i < vector::length(&delegator_config.delegator_addresses)) {
@@ -505,6 +507,8 @@ module supra_framework::genesis {
 
         let pool_address = pbo_delegation_pool::get_owned_pool_address(pbo_delegator_config.delegator_config.owner_address);
 		let validator = pbo_delegator_config.delegator_config.validator.validator_config;
+		pbo_delegation_pool::set_operator(&owner_signer,validator.operator_address);
+		pbo_delegation_pool::set_delegated_voter(&owner_signer,validator.voter_address);
 		assert_validator_addresses_check(&validator);
         
 		if (pbo_delegator_config.delegator_config.validator.join_during_genesis) {
@@ -752,6 +756,7 @@ module supra_framework::genesis {
         initialize_supra_coin(supra_framework);
         let owner = @0x121341;
         create_account(supra_framework, owner, 0);
+		create_account(supra_framework,@0x121344,0);
         let validator_config_commission = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
                 owner_address: @0x121342,
@@ -824,6 +829,7 @@ module supra_framework::genesis {
         };
         let owner2 = @0x121344;
         create_account(supra_framework, owner2, 0);
+		create_account(supra_framework,@0x121347,0);
         let validator_config_commission2 = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
                 owner_address: @0x121345,
@@ -911,6 +917,7 @@ module supra_framework::genesis {
         setup();
         initialize_supra_coin(supra_framework);
         let owner1 = @0x121341;
+		create_account(supra_framework,@0x121344,0);
         let validator_config_commission1 = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
                 owner_address: @0x121342,
@@ -948,6 +955,7 @@ module supra_framework::genesis {
         };
 
         let owner2 = @0x121344;
+		create_account(supra_framework,@0x121346,0);
         let validator_config_commission2 = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
                 owner_address: @0x121344,
