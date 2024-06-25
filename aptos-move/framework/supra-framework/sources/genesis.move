@@ -762,7 +762,7 @@ module supra_framework::genesis {
         let owner = @0x121341;
         create_account(supra_framework, owner, 0);
 		create_account(supra_framework,@0x121344,0);
-		let (sk_1,pk_1) = stake::generate_identity();
+		let (_, pk_1) = stake::generate_identity();
 		let _pk_1 = ed25519::unvalidated_public_key_to_bytes(&pk_1);
         let validator_config_commission = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
@@ -806,15 +806,15 @@ module supra_framework::genesis {
         let owner1 = @0x121341;
         create_account(supra_framework, owner1, 0);
 
-		let (sk_1,pk_1)=stake::generate_identity();
-		let (sk_2,pk_2)=stake::generate_identity();
+		let (_, pk_1)=stake::generate_identity();
+		let (_, pk_2)=stake::generate_identity();
 		let _pk_1 = ed25519::unvalidated_public_key_to_bytes(&pk_1);
 		let _pk_2 = ed25519::unvalidated_public_key_to_bytes(&pk_2);
         let validator_config_commission1 = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
-                owner_address: @0x121342,
-                operator_address: @0x121343,
-                voter_address: @0x121344,
+                owner_address: @0x121341,
+                operator_address: @0x121342,
+                voter_address: @0x121343,
                 stake_amount: 100 * ONE_APT,
                 consensus_pubkey: _pk_1,
                 network_addresses: x"222222",
@@ -823,7 +823,6 @@ module supra_framework::genesis {
             commission_percentage: 10,
             join_during_genesis: true,
         };
-        let operator_commission_percentage1 = 10;
         let delegation_pool_creation_seed1 = x"121341";
         let delegator_addresses1 = vector[@0x121342, @0x121343];
         let delegator_stakes1 = vector[100 * ONE_APT, 200 * ONE_APT];
@@ -841,12 +840,11 @@ module supra_framework::genesis {
         };
         let owner2 = @0x121344;
         create_account(supra_framework, owner2, 0);
-		create_account(supra_framework,@0x121347,0);
         let validator_config_commission2 = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
-                owner_address: @0x121345,
-                operator_address: @0x121346,
-                voter_address: @0x121347,
+                owner_address: @0x121344,
+                operator_address: @0x121345,
+                voter_address: @0x121346,
                 stake_amount: 100 * ONE_APT,
                 consensus_pubkey: _pk_2,
                 network_addresses: x"222222",
@@ -883,7 +881,7 @@ module supra_framework::genesis {
         setup();
         initialize_supra_coin(supra_framework);
         let owner = @0x121341;
-		let (sk_1,pk_1) = stake::generate_identity();
+		let (_, pk_1) = stake::generate_identity();
 		let _pk_1 = ed25519::unvalidated_public_key_to_bytes(&pk_1);
         create_account(supra_framework, owner, 0);
         let validator_config_commission = ValidatorConfigurationWithCommission{
@@ -931,16 +929,16 @@ module supra_framework::genesis {
         setup();
         initialize_supra_coin(supra_framework);
         let owner1 = @0x121341;
-		create_account(supra_framework,@0x121344,0);
-		let (sk_1,pk_1)=stake::generate_identity();
-		let (sk_2,pk_2)=stake::generate_identity();
+		create_account(supra_framework,@0x121341,0);
+		let (_, pk_1)=stake::generate_identity();
+		let (_, pk_2)=stake::generate_identity();
 		let _pk_1 = ed25519::unvalidated_public_key_to_bytes(&pk_1);
 		let _pk_2 = ed25519::unvalidated_public_key_to_bytes(&pk_2);
         let validator_config_commission1 = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
-                owner_address: @0x121342,
-                operator_address: @0x121343,
-                voter_address: @0x121344,
+                owner_address: @0x121341,
+                operator_address: @0x121342,
+                voter_address: @0x121343,
                 stake_amount: 100 * ONE_APT,
                 consensus_pubkey: _pk_1,
                 network_addresses: x"222222",
@@ -973,6 +971,7 @@ module supra_framework::genesis {
         };
 
         let owner2 = @0x121344;
+        create_account(supra_framework, owner2, 0);
         let validator_config_commission2 = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
                 owner_address: @0x121344,
