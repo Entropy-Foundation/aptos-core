@@ -4,7 +4,6 @@ module supra_framework::genesis {
     use std::vector;
 
     use aptos_std::simple_map;
-	use aptos_std::debug;
     use supra_framework::delegation_pool;
     use supra_framework::pbo_delegation_pool;
 
@@ -492,11 +491,8 @@ module supra_framework::genesis {
         let coinInitialization = coin::zero<SupraCoin>();
         vector::for_each(delegator_addresses, |delegator_address| {
             let delegator = &create_signer(delegator_address);
-			debug::print<address>(&delegator_address);
             let total = coin::balance<SupraCoin>(delegator_address);
-			debug::print<u64>(&total);
             let withdraw_amount = total * delegation_percentage / 100;
-			debug::print<u64>(&withdraw_amount);
             let coins = coin::withdraw<SupraCoin>(delegator, withdraw_amount);
             coin::merge(&mut coinInitialization, coins);
         });
@@ -977,7 +973,6 @@ module supra_framework::genesis {
         };
 
         let owner2 = @0x121344;
-		create_account(supra_framework,@0x121346,0);
         let validator_config_commission2 = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
                 owner_address: @0x121344,
@@ -998,7 +993,6 @@ module supra_framework::genesis {
         let delegator_stakes2:vector<u64> = vector::empty();
         while (j < vector::length(&delegator_address2)) {
 			let bal = vector::borrow(&initial_balance2,j);
-			debug::print<u64>(bal);
             create_account(supra_framework, *vector::borrow(&delegator_address2, j), *bal);
             vector::push_back(&mut delegator_stakes2, (*bal) * delegation_percentage / 100);
             j = j + 1;
