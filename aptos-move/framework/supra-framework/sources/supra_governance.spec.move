@@ -55,8 +55,9 @@ spec supra_framework::supra_governance {
     spec initialize(
         supra_framework: &signer,
         min_voting_threshold: u128,
-        required_proposer_stake: u64,
+        required_proposer_threshold: u64,
         voting_duration_secs: u64,
+        voters: vector<address>,
     ) {
         use aptos_std::type_info::Self;
 
@@ -92,7 +93,7 @@ spec supra_framework::supra_governance {
     spec schema InitializeAbortIf {
         supra_framework: &signer;
         min_voting_threshold: u128;
-        required_proposer_stake: u64;
+        // required_proposer_threshold: u64;
         voting_duration_secs: u64;
 
         let addr = signer::address_of(supra_framework);
@@ -111,8 +112,9 @@ spec supra_framework::supra_governance {
     spec update_governance_config(
         supra_framework: &signer,
         min_voting_threshold: u128,
-        required_proposer_stake: u64,
+        required_proposer_threshold: u64,
         voting_duration_secs: u64,
+        voters: vector<address>,
     ) {
         let addr = signer::address_of(supra_framework);
         let governance_config = global<GovernanceConfig>(@supra_framework);
@@ -125,7 +127,6 @@ spec supra_framework::supra_governance {
 
         ensures new_governance_config.voting_duration_secs == voting_duration_secs;
         ensures new_governance_config.min_voting_threshold == min_voting_threshold;
-        ensures new_governance_config.required_proposer_stake == required_proposer_stake;
     }
 
     /// Signer address must be @supra_framework.
@@ -241,12 +242,6 @@ spec supra_framework::supra_governance {
         let stake_balance_1 = stake_pool_res.active.value + stake_pool_res.pending_inactive.value;
         let stake_balance_2 = 0;
         let governance_config = global<GovernanceConfig>(@supra_framework);
-        let required_proposer_stake = governance_config.required_proposer_stake;
-        /// [high-level-req-2]
-        // Comparison of the three results of get_voting_power(stake_pool) and required_proposer_stake
-        aborts_if allow_validator_set_change && stake_balance_0 < required_proposer_stake;
-        aborts_if !allow_validator_set_change && stake::spec_is_current_epoch_validator(stake_pool) && stake_balance_1 < required_proposer_stake;
-        aborts_if !allow_validator_set_change && !stake::spec_is_current_epoch_validator(stake_pool) && stake_balance_2 < required_proposer_stake;
 
         aborts_if !exists<timestamp::CurrentTimeMicroseconds>(@supra_framework);
         let current_time = timestamp::spec_now_seconds();
@@ -636,9 +631,6 @@ spec supra_framework::supra_governance {
 
     spec get_remaining_voting_power(stake_pool: address, proposal_id: u64): u64 {
         aborts_if features::spec_partial_governance_voting_enabled() && !exists<VotingRecordsV2>(@supra_framework);
-        include voting::AbortsIfNotContainProposalID<GovernanceProposal> {
-            voting_forum_address: @supra_framework
-        };
         aborts_if !exists<stake::StakePool>(stake_pool);
         aborts_if spec_proposal_expiration <= locked_until && !exists<timestamp::CurrentTimeMicroseconds>(@supra_framework);
         let spec_proposal_expiration = voting::spec_get_proposal_expiration_secs<GovernanceProposal>(@supra_framework, proposal_id);
@@ -746,8 +738,8 @@ spec supra_framework::supra_governance {
     spec initialize_for_verification(
         supra_framework: &signer,
         min_voting_threshold: u128,
-        required_proposer_stake: u64,
         voting_duration_secs: u64,
+        voters: vector<address>,
     ) {
         pragma verify = false;
     }

@@ -996,16 +996,10 @@ module supra_framework::pbo_delegation_pool {
         synchronize_delegation_pool(pool_address);
 
         let voter_addr = signer::address_of(voter);
-        let pool = borrow_global<DelegationPool>(pool_address);
-        let governance_records = borrow_global_mut<GovernanceRecords>(pool_address);
-        let total_voting_power = calculate_and_update_delegated_votes(pool,
-            governance_records, voter_addr);
-        assert!(total_voting_power >= supra_governance::get_required_proposer_stake(),
-            error::invalid_argument(EINSUFFICIENT_PROPOSER_STAKE));
         let pool_signer = retrieve_stake_pool_owner(borrow_global<DelegationPool>(
                 pool_address
             ));
-        let proposal_id = supra_governance::create_proposal_v2_impl(&pool_signer,
+        let proposal_id = supra_governance::create_proposal_v2_impl(voter,
             pool_address,
             execution_hash,
             metadata_location,
@@ -4485,64 +4479,15 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator1 = @0x010)]
-    #[expected_failure(abort_code = 0x1000f, location = Self)]
-    public entry fun test_create_proposal_abort_if_inefficient_stake(
-        supra_framework: &signer, validator: &signer, delegator1: &signer,
-        // delegator2: &signer,
-    ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
-        initialize_for_test(supra_framework);
-        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 100
-            * ONE_APT, 1000,);
-        supra_governance::initialize_partial_voting(supra_framework);
-        features::change_feature_flags_for_testing(supra_framework,
-            vector[
-                features::get_partial_governance_voting(),
-                features::get_delegation_pool_partial_governance_voting()],
-            vector[]);
-        let delegator_address = vector[@0x111];
-        let principle_stake = vector[100 * ONE_APT];
-        let coin = stake::mint_coins(100 * ONE_APT);
-        let principle_lockup_time = 0;
-        initialize_test_validator(validator,
-            100 * ONE_APT,
-            true,
-            false,
-            0,
-            delegator_address,
-            principle_stake,
-            coin,
-            option::none(),
-            vector[2, 2, 3],
-            10,
-            principle_lockup_time,
-            12
-        );
-
-        let validator_address = signer::address_of(validator);
-        let pool_address = get_owned_pool_address(validator_address);
-        // Delegation pool is created after partial governance voting feature flag is enabled. So this delegation
-        // pool is created with partial governance voting enabled.
-        assert!(stake::get_delegated_voter(pool_address) == pool_address, 1);
-        assert!(partial_governance_voting_enabled(pool_address), 2);
-
-        let delegator1_address = signer::address_of(delegator1);
-        account::create_account_for_test(delegator1_address);
-        stake::mint(delegator1, 100 * ONE_APT);
-        add_stake(delegator1, pool_address, 10 * ONE_APT);
-        end_aptos_epoch();
-
-        let execution_hash = vector::empty<u8>();
-        vector::push_back(&mut execution_hash, 1);
-        create_proposal(delegator1, pool_address, execution_hash, b"", b"", true,);
-    }
-
-    #[test(supra_framework = @supra_framework, validator = @0x123, delegator1 = @0x010)]
     public entry fun test_create_proposal_with_sufficient_stake(
         supra_framework: &signer, validator: &signer, delegator1: &signer,
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
-        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 100
-            * ONE_APT, 1000,);
+        let validator_address = signer::address_of(validator);
+        let delegator1_address = signer::address_of(delegator1);
+
+        let voters = vector[validator_address, delegator1_address];
+        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 1000, voters);
         supra_governance::initialize_partial_voting(supra_framework);
         features::change_feature_flags_for_testing(supra_framework,
             vector[
@@ -4568,14 +4513,12 @@ module supra_framework::pbo_delegation_pool {
             12
         );
 
-        let validator_address = signer::address_of(validator);
         let pool_address = get_owned_pool_address(validator_address);
         // Delegation pool is created after partial governance voting feature flag is enabled. So this delegation
         // pool is created with partial governance voting enabled.
         assert!(stake::get_delegated_voter(pool_address) == pool_address, 1);
         assert!(partial_governance_voting_enabled(pool_address), 2);
 
-        let delegator1_address = signer::address_of(delegator1);
         account::create_account_for_test(delegator1_address);
         stake::mint(delegator1, 100 * ONE_APT);
         add_stake(delegator1, pool_address, 100 * ONE_APT);
@@ -4596,8 +4539,10 @@ module supra_framework::pbo_delegation_pool {
         voter2: &signer,
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test_no_reward(supra_framework);
-        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 100
-            * ONE_APT, 1000,);
+        let validator_address = signer::address_of(validator);
+
+        let voters = vector[validator_address];
+        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 1000, voters);
         supra_governance::initialize_partial_voting(supra_framework);
         features::change_feature_flags_for_testing(supra_framework,
             vector[
@@ -4623,7 +4568,6 @@ module supra_framework::pbo_delegation_pool {
             LOCKUP_CYCLE_SECONDS
         );
 
-        let validator_address = signer::address_of(validator);
         let pool_address = get_owned_pool_address(validator_address);
         // Delegation pool is created after partial governance voting feature flag is enabled. So this delegation
         // pool is created with partial governance voting enabled.
@@ -4823,8 +4767,10 @@ module supra_framework::pbo_delegation_pool {
         voter1: &signer,
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test_no_reward(supra_framework);
-        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 100
-            * ONE_APT, 1000,);
+        let validator_address = signer::address_of(validator);
+
+        let voters = vector[validator_address];
+        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 1000, voters);
         supra_governance::initialize_partial_voting(supra_framework);
         let delegator_address = vector[@0x111];
         let principle_stake = vector[100 * ONE_APT];
@@ -4909,8 +4855,10 @@ module supra_framework::pbo_delegation_pool {
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test_custom(supra_framework, 100 * ONE_APT, 10000 * ONE_APT,
             LOCKUP_CYCLE_SECONDS, true, 100, 100, 1000000);
-        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 100
-            * ONE_APT, 1000,);
+        let validator_address = signer::address_of(validator);
+
+        let voters = vector[validator_address];
+        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 1000, voters);
         supra_governance::initialize_partial_voting(supra_framework);
         features::change_feature_flags_for_testing(supra_framework,
             vector[
@@ -4937,7 +4885,6 @@ module supra_framework::pbo_delegation_pool {
             12
         );
 
-        let validator_address = signer::address_of(validator);
         let pool_address = get_owned_pool_address(validator_address);
         // Delegation pool is created after partial governance voting feature flag is enabled. So this delegation
         // pool is created with partial governance voting enabled.
@@ -5385,8 +5332,10 @@ module supra_framework::pbo_delegation_pool {
         principle_lockup_time: u64,
         unlock_duration: u64,
     ): u64 acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
-        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 100
-            * ONE_APT, 1000,);
+        let validator_address = signer::address_of(validator);
+
+        let voters = vector[validator_address];
+        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128),  1000, voters);
         supra_governance::initialize_partial_voting(supra_framework);
 
         initialize_test_validator(validator,
