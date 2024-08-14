@@ -306,6 +306,7 @@ dependencies = [
  "poem",
  "rand 0.7.3",
  "reqwest",
+ "regex",
  "self_update",
  "serde",
  "serde_json",
