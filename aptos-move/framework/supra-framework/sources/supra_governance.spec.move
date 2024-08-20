@@ -55,7 +55,7 @@ spec supra_framework::supra_governance {
     spec initialize(
         supra_framework: &signer,
         min_voting_threshold: u128,
-        required_proposer_threshold: u64,
+        required_proposer_stake: u64,
         voting_duration_secs: u64,
         voters: vector<address>,
     ) {
@@ -93,7 +93,7 @@ spec supra_framework::supra_governance {
     spec schema InitializeAbortIf {
         supra_framework: &signer;
         min_voting_threshold: u128;
-        // required_proposer_threshold: u64;
+        // required_proposer_stake: u64;
         voting_duration_secs: u64;
 
         let addr = signer::address_of(supra_framework);
@@ -112,7 +112,7 @@ spec supra_framework::supra_governance {
     spec update_governance_config(
         supra_framework: &signer,
         min_voting_threshold: u128,
-        required_proposer_threshold: u64,
+        required_proposer_stake: u64,
         voting_duration_secs: u64,
         voters: vector<address>,
     ) {
@@ -730,6 +730,7 @@ spec supra_framework::supra_governance {
         supra_framework: &signer,
         min_voting_threshold: u128,
         voting_duration_secs: u64,
+        required_proposer_stake: u64,
         voters: vector<address>,
     ) {
         pragma verify = false;

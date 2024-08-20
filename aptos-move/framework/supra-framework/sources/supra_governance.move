@@ -82,7 +82,7 @@ module supra_framework::supra_governance {
     struct GovernanceConfig has key {
         voters: vector<address>,
         min_voting_threshold: u128,
-        required_proposer_threshold: u64, // unused field
+        required_proposer_stake: u64, // unused field
         voting_duration_secs: u64,
     }
 
@@ -133,7 +133,7 @@ module supra_framework::supra_governance {
     /// Event emitted when the governance configs are updated.
     struct UpdateConfigEvent has drop, store {
         min_voting_threshold: u128,
-        required_proposer_threshold: u64,
+        required_proposer_stake: u64,
         voting_duration_secs: u64,
         voters: vector<address>,
     }
@@ -160,7 +160,7 @@ module supra_framework::supra_governance {
     /// Event emitted when the governance configs are updated.
     struct UpdateConfig has drop, store {
         min_voting_threshold: u128,
-        required_proposer_threshold: u64,
+        required_proposer_stake: u64,
         voting_duration_secs: u64,
         voters: vector<address>,
     }
@@ -192,7 +192,7 @@ module supra_framework::supra_governance {
     fun initialize(
         supra_framework: &signer,
         min_voting_threshold: u128,
-        required_proposer_threshold: u64,
+        required_proposer_stake: u64,
         voting_duration_secs: u64,
         voters: vector<address>,
     ) {
@@ -202,7 +202,7 @@ module supra_framework::supra_governance {
         move_to(supra_framework, GovernanceConfig {
             voting_duration_secs,
             min_voting_threshold,
-            required_proposer_threshold,
+            required_proposer_stake,
             voters,
         });
         move_to(supra_framework, GovernanceEvents {
@@ -223,7 +223,7 @@ module supra_framework::supra_governance {
     public fun update_governance_config(
         supra_framework: &signer,
         min_voting_threshold: u128,
-        required_proposer_threshold: u64,
+        required_proposer_stake: u64,
         voting_duration_secs: u64,
         voters: vector<address>,
     ) acquires GovernanceConfig, GovernanceEvents {
@@ -232,14 +232,14 @@ module supra_framework::supra_governance {
         let governance_config = borrow_global_mut<GovernanceConfig>(@supra_framework);
         governance_config.voting_duration_secs = voting_duration_secs;
         governance_config.min_voting_threshold = min_voting_threshold;
-        governance_config.required_proposer_threshold = required_proposer_threshold;
+        governance_config.required_proposer_stake = required_proposer_stake;
         governance_config.voters = voters;
 
         if (std::features::module_event_migration_enabled()) {
             event::emit(
                 UpdateConfig {
                     min_voting_threshold,
-                    required_proposer_threshold,
+                    required_proposer_stake,
                     voting_duration_secs,
                     voters
                 },
@@ -250,7 +250,7 @@ module supra_framework::supra_governance {
             &mut events.update_config_events,
             UpdateConfigEvent {
                 min_voting_threshold,
-                required_proposer_threshold,
+                required_proposer_stake,
                 voting_duration_secs,
                 voters
             },
@@ -281,7 +281,7 @@ module supra_framework::supra_governance {
 
     #[view]
     public fun get_required_proposer_stake(): u64 acquires GovernanceConfig {
-        borrow_global<GovernanceConfig>(@supra_framework).required_proposer_threshold
+        borrow_global<GovernanceConfig>(@supra_framework).required_proposer_stake
     }
 
     #[view]
@@ -1297,7 +1297,7 @@ module supra_framework::supra_governance {
 
         let config = borrow_global<GovernanceConfig>(@supra_framework);
         assert!(config.min_voting_threshold == 10, 0);
-        // assert!(config.required_proposer_threshold == 20, 1);
+        // assert!(config.required_proposer_stake == 20, 1);
         assert!(config.voting_duration_secs == 30, 3);
     }
 
@@ -1352,9 +1352,10 @@ module supra_framework::supra_governance {
         supra_framework: &signer,
         min_voting_threshold: u128,
         voting_duration_secs: u64,
+        required_proposer_stake: u64,
         voters: vector<address>,
     ) {
-        initialize(supra_framework, min_voting_threshold, 1, voting_duration_secs, voters);
+        initialize(supra_framework, min_voting_threshold, required_proposer_stake, voting_duration_secs, voters);
     }
 
     #[verify_only]
@@ -1362,8 +1363,9 @@ module supra_framework::supra_governance {
         supra_framework: &signer,
         min_voting_threshold: u128,
         voting_duration_secs: u64,
+        required_proposer_stake: u64,
         voters: vector<address>,
     ) {
-        initialize(supra_framework, min_voting_threshold, 1, voting_duration_secs, voters);
+        initialize(supra_framework, min_voting_threshold, required_proposer_stake, voting_duration_secs, voters);
     }
 }
