@@ -64,7 +64,7 @@ spec supra_framework::supra_governance {
         let addr = signer::address_of(supra_framework);
         let register_account = global<account::Account>(addr);
 
-        aborts_if exists<voting::VotingForum<GovernanceProposal>>(addr);
+        aborts_if exists<multisig_voting::VotingForum<GovernanceProposal>>(addr);
         aborts_if !exists<account::Account>(addr);
         aborts_if register_account.guid_creation_num + 7 > MAX_U64;
         aborts_if register_account.guid_creation_num + 7 >= account::MAX_GUID_CREATION_NUM;
@@ -72,7 +72,7 @@ spec supra_framework::supra_governance {
 
         include InitializeAbortIf;
 
-        ensures exists<voting::VotingForum<governance_proposal::GovernanceProposal>>(addr);
+        ensures exists<multisig_voting::VotingForum<governance_proposal::GovernanceProposal>>(addr);
         ensures exists<GovernanceConfig>(addr);
         ensures exists<GovernanceEvents>(addr);
         ensures exists<VotingRecords>(addr);
@@ -99,7 +99,7 @@ spec supra_framework::supra_governance {
         let addr = signer::address_of(supra_framework);
         let account = global<account::Account>(addr);
         aborts_if addr != @supra_framework;
-        aborts_if exists<voting::VotingForum<governance_proposal::GovernanceProposal>>(addr);
+        aborts_if exists<multisig_voting::VotingForum<governance_proposal::GovernanceProposal>>(addr);
         aborts_if exists<GovernanceConfig>(addr);
         aborts_if exists<GovernanceEvents>(addr);
         aborts_if exists<VotingRecords>(addr);
@@ -258,18 +258,18 @@ spec supra_framework::supra_governance {
         let total_supply = supra_framework::optional_aggregator::optional_aggregator_value(supply);
         let early_resolution_vote_threshold_value = total_supply / 2 + 1;
 
-        // verify voting::create_proposal_v2
+        // verify multisig_voting::create_proposal_v2
         aborts_if option::spec_is_some(maybe_supply) && governance_config.min_voting_threshold > early_resolution_vote_threshold_value;
         aborts_if len(execution_hash) == 0;
-        aborts_if !exists<voting::VotingForum<GovernanceProposal>>(@supra_framework);
-        let voting_forum = global<voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        aborts_if !exists<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        let voting_forum = global<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
         let proposal_id = voting_forum.next_proposal_id;
         aborts_if proposal_id + 1 > MAX_U64;
-        let post post_voting_forum = global<voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        let post post_voting_forum = global<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
         let post post_next_proposal_id = post_voting_forum.next_proposal_id;
         ensures post_next_proposal_id == proposal_id + 1;
-        aborts_if !string::spec_internal_check_utf8(voting::IS_MULTI_STEP_PROPOSAL_KEY);
-        aborts_if !string::spec_internal_check_utf8(voting::IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
+        aborts_if !string::spec_internal_check_utf8(multisig_voting::IS_MULTI_STEP_PROPOSAL_KEY);
+        aborts_if !string::spec_internal_check_utf8(multisig_voting::IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
         aborts_if table::spec_contains(voting_forum.proposals,proposal_id);
         ensures table::spec_contains(post_voting_forum.proposals, proposal_id);
         aborts_if !exists<GovernanceEvents>(@supra_framework);
@@ -349,7 +349,7 @@ spec supra_framework::supra_governance {
         include VotingGetDelegatedVoterAbortsIf { sign: voter };
 
         aborts_if spec_proposal_expiration <= locked_until && !exists<timestamp::CurrentTimeMicroseconds>(@supra_framework);
-        let spec_proposal_expiration = voting::spec_get_proposal_expiration_secs<GovernanceProposal>(@supra_framework, proposal_id);
+        let spec_proposal_expiration = multisig_voting::spec_get_proposal_expiration_secs<GovernanceProposal>(@supra_framework, proposal_id);
         let locked_until = global<stake::StakePool>(stake_pool).locked_until_secs;
         let remain_zero_1_cond = (spec_proposal_expiration > locked_until || timestamp::spec_now_seconds() > spec_proposal_expiration);
         let record_key = RecordKey {
@@ -386,30 +386,30 @@ spec supra_framework::supra_governance {
         let stake_pool_res = global<stake::StakePool>(stake_pool);
         // Two results of get_voting_power(stake_pool) and the third one is zero.
 
-        aborts_if !exists<voting::VotingForum<GovernanceProposal>>(@supra_framework);
-        let voting_forum = global<voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        aborts_if !exists<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        let voting_forum = global<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
         let proposal = table::spec_get(voting_forum.proposals, proposal_id);
         aborts_if !table::spec_contains(voting_forum.proposals, proposal_id);
         let proposal_expiration = proposal.expiration_secs;
         let locked_until_secs = global<stake::StakePool>(stake_pool).locked_until_secs;
         aborts_if proposal_expiration > locked_until_secs;
 
-        // verify voting::vote
+        // verify multisig_voting::vote
         aborts_if timestamp::now_seconds() > proposal_expiration;
         aborts_if proposal.is_resolved;
-        aborts_if !string::spec_internal_check_utf8(voting::IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
-        let execution_key = utf8(voting::IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
+        aborts_if !string::spec_internal_check_utf8(multisig_voting::IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
+        let execution_key = utf8(multisig_voting::IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
         aborts_if simple_map::spec_contains_key(proposal.metadata, execution_key) &&
                   simple_map::spec_get(proposal.metadata, execution_key) != std::bcs::to_bytes(false);
         // Since there are two possibilities for voting_power, the result of the vote is not only related to should_pass,
         // but also to allow_validator_set_change which determines the voting_power
         aborts_if
             if (should_pass) { proposal.yes_votes + real_voting_power > MAX_U128 } else { proposal.no_votes + real_voting_power > MAX_U128 };
-        let post post_voting_forum = global<voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        let post post_voting_forum = global<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
         let post post_proposal = table::spec_get(post_voting_forum.proposals, proposal_id);
 
-        aborts_if !string::spec_internal_check_utf8(voting::RESOLVABLE_TIME_METADATA_KEY);
-        let key = utf8(voting::RESOLVABLE_TIME_METADATA_KEY);
+        aborts_if !string::spec_internal_check_utf8(multisig_voting::RESOLVABLE_TIME_METADATA_KEY);
+        let key = utf8(multisig_voting::RESOLVABLE_TIME_METADATA_KEY);
         ensures simple_map::spec_contains_key(post_proposal.metadata, key);
         ensures simple_map::spec_get(post_proposal.metadata, key) == std::bcs::to_bytes(timestamp::now_seconds());
 
@@ -419,42 +419,36 @@ spec supra_framework::supra_governance {
 
         aborts_if !exists<GovernanceEvents>(@supra_framework);
 
-        // verify voting::get_proposal_state
-        let early_resolution_threshold = option::spec_borrow(proposal.early_resolution_vote_threshold);
+        // verify multisig_voting::get_proposal_state
         let is_voting_period_over = timestamp::spec_now_seconds() > proposal_expiration;
 
         let new_proposal_yes_votes_0 = proposal.yes_votes + real_voting_power;
-        let can_be_resolved_early_0 = option::spec_is_some(proposal.early_resolution_vote_threshold) &&
-                                    (new_proposal_yes_votes_0 >= early_resolution_threshold ||
-                                     proposal.no_votes >= early_resolution_threshold);
+        let can_be_resolved_early_0 = (new_proposal_yes_votes_0 >= proposal.min_vote_threshold ||
+                                     proposal.no_votes >= proposal.min_vote_threshold);
         let is_voting_closed_0 = is_voting_period_over || can_be_resolved_early_0;
         let proposal_state_successed_0 = is_voting_closed_0 && new_proposal_yes_votes_0 > proposal.no_votes &&
                                          new_proposal_yes_votes_0 + proposal.no_votes >= proposal.min_vote_threshold;
         let new_proposal_no_votes_0 = proposal.no_votes + real_voting_power;
-        let can_be_resolved_early_1 = option::spec_is_some(proposal.early_resolution_vote_threshold) &&
-                                    (proposal.yes_votes >= early_resolution_threshold ||
-                                     new_proposal_no_votes_0 >= early_resolution_threshold);
+        let can_be_resolved_early_1 = (proposal.yes_votes >= proposal.min_vote_threshold ||
+                                     new_proposal_no_votes_0 >= proposal.min_vote_threshold);
         let is_voting_closed_1 = is_voting_period_over || can_be_resolved_early_1;
         let proposal_state_successed_1 = is_voting_closed_1 && proposal.yes_votes > new_proposal_no_votes_0 &&
                                          proposal.yes_votes + new_proposal_no_votes_0 >= proposal.min_vote_threshold;
         let new_proposal_yes_votes_1 = proposal.yes_votes + real_voting_power;
-        let can_be_resolved_early_2 = option::spec_is_some(proposal.early_resolution_vote_threshold) &&
-                                    (new_proposal_yes_votes_1 >= early_resolution_threshold ||
-                                     proposal.no_votes >= early_resolution_threshold);
+        let can_be_resolved_early_2 = (new_proposal_yes_votes_1 >= proposal.min_vote_threshold ||
+                                     proposal.no_votes >= proposal.min_vote_threshold);
         let is_voting_closed_2 = is_voting_period_over || can_be_resolved_early_2;
         let proposal_state_successed_2 = is_voting_closed_2 && new_proposal_yes_votes_1 > proposal.no_votes &&
                                          new_proposal_yes_votes_1 + proposal.no_votes >= proposal.min_vote_threshold;
         let new_proposal_no_votes_1 = proposal.no_votes + real_voting_power;
-        let can_be_resolved_early_3 = option::spec_is_some(proposal.early_resolution_vote_threshold) &&
-                                    (proposal.yes_votes >= early_resolution_threshold ||
-                                     new_proposal_no_votes_1 >= early_resolution_threshold);
+        let can_be_resolved_early_3 = (proposal.yes_votes >= proposal.min_vote_threshold ||
+                                     new_proposal_no_votes_1 >= proposal.min_vote_threshold);
         let is_voting_closed_3 = is_voting_period_over || can_be_resolved_early_3;
         let proposal_state_successed_3 = is_voting_closed_3 && proposal.yes_votes > new_proposal_no_votes_1 &&
                                          proposal.yes_votes + new_proposal_no_votes_1 >= proposal.min_vote_threshold;
         // post state
-        let post can_be_resolved_early = option::spec_is_some(proposal.early_resolution_vote_threshold) &&
-                                    (post_proposal.yes_votes >= early_resolution_threshold ||
-                                     post_proposal.no_votes >= early_resolution_threshold);
+        let post can_be_resolved_early = (post_proposal.yes_votes >= proposal.min_vote_threshold ||
+                                     post_proposal.no_votes >= proposal.min_vote_threshold);
         let post is_voting_closed = is_voting_period_over || can_be_resolved_early;
         let post proposal_state_successed = is_voting_closed && post_proposal.yes_votes > post_proposal.no_votes &&
                                          post_proposal.yes_votes + post_proposal.no_votes >= proposal.min_vote_threshold;
@@ -500,17 +494,14 @@ spec supra_framework::supra_governance {
         proposal_id: u64;
         aborts_if !exists<ApprovedExecutionHashes>(@supra_framework);
 
-        aborts_if !exists<voting::VotingForum<GovernanceProposal>>(@supra_framework);
-        let voting_forum = global<voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        aborts_if !exists<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        let voting_forum = global<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
         let proposal = table::spec_get(voting_forum.proposals, proposal_id);
         aborts_if !table::spec_contains(voting_forum.proposals, proposal_id);
-        let early_resolution_threshold = option::spec_borrow(proposal.early_resolution_vote_threshold);
         aborts_if timestamp::now_seconds() <= proposal.expiration_secs &&
-            (option::spec_is_none(proposal.early_resolution_vote_threshold) ||
-            proposal.yes_votes < early_resolution_threshold && proposal.no_votes < early_resolution_threshold);
+            proposal.yes_votes < proposal.min_vote_threshold && proposal.no_votes < proposal.min_vote_threshold;
         aborts_if (timestamp::now_seconds() > proposal.expiration_secs ||
-            option::spec_is_some(proposal.early_resolution_vote_threshold) && (proposal.yes_votes >= early_resolution_threshold ||
-                                                                               proposal.no_votes >= early_resolution_threshold)) &&
+            (proposal.yes_votes >= proposal.min_vote_threshold || proposal.no_votes >= proposal.min_vote_threshold)) &&
             (proposal.yes_votes <= proposal.no_votes || proposal.yes_votes + proposal.no_votes < proposal.min_vote_threshold);
 
         let post post_approved_hashes = global<ApprovedExecutionHashes>(@supra_framework);
@@ -525,20 +516,20 @@ spec supra_framework::supra_governance {
 
         requires chain_status::is_operating();
 
-        // verify voting::resolve
+        // verify multisig_voting::resolve
         include VotingIsProposalResolvableAbortsif;
 
-        let voting_forum = global<voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        let voting_forum = global<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
         let proposal = table::spec_get(voting_forum.proposals, proposal_id);
 
-        let multi_step_key = utf8(voting::IS_MULTI_STEP_PROPOSAL_KEY);
+        let multi_step_key = utf8(multisig_voting::IS_MULTI_STEP_PROPOSAL_KEY);
         let has_multi_step_key = simple_map::spec_contains_key(proposal.metadata, multi_step_key);
         let is_multi_step_proposal = aptos_std::from_bcs::deserialize<bool>(simple_map::spec_get(proposal.metadata, multi_step_key));
         aborts_if has_multi_step_key && !aptos_std::from_bcs::deserializable<bool>(simple_map::spec_get(proposal.metadata, multi_step_key));
-        aborts_if !string::spec_internal_check_utf8(voting::IS_MULTI_STEP_PROPOSAL_KEY);
+        aborts_if !string::spec_internal_check_utf8(multisig_voting::IS_MULTI_STEP_PROPOSAL_KEY);
         aborts_if has_multi_step_key && is_multi_step_proposal;
 
-        let post post_voting_forum = global<voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        let post post_voting_forum = global<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
         let post post_proposal = table::spec_get(post_voting_forum.proposals, proposal_id);
         ensures post_proposal.is_resolved == true && post_proposal.resolution_time_secs == timestamp::now_seconds();
         aborts_if option::spec_is_none(proposal.execution_content);
@@ -558,11 +549,11 @@ spec supra_framework::supra_governance {
 
     /// Address @supra_framework must exist ApprovedExecutionHashes and GovernanceProposal.
     spec remove_approved_hash(proposal_id: u64) {
-        aborts_if !exists<voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        aborts_if !exists<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
         aborts_if !exists<ApprovedExecutionHashes>(@supra_framework);
-        let voting_forum = global<voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        let voting_forum = global<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
         aborts_if !table::spec_contains(voting_forum.proposals, proposal_id);
-        aborts_if !exists<voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        aborts_if !exists<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
         let proposal = table::spec_get(voting_forum.proposals, proposal_id);
         aborts_if !proposal.is_resolved;
         let post approved_hashes = global<ApprovedExecutionHashes>(@supra_framework).hashes;
@@ -633,7 +624,7 @@ spec supra_framework::supra_governance {
         aborts_if features::spec_partial_governance_voting_enabled() && !exists<VotingRecordsV2>(@supra_framework);
         aborts_if !exists<stake::StakePool>(stake_pool);
         aborts_if spec_proposal_expiration <= locked_until && !exists<timestamp::CurrentTimeMicroseconds>(@supra_framework);
-        let spec_proposal_expiration = voting::spec_get_proposal_expiration_secs<GovernanceProposal>(@supra_framework, proposal_id);
+        let spec_proposal_expiration = multisig_voting::spec_get_proposal_expiration_secs<GovernanceProposal>(@supra_framework, proposal_id);
         let locked_until = global<stake::StakePool>(stake_pool).locked_until_secs;
         let remain_zero_1_cond = (spec_proposal_expiration > locked_until || timestamp::spec_now_seconds() > spec_proposal_expiration);
         ensures remain_zero_1_cond ==> result == 0;
@@ -661,7 +652,7 @@ spec supra_framework::supra_governance {
     }
 
     spec fun spec_get_remaining_voting_power(stake_pool: address, proposal_id: u64): u64 {
-        let spec_proposal_expiration = voting::spec_get_proposal_expiration_secs<GovernanceProposal>(@supra_framework, proposal_id);
+        let spec_proposal_expiration = multisig_voting::spec_get_proposal_expiration_secs<GovernanceProposal>(@supra_framework, proposal_id);
         let locked_until = global<stake::StakePool>(stake_pool).locked_until_secs;
         let remain_zero_1_cond = (spec_proposal_expiration > locked_until || timestamp::spec_now_seconds() > spec_proposal_expiration);
         let staking_config = global<staking_config::StakingConfig>(@supra_framework);
@@ -750,20 +741,20 @@ spec supra_framework::supra_governance {
 
         // TODO: These function passed locally however failed in github CI
         pragma verify_duration_estimate = 120;
-        // verify voting::resolve_proposal_v2
+        // verify multisig_voting::resolve_proposal_v2
         include VotingIsProposalResolvableAbortsif;
 
-        let voting_forum = global<voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        let voting_forum = global<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
         let proposal = table::spec_get(voting_forum.proposals, proposal_id);
-        let post post_voting_forum = global<voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        let post post_voting_forum = global<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
         let post post_proposal = table::spec_get(post_voting_forum.proposals, proposal_id);
 
-        aborts_if !string::spec_internal_check_utf8(voting::IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
-        let multi_step_in_execution_key = utf8(voting::IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
+        aborts_if !string::spec_internal_check_utf8(multisig_voting::IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
+        let multi_step_in_execution_key = utf8(multisig_voting::IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
         let post is_multi_step_proposal_in_execution_value = simple_map::spec_get(post_proposal.metadata, multi_step_in_execution_key);
 
-        aborts_if !string::spec_internal_check_utf8(voting::IS_MULTI_STEP_PROPOSAL_KEY);
-        let multi_step_key = utf8(voting::IS_MULTI_STEP_PROPOSAL_KEY);
+        aborts_if !string::spec_internal_check_utf8(multisig_voting::IS_MULTI_STEP_PROPOSAL_KEY);
+        let multi_step_key = utf8(multisig_voting::IS_MULTI_STEP_PROPOSAL_KEY);
         aborts_if simple_map::spec_contains_key(proposal.metadata, multi_step_key) &&
             !aptos_std::from_bcs::deserializable<bool>(simple_map::spec_get(proposal.metadata, multi_step_key));
         let is_multi_step = simple_map::spec_contains_key(proposal.metadata, multi_step_key) &&
@@ -798,26 +789,23 @@ spec supra_framework::supra_governance {
     spec schema VotingIsProposalResolvableAbortsif {
         proposal_id: u64;
 
-        aborts_if !exists<voting::VotingForum<GovernanceProposal>>(@supra_framework);
-        let voting_forum = global<voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        aborts_if !exists<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
+        let voting_forum = global<multisig_voting::VotingForum<GovernanceProposal>>(@supra_framework);
         let proposal = table::spec_get(voting_forum.proposals, proposal_id);
         aborts_if !table::spec_contains(voting_forum.proposals, proposal_id);
-        let early_resolution_threshold = option::spec_borrow(proposal.early_resolution_vote_threshold);
         let voting_period_over = timestamp::now_seconds() > proposal.expiration_secs;
-        let be_resolved_early = option::spec_is_some(proposal.early_resolution_vote_threshold) &&
-                                    (proposal.yes_votes >= early_resolution_threshold ||
-                                     proposal.no_votes >= early_resolution_threshold);
-        let voting_closed = voting_period_over || be_resolved_early;
+        let be_resolved_early = (proposal.yes_votes >= proposal.min_vote_threshold || proposal.no_votes >= proposal.min_vote_threshold);
+        let voting_closed = voting_period_over || false;
         // If Voting Failed
         aborts_if voting_closed && (proposal.yes_votes <= proposal.no_votes || proposal.yes_votes + proposal.no_votes < proposal.min_vote_threshold);
         // If Voting Pending
         aborts_if !voting_closed;
 
         aborts_if proposal.is_resolved;
-        aborts_if !string::spec_internal_check_utf8(voting::RESOLVABLE_TIME_METADATA_KEY);
-        aborts_if !simple_map::spec_contains_key(proposal.metadata, utf8(voting::RESOLVABLE_TIME_METADATA_KEY));
-        let resolvable_time = aptos_std::from_bcs::deserialize<u64>(simple_map::spec_get(proposal.metadata, utf8(voting::RESOLVABLE_TIME_METADATA_KEY)));
-        aborts_if !aptos_std::from_bcs::deserializable<u64>(simple_map::spec_get(proposal.metadata, utf8(voting::RESOLVABLE_TIME_METADATA_KEY)));
+        aborts_if !string::spec_internal_check_utf8(multisig_voting::RESOLVABLE_TIME_METADATA_KEY);
+        aborts_if !simple_map::spec_contains_key(proposal.metadata, utf8(multisig_voting::RESOLVABLE_TIME_METADATA_KEY));
+        let resolvable_time = aptos_std::from_bcs::deserialize<u64>(simple_map::spec_get(proposal.metadata, utf8(multisig_voting::RESOLVABLE_TIME_METADATA_KEY)));
+        aborts_if !aptos_std::from_bcs::deserializable<u64>(simple_map::spec_get(proposal.metadata, utf8(multisig_voting::RESOLVABLE_TIME_METADATA_KEY)));
         aborts_if timestamp::now_seconds() <= resolvable_time;
         aborts_if supra_framework::transaction_context::spec_get_script_hash() != proposal.execution_hash;
     }

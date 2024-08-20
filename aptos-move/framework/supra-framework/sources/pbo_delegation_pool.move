@@ -5355,6 +5355,9 @@ module supra_framework::pbo_delegation_pool {
 
         let validator_address = signer::address_of(validator);
         let pool_address = get_owned_pool_address(validator_address);
+        // add pool_address as voter
+        vector::push_back(&mut voters, pool_address);
+        supra_governance::update_governance_config(supra_framework,(10 * ONE_APT as u128),  1, 1000, voters);
         // Delegation pool is created before partial governance voting feature flag is enabled. So this delegation
         // pool's voter is its owner.
         assert!(stake::get_delegated_voter(pool_address) == validator_address, 1);
