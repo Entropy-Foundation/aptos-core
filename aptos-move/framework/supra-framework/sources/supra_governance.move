@@ -46,6 +46,8 @@ module supra_framework::supra_governance {
     const ENO_VOTING_POWER: u64 = 5;
     /// Proposal is not ready to be resolved. Waiting on time or votes
     const EPROPOSAL_NOT_RESOLVABLE_YET: u64 = 6;
+    /// Invalid min voting threshold
+    const EINVALID_VOTING_THRESHOLD: u64 = 7;
     /// The proposal has not been resolved yet
     const EPROPOSAL_NOT_RESOLVED_YET: u64 = 8;
     /// Metadata location cannot be longer than 256 chars
@@ -197,6 +199,7 @@ module supra_framework::supra_governance {
         voters: vector<address>,
     ) {
         system_addresses::assert_supra_framework(supra_framework);
+        assert!((vector::length(&voters) as u128) >= min_voting_threshold, error::invalid_argument(EINVALID_VOTING_THRESHOLD));
 
         multisig_voting::register<GovernanceProposal>(supra_framework);
         move_to(supra_framework, GovernanceConfig {
@@ -228,6 +231,7 @@ module supra_framework::supra_governance {
         voters: vector<address>,
     ) acquires GovernanceConfig, GovernanceEvents {
         system_addresses::assert_supra_framework(supra_framework);
+        assert!((vector::length(&voters) as u128) >= min_voting_threshold, error::invalid_argument(EINVALID_VOTING_THRESHOLD));
 
         let governance_config = borrow_global_mut<GovernanceConfig>(@supra_framework);
         governance_config.voting_duration_secs = voting_duration_secs;
@@ -1130,6 +1134,7 @@ module supra_framework::supra_governance {
         assert!(get_remaining_voting_power(voter_1_addr, 0) == 0, 1);
         assert!(get_remaining_voting_power(voter_2_addr, 0) == 15, 2);
 
+        vote(&voter_2, voter_2_addr, 0, true);
         test_resolving_proposal_generic(supra_framework, true, execution_hash);
     }
 
@@ -1190,7 +1195,7 @@ module supra_framework::supra_governance {
 
         // Initialize the governance.
         staking_config::initialize_for_test(supra_framework, 0, 1000, 2000, true, 0, 1, 100);
-        initialize(supra_framework, 1, 1, 1000, voters);
+        initialize(supra_framework, 2, 1, 1000, voters);
         store_signer_cap(
             supra_framework,
             @supra_framework,
@@ -1245,7 +1250,7 @@ module supra_framework::supra_governance {
 
         // Initialize the governance.
         stake::initialize_for_test_custom(supra_framework, 0, 1000, 2000, true, 0, 1, 1000);
-        initialize(supra_framework, 10, 1,1000, voters);
+        initialize(supra_framework, 3, 1,1000, voters);
         store_signer_cap(
             supra_framework,
             @supra_framework,
@@ -1290,14 +1295,14 @@ module supra_framework::supra_governance {
         supra_framework: signer,
     ) acquires GovernanceConfig, GovernanceEvents {
         account::create_account_for_test(signer::address_of(&supra_framework));
-        let voters = vector[];
 
-        initialize(&supra_framework, 1, 1, 3, voters);
+        initialize(&supra_framework, 1, 1, 3, vector[@0xa1, @0xa2]);
+        let voters = vector[@0xa1, @0xa2, @0xa3, @0xa4, @0xa5, @0xa6, @0xa7, @0xa8, @0xa9, @0xa10];
         update_governance_config(&supra_framework, 10, 20, 30, voters);
 
         let config = borrow_global<GovernanceConfig>(@supra_framework);
         assert!(config.min_voting_threshold == 10, 0);
-        // assert!(config.required_proposer_stake == 20, 1);
+        assert!(config.required_proposer_stake == 20, 1);
         assert!(config.voting_duration_secs == 30, 3);
     }
 

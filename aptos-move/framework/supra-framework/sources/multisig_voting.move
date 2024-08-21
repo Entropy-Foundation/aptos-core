@@ -61,6 +61,8 @@ module supra_framework::multisig_voting {
     const ESINGLE_STEP_PROPOSAL_CANNOT_HAVE_NEXT_EXECUTION_HASH: u64 = 11;
     /// Cannot call `is_multi_step_proposal_in_execution()` on single-step proposals.
     const EPROPOSAL_IS_SINGLE_STEP: u64 = 12;
+    /// Min vote threshould must be greater than or equal to 2
+    const EINVALID_VOTE_THRESHOULD: u64 = 13;
 
     /// ProposalStateEnum representing proposal state.
     const PROPOSAL_STATE_PENDING: u64 = 0;
@@ -267,6 +269,8 @@ module supra_framework::multisig_voting {
         metadata: SimpleMap<String, vector<u8>>,
         is_multi_step_proposal: bool,
     ): u64 acquires VotingForum {
+
+        assert!(min_vote_threshold >= 2, error::invalid_state(EINVALID_VOTE_THRESHOULD));
 
         // Make sure the execution script's hash is not empty.
         assert!(vector::length(&execution_hash) > 0, error::invalid_argument(EPROPOSAL_EMPTY_EXECUTION_HASH));
@@ -748,7 +752,7 @@ module supra_framework::multisig_voting {
                 governance_address,
                 proposal,
                 execution_hash,
-                1,
+                2,
                 timestamp::now_seconds() + VOTING_DURATION_SECS,
                 metadata,
                 use_generic_create_proposal_function
@@ -759,7 +763,7 @@ module supra_framework::multisig_voting {
                 governance_address,
                 proposal,
                 execution_hash,
-                1,
+                2,
                 timestamp::now_seconds() + VOTING_DURATION_SECS,
                 metadata,
             )
@@ -863,6 +867,7 @@ module supra_framework::multisig_voting {
         // Vote.
         let proof = TestProposal {};
         vote<TestProposal>(&proof, governance_address, proposal_id,  true);
+        vote<TestProposal>(&proof, governance_address, proposal_id,  true);
         let TestProposal {} = proof;
 
         // Resolve.
@@ -926,6 +931,7 @@ module supra_framework::multisig_voting {
         // Vote.
         let proof = TestProposal {};
         vote<TestProposal>(&proof, governance_address, proposal_id, true);
+        vote<TestProposal>(&proof, governance_address, proposal_id, true);
         let TestProposal {} = proof;
 
         // Resolve.
@@ -972,6 +978,7 @@ module supra_framework::multisig_voting {
 
         // Vote.
         let proof = TestProposal {};
+        vote<TestProposal>(&proof, governance_address, proposal_id, true);
         vote<TestProposal>(&proof, governance_address, proposal_id, true);
         vote<TestProposal>(&proof, governance_address, proposal_id, false);
         let TestProposal {} = proof;
@@ -1127,6 +1134,7 @@ module supra_framework::multisig_voting {
         // Vote.
         let proof = TestProposal {};
         vote<TestProposal>(&proof, governance_address, proposal_id, true);
+        vote<TestProposal>(&proof, governance_address, proposal_id, true);
 
         // Resolve early.
         timestamp::fast_forward_seconds(1);
@@ -1203,6 +1211,7 @@ module supra_framework::multisig_voting {
 
         // Vote.
         let proof = TestProposal {};
+        vote<TestProposal>(&proof, governance_address, proposal_id, true);
         vote<TestProposal>(&proof, governance_address, proposal_id, true);
         let TestProposal {} = proof;
 

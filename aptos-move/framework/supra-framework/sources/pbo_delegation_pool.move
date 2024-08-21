@@ -4491,8 +4491,9 @@ module supra_framework::pbo_delegation_pool {
         // delegator2: &signer,
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
-        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 100
-            * ONE_APT, 1000, vector[]);
+        let voters = vector[signer::address_of(validator), signer::address_of(delegator1)];
+        supra_governance::initialize_for_test(supra_framework,2, 100
+            * ONE_APT, 1000, voters);
         supra_governance::initialize_partial_voting(supra_framework);
         features::change_feature_flags_for_testing(supra_framework,
             vector[
@@ -4521,7 +4522,7 @@ module supra_framework::pbo_delegation_pool {
         let validator_address = signer::address_of(validator);
         let pool_address = get_owned_pool_address(validator_address);
         supra_governance::update_governance_config(supra_framework,
-            (10 * ONE_APT as u128),
+            1,
             100 * ONE_APT,
             1000,
             vector[pool_address]
@@ -4547,8 +4548,9 @@ module supra_framework::pbo_delegation_pool {
         supra_framework: &signer, validator: &signer, delegator1: &signer,
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
-        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 100
-            * ONE_APT, 1000, vector[]);
+        let voters = vector[signer::address_of(validator), signer::address_of(delegator1)];
+        supra_governance::initialize_for_test(supra_framework,2, 100
+            * ONE_APT, 1000, voters);
         supra_governance::initialize_partial_voting(supra_framework);
         features::change_feature_flags_for_testing(supra_framework,
             vector[
@@ -4577,10 +4579,10 @@ module supra_framework::pbo_delegation_pool {
         let validator_address = signer::address_of(validator);
         let pool_address = get_owned_pool_address(validator_address);
         supra_governance::update_governance_config(supra_framework,
-            (10 * ONE_APT as u128),
+            2,
             100 * ONE_APT,
             1000,
-            vector[pool_address]
+            vector[pool_address, validator_address]
         );
         // Delegation pool is created after partial governance voting feature flag is enabled. So this delegation
         // pool is created with partial governance voting enabled.
@@ -4611,7 +4613,7 @@ module supra_framework::pbo_delegation_pool {
         let validator_address = signer::address_of(validator);
         let delegator1_address = signer::address_of(delegator1);
         let voters = vector[validator_address, delegator1_address];
-        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 100
+        supra_governance::initialize_for_test(supra_framework,2, 100
             * ONE_APT, 1000, voters);
         supra_governance::initialize_partial_voting(supra_framework);
         features::change_feature_flags_for_testing(supra_framework,
@@ -4839,7 +4841,7 @@ module supra_framework::pbo_delegation_pool {
         let validator_address = signer::address_of(validator);
         let delegator1_address = signer::address_of(delegator1);
         let voters = vector[validator_address, delegator1_address];
-        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 100
+        supra_governance::initialize_for_test(supra_framework,2, 100
             * ONE_APT, 1000, voters);
         supra_governance::initialize_partial_voting(supra_framework);
         let delegator_address = vector[@0x111];
@@ -4927,7 +4929,7 @@ module supra_framework::pbo_delegation_pool {
         let validator_address = signer::address_of(validator);
         let delegator1_address = signer::address_of(delegator1);
         let voters = vector[validator_address, delegator1_address];
-        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 100
+        supra_governance::initialize_for_test(supra_framework,2, 100
             * ONE_APT, 1000, voters);
         supra_governance::initialize_partial_voting(supra_framework);
         features::change_feature_flags_for_testing(supra_framework,
@@ -5402,8 +5404,9 @@ module supra_framework::pbo_delegation_pool {
         unlock_duration: u64,
     ): u64 acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         let validator_address = signer::address_of(validator);
-        let voters = vector[validator_address];
-        supra_governance::initialize_for_test(supra_framework,(10 * ONE_APT as u128), 100
+        let voters = delegator_address;
+        vector::push_back(&mut voters, validator_address);
+        supra_governance::initialize_for_test(supra_framework,2, 100
             * ONE_APT, 1000, voters);
         supra_governance::initialize_partial_voting(supra_framework);
 
