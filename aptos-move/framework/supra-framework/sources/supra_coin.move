@@ -207,52 +207,55 @@ module supra_framework::supra_coin {
         coin::create_pairing<SupraCoin>(supra_framework);
         (burn_cap, mint_cap)
     }
+    // Finite coin supply. Over supply should fail. Test case with expected failure
 
+    #[test_only]
+    struct SupraCoinCapabilities has key {
+        burn_cap: BurnCapability<SupraCoin>,
+        mint_cap: MintCapability<SupraCoin>,
+    }
 
-	#[test_only]
-	use supra_framework::aptos_account;
+	#[test(source = @0x1, destination = @0x2)]
+    public entry fun end_to_end(
+        source: signer,
+        destination: signer,
+    )  {
+        let source_addr = signer::address_of(&source);
+        account::create_account_for_test(source_addr);
+        let destination_addr = signer::address_of(&destination);
+        account::create_account_for_test(destination_addr);
 
-	// #[test(source = @0x1, destination = @0x2)]
-    // public entry fun end_to_end(
-    //     source: signer,
-    //     destination: signer,
-    // )  {
-    //     let source_addr = signer::address_of(&source);
-    //     account::create_account_for_test(source_addr);
-    //     let destination_addr = signer::address_of(&destination);
-    //     account::create_account_for_test(destination_addr);
+        let name = string::utf8(b"Supra Coin");
+        let symbol = string::utf8(b"SUP");
 
-    //     let name = string::utf8(b"Fake money");
-    //     let symbol = string::utf8(b"FMD");
+        aggregator_factory::initialize_aggregator_factory_for_test(&source);
+        let (burn_cap,  mint_cap) = initialize(
+            &source,
+        );
+        coin::register<SupraCoin>(&source);
+        coin::register<SupraCoin>(&destination);
+        assert!(*option::borrow(&coin::supply<SupraCoin>()) == 0, 0);
 
-    //     aggregator_factory::initialize_aggregator_factory_for_test(&source);
-    //     let (burn_cap,  mint_cap) = initialize(
-    //         &source,
-    //     );
-    //     coin::register<SupraCoin>(&source);
-    //     coin::register<SupraCoin>(&destination);
-    //     assert!(*option::borrow(&coin::supply<SupraCoin>()) == 0, 0);
+        assert!(coin::name<SupraCoin>() == name, 1);
+        assert!(coin::symbol<SupraCoin>() == symbol, 2);
+        assert!(coin::decimals<SupraCoin>() == 8, 3);
 
-    //     assert!(coin::name<SupraCoin>() == name, 1);
-    //     assert!(coin::symbol<SupraCoin>() == symbol, 2);
-    //     assert!(coin::decimals<SupraCoin>() == 18, 3);
+        let coins_minted = coin::mint<SupraCoin>(100, &mint_cap);
+        coin::deposit(source_addr, coins_minted);
+        coin::transfer<SupraCoin>(&source, destination_addr, 50);
 
-    //     let coins_minted = coin::mint<SupraCoin>(100, &mint_cap);
-    //     coin::deposit(source_addr, coins_minted);
-    //     coin::transfer<SupraCoin>(&source, destination_addr, 50);
+        assert!(coin::balance<SupraCoin>(source_addr) == 50, 4);
+        assert!(coin::balance<SupraCoin>(destination_addr) == 50, 5);
+        assert!(*option::borrow(&coin::supply<SupraCoin>()) == 100, 6);
 
-    //     assert!(coin::balance<SupraCoin>(source_addr) == 50, 4);
-    //     assert!(coin::balance<SupraCoin>(destination_addr) == 50, 5);
-    //     assert!(*option::borrow(&coin::supply<SupraCoin>()) == 100, 6);
+        let coin = coin::withdraw<SupraCoin>(&source, 10);
+        assert!(coin::value(&coin) == 10, 7);
+        coin::burn(coin, &burn_cap);
+        assert!(*option::borrow(&coin::supply<SupraCoin>()) == 90, 8);
 
-    //     let coin = coin::withdraw<SupraCoin>(&source, 10);
-    //     assert!(coin::value(&coin) == 10, 7);
-    //     coin::burn(coin, &burn_cap);
-    //     assert!(*option::borrow(&coin::supply<SupraCoin>()) == 90, 8);
-
-    //     move_to(&source, SupraCoinCapabilities {
-    //         burn_cap,
-    //         mint_cap,
-    //     });
-    // }
+        move_to(&source, SupraCoinCapabilities {
+            burn_cap,
+            mint_cap,
+        });
+    }
 }
