@@ -151,7 +151,8 @@ module supra_framework::multisig_voting {
 
     #[event]
     struct Vote has drop, store {
-        proposal_id: u64
+        proposal_id: u64,
+        is_vote_yes: bool,
     }
 
     #[event]
@@ -176,7 +177,8 @@ module supra_framework::multisig_voting {
     }
 
     struct VoteEvent has drop, store {
-        proposal_id: u64
+        proposal_id: u64,
+        is_vote_yes: bool,
     }
 
     public fun register<ProposalType: store>(account: &signer) {
@@ -378,11 +380,11 @@ module supra_framework::multisig_voting {
         };
 
         if (std::features::module_event_migration_enabled()) {
-            event::emit(Vote { proposal_id });
+            event::emit(Vote { proposal_id, is_vote_yes: should_pass });
         };
         event::emit_event<VoteEvent>(
             &mut voting_forum.events.vote_events,
-            VoteEvent { proposal_id  },
+            VoteEvent { proposal_id, is_vote_yes: should_pass },
         );
     }
 
