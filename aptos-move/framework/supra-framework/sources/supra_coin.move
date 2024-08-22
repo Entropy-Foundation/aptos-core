@@ -10,6 +10,10 @@ module supra_framework::supra_coin {
     use supra_framework::coin::{Self, BurnCapability, MintCapability};
 	//use supra_framework::coin;
     use supra_framework::system_addresses;
+    #[test_only]
+    use std::string::String;
+    #[test_only]
+    use aptos_std::type_info;
 
     friend supra_framework::genesis;
 
@@ -160,7 +164,13 @@ module supra_framework::supra_coin {
     #[test_only]
     use supra_framework::aggregator_factory;
     #[test_only]
+    use supra_framework::coin::{CoinInfo, initialize_with_parallelizable_supply};
+    #[test_only]
     use supra_framework::fungible_asset::FungibleAsset;
+    #[test_only]
+    use supra_framework::optional_aggregator;
+    #[test_only]
+    use supra_framework::optional_aggregator::OptionalAggregator;
 
     #[test_only]
     public fun mint_apt_fa_for_test(amount: u64): FungibleAsset acquires MintCapStore {
@@ -197,6 +207,30 @@ module supra_framework::supra_coin {
         (burn_cap, mint_cap)
     }
 
+    #[test_only]
+    fun initialize_with_aggregator(supra_framework: &signer) {
+        let (burn_cap, freeze_cap, mint_cap) =coin::initialize_with_parallelizable_supply_with_limit<SupraCoin>(
+            supra_framework,
+            string::utf8(b"Supra Coin"),
+            string::utf8(b"SUP"),
+            8, // decimals
+            true, // monitor_supply
+            MAX_SUPRA_COIN_SUPPLY,
+        );
+        coin::destroy_freeze_cap(freeze_cap);
+        move_to(supra_framework, SupraCoinCapabilities {
+            burn_cap,
+            mint_cap,
+        });
+    }
+
+    #[test_only]
+    /// A helper function that returns the address of CoinType.
+    fun coin_address<CoinType>(): address {
+        let type_info = type_info::type_of<CoinType>();
+        type_info::account_address(&type_info)
+    }
+
     // This is particularly useful if the aggregator_factory is already initialized via another call path.
     #[test_only]
     public fun initialize_for_test_without_aggregator_factory(
@@ -207,7 +241,6 @@ module supra_framework::supra_coin {
         coin::create_pairing<SupraCoin>(supra_framework);
         (burn_cap, mint_cap)
     }
-    // Finite coin supply. Over supply should fail. Test case with expected failure
 
     #[test_only]
     struct SupraCoinCapabilities has key {
@@ -258,4 +291,39 @@ module supra_framework::supra_coin {
             mint_cap,
         });
     }
+
+    #[test(source = @0x1)]
+    #[expected_failure(abort_code = 0x20001, location = supra_framework::aggregator)]
+    public entry fun test_mint_overflow(
+        source: signer,
+    ) {
+        let source_addr = signer::address_of(&source);
+        account::create_account_for_test(source_addr);
+
+        aggregator_factory::initialize_aggregator_factory_for_test(&source);
+        let (burn_cap, mint_cap) = initialize(
+            &source,
+        );
+        coin::register<SupraCoin>(&source);
+        assert!(*option::borrow(&coin::supply<SupraCoin>()) == 0, 0);
+
+        let coins_minted = coin::mint<SupraCoin>((MAX_SUPRA_COIN_SUPPLY as u64)+1, &mint_cap);
+        coin::deposit(source_addr, coins_minted);
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_mint_cap(mint_cap);
+    }
+
+    // #[test(framework = @supra_framework)]
+    // #[expected_failure(abort_code = 0x20001, location = supra_framework::aggregator)]
+    // public entry fun test_supply_overflow(framework: signer) {
+    //     aggregator_factory::initialize_aggregator_factory_for_test(&framework);
+    //     initialize_with_aggregator(&framework);
+    //
+    //     let maybe_supply = &mut borrow_global_mut<SupraCoin>(coin_address<SupraCoin>()).supply;
+    //     let supply = option::borrow_mut(maybe_supply);
+    //
+    //     optional_aggregator::add(supply, MAX_SUPRA_COIN_SUPPLY);
+    //     optional_aggregator::add(supply, 1);
+    //     optional_aggregator::sub(supply, 1);
+    // }
 }
