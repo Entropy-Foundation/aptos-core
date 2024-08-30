@@ -147,44 +147,6 @@ pub enum EntryFunctionCall {
         cap_update_table: Vec<u8>,
     },
 
-    /// Batch version of APT transfer.
-    AptosAccountBatchTransfer {
-        recipients: Vec<AccountAddress>,
-        amounts: Vec<u64>,
-    },
-
-    /// Batch version of transfer_coins.
-    AptosAccountBatchTransferCoins {
-        coin_type: TypeTag,
-        recipients: Vec<AccountAddress>,
-        amounts: Vec<u64>,
-    },
-
-    /// Basic account creation methods.
-    AptosAccountCreateAccount {
-        auth_key: AccountAddress,
-    },
-
-    /// Set whether `account` can receive direct transfers of coins that they have not explicitly registered to receive.
-    AptosAccountSetAllowDirectCoinTransfers {
-        allow: bool,
-    },
-
-    /// Convenient function to transfer APT to a recipient account that might not exist.
-    /// This would create the recipient account first, which also registers it to receive APT, before transferring.
-    AptosAccountTransfer {
-        to: AccountAddress,
-        amount: u64,
-    },
-
-    /// Convenient function to transfer a custom CoinType to a recipient account that might not exist.
-    /// This would create the recipient account first and register it to receive the CoinType, before transferring.
-    AptosAccountTransferCoins {
-        coin_type: TypeTag,
-        to: AccountAddress,
-        amount: u64,
-    },
-
     /// Same as `publish_package` but as an entry function which can be called as a transaction. Because
     /// of current restrictions for txn parameters, the metadata needs to be passed in serialized form.
     CodePublishPackageTxn {
@@ -995,6 +957,44 @@ pub enum EntryFunctionCall {
         new_voter: AccountAddress,
     },
 
+    /// Batch version of APT transfer.
+    SupraAccountBatchTransfer {
+        recipients: Vec<AccountAddress>,
+        amounts: Vec<u64>,
+    },
+
+    /// Batch version of transfer_coins.
+    SupraAccountBatchTransferCoins {
+        coin_type: TypeTag,
+        recipients: Vec<AccountAddress>,
+        amounts: Vec<u64>,
+    },
+
+    /// Basic account creation methods.
+    SupraAccountCreateAccount {
+        auth_key: AccountAddress,
+    },
+
+    /// Set whether `account` can receive direct transfers of coins that they have not explicitly registered to receive.
+    SupraAccountSetAllowDirectCoinTransfers {
+        allow: bool,
+    },
+
+    /// Convenient function to transfer APT to a recipient account that might not exist.
+    /// This would create the recipient account first, which also registers it to receive APT, before transferring.
+    SupraAccountTransfer {
+        to: AccountAddress,
+        amount: u64,
+    },
+
+    /// Convenient function to transfer a custom CoinType to a recipient account that might not exist.
+    /// This would create the recipient account first and register it to receive the CoinType, before transferring.
+    SupraAccountTransferCoins {
+        coin_type: TypeTag,
+        to: AccountAddress,
+        amount: u64,
+    },
+
     /// Only callable in tests and testnets where the core resources account exists.
     /// Claim the delegated mint capability and destroy the delegated token.
     SupraCoinClaimMintCapability {},
@@ -1013,6 +1013,10 @@ pub enum EntryFunctionCall {
     },
 
     SupraGovernanceAddApprovedScriptHashScript {
+        proposal_id: u64,
+    },
+
+    SupraGovernanceAddSupraApprovedScriptHashScript {
         proposal_id: u64,
     },
 
@@ -1082,6 +1086,31 @@ pub enum EntryFunctionCall {
     /// This behavior affects when an update of an on-chain config (e.g. `ConsensusConfig`, `Features`) takes effect,
     /// since such updates are applied whenever we enter an new epoch.
     SupraGovernanceReconfigure {},
+
+    /// Create a single-step proposal with the backing `stake_pool`.
+    /// @param execution_hash Required. This is the hash of the resolution script. When the proposal is resolved,
+    /// only the exact script with matching hash can be successfully executed.
+    SupraGovernanceSupraCreateProposal {
+        execution_hash: Vec<u8>,
+        metadata_location: Vec<u8>,
+        metadata_hash: Vec<u8>,
+    },
+
+    /// Create a single-step or multi-step proposal with the backing `stake_pool`.
+    /// @param execution_hash Required. This is the hash of the resolution script. When the proposal is resolved,
+    /// only the exact script with matching hash can be successfully executed.
+    SupraGovernanceSupraCreateProposalV2 {
+        execution_hash: Vec<u8>,
+        metadata_location: Vec<u8>,
+        metadata_hash: Vec<u8>,
+        is_multi_step_proposal: bool,
+    },
+
+    /// Vote on proposal with `proposal_id` and all voting power from `stake_pool`.
+    SupraGovernanceSupraVote {
+        proposal_id: u64,
+        should_pass: bool,
+    },
 
     /// Vote on proposal with `proposal_id` and all voting power from `stake_pool`.
     SupraGovernanceVote {
@@ -1321,25 +1350,6 @@ impl EntryFunctionCall {
                 new_public_key_bytes,
                 cap_update_table,
             ),
-            AptosAccountBatchTransfer {
-                recipients,
-                amounts,
-            } => aptos_account_batch_transfer(recipients, amounts),
-            AptosAccountBatchTransferCoins {
-                coin_type,
-                recipients,
-                amounts,
-            } => aptos_account_batch_transfer_coins(coin_type, recipients, amounts),
-            AptosAccountCreateAccount { auth_key } => aptos_account_create_account(auth_key),
-            AptosAccountSetAllowDirectCoinTransfers { allow } => {
-                aptos_account_set_allow_direct_coin_transfers(allow)
-            },
-            AptosAccountTransfer { to, amount } => aptos_account_transfer(to, amount),
-            AptosAccountTransferCoins {
-                coin_type,
-                to,
-                amount,
-            } => aptos_account_transfer_coins(coin_type, to, amount),
             CodePublishPackageTxn {
                 metadata_serialized,
                 code,
@@ -1918,11 +1928,33 @@ impl EntryFunctionCall {
                 operator,
                 new_voter,
             } => staking_proxy_set_voter(operator, new_voter),
+            SupraAccountBatchTransfer {
+                recipients,
+                amounts,
+            } => supra_account_batch_transfer(recipients, amounts),
+            SupraAccountBatchTransferCoins {
+                coin_type,
+                recipients,
+                amounts,
+            } => supra_account_batch_transfer_coins(coin_type, recipients, amounts),
+            SupraAccountCreateAccount { auth_key } => supra_account_create_account(auth_key),
+            SupraAccountSetAllowDirectCoinTransfers { allow } => {
+                supra_account_set_allow_direct_coin_transfers(allow)
+            },
+            SupraAccountTransfer { to, amount } => supra_account_transfer(to, amount),
+            SupraAccountTransferCoins {
+                coin_type,
+                to,
+                amount,
+            } => supra_account_transfer_coins(coin_type, to, amount),
             SupraCoinClaimMintCapability {} => supra_coin_claim_mint_capability(),
             SupraCoinDelegateMintCapability { to } => supra_coin_delegate_mint_capability(to),
             SupraCoinMint { dst_addr, amount } => supra_coin_mint(dst_addr, amount),
             SupraGovernanceAddApprovedScriptHashScript { proposal_id } => {
                 supra_governance_add_approved_script_hash_script(proposal_id)
+            },
+            SupraGovernanceAddSupraApprovedScriptHashScript { proposal_id } => {
+                supra_governance_add_supra_approved_script_hash_script(proposal_id)
             },
             SupraGovernanceBatchPartialVote {
                 stake_pools,
@@ -1973,6 +2005,30 @@ impl EntryFunctionCall {
                 should_pass,
             } => supra_governance_partial_vote(stake_pool, proposal_id, voting_power, should_pass),
             SupraGovernanceReconfigure {} => supra_governance_reconfigure(),
+            SupraGovernanceSupraCreateProposal {
+                execution_hash,
+                metadata_location,
+                metadata_hash,
+            } => supra_governance_supra_create_proposal(
+                execution_hash,
+                metadata_location,
+                metadata_hash,
+            ),
+            SupraGovernanceSupraCreateProposalV2 {
+                execution_hash,
+                metadata_location,
+                metadata_hash,
+                is_multi_step_proposal,
+            } => supra_governance_supra_create_proposal_v2(
+                execution_hash,
+                metadata_location,
+                metadata_hash,
+                is_multi_step_proposal,
+            ),
+            SupraGovernanceSupraVote {
+                proposal_id,
+                should_pass,
+            } => supra_governance_supra_vote(proposal_id, should_pass),
             SupraGovernanceVote {
                 stake_pool,
                 proposal_id,
@@ -2342,121 +2398,6 @@ pub fn account_rotate_authentication_key_with_rotation_capability(
             bcs::to_bytes(&new_public_key_bytes).unwrap(),
             bcs::to_bytes(&cap_update_table).unwrap(),
         ],
-    ))
-}
-
-/// Batch version of APT transfer.
-pub fn aptos_account_batch_transfer(
-    recipients: Vec<AccountAddress>,
-    amounts: Vec<u64>,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_account").to_owned(),
-        ),
-        ident_str!("batch_transfer").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&recipients).unwrap(),
-            bcs::to_bytes(&amounts).unwrap(),
-        ],
-    ))
-}
-
-/// Batch version of transfer_coins.
-pub fn aptos_account_batch_transfer_coins(
-    coin_type: TypeTag,
-    recipients: Vec<AccountAddress>,
-    amounts: Vec<u64>,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_account").to_owned(),
-        ),
-        ident_str!("batch_transfer_coins").to_owned(),
-        vec![coin_type],
-        vec![
-            bcs::to_bytes(&recipients).unwrap(),
-            bcs::to_bytes(&amounts).unwrap(),
-        ],
-    ))
-}
-
-/// Basic account creation methods.
-pub fn aptos_account_create_account(auth_key: AccountAddress) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_account").to_owned(),
-        ),
-        ident_str!("create_account").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&auth_key).unwrap()],
-    ))
-}
-
-/// Set whether `account` can receive direct transfers of coins that they have not explicitly registered to receive.
-pub fn aptos_account_set_allow_direct_coin_transfers(allow: bool) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_account").to_owned(),
-        ),
-        ident_str!("set_allow_direct_coin_transfers").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&allow).unwrap()],
-    ))
-}
-
-/// Convenient function to transfer APT to a recipient account that might not exist.
-/// This would create the recipient account first, which also registers it to receive APT, before transferring.
-pub fn aptos_account_transfer(to: AccountAddress, amount: u64) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_account").to_owned(),
-        ),
-        ident_str!("transfer").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&to).unwrap(), bcs::to_bytes(&amount).unwrap()],
-    ))
-}
-
-/// Convenient function to transfer a custom CoinType to a recipient account that might not exist.
-/// This would create the recipient account first and register it to receive the CoinType, before transferring.
-pub fn aptos_account_transfer_coins(
-    coin_type: TypeTag,
-    to: AccountAddress,
-    amount: u64,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_account").to_owned(),
-        ),
-        ident_str!("transfer_coins").to_owned(),
-        vec![coin_type],
-        vec![bcs::to_bytes(&to).unwrap(), bcs::to_bytes(&amount).unwrap()],
     ))
 }
 
@@ -4941,6 +4882,121 @@ pub fn staking_proxy_set_voter(
     ))
 }
 
+/// Batch version of APT transfer.
+pub fn supra_account_batch_transfer(
+    recipients: Vec<AccountAddress>,
+    amounts: Vec<u64>,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_account").to_owned(),
+        ),
+        ident_str!("batch_transfer").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&recipients).unwrap(),
+            bcs::to_bytes(&amounts).unwrap(),
+        ],
+    ))
+}
+
+/// Batch version of transfer_coins.
+pub fn supra_account_batch_transfer_coins(
+    coin_type: TypeTag,
+    recipients: Vec<AccountAddress>,
+    amounts: Vec<u64>,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_account").to_owned(),
+        ),
+        ident_str!("batch_transfer_coins").to_owned(),
+        vec![coin_type],
+        vec![
+            bcs::to_bytes(&recipients).unwrap(),
+            bcs::to_bytes(&amounts).unwrap(),
+        ],
+    ))
+}
+
+/// Basic account creation methods.
+pub fn supra_account_create_account(auth_key: AccountAddress) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_account").to_owned(),
+        ),
+        ident_str!("create_account").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&auth_key).unwrap()],
+    ))
+}
+
+/// Set whether `account` can receive direct transfers of coins that they have not explicitly registered to receive.
+pub fn supra_account_set_allow_direct_coin_transfers(allow: bool) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_account").to_owned(),
+        ),
+        ident_str!("set_allow_direct_coin_transfers").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&allow).unwrap()],
+    ))
+}
+
+/// Convenient function to transfer APT to a recipient account that might not exist.
+/// This would create the recipient account first, which also registers it to receive APT, before transferring.
+pub fn supra_account_transfer(to: AccountAddress, amount: u64) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_account").to_owned(),
+        ),
+        ident_str!("transfer").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&to).unwrap(), bcs::to_bytes(&amount).unwrap()],
+    ))
+}
+
+/// Convenient function to transfer a custom CoinType to a recipient account that might not exist.
+/// This would create the recipient account first and register it to receive the CoinType, before transferring.
+pub fn supra_account_transfer_coins(
+    coin_type: TypeTag,
+    to: AccountAddress,
+    amount: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_account").to_owned(),
+        ),
+        ident_str!("transfer_coins").to_owned(),
+        vec![coin_type],
+        vec![bcs::to_bytes(&to).unwrap(), bcs::to_bytes(&amount).unwrap()],
+    ))
+}
+
 /// Only callable in tests and testnets where the core resources account exists.
 /// Claim the delegated mint capability and destroy the delegated token.
 pub fn supra_coin_claim_mint_capability() -> TransactionPayload {
@@ -5005,6 +5061,23 @@ pub fn supra_governance_add_approved_script_hash_script(proposal_id: u64) -> Tra
             ident_str!("supra_governance").to_owned(),
         ),
         ident_str!("add_approved_script_hash_script").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&proposal_id).unwrap()],
+    ))
+}
+
+pub fn supra_governance_add_supra_approved_script_hash_script(
+    proposal_id: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_governance").to_owned(),
+        ),
+        ident_str!("add_supra_approved_script_hash_script").to_owned(),
         vec![],
         vec![bcs::to_bytes(&proposal_id).unwrap()],
     ))
@@ -5203,6 +5276,79 @@ pub fn supra_governance_reconfigure() -> TransactionPayload {
         ident_str!("reconfigure").to_owned(),
         vec![],
         vec![],
+    ))
+}
+
+/// Create a single-step proposal with the backing `stake_pool`.
+/// @param execution_hash Required. This is the hash of the resolution script. When the proposal is resolved,
+/// only the exact script with matching hash can be successfully executed.
+pub fn supra_governance_supra_create_proposal(
+    execution_hash: Vec<u8>,
+    metadata_location: Vec<u8>,
+    metadata_hash: Vec<u8>,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_governance").to_owned(),
+        ),
+        ident_str!("supra_create_proposal").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&execution_hash).unwrap(),
+            bcs::to_bytes(&metadata_location).unwrap(),
+            bcs::to_bytes(&metadata_hash).unwrap(),
+        ],
+    ))
+}
+
+/// Create a single-step or multi-step proposal with the backing `stake_pool`.
+/// @param execution_hash Required. This is the hash of the resolution script. When the proposal is resolved,
+/// only the exact script with matching hash can be successfully executed.
+pub fn supra_governance_supra_create_proposal_v2(
+    execution_hash: Vec<u8>,
+    metadata_location: Vec<u8>,
+    metadata_hash: Vec<u8>,
+    is_multi_step_proposal: bool,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_governance").to_owned(),
+        ),
+        ident_str!("supra_create_proposal_v2").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&execution_hash).unwrap(),
+            bcs::to_bytes(&metadata_location).unwrap(),
+            bcs::to_bytes(&metadata_hash).unwrap(),
+            bcs::to_bytes(&is_multi_step_proposal).unwrap(),
+        ],
+    ))
+}
+
+/// Vote on proposal with `proposal_id` and all voting power from `stake_pool`.
+pub fn supra_governance_supra_vote(proposal_id: u64, should_pass: bool) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_governance").to_owned(),
+        ),
+        ident_str!("supra_vote").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&proposal_id).unwrap(),
+            bcs::to_bytes(&should_pass).unwrap(),
+        ],
     ))
 }
 
@@ -5923,76 +6069,6 @@ mod decoder {
                     cap_update_table: bcs::from_bytes(script.args().get(3)?).ok()?,
                 },
             )
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_account_batch_transfer(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosAccountBatchTransfer {
-                recipients: bcs::from_bytes(script.args().get(0)?).ok()?,
-                amounts: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_account_batch_transfer_coins(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosAccountBatchTransferCoins {
-                coin_type: script.ty_args().get(0)?.clone(),
-                recipients: bcs::from_bytes(script.args().get(0)?).ok()?,
-                amounts: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_account_create_account(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosAccountCreateAccount {
-                auth_key: bcs::from_bytes(script.args().get(0)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_account_set_allow_direct_coin_transfers(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosAccountSetAllowDirectCoinTransfers {
-                allow: bcs::from_bytes(script.args().get(0)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_account_transfer(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosAccountTransfer {
-                to: bcs::from_bytes(script.args().get(0)?).ok()?,
-                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_account_transfer_coins(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosAccountTransferCoins {
-                coin_type: script.ty_args().get(0)?.clone(),
-                to: bcs::from_bytes(script.args().get(0)?).ok()?,
-                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
         } else {
             None
         }
@@ -7464,6 +7540,76 @@ mod decoder {
         }
     }
 
+    pub fn supra_account_batch_transfer(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraAccountBatchTransfer {
+                recipients: bcs::from_bytes(script.args().get(0)?).ok()?,
+                amounts: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_account_batch_transfer_coins(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraAccountBatchTransferCoins {
+                coin_type: script.ty_args().get(0)?.clone(),
+                recipients: bcs::from_bytes(script.args().get(0)?).ok()?,
+                amounts: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_account_create_account(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraAccountCreateAccount {
+                auth_key: bcs::from_bytes(script.args().get(0)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_account_set_allow_direct_coin_transfers(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraAccountSetAllowDirectCoinTransfers {
+                allow: bcs::from_bytes(script.args().get(0)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_account_transfer(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraAccountTransfer {
+                to: bcs::from_bytes(script.args().get(0)?).ok()?,
+                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_account_transfer_coins(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraAccountTransferCoins {
+                coin_type: script.ty_args().get(0)?.clone(),
+                to: bcs::from_bytes(script.args().get(0)?).ok()?,
+                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn supra_coin_claim_mint_capability(
         payload: &TransactionPayload,
     ) -> Option<EntryFunctionCall> {
@@ -7503,6 +7649,20 @@ mod decoder {
         if let TransactionPayload::EntryFunction(script) = payload {
             Some(
                 EntryFunctionCall::SupraGovernanceAddApprovedScriptHashScript {
+                    proposal_id: bcs::from_bytes(script.args().get(0)?).ok()?,
+                },
+            )
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_governance_add_supra_approved_script_hash_script(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(
+                EntryFunctionCall::SupraGovernanceAddSupraApprovedScriptHashScript {
                     proposal_id: bcs::from_bytes(script.args().get(0)?).ok()?,
                 },
             )
@@ -7607,6 +7767,46 @@ mod decoder {
     pub fn supra_governance_reconfigure(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(_script) = payload {
             Some(EntryFunctionCall::SupraGovernanceReconfigure {})
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_governance_supra_create_proposal(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraGovernanceSupraCreateProposal {
+                execution_hash: bcs::from_bytes(script.args().get(0)?).ok()?,
+                metadata_location: bcs::from_bytes(script.args().get(1)?).ok()?,
+                metadata_hash: bcs::from_bytes(script.args().get(2)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_governance_supra_create_proposal_v2(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraGovernanceSupraCreateProposalV2 {
+                execution_hash: bcs::from_bytes(script.args().get(0)?).ok()?,
+                metadata_location: bcs::from_bytes(script.args().get(1)?).ok()?,
+                metadata_hash: bcs::from_bytes(script.args().get(2)?).ok()?,
+                is_multi_step_proposal: bcs::from_bytes(script.args().get(3)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_governance_supra_vote(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraGovernanceSupraVote {
+                proposal_id: bcs::from_bytes(script.args().get(0)?).ok()?,
+                should_pass: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
         } else {
             None
         }
@@ -8021,30 +8221,6 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "account_rotate_authentication_key_with_rotation_capability".to_string(),
             Box::new(decoder::account_rotate_authentication_key_with_rotation_capability),
-        );
-        map.insert(
-            "aptos_account_batch_transfer".to_string(),
-            Box::new(decoder::aptos_account_batch_transfer),
-        );
-        map.insert(
-            "aptos_account_batch_transfer_coins".to_string(),
-            Box::new(decoder::aptos_account_batch_transfer_coins),
-        );
-        map.insert(
-            "aptos_account_create_account".to_string(),
-            Box::new(decoder::aptos_account_create_account),
-        );
-        map.insert(
-            "aptos_account_set_allow_direct_coin_transfers".to_string(),
-            Box::new(decoder::aptos_account_set_allow_direct_coin_transfers),
-        );
-        map.insert(
-            "aptos_account_transfer".to_string(),
-            Box::new(decoder::aptos_account_transfer),
-        );
-        map.insert(
-            "aptos_account_transfer_coins".to_string(),
-            Box::new(decoder::aptos_account_transfer_coins),
         );
         map.insert(
             "code_publish_package_txn".to_string(),
@@ -8496,6 +8672,30 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
             Box::new(decoder::staking_proxy_set_voter),
         );
         map.insert(
+            "supra_account_batch_transfer".to_string(),
+            Box::new(decoder::supra_account_batch_transfer),
+        );
+        map.insert(
+            "supra_account_batch_transfer_coins".to_string(),
+            Box::new(decoder::supra_account_batch_transfer_coins),
+        );
+        map.insert(
+            "supra_account_create_account".to_string(),
+            Box::new(decoder::supra_account_create_account),
+        );
+        map.insert(
+            "supra_account_set_allow_direct_coin_transfers".to_string(),
+            Box::new(decoder::supra_account_set_allow_direct_coin_transfers),
+        );
+        map.insert(
+            "supra_account_transfer".to_string(),
+            Box::new(decoder::supra_account_transfer),
+        );
+        map.insert(
+            "supra_account_transfer_coins".to_string(),
+            Box::new(decoder::supra_account_transfer_coins),
+        );
+        map.insert(
             "supra_coin_claim_mint_capability".to_string(),
             Box::new(decoder::supra_coin_claim_mint_capability),
         );
@@ -8510,6 +8710,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "supra_governance_add_approved_script_hash_script".to_string(),
             Box::new(decoder::supra_governance_add_approved_script_hash_script),
+        );
+        map.insert(
+            "supra_governance_add_supra_approved_script_hash_script".to_string(),
+            Box::new(decoder::supra_governance_add_supra_approved_script_hash_script),
         );
         map.insert(
             "supra_governance_batch_partial_vote".to_string(),
@@ -8542,6 +8746,18 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "supra_governance_reconfigure".to_string(),
             Box::new(decoder::supra_governance_reconfigure),
+        );
+        map.insert(
+            "supra_governance_supra_create_proposal".to_string(),
+            Box::new(decoder::supra_governance_supra_create_proposal),
+        );
+        map.insert(
+            "supra_governance_supra_create_proposal_v2".to_string(),
+            Box::new(decoder::supra_governance_supra_create_proposal_v2),
+        );
+        map.insert(
+            "supra_governance_supra_vote".to_string(),
+            Box::new(decoder::supra_governance_supra_vote),
         );
         map.insert(
             "supra_governance_vote".to_string(),
