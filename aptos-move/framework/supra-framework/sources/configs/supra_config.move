@@ -1,11 +1,10 @@
-/// Maintains the consensus config for the blockchain. The config is stored in a
-/// Reconfiguration, and may be updated by root.
+/// Maintains protocol configuation settings specific to Supra. The config is stored in a
+/// may be updated by root.
 module supra_framework::supra_config {
     use std::error;
     use std::vector;
     use supra_framework::chain_status;
     use supra_framework::config_buffer;
-
     use supra_framework::reconfiguration;
     use supra_framework::system_addresses;
 
@@ -24,23 +23,6 @@ module supra_framework::supra_config {
         system_addresses::assert_supra_framework(supra_framework);
         assert!(vector::length(&config) > 0, error::invalid_argument(EINVALID_CONFIG));
         move_to(supra_framework, SupraConfig { config });
-    }
-
-    /// Deprecated by `set_for_next_epoch()`.
-    ///
-    /// WARNING: calling this while randomness is enabled will trigger a new epoch without randomness!
-    ///
-    /// TODO: update all the tests that reference this function, then disable this function.
-    public fun set(account: &signer, config: vector<u8>) acquires SupraConfig {
-        system_addresses::assert_supra_framework(account);
-        chain_status::assert_genesis();
-        assert!(vector::length(&config) > 0, error::invalid_argument(EINVALID_CONFIG));
-
-        let config_ref = &mut borrow_global_mut<SupraConfig>(@supra_framework).config;
-        *config_ref = config;
-
-        // Need to trigger reconfiguration so validator nodes can sync on the updated configs.
-        reconfiguration::reconfigure();
     }
 
     /// This can be called by on-chain governance to update on-chain configs for the next epoch.

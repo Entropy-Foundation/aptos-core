@@ -41,36 +41,6 @@ spec supra_framework::supra_config {
         ensures global<SupraConfig>(addr) == SupraConfig { config };
     }
 
-    /// Ensure the caller is admin and `SupraConfig` should exist.
-    /// When setting now time must be later than last_reconfiguration_time.
-    spec set(account: &signer, config: vector<u8>) {
-        use supra_framework::chain_status;
-        use supra_framework::timestamp;
-        use std::signer;
-        use supra_framework::stake;
-        use supra_framework::coin::CoinInfo;
-        use supra_framework::supra_coin::SupraCoin;
-        use supra_framework::transaction_fee;
-        use supra_framework::staking_config;
-
-        // TODO: set because of timeout (property proved)
-        pragma verify_duration_estimate = 600;
-        include transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply;
-        include staking_config::StakingRewardsConfigRequirement;
-        let addr = signer::address_of(account);
-        /// [high-level-req-2]
-        aborts_if !system_addresses::is_supra_framework_address(addr);
-        aborts_if !exists<SupraConfig>(@supra_framework);
-        /// [high-level-req-3.2]
-        aborts_if !(len(config) > 0);
-
-        requires chain_status::is_genesis();
-        requires timestamp::spec_now_microseconds() >= reconfiguration::last_reconfiguration_time();
-        requires exists<stake::ValidatorFees>(@supra_framework);
-        requires exists<CoinInfo<SupraCoin>>(@supra_framework);
-        ensures global<SupraConfig>(@supra_framework).config == config;
-    }
-
     spec set_for_next_epoch(account: &signer, config: vector<u8>) {
         include config_buffer::SetForNextEpochAbortsIf;
     }
