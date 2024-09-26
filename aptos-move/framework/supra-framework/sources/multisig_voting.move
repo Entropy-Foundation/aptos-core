@@ -173,7 +173,6 @@ module supra_framework::multisig_voting {
         proposal_id: u64,
         yes_votes: u64,
         no_votes: u64,
-        resolved_early: bool
     }
 
     struct CreateProposalEvent has drop, store {
@@ -478,7 +477,6 @@ module supra_framework::multisig_voting {
             );
         };
 
-        let resolved_early = can_be_resolved_early(proposal);
         proposal.is_resolved = true;
         proposal.resolution_time_secs = timestamp::now_seconds();
 
@@ -488,7 +486,6 @@ module supra_framework::multisig_voting {
                     proposal_id,
                     yes_votes: proposal.yes_votes,
                     no_votes: proposal.no_votes,
-                    resolved_early,
                 },
             );
         };
@@ -498,7 +495,6 @@ module supra_framework::multisig_voting {
                 proposal_id,
                 yes_votes: proposal.yes_votes,
                 no_votes: proposal.no_votes,
-                resolved_early,
             },
         );
 
@@ -570,14 +566,12 @@ module supra_framework::multisig_voting {
         // For single-step proposals, we emit one `ResolveProposal` event per proposal.
         // For multi-step proposals, we emit one `ResolveProposal` event per step in the multi-step proposal. This means
         // that we emit multiple `ResolveProposal` events for the same multi-step proposal.
-        let resolved_early = can_be_resolved_early(proposal);
         if (std::features::module_event_migration_enabled()) {
             event::emit(
                 ResolveProposal {
                     proposal_id,
                     yes_votes: proposal.yes_votes,
                     no_votes: proposal.no_votes,
-                    resolved_early,
                 },
             );
         };
@@ -587,7 +581,6 @@ module supra_framework::multisig_voting {
                 proposal_id,
                 yes_votes: proposal.yes_votes,
                 no_votes: proposal.no_votes,
-                resolved_early,
             },
         );
 
