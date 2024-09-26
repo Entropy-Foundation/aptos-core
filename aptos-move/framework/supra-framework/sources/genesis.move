@@ -164,7 +164,7 @@ module supra_framework::genesis {
 
         consensus_config::initialize(&supra_framework_account, consensus_config);
         execution_config::set(&supra_framework_account, execution_config);
-        supra_config::set(&supra_framework_account, supra_config);
+        supra_config::initialize(&supra_framework_account, supra_config);
         version::initialize(&supra_framework_account, initial_version);
         stake::initialize(&supra_framework_account);
         staking_config::initialize(
