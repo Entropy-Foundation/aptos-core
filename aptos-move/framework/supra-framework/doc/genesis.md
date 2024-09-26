@@ -605,7 +605,7 @@ Genesis step 1: Initialize aptos framework account and core modules on chain.
 
     <a href="consensus_config.md#0x1_consensus_config_initialize">consensus_config::initialize</a>(&supra_framework_account, <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>);
     <a href="execution_config.md#0x1_execution_config_set">execution_config::set</a>(&supra_framework_account, <a href="execution_config.md#0x1_execution_config">execution_config</a>);
-    <a href="supra_config.md#0x1_supra_config_set">supra_config::set</a>(&supra_framework_account, <a href="supra_config.md#0x1_supra_config">supra_config</a>);
+    <a href="supra_config.md#0x1_supra_config_initialize">supra_config::initialize</a>(&supra_framework_account, <a href="supra_config.md#0x1_supra_config">supra_config</a>);
     <a href="version.md#0x1_version_initialize">version::initialize</a>(&supra_framework_account, initial_version);
     <a href="stake.md#0x1_stake_initialize">stake::initialize</a>(&supra_framework_account);
     <a href="staking_config.md#0x1_staking_config_initialize">staking_config::initialize</a>(
@@ -1570,6 +1570,7 @@ The last step of genesis.
 <b>ensures</b> <b>exists</b>&lt;<a href="supra_governance.md#0x1_supra_governance_GovernanceResponsbility">supra_governance::GovernanceResponsbility</a>&gt;(@supra_framework);
 <b>ensures</b> <b>exists</b>&lt;<a href="consensus_config.md#0x1_consensus_config_ConsensusConfig">consensus_config::ConsensusConfig</a>&gt;(@supra_framework);
 <b>ensures</b> <b>exists</b>&lt;<a href="execution_config.md#0x1_execution_config_ExecutionConfig">execution_config::ExecutionConfig</a>&gt;(@supra_framework);
+<b>ensures</b> <b>exists</b>&lt;<a href="supra_config.md#0x1_supra_config_SupraConfig">supra_config::SupraConfig</a>&gt;(@supra_framework);
 <b>ensures</b> <b>exists</b>&lt;<a href="version.md#0x1_version_Version">version::Version</a>&gt;(@supra_framework);
 <b>ensures</b> <b>exists</b>&lt;<a href="stake.md#0x1_stake_ValidatorSet">stake::ValidatorSet</a>&gt;(@supra_framework);
 <b>ensures</b> <b>exists</b>&lt;<a href="stake.md#0x1_stake_ValidatorPerformance">stake::ValidatorPerformance</a>&gt;(@supra_framework);

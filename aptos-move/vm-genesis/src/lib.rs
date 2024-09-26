@@ -1132,7 +1132,7 @@ pub fn generate_test_genesis(
         &OnChainConsensusConfig::default_for_genesis(),
         &OnChainExecutionConfig::default_for_genesis(),
         &default_gas_schedule(),
-        Vec::new(),
+        b"test".to_vec(),
     );
     (genesis, test_validators)
 }
@@ -1160,7 +1160,7 @@ pub fn generate_mainnet_genesis(
         &OnChainConsensusConfig::default_for_genesis(),
         &OnChainExecutionConfig::default_for_genesis(),
         &default_gas_schedule(),
-        Vec::new(),
+        b"test".to_vec(),
     );
     (genesis, test_validators)
 }
@@ -1758,7 +1758,7 @@ pub fn test_mainnet_end_to_end() {
         aptos_cached_packages::head_release_bundle(),
         ChainId::mainnet(),
         &mainnet_genesis_config(),
-        Vec::new(),
+        b"test".to_vec(),
     );
 
     let direct_writeset = if let Transaction::GenesisTransaction(direct_writeset) = transaction {

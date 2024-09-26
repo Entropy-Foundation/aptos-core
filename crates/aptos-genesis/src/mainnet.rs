@@ -154,7 +154,7 @@ impl MainnetGenesisInfo {
                 randomness_config_override: self.randomness_config_override.clone(),
                 jwk_consensus_config_override: self.jwk_consensus_config_override.clone(),
             },
-            Vec::new(),
+            b"test".to_vec(),
         )
     }
 
