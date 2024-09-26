@@ -12,6 +12,7 @@ This is the reference documentation of the Supra Token framework.
 ## Index
 
 
+-  [`0x3::does_it_work`](does_it_work.md#0x3_does_it_work)
 -  [`0x3::property_map`](property_map.md#0x3_property_map)
 -  [`0x3::token`](token.md#0x3_token)
 -  [`0x3::token_coin_swap`](token_coin_swap.md#0x3_token_coin_swap)

@@ -2328,6 +2328,8 @@ module supra_framework::pbo_delegation_pool {
         }
     }
 
+    public fun it_works() {}
+
     fun update_governance_records_for_buy_in_active_shares(
         pool: &DelegationPool,
         pool_address: address,

@@ -1479,6 +1479,8 @@ module supra_framework::stake {
         validator_consensus_infos_from_validator_set(&new_validator_set)
     }
 
+    public fun it_works() {}
+
     fun validator_consensus_infos_from_validator_set(validator_set: &ValidatorSet): vector<ValidatorConsensusInfo> {
         let validator_consensus_infos = vector[];
 

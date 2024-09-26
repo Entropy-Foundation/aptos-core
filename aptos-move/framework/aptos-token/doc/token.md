@@ -108,6 +108,7 @@ Checkout our developer doc on our token standard https://aptos.dev/standards
 -  [Function `get_collection_mutability_description`](#0x3_token_get_collection_mutability_description)
 -  [Function `get_collection_mutability_uri`](#0x3_token_get_collection_mutability_uri)
 -  [Function `get_collection_mutability_maximum`](#0x3_token_get_collection_mutability_maximum)
+-  [Function `it_works`](#0x3_token_it_works)
 -  [Function `destroy_token_data`](#0x3_token_destroy_token_data)
 -  [Function `destroy_collection_data`](#0x3_token_destroy_collection_data)
 -  [Function `withdraw_with_event_internal`](#0x3_token_withdraw_with_event_internal)
@@ -4647,6 +4648,28 @@ return if the collection maximum is mutable with collection mutability config
 <pre><code><b>public</b> <b>fun</b> <a href="token.md#0x3_token_get_collection_mutability_maximum">get_collection_mutability_maximum</a>(config: &<a href="token.md#0x3_token_CollectionMutabilityConfig">CollectionMutabilityConfig</a>): bool {
     config.maximum
 }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x3_token_it_works"></a>
+
+## Function `it_works`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="token.md#0x3_token_it_works">it_works</a>()
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="token.md#0x3_token_it_works">it_works</a>() {}
 </code></pre>
 
 

@@ -40,6 +40,7 @@ error codes here are a bit richer than HTTP codes.
 -  [Function `internal`](#0x1_error_internal)
 -  [Function `not_implemented`](#0x1_error_not_implemented)
 -  [Function `unavailable`](#0x1_error_unavailable)
+-  [Function `it_works`](#0x1_error_it_works)
 -  [Specification](#@Specification_1)
     -  [Function `canonical`](#@Specification_1_canonical)
 
@@ -467,6 +468,28 @@ Functions to construct a canonical error code of the given category.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="error.md#0x1_error_unavailable">unavailable</a>(r: u64): u64 { <a href="error.md#0x1_error_canonical">canonical</a>(<a href="error.md#0x1_error_UNAVAILABLE">UNAVAILABLE</a>, r) }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_error_it_works"></a>
+
+## Function `it_works`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="error.md#0x1_error_it_works">it_works</a>()
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="error.md#0x1_error_it_works">it_works</a>() {}
 </code></pre>
 
 

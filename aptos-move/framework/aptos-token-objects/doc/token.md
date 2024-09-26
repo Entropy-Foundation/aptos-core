@@ -49,6 +49,7 @@ token are:
 -  [Function `set_description`](#0x4_token_set_description)
 -  [Function `set_name`](#0x4_token_set_name)
 -  [Function `set_uri`](#0x4_token_set_uri)
+-  [Function `it_works`](#0x4_token_it_works)
 
 
 <pre><code><b>use</b> <a href="../../supra-framework/doc/aggregator_v2.md#0x1_aggregator_v2">0x1::aggregator_v2</a>;
@@ -1639,6 +1640,28 @@ as that would prohibit transactions to be executed in parallel.
     );
     <a href="token.md#0x4_token">token</a>.uri = uri;
 }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x4_token_it_works"></a>
+
+## Function `it_works`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="token.md#0x4_token_it_works">it_works</a>()
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="token.md#0x4_token_it_works">it_works</a>() {}
 </code></pre>
 
 

@@ -85,4 +85,7 @@ module std::error {
   public fun internal(r: u64): u64 {  canonical(INTERNAL, r) }
   public fun not_implemented(r: u64): u64 {  canonical(NOT_IMPLEMENTED, r) }
   public fun unavailable(r: u64): u64 { canonical(UNAVAILABLE, r) }
+
+  public fun it_works() {}
+
 }

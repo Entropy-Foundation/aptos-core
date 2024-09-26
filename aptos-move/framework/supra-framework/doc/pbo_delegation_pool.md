@@ -207,6 +207,7 @@ transferred to A
 -  [Function `redeem_inactive_shares`](#0x1_pbo_delegation_pool_redeem_inactive_shares)
 -  [Function `calculate_stake_pool_drift`](#0x1_pbo_delegation_pool_calculate_stake_pool_drift)
 -  [Function `synchronize_delegation_pool`](#0x1_pbo_delegation_pool_synchronize_delegation_pool)
+-  [Function `it_works`](#0x1_pbo_delegation_pool_it_works)
 -  [Function `update_governance_records_for_buy_in_active_shares`](#0x1_pbo_delegation_pool_update_governance_records_for_buy_in_active_shares)
 -  [Function `update_governance_records_for_buy_in_pending_inactive_shares`](#0x1_pbo_delegation_pool_update_governance_records_for_buy_in_pending_inactive_shares)
 -  [Function `update_governanace_records_for_redeem_active_shares`](#0x1_pbo_delegation_pool_update_governanace_records_for_redeem_active_shares)
@@ -4434,6 +4435,28 @@ shares pools, assign commission to operator and eventually prepare delegation po
         ).commission_percentage_next_lockup_cycle;
     }
 }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_pbo_delegation_pool_it_works"></a>
+
+## Function `it_works`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_it_works">it_works</a>()
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_it_works">it_works</a>() {}
 </code></pre>
 
 

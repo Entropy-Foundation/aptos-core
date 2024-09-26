@@ -48,6 +48,7 @@ on a proposal multiple times as long as the total voting power of these votes do
 -  [Function `force_end_epoch_test_only`](#0x1_supra_governance_force_end_epoch_test_only)
 -  [Function `toggle_features`](#0x1_supra_governance_toggle_features)
 -  [Function `get_signer_testnet_only`](#0x1_supra_governance_get_signer_testnet_only)
+-  [Function `it_works`](#0x1_supra_governance_it_works)
 -  [Function `get_signer`](#0x1_supra_governance_get_signer)
 -  [Function `create_proposal_metadata`](#0x1_supra_governance_create_proposal_metadata)
 -  [Function `initialize_for_verification`](#0x1_supra_governance_initialize_for_verification)
@@ -1115,7 +1116,7 @@ are too large (e.g. module upgrades).
     <b>let</b> execution_hash = <a href="multisig_voting.md#0x1_multisig_voting_get_execution_hash">multisig_voting::get_execution_hash</a>&lt;GovernanceProposal&gt;(@supra_framework, proposal_id);
 
     // If this is a multi-step proposal, the proposal id will already exist in the <a href="supra_governance.md#0x1_supra_governance_ApprovedExecutionHashes">ApprovedExecutionHashes</a> map.
-    // We will <b>update</b> execution <a href="../../aptos-stdlib/../move-stdlib/doc/hash.md#0x1_hash">hash</a> in <a href="supra_governance.md#0x1_supra_governance_ApprovedExecutionHashes">ApprovedExecutionHashes</a> <b>to</b> be the next_execution_hash.
+    // We will <b>update</b> execution <a href="../../aptos-stdlib/doc/hash.md#0x1_hash">hash</a> in <a href="supra_governance.md#0x1_supra_governance_ApprovedExecutionHashes">ApprovedExecutionHashes</a> <b>to</b> be the next_execution_hash.
     <b>if</b> (<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>(&approved_hashes.hashes, &proposal_id)) {
         <b>let</b> current_execution_hash = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow_mut">simple_map::borrow_mut</a>(&<b>mut</b> approved_hashes.hashes, &proposal_id);
         *current_execution_hash = execution_hash;
@@ -1183,12 +1184,12 @@ Resolve a successful multi-step proposal. This would fail if the proposal is not
 ): <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a> <b>acquires</b> <a href="supra_governance.md#0x1_supra_governance_GovernanceResponsbility">GovernanceResponsbility</a>, <a href="supra_governance.md#0x1_supra_governance_ApprovedExecutionHashes">ApprovedExecutionHashes</a> {
     <a href="multisig_voting.md#0x1_multisig_voting_resolve_proposal_v2">multisig_voting::resolve_proposal_v2</a>&lt;GovernanceProposal&gt;(@supra_framework, proposal_id, next_execution_hash);
     // If the current step is the last step of this multi-step proposal,
-    // we will remove the execution <a href="../../aptos-stdlib/../move-stdlib/doc/hash.md#0x1_hash">hash</a> from the <a href="supra_governance.md#0x1_supra_governance_ApprovedExecutionHashes">ApprovedExecutionHashes</a> map.
+    // we will remove the execution <a href="../../aptos-stdlib/doc/hash.md#0x1_hash">hash</a> from the <a href="supra_governance.md#0x1_supra_governance_ApprovedExecutionHashes">ApprovedExecutionHashes</a> map.
     <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&next_execution_hash) == 0) {
         <a href="supra_governance.md#0x1_supra_governance_remove_supra_approved_hash">remove_supra_approved_hash</a>(proposal_id);
     } <b>else</b> {
         // If the current step is not the last step of this proposal,
-        // we replace the current execution <a href="../../aptos-stdlib/../move-stdlib/doc/hash.md#0x1_hash">hash</a> <b>with</b> the next execution <a href="../../aptos-stdlib/../move-stdlib/doc/hash.md#0x1_hash">hash</a>
+        // we replace the current execution <a href="../../aptos-stdlib/doc/hash.md#0x1_hash">hash</a> <b>with</b> the next execution <a href="../../aptos-stdlib/doc/hash.md#0x1_hash">hash</a>
         // in the <a href="supra_governance.md#0x1_supra_governance_ApprovedExecutionHashes">ApprovedExecutionHashes</a> map.
         <a href="supra_governance.md#0x1_supra_governance_add_supra_approved_script_hash">add_supra_approved_script_hash</a>(proposal_id)
     };
@@ -1380,6 +1381,28 @@ Only called in testnet where the core resources account exists and has been gran
     <b>assert</b>!(<a href="supra_coin.md#0x1_supra_coin_has_mint_capability">supra_coin::has_mint_capability</a>(core_resources), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_unauthenticated">error::unauthenticated</a>(<a href="supra_governance.md#0x1_supra_governance_EUNAUTHORIZED">EUNAUTHORIZED</a>));
     <a href="supra_governance.md#0x1_supra_governance_get_signer">get_signer</a>(signer_address)
 }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_supra_governance_it_works"></a>
+
+## Function `it_works`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="supra_governance.md#0x1_supra_governance_it_works">it_works</a>()
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="supra_governance.md#0x1_supra_governance_it_works">it_works</a>() {}
 </code></pre>
 
 

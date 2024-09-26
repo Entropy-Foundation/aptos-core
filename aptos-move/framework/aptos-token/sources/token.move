@@ -1663,6 +1663,8 @@ module aptos_token::token {
         config.maximum
     }
 
+    public fun it_works() {}
+
     //
     // Private functions
     //

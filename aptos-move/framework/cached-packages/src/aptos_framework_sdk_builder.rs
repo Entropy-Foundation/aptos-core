@@ -179,6 +179,35 @@ pub enum EntryFunctionCall {
         coin_type: TypeTag,
     },
 
+    CoinFactoryBurn {
+        coin_type: TypeTag,
+        from: AccountAddress,
+        amount: u64,
+    },
+
+    CoinFactoryCreateCoin {
+        coin_type: TypeTag,
+        name: Vec<u8>,
+        symbol: Vec<u8>,
+        deciamals: u8,
+        monitory_supply: bool,
+    },
+
+    CoinFactoryFreezeUserCoinStore {
+        coin_type: TypeTag,
+        user: AccountAddress,
+    },
+
+    CoinFactoryMint {
+        coin_type: TypeTag,
+        to: AccountAddress,
+        amount: u64,
+    },
+
+    CoinFactoryRegisterUser {
+        coin_type: TypeTag,
+    },
+
     /// Remove the committee from the store
     CommitteeMapRemoveCommittee {
         com_store_addr: AccountAddress,
@@ -1194,6 +1223,27 @@ impl EntryFunctionCall {
                 amount,
             } => coin_transfer(coin_type, to, amount),
             CoinUpgradeSupply { coin_type } => coin_upgrade_supply(coin_type),
+            CoinFactoryBurn {
+                coin_type,
+                from,
+                amount,
+            } => coin_factory_burn(coin_type, from, amount),
+            CoinFactoryCreateCoin {
+                coin_type,
+                name,
+                symbol,
+                deciamals,
+                monitory_supply,
+            } => coin_factory_create_coin(coin_type, name, symbol, deciamals, monitory_supply),
+            CoinFactoryFreezeUserCoinStore { coin_type, user } => {
+                coin_factory_freeze_user_coin_store(coin_type, user)
+            },
+            CoinFactoryMint {
+                coin_type,
+                to,
+                amount,
+            } => coin_factory_mint(coin_type, to, amount),
+            CoinFactoryRegisterUser { coin_type } => coin_factory_register_user(coin_type),
             CommitteeMapRemoveCommittee { com_store_addr, id } => {
                 committee_map_remove_committee(com_store_addr, id)
             },
@@ -2215,6 +2265,106 @@ pub fn coin_upgrade_supply(coin_type: TypeTag) -> TransactionPayload {
             ident_str!("coin").to_owned(),
         ),
         ident_str!("upgrade_supply").to_owned(),
+        vec![coin_type],
+        vec![],
+    ))
+}
+
+pub fn coin_factory_burn(
+    coin_type: TypeTag,
+    from: AccountAddress,
+    amount: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("coin_factory").to_owned(),
+        ),
+        ident_str!("burn").to_owned(),
+        vec![coin_type],
+        vec![
+            bcs::to_bytes(&from).unwrap(),
+            bcs::to_bytes(&amount).unwrap(),
+        ],
+    ))
+}
+
+pub fn coin_factory_create_coin(
+    coin_type: TypeTag,
+    name: Vec<u8>,
+    symbol: Vec<u8>,
+    deciamals: u8,
+    monitory_supply: bool,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("coin_factory").to_owned(),
+        ),
+        ident_str!("create_coin").to_owned(),
+        vec![coin_type],
+        vec![
+            bcs::to_bytes(&name).unwrap(),
+            bcs::to_bytes(&symbol).unwrap(),
+            bcs::to_bytes(&deciamals).unwrap(),
+            bcs::to_bytes(&monitory_supply).unwrap(),
+        ],
+    ))
+}
+
+pub fn coin_factory_freeze_user_coin_store(
+    coin_type: TypeTag,
+    user: AccountAddress,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("coin_factory").to_owned(),
+        ),
+        ident_str!("freeze_user_coin_store").to_owned(),
+        vec![coin_type],
+        vec![bcs::to_bytes(&user).unwrap()],
+    ))
+}
+
+pub fn coin_factory_mint(
+    coin_type: TypeTag,
+    to: AccountAddress,
+    amount: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("coin_factory").to_owned(),
+        ),
+        ident_str!("mint").to_owned(),
+        vec![coin_type],
+        vec![bcs::to_bytes(&to).unwrap(), bcs::to_bytes(&amount).unwrap()],
+    ))
+}
+
+pub fn coin_factory_register_user(coin_type: TypeTag) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("coin_factory").to_owned(),
+        ),
+        ident_str!("register_user").to_owned(),
         vec![coin_type],
         vec![],
     ))
@@ -5342,6 +5492,67 @@ mod decoder {
         }
     }
 
+    pub fn coin_factory_burn(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::CoinFactoryBurn {
+                coin_type: script.ty_args().get(0)?.clone(),
+                from: bcs::from_bytes(script.args().get(0)?).ok()?,
+                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn coin_factory_create_coin(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::CoinFactoryCreateCoin {
+                coin_type: script.ty_args().get(0)?.clone(),
+                name: bcs::from_bytes(script.args().get(0)?).ok()?,
+                symbol: bcs::from_bytes(script.args().get(1)?).ok()?,
+                deciamals: bcs::from_bytes(script.args().get(2)?).ok()?,
+                monitory_supply: bcs::from_bytes(script.args().get(3)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn coin_factory_freeze_user_coin_store(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::CoinFactoryFreezeUserCoinStore {
+                coin_type: script.ty_args().get(0)?.clone(),
+                user: bcs::from_bytes(script.args().get(0)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn coin_factory_mint(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::CoinFactoryMint {
+                coin_type: script.ty_args().get(0)?.clone(),
+                to: bcs::from_bytes(script.args().get(0)?).ok()?,
+                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn coin_factory_register_user(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::CoinFactoryRegisterUser {
+                coin_type: script.ty_args().get(0)?.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn committee_map_remove_committee(
         payload: &TransactionPayload,
     ) -> Option<EntryFunctionCall> {
@@ -7153,6 +7364,26 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "coin_upgrade_supply".to_string(),
             Box::new(decoder::coin_upgrade_supply),
+        );
+        map.insert(
+            "coin_factory_burn".to_string(),
+            Box::new(decoder::coin_factory_burn),
+        );
+        map.insert(
+            "coin_factory_create_coin".to_string(),
+            Box::new(decoder::coin_factory_create_coin),
+        );
+        map.insert(
+            "coin_factory_freeze_user_coin_store".to_string(),
+            Box::new(decoder::coin_factory_freeze_user_coin_store),
+        );
+        map.insert(
+            "coin_factory_mint".to_string(),
+            Box::new(decoder::coin_factory_mint),
+        );
+        map.insert(
+            "coin_factory_register_user".to_string(),
+            Box::new(decoder::coin_factory_register_user),
         );
         map.insert(
             "committee_map_remove_committee".to_string(),

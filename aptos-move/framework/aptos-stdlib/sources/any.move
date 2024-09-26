@@ -46,6 +46,8 @@ module aptos_std::any {
         &x.type_name
     }
 
+    public fun it_works() {}
+
     #[test_only]
     struct S has store, drop { x: u64 }
 

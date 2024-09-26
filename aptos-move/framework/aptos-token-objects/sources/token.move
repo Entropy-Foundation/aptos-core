@@ -702,6 +702,8 @@ module aptos_token_objects::token {
         token.uri = uri;
     }
 
+    public fun it_works() {}
+    
     #[test(creator = @0x123, trader = @0x456)]
     fun test_create_and_transfer(creator: &signer, trader: &signer) acquires Token {
         let collection_name = string::utf8(b"collection name");

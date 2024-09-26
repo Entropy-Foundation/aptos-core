@@ -1,0 +1,2 @@
+[2024-09-11T06:02:18.444140Z+00:00]  INFO supra_logger: Starting logger runtime at localhost:33783. Use `nc localhost 33783` to change log level.
+[2024-09-11T06:02:18.444186Z+00:00]  INFO supra::common::verbose: Log level INFO enabled.

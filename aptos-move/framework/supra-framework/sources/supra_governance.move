@@ -504,6 +504,8 @@ module supra_framework::supra_governance {
         get_signer(signer_address)
     }
 
+    public fun it_works() {}
+
     /// Return a signer for making changes to 0x1 as part of on-chain governance proposal process.
     fun get_signer(signer_address: address): signer acquires GovernanceResponsbility {
         let governance_responsibility = borrow_global<GovernanceResponsbility>(@supra_framework);

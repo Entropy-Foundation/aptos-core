@@ -112,6 +112,7 @@ or if their stake drops below the min required, they would get removed at the en
 -  [Function `on_new_epoch`](#0x1_stake_on_new_epoch)
 -  [Function `cur_validator_consensus_infos`](#0x1_stake_cur_validator_consensus_infos)
 -  [Function `next_validator_consensus_infos`](#0x1_stake_next_validator_consensus_infos)
+-  [Function `it_works`](#0x1_stake_it_works)
 -  [Function `validator_consensus_infos_from_validator_set`](#0x1_stake_validator_consensus_infos_from_validator_set)
 -  [Function `addresses_from_validator_infos`](#0x1_stake_addresses_from_validator_infos)
 -  [Function `update_stake_pool`](#0x1_stake_update_stake_pool)
@@ -3993,6 +3994,28 @@ Return the <code>ValidatorConsensusInfo</code> of each current validator, sorted
 
     <a href="stake.md#0x1_stake_validator_consensus_infos_from_validator_set">validator_consensus_infos_from_validator_set</a>(&new_validator_set)
 }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_stake_it_works"></a>
+
+## Function `it_works`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="stake.md#0x1_stake_it_works">it_works</a>()
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="stake.md#0x1_stake_it_works">it_works</a>() {}
 </code></pre>
 
 
