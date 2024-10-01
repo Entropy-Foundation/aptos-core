@@ -21,8 +21,8 @@ module supra_framework::coin {
     use aptos_std::type_info::{Self, TypeInfo, type_name};
     use supra_framework::create_signer;
 
-	friend supra_framework::supra_coin;
     friend supra_framework::genesis;
+    friend supra_framework::supra_coin;
     friend supra_framework::transaction_fee;
 
     //
@@ -294,7 +294,7 @@ module supra_framework::coin {
         };
     }
 
-    /// Create SUPRA pairing by passing `AptosCoin`.
+    /// Create SUPRA pairing by passing `SupraCoin`.
     public entry fun create_pairing<CoinType>(
         supra_framework: &signer
     ) acquires CoinConversionMap, CoinInfo {
@@ -378,8 +378,12 @@ module supra_framework::coin {
         }
     }
 
+    // TODO: Return this function to `public` once we have full support for Fungible Assets.
+    // Also uncomment `tests/supra_coin_tests.move` at this time. This function should not
+    // be called by any production code until we have full support for FAs.
+    //
     /// Conversion from coin to fungible asset
-    public fun coin_to_fungible_asset<CoinType>(
+    public(friend) fun coin_to_fungible_asset<CoinType>(
         coin: Coin<CoinType>
     ): FungibleAsset acquires CoinConversionMap, CoinInfo {
         let metadata = ensure_paired_metadata<CoinType>();
@@ -567,8 +571,7 @@ module supra_framework::coin {
         AggregatableCoin<CoinType> {
             value: aggregator,
         }
-    }
-	
+    }    
 
     /// Returns true if the value of aggregatable coin is zero.
     public(friend) fun is_aggregatable_coin_zero<CoinType>(coin: &AggregatableCoin<CoinType>): bool {
@@ -703,8 +706,11 @@ module supra_framework::coin {
         }
     }
 
+    // TODO: Return this function to `public entry` once we have full support for Fungible Assets.
+    // This function should not be called by any production code until we have full support for FAs.
+    //
     /// Voluntarily migrate to fungible store for `CoinType` if not yet.
-    public entry fun migrate_to_fungible_store<CoinType>(
+    public(friend) fun migrate_to_fungible_store<CoinType>(
         account: &signer
     ) acquires CoinStore, CoinConversionMap, CoinInfo {
         maybe_convert_to_fungible_store<CoinType>(signer::address_of(account));
@@ -1062,14 +1068,14 @@ module supra_framework::coin {
         system_addresses::assert_supra_framework(account);
         initialize_internal(account, name, symbol, decimals, monitor_supply, true)
     }
-	
-	public(friend) fun initialize_with_parallelizable_supply_with_limit<CoinType>(
+    
+    public(friend) fun initialize_with_parallelizable_supply_with_limit<CoinType>(
         account: &signer,
         name: string::String,
         symbol: string::String,
         decimals: u8,
         monitor_supply: bool,
-		limit: u128,
+        limit: u128,
     ): (BurnCapability<CoinType>, FreezeCapability<CoinType>, MintCapability<CoinType>) {
         system_addresses::assert_supra_framework(account);
         initialize_internal_with_limit(account, name, symbol, decimals, monitor_supply, true, limit)
@@ -1108,14 +1114,15 @@ module supra_framework::coin {
 
         (BurnCapability<CoinType> {}, FreezeCapability<CoinType> {}, MintCapability<CoinType> {})
     }
-	 fun initialize_internal_with_limit<CoinType>(
+
+     fun initialize_internal_with_limit<CoinType>(
         account: &signer,
         name: string::String,
         symbol: string::String,
         decimals: u8,
         monitor_supply: bool,
         parallelizable: bool,
-		limit: u128,
+        limit: u128,
     ): (BurnCapability<CoinType>, FreezeCapability<CoinType>, MintCapability<CoinType>) {
         let account_addr = signer::address_of(account);
 
