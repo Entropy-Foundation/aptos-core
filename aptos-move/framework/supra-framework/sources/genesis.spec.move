@@ -1,7 +1,7 @@
 spec supra_framework::genesis {
     /// <high-level-req>
     /// No.: 1
-    /// Requirement: All the core resources and modules should be created during genesis and owned by the Aptos framework
+    /// Requirement: All the core resources and modules should be created during genesis and owned by the Supra framework
     /// account.
     /// Criticality: Critical
     /// Implementation: Resources created during genesis initialization: GovernanceResponsbility, ConsensusConfig,
@@ -26,7 +26,7 @@ spec supra_framework::genesis {
     /// the mint and burn capabilities for the SUPRA token.
     /// Criticality: Critical
     /// Implementation: Both mint and burn capabilities are wrapped inside the stake::SupraCoinCapabilities and
-    /// transaction_fee::SupraCoinCapabilities resources which are stored under the aptos framework account.
+    /// transaction_fee::SupraCoinCapabilities resources which are stored under the supra framework account.
     /// Enforcement: Formally verified via [high-level-req-3](initialize_supra_coin).
     ///
     /// No.: 4

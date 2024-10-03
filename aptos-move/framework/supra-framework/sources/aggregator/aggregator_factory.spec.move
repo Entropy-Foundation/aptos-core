@@ -3,11 +3,11 @@ spec supra_framework::aggregator_factory {
     /// <high-level-req>
     /// No.: 1
     /// Requirement: During the module's initialization, it guarantees that the Supra framework is the caller and that the
-    /// AggregatorFactory resource will move under the Aptos framework account.
+    /// AggregatorFactory resource will move under the Supra framework account.
     /// Criticality: High
     /// Implementation: The initialize function is responsible for establishing the initial state of the module by
     /// creating the AggregatorFactory resource, indicating its presence within the module's context. Subsequently, the
-    /// resource transfers to the Aptos framework account.
+    /// resource transfers to the Supra framework account.
     /// Enforcement: Formally verified via [high-level-req-1](initialize_aggregator_factory).
     ///
     /// No.: 2

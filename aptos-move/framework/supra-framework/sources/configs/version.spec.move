@@ -2,7 +2,7 @@ spec supra_framework::version {
     /// <high-level-req>
     /// No.: 1
     /// Requirement: During genesis, the Version resource should be initialized with the initial version and stored along
-    /// with its capability under the aptos framework account.
+    /// with its capability under the supra framework account.
     /// Criticality: Medium
     /// Implementation: The initialize function ensures that the signer is the aptos framework account and stores the
     /// Version and SetVersionCapability resources in it.

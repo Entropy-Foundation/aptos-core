@@ -2,7 +2,7 @@ spec supra_framework::transaction_fee {
     /// <high-level-req>
     /// No.: 1
     /// Requirement: Given the blockchain is in an operating state, it guarantees that the Supra framework signer may burn
-    /// Aptos coins.
+    /// Supra coins.
     /// Criticality: Critical
     /// Implementation: The SupraCoinCapabilities structure is defined in this module and it stores burn capability to
     /// burn the gas fees.
@@ -38,7 +38,7 @@ spec supra_framework::transaction_fee {
     /// Enforcement: Formally verified in [high-level-req-5](ProcessCollectedFeesRequiresAndEnsures).
     ///
     /// No.: 6
-    /// Requirement: The presence of the resource, indicating collected fees per block under the Aptos framework account,
+    /// Requirement: The presence of the resource, indicating collected fees per block under the Supra framework account,
     /// is a prerequisite for the successful execution of the following functionalities: Upgrading burn percentage.
     /// Registering a block proposer. Processing collected fees.
     /// Criticality: Low
