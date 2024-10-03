@@ -19,9 +19,9 @@ spec supra_framework::aggregator_factory {
     /// Enforcement: Formally verified via [high-level-req-2](CreateAggregatorInternalAbortsIf).
     ///
     /// No.: 3
-    /// Requirement: Only the Aptos framework address may create an aggregator instance currently.
+    /// Requirement: Only the Supra framework address may create an aggregator instance currently.
     /// Criticality: Low
-    /// Implementation: The create_aggregator function ensures that the address calling it is the Aptos framework
+    /// Implementation: The create_aggregator function ensures that the address calling it is the Supra framework
     /// address.
     /// Enforcement: Formally verified via [high-level-req-3](create_aggregator).
     ///
