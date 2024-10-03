@@ -23,7 +23,7 @@ spec supra_framework::state_storage {
     ///
     /// No.: 4
     /// Requirement: During the initialization of the module, it is guaranteed that the resource for tracking state storage
-    /// usage will be moved under the Aptos framework account with default initial values.
+    /// usage will be moved under the Supra framework account with default initial values.
     /// Criticality: Medium
     /// Implementation: The resource for tracking state storage usage may only be initialized with specific values and
     /// published under the supra_framework account.

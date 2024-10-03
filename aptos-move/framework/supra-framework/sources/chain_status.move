@@ -29,7 +29,7 @@ module supra_framework::chain_status {
     }
 
     #[view]
-    /// Helper function to determine if Aptos is operating. This is
+    /// Helper function to determine if Supra is operating. This is
     /// the same as `!is_genesis()` and is provided for convenience.
     /// Testing `is_operating()` is more frequent than `is_genesis()`.
     public fun is_operating(): bool {

@@ -9,7 +9,7 @@ spec supra_framework::genesis {
     /// StorageGasConfig, StorageGas, GasScheduleV2, AggregatorFactory, SupplyConfig, ChainId, Configuration,
     /// BlockResource, StateStorageUsage, CurrentTimeMicroseconds. If some of the resources were to be owned by a
     /// malicious account, it could lead to the compromise of the chain, as these are core resources. It should be
-    /// formally verified by a post condition to ensure that all the critical resources are owned by the Aptos framework.
+    /// formally verified by a post condition to ensure that all the critical resources are owned by the Supra framework.
     /// Enforcement: Formally verified via [high-level-req-1](initialize).
     ///
     /// No.: 2
@@ -75,7 +75,7 @@ spec supra_framework::genesis {
         ensures exists<account::Account>(@0x9);
         ensures exists<account::Account>(@0xa);
 
-        // property 1: All the core resources and modules should be created during genesis and owned by the Aptos framework account.
+        // property 1: All the core resources and modules should be created during genesis and owned by the Supra framework account.
         /// [high-level-req-1]
         ensures exists<supra_governance::GovernanceResponsbility>(@supra_framework);
         ensures exists<consensus_config::ConsensusConfig>(@supra_framework);

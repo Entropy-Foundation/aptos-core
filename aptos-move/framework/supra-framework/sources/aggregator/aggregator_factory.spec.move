@@ -2,7 +2,7 @@ spec supra_framework::aggregator_factory {
     use supra_framework::aggregator;
     /// <high-level-req>
     /// No.: 1
-    /// Requirement: During the module's initialization, it guarantees that the Aptos framework is the caller and that the
+    /// Requirement: During the module's initialization, it guarantees that the Supra framework is the caller and that the
     /// AggregatorFactory resource will move under the Aptos framework account.
     /// Criticality: High
     /// Implementation: The initialize function is responsible for establishing the initial state of the module by
@@ -12,7 +12,7 @@ spec supra_framework::aggregator_factory {
     ///
     /// No.: 2
     /// Requirement: To create a new aggregator instance, the aggregator factory must already be initialized and exist
-    /// under the Aptos account.
+    /// under the Supra account.
     /// Criticality: High
     /// Implementation: The create_aggregator_internal function asserts that AggregatorFactory exists for the Aptos
     /// account.
