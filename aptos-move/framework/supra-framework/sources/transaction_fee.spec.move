@@ -1,7 +1,7 @@
 spec supra_framework::transaction_fee {
     /// <high-level-req>
     /// No.: 1
-    /// Requirement: Given the blockchain is in an operating state, it guarantees that the Aptos framework signer may burn
+    /// Requirement: Given the blockchain is in an operating state, it guarantees that the Supra framework signer may burn
     /// Aptos coins.
     /// Criticality: Critical
     /// Implementation: The SupraCoinCapabilities structure is defined in this module and it stores burn capability to
@@ -18,7 +18,7 @@ spec supra_framework::transaction_fee {
     /// No.: 3
     /// Requirement: Only the admin address is authorized to call the initialization function.
     /// Criticality: Critical
-    /// Implementation: The initialize_fee_collection_and_distribution function ensures only the Aptos framework address
+    /// Implementation: The initialize_fee_collection_and_distribution function ensures only the Supra framework address
     /// calls it.
     /// Enforcement: Formally verified via [high-level-req-3](initialize_fee_collection_and_distribution).
     ///
@@ -56,7 +56,7 @@ spec supra_framework::transaction_fee {
         pragma verify = false;
 
         pragma aborts_if_is_strict;
-        // property 1: Given the blockchain is in an operating state, it guarantees that the Aptos framework signer may burn Aptos coins.
+        // property 1: Given the blockchain is in an operating state, it guarantees that the Supra framework signer may burn Supra coins.
         /// [high-level-req-1]
         invariant [suspendable] chain_status::is_operating() ==> exists<SupraCoinCapabilities>(@supra_framework) || exists<SupraFABurnCapabilities>(@supra_framework);
     }

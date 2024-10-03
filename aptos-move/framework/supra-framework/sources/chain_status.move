@@ -23,7 +23,7 @@ module supra_framework::chain_status {
     }
 
     #[view]
-    /// Helper function to determine if Aptos is in genesis state.
+    /// Helper function to determine if Supra is in genesis state.
     public fun is_genesis(): bool {
         !exists<GenesisEndMarker>(@supra_framework)
     }

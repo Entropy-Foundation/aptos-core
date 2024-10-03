@@ -9,7 +9,7 @@ spec supra_framework::version {
     /// Enforcement: Formally verified via [high-level-req-1](initialize).
     ///
     /// No.: 2
-    /// Requirement: The version should be updateable after initialization, but only by the Aptos framework account and
+    /// Requirement: The version should be updateable after initialization, but only by the Supra framework account and
     /// with an increasing version number.
     /// Criticality: Medium
     /// Implementation: The version number for the blockchain should be updatable whenever necessary. This functionality
