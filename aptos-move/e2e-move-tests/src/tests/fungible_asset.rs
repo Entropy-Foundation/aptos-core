@@ -171,7 +171,8 @@ fn test_basic_fungible_token() {
 // TODO: Reactivate once we fully support Fungible Assets.
 //
 // A simple test to verify gas paying still work for prologue and epilogue.
-// #[test]
+#[ignore]
+#[test]
 fn test_coin_to_fungible_asset_migration() {
     let mut h = MoveHarness::new();
 
