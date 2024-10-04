@@ -3,7 +3,7 @@ module supra_framework::genesis {
     use std::fixed_point32;
     use std::vector;
     use std::option;
-    use std::string::{Self, String};
+    use std::string::{String};
 
     use aptos_std::simple_map;
     use supra_framework::supra_account;

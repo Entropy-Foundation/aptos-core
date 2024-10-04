@@ -3,9 +3,7 @@
 module supra_framework::supra_config {
     use std::error;
     use std::vector;
-    use supra_framework::chain_status;
     use supra_framework::config_buffer;
-    use supra_framework::reconfiguration;
     use supra_framework::system_addresses;
 
     friend supra_framework::genesis;
