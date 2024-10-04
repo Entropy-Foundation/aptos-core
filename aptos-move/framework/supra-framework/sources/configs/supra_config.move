@@ -1,5 +1,5 @@
 /// Maintains protocol configuation settings specific to Supra. The config is stored in a
-/// may be updated by root.
+/// Reconfiguration, and may be updated by root.
 module supra_framework::supra_config {
     use std::error;
     use std::vector;

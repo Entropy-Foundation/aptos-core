@@ -4,7 +4,7 @@
 # Module `0x1::supra_config`
 
 Maintains protocol configuation settings specific to Supra. The config is stored in a
-may be updated by root.
+Reconfiguration, and may be updated by root.
 
 
 -  [Resource `SupraConfig`](#0x1_supra_config_SupraConfig)
