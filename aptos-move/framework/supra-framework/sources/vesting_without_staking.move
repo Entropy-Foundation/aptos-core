@@ -418,9 +418,6 @@ module supra_framework::vesting_without_staking {
                 // Last vesting schedule fraction will repeat until the grant runs out.
                 *vector::borrow(schedule, vector::length(schedule) - 1) };
             vest_transfer(vesting_record, signer_cap, beneficiary, vesting_fraction);
-            //update last_vested_period for the shareholder
-            vesting_record.last_vested_period = next_period_to_vest;
-            next_period_to_vest = next_period_to_vest + 1;
 
             emit_event(&mut vesting_contract.vest_events,
                 VestEvent {
@@ -430,7 +427,10 @@ module supra_framework::vesting_without_staking {
                     period_vested: next_period_to_vest,
                 },
             );
+            next_period_to_vest = next_period_to_vest + 1;
         };
+            //update last_vested_period for the shareholder
+            vesting_record.last_vested_period = next_period_to_vest-1;
     }
 
     fun vest_transfer(
