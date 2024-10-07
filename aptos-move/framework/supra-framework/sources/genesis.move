@@ -374,6 +374,8 @@ module supra_framework::genesis {
         });
     }
 
+    /// DEPRECATED
+    /// 
     fun create_initialize_validators_with_commission(
         supra_framework: &signer,
         use_staking_contract: bool,
@@ -383,12 +385,10 @@ module supra_framework::genesis {
             let validator: &ValidatorConfigurationWithCommission = validator;
             create_initialize_validator(supra_framework, validator, use_staking_contract);
         });
-
-        // Destroy the aptos framework account's ability to mint coins now that we're done with setting up the initial
-        // validators.
-        supra_coin::destroy_mint_cap(supra_framework);
     }
 
+    /// DEPRECATED
+    /// 
     /// Sets up the initial validator set for the network.
     /// The validator "owner" accounts, and their authentication
     /// Addresses (and keys) are encoded in the `owners`
