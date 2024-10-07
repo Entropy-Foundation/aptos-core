@@ -612,6 +612,10 @@ module supra_framework::genesis {
 
     /// The last step of genesis.
     fun set_genesis_end(supra_framework: &signer) {
+        // Destroy the mint capability owned by the framework account. The stake and transaction_fee
+        // modules should be the only holders of this capability, which they will use to
+        // mint block rewards and storage refunds, respectively.
+        supra_coin::destroy_mint_cap(supra_framework);
         stake::on_new_epoch();
         chain_status::set_genesis_end(supra_framework);
     }
