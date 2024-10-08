@@ -374,15 +374,17 @@ module supra_framework::vesting_without_staking {
     /// Unlock any vested portion of the grant.
     public entry fun vest(contract_address: address) acquires VestingContract {
         assert_active_vesting_contract(contract_address);
-        let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
+        let vesting_contract = borrow_global<VestingContract>(contract_address);
         // Short-circuit if vesting hasn't started yet.
         if (vesting_contract.vesting_schedule.start_timestamp_secs > timestamp::now_seconds()) { return };
 
         let shareholders = simple_map::keys(&vesting_contract.shareholders);
-        while (vector::length(&shareholders) > 0) {
-            let shareholder = vector::pop_back(&mut shareholders);
-            vest_individual(contract_address, shareholder);
-        };
+
+        vector::for_each_ref(&shareholders,
+            |shareholder| {
+                vest_individual(contract_address, *shareholder);
+            });
+        // Terminate vesting contract if the balance is 0
         let total_balance = coin::balance<SupraCoin>(contract_address);
         if (total_balance == 0) {
             set_terminate_vesting_contract(contract_address);
