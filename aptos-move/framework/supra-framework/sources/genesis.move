@@ -3,7 +3,7 @@ module supra_framework::genesis {
     use std::fixed_point32;
     use std::vector;
     use std::option;
-    use std::string::{Self, String};
+    use std::string::{String};
 
     use aptos_std::simple_map;
     use supra_framework::supra_account;
@@ -191,7 +191,7 @@ module supra_framework::genesis {
         timestamp::set_time_has_started(&supra_framework_account, genesis_timestamp_in_microseconds);
     }
 
-    /// Genesis step 2: Initialize Aptos coin.
+    /// Genesis step 2: Initialize Supra coin.
     fun initialize_supra_coin(supra_framework: &signer) {
         let (burn_cap, mint_cap) = supra_coin::initialize(supra_framework);
         coin::create_coin_conversion_map(supra_framework);
@@ -374,6 +374,8 @@ module supra_framework::genesis {
         });
     }
 
+    /// DEPRECATED
+    /// 
     fun create_initialize_validators_with_commission(
         supra_framework: &signer,
         use_staking_contract: bool,
@@ -383,12 +385,10 @@ module supra_framework::genesis {
             let validator: &ValidatorConfigurationWithCommission = validator;
             create_initialize_validator(supra_framework, validator, use_staking_contract);
         });
-
-        // Destroy the aptos framework account's ability to mint coins now that we're done with setting up the initial
-        // validators.
-        supra_coin::destroy_mint_cap(supra_framework);
     }
 
+    /// DEPRECATED
+    /// 
     /// Sets up the initial validator set for the network.
     /// The validator "owner" accounts, and their authentication
     /// Addresses (and keys) are encoded in the `owners`
@@ -612,6 +612,10 @@ module supra_framework::genesis {
 
     /// The last step of genesis.
     fun set_genesis_end(supra_framework: &signer) {
+        // Destroy the mint capability owned by the framework account. The stake and transaction_fee
+        // modules should be the only holders of this capability, which they will use to
+        // mint block rewards and storage refunds, respectively.
+        supra_coin::destroy_mint_cap(supra_framework);
         stake::on_new_epoch();
         chain_status::set_genesis_end(supra_framework);
     }
