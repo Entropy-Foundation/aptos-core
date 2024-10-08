@@ -14,6 +14,7 @@ use aptos_types::{
     on_chain_config::FeatureFlag,
     transaction::{EntryFunction, ExecutionStatus, Script, TransactionPayload, TransactionStatus},
 };
+use aptos_vm_types::storage::StorageGasParameters;
 use move_core_types::{move_resource::MoveStructType, vm_status::StatusCode};
 use once_cell::sync::Lazy;
 
@@ -118,7 +119,7 @@ fn test_account_not_exist_with_fee_payer() {
     assert!(alice_start.is_none());
     let bob_start = h.read_aptos_balance(bob.address());
 
-    let payload = aptos_stdlib::aptos_account_set_allow_direct_coin_transfers(true);
+    let payload = aptos_stdlib::supra_account_set_allow_direct_coin_transfers(true);
     let transaction = TransactionBuilder::new(alice.clone())
         .fee_payer(bob.clone())
         .payload(payload)
@@ -168,7 +169,7 @@ fn test_account_not_exist_with_fee_payer_insufficient_gas() {
     let output = h.run_raw(transaction);
     assert!(transaction_status_eq(
         output.status(),
-        &TransactionStatus::Discard(StatusCode::MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS)
+        &TransactionStatus::Discard(StatusCode::MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS),
     ));
 
     let alice_after =
@@ -270,8 +271,8 @@ fn test_account_not_exist_out_of_gas_with_fee_payer() {
     let result = h.run_raw(transaction);
 
     assert_eq!(
-        result.status(),
-        &TransactionStatus::Keep(ExecutionStatus::MiscellaneousError(Some(
+        result.status().to_owned(),
+        TransactionStatus::Keep(ExecutionStatus::MiscellaneousError(Some(
             StatusCode::EXECUTION_LIMIT_REACHED
         ))),
     );
@@ -322,7 +323,6 @@ fn test_account_not_exist_move_abort_with_fee_payer_out_of_gas() {
         .gas_unit_price(1)
         .sign_fee_payer();
     let result = h.run_raw(transaction);
-    println!("result: {:?}", result.status());
     assert_eq!(result.gas_used(), PRICING.new_account_upfront(1) + 1);
 }
 
@@ -339,7 +339,7 @@ fn test_account_not_exist_with_fee_payer_without_create_account() {
         h.read_resource::<CoinStoreResource>(alice.address(), CoinStoreResource::struct_tag());
     assert!(alice_start.is_none());
 
-    let payload = aptos_stdlib::aptos_account_set_allow_direct_coin_transfers(true);
+    let payload = aptos_stdlib::supra_account_set_allow_direct_coin_transfers(true);
     let transaction = TransactionBuilder::new(alice.clone())
         .fee_payer(bob.clone())
         .payload(payload)
@@ -351,7 +351,7 @@ fn test_account_not_exist_with_fee_payer_without_create_account() {
     let output = h.run_raw(transaction);
     assert!(transaction_status_eq(
         output.status(),
-        &TransactionStatus::Discard(StatusCode::SENDING_ACCOUNT_DOES_NOT_EXIST)
+        &TransactionStatus::Discard(StatusCode::SENDING_ACCOUNT_DOES_NOT_EXIST),
     ));
 }
 
@@ -368,7 +368,7 @@ fn test_normal_tx_with_fee_payer_insufficient_funds() {
     let alice = h.new_account_at(AccountAddress::from_hex_literal("0xa11ce").unwrap());
     let bob = h.new_account_with_balance_and_sequence_number(1, 0);
 
-    let payload = aptos_stdlib::aptos_account_set_allow_direct_coin_transfers(true);
+    let payload = aptos_stdlib::supra_account_set_allow_direct_coin_transfers(true);
     let transaction = TransactionBuilder::new(alice.clone())
         .fee_payer(bob.clone())
         .payload(payload)
@@ -380,39 +380,37 @@ fn test_normal_tx_with_fee_payer_insufficient_funds() {
     let output = h.run_raw(transaction);
     assert!(transaction_status_eq(
         output.status(),
-        &TransactionStatus::Discard(StatusCode::INSUFFICIENT_BALANCE_FOR_TRANSACTION_FEE)
+        &TransactionStatus::Discard(StatusCode::INSUFFICIENT_BALANCE_FOR_TRANSACTION_FEE),
     ));
 }
 
 struct FeePayerPricingInfo {
-    estimated_per_new_account_fee_octas: u64,
-    new_account_min_abort_octas: u64,
+    estimated_per_new_account_fee_quants: u64,
+    new_account_min_abort_quants: u64,
 }
 
 impl FeePayerPricingInfo {
     pub fn new_account_upfront(&self, gas_unit_price: u64) -> u64 {
-        self.estimated_per_new_account_fee_octas / gas_unit_price * 2 + gas_unit_price * 10
+        self.estimated_per_new_account_fee_quants / gas_unit_price * 2 + gas_unit_price * 10
     }
 
     pub fn new_account_min_abort(&self, gas_unit_price: u64) -> u64 {
-        self.new_account_min_abort_octas / gas_unit_price
+        self.new_account_min_abort_quants / gas_unit_price
     }
 }
 
 static PRICING: Lazy<FeePayerPricingInfo> = Lazy::new(|| {
-    use aptos_vm_types::storage::space_pricing::DiskSpacePricing;
-
     let h = MoveHarness::new();
 
     let (_feature_version, params) = h.get_gas_params();
     let params = params.vm.txn;
-    let pricing = DiskSpacePricing::latest();
+    let pricing = StorageGasParameters::latest().space_pricing;
 
     FeePayerPricingInfo {
-        estimated_per_new_account_fee_octas: u64::from(
+        estimated_per_new_account_fee_quants: u64::from(
             pricing.hack_estimated_fee_for_account_creation(&params),
         ),
-        new_account_min_abort_octas: u64::from(
+        new_account_min_abort_quants: u64::from(
             pricing.hack_account_creation_fee_lower_bound(&params),
         ),
     }

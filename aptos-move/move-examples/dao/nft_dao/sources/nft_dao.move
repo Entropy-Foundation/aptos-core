@@ -12,7 +12,7 @@
 ///    A proposal can execute a list of functions of 3 types. eg: transferring multiple NFTs can be a proposal of multiple offer_nft function:
 ///         a: no-op, no execution happens on chain. Only the proposal and its results are recorded on-chain for DAO
 ///            admin to take actions off-chain
-///         b: Transfer APT funds: from DAO account to the specified destination account.
+///         b: Transfer SUPRA funds: from DAO account to the specified destination account.
 ///         c: Offer NFTs to the specified destination account.
 /// 4. A voter can vote for a proposal of a DAO through `vote`.
 /// 5. Anyone can call the `resolve` to resolve a proposal. A proposal voting duration has to expire and the proposal
@@ -254,10 +254,7 @@ module dao_platform::nft_dao {
         let (res_signer, res_cap) = account::create_resource_account(admin, seed);
         let src_addr = signer::address_of(admin);
 
-        // register aptos coin
-        coin::register<SupraCoin>(&res_signer);
         // initalize token store and opt-in direct NFT transfer for easy of operation
-        token::initialize_token_store(&res_signer);
         token::opt_in_direct_transfer(&res_signer, true);
 
         assert!(string::length(&name) < 128, error::invalid_argument(ESTRING_TOO_LONG));
@@ -863,6 +860,8 @@ module dao_platform::nft_dao {
         account::create_account_for_test(@0xdeaf);
         account::create_account_for_test(@0xaf);
 
+        // intialize with some fund in the DAO resource account
+        let (burn_cap, mint_cap) = supra_coin::initialize_for_test(supra_framework);
 
         setup_voting_token_distribution(creator, voter);
         // creator creates a dao
@@ -913,8 +912,6 @@ module dao_platform::nft_dao {
         // Test transfer fund proposal
         //
 
-        // intialize with some fund in the DAO resource account
-        let (burn_cap, mint_cap) = supra_coin::initialize_for_test(supra_framework);
         let coins = coin::mint(100, &mint_cap);
         coin::register<SupraCoin>(creator);
         coin::register<SupraCoin>(voter);

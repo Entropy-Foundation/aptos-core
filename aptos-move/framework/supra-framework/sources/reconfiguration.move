@@ -11,21 +11,33 @@ module supra_framework::reconfiguration {
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
     use supra_framework::chain_status;
+    use supra_framework::reconfiguration_state;
     use supra_framework::storage_gas;
     use supra_framework::transaction_fee;
 
-    friend supra_framework::aptos_governance;
+    friend supra_framework::supra_governance;
     friend supra_framework::block;
     friend supra_framework::consensus_config;
     friend supra_framework::execution_config;
+    friend supra_framework::supra_config;
     friend supra_framework::gas_schedule;
     friend supra_framework::genesis;
     friend supra_framework::version;
+    friend supra_framework::reconfiguration_with_dkg;
 
+    #[event]
     /// Event that signals consensus to start a new epoch,
     /// with new configuration information. This is also called a
     /// "reconfiguration event"
     struct NewEpochEvent has drop, store {
+        epoch: u64,
+    }
+
+    #[event]
+    /// Event that signals consensus to start a new epoch,
+    /// with new configuration information. This is also called a
+    /// "reconfiguration event"
+    struct NewEpoch has drop, store {
         epoch: u64,
     }
 
@@ -55,7 +67,7 @@ module supra_framework::reconfiguration {
     const EINVALID_GUID_FOR_EVENT: u64 = 5;
 
     /// Only called during genesis.
-    /// Publishes `Configuration` resource. Can only be invoked by aptos framework account, and only a single time in Genesis.
+    /// Publishes `Configuration` resource. Can only be invoked by supra framework account, and only a single time in Genesis.
     public(friend) fun initialize(supra_framework: &signer) {
         system_addresses::assert_supra_framework(supra_framework);
 
@@ -118,6 +130,8 @@ module supra_framework::reconfiguration {
             return
         };
 
+        reconfiguration_state::on_reconfig_start();
+
         // Reconfiguration "forces the block" to end, as mentioned above. Therefore, we must process the collected fees
         // explicitly so that staking can distribute them.
         //
@@ -143,12 +157,21 @@ module supra_framework::reconfiguration {
         };
         config_ref.epoch = config_ref.epoch + 1;
 
+        if (std::features::module_event_migration_enabled()) {
+            event::emit(
+                NewEpoch {
+                    epoch: config_ref.epoch,
+                },
+            );
+        };
         event::emit_event<NewEpochEvent>(
             &mut config_ref.events,
             NewEpochEvent {
                 epoch: config_ref.epoch,
             },
         );
+
+        reconfiguration_state::on_reconfig_finish();
     }
 
     public fun last_reconfiguration_time(): u64 acquires Configuration {
@@ -165,7 +188,15 @@ module supra_framework::reconfiguration {
         let config_ref = borrow_global_mut<Configuration>(@supra_framework);
         assert!(config_ref.epoch == 0 && config_ref.last_reconfiguration_time == 0, error::invalid_state(ECONFIGURATION));
         config_ref.epoch = 1;
+        config_ref.last_reconfiguration_time = timestamp::now_microseconds();
 
+        if (std::features::module_event_migration_enabled()) {
+            event::emit(
+                NewEpoch {
+                    epoch: config_ref.epoch,
+                },
+            );
+        };
         event::emit_event<NewEpochEvent>(
             &mut config_ref.events,
             NewEpochEvent {

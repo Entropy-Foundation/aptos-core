@@ -1,6 +1,6 @@
 # Docker Images Builder
 
-This directory contains [Docker](https://www.docker.com/) configuration for building Aptos docker images. This builder requires the use of Buildkit which is available by default in most recent Docker installations.
+This directory contains [Docker](https://www.docker.com/) configuration for building Supra docker images. This builder requires the use of Buildkit which is available by default in most recent Docker installations.
 
 To build these images run this from the repository root:
 
@@ -19,7 +19,7 @@ The builder can produce the following Docker images. To build a particular image
 
 1. `validator-testing` : Image containing the `aptos-node`, `aptos-debugger` binaries and other linux tools useful for debugging and testing. This image is used in Forge tests.
 2. `validator` : Image containing the `aptos-node` and `aptos-debugger` binaries. This image is usually used for distribution.
-3. `tools`: Image containing all the aptos tools binaries including `aptos-debugger`, `aptos`, `aptos-transaction-emitter`, `aptos-openapi-spec-generator` and `aptos-fn-check-client`. Also, includes the Aptos Move framework for use with genesis generation.
+3. `tools`: Image containing all the aptos tools binaries including `aptos-debugger`, `aptos`, `aptos-transaction-emitter`, `aptos-openapi-spec-generator` and `aptos-fn-check-client`. Also, includes the Supra Move framework for use with genesis generation.
 4. `forge`: Image containing the `forge` binary that orchestrates and runs Forge tests.
 5. `node-checker`: Image containing the `node-checker` binary that checks the health of a node.
 6. `faucet`: Image containing the `faucet` binary that provides a faucet service for minting coins.
@@ -33,7 +33,7 @@ At a high level, the builder works as follows. By default, the builder builds al
 1. One of `aptos-node-builder`, `indexer-builder`, or `tools-builder` targets are invoked depending on what image is being built.
 2. The target image is built by copying the output of either the `aptos-node-builder` or `tools-builder` target into the target image.
 
-The `aptos-node-builder` is separate from the the other builder targets because it allows to build different `aptos-node` binary variants with different features and profiles.
+The `aptos-node-builder` is separate from the other builder targets because it allows to build different `aptos-node` binary variants with different features and profiles.
 
 Using a builder step allows us to cache the build artifacts and reuse them across different images. Our binaries have a lot of common dependencies, so this is a significant time saver. Furthermore, most `RUN` instructions use a cache mount that allows us to cache the output of the command leading to significant build time improvements.
 
@@ -41,7 +41,7 @@ Using a builder step allows us to cache the build artifacts and reuse them acros
 
 > Note: If building a CLI tool, consider adding it to the `tools` image instead of creating a new image.
 
-> Note: If your requirements doesn't fit into the instructions below, please reach out to the team for help.
+> Note: If your requirements don't fit into the instructions below, please reach out to the team for help.
 
 1. Modify the `cargo build` step in `build-tools.sh` to include the new binary.
 2. Create a new Dockerfile by cloning an existing target Dockerfile (e.g. `validator.Dockerfile`). When you use a `RUN` instruction, try to use a mount cache as they can improve build times by caching the output of the command.
@@ -57,7 +57,7 @@ FROM tools-builder
    ```
    COPY --link --from=node-builder /aptos/dist/aptos-node /usr/local/bin/
    ```
-5. Add a new target defition in [docker-bake-rust-all.hcl](docker-bake-rust-all.hcl) file by copying another target (e.g. `validator`). The target definition should have the following fields:
+5. Add a new target definition in [docker-bake-rust-all.hcl](docker-bake-rust-all.hcl) file by copying another target (e.g. `validator`). The target definition should have the following fields:
 
    - `inherits`
    - `target`: Name of the target. This should be the same as the name of the Dockerfile.

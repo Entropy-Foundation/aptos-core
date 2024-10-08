@@ -7,7 +7,7 @@ use aptos_types::{
     account_address::{AccountAddress, AccountAddressWithChecks},
     chain_id::ChainId,
     network_address::{DnsName, NetworkAddress, Protocol},
-    on_chain_config::{OnChainConsensusConfig, OnChainExecutionConfig},
+    on_chain_config::{OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig},
     transaction::authenticator::AuthenticationKey,
 };
 use aptos_vm_genesis::{AccountBalance, EmployeePool, Validator, ValidatorWithCommissionRate};
@@ -48,7 +48,7 @@ pub struct Layout {
     /// Minimum stake to be in the validator set
     pub min_stake: u64,
     /// Minimum number of votes to consider a proposal valid.
-    pub min_voting_threshold: u128,
+    pub min_voting_threshold: u64,
     /// Maximum stake to be in the validator set
     pub max_stake: u64,
     /// Minimum number of seconds to lockup staked coins
@@ -59,8 +59,12 @@ pub struct Layout {
     pub rewards_apy_percentage: u64,
     /// Voting duration for a proposal in seconds.
     pub voting_duration_secs: u64,
+    /// List of voters
+    pub voters: Vec<AccountAddress>,
     /// % of current epoch's total voting power that can be added in this epoch.
     pub voting_power_increase_limit: u64,
+    /// Timestamp for Genesis in microseconds
+    pub genesis_timestamp_in_microseconds: u64,
     /// Total supply of coins
     pub total_supply: Option<u64>,
     /// Timestamp (in seconds) when employee vesting starts.
@@ -73,6 +77,9 @@ pub struct Layout {
     /// Onchain Execution Config
     #[serde(default = "OnChainExecutionConfig::default_for_genesis")]
     pub on_chain_execution_config: OnChainExecutionConfig,
+
+    /// An optional JWK consensus config to use, instead of `default_for_genesis()`.
+    pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
 }
 
 impl Layout {
@@ -106,12 +113,15 @@ impl Default for Layout {
             required_proposer_stake: 100_000_000_000_000,
             rewards_apy_percentage: 10,
             voting_duration_secs: 43_200,
+            voters: vec![],
             voting_power_increase_limit: 20,
+            genesis_timestamp_in_microseconds: 0,
             total_supply: None,
             employee_vesting_start: Some(1663456089),
             employee_vesting_period_duration: Some(5 * 60), // 5 minutes
             on_chain_consensus_config: OnChainConsensusConfig::default(),
             on_chain_execution_config: OnChainExecutionConfig::default_for_genesis(),
+            jwk_consensus_config_override: None,
         }
     }
 }
@@ -586,7 +596,7 @@ impl TryFrom<EmployeePoolMap> for Vec<EmployeePool> {
                 }
                 if pool.validator.stake_amount < 100000000000000 {
                     errors.push(anyhow::anyhow!(
-                        "Employee pool #{} is setup to join during genesis but has a low stake amount {} < 1000000 APT",
+                        "Employee pool #{} is setup to join during genesis but has a low stake amount {} < 1000000 SUPRA",
                         i,
                         pool.validator.stake_amount
                     ));

@@ -146,7 +146,7 @@ impl TransactionFactory {
     }
 
     pub fn create_user_account(&self, public_key: &Ed25519PublicKey) -> TransactionBuilder {
-        self.payload(aptos_stdlib::aptos_account_create_account(
+        self.payload(aptos_stdlib::supra_account_create_account(
             AuthenticationKey::ed25519(public_key).account_address(),
         ))
     }
@@ -156,7 +156,7 @@ impl TransactionFactory {
         public_key: &Ed25519PublicKey,
         amount: u64,
     ) -> TransactionBuilder {
-        self.payload(aptos_stdlib::aptos_account_transfer(
+        self.payload(aptos_stdlib::supra_account_transfer(
             AuthenticationKey::ed25519(public_key).account_address(),
             amount,
         ))
@@ -167,19 +167,21 @@ impl TransactionFactory {
     }
 
     pub fn account_transfer(&self, to: AccountAddress, amount: u64) -> TransactionBuilder {
-        self.payload(aptos_stdlib::aptos_account_transfer(to, amount))
+        self.payload(aptos_stdlib::supra_account_transfer(to, amount))
     }
 
     pub fn create_multisig_account(
         &self,
         additional_owners: Vec<AccountAddress>,
         signatures_required: u64,
+		timeout_duration: u64,
     ) -> TransactionBuilder {
         self.payload(aptos_stdlib::multisig_account_create_with_owners(
             additional_owners,
             signatures_required,
             vec![],
             vec![],
+			timeout_duration,
         ))
     }
 

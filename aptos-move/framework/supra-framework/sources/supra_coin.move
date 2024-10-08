@@ -1,14 +1,13 @@
 /// This module defines a minimal and generic Coin and Balance.
 /// modified from https://github.com/move-language/move/tree/main/language/documentation/tutorial
 module supra_framework::supra_coin {
-    use std::string;
     use std::error;
     use std::signer;
+    use std::string;
     use std::vector;
     use std::option::{Self, Option};
 
     use supra_framework::coin::{Self, BurnCapability, MintCapability};
-	//use supra_framework::coin;
     use supra_framework::system_addresses;
 
     friend supra_framework::genesis;
@@ -40,20 +39,20 @@ module supra_framework::supra_coin {
         inner: vector<DelegatedMintCapability>,
     }
 
-    /// Can only called during genesis to initialize the Aptos coin.
+    /// Can only called during genesis to initialize the Supra coin.
     public(friend) fun initialize(supra_framework: &signer): (BurnCapability<SupraCoin>, MintCapability<SupraCoin>) {
         system_addresses::assert_supra_framework(supra_framework);
 
         let (burn_cap, freeze_cap, mint_cap) =coin::initialize_with_parallelizable_supply_with_limit<SupraCoin>(
             supra_framework,
             string::utf8(b"Supra Coin"),
-            string::utf8(b"SUP"),
+            string::utf8(b"SUPRA"),
             8, // decimals
             true, // monitor_supply
 			MAX_SUPRA_COIN_SUPPLY,
         );
 
-        // Aptos framework needs mint cap to mint coins to initial validators. This will be revoked once the validators
+        // Supra framework needs mint cap to mint coins to initial validators. This will be revoked once the validators
         // have been initialized.
         move_to(supra_framework, MintCapStore { mint_cap });
 
@@ -75,6 +74,7 @@ module supra_framework::supra_coin {
 
     /// Can only be called during genesis for tests to grant mint capability to aptos framework and core resources
     /// accounts.
+    /// Expects account and SUPRA store to be registered before calling.
     public(friend) fun configure_accounts_for_test(
         supra_framework: &signer,
         core_resources: &signer,
@@ -83,7 +83,6 @@ module supra_framework::supra_coin {
         system_addresses::assert_supra_framework(supra_framework);
 
         // Mint the core resource account SupraCoin for gas so it can execute system transactions.
-        coin::register<SupraCoin>(core_resources);
         let coins = coin::mint<SupraCoin>(
             ((MAX_SUPRA_COIN_SUPPLY)/10 as u64),
             &mint_cap,
@@ -156,65 +155,169 @@ module supra_framework::supra_coin {
     }
 
     #[test_only]
+    use supra_framework::account;
+    #[test_only]
     use supra_framework::aggregator_factory;
+    #[test_only]
+    use supra_framework::fungible_asset::FungibleAsset;
+
+    #[test_only]
+    public fun mint_apt_fa_for_test(amount: u64): FungibleAsset acquires MintCapStore {
+        ensure_initialized_with_apt_fa_metadata_for_test();
+        coin::coin_to_fungible_asset_for_test(
+            coin::mint(
+                amount,
+                &borrow_global<MintCapStore>(@supra_framework).mint_cap
+            )
+        )
+    }
+
+    #[test_only]
+    public fun ensure_initialized_with_apt_fa_metadata_for_test() {
+        let supra_framework = account::create_signer_for_test(@supra_framework);
+        if (!exists<MintCapStore>(@supra_framework)) {
+            if (!aggregator_factory::aggregator_factory_exists_for_testing()) {
+                aggregator_factory::initialize_aggregator_factory_for_test(&supra_framework);
+            };
+            let (burn_cap, mint_cap) = initialize(&supra_framework);
+            coin::destroy_burn_cap(burn_cap);
+            coin::destroy_mint_cap(mint_cap);
+        };
+        coin::create_coin_conversion_map(&supra_framework);
+        coin::create_pairing<SupraCoin>(&supra_framework);
+    }
 
     #[test_only]
     public fun initialize_for_test(supra_framework: &signer): (BurnCapability<SupraCoin>, MintCapability<SupraCoin>) {
         aggregator_factory::initialize_aggregator_factory_for_test(supra_framework);
-        initialize(supra_framework)
+        let (burn_cap, mint_cap) = initialize(supra_framework);
+        coin::create_coin_conversion_map(supra_framework);
+        coin::create_pairing<SupraCoin>(supra_framework);
+        (burn_cap, mint_cap)
+    }
+
+    #[test_only]
+    fun initialize_with_aggregator(supra_framework: &signer) {
+        let (burn_cap, freeze_cap, mint_cap) =coin::initialize_with_parallelizable_supply_with_limit<SupraCoin>(
+            supra_framework,
+            string::utf8(b"Supra Coin"),
+            string::utf8(b"SUPRA"),
+            8, // decimals
+            true, // monitor_supply
+            MAX_SUPRA_COIN_SUPPLY,
+        );
+        coin::destroy_freeze_cap(freeze_cap);
+        move_to(supra_framework, SupraCoinCapabilities {
+            burn_cap,
+            mint_cap,
+        });
     }
 
     // This is particularly useful if the aggregator_factory is already initialized via another call path.
     #[test_only]
-    public fun initialize_for_test_without_aggregator_factory(supra_framework: &signer): (BurnCapability<SupraCoin>, MintCapability<SupraCoin>) {
-        initialize(supra_framework)
+    public fun initialize_for_test_without_aggregator_factory(
+        supra_framework: &signer
+    ): (BurnCapability<SupraCoin>, MintCapability<SupraCoin>) {
+        let (burn_cap, mint_cap) = initialize(supra_framework);
+        coin::create_coin_conversion_map(supra_framework);
+        coin::create_pairing<SupraCoin>(supra_framework);
+        (burn_cap, mint_cap)
     }
 
+    #[test_only]
+    struct SupraCoinCapabilities has key {
+        burn_cap: BurnCapability<SupraCoin>,
+        mint_cap: MintCapability<SupraCoin>,
+    }
 
-	#[test_only]
-	use supra_framework::account;
+	#[test(source = @0x1, destination = @0x2)]
+    public entry fun end_to_end(
+        source: signer,
+        destination: signer,
+    )  {
+        let source_addr = signer::address_of(&source);
+        account::create_account_for_test(source_addr);
+        let destination_addr = signer::address_of(&destination);
+        account::create_account_for_test(destination_addr);
 
-	// #[test(source = @0x1, destination = @0x2)]
-    // public entry fun end_to_end(
-    //     source: signer,
-    //     destination: signer,
-    // )  {
-    //     let source_addr = signer::address_of(&source);
-    //     account::create_account_for_test(source_addr);
-    //     let destination_addr = signer::address_of(&destination);
-    //     account::create_account_for_test(destination_addr);
+        let name = string::utf8(b"Supra Coin");
+        let symbol = string::utf8(b"SUPRA");
 
-    //     let name = string::utf8(b"Fake money");
-    //     let symbol = string::utf8(b"FMD");
+        aggregator_factory::initialize_aggregator_factory_for_test(&source);
+        let (burn_cap,  mint_cap) = initialize(
+            &source,
+        );
+        coin::register<SupraCoin>(&source);
+        coin::register<SupraCoin>(&destination);
+        assert!(*option::borrow(&coin::supply<SupraCoin>()) == 0, 0);
 
-    //     aggregator_factory::initialize_aggregator_factory_for_test(&source);
-    //     let (burn_cap,  mint_cap) = initialize(
-    //         &source,
-    //     );
-    //     coin::register<SupraCoin>(&source);
-    //     coin::register<SupraCoin>(&destination);
-    //     assert!(*option::borrow(&coin::supply<SupraCoin>()) == 0, 0);
+        assert!(coin::name<SupraCoin>() == name, 1);
+        assert!(coin::symbol<SupraCoin>() == symbol, 2);
+        assert!(coin::decimals<SupraCoin>() == 8, 3);
 
-    //     assert!(coin::name<SupraCoin>() == name, 1);
-    //     assert!(coin::symbol<SupraCoin>() == symbol, 2);
-    //     assert!(coin::decimals<SupraCoin>() == 18, 3);
+        let coins_minted = coin::mint<SupraCoin>(100, &mint_cap);
+        coin::deposit(source_addr, coins_minted);
+        coin::transfer<SupraCoin>(&source, destination_addr, 50);
 
-    //     let coins_minted = coin::mint<SupraCoin>(100, &mint_cap);
-    //     coin::deposit(source_addr, coins_minted);
-    //     coin::transfer<SupraCoin>(&source, destination_addr, 50);
+        assert!(coin::balance<SupraCoin>(source_addr) == 50, 4);
+        assert!(coin::balance<SupraCoin>(destination_addr) == 50, 5);
+        assert!(*option::borrow(&coin::supply<SupraCoin>()) == 100, 6);
 
-    //     assert!(coin::balance<SupraCoin>(source_addr) == 50, 4);
-    //     assert!(coin::balance<SupraCoin>(destination_addr) == 50, 5);
-    //     assert!(*option::borrow(&coin::supply<SupraCoin>()) == 100, 6);
+        let coin = coin::withdraw<SupraCoin>(&source, 10);
+        assert!(coin::value(&coin) == 10, 7);
+        coin::burn(coin, &burn_cap);
+        assert!(*option::borrow(&coin::supply<SupraCoin>()) == 90, 8);
 
-    //     let coin = coin::withdraw<SupraCoin>(&source, 10);
-    //     assert!(coin::value(&coin) == 10, 7);
-    //     coin::burn(coin, &burn_cap);
-    //     assert!(*option::borrow(&coin::supply<SupraCoin>()) == 90, 8);
+        move_to(&source, SupraCoinCapabilities {
+            burn_cap,
+            mint_cap,
+        });
+    }
 
-    //     move_to(&source, SupraCoinCapabilities {
-    //         burn_cap,
-    //         mint_cap,
-    //     });
-    // }
+    #[test(source = @0x1, destination = @0x2)]
+    public entry fun test_mint_no_overflow(
+        source: signer,
+        destination: signer,
+    ){
+        let source_addr = signer::address_of(&source);
+        account::create_account_for_test(source_addr);
+        let destination_addr = signer::address_of(&destination);
+        account::create_account_for_test(destination_addr);
+
+        aggregator_factory::initialize_aggregator_factory_for_test(&source);
+        let (burn_cap,  mint_cap) = initialize(
+            &source,
+        );
+        coin::register<SupraCoin>(&source);
+        coin::register<SupraCoin>(&destination);
+        assert!(*option::borrow(&coin::supply<SupraCoin>()) == 0, 0);
+        assert!(*option::borrow(&coin::supply<SupraCoin>()) == 0, 0);
+
+        let coins_minted = coin::mint<SupraCoin>((MAX_SUPRA_COIN_SUPPLY as u64), &mint_cap);
+        coin::deposit(source_addr, coins_minted);
+        coin::transfer<SupraCoin>(&source, destination_addr, (MAX_SUPRA_COIN_SUPPLY as u64));
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_mint_cap(mint_cap);
+    }
+
+    #[test(source = @0x1)]
+    #[expected_failure(abort_code = 0x20001, location = supra_framework::aggregator)]
+    public entry fun test_mint_overflow(
+        source: signer,
+    ) {
+        let source_addr = signer::address_of(&source);
+        account::create_account_for_test(source_addr);
+
+        aggregator_factory::initialize_aggregator_factory_for_test(&source);
+        let (burn_cap, mint_cap) = initialize(
+            &source,
+        );
+        coin::register<SupraCoin>(&source);
+        assert!(*option::borrow(&coin::supply<SupraCoin>()) == 0, 0);
+
+        let coins_minted = coin::mint<SupraCoin>((MAX_SUPRA_COIN_SUPPLY as u64)+1, &mint_cap);
+        coin::deposit(source_addr, coins_minted);
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_mint_cap(mint_cap);
+    }
 }

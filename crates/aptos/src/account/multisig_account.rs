@@ -8,12 +8,11 @@ use crate::common::{
     },
     utils::view_json_option_str,
 };
+use aptos_api_types::ViewFunction;
 use aptos_cached_packages::aptos_stdlib;
 use aptos_crypto::HashValue;
 use aptos_rest_client::{
-    aptos_api_types::{
-        EntryFunctionId, HexEncodedBytes, ViewRequest, WriteResource, WriteSetChange,
-    },
+    aptos_api_types::{HexEncodedBytes, WriteResource, WriteSetChange},
     Transaction,
 };
 use aptos_types::{
@@ -23,12 +22,9 @@ use aptos_types::{
 use async_trait::async_trait;
 use bcs::to_bytes;
 use clap::Parser;
-use once_cell::sync::Lazy;
+use move_core_types::{ident_str, language_storage::ModuleId};
 use serde::Serialize;
 use serde_json::json;
-
-static GET_TRANSACTION_ENTRY_FUNCTION: Lazy<EntryFunctionId> =
-    Lazy::new(|| "0x1::multisig_account::get_transaction".parse().unwrap());
 
 /// Create a new multisig account (v2) on-chain.
 ///
@@ -38,6 +34,10 @@ pub struct Create {
     /// Addresses of additional owners for the new multisig, beside the transaction sender.
     #[clap(long, num_args = 0.., value_parser = crate::common::types::load_account_arg)]
     pub(crate) additional_owners: Vec<AccountAddress>,
+	/// account level timeout_duration in seconds, all created Tx must be approved and 
+	/// executed before this timeout (from its creation) otherwise the Tx is marked for rejection
+	#[clap(long)]
+	pub(crate) timeout_duration: u64,
     /// The number of signatures (approvals or rejections) required to execute or remove a proposed
     /// transaction.
     #[clap(long)]
@@ -99,6 +99,7 @@ impl CliCommand<CreateSummary> for Create {
                 // TODO: Support passing in custom metadata.
                 vec![],
                 vec![],
+				self.timeout_duration,
             ))
             .await
             .map(CreateSummary::from)
@@ -171,21 +172,23 @@ impl CliCommand<serde_json::Value> for VerifyProposal {
         // Get multisig transaction via view function.
         let multisig_transaction = &self
             .txn_options
-            .view(ViewRequest {
-                function: GET_TRANSACTION_ENTRY_FUNCTION.clone(),
-                type_arguments: vec![],
-                arguments: vec![
-                    serde_json::Value::String(String::from(
+            .view(ViewFunction {
+                module: ModuleId::new(
+                    AccountAddress::ONE,
+                    ident_str!("multisig_account").to_owned(),
+                ),
+                function: ident_str!("get_transaction").to_owned(),
+                ty_args: vec![],
+                args: vec![
+                    bcs::to_bytes(
                         &self
                             .multisig_account_with_sequence_number
                             .multisig_account
                             .multisig_address,
-                    )),
-                    serde_json::Value::String(
-                        self.multisig_account_with_sequence_number
-                            .sequence_number
-                            .to_string(),
-                    ),
+                    )
+                    .unwrap(),
+                    bcs::to_bytes(&self.multisig_account_with_sequence_number.sequence_number)
+                        .unwrap(),
                 ],
             })
             .await?[0];

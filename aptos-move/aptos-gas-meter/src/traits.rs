@@ -1,9 +1,11 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use aptos_gas_algebra::{Fee, FeePerGasUnit, Gas, GasExpression, GasScalingFactor, Octa};
+use aptos_gas_algebra::{Fee, FeePerGasUnit, Gas, GasExpression, GasScalingFactor, Quant};
 use aptos_gas_schedule::VMGasParameters;
-use aptos_types::{state_store::state_key::StateKey, write_set::WriteOpSize};
+use aptos_types::{
+    contract_event::ContractEvent, state_store::state_key::StateKey, write_set::WriteOpSize,
+};
 use aptos_vm_types::{
     change_set::VMChangeSet,
     resolver::ExecutorView,
@@ -62,7 +64,7 @@ pub trait GasAlgebra {
     /// gas parameters.
     fn charge_storage_fee(
         &mut self,
-        abstract_amount: impl GasExpression<VMGasParameters, Unit = Octa>,
+        abstract_amount: impl GasExpression<VMGasParameters, Unit = Quant>,
         gas_unit_price: FeePerGasUnit,
     ) -> PartialVMResult<()>;
 
@@ -97,7 +99,7 @@ pub trait AptosGasMeter: MoveGasMeter {
 
     /// Charges fee for utilizing short-term or long-term storage.
     ///
-    /// Since the fee is measured in APT/Octa, it needs to be converted into gas units
+    /// Since the fee is measured in SUPRA/Quant, it needs to be converted into gas units
     /// according to the given unit price.
     fn charge_storage_fee(
         &mut self,
@@ -108,8 +110,19 @@ pub trait AptosGasMeter: MoveGasMeter {
     /// Charges an intrinsic cost for executing the transaction.
     ///
     /// The cost stays constant for transactions below a certain size, but will grow proportionally
-    /// for bigger ones.
+    /// for bigger ones. THe multiplier can be used to increase the unit cost for exceptional
+    /// transactions like keyless.
     fn charge_intrinsic_gas_for_transaction(&mut self, txn_size: NumBytes) -> VMResult<()>;
+
+    /// Charges an additional cost for keyless transactions to compensate for the
+    /// expensive computation required.
+    fn charge_keyless(&mut self) -> VMResult<()>;
+
+    /// Charges IO gas for the transaction itself.
+    fn charge_io_gas_for_transaction(&mut self, txn_size: NumBytes) -> VMResult<()>;
+
+    /// Charges IO gas for an emitted event.
+    fn charge_io_gas_for_event(&mut self, event: &ContractEvent) -> VMResult<()>;
 
     /// Charges IO gas for an item in the write set.
     ///

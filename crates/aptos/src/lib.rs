@@ -16,6 +16,7 @@ pub mod stake;
 #[cfg(any(test, feature = "fuzzing"))]
 pub mod test;
 pub mod update;
+pub mod supra_specific;
 
 use crate::common::{
     types::{CliCommand, CliResult, CliTypedResult},
@@ -49,6 +50,7 @@ pub enum Tool {
     Node(node::NodeTool),
     #[clap(subcommand)]
     Stake(stake::StakeTool),
+    #[clap(subcommand)]
     Update(update::UpdateTool),
 }
 
@@ -68,7 +70,7 @@ impl Tool {
             Multisig(tool) => tool.execute().await,
             Node(tool) => tool.execute().await,
             Stake(tool) => tool.execute().await,
-            Update(tool) => tool.execute_serialized().await,
+            Update(tool) => tool.execute().await,
         }
     }
 }

@@ -2,24 +2,27 @@ module supra_framework::genesis {
     use std::error;
     use std::fixed_point32;
     use std::vector;
+    use std::option;
+    use std::string::{String};
 
     use aptos_std::simple_map;
-    use supra_framework::delegation_pool;
+    use supra_framework::supra_account;
     use supra_framework::pbo_delegation_pool;
+    use supra_framework::multisig_account;
 
     use supra_framework::account;
     use supra_framework::aggregator_factory;
     use supra_framework::supra_coin::{Self, SupraCoin};
-    use supra_framework::aptos_governance;
+    use supra_framework::supra_governance;
     use supra_framework::block;
     use supra_framework::chain_id;
     use supra_framework::chain_status;
     use supra_framework::coin;
     use supra_framework::consensus_config;
     use supra_framework::execution_config;
+    use supra_framework::supra_config;
     use supra_framework::create_signer::create_signer;
     use supra_framework::gas_schedule;
-    use supra_framework::jwks;
     use supra_framework::reconfiguration;
     use supra_framework::stake;
     use supra_framework::staking_contract;
@@ -35,7 +38,7 @@ module supra_framework::genesis {
 
 
 	const VESTING_CONTRACT_SEED: vector<u8> = b"VESTING_WIHOUT_STAKING_SEED";
-	
+
 	const EDUPLICATE_ACCOUNT: u64 = 1;
     const EACCOUNT_DOES_NOT_EXIST: u64 = 2;
 	const EVESTING_SCHEDULE_IS_ZERO: u64 = 3;
@@ -45,7 +48,7 @@ module supra_framework::genesis {
 	const ENUMERATOR_GREATER_THAN_DENOMINATOR: u64 = 7;
 	const EDENOMINATOR_IS_ZERO: u64 = 8;
 	const EACCOUNT_NOT_REGISTERED_FOR_COIN: u64 = 9;
-	
+
 
     struct AccountMap has drop {
         account_address: address,
@@ -59,11 +62,11 @@ module supra_framework::genesis {
 		vpool_locking_percentage : u8,
 		vesting_numerators : vector<u64>,
 		vesting_denominator : u64,
-		//Withdrawal address for the pool
+		// Withdrawal address for the pool
 		withdrawal_address: address,
 		// Shareholders in the vesting pool
 		shareholders : vector<address>,
-		//Cliff duration in seconds
+		// Cliff duration in seconds
 		cliff_period_in_seconds: u64,
 		// Each vesting period duration in seconds
 		period_duration_in_seconds: u64,
@@ -103,7 +106,16 @@ module supra_framework::genesis {
 
     struct PboDelegatorConfiguration has copy, drop {
         delegator_config: DelegatorConfiguration,
-        principle_lockup_time: u64,
+        //Address of the multisig admin of the pool
+        multisig_admin: address,
+        //Numerator for unlock fraction
+        unlock_schedule_numerators: vector<u64>,
+        //Denominator for unlock fraction
+        unlock_schedule_denominator: u64,
+        //Time from `timestamp::now_seconds()` to start unlocking schedule
+        unlock_startup_time_from_now: u64,
+        //Time for each unlock
+        unlock_period_duration: u64,
     }
 
     /// Genesis step 1: Initialize aptos framework account and core modules on chain.
@@ -113,6 +125,7 @@ module supra_framework::genesis {
         initial_version: u64,
         consensus_config: vector<u8>,
         execution_config: vector<u8>,
+        supra_config: vector<u8>,
         epoch_interval_microsecs: u64,
         minimum_stake: u64,
         maximum_stake: u64,
@@ -121,6 +134,7 @@ module supra_framework::genesis {
         rewards_rate: u64,
         rewards_rate_denominator: u64,
         voting_power_increase_limit: u64,
+        genesis_timestamp_in_microseconds: u64,
     ) {
         // Initialize the aptos framework account. This is the account where system resources and modules will be
         // deployed to. This will be entirely managed by on-chain governance and no entities have the key or privileges
@@ -138,18 +152,19 @@ module supra_framework::genesis {
         );
 
         // Give the decentralized on-chain governance control over the core framework account.
-        aptos_governance::store_signer_cap(&supra_framework_account, @supra_framework, supra_framework_signer_cap);
+        supra_governance::store_signer_cap(&supra_framework_account, @supra_framework, supra_framework_signer_cap);
 
         // put reserved framework reserved accounts under aptos governance
         let framework_reserved_addresses = vector<address>[@0x2, @0x3, @0x4, @0x5, @0x6, @0x7, @0x8, @0x9, @0xa];
         while (!vector::is_empty(&framework_reserved_addresses)) {
             let address = vector::pop_back<address>(&mut framework_reserved_addresses);
             let (_, framework_signer_cap) = account::create_framework_reserved_account(address);
-            aptos_governance::store_signer_cap(&supra_framework_account, address, framework_signer_cap);
+            supra_governance::store_signer_cap(&supra_framework_account, address, framework_signer_cap);
         };
 
         consensus_config::initialize(&supra_framework_account, consensus_config);
         execution_config::set(&supra_framework_account, execution_config);
+        supra_config::initialize(&supra_framework_account, supra_config);
         version::initialize(&supra_framework_account, initial_version);
         stake::initialize(&supra_framework_account);
         staking_config::initialize(
@@ -173,13 +188,14 @@ module supra_framework::genesis {
         reconfiguration::initialize(&supra_framework_account);
         block::initialize(&supra_framework_account, epoch_interval_microsecs);
         state_storage::initialize(&supra_framework_account);
-        timestamp::set_time_has_started(&supra_framework_account);
-        jwks::initialize(&supra_framework_account);
+        timestamp::set_time_has_started(&supra_framework_account, genesis_timestamp_in_microseconds);
     }
 
-    /// Genesis step 2: Initialize Aptos coin.
+    /// Genesis step 2: Initialize Supra coin.
     fun initialize_supra_coin(supra_framework: &signer) {
         let (burn_cap, mint_cap) = supra_coin::initialize(supra_framework);
+        coin::create_coin_conversion_map(supra_framework);
+        coin::create_pairing<SupraCoin>(supra_framework);
         // Give stake module MintCapability<SupraCoin> so it can mint rewards.
         stake::store_supra_coin_mint_cap(supra_framework, mint_cap);
         // Give transaction_fee module BurnCapability<SupraCoin> so it can burn gas.
@@ -194,6 +210,8 @@ module supra_framework::genesis {
         core_resources_auth_key: vector<u8>,
     ) {
         let (burn_cap, mint_cap) = supra_coin::initialize(supra_framework);
+        coin::create_coin_conversion_map(supra_framework);
+        coin::create_pairing<SupraCoin>(supra_framework);
         // Give stake module MintCapability<SupraCoin> so it can mint rewards.
         stake::store_supra_coin_mint_cap(supra_framework, mint_cap);
         // Give transaction_fee module BurnCapability<SupraCoin> so it can burn gas.
@@ -202,6 +220,7 @@ module supra_framework::genesis {
         transaction_fee::store_supra_coin_mint_cap(supra_framework, mint_cap);
 
         let core_resources = account::create_account(@core_resources);
+        supra_account::register_supra(&core_resources); // register Supra store
         account::rotate_authentication_key_internal(&core_resources, core_resources_auth_key);
         supra_coin::configure_accounts_for_test(supra_framework, &core_resources, mint_cap);
     }
@@ -236,6 +255,38 @@ module supra_framework::genesis {
             account
         }
     }
+    
+
+    fun create_multiple_multisig_accounts_with_schema(supra_framework: &signer,
+    owner: address, additional_owners: vector<address>,num_signatures_required:u64,metadata_keys:vector<String>,metadata_values:vector<vector<u8>>,
+    timeout_duration:u64, balance:u64, num_of_accounts: u32): vector<address> {
+
+        let counter = 0;
+        let result = vector::empty();
+        while (counter < num_of_accounts) {
+            let account_addr = create_multisig_account_with_balance(supra_framework, owner, additional_owners,
+                                num_signatures_required,metadata_keys,metadata_values,timeout_duration,balance);
+            vector::push_back(&mut result,account_addr);
+            account::increment_sequence_number(owner);
+            counter = counter + 1;
+        };
+        result
+    }
+    fun create_multisig_account_with_balance(supra_framework: &signer, owner: address, additional_owners: vector<address>, 
+                                num_signatures_required:u64, metadata_keys: vector<String>,
+                                metadata_values: vector<vector<u8>>, timeout_duration: u64, balance:u64 ) : address {
+
+        
+        assert!(account::exists_at(owner),error::invalid_argument(EACCOUNT_DOES_NOT_EXIST));
+        assert!(vector::all(&additional_owners,|ao_addr|{account::exists_at(*ao_addr)}),error::invalid_argument(EACCOUNT_DOES_NOT_EXIST));
+        let addr = multisig_account::get_next_multisig_account_address(owner);
+        let owner_signer = create_signer(owner);
+        multisig_account::create_with_owners(&owner_signer,additional_owners,num_signatures_required,metadata_keys,metadata_values,timeout_duration);
+        supra_coin::mint(supra_framework,addr,balance);   
+        addr                     
+
+        }
+    
 
     fun create_employee_validators(
         employee_vesting_start: u64,
@@ -323,6 +374,8 @@ module supra_framework::genesis {
         });
     }
 
+    /// DEPRECATED
+    /// 
     fun create_initialize_validators_with_commission(
         supra_framework: &signer,
         use_staking_contract: bool,
@@ -332,14 +385,10 @@ module supra_framework::genesis {
             let validator: &ValidatorConfigurationWithCommission = validator;
             create_initialize_validator(supra_framework, validator, use_staking_contract);
         });
-
-        // Destroy the aptos framework account's ability to mint coins now that we're done with setting up the initial
-        // validators.
-        supra_coin::destroy_mint_cap(supra_framework);
-
-        stake::on_new_epoch();
     }
 
+    /// DEPRECATED
+    /// 
     /// Sets up the initial validator set for the network.
     /// The validator "owner" accounts, and their authentication
     /// Addresses (and keys) are encoded in the `owners`
@@ -401,61 +450,6 @@ module supra_framework::genesis {
         };
     }
 
-    fun create_delegation_pools(
-        delegator_configs: vector<DelegatorConfiguration>,
-    ) {
-		let unique_accounts: vector<address> = vector::empty();
-        vector::for_each_ref(&delegator_configs, |delegator_config| {
-            let delegator_config: &DelegatorConfiguration = delegator_config;
-			//Ensure that there is a unique owner_address for each pool
-			//This is needed otherwise move_to of DelegationPoolOwnership at owner_address would fail 
-			assert!(!vector::contains(&unique_accounts,&delegator_config.owner_address),
-				error::already_exists(EDUPLICATE_ACCOUNT));
-				vector::push_back(&mut unique_accounts,delegator_config.owner_address);
-            create_delegation_pool(delegator_config);
-        });
-    }
-
-    fun create_delegation_pool(
-        delegator_config: &DelegatorConfiguration,
-    ) {
-        let unique_accounts:vector<address> = vector::empty();
-        vector::for_each_ref(&delegator_config.delegator_addresses, |delegator_address| {
-            let delegator_address: &address = delegator_address;
-            assert!(
-                !vector::contains(&unique_accounts, delegator_address),
-                error::already_exists(EDUPLICATE_ACCOUNT),
-            );
-            vector::push_back(&mut unique_accounts, *delegator_address);
-        });
-        let owner_signer = create_signer(delegator_config.owner_address);
-        delegation_pool::initialize_delegation_pool(
-            &owner_signer,
-            delegator_config.validator.commission_percentage,
-            delegator_config.delegation_pool_creation_seed,
-        );
-        let pool_address = delegation_pool::get_owned_pool_address(delegator_config.owner_address);
-		delegation_pool::set_operator(&owner_signer,delegator_config.validator.validator_config.operator_address);
-		delegation_pool::set_delegated_voter(&owner_signer,delegator_config.validator.validator_config.voter_address);
-
-        let i = 0;
-        while (i < vector::length(&delegator_config.delegator_addresses)) {
-            let delegator_address = *vector::borrow(&delegator_config.delegator_addresses, i);
-            let delegator = &create_signer(delegator_address);
-            let delegator_stake = *vector::borrow(&delegator_config.delegator_stakes, i);
-            delegation_pool::add_stake(delegator, pool_address, delegator_stake);
-            i = i + 1;
-        };
-		
-		let validator = delegator_config.validator.validator_config;
-		assert_validator_addresses_check(&validator);
-
-        if (delegator_config.validator.join_during_genesis) {
-                initialize_validator(pool_address,&validator);
-            };
-
-    }
-
     fun create_pbo_delegation_pools(
         pbo_delegator_configs: vector<PboDelegatorConfiguration>,
         delegation_percentage: u64,
@@ -498,12 +492,16 @@ module supra_framework::genesis {
         });
         pbo_delegation_pool::initialize_delegation_pool(
             &owner_signer,
+            option::some(pbo_delegator_config.multisig_admin),
             pbo_delegator_config.delegator_config.validator.commission_percentage,
             pbo_delegator_config.delegator_config.delegation_pool_creation_seed,
             pbo_delegator_config.delegator_config.delegator_addresses,
             pbo_delegator_config.delegator_config.delegator_stakes,
             coinInitialization,
-            pbo_delegator_config.principle_lockup_time,
+            pbo_delegator_config.unlock_schedule_numerators,
+            pbo_delegator_config.unlock_schedule_denominator,
+            pbo_delegator_config.unlock_startup_time_from_now+timestamp::now_seconds(),
+            pbo_delegator_config.unlock_period_duration,
         );
 
         let pool_address = pbo_delegation_pool::get_owned_pool_address(pbo_delegator_config.delegator_config.owner_address);
@@ -511,7 +509,7 @@ module supra_framework::genesis {
 		pbo_delegation_pool::set_operator(&owner_signer,validator.operator_address);
 		pbo_delegation_pool::set_delegated_voter(&owner_signer,validator.voter_address);
 		assert_validator_addresses_check(&validator);
-        
+
 		if (pbo_delegator_config.delegator_config.validator.join_during_genesis) {
             initialize_validator(pool_address,&validator);
         };
@@ -614,12 +612,16 @@ module supra_framework::genesis {
 
     /// The last step of genesis.
     fun set_genesis_end(supra_framework: &signer) {
+        // Destroy the mint capability owned by the framework account. The stake and transaction_fee
+        // modules should be the only holders of this capability, which they will use to
+        // mint block rewards and storage refunds, respectively.
+        supra_coin::destroy_mint_cap(supra_framework);
+        stake::on_new_epoch();
         chain_status::set_genesis_end(supra_framework);
     }
 
     #[verify_only]
     use std::features;
-
     #[verify_only]
     fun initialize_for_verification(
         gas_schedule: vector<u8>,
@@ -627,6 +629,7 @@ module supra_framework::genesis {
         initial_version: u64,
         consensus_config: vector<u8>,
         execution_config: vector<u8>,
+        supra_config: vector<u8>,
         epoch_interval_microsecs: u64,
         minimum_stake: u64,
         maximum_stake: u64,
@@ -636,9 +639,11 @@ module supra_framework::genesis {
         rewards_rate_denominator: u64,
         voting_power_increase_limit: u64,
         supra_framework: &signer,
-        min_voting_threshold: u128,
-        required_proposer_stake: u64,
+        // min_voting_threshold: u128,
+        // required_proposer_stake: u64,
         voting_duration_secs: u64,
+        supra_min_voting_threshold: u64,
+        voters: vector<address>,
         accounts: vector<AccountMap>,
         employee_vesting_start: u64,
         employee_vesting_period_duration: u64,
@@ -651,6 +656,7 @@ module supra_framework::genesis {
             initial_version,
             consensus_config,
             execution_config,
+            supra_config,
             epoch_interval_microsecs,
             minimum_stake,
             maximum_stake,
@@ -658,15 +664,18 @@ module supra_framework::genesis {
             allow_validator_set_change,
             rewards_rate,
             rewards_rate_denominator,
-            voting_power_increase_limit
+            voting_power_increase_limit,
+            0,
         );
-        features::change_feature_flags(supra_framework, vector[1, 2], vector[]);
+        features::change_feature_flags_for_verification(supra_framework, vector[1, 2, 11], vector[]);
         initialize_supra_coin(supra_framework);
-        aptos_governance::initialize_for_verification(
+        supra_governance::initialize_for_verification(
             supra_framework,
-            min_voting_threshold,
-            required_proposer_stake,
-            voting_duration_secs
+            // min_voting_threshold,
+            // required_proposer_stake,
+            voting_duration_secs,
+            supra_min_voting_threshold,
+            voters,
         );
         create_accounts(supra_framework, accounts);
         create_employee_validators(employee_vesting_start, employee_vesting_period_duration, employees);
@@ -675,8 +684,7 @@ module supra_framework::genesis {
     }
 
     #[test_only]
-    const ONE_APT: u64 = 100000000;
-
+    const ONE_SUPRA: u64 = 100000000;
     #[test_only]
     public fun setup() {
         initialize(
@@ -685,15 +693,18 @@ module supra_framework::genesis {
             0,
             x"12",
             x"13",
+            x"14",
             1,
             0,
-            1000 * ONE_APT,
+            1000 * ONE_SUPRA,
             1,
             true,
             1,
             1,
             30,
+            0,
         )
+
     }
 
     #[test]
@@ -753,132 +764,49 @@ module supra_framework::genesis {
 
 	#[test_only]
 	use aptos_std::ed25519;
-	
 
-    #[test(supra_framework = @0x1)]
-    fun test_create_delegation_pool(supra_framework: &signer) {
-        setup();
-        initialize_supra_coin(supra_framework);
-        let owner = @0x121341;
-        create_account(supra_framework, owner, 0);
-		create_account(supra_framework,@0x121344,0);
-		let (_, pk_1) = stake::generate_identity();
-		let _pk_1 = ed25519::unvalidated_public_key_to_bytes(&pk_1);
-        let validator_config_commission = ValidatorConfigurationWithCommission{
-            validator_config: ValidatorConfiguration{
-                owner_address: @0x121342,
-                operator_address: @0x121343,
-                voter_address: @0x121344,
-                stake_amount: 100 * ONE_APT,
-                consensus_pubkey: _pk_1,
-                network_addresses: x"222222",
-                full_node_network_addresses: x"333333",
-            },
-            commission_percentage: 10,
-            join_during_genesis: true,
-        };
-        let delegation_pool_creation_seed = x"121341";
-        let delegator_addresses = vector[@0x121342, @0x121343];
-        let delegator_stakes = vector[100 * ONE_APT, 200 * ONE_APT];
-        let i = 0;
-        while (i < vector::length(&delegator_addresses)) {
-            create_account(supra_framework, *vector::borrow(&delegator_addresses, i), *vector::borrow(&delegator_stakes, i));
-            i = i + 1;
-        };
-        let delegator_config = DelegatorConfiguration{
-            owner_address: owner,
-            validator: validator_config_commission,
-            delegation_pool_creation_seed: delegation_pool_creation_seed,
-            delegator_addresses,
-            delegator_stakes
-        };
-        create_delegation_pool(&delegator_config);
-        let pool_address = delegation_pool::get_owned_pool_address(owner);
-        assert!(delegation_pool::delegation_pool_exists(pool_address), 0);
-        delegation_pool::assert_delegation(@0x121342, pool_address, 100 * ONE_APT, 0, 0);
-        delegation_pool::assert_delegation(@0x121343, pool_address, 200 * ONE_APT, 0, 0);
+    #[test_only]
+    fun generate_multisig_account(owner: &signer, addition_owner: vector<address>): address {
+        let owner_addr = aptos_std::signer::address_of(owner);
+        let multisig_addr = multisig_account::get_next_multisig_account_address(owner_addr);
+        multisig_account::create_with_owners(owner, addition_owner, 2, vector[], vector[], 300);
+        multisig_addr
     }
 
     #[test(supra_framework = @0x1)]
-    fun test_create_delegation_pools(supra_framework: &signer) {
-        setup();
-        initialize_supra_coin(supra_framework);
-        let owner1 = @0x121341;
-        create_account(supra_framework, owner1, 0);
 
-		let (_, pk_1)=stake::generate_identity();
-		let (_, pk_2)=stake::generate_identity();
-		let _pk_1 = ed25519::unvalidated_public_key_to_bytes(&pk_1);
-		let _pk_2 = ed25519::unvalidated_public_key_to_bytes(&pk_2);
-        let validator_config_commission1 = ValidatorConfigurationWithCommission{
-            validator_config: ValidatorConfiguration{
-                owner_address: @0x121341,
-                operator_address: @0x121342,
-                voter_address: @0x121343,
-                stake_amount: 100 * ONE_APT,
-                consensus_pubkey: _pk_1,
-                network_addresses: x"222222",
-                full_node_network_addresses: x"333333",
-            },
-            commission_percentage: 10,
-            join_during_genesis: true,
-        };
-        let delegation_pool_creation_seed1 = x"121341";
-        let delegator_addresses1 = vector[@0x121342, @0x121343];
-        let delegator_stakes1 = vector[100 * ONE_APT, 200 * ONE_APT];
-        let i = 0;
-        while (i < vector::length(&delegator_addresses1)) {
-            create_account(supra_framework, *vector::borrow(&delegator_addresses1, i), *vector::borrow(&delegator_stakes1, i));
-            i = i + 1;
-        };
-        let delegator_config1 = DelegatorConfiguration{
-            owner_address: owner1,
-            validator: validator_config_commission1,
-            delegation_pool_creation_seed: delegation_pool_creation_seed1,
-            delegator_addresses: delegator_addresses1,
-            delegator_stakes: delegator_stakes1
-        };
-        let owner2 = @0x121344;
-        create_account(supra_framework, owner2, 0);
-        let validator_config_commission2 = ValidatorConfigurationWithCommission{
-            validator_config: ValidatorConfiguration{
-                owner_address: @0x121344,
-                operator_address: @0x121345,
-                voter_address: @0x121346,
-                stake_amount: 100 * ONE_APT,
-                consensus_pubkey: _pk_2,
-                network_addresses: x"222222",
-                full_node_network_addresses: x"333333",
-            },
-            commission_percentage: 20,
-            join_during_genesis: true,
-        };
-        let delegation_pool_creation_seed2 = x"121344";
-        let delegator_addresses2 = vector[@0x121345, @0x121346];
-        let delegator_stakes2 = vector[100 * ONE_APT, 200 * ONE_APT];
-        let i = 0;
-        while (i < vector::length(&delegator_addresses2)) {
-            create_account(supra_framework, *vector::borrow(&delegator_addresses2, i), *vector::borrow(&delegator_stakes2, i));
-            i = i + 1;
-        };
-        let delegator_config2 = DelegatorConfiguration{
-            owner_address: owner2,
-            validator: validator_config_commission2,
-            delegation_pool_creation_seed: delegation_pool_creation_seed2,
-            delegator_addresses: delegator_addresses2,
-            delegator_stakes: delegator_stakes2
-        };
-        let delegator_configs = vector[delegator_config1, delegator_config2];
-        create_delegation_pools(delegator_configs);
-        let pool_address1 = delegation_pool::get_owned_pool_address(owner1);
-        let pool_address2 = delegation_pool::get_owned_pool_address(owner2);
-        assert!(delegation_pool::delegation_pool_exists(pool_address1), 0);
-        assert!(delegation_pool::delegation_pool_exists(pool_address2), 1);
+    fun test_create_root_account(supra_framework: &signer) {
+        use supra_framework::aggregator_factory;
+        use supra_framework::object;
+        use supra_framework::primary_fungible_store;
+        use supra_framework::fungible_asset::Metadata;
+        use std::features;
+
+        let feature = features::get_new_accounts_default_to_fa_supra_store_feature();
+        features::change_feature_flags_for_testing(supra_framework, vector[feature], vector[]);
+        aggregator_factory::initialize_aggregator_factory_for_test(supra_framework);
+
+        let (burn_cap, mint_cap) = supra_coin::initialize(supra_framework);
+        supra_coin::ensure_initialized_with_apt_fa_metadata_for_test();
+
+        let core_resources = account::create_account(@core_resources);
+        supra_account::register_supra(&core_resources); // registers SUPRA store
+
+        let apt_metadata = object::address_to_object<Metadata>(@aptos_fungible_asset);
+        assert!(primary_fungible_store::primary_store_exists(@core_resources, apt_metadata), 2);
+
+        supra_coin::configure_accounts_for_test(supra_framework, &core_resources, mint_cap);
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_mint_cap(mint_cap);
     }
 
     #[test(supra_framework = @0x1)]
     fun test_create_pbo_delegation_pool(supra_framework: &signer) {
+		use std::features;
         setup();
+
+		features::change_feature_flags_for_testing(supra_framework,vector[11],vector[]);
+
         initialize_supra_coin(supra_framework);
         let owner = @0x121341;
 		let (_, pk_1) = stake::generate_identity();
@@ -899,7 +827,7 @@ module supra_framework::genesis {
         };
         let delegation_pool_creation_seed = x"121341";
         let delegator_addresses = vector[@0x121342, @0x121343];
-        let initial_balance = vector[100 * ONE_APT, 200 * ONE_APT];
+        let initial_balance = vector[100 * ONE_SUPRA, 200 * ONE_SUPRA];
         let i = 0;
         let delegation_percentage = 10;
         let delegator_stakes : vector<u64> = vector::empty();
@@ -909,7 +837,13 @@ module supra_framework::genesis {
             i = i + 1;
         };
         let principle_lockup_time = 100;
-        let pbo_delegator_config = PboDelegatorConfiguration{
+        let multisig = generate_multisig_account(&account::create_signer_for_test(owner), vector[@0x12134]);
+        let pbo_delegator_config = PboDelegatorConfiguration {
+            multisig_admin: multisig,
+            unlock_period_duration: 12,
+            unlock_schedule_denominator: 10,
+            unlock_schedule_numerators: vector[2, 2, 3],
+            unlock_startup_time_from_now: principle_lockup_time,
             delegator_config: DelegatorConfiguration{
                 owner_address: owner,
                 validator: validator_config_commission,
@@ -917,7 +851,6 @@ module supra_framework::genesis {
                 delegator_addresses,
                 delegator_stakes,
             },
-            principle_lockup_time,
         };
         create_pbo_delegation_pool(&pbo_delegator_config, delegation_percentage);
         let pool_address = pbo_delegation_pool::get_owned_pool_address(owner);
@@ -926,20 +859,22 @@ module supra_framework::genesis {
 
     #[test(supra_framework = @0x1)]
     fun test_create_pbo_delegation_pools(supra_framework: &signer) {
+		use std::features;
         setup();
+		features::change_feature_flags_for_testing(supra_framework,vector[11],vector[]);
         initialize_supra_coin(supra_framework);
         let owner1 = @0x121341;
-		create_account(supra_framework,@0x121341,0);
+        create_account(supra_framework,owner1,0);
 		let (_, pk_1)=stake::generate_identity();
 		let (_, pk_2)=stake::generate_identity();
 		let _pk_1 = ed25519::unvalidated_public_key_to_bytes(&pk_1);
 		let _pk_2 = ed25519::unvalidated_public_key_to_bytes(&pk_2);
         let validator_config_commission1 = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
-                owner_address: @0x121341,
+                owner_address: owner1,
                 operator_address: @0x121342,
                 voter_address: @0x121343,
-                stake_amount: 100 * ONE_APT,
+                stake_amount: 100 * ONE_SUPRA,
                 consensus_pubkey: _pk_1,
                 network_addresses: x"222222",
                 full_node_network_addresses: x"333333",
@@ -949,7 +884,7 @@ module supra_framework::genesis {
         };
         let delegation_pool_creation_seed1 = x"121341";
         let delegator_address1 = vector[@0x121342, @0x121343];
-        let initial_balance1 = vector[100 * ONE_APT, 200 * ONE_APT];
+        let initial_balance1 = vector[100 * ONE_SUPRA, 200 * ONE_SUPRA];
         let delegator_stakes1:vector<u64> = vector::empty();
         let delegation_percentage: u64 = 10;
         let i = 0;
@@ -959,7 +894,13 @@ module supra_framework::genesis {
             i = i + 1;
         };
         let principle_lockup_time1 = 100;
+        let multisig1 = generate_multisig_account(&account::create_signer_for_test(owner1), vector[@0x121342]);
         let pbo_delegator_config1 = PboDelegatorConfiguration{
+            multisig_admin: multisig1,
+            unlock_period_duration: 12,
+            unlock_schedule_denominator: 10,
+            unlock_schedule_numerators: vector[2, 2, 3],
+            unlock_startup_time_from_now: principle_lockup_time1,
             delegator_config: DelegatorConfiguration{
                 owner_address: owner1,
                 validator: validator_config_commission1,
@@ -967,17 +908,16 @@ module supra_framework::genesis {
                 delegator_addresses: delegator_address1,
                 delegator_stakes: delegator_stakes1,
             },
-            principle_lockup_time: principle_lockup_time1,
         };
 
         let owner2 = @0x121344;
         create_account(supra_framework, owner2, 0);
         let validator_config_commission2 = ValidatorConfigurationWithCommission{
             validator_config: ValidatorConfiguration{
-                owner_address: @0x121344,
+                owner_address: owner2,
                 operator_address: @0x121345,
                 voter_address: @0x121346,
-                stake_amount: 100 * ONE_APT,
+                stake_amount: 100 * ONE_SUPRA,
                 consensus_pubkey: _pk_2,
                 network_addresses: x"222222",
                 full_node_network_addresses: x"333333",
@@ -987,7 +927,7 @@ module supra_framework::genesis {
         };
         let delegation_pool_creation_seed2 = x"121344";
         let delegator_address2 = vector[@0x121345, @0x121346];
-        let initial_balance2 = vector[300 * ONE_APT, 400 * ONE_APT];
+        let initial_balance2 = vector[300 * ONE_SUPRA, 400 * ONE_SUPRA];
         let j = 0;
         let delegator_stakes2:vector<u64> = vector::empty();
         while (j < vector::length(&delegator_address2)) {
@@ -997,7 +937,13 @@ module supra_framework::genesis {
             j = j + 1;
         };
         let principle_lockup_time2 = 200;
+        let multisig2 = generate_multisig_account(&account::create_signer_for_test(owner2), vector[@0x121347]);
         let pbo_delegator_config2 = PboDelegatorConfiguration{
+            multisig_admin: multisig2,
+            unlock_period_duration: 12,
+            unlock_schedule_denominator: 10,
+            unlock_schedule_numerators: vector[2, 2, 3],
+            unlock_startup_time_from_now: principle_lockup_time2,
             delegator_config: DelegatorConfiguration{
                 owner_address: owner2,
                 validator: validator_config_commission2,
@@ -1005,7 +951,6 @@ module supra_framework::genesis {
                 delegator_addresses: delegator_address2,
                 delegator_stakes: delegator_stakes2,
             },
-            principle_lockup_time: principle_lockup_time2,
         };
         let pbo_delegator_configs = vector[pbo_delegator_config1, pbo_delegator_config2];
         create_pbo_delegation_pools(pbo_delegator_configs, delegation_percentage);
@@ -1014,10 +959,61 @@ module supra_framework::genesis {
         assert!(pbo_delegation_pool::delegation_pool_exists(pool_address1), 0);
         assert!(pbo_delegation_pool::delegation_pool_exists(pool_address2), 1);
     }
+    
+    #[test (supra_framework=@0x1, owner1=@0x1234, owner2=@0x2345, owner3=@0x3456)]
+    fun test_create_multisig_account_with_balance(supra_framework: &signer, owner1: address, owner2: address, owner3: address)
+    {
+        setup();
+        initialize_supra_coin(supra_framework);
+        let additional_owners = vector[owner2, owner3];
+        let timeout_duration=600;
+        let num_signatures_required = 2;
+        let metadata_keys: vector<String> =vector::empty();
+        let metadata_values: vector<vector<u8>> = vector::empty();
+        let balance = 10000000000;
+        create_account(supra_framework,owner1,0);
+        create_account(supra_framework,owner2,0);
+        create_account(supra_framework,owner3,0);
+        let addr = create_multisig_account_with_balance(supra_framework,owner1, additional_owners,
+                                num_signatures_required, metadata_keys, metadata_values, timeout_duration,balance);
+        //Ensure it is indeed on-chain multisig account with required threshold
+        assert!(multisig_account::num_signatures_required(addr)==2,1);
+        //Ensure the account is seeded with supplied balance
+        assert!(coin::balance<SupraCoin>(addr)==balance,2);
+        // Ensure that you can transfer out funds from multisig account
+        let multisig_signer = create_signer(addr);
+        coin::transfer<SupraCoin>(&multisig_signer,owner1,balance);
+        assert!(coin::balance<SupraCoin>(owner1)==balance,3);
+    }
+
+    #[test (supra_framework=@0x1, owner1=@0x1234, owner2=@0x2345, owner3=@0x3456)]
+    fun test_create_multisig_account_with_schema(supra_framework: &signer, owner1: address, owner2: address, owner3: address)
+    {
+        setup();
+        initialize_supra_coin(supra_framework);
+        let additional_owners = vector[owner2, owner3];
+        let timeout_duration=600;
+        let num_signatures_required = 2;
+        let metadata_keys: vector<String> =vector::empty();
+        let metadata_values: vector<vector<u8>> = vector::empty();
+        let balance = 10000000000;
+        let num_accounts = 3;
+        create_account(supra_framework,owner1,0);
+        create_account(supra_framework,owner2,0);
+        create_account(supra_framework,owner3,0);
+        let vec_addr = create_multiple_multisig_accounts_with_schema(supra_framework,owner1,
+                        additional_owners,num_signatures_required,metadata_keys,metadata_values,
+                        timeout_duration,balance,num_accounts);
+        //Ensure they are indeed on-chain multisig account with required threshold
+        assert!(vector::all(&vec_addr,|elem| {multisig_account::num_signatures_required(*elem)==2}),1);
+        //Ensure the accounts are seeded with supplied balance
+        assert!(vector::all(&vec_addr,|elem| {coin::balance<SupraCoin>(*elem)==balance}),2);
+    }
+
 
     #[test(supra_framework = @0x1)]
     fun test_create_vesting_without_staking_pools(supra_framework: &signer) {
-        // use supra_framework::aptos_account::create_account;
+        // use supra_framework::supra_account::create_account;
         setup();
         initialize_supra_coin(supra_framework);
         timestamp::set_time_has_started_for_testing(supra_framework);
@@ -1033,7 +1029,7 @@ module supra_framework::genesis {
         vector::for_each_ref(&shareholders, |addr| {
             let addr: address = *addr;
             if (!account::exists_at(addr)) {
-                create_account(supra_framework, addr, 100 * ONE_APT);
+                create_account(supra_framework, addr, 100 * ONE_SUPRA);
             };
         });
         let cliff_period_in_seconds = 100;

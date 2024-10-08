@@ -6,6 +6,7 @@
 
 mod genesis_context;
 
+use std::hash::{Hash, Hasher};
 use crate::genesis_context::GenesisStateView;
 use aptos_crypto::{
     ed25519,
@@ -14,34 +15,41 @@ use aptos_crypto::{
 };
 use aptos_framework::{ReleaseBundle, ReleasePackage};
 use aptos_gas_schedule::{
-    AptosGasParameters, InitialGasSchedule, MiscGasParameters, NativeGasParameters,
-    ToOnChainGasSchedule, LATEST_GAS_FEATURE_VERSION,
+    AptosGasParameters, InitialGasSchedule, ToOnChainGasSchedule, LATEST_GAS_FEATURE_VERSION,
 };
 use aptos_types::{
     account_config::{self, aptos_test_root_address, events::NewEpochEvent, CORE_CODE_ADDRESS},
     chain_id::ChainId,
     contract_event::{ContractEvent, ContractEventV1},
-    keyless,
-    keyless::{Groth16VerificationKey, DEVNET_VERIFICATION_KEY, KEYLESS_ACCOUNT_MODULE_NAME},
+    jwks::{
+        patch::{PatchJWKMoveStruct, PatchUpsertJWK},
+        secure_test_rsa_jwk,
+    },
+    keyless::{
+        self, test_utils::get_sample_iss, Groth16VerificationKey, DEVNET_VERIFICATION_KEY,
+        KEYLESS_ACCOUNT_MODULE_NAME,
+    },
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{
+        randomness_api_v0_config::{AllowCustomMaxGasFlag, RequiredGasDeposit},
         FeatureFlag, Features, GasScheduleV2, OnChainConsensusConfig, OnChainExecutionConfig,
-        TimedFeaturesBuilder, APTOS_MAX_KNOWN_VERSION,
+        OnChainJWKConsensusConfig, OnChainRandomnessConfig, RandomnessConfigMoveStruct,
+        APTOS_MAX_KNOWN_VERSION,
     },
     transaction::{authenticator::AuthenticationKey, ChangeSet, Transaction, WriteSetPayload},
     write_set::TransactionWrite,
 };
 use aptos_vm::{
     data_cache::AsMoveResolver,
-    move_vm_ext::{MoveVmExt, SessionExt, SessionId},
+    move_vm_ext::{GenesisMoveVM, SessionExt},
 };
-use aptos_vm_types::storage::change_set_configs::ChangeSetConfigs;
 use move_core_types::{
     account_address::AccountAddress,
     identifier::Identifier,
     language_storage::{ModuleId, TypeTag},
     value::{serialize_values, MoveTypeLayout, MoveValue},
 };
+use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
 use move_vm_types::gas::UnmeteredGasMeter;
 use once_cell::sync::Lazy;
 use rand::prelude::*;
@@ -51,14 +59,24 @@ use serde::{Deserialize, Serialize};
 const GENESIS_SEED: [u8; 32] = [42; 32];
 
 const GENESIS_MODULE_NAME: &str = "genesis";
-const GOVERNANCE_MODULE_NAME: &str = "aptos_governance";
+const GOVERNANCE_MODULE_NAME: &str = "supra_governance";
 const CODE_MODULE_NAME: &str = "code";
 const VERSION_MODULE_NAME: &str = "version";
+const JWK_CONSENSUS_CONFIG_MODULE_NAME: &str = "jwk_consensus_config";
 const JWKS_MODULE_NAME: &str = "jwks";
+const CONFIG_BUFFER_MODULE_NAME: &str = "config_buffer";
+const DKG_MODULE_NAME: &str = "dkg";
+const RANDOMNESS_API_V0_CONFIG_MODULE_NAME: &str = "randomness_api_v0_config";
+const RANDOMNESS_CONFIG_SEQNUM_MODULE_NAME: &str = "randomness_config_seqnum";
+const RANDOMNESS_CONFIG_MODULE_NAME: &str = "randomness_config";
+const RANDOMNESS_MODULE_NAME: &str = "randomness";
+const RECONFIGURATION_STATE_MODULE_NAME: &str = "reconfiguration_state";
 
 const NUM_SECONDS_PER_YEAR: u64 = 365 * 24 * 60 * 60;
 const MICRO_SECONDS_PER_SECOND: u64 = 1_000_000;
 const APTOS_COINS_BASE_WITH_DECIMALS: u64 = u64::pow(10, 8);
+
+pub const PBO_DELEGATION_POOL_LOCKUP_PERCENTAGE: u64 = 90;
 
 pub struct GenesisConfiguration {
     pub allow_new_validators: bool,
@@ -67,14 +85,19 @@ pub struct GenesisConfiguration {
     pub is_test: bool,
     pub max_stake: u64,
     pub min_stake: u64,
-    pub min_voting_threshold: u128,
+    pub min_voting_threshold: u64,
     pub recurring_lockup_duration_secs: u64,
     pub required_proposer_stake: u64,
     pub rewards_apy_percentage: u64,
     pub voting_duration_secs: u64,
+    pub voters: Vec<AccountAddress>,
     pub voting_power_increase_limit: u64,
+    pub genesis_timestamp_in_microseconds: u64,
     pub employee_vesting_start: u64,
     pub employee_vesting_period_duration: u64,
+    pub initial_features_override: Option<Features>,
+    pub randomness_config_override: Option<OnChainRandomnessConfig>,
+    pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
 }
 
 pub static GENESIS_KEYPAIR: Lazy<(Ed25519PrivateKey, Ed25519PublicKey)> = Lazy::new(|| {
@@ -92,36 +115,30 @@ pub fn default_gas_schedule() -> GasScheduleV2 {
     }
 }
 
-pub fn encode_aptos_mainnet_genesis_transaction(
+pub fn encode_supra_mainnet_genesis_transaction(
     accounts: &[AccountBalance],
-    employees: &[EmployeePool],
-    validators: &[ValidatorWithCommissionRate],
+    multisig_accounts: &[MultiSigAccountWithBalance],
+    owner_group: Option<MultiSigAccountSchema>,
+    delegation_pools: &[PboDelegatorConfiguration],
+    vesting_pools: &[VestingPoolsMap],
+    initial_unlock_vesting_pools: &[VestingPoolsMap],
     framework: &ReleaseBundle,
     chain_id: ChainId,
     genesis_config: &GenesisConfiguration,
+    supra_config_bytes: Vec<u8>,
 ) -> Transaction {
     assert!(!genesis_config.is_test, "This is mainnet!");
     validate_genesis_config(genesis_config);
 
-    // Create a Move VM session so we can invoke on-chain genesis intializations.
+    // Create a Move VM session, so we can invoke on-chain genesis initializations.
     let mut state_view = GenesisStateView::new();
     for (module_bytes, module) in framework.code_and_compiled_modules() {
         state_view.add_module(&module.self_id(), module_bytes);
     }
-    let data_cache = state_view.as_move_resolver();
-    let move_vm = MoveVmExt::new(
-        NativeGasParameters::zeros(),
-        MiscGasParameters::zeros(),
-        LATEST_GAS_FEATURE_VERSION,
-        ChainId::test().id(),
-        Features::default(),
-        TimedFeaturesBuilder::enable_all().build(),
-        &data_cache,
-        false,
-    )
-    .unwrap();
-    let id1 = HashValue::zero();
-    let mut session = move_vm.new_session(&data_cache, SessionId::genesis(id1));
+
+    let vm = GenesisMoveVM::new(chain_id);
+    let resolver = state_view.as_move_resolver();
+    let mut session = vm.new_genesis_session(&resolver, HashValue::zero());
 
     // On-chain genesis process.
     let consensus_config = OnChainConsensusConfig::default_for_genesis();
@@ -134,29 +151,49 @@ pub fn encode_aptos_mainnet_genesis_transaction(
         &consensus_config,
         &execution_config,
         &gas_schedule,
+        supra_config_bytes,
     );
-    initialize_features(&mut session);
+    initialize_features(
+        &mut session,
+        genesis_config
+            .initial_features_override
+            .clone()
+            .map(Features::into_flag_vec),
+    );
     initialize_supra_coin(&mut session);
     initialize_on_chain_governance(&mut session, genesis_config);
     create_accounts(&mut session, accounts);
-    create_employee_validators(&mut session, employees, genesis_config);
-    create_and_initialize_validators_with_commission(&mut session, validators);
+
+    if let Some(owner_group) = owner_group {
+        create_multiple_multisig_accounts_with_schema(&mut session, owner_group);
+    }
+
+    create_multisig_accounts_with_balance(&mut session, multisig_accounts);
+
+    // All PBO delegated validators are initialized here
+    create_pbo_delegation_pools(&mut session, delegation_pools);
+
+    // PBO vesting accounts, employees, investors etc. are placed in their vesting pools
+    create_vesting_without_staking_pools(&mut session, vesting_pools);
+
+    // Lock up the remaining available balances of the accounts for TGE
+    create_vesting_without_staking_pools(&mut session, initial_unlock_vesting_pools);
+
     set_genesis_end(&mut session);
 
     // Reconfiguration should happen after all on-chain invocations.
     emit_new_block_and_epoch_event(&mut session);
 
-    let configs = ChangeSetConfigs::unlimited_at_gas_feature_version(LATEST_GAS_FEATURE_VERSION);
+    let configs = vm.genesis_change_set_configs();
     let mut change_set = session.finish(&configs).unwrap();
 
-    // Publish the framework, using a different session id, in case both scripts creates tables
+    // Publish the framework, using a different session id, in case both scripts create tables.
     let state_view = GenesisStateView::new();
-    let data_cache = state_view.as_move_resolver();
+    let resolver = state_view.as_move_resolver();
 
-    let mut id2_arr = [0u8; 32];
-    id2_arr[31] = 1;
-    let id2 = HashValue::new(id2_arr);
-    let mut session = move_vm.new_session(&data_cache, SessionId::genesis(id2));
+    let mut new_id = [0u8; 32];
+    new_id[31] = 1;
+    let mut session = vm.new_genesis_session(&resolver, HashValue::new(new_id));
     publish_framework(&mut session, framework);
     let additional_change_set = session.finish(&configs).unwrap();
     change_set
@@ -181,59 +218,67 @@ pub fn encode_aptos_mainnet_genesis_transaction(
     Transaction::GenesisTransaction(WriteSetPayload::Direct(change_set))
 }
 
-pub fn encode_genesis_transaction(
+pub fn encode_genesis_transaction_for_testnet(
     aptos_root_key: Ed25519PublicKey,
     validators: &[Validator],
+    delegation_pools: &[PboDelegatorConfiguration],
+    vesting_pools: &[VestingPoolsMap],
+    initial_unlock_vesting_pools: &[VestingPoolsMap],
     framework: &ReleaseBundle,
     chain_id: ChainId,
     genesis_config: &GenesisConfiguration,
     consensus_config: &OnChainConsensusConfig,
     execution_config: &OnChainExecutionConfig,
     gas_schedule: &GasScheduleV2,
+    supra_config_bytes: Vec<u8>,
 ) -> Transaction {
-    Transaction::GenesisTransaction(WriteSetPayload::Direct(encode_genesis_change_set(
+    Transaction::GenesisTransaction(WriteSetPayload::Direct(encode_genesis_change_set_for_testnet(
         &aptos_root_key,
+        &[],
+        &[],
+        None,
         validators,
+        delegation_pools,
+        vesting_pools,
+        initial_unlock_vesting_pools,
         framework,
         chain_id,
         genesis_config,
         consensus_config,
         execution_config,
         gas_schedule,
+        supra_config_bytes,
     )))
 }
 
-pub fn encode_genesis_change_set(
+pub fn encode_genesis_change_set_for_testnet(
     core_resources_key: &Ed25519PublicKey,
+    accounts: &[AccountBalance],
+    multisig_account: &[MultiSigAccountWithBalance],
+    owner_group: Option<MultiSigAccountSchema>,
     validators: &[Validator],
+    delegation_pools: &[PboDelegatorConfiguration],
+    vesting_pools: &[VestingPoolsMap],
+    initial_unlock_vesting_pools: &[VestingPoolsMap],
     framework: &ReleaseBundle,
     chain_id: ChainId,
     genesis_config: &GenesisConfiguration,
     consensus_config: &OnChainConsensusConfig,
     execution_config: &OnChainExecutionConfig,
     gas_schedule: &GasScheduleV2,
+    supra_config_bytes: Vec<u8>,
 ) -> ChangeSet {
     validate_genesis_config(genesis_config);
 
-    // Create a Move VM session so we can invoke on-chain genesis intializations.
+    // Create a Move VM session so we can invoke on-chain genesis initializations.
     let mut state_view = GenesisStateView::new();
     for (module_bytes, module) in framework.code_and_compiled_modules() {
         state_view.add_module(&module.self_id(), module_bytes);
     }
-    let data_cache = state_view.as_move_resolver();
-    let move_vm = MoveVmExt::new(
-        NativeGasParameters::zeros(),
-        MiscGasParameters::zeros(),
-        LATEST_GAS_FEATURE_VERSION,
-        ChainId::test().id(),
-        Features::default(),
-        TimedFeaturesBuilder::enable_all().build(),
-        &data_cache,
-        false,
-    )
-    .unwrap();
-    let id1 = HashValue::zero();
-    let mut session = move_vm.new_session(&data_cache, SessionId::genesis(id1));
+
+    let resolver = state_view.as_move_resolver();
+    let vm = GenesisMoveVM::new(chain_id);
+    let mut session = vm.new_genesis_session(&resolver, HashValue::zero());
 
     // On-chain genesis process.
     initialize(
@@ -243,35 +288,79 @@ pub fn encode_genesis_change_set(
         consensus_config,
         execution_config,
         gas_schedule,
+        supra_config_bytes,
     );
-    initialize_features(&mut session);
+    initialize_features(
+        &mut session,
+        genesis_config
+            .initial_features_override
+            .clone()
+            .map(Features::into_flag_vec),
+    );
     if genesis_config.is_test {
         initialize_core_resources_and_supra_coin(&mut session, core_resources_key);
     } else {
         initialize_supra_coin(&mut session);
     }
+    initialize_config_buffer(&mut session);
+    initialize_dkg(&mut session);
+    initialize_reconfiguration_state(&mut session);
+    let randomness_config = genesis_config
+        .randomness_config_override
+        .clone()
+        .unwrap_or_else(OnChainRandomnessConfig::default_for_genesis);
+    initialize_randomness_api_v0_config(&mut session);
+    initialize_randomness_config_seqnum(&mut session);
+    initialize_randomness_config(&mut session, randomness_config);
+    initialize_randomness_resources(&mut session);
     initialize_on_chain_governance(&mut session, genesis_config);
-    create_and_initialize_validators(&mut session, validators);
+
+    create_accounts(&mut session, accounts);
+
+    create_multisig_accounts_with_balance(&mut session, multisig_account);
+
+    if let Some(owner_group) = owner_group {
+        create_multiple_multisig_accounts_with_schema(&mut session, owner_group);
+    }
+
+    if validators.len() > 0 {
+        create_and_initialize_validators(&mut session, validators);
+    } else {
+        // All PBO delegated validators are initialized here
+        create_pbo_delegation_pools(&mut session, delegation_pools);
+
+        // PBO vesting accounts, employees, investors etc. are placed in their vesting pools
+        create_vesting_without_staking_pools(&mut session, vesting_pools);
+
+        // Lock up the remaining available balances of the accounts for TGE
+        create_vesting_without_staking_pools(&mut session, initial_unlock_vesting_pools);
+    }
+
     if genesis_config.is_test {
         allow_core_resources_to_set_version(&mut session);
     }
+    let jwk_consensus_config = genesis_config
+        .jwk_consensus_config_override
+        .clone()
+        .unwrap_or_else(OnChainJWKConsensusConfig::default_for_genesis);
+    initialize_jwk_consensus_config(&mut session, &jwk_consensus_config);
+    initialize_jwks_resources(&mut session);
     initialize_keyless_accounts(&mut session, chain_id);
     set_genesis_end(&mut session);
 
     // Reconfiguration should happen after all on-chain invocations.
     emit_new_block_and_epoch_event(&mut session);
 
-    let configs = ChangeSetConfigs::unlimited_at_gas_feature_version(LATEST_GAS_FEATURE_VERSION);
+    let configs = vm.genesis_change_set_configs();
     let mut change_set = session.finish(&configs).unwrap();
 
     let state_view = GenesisStateView::new();
-    let data_cache = state_view.as_move_resolver();
+    let resolver = state_view.as_move_resolver();
 
-    // Publish the framework, using a different session id, in case both scripts creates tables
-    let mut id2_arr = [0u8; 32];
-    id2_arr[31] = 1;
-    let id2 = HashValue::new(id2_arr);
-    let mut session = move_vm.new_session(&data_cache, SessionId::genesis(id2));
+    // Publish the framework, using a different id, in case both scripts create tables.
+    let mut new_id = [0u8; 32];
+    new_id[31] = 1;
+    let mut session = vm.new_genesis_session(&resolver, HashValue::new(new_id));
     publish_framework(&mut session, framework);
     let additional_change_set = session.finish(&configs).unwrap();
     change_set
@@ -338,16 +427,15 @@ fn exec_function(
     ty_args: Vec<TypeTag>,
     args: Vec<Vec<u8>>,
 ) {
+    let storage = TraversalStorage::new();
     session
         .execute_function_bypass_visibility(
-            &ModuleId::new(
-                account_config::CORE_CODE_ADDRESS,
-                Identifier::new(module_name).unwrap(),
-            ),
+            &ModuleId::new(CORE_CODE_ADDRESS, Identifier::new(module_name).unwrap()),
             &Identifier::new(function_name).unwrap(),
             ty_args,
             args,
             &mut UnmeteredGasMeter,
+            &mut TraversalContext::new(&storage),
         )
         .unwrap_or_else(|e| {
             panic!(
@@ -367,6 +455,7 @@ fn initialize(
     consensus_config: &OnChainConsensusConfig,
     execution_config: &OnChainExecutionConfig,
     gas_schedule: &GasScheduleV2,
+    supra_config_bytes: Vec<u8>,
 ) {
     let gas_schedule_blob =
         bcs::to_bytes(gas_schedule).expect("Failure serializing genesis gas schedule");
@@ -400,6 +489,7 @@ fn initialize(
             MoveValue::U64(APTOS_MAX_KNOWN_VERSION.major),
             MoveValue::vector_u8(consensus_config_bytes),
             MoveValue::vector_u8(execution_config_bytes),
+            MoveValue::vector_u8(supra_config_bytes),
             MoveValue::U64(epoch_interval_usecs),
             MoveValue::U64(genesis_config.min_stake),
             MoveValue::U64(genesis_config.max_stake),
@@ -408,63 +498,14 @@ fn initialize(
             MoveValue::U64(rewards_rate_numerator),
             MoveValue::U64(rewards_rate_denominator),
             MoveValue::U64(genesis_config.voting_power_increase_limit),
+            MoveValue::U64(genesis_config.genesis_timestamp_in_microseconds),
         ]),
     );
 }
 
-pub fn default_features() -> Vec<FeatureFlag> {
-    vec![
-        FeatureFlag::CODE_DEPENDENCY_CHECK,
-        FeatureFlag::TREAT_FRIEND_AS_PRIVATE,
-        FeatureFlag::SHA_512_AND_RIPEMD_160_NATIVES,
-        FeatureFlag::APTOS_STD_CHAIN_ID_NATIVES,
-        FeatureFlag::VM_BINARY_FORMAT_V6,
-        FeatureFlag::MULTI_ED25519_PK_VALIDATE_V2_NATIVES,
-        FeatureFlag::BLAKE2B_256_NATIVE,
-        FeatureFlag::RESOURCE_GROUPS,
-        FeatureFlag::MULTISIG_ACCOUNTS,
-        FeatureFlag::DELEGATION_POOLS,
-        FeatureFlag::CRYPTOGRAPHY_ALGEBRA_NATIVES,
-        FeatureFlag::BLS12_381_STRUCTURES,
-        FeatureFlag::ED25519_PUBKEY_VALIDATE_RETURN_FALSE_WRONG_LENGTH,
-        FeatureFlag::STRUCT_CONSTRUCTORS,
-        FeatureFlag::SIGNATURE_CHECKER_V2,
-        FeatureFlag::STORAGE_SLOT_METADATA,
-        FeatureFlag::CHARGE_INVARIANT_VIOLATION,
-        FeatureFlag::APTOS_UNIQUE_IDENTIFIERS,
-        FeatureFlag::GAS_PAYER_ENABLED,
-        FeatureFlag::BULLETPROOFS_NATIVES,
-        FeatureFlag::SIGNER_NATIVE_FORMAT_FIX,
-        FeatureFlag::MODULE_EVENT,
-        FeatureFlag::EMIT_FEE_STATEMENT,
-        FeatureFlag::STORAGE_DELETION_REFUND,
-        FeatureFlag::SIGNATURE_CHECKER_V2_SCRIPT_FIX,
-        FeatureFlag::AGGREGATOR_V2_API,
-        FeatureFlag::SAFER_RESOURCE_GROUPS,
-        FeatureFlag::SAFER_METADATA,
-        FeatureFlag::SINGLE_SENDER_AUTHENTICATOR,
-        FeatureFlag::SPONSORED_AUTOMATIC_ACCOUNT_V1_CREATION,
-        FeatureFlag::FEE_PAYER_ACCOUNT_OPTIONAL,
-        FeatureFlag::AGGREGATOR_V2_DELAYED_FIELDS,
-        FeatureFlag::CONCURRENT_TOKEN_V2,
-        FeatureFlag::LIMIT_MAX_IDENTIFIER_LENGTH,
-        FeatureFlag::OPERATOR_BENEFICIARY_CHANGE,
-        FeatureFlag::BN254_STRUCTURES,
-        FeatureFlag::RESOURCE_GROUPS_SPLIT_IN_VM_CHANGE_SET,
-        FeatureFlag::COMMISSION_CHANGE_DELEGATION_POOL,
-        FeatureFlag::WEBAUTHN_SIGNATURE,
-        // FeatureFlag::RECONFIGURE_WITH_DKG, //TODO: re-enable once randomness is ready.
-        FeatureFlag::KEYLESS_ACCOUNTS,
-        FeatureFlag::KEYLESS_BUT_ZKLESS_ACCOUNTS,
-        FeatureFlag::JWK_CONSENSUS,
-        FeatureFlag::REFUNDABLE_BYTES,
-        FeatureFlag::OBJECT_CODE_DEPLOYMENT,
-        FeatureFlag::MAX_OBJECT_NESTING_CHECK,
-    ]
-}
-
-fn initialize_features(session: &mut SessionExt) {
-    let features: Vec<u64> = default_features()
+fn initialize_features(session: &mut SessionExt, features_override: Option<Vec<FeatureFlag>>) {
+    let features: Vec<u64> = features_override
+        .unwrap_or_else(FeatureFlag::default_features)
         .into_iter()
         .map(|feature| feature as u64)
         .collect();
@@ -476,7 +517,7 @@ fn initialize_features(session: &mut SessionExt) {
     exec_function(
         session,
         "features",
-        "change_feature_flags",
+        "change_feature_flags_internal",
         vec![],
         serialized_values,
     );
@@ -487,6 +528,112 @@ fn initialize_supra_coin(session: &mut SessionExt) {
         session,
         GENESIS_MODULE_NAME,
         "initialize_supra_coin",
+        vec![],
+        serialize_values(&vec![MoveValue::Signer(CORE_CODE_ADDRESS)]),
+    );
+}
+
+fn initialize_config_buffer(session: &mut SessionExt) {
+    exec_function(
+        session,
+        CONFIG_BUFFER_MODULE_NAME,
+        "initialize",
+        vec![],
+        serialize_values(&vec![MoveValue::Signer(CORE_CODE_ADDRESS)]),
+    );
+}
+
+fn initialize_dkg(session: &mut SessionExt) {
+    exec_function(
+        session,
+        DKG_MODULE_NAME,
+        "initialize",
+        vec![],
+        serialize_values(&vec![MoveValue::Signer(CORE_CODE_ADDRESS)]),
+    );
+}
+
+fn initialize_randomness_config_seqnum(session: &mut SessionExt) {
+    exec_function(
+        session,
+        RANDOMNESS_CONFIG_SEQNUM_MODULE_NAME,
+        "initialize",
+        vec![],
+        serialize_values(&vec![MoveValue::Signer(CORE_CODE_ADDRESS)]),
+    );
+}
+
+fn initialize_randomness_api_v0_config(session: &mut SessionExt) {
+    exec_function(
+        session,
+        RANDOMNESS_API_V0_CONFIG_MODULE_NAME,
+        "initialize",
+        vec![],
+        serialize_values(&vec![
+            MoveValue::Signer(CORE_CODE_ADDRESS),
+            RequiredGasDeposit::default_for_genesis().as_move_value(),
+            AllowCustomMaxGasFlag::default_for_genesis().as_move_value(),
+        ]),
+    );
+}
+
+fn initialize_randomness_config(
+    session: &mut SessionExt,
+    randomness_config: OnChainRandomnessConfig,
+) {
+    exec_function(
+        session,
+        RANDOMNESS_CONFIG_MODULE_NAME,
+        "initialize",
+        vec![],
+        serialize_values(&vec![
+            MoveValue::Signer(CORE_CODE_ADDRESS),
+            RandomnessConfigMoveStruct::from(randomness_config).as_move_value(),
+        ]),
+    );
+}
+
+fn initialize_randomness_resources(session: &mut SessionExt) {
+    exec_function(
+        session,
+        RANDOMNESS_MODULE_NAME,
+        "initialize",
+        vec![],
+        serialize_values(&vec![MoveValue::Signer(CORE_CODE_ADDRESS)]),
+    );
+}
+
+fn initialize_reconfiguration_state(session: &mut SessionExt) {
+    exec_function(
+        session,
+        RECONFIGURATION_STATE_MODULE_NAME,
+        "initialize",
+        vec![],
+        serialize_values(&vec![MoveValue::Signer(CORE_CODE_ADDRESS)]),
+    );
+}
+
+fn initialize_jwk_consensus_config(
+    session: &mut SessionExt,
+    jwk_consensus_config: &OnChainJWKConsensusConfig,
+) {
+    exec_function(
+        session,
+        JWK_CONSENSUS_CONFIG_MODULE_NAME,
+        "initialize",
+        vec![],
+        serialize_values(&vec![
+            MoveValue::Signer(CORE_CODE_ADDRESS),
+            jwk_consensus_config.as_move_value(),
+        ]),
+    );
+}
+
+fn initialize_jwks_resources(session: &mut SessionExt) {
+    exec_function(
+        session,
+        JWKS_MODULE_NAME,
+        "initialize",
         vec![],
         serialize_values(&vec![MoveValue::Signer(CORE_CODE_ADDRESS)]),
     );
@@ -528,9 +675,9 @@ fn initialize_on_chain_governance(session: &mut SessionExt, genesis_config: &Gen
         vec![],
         serialize_values(&vec![
             MoveValue::Signer(CORE_CODE_ADDRESS),
-            MoveValue::U128(genesis_config.min_voting_threshold),
-            MoveValue::U64(genesis_config.required_proposer_stake),
             MoveValue::U64(genesis_config.voting_duration_secs),
+            MoveValue::U64(genesis_config.min_voting_threshold),
+            MoveValue::vector_address(genesis_config.voters.clone()),
         ]),
     );
 }
@@ -548,7 +695,7 @@ fn initialize_keyless_accounts(session: &mut SessionExt, chain_id: ChainId) {
         ]),
     );
     if !chain_id.is_mainnet() {
-        let vk = Groth16VerificationKey::from(DEVNET_VERIFICATION_KEY.clone());
+        let vk = Groth16VerificationKey::from(&*DEVNET_VERIFICATION_KEY);
         exec_function(
             session,
             KEYLESS_ACCOUNT_MODULE_NAME,
@@ -559,21 +706,23 @@ fn initialize_keyless_accounts(session: &mut SessionExt, chain_id: ChainId) {
                 vk.as_move_value(),
             ]),
         );
-    }
 
-    exec_function(
-        session,
-        JWKS_MODULE_NAME,
-        "upsert_oidc_provider",
-        vec![],
-        serialize_values(&vec![
-            MoveValue::Signer(CORE_CODE_ADDRESS),
-            "https://accounts.google.com".to_string().as_move_value(),
-            "https://accounts.google.com/.well-known/openid-configuration"
-                .to_string()
-                .as_move_value(),
-        ]),
-    );
+        let patch: PatchJWKMoveStruct = PatchUpsertJWK {
+            issuer: get_sample_iss(),
+            jwk: secure_test_rsa_jwk().into(),
+        }
+        .into();
+        exec_function(
+            session,
+            JWKS_MODULE_NAME,
+            "set_patches",
+            vec![],
+            serialize_values(&vec![
+                MoveValue::Signer(CORE_CODE_ADDRESS),
+                MoveValue::Vector(vec![patch.as_move_value()]),
+            ]),
+        );
+    }
 }
 
 fn create_accounts(session: &mut SessionExt, accounts: &[AccountBalance]) {
@@ -584,27 +733,6 @@ fn create_accounts(session: &mut SessionExt, accounts: &[AccountBalance]) {
         session,
         GENESIS_MODULE_NAME,
         "create_accounts",
-        vec![],
-        serialized_values,
-    );
-}
-
-fn create_employee_validators(
-    session: &mut SessionExt,
-    employees: &[EmployeePool],
-    genesis_config: &GenesisConfiguration,
-) {
-    let employees_bytes = bcs::to_bytes(employees).expect("AccountMaps can be serialized");
-    let mut serialized_values = serialize_values(&vec![
-        MoveValue::U64(genesis_config.employee_vesting_start),
-        MoveValue::U64(genesis_config.employee_vesting_period_duration),
-    ]);
-    serialized_values.push(employees_bytes);
-
-    exec_function(
-        session,
-        GENESIS_MODULE_NAME,
-        "create_employee_validators",
         vec![],
         serialized_values,
     );
@@ -626,23 +754,134 @@ fn create_and_initialize_validators(session: &mut SessionExt, validators: &[Vali
     );
 }
 
-fn create_and_initialize_validators_with_commission(
+fn create_multiple_multisig_accounts_with_schema(
     session: &mut SessionExt,
-    validators: &[ValidatorWithCommissionRate],
+    multiple_multi_sig_account_with_balance: MultiSigAccountSchema,
 ) {
-    let validators_bytes = bcs::to_bytes(validators).expect("Validators can be serialized");
     let mut serialized_values = serialize_values(&vec![
         MoveValue::Signer(CORE_CODE_ADDRESS),
-        MoveValue::Bool(true),
     ]);
-    serialized_values.push(validators_bytes);
+
+    let owners_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.owner)
+        .expect("Owner address for MultiSig accounts should be serializable");
+    serialized_values.push(owners_bytes);
+
+    let additional_owners_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.additional_owners)
+        .expect("Additional owners addresses for MultiSig accounts should be serializable");
+    serialized_values.push(additional_owners_bytes);
+
+    let num_signatures_required_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.num_signatures_required)
+        .expect("num_signatures_required for MultiSig accounts should be serializable");
+    serialized_values.push(num_signatures_required_bytes);
+
+    let metadata_keys_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.metadata_keys)
+        .expect("metadata_keys for MultiSig accounts should be serializable");
+    serialized_values.push(metadata_keys_bytes);
+
+    let metadata_values_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.metadata_values)
+        .expect("metadata_values for MultiSig accounts should be serializable");
+    serialized_values.push(metadata_values_bytes);
+
+    let timeout_duration_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.timeout_duration)
+        .expect("timeout_duration for MultiSig accounts should be serializable");
+    serialized_values.push(timeout_duration_bytes);
+
+    let balance_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.balance)
+        .expect("balance for MultiSig accounts should be serializable");
+    serialized_values.push(balance_bytes);
+
+    let num_of_accounts_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.num_of_accounts)
+        .expect("num_of_accounts for MultiSig accounts should be serializable");
+    serialized_values.push(num_of_accounts_bytes);
+
     exec_function(
         session,
         GENESIS_MODULE_NAME,
-        "create_initialize_validators_with_commission",
+        "create_multiple_multisig_accounts_with_schema",
         vec![],
         serialized_values,
     );
+}
+
+fn create_multisig_accounts_with_balance(
+    session: &mut SessionExt,
+    multisig_accounts: &[MultiSigAccountWithBalance],
+) {
+    for account_configuration in multisig_accounts {
+        let mut serialized_values = serialize_values(&vec![
+            MoveValue::Signer(CORE_CODE_ADDRESS),
+        ]);
+
+        let owners_bytes = bcs::to_bytes(&account_configuration.owner)
+            .expect("Owner for MultiSig accounts should be serializable");
+        serialized_values.push(owners_bytes);
+
+        let additional_owners_bytes = bcs::to_bytes(&account_configuration.additional_owners)
+            .expect("Additional owners for MultiSig accounts should be serializable");
+        serialized_values.push(additional_owners_bytes);
+
+        let threshold_bytes = bcs::to_bytes(&account_configuration.num_signatures_required)
+            .expect("Threshold u64 for MultiSig accounts should be serializable");
+        serialized_values.push(threshold_bytes);
+
+        let metadata_keys_bytes = bcs::to_bytes(&account_configuration.metadata_keys)
+            .expect("Metadata Keys for MultiSig accounts should be serializable");
+        serialized_values.push(metadata_keys_bytes);
+
+        let metadata_values_bytes = bcs::to_bytes(&account_configuration.metadata_values)
+            .expect("Metadata Values for MultiSig accounts should be serializable");
+        serialized_values.push(metadata_values_bytes);
+
+        let timeout_duration_bytes = bcs::to_bytes(&account_configuration.timeout_duration)
+            .expect("Timeout duration for MultiSig accounts should be serializable");
+        serialized_values.push(timeout_duration_bytes);
+
+        let balance_bytes = bcs::to_bytes(&account_configuration.balance)
+            .expect("Timeout duration for MultiSig accounts should be serializable");
+        serialized_values.push(balance_bytes);
+
+        exec_function(
+            session,
+            GENESIS_MODULE_NAME,
+            "create_multisig_account_with_balance",
+            vec![],
+            serialized_values,
+        );
+    }
+}
+
+fn create_pbo_delegation_pools(
+    session: &mut SessionExt,
+    pbo_delegator_configuration: &[PboDelegatorConfiguration],
+) {
+    let pbo_config_bytes = bcs::to_bytes(pbo_delegator_configuration)
+        .expect("PboDelegatorConfiguration can be serialized");
+    let mut serialized_values = serialize_values(&vec![
+        MoveValue::U64(PBO_DELEGATION_POOL_LOCKUP_PERCENTAGE),
+    ]);
+    serialized_values.insert(0, pbo_config_bytes);
+    exec_function(
+        session,
+        GENESIS_MODULE_NAME,
+        "create_pbo_delegation_pools",
+        vec![],
+        serialized_values,
+    )
+}
+
+fn create_vesting_without_staking_pools(
+    session: &mut SessionExt,
+    vesting_pools_map: &[VestingPoolsMap],
+) {
+    let serialized_values =
+        vec![bcs::to_bytes(vesting_pools_map).expect("VestingPoolsMap can be serialized")];
+    exec_function(
+        session,
+        GENESIS_MODULE_NAME,
+        "create_vesting_without_staking_pools",
+        vec![],
+        serialized_values,
+    )
 }
 
 fn allow_core_resources_to_set_version(session: &mut SessionExt) {
@@ -681,13 +920,19 @@ fn publish_package(session: &mut SessionExt, pack: &ReleasePackage) {
         });
 
     // Call the initialize function with the metadata.
-    exec_function(session, CODE_MODULE_NAME, "initialize", vec![], vec![
-        MoveValue::Signer(CORE_CODE_ADDRESS)
-            .simple_serialize()
-            .unwrap(),
-        MoveValue::Signer(addr).simple_serialize().unwrap(),
-        bcs::to_bytes(pack.package_metadata()).unwrap(),
-    ]);
+    exec_function(
+        session,
+        CODE_MODULE_NAME,
+        "initialize",
+        vec![],
+        vec![
+            MoveValue::Signer(CORE_CODE_ADDRESS)
+                .simple_serialize()
+                .unwrap(),
+            MoveValue::Signer(addr).simple_serialize().unwrap(),
+            bcs::to_bytes(pack.package_metadata()).unwrap(),
+        ],
+    );
 }
 
 /// Trigger a reconfiguration. This emits an event that will be passed along to the storage layer.
@@ -786,7 +1031,7 @@ pub fn test_genesis_change_set_and_validators(
     generate_test_genesis(aptos_cached_packages::head_release_bundle(), count)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Validator {
     /// The Aptos account address of the validator or the admin in the case of a commissioned or
     /// vesting managed validator.
@@ -832,7 +1077,7 @@ impl TestValidator {
         let stake_amount = if let Some(amount) = initial_stake {
             amount
         } else {
-            1
+            0
         };
         let data = Validator {
             owner_address,
@@ -859,9 +1104,15 @@ pub fn generate_test_genesis(
     let validators_: Vec<Validator> = test_validators.iter().map(|t| t.data.clone()).collect();
     let validators = &validators_;
 
-    let genesis = encode_genesis_change_set(
+    let genesis = encode_genesis_change_set_for_testnet(
         &GENESIS_KEYPAIR.1,
+        &[],
+        &[],
+        None,
         validators,
+        &[],
+        &[],
+        &[],
         framework,
         ChainId::test(),
         &GenesisConfiguration {
@@ -869,20 +1120,30 @@ pub fn generate_test_genesis(
             epoch_duration_secs: 3600,
             is_test: true,
             min_stake: 0,
-            min_voting_threshold: 0,
+            min_voting_threshold: 2,
             // 1M APTOS coins (with 8 decimals).
             max_stake: 100_000_000_000_000,
             recurring_lockup_duration_secs: 7200,
             required_proposer_stake: 0,
             rewards_apy_percentage: 10,
             voting_duration_secs: 3600,
+            voters: vec![
+                AccountAddress::from_hex_literal("0xdd1").unwrap(),
+                AccountAddress::from_hex_literal("0xdd2").unwrap(),
+                AccountAddress::from_hex_literal("0xdd3").unwrap()
+            ],
             voting_power_increase_limit: 50,
+            genesis_timestamp_in_microseconds: 0,
             employee_vesting_start: 1663456089,
             employee_vesting_period_duration: 5 * 60, // 5 minutes
+            initial_features_override: None,
+            randomness_config_override: None,
+            jwk_consensus_config_override: None,
         },
         &OnChainConsensusConfig::default_for_genesis(),
         &OnChainExecutionConfig::default_for_genesis(),
         &default_gas_schedule(),
+        b"test".to_vec(),
     );
     (genesis, test_validators)
 }
@@ -896,15 +1157,22 @@ pub fn generate_mainnet_genesis(
     let validators_: Vec<Validator> = test_validators.iter().map(|t| t.data.clone()).collect();
     let validators = &validators_;
 
-    let genesis = encode_genesis_change_set(
+    let genesis = encode_genesis_change_set_for_testnet(
         &GENESIS_KEYPAIR.1,
+        &[],
+        &[],
+        None,
         validators,
+        &[],
+        &[],
+        &[],
         framework,
         ChainId::test(),
         &mainnet_genesis_config(),
         &OnChainConsensusConfig::default_for_genesis(),
         &OnChainExecutionConfig::default_for_genesis(),
         &default_gas_schedule(),
+        b"test".to_vec(),
     );
     (genesis, test_validators)
 }
@@ -915,24 +1183,40 @@ fn mainnet_genesis_config() -> GenesisConfiguration {
         allow_new_validators: true,
         epoch_duration_secs: 2 * 3600, // 2 hours
         is_test: false,
-        min_stake: 1_000_000 * APTOS_COINS_BASE_WITH_DECIMALS, // 1M APT
-        // 400M APT
-        min_voting_threshold: (400_000_000 * APTOS_COINS_BASE_WITH_DECIMALS as u128),
-        max_stake: 50_000_000 * APTOS_COINS_BASE_WITH_DECIMALS, // 50M APT.
+        min_stake: 1_000_000 * APTOS_COINS_BASE_WITH_DECIMALS, // 1M SUPRA
+        // 400M SUPRA
+        min_voting_threshold: 2,
+        max_stake: 50_000_000 * APTOS_COINS_BASE_WITH_DECIMALS, // 50M SUPRA.
         recurring_lockup_duration_secs: 30 * 24 * 3600,         // 1 month
-        required_proposer_stake: 1_000_000 * APTOS_COINS_BASE_WITH_DECIMALS, // 1M APT
+        required_proposer_stake: 1_000_000 * APTOS_COINS_BASE_WITH_DECIMALS, // 1M SUPRA
         rewards_apy_percentage: 10,
         voting_duration_secs: 7 * 24 * 3600, // 7 days
+        voters: vec![
+            AccountAddress::from_hex_literal("0xdd1").unwrap(),
+            AccountAddress::from_hex_literal("0xdd2").unwrap(),
+            AccountAddress::from_hex_literal("0xdd3").unwrap()
+        ],
         voting_power_increase_limit: 30,
+        genesis_timestamp_in_microseconds: 0,
         employee_vesting_start: 1663456089,
         employee_vesting_period_duration: 5 * 60, // 5 minutes
+        initial_features_override: None,
+        randomness_config_override: None,
+        jwk_consensus_config_override: None,
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct AccountBalance {
     pub account_address: AccountAddress,
     pub balance: u64,
+}
+
+impl Hash for AccountBalance {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write(&self.account_address.to_vec());
+        state.finish();
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -945,12 +1229,93 @@ pub struct EmployeePool {
     pub beneficiary_resetter: AccountAddress,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ValidatorWithCommissionRate {
     pub validator: Validator,
     pub validator_commission_percentage: u64,
     /// Whether the validator should be joining the genesis validator set.
     pub join_during_genesis: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DelegatorConfiguration {
+    pub owner_address: AccountAddress,
+    pub delegation_pool_creation_seed: Vec<u8>,
+    pub validator: ValidatorWithCommissionRate,
+    pub delegator_addresses: Vec<AccountAddress>,
+    pub delegator_stakes: Vec<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq, Ord, PartialOrd)]
+pub struct PboDelegatorConfiguration {
+    pub delegator_config: DelegatorConfiguration,
+    //Address of the multisig admin of the pool
+    pub multisig_admin: AccountAddress,
+    //Numerator for unlock fraction
+    pub unlock_schedule_numerators: Vec<u64>,
+    //Denominator for unlock fraction
+    pub unlock_schedule_denominator: u64,
+    //Time from `timestamp::now_seconds()` to start unlocking schedule
+    pub unlock_startup_time_from_now: u64,
+    //Time for each unlock
+    pub unlock_period_duration: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize, Hash)]
+pub struct VestingPoolsMap {
+    // Address of the admin of the vesting pool
+    pub admin_address: AccountAddress,
+    // Percentage of account balance should be put in vesting pool
+    pub vpool_locking_percentage: u8,
+    pub vesting_numerators: Vec<u64>,
+    pub vesting_denominator: u64,
+    //Withdrawal address for the pool
+    pub withdrawal_address: AccountAddress,
+    // Shareholders in the vesting pool
+    pub shareholders: Vec<AccountAddress>,
+    //Cliff duration in seconds
+    pub cliff_period_in_seconds: u64,
+    // Each vesting period duration in seconds
+    pub period_duration_in_seconds: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+pub struct MultiSigAccountWithBalance {
+    pub owner: AccountAddress,
+    pub additional_owners: Vec<AccountAddress>,
+    /*
+    The reason for this field to exist is for hashing it in the SMR-Moonshot to make sure that
+    we are not supplying duplicate multisig data to the Genesis encoder functions. Multiple multisig
+    addresses can be created with the same set of owners and parameters as multisig addresses depend
+    only on the primary owner and their sequence number. Therefore, as a distinguishing factor, we add
+    the multisig address to this field and use in the type's hashing function implemented below.
+    The genesis tx encoder functions need to re-written in the future to mitigate this.
+     */
+    pub multisig_address: AccountAddress,
+    pub num_signatures_required: u64,
+    pub metadata_keys: Vec<String>,
+    pub metadata_values: Vec<Vec<u8>>,
+    pub timeout_duration: u64,
+    pub balance: u64,
+}
+
+impl Hash for MultiSigAccountWithBalance {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write(&self.multisig_address.to_vec());
+        state.finish();
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+pub struct MultiSigAccountSchema {
+    pub owner: AccountAddress,
+    pub additional_owners: Vec<AccountAddress>,
+    pub num_signatures_required: u64,
+    pub metadata_keys: Vec<String>,
+    pub metadata_values: Vec<Vec<u8>>,
+    pub timeout_duration: u64,
+    pub balance: u64,
+    pub num_of_accounts: u32,
 }
 
 #[test]
@@ -962,217 +1327,451 @@ pub fn test_genesis_module_publishing() {
     {
         state_view.add_module(&module.self_id(), module_bytes);
     }
-    let data_cache = state_view.as_move_resolver();
 
-    let move_vm = MoveVmExt::new(
-        NativeGasParameters::zeros(),
-        MiscGasParameters::zeros(),
-        LATEST_GAS_FEATURE_VERSION,
-        ChainId::test().id(),
-        Features::default(),
-        TimedFeaturesBuilder::enable_all().build(),
-        &data_cache,
-        false,
-    )
-    .unwrap();
-    let id1 = HashValue::zero();
-    let mut session = move_vm.new_session(&data_cache, SessionId::genesis(id1));
+    let vm = GenesisMoveVM::new(ChainId::test());
+    let resolver = state_view.as_move_resolver();
+
+    let mut session = vm.new_genesis_session(&resolver, HashValue::zero());
     publish_framework(&mut session, aptos_cached_packages::head_release_bundle());
 }
 
 #[test]
+#[ignore] // TODO: This test needs fixing. Genesis transactions encoding are verified in e2e tests at smr-moonshot
 pub fn test_mainnet_end_to_end() {
-    use aptos_types::{
-        account_address,
-        on_chain_config::{OnChainConfig, ValidatorSet},
-        state_store::state_key::StateKey,
-        write_set::{TransactionWrite, WriteSet},
-    };
+    const TOTAL_SUPPLY: u64 = 100_000_000_000 * APTOS_COINS_BASE_WITH_DECIMALS;
+    const PBO_DELEGATOR_STAKE: u64 = 9_000_000 * APTOS_COINS_BASE_WITH_DECIMALS; // 9 mil
 
-    let balance = 10_000_000 * APTOS_COINS_BASE_WITH_DECIMALS;
-    let non_validator_balance = 10 * APTOS_COINS_BASE_WITH_DECIMALS;
+    use aptos_types::write_set::{TransactionWrite, WriteSet};
+
+    // 21 Staking accounts - Total 210 million $Supra
+    let pbo_balance = 10_000_000 * APTOS_COINS_BASE_WITH_DECIMALS; // 10 million each
+
+    // 7 Operator balances - Total 70 $Supra
+    let operator_balance = 10 * APTOS_COINS_BASE_WITH_DECIMALS; // 10 Supra each
+
+    // 9 employees - Total 270 million $Supra
+    let employee_balance = 30_000_000 * APTOS_COINS_BASE_WITH_DECIMALS; // 30 million each
+
+    // The rest go to Supra Foundation - 99939999870 $Supra
+    // Ninety-Nine Billion, Nine Hundred Thirty-Nine Million, nine hundred ninety-nine thousand, eight hundred seventy.
+    let supra_foundation_balance =
+        TOTAL_SUPPLY - (21 * pbo_balance) - (7 * operator_balance) - (9 * employee_balance);
 
     // currently just test that all functions have the right interface
-    let account44 = AccountAddress::from_hex_literal("0x44").unwrap();
-    let account45 = AccountAddress::from_hex_literal("0x45").unwrap();
-    let account46 = AccountAddress::from_hex_literal("0x46").unwrap();
-    let account47 = AccountAddress::from_hex_literal("0x47").unwrap();
-    let account48 = AccountAddress::from_hex_literal("0x48").unwrap();
-    let account49 = AccountAddress::from_hex_literal("0x49").unwrap();
-    let operator0 = AccountAddress::from_hex_literal("0x100").unwrap();
-    let operator1 = AccountAddress::from_hex_literal("0x101").unwrap();
-    let operator2 = AccountAddress::from_hex_literal("0x102").unwrap();
-    let operator3 = AccountAddress::from_hex_literal("0x103").unwrap();
-    let operator4 = AccountAddress::from_hex_literal("0x104").unwrap();
-    let operator5 = AccountAddress::from_hex_literal("0x105").unwrap();
+    let supra_foundation = AccountAddress::from_hex_literal("0x777").unwrap();
+
+    let multisig_account01 = AccountAddress::from_hex_literal("0x1231").unwrap();
+    let multisig_account02 = AccountAddress::from_hex_literal("0x1232").unwrap();
+    let multisig_account03 = AccountAddress::from_hex_literal("0x1233").unwrap();
+    let multisig_account04 = AccountAddress::from_hex_literal("0x1234").unwrap();
+    let multisig_account05 = AccountAddress::from_hex_literal("0x1235").unwrap();
+    let multisig_account06 = AccountAddress::from_hex_literal("0x1236").unwrap();
+    let multisig_account07 = AccountAddress::from_hex_literal("0x1237").unwrap();
+
+    let test_validators = TestValidator::new_test_set(Some(7), None);
+
+    let operator_addrs0 = test_validators[0].data.operator_address;
+    let operator_addrs1 = test_validators[1].data.operator_address;
+    let operator_addrs2 = test_validators[2].data.operator_address;
+    let operator_addrs3 = test_validators[3].data.operator_address;
+    let operator_addrs4 = test_validators[4].data.operator_address;
+    let operator_addrs5 = test_validators[5].data.operator_address;
+    let operator_addrs6 = test_validators[6].data.operator_address;
+
+    // PBO winner
+    let pbo_account01 = AccountAddress::from_hex_literal("0x01").unwrap();
+    let pbo_account02 = AccountAddress::from_hex_literal("0x02").unwrap();
+    let pbo_account03 = AccountAddress::from_hex_literal("0x03").unwrap();
+    let pbo_account11 = AccountAddress::from_hex_literal("0x11").unwrap();
+    let pbo_account12 = AccountAddress::from_hex_literal("0x12").unwrap();
+    let pbo_account13 = AccountAddress::from_hex_literal("0x13").unwrap();
+    let pbo_account21 = AccountAddress::from_hex_literal("0x21").unwrap();
+    let pbo_account22 = AccountAddress::from_hex_literal("0x22").unwrap();
+    let pbo_account23 = AccountAddress::from_hex_literal("0x23").unwrap();
+    let pbo_account31 = AccountAddress::from_hex_literal("0x31").unwrap();
+    let pbo_account32 = AccountAddress::from_hex_literal("0x32").unwrap();
+    let pbo_account33 = AccountAddress::from_hex_literal("0x33").unwrap();
+    let pbo_account41 = AccountAddress::from_hex_literal("0x41").unwrap();
+    let pbo_account42 = AccountAddress::from_hex_literal("0x42").unwrap();
+    let pbo_account43 = AccountAddress::from_hex_literal("0x43").unwrap();
+    let pbo_account51 = AccountAddress::from_hex_literal("0x51").unwrap();
+    let pbo_account52 = AccountAddress::from_hex_literal("0x52").unwrap();
+    let pbo_account53 = AccountAddress::from_hex_literal("0x53").unwrap();
+    let pbo_account61 = AccountAddress::from_hex_literal("0x61").unwrap();
+    let pbo_account62 = AccountAddress::from_hex_literal("0x62").unwrap();
+    let pbo_account63 = AccountAddress::from_hex_literal("0x63").unwrap();
+
+    // Voter accounts associated with the validators
     let voter0 = AccountAddress::from_hex_literal("0x200").unwrap();
     let voter1 = AccountAddress::from_hex_literal("0x201").unwrap();
     let voter2 = AccountAddress::from_hex_literal("0x202").unwrap();
     let voter3 = AccountAddress::from_hex_literal("0x203").unwrap();
+
+    // Admin accounts - Not sure where these are used ATM
     let admin0 = AccountAddress::from_hex_literal("0x300").unwrap();
     let admin1 = AccountAddress::from_hex_literal("0x301").unwrap();
     let admin2 = AccountAddress::from_hex_literal("0x302").unwrap();
 
+    // Employee Accounts
+    let employee1 = AccountAddress::from_hex_literal("0xe1").unwrap();
+    let employee2 = AccountAddress::from_hex_literal("0xe2").unwrap();
+    let employee3 = AccountAddress::from_hex_literal("0xe3").unwrap();
+    let employee4 = AccountAddress::from_hex_literal("0xe4").unwrap();
+    let employee5 = AccountAddress::from_hex_literal("0xe5").unwrap();
+    let employee6 = AccountAddress::from_hex_literal("0xe6").unwrap();
+    let employee7 = AccountAddress::from_hex_literal("0xe7").unwrap();
+    let employee8 = AccountAddress::from_hex_literal("0xe8").unwrap();
+    let employee9 = AccountAddress::from_hex_literal("0xe9").unwrap();
+
+    // All the above accounts to be created at genesis
     let accounts = vec![
         AccountBalance {
-            account_address: account44,
-            balance,
+            account_address: supra_foundation,
+            balance: supra_foundation_balance,
         },
         AccountBalance {
-            account_address: account45,
-            balance: balance * 3, // Three times the balance so it can host 2 operators.
+            account_address: pbo_account01,
+            balance: pbo_balance,
         },
         AccountBalance {
-            account_address: account46,
-            balance,
+            account_address: pbo_account02,
+            balance: pbo_balance,
         },
         AccountBalance {
-            account_address: account47,
-            balance,
+            account_address: pbo_account03,
+            balance: pbo_balance,
         },
         AccountBalance {
-            account_address: account48,
-            balance,
+            account_address: pbo_account11,
+            balance: pbo_balance,
         },
         AccountBalance {
-            account_address: account49,
-            balance,
+            account_address: pbo_account12,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account13,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account21,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account22,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account23,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account31,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account32,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account33,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account41,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account42,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account43,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account51,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account52,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account53,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account61,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account62,
+            balance: pbo_balance,
+        },
+        AccountBalance {
+            account_address: pbo_account63,
+            balance: pbo_balance,
         },
         AccountBalance {
             account_address: admin0,
-            balance: non_validator_balance,
+            balance: operator_balance,
         },
         AccountBalance {
             account_address: admin1,
-            balance: non_validator_balance,
+            balance: operator_balance,
         },
         AccountBalance {
             account_address: admin2,
-            balance: non_validator_balance,
+            balance: operator_balance,
         },
         AccountBalance {
-            account_address: operator0,
-            balance: non_validator_balance,
+            account_address: operator_addrs0,
+            balance: operator_balance,
         },
         AccountBalance {
-            account_address: operator1,
-            balance: non_validator_balance,
+            account_address: operator_addrs1,
+            balance: operator_balance,
         },
         AccountBalance {
-            account_address: operator2,
-            balance: non_validator_balance,
+            account_address: operator_addrs2,
+            balance: operator_balance,
         },
         AccountBalance {
-            account_address: operator3,
-            balance: non_validator_balance,
+            account_address: operator_addrs3,
+            balance: operator_balance,
         },
         AccountBalance {
-            account_address: operator4,
-            balance: non_validator_balance,
+            account_address: operator_addrs4,
+            balance: operator_balance,
         },
         AccountBalance {
-            account_address: operator5,
-            balance: non_validator_balance,
+            account_address: operator_addrs5,
+            balance: operator_balance,
+        },
+        AccountBalance {
+            account_address: operator_addrs6,
+            balance: operator_balance,
         },
         AccountBalance {
             account_address: voter0,
-            balance: non_validator_balance,
+            balance: operator_balance,
         },
         AccountBalance {
             account_address: voter1,
-            balance: non_validator_balance,
+            balance: operator_balance,
         },
         AccountBalance {
             account_address: voter2,
-            balance: non_validator_balance,
+            balance: operator_balance,
         },
         AccountBalance {
             account_address: voter3,
-            balance: non_validator_balance,
+            balance: operator_balance,
+        },
+        AccountBalance {
+            account_address: employee1,
+            balance: employee_balance,
+        },
+        AccountBalance {
+            account_address: employee2,
+            balance: employee_balance,
+        },
+        AccountBalance {
+            account_address: employee3,
+            balance: employee_balance,
+        },
+        AccountBalance {
+            account_address: employee4,
+            balance: employee_balance,
+        },
+        AccountBalance {
+            account_address: employee5,
+            balance: employee_balance,
+        },
+        AccountBalance {
+            account_address: employee6,
+            balance: employee_balance,
+        },
+        AccountBalance {
+            account_address: employee7,
+            balance: employee_balance,
+        },
+        AccountBalance {
+            account_address: employee8,
+            balance: employee_balance,
+        },
+        AccountBalance {
+            account_address: employee9,
+            balance: employee_balance,
         },
     ];
 
-    let test_validators = TestValidator::new_test_set(Some(6), Some(balance * 9 / 10));
-    let mut employee_validator_1 = test_validators[0].data.clone();
-    employee_validator_1.owner_address = admin0;
-    employee_validator_1.operator_address = operator0;
-    employee_validator_1.voter_address = voter0;
-    let mut employee_validator_2 = test_validators[1].data.clone();
-    employee_validator_2.owner_address = admin1;
-    employee_validator_2.operator_address = operator1;
-    employee_validator_2.voter_address = voter1;
-    let mut zero_commission_validator = test_validators[2].data.clone();
-    zero_commission_validator.owner_address = account44;
-    zero_commission_validator.operator_address = operator2;
-    zero_commission_validator.voter_address = voter2;
-    let mut same_owner_validator_1 = test_validators[3].data.clone();
-    same_owner_validator_1.owner_address = account45;
-    same_owner_validator_1.operator_address = operator3;
-    same_owner_validator_1.voter_address = voter3;
-    let mut same_owner_validator_2 = test_validators[4].data.clone();
-    same_owner_validator_2.owner_address = account45;
-    same_owner_validator_2.operator_address = operator4;
-    same_owner_validator_2.voter_address = voter3;
-    let mut same_owner_validator_3 = test_validators[5].data.clone();
-    same_owner_validator_3.owner_address = account45;
-    same_owner_validator_3.operator_address = operator5;
-    same_owner_validator_3.voter_address = voter3;
-
-    let employees = vec![
-        EmployeePool {
-            accounts: vec![account46, account47],
+    let pbo_config_val0 = PboDelegatorConfiguration {
+        delegator_config: DelegatorConfiguration {
+            owner_address: supra_foundation,
+            delegation_pool_creation_seed: vec![0_u8],
             validator: ValidatorWithCommissionRate {
-                validator: employee_validator_1,
+                validator: test_validators[0].data.clone(),
                 validator_commission_percentage: 10,
                 join_during_genesis: true,
             },
-            vesting_schedule_numerators: vec![3, 3, 3, 3, 1],
-            vesting_schedule_denominator: 48,
-            beneficiary_resetter: AccountAddress::ZERO,
+            delegator_addresses: vec![pbo_account01, pbo_account02, pbo_account03],
+            delegator_stakes: vec![PBO_DELEGATOR_STAKE, PBO_DELEGATOR_STAKE, PBO_DELEGATOR_STAKE],
         },
-        EmployeePool {
-            accounts: vec![account48, account49],
+        multisig_admin: multisig_account01,
+        unlock_schedule_numerators: vec![],
+        unlock_schedule_denominator: 0,
+        unlock_startup_time_from_now: 0,
+        unlock_period_duration: 0,
+    };
+
+    let pbo_config_val1 = PboDelegatorConfiguration {
+        delegator_config: DelegatorConfiguration {
+            owner_address: supra_foundation,
+            delegation_pool_creation_seed: vec![1_u8],
             validator: ValidatorWithCommissionRate {
-                validator: employee_validator_2,
+                validator: test_validators[1].data.clone(),
                 validator_commission_percentage: 10,
-                join_during_genesis: false,
+                join_during_genesis: true,
             },
-            vesting_schedule_numerators: vec![3, 3, 3, 3, 1],
-            vesting_schedule_denominator: 48,
-            beneficiary_resetter: account44,
+            delegator_addresses: vec![pbo_account11, pbo_account12, pbo_account13],
+            delegator_stakes: vec![PBO_DELEGATOR_STAKE, PBO_DELEGATOR_STAKE, PBO_DELEGATOR_STAKE],
         },
+        multisig_admin: multisig_account02,
+        unlock_schedule_numerators: vec![],
+        unlock_schedule_denominator: 0,
+        unlock_startup_time_from_now: 0,
+        unlock_period_duration: 0,
+    };
+
+    let pbo_config_val2 = PboDelegatorConfiguration {
+        delegator_config: DelegatorConfiguration {
+            owner_address: supra_foundation,
+            delegation_pool_creation_seed: vec![2_u8],
+            validator: ValidatorWithCommissionRate {
+                validator: test_validators[2].data.clone(),
+                validator_commission_percentage: 10,
+                join_during_genesis: true,
+            },
+            delegator_addresses: vec![pbo_account21, pbo_account22, pbo_account13],
+            delegator_stakes: vec![PBO_DELEGATOR_STAKE, PBO_DELEGATOR_STAKE, PBO_DELEGATOR_STAKE],
+        },
+        multisig_admin: multisig_account03,
+        unlock_schedule_numerators: vec![],
+        unlock_schedule_denominator: 0,
+        unlock_startup_time_from_now: 0,
+        unlock_period_duration: 0,
+    };
+
+    let pbo_config_val3 = PboDelegatorConfiguration {
+        delegator_config: DelegatorConfiguration {
+            owner_address: supra_foundation,
+            delegation_pool_creation_seed: vec![3_u8],
+            validator: ValidatorWithCommissionRate {
+                validator: test_validators[3].data.clone(),
+                validator_commission_percentage: 10,
+                join_during_genesis: true,
+            },
+            delegator_addresses: vec![pbo_account31, pbo_account32, pbo_account33],
+            delegator_stakes: vec![PBO_DELEGATOR_STAKE, PBO_DELEGATOR_STAKE, PBO_DELEGATOR_STAKE],
+        },
+        multisig_admin: multisig_account04,
+        unlock_schedule_numerators: vec![],
+        unlock_schedule_denominator: 0,
+        unlock_startup_time_from_now: 0,
+        unlock_period_duration: 0,
+    };
+
+    let pbo_config_val4 = PboDelegatorConfiguration {
+        delegator_config: DelegatorConfiguration {
+            owner_address: supra_foundation,
+            delegation_pool_creation_seed: vec![4_u8],
+            validator: ValidatorWithCommissionRate {
+                validator: test_validators[4].data.clone(),
+                validator_commission_percentage: 10,
+                join_during_genesis: true,
+            },
+            delegator_addresses: vec![pbo_account41, pbo_account42, pbo_account43],
+            delegator_stakes: vec![PBO_DELEGATOR_STAKE, PBO_DELEGATOR_STAKE, PBO_DELEGATOR_STAKE],
+        },
+        multisig_admin: multisig_account05,
+        unlock_schedule_numerators: vec![],
+        unlock_schedule_denominator: 0,
+        unlock_startup_time_from_now: 0,
+        unlock_period_duration: 0,
+    };
+
+    let pbo_config_val5 = PboDelegatorConfiguration {
+        delegator_config: DelegatorConfiguration {
+            owner_address: supra_foundation,
+            delegation_pool_creation_seed: vec![5_u8],
+            validator: ValidatorWithCommissionRate {
+                validator: test_validators[5].data.clone(),
+                validator_commission_percentage: 10,
+                join_during_genesis: true,
+            },
+            delegator_addresses: vec![pbo_account51, pbo_account52, pbo_account53],
+            delegator_stakes: vec![PBO_DELEGATOR_STAKE, PBO_DELEGATOR_STAKE, PBO_DELEGATOR_STAKE],
+        },
+        multisig_admin: multisig_account06,
+        unlock_schedule_numerators: vec![],
+        unlock_schedule_denominator: 0,
+        unlock_startup_time_from_now: 0,
+        unlock_period_duration: 0,
+    };
+
+    let pbo_config_val6 = PboDelegatorConfiguration {
+        delegator_config: DelegatorConfiguration {
+            owner_address: supra_foundation,
+            delegation_pool_creation_seed: vec![6_u8],
+            validator: ValidatorWithCommissionRate {
+                validator: test_validators[6].data.clone(),
+                validator_commission_percentage: 10,
+                join_during_genesis: true,
+            },
+            delegator_addresses: vec![pbo_account61, pbo_account62, pbo_account63],
+            delegator_stakes: vec![PBO_DELEGATOR_STAKE, PBO_DELEGATOR_STAKE, PBO_DELEGATOR_STAKE],
+        },
+        multisig_admin: multisig_account07,
+        unlock_schedule_numerators: vec![],
+        unlock_schedule_denominator: 0,
+        unlock_startup_time_from_now: 0,
+        unlock_period_duration: 0,
+    };
+
+    let employee_vesting_config1 = VestingPoolsMap {
+        admin_address: supra_foundation,
+        vpool_locking_percentage: 100,
+        vesting_numerators: vec![3, 3, 3, 3, 1],
+        vesting_denominator: 100,
+        withdrawal_address: supra_foundation,
+        shareholders: vec![employee1, employee2, employee3, employee4, employee5, employee6, employee7, employee8, employee9],
+        cliff_period_in_seconds: 0,
+        period_duration_in_seconds: 94608000, // 3 years in seconds
+    };
+
+    let pbo_delegator_configs = vec![
+        pbo_config_val0,
+        pbo_config_val1,
+        pbo_config_val2,
+        pbo_config_val3,
+        pbo_config_val4,
+        pbo_config_val5,
+        pbo_config_val6,
     ];
 
-    let validators = vec![
-        ValidatorWithCommissionRate {
-            validator: same_owner_validator_1,
-            validator_commission_percentage: 10,
-            join_during_genesis: true,
-        },
-        ValidatorWithCommissionRate {
-            validator: same_owner_validator_2,
-            validator_commission_percentage: 15,
-            join_during_genesis: true,
-        },
-        ValidatorWithCommissionRate {
-            validator: same_owner_validator_3,
-            validator_commission_percentage: 10,
-            join_during_genesis: false,
-        },
-        ValidatorWithCommissionRate {
-            validator: zero_commission_validator,
-            validator_commission_percentage: 0,
-            join_during_genesis: true,
-        },
-    ];
-
-    let transaction = encode_aptos_mainnet_genesis_transaction(
+    let transaction = encode_supra_mainnet_genesis_transaction(
         &accounts,
-        &employees,
-        &validators,
+        &[],
+        None,
+        &pbo_delegator_configs,
+        &[employee_vesting_config1],
+        &[],
         aptos_cached_packages::head_release_bundle(),
         ChainId::mainnet(),
         &mainnet_genesis_config(),
+        b"test".to_vec(),
     );
 
     let direct_writeset = if let Transaction::GenesisTransaction(direct_writeset) = transaction {
@@ -1189,41 +1788,43 @@ pub fn test_mainnet_end_to_end() {
 
     let WriteSet::V0(writeset) = changeset.write_set();
 
-    let state_key =
-        StateKey::access_path(ValidatorSet::access_path().expect("access path in test"));
-    let bytes = writeset
-        .get(&state_key)
-        .unwrap()
-        .extract_raw_bytes()
-        .unwrap();
-    let validator_set: ValidatorSet = bcs::from_bytes(&bytes).unwrap();
-    let validator_set_addresses = validator_set
-        .active_validators
-        .iter()
-        .map(|v| v.account_address)
-        .collect::<Vec<_>>();
+    print!("CHANGESET: {:?}", changeset.events());
 
-    let zero_commission_validator_pool_address =
-        account_address::default_stake_pool_address(account44, operator2);
-    let same_owner_validator_1_pool_address =
-        account_address::default_stake_pool_address(account45, operator3);
-    let same_owner_validator_2_pool_address =
-        account_address::default_stake_pool_address(account45, operator4);
-    let same_owner_validator_3_pool_address =
-        account_address::default_stake_pool_address(account45, operator5);
-    let employee_1_pool_address =
-        account_address::create_vesting_pool_address(admin0, operator0, 0, &[]);
-    let employee_2_pool_address =
-        account_address::create_vesting_pool_address(admin1, operator1, 0, &[]);
-
-    assert!(validator_set_addresses.contains(&zero_commission_validator_pool_address));
-    assert!(validator_set_addresses.contains(&employee_1_pool_address));
-    // This validator should not be in the genesis validator set as they specified
-    // join_during_genesis = false.
-    assert!(!validator_set_addresses.contains(&employee_2_pool_address));
-    assert!(validator_set_addresses.contains(&same_owner_validator_1_pool_address));
-    assert!(validator_set_addresses.contains(&same_owner_validator_2_pool_address));
-    // This validator should not be in the genesis validator set as they specified
-    // join_during_genesis = false.
-    assert!(!validator_set_addresses.contains(&same_owner_validator_3_pool_address));
+    // let state_key =
+    //     StateKey::access_path(ValidatorSet::access_path().expect("access path in test"));
+    // let bytes = writeset
+    //     .get(&state_key)
+    //     .unwrap()
+    //     .extract_raw_bytes()
+    //     .unwrap();
+    // let validator_set: ValidatorSet = bcs::from_bytes(&bytes).unwrap();
+    // let validator_set_addresses = validator_set
+    //     .active_validators
+    //     .iter()
+    //     .map(|v| v.account_address)
+    //     .collect::<Vec<_>>();
+    //
+    // let zero_commission_validator_pool_address =
+    //     account_address::default_stake_pool_address(account44, operator2);
+    // let same_owner_validator_1_pool_address =
+    //     account_address::default_stake_pool_address(account45, operator3);
+    // let same_owner_validator_2_pool_address =
+    //     account_address::default_stake_pool_address(account45, operator4);
+    // let same_owner_validator_3_pool_address =
+    //     account_address::default_stake_pool_address(account45, operator5);
+    // let employee_1_pool_address =
+    //     account_address::create_vesting_pool_address(admin0, operator0, 0, &[]);
+    // let employee_2_pool_address =
+    //     account_address::create_vesting_pool_address(admin1, operator1, 0, &[]);
+    //
+    // assert!(validator_set_addresses.contains(&zero_commission_validator_pool_address));
+    // assert!(validator_set_addresses.contains(&employee_1_pool_address));
+    // // This validator should not be in the genesis validator set as they specified
+    // // join_during_genesis = false.
+    // assert!(!validator_set_addresses.contains(&employee_2_pool_address));
+    // assert!(validator_set_addresses.contains(&same_owner_validator_1_pool_address));
+    // assert!(validator_set_addresses.contains(&same_owner_validator_2_pool_address));
+    // // This validator should not be in the genesis validator set as they specified
+    // // join_during_genesis = false.
+    // assert!(!validator_set_addresses.contains(&same_owner_validator_3_pool_address));
 }

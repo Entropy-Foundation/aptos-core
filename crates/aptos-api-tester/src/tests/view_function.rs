@@ -1,4 +1,5 @@
 // Copyright © Aptos Foundation
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::{
     consts::FUND_AMOUNT,
@@ -111,7 +112,7 @@ async fn check_view_account_balance(
         .view(
             &ViewRequest {
                 function: "0x1::coin::balance".parse()?,
-                type_arguments: vec!["0x1::aptos_coin::AptosCoin".parse()?],
+                type_arguments: vec!["0x1::supra_coin::SupraCoin".parse()?],
                 arguments: vec![serde_json::Value::String(address.to_hex_literal())],
             },
             None,

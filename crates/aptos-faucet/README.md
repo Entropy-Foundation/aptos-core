@@ -1,6 +1,6 @@
-# Aptos Faucet
+# Supra Faucet
 
-The Aptos Faucet is a service that runs alongside a test network and mints coins for users to test and develop on Aptos.
+The Supra Faucet is a service that runs alongside a test network and mints coins for users to test and develop on Supra.
 
 ## Subdirectories
 This is a brief overview of the subdirectories to help you find what you seek. For more information on each of these subdirectories, see the README in that subdirectory.
@@ -34,7 +34,7 @@ To run the faucet, the simplest way to start is with this command:
 cargo run -p aptos-faucet-service -- run-simple --key <private_key> --node-url <api_url> --chain-id TESTING
 ```
 
-Another example, running alongside a local testnet (without `--use-faucet`):
+Another example, running alongside a localnet (without `--use-faucet`):
 ```
 cargo run -p aptos -- node run-local-testnet --force-restart --assume-yes
 cargo run -p aptos-faucet-service -- run-simple --key ~/.aptos/testnet/mint.key --node-url http://127.0.0.1:8080 --chain-id TESTING
@@ -56,7 +56,7 @@ cd aptos-move/move-examples/scripts/minter
 aptos move compile
 ```
 
-If you have issues with this, try deleting `~/.move`, updating your Aptos CLI, and changing the AptosFramework version.
+If you have issues with this, try deleting `~/.move`, updating your Supra CLI, and changing the AptosFramework version.
 
 Then build the faucet as normal (from the root of the repo):
 ```

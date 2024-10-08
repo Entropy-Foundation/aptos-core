@@ -1,17 +1,10 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-mod aptos_debug_natives;
-pub mod coverage;
-mod disassembler;
-mod manifest;
-pub mod package_hooks;
-mod show;
-pub mod stored_package;
-
 use crate::{
     account::derive_resource_account::ResourceAccountSeed,
     common::{
+        local_simulation,
         types::{
             load_account_arg, ArgWithTypeJSON, CliConfig, CliError, CliTypedResult,
             ConfigSearchMode, EntryFunctionArguments, EntryFunctionArgumentsJSON,
@@ -26,8 +19,8 @@ use crate::{
     },
     governance::CompileScriptFunction,
     move_tool::{
+        bytecode::{Decompile, Disassemble},
         coverage::SummaryCoverage,
-        disassembler::Disassemble,
         manifest::{Dependency, ManifestNamedAddress, MovePackageManifest, PackageInfo},
     },
     CliCommand, CliResult,
@@ -38,22 +31,28 @@ use aptos_framework::{
     BuildOptions, BuiltPackage,
 };
 use aptos_gas_schedule::{MiscGasParameters, NativeGasParameters};
-use aptos_rest_client::aptos_api_types::{
-    EntryFunctionId, HexEncodedBytes, IdentifierWrapper, MoveModuleId,
+use aptos_move_debugger::aptos_debugger::AptosDebugger;
+use aptos_rest_client::{
+    aptos_api_types::{EntryFunctionId, HexEncodedBytes, IdentifierWrapper, MoveModuleId},
+    Client,
 };
 use aptos_types::{
     account_address::{create_resource_address, AccountAddress},
     object_address::create_object_code_deployment_address,
-    transaction::{TransactionArgument, TransactionPayload},
+    on_chain_config::aptos_test_feature_flags_genesis,
+    transaction::{Transaction, TransactionArgument, TransactionPayload, TransactionStatus},
 };
+use aptos_vm::data_cache::AsMoveResolver;
 use async_trait::async_trait;
 use clap::{Parser, Subcommand, ValueEnum};
 use itertools::Itertools;
 use move_cli::{self, base::test::UnitTestResult};
 use move_command_line_common::env::MOVE_HOME;
 use move_core_types::{identifier::Identifier, language_storage::ModuleId, u256::U256};
+use move_model::metadata::{CompilerVersion, LanguageVersion};
 use move_package::{
-    source_package::layout::SourcePackageLayout, BuildConfig, CompilerConfig, CompilerVersion,
+    source_package::{layout::SourcePackageLayout, std_lib::StdVersion},
+    BuildConfig, CompilerConfig,
 };
 use move_unit_test::UnitTestingConfig;
 pub use package_hooks::*;
@@ -67,6 +66,16 @@ use std::{
 };
 pub use stored_package::*;
 use tokio::task;
+use supra_aptos::{SupraCommand, SupraCommandArguments};
+use url::Url;
+
+mod aptos_debug_natives;
+mod bytecode;
+pub mod coverage;
+mod manifest;
+pub mod package_hooks;
+mod show;
+pub mod stored_package;
 
 /// Tool for Move related operations
 ///
@@ -85,6 +94,7 @@ pub enum MoveTool {
     UpgradeObjectPackage(UpgradeObjectPackage),
     CreateResourceAccountAndPublishPackage(CreateResourceAccountAndPublishPackage),
     Disassemble(Disassemble),
+    Decompile(Decompile),
     Document(DocumentPackage),
     Download(DownloadPackage),
     Init(InitPackage),
@@ -98,6 +108,7 @@ pub enum MoveTool {
     Test(TestPackage),
     VerifyPackage(VerifyPackage),
     View(ViewFunction),
+    Replay(Replay),
 }
 
 impl MoveTool {
@@ -116,6 +127,7 @@ impl MoveTool {
                 tool.execute_serialized_success().await
             },
             MoveTool::Disassemble(tool) => tool.execute_serialized().await,
+            MoveTool::Decompile(tool) => tool.execute_serialized().await,
             MoveTool::Document(tool) => tool.execute_serialized().await,
             MoveTool::Download(tool) => tool.execute_serialized().await,
             MoveTool::Init(tool) => tool.execute_serialized_success().await,
@@ -128,6 +140,7 @@ impl MoveTool {
             MoveTool::Test(tool) => tool.execute_serialized().await,
             MoveTool::VerifyPackage(tool) => tool.execute_serialized().await,
             MoveTool::View(tool) => tool.execute_serialized().await,
+            MoveTool::Replay(tool) => tool.execute_serialized().await,
         }
     }
 }
@@ -163,10 +176,10 @@ impl FrameworkPackageArgs {
         addresses: BTreeMap<String, ManifestNamedAddress>,
         prompt_options: PromptOptions,
     ) -> CliTypedResult<()> {
-        const APTOS_FRAMEWORK: &str = "AptosFramework";
-        const APTOS_GIT_PATH: &str = "https://github.com/aptos-labs/aptos-core.git";
-        const SUBDIR_PATH: &str = "aptos-move/framework/aptos-framework";
-        const DEFAULT_BRANCH: &str = "mainnet";
+        const SUPRA_FRAMEWORK: &str = "SupraFramework";
+        const SUPRA_FRAMEWORK_GIT_PATH: &str = "https://github.com/Entropy-Foundation/aptos-core.git";
+        const SUBDIR_PATH: &str = "aptos-move/framework/supra-framework";
+        const DEFAULT_BRANCH: &str = "dev";
 
         let move_toml = package_dir.join(SourcePackageLayout::Manifest.path());
         check_if_file_exists(move_toml.as_path(), prompt_options)?;
@@ -189,7 +202,7 @@ impl FrameworkPackageArgs {
         // Add the framework dependency if it's provided
         let mut dependencies = BTreeMap::new();
         if let Some(ref path) = self.framework_local_dir {
-            dependencies.insert(APTOS_FRAMEWORK.to_string(), Dependency {
+            dependencies.insert(SUPRA_FRAMEWORK.to_string(), Dependency {
                 local: Some(path.display().to_string()),
                 git: None,
                 rev: None,
@@ -199,9 +212,9 @@ impl FrameworkPackageArgs {
             });
         } else {
             let git_rev = self.framework_git_rev.as_deref().unwrap_or(DEFAULT_BRANCH);
-            dependencies.insert(APTOS_FRAMEWORK.to_string(), Dependency {
+            dependencies.insert(SUPRA_FRAMEWORK.to_string(), Dependency {
                 local: None,
-                git: Some(APTOS_GIT_PATH.to_string()),
+                git: Some(SUPRA_FRAMEWORK_GIT_PATH.to_string()),
                 rev: Some(git_rev.to_string()),
                 subdir: Some(SUBDIR_PATH.to_string()),
                 aptos: None,
@@ -253,7 +266,11 @@ pub struct InitPackage {
     /// Example: alice=0x1234,bob=0x5678,greg=_
     ///
     /// Note: This will fail if there are duplicates in the Move.toml file remove those first.
-    #[clap(long, value_parser = crate::common::utils::parse_map::<String, MoveManifestAccountWrapper>, default_value = "")]
+    #[clap(
+        long,
+        value_parser = crate::common::utils::parse_map::<String, MoveManifestAccountWrapper>,
+        default_value = ""
+    )]
     pub(crate) named_addresses: BTreeMap<String, MoveManifestAccountWrapper>,
 
     #[clap(flatten)]
@@ -318,8 +335,10 @@ impl CliCommand<Vec<String>> for CompilePackage {
                     self.move_options.dev,
                     self.move_options.skip_fetch_latest_git_deps,
                     self.move_options.named_addresses(),
+                    self.move_options.override_std.clone(),
                     self.move_options.bytecode_version,
                     self.move_options.compiler_version,
+                    self.move_options.language_version,
                     self.move_options.skip_attribute_checks,
                     self.move_options.check_test_code,
                 )
@@ -380,8 +399,10 @@ impl CompileScript {
                 self.move_options.dev,
                 self.move_options.skip_fetch_latest_git_deps,
                 self.move_options.named_addresses(),
+                self.move_options.override_std.clone(),
                 self.move_options.bytecode_version,
                 self.move_options.compiler_version,
+                self.move_options.language_version,
                 self.move_options.skip_attribute_checks,
                 self.move_options.check_test_code,
             )
@@ -489,6 +510,7 @@ impl CliCommand<&'static str> for TestPackage {
                 NativeGasParameters::zeros(),
                 MiscGasParameters::zeros(),
             ),
+            aptos_test_feature_flags_genesis(),
             None,
             self.compute_coverage,
             &mut std::io::stdout(),
@@ -548,6 +570,8 @@ impl CliCommand<&'static str> for ProvePackage {
                 move_options.get_package_path()?.as_path(),
                 move_options.named_addresses(),
                 move_options.bytecode_version,
+                move_options.compiler_version,
+                move_options.language_version,
                 move_options.skip_attribute_checks,
                 extended_checks::get_all_attribute_names(),
             )
@@ -593,10 +617,12 @@ impl CliCommand<&'static str> for DocumentPackage {
             with_docs: true,
             install_dir: None,
             named_addresses: move_options.named_addresses(),
+            override_std: move_options.override_std.clone(),
             docgen_options: Some(docgen_options),
             skip_fetch_latest_git_deps: move_options.skip_fetch_latest_git_deps,
             bytecode_version: move_options.bytecode_version,
             compiler_version: move_options.compiler_version,
+            language_version: move_options.language_version,
             skip_attribute_checks: move_options.skip_attribute_checks,
             check_test_code: move_options.check_test_code,
             known_attributes: extended_checks::get_all_attribute_names().clone(),
@@ -663,8 +689,10 @@ impl TryInto<PackagePublicationData> for &PublishPackage {
                 self.move_options.dev,
                 self.move_options.skip_fetch_latest_git_deps,
                 self.move_options.named_addresses(),
+                self.move_options.override_std.clone(),
                 self.move_options.bytecode_version,
                 self.move_options.compiler_version,
+                self.move_options.language_version,
                 self.move_options.skip_attribute_checks,
                 self.move_options.check_test_code,
             );
@@ -679,7 +707,7 @@ impl TryInto<PackagePublicationData> for &PublishPackage {
         );
         let size = bcs::serialized_size(&payload)?;
         println!("package size {} bytes", size);
-        if !self.override_size_check_option.value && size > MAX_PUBLISH_PACKAGE_SIZE {
+        if !self.override_size_check_option.override_size_check && size > MAX_PUBLISH_PACKAGE_SIZE {
             return Err(CliError::UnexpectedError(format!(
                 "The package is larger than {} bytes ({} bytes)! To lower the size \
                 you may want to include fewer artifacts via `--included-artifacts`. \
@@ -733,8 +761,10 @@ impl IncludedArtifacts {
         dev: bool,
         skip_fetch_latest_git_deps: bool,
         named_addresses: BTreeMap<String, AccountAddress>,
+        override_std: Option<StdVersion>,
         bytecode_version: Option<u32>,
         compiler_version: Option<CompilerVersion>,
+        language_version: Option<LanguageVersion>,
         skip_attribute_checks: bool,
         check_test_code: bool,
     ) -> BuildOptions {
@@ -748,9 +778,11 @@ impl IncludedArtifacts {
                 // Always enable error map bytecode injection
                 with_error_map: true,
                 named_addresses,
+                override_std,
                 skip_fetch_latest_git_deps,
                 bytecode_version,
                 compiler_version,
+                language_version,
                 skip_attribute_checks,
                 check_test_code,
                 known_attributes: extended_checks::get_all_attribute_names().clone(),
@@ -763,9 +795,11 @@ impl IncludedArtifacts {
                 with_source_maps: false,
                 with_error_map: true,
                 named_addresses,
+                override_std,
                 skip_fetch_latest_git_deps,
                 bytecode_version,
                 compiler_version,
+                language_version,
                 skip_attribute_checks,
                 check_test_code,
                 known_attributes: extended_checks::get_all_attribute_names().clone(),
@@ -778,9 +812,11 @@ impl IncludedArtifacts {
                 with_source_maps: true,
                 with_error_map: true,
                 named_addresses,
+                override_std,
                 skip_fetch_latest_git_deps,
                 bytecode_version,
                 compiler_version,
+                language_version,
                 skip_attribute_checks,
                 check_test_code,
                 known_attributes: extended_checks::get_all_attribute_names().clone(),
@@ -801,6 +837,20 @@ impl CliCommand<TransactionSummary> for PublishPackage {
     async fn execute(self) -> CliTypedResult<TransactionSummary> {
         let package_publication_data: PackagePublicationData = (&self).try_into()?;
         profile_or_submit(package_publication_data.payload, &self.txn_options).await
+    }
+}
+
+#[async_trait]
+impl SupraCommand for PublishPackage {
+    async fn supra_command_arguments(self) -> anyhow::Result<SupraCommandArguments> {
+        let package_publication_data: PackagePublicationData = (&self).try_into()?;
+        Ok(SupraCommandArguments {
+            payload: package_publication_data.payload,
+            sender_account: self.txn_options.sender_account,
+            profile_options: supra_aptos::ProfileOptions::from(self.txn_options.profile_options),
+            rest_options: supra_aptos::RestOptions::from(self.txn_options.rest_options),
+            gas_options: supra_aptos::GasOptions::from(self.txn_options.gas_options),
+        })
     }
 }
 
@@ -899,8 +949,10 @@ impl CliCommand<TransactionSummary> for CreateObjectAndPublishPackage {
                 self.move_options.dev,
                 self.move_options.skip_fetch_latest_git_deps,
                 self.move_options.named_addresses(),
+                self.move_options.override_std.clone(),
                 self.move_options.bytecode_version,
                 self.move_options.compiler_version,
+                self.move_options.language_version,
                 self.move_options.skip_attribute_checks,
                 self.move_options.check_test_code,
             );
@@ -919,7 +971,7 @@ impl CliCommand<TransactionSummary> for CreateObjectAndPublishPackage {
         let size = bcs::serialized_size(&payload)?;
         println!("package size {} bytes", size);
 
-        if !self.override_size_check_option.value && size > MAX_PUBLISH_PACKAGE_SIZE {
+        if !self.override_size_check_option.override_size_check && size > MAX_PUBLISH_PACKAGE_SIZE {
             return Err(CliError::UnexpectedError(format!(
                 "The package is larger than {} bytes ({} bytes)! To lower the size \
                 you may want to include less artifacts via `--included-artifacts`. \
@@ -975,8 +1027,10 @@ impl CliCommand<TransactionSummary> for UpgradeObjectPackage {
                 self.move_options.dev,
                 self.move_options.skip_fetch_latest_git_deps,
                 self.move_options.named_addresses(),
+                self.move_options.override_std.clone(),
                 self.move_options.bytecode_version,
                 self.move_options.compiler_version,
+                self.move_options.language_version,
                 self.move_options.skip_attribute_checks,
                 self.move_options.check_test_code,
             );
@@ -987,7 +1041,7 @@ impl CliCommand<TransactionSummary> for UpgradeObjectPackage {
             .url(&self.txn_options.profile_options)?;
 
         // Get the `PackageRegistry` at the given object address.
-        let registry = CachedPackageRegistry::create(url, self.object_address).await?;
+        let registry = CachedPackageRegistry::create(url, self.object_address, false).await?;
         let package = registry
             .get_package(built_package.name())
             .await
@@ -1015,7 +1069,7 @@ impl CliCommand<TransactionSummary> for UpgradeObjectPackage {
         let size = bcs::serialized_size(&payload)?;
         println!("package size {} bytes", size);
 
-        if !self.override_size_check_option.value && size > MAX_PUBLISH_PACKAGE_SIZE {
+        if !self.override_size_check_option.override_size_check && size > MAX_PUBLISH_PACKAGE_SIZE {
             return Err(CliError::UnexpectedError(format!(
                 "The package is larger than {} bytes ({} bytes)! To lower the size \
                 you may want to include less artifacts via `--included-artifacts`. \
@@ -1099,8 +1153,10 @@ impl CliCommand<TransactionSummary> for CreateResourceAccountAndPublishPackage {
             move_options.dev,
             move_options.skip_fetch_latest_git_deps,
             move_options.named_addresses(),
+            move_options.override_std,
             move_options.bytecode_version,
             move_options.compiler_version,
+            move_options.language_version,
             move_options.skip_attribute_checks,
             move_options.check_test_code,
         );
@@ -1123,7 +1179,7 @@ impl CliCommand<TransactionSummary> for CreateResourceAccountAndPublishPackage {
         );
         let size = bcs::serialized_size(&payload)?;
         println!("package size {} bytes", size);
-        if !override_size_check_option.value && size > MAX_PUBLISH_PACKAGE_SIZE {
+        if !override_size_check_option.override_size_check && size > MAX_PUBLISH_PACKAGE_SIZE {
             return Err(CliError::UnexpectedError(format!(
                 "The package is larger than {} bytes ({} bytes)! To lower the size \
                 you may want to include less artifacts via `--included-artifacts`. \
@@ -1156,6 +1212,10 @@ pub struct DownloadPackage {
     #[clap(long, value_parser)]
     pub output_dir: Option<PathBuf>,
 
+    /// Whether to download the bytecode of the package.
+    #[clap(long, short)]
+    pub bytecode: bool,
+
     #[clap(flatten)]
     pub(crate) rest_options: RestOptions,
     #[clap(flatten)]
@@ -1173,7 +1233,7 @@ impl CliCommand<&'static str> for DownloadPackage {
 
     async fn execute(self) -> CliTypedResult<&'static str> {
         let url = self.rest_options.url(&self.profile_options)?;
-        let registry = CachedPackageRegistry::create(url, self.account).await?;
+        let registry = CachedPackageRegistry::create(url, self.account, self.bytecode).await?;
         let output_dir = dir_default_to_current(self.output_dir)?;
 
         let package = registry
@@ -1194,6 +1254,13 @@ impl CliCommand<&'static str> for DownloadPackage {
         package
             .save_package_to_disk(package_path.as_path())
             .map_err(|e| CliError::UnexpectedError(format!("Failed to save package: {}", e)))?;
+        if self.bytecode {
+            for module in package.module_names() {
+                if let Some(bytecode) = registry.get_bytecode(module).await? {
+                    package.save_bytecode_to_disk(package_path.as_path(), module, bytecode)?
+                }
+            }
+        };
         println!(
             "Saved package with {} module(s) to `{}`",
             package.module_names().len(),
@@ -1239,8 +1306,10 @@ impl CliCommand<&'static str> for VerifyPackage {
                 self.move_options.dev,
                 self.move_options.skip_fetch_latest_git_deps,
                 self.move_options.named_addresses(),
+                self.move_options.override_std.clone(),
                 self.move_options.bytecode_version,
                 self.move_options.compiler_version,
+                self.move_options.language_version,
                 self.move_options.skip_attribute_checks,
                 self.move_options.check_test_code,
             )
@@ -1251,7 +1320,7 @@ impl CliCommand<&'static str> for VerifyPackage {
 
         // Now pull the compiled package
         let url = self.rest_options.url(&self.profile_options)?;
-        let registry = CachedPackageRegistry::create(url, self.account).await?;
+        let registry = CachedPackageRegistry::create(url, self.account, false).await?;
         let package = registry
             .get_package(pack.name())
             .await
@@ -1324,7 +1393,7 @@ impl CliCommand<&'static str> for ListPackage {
 
     async fn execute(self) -> CliTypedResult<&'static str> {
         let url = self.rest_options.url(&self.profile_options)?;
-        let registry = CachedPackageRegistry::create(url, self.account).await?;
+        let registry = CachedPackageRegistry::create(url, self.account, false).await?;
         match self.query {
             MoveListQuery::Packages => {
                 for name in registry.package_names() {
@@ -1407,6 +1476,19 @@ impl CliCommand<TransactionSummary> for RunFunction {
     }
 }
 
+#[async_trait]
+impl SupraCommand for RunFunction {
+    async fn supra_command_arguments(self) -> anyhow::Result<SupraCommandArguments> {
+        Ok(SupraCommandArguments {
+            payload: TransactionPayload::EntryFunction(self.entry_function_args.try_into()?),
+            sender_account: self.txn_options.sender_account,
+            profile_options: supra_aptos::ProfileOptions::from(self.txn_options.profile_options),
+            rest_options: supra_aptos::RestOptions::from(self.txn_options.rest_options),
+            gas_options: supra_aptos::GasOptions::from(self.txn_options.gas_options),
+        })
+    }
+}
+
 /// Run a view function
 #[derive(Parser)]
 pub struct ViewFunction {
@@ -1456,6 +1538,183 @@ impl CliCommand<TransactionSummary> for RunScript {
             &self.txn_options,
         )
         .await
+    }
+}
+
+#[async_trait]
+impl SupraCommand for RunScript {
+    async fn supra_command_arguments(self) -> anyhow::Result<SupraCommandArguments> {
+        let (bytecode, _script_hash) = self
+            .compile_proposal_args
+            .compile("RunScript", self.txn_options.prompt_options)?;
+        Ok(SupraCommandArguments {
+            payload: self.script_function_args.create_script_payload(bytecode)?,
+            sender_account: self.txn_options.sender_account,
+            profile_options: supra_aptos::ProfileOptions::from(self.txn_options.profile_options),
+            rest_options: supra_aptos::RestOptions::from(self.txn_options.rest_options),
+            gas_options: supra_aptos::GasOptions::from(self.txn_options.gas_options),
+        })
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum ReplayNetworkSelection {
+    Mainnet,
+    Testnet,
+    Devnet,
+    RestEndpoint(String),
+}
+
+/// Replay a comitted transaction using a local VM.
+#[derive(Parser, Debug)]
+pub struct Replay {
+    /// The network to replay on.
+    ///
+    /// Possible values:
+    ///     mainnet, testnet, <REST_ENDPOINT_URL>
+    #[clap(long)]
+    pub(crate) network: ReplayNetworkSelection,
+
+    /// The id of the transaction to replay. Also being referred to as "version" in some contexts.
+    #[clap(long)]
+    pub(crate) txn_id: u64,
+
+    /// If this option is set, benchmark the transaction and report the running time(s).
+    #[clap(long)]
+    pub(crate) benchmark: bool,
+
+    /// If this option is set, profile the transaction and generate a detailed report of its gas usage.
+    #[clap(long)]
+    pub(crate) profile_gas: bool,
+
+    /// If present, skip the comparison against the expected transaction output.
+    #[clap(long)]
+    pub(crate) skip_comparison: bool,
+}
+
+impl FromStr for ReplayNetworkSelection {
+    type Err = CliError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "mainnet" => Self::Mainnet,
+            "testnet" => Self::Testnet,
+            "devnet" => Self::Devnet,
+            _ => Self::RestEndpoint(s.to_owned()),
+        })
+    }
+}
+
+#[async_trait]
+impl CliCommand<TransactionSummary> for Replay {
+    fn command_name(&self) -> &'static str {
+        "Replay"
+    }
+
+    async fn execute(self) -> CliTypedResult<TransactionSummary> {
+        use ReplayNetworkSelection::*;
+
+        if self.profile_gas && self.benchmark {
+            return Err(CliError::UnexpectedError(
+                "Cannot perform benchmarking and gas profiling at the same time.".to_string(),
+            ));
+        }
+
+        let rest_endpoint = match &self.network {
+            Mainnet => "https://fullnode.mainnet.aptoslabs.com",
+            Testnet => "https://fullnode.testnet.aptoslabs.com",
+            Devnet => "https://fullnode.devnet.aptoslabs.com",
+            RestEndpoint(url) => url,
+        };
+
+        let debugger = AptosDebugger::rest_client(Client::new(
+            Url::parse(rest_endpoint)
+                .map_err(|_err| CliError::UnableToParse("url", rest_endpoint.to_string()))?,
+        ))?;
+
+        // Fetch the transaction to replay.
+        let (txn, txn_info) = debugger
+            .get_committed_transaction_at_version(self.txn_id)
+            .await?;
+
+        let txn = match txn {
+            Transaction::UserTransaction(txn) => txn,
+            _ => {
+                return Err(CliError::UnexpectedError(
+                    "Unsupported transaction type. Only user transactions are supported."
+                        .to_string(),
+                ))
+            },
+        };
+
+        let hash = txn.committed_hash();
+
+        // Execute the transaction.
+        let (vm_status, vm_output) = if self.profile_gas {
+            println!("Profiling transaction...");
+            local_simulation::profile_transaction_using_debugger(
+                &debugger,
+                self.txn_id,
+                txn.clone(),
+                hash,
+            )?
+        } else if self.benchmark {
+            println!("Benchmarking transaction...");
+            local_simulation::benchmark_transaction_using_debugger(
+                &debugger,
+                self.txn_id,
+                txn.clone(),
+                hash,
+            )?
+        } else {
+            println!("Replaying transaction...");
+            local_simulation::run_transaction_using_debugger(
+                &debugger,
+                self.txn_id,
+                txn.clone(),
+                hash,
+            )?
+        };
+
+        // Materialize into transaction output and check if the outputs match.
+        let state_view = debugger.state_view_at_version(self.txn_id);
+        let resolver = state_view.as_move_resolver();
+
+        let txn_output = vm_output
+            .try_materialize_into_transaction_output(&resolver)
+            .map_err(|err| {
+                CliError::UnexpectedError(format!(
+                    "Failed to materialize into transaction output: {}",
+                    err
+                ))
+            })?;
+
+        if !self.skip_comparison {
+            txn_output
+                .ensure_match_transaction_info(self.txn_id, &txn_info, None, None)
+                .map_err(|msg| CliError::UnexpectedError(msg.to_string()))?;
+        }
+
+        // Generate the transaction summary.
+        let success = match txn_output.status() {
+            TransactionStatus::Keep(exec_status) => Some(exec_status.is_success()),
+            TransactionStatus::Discard(_) | TransactionStatus::Retry => None,
+        };
+
+        let summary = TransactionSummary {
+            transaction_hash: txn.committed_hash().into(),
+            gas_used: Some(txn_output.gas_used()),
+            gas_unit_price: Some(txn.gas_unit_price()),
+            pending: None,
+            sender: Some(txn.sender()),
+            sequence_number: Some(txn.sequence_number()),
+            success,
+            timestamp_us: None,
+            version: Some(self.txn_id),
+            vm_status: Some(vm_status.to_string()),
+        };
+
+        Ok(summary)
     }
 }
 
@@ -1637,20 +1896,21 @@ impl FromStr for FunctionArgType {
             "u128" => Ok(FunctionArgType::U128),
             "u256" => Ok(FunctionArgType::U256),
             "raw" => Ok(FunctionArgType::Raw),
-            str => {Err(CliError::CommandArgumentError(format!(
-                "Invalid arg type '{}'.  Must be one of: ['{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}']",
-                str,
-                FunctionArgType::Address,
-                FunctionArgType::Bool,
-                FunctionArgType::Hex,
-                FunctionArgType::String,
-                FunctionArgType::U8,
-                FunctionArgType::U16,
-                FunctionArgType::U32,
-                FunctionArgType::U64,
-                FunctionArgType::U128,
-                FunctionArgType::U256,
-                FunctionArgType::Raw)))
+            str => {
+                Err(CliError::CommandArgumentError(format!(
+                    "Invalid arg type '{}'.  Must be one of: ['{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}']",
+                    str,
+                    FunctionArgType::Address,
+                    FunctionArgType::Bool,
+                    FunctionArgType::Hex,
+                    FunctionArgType::String,
+                    FunctionArgType::U8,
+                    FunctionArgType::U16,
+                    FunctionArgType::U32,
+                    FunctionArgType::U64,
+                    FunctionArgType::U128,
+                    FunctionArgType::U256,
+                    FunctionArgType::Raw)))
             }
         }
     }

@@ -147,89 +147,23 @@ pub enum EntryFunctionCall {
         cap_update_table: Vec<u8>,
     },
 
-    /// Batch version of APT transfer.
-    AptosAccountBatchTransfer {
-        recipients: Vec<AccountAddress>,
-        amounts: Vec<u64>,
-    },
-
-    /// Batch version of transfer_coins.
-    AptosAccountBatchTransferCoins {
-        coin_type: TypeTag,
-        recipients: Vec<AccountAddress>,
-        amounts: Vec<u64>,
-    },
-
-    /// Basic account creation methods.
-    AptosAccountCreateAccount {
-        auth_key: AccountAddress,
-    },
-
-    /// Set whether `account` can receive direct transfers of coins that they have not explicitly registered to receive.
-    AptosAccountSetAllowDirectCoinTransfers {
-        allow: bool,
-    },
-
-    /// Convenient function to transfer APT to a recipient account that might not exist.
-    /// This would create the recipient account first, which also registers it to receive APT, before transferring.
-    AptosAccountTransfer {
-        to: AccountAddress,
-        amount: u64,
-    },
-
-    /// Convenient function to transfer a custom CoinType to a recipient account that might not exist.
-    /// This would create the recipient account first and register it to receive the CoinType, before transferring.
-    AptosAccountTransferCoins {
-        coin_type: TypeTag,
-        to: AccountAddress,
-        amount: u64,
-    },
-
-    AptosGovernanceAddApprovedScriptHashScript {
-        proposal_id: u64,
-    },
-
-    /// Create a single-step proposal with the backing `stake_pool`.
-    /// @param execution_hash Required. This is the hash of the resolution script. When the proposal is resolved,
-    /// only the exact script with matching hash can be successfully executed.
-    AptosGovernanceCreateProposal {
-        stake_pool: AccountAddress,
-        execution_hash: Vec<u8>,
-        metadata_location: Vec<u8>,
-        metadata_hash: Vec<u8>,
-    },
-
-    /// Create a single-step or multi-step proposal with the backing `stake_pool`.
-    /// @param execution_hash Required. This is the hash of the resolution script. When the proposal is resolved,
-    /// only the exact script with matching hash can be successfully executed.
-    AptosGovernanceCreateProposalV2 {
-        stake_pool: AccountAddress,
-        execution_hash: Vec<u8>,
-        metadata_location: Vec<u8>,
-        metadata_hash: Vec<u8>,
-        is_multi_step_proposal: bool,
-    },
-
-    /// Vote on proposal with `proposal_id` and specified voting power from `stake_pool`.
-    AptosGovernancePartialVote {
-        stake_pool: AccountAddress,
-        proposal_id: u64,
-        voting_power: u64,
-        should_pass: bool,
-    },
-
-    /// Vote on proposal with `proposal_id` and all voting power from `stake_pool`.
-    AptosGovernanceVote {
-        stake_pool: AccountAddress,
-        proposal_id: u64,
-        should_pass: bool,
-    },
-
     /// Same as `publish_package` but as an entry function which can be called as a transaction. Because
     /// of current restrictions for txn parameters, the metadata needs to be passed in serialized form.
     CodePublishPackageTxn {
         metadata_serialized: Vec<u8>,
         code: Vec<Vec<u8>>,
+    },
+
+    CoinCreateCoinConversionMap {},
+
+    /// Create SUPRA pairing by passing `SupraCoin`.
+    CoinCreatePairing {
+        coin_type: TypeTag,
+    },
+
+    /// Voluntarily migrate to fungible store for `CoinType` if not yet.
+    CoinMigrateToFungibleStore {
+        coin_type: TypeTag,
     },
 
     /// Transfers `amount` of coins `CoinType` from `from` to `to`.
@@ -325,112 +259,13 @@ pub enum EntryFunctionCall {
         rpc_port: Vec<u16>,
     },
 
-    /// Add `amount` of coins to the delegation pool `pool_address`.
-    DelegationPoolAddStake {
-        pool_address: AccountAddress,
-        amount: u64,
-    },
-
-    /// A voter could create a governance proposal by this function. To successfully create a proposal, the voter's
-    /// voting power in THIS delegation pool must be not less than the minimum required voting power specified in
-    /// `aptos_governance.move`.
-    DelegationPoolCreateProposal {
-        pool_address: AccountAddress,
-        execution_hash: Vec<u8>,
-        metadata_location: Vec<u8>,
-        metadata_hash: Vec<u8>,
-        is_multi_step_proposal: bool,
-    },
-
-    /// Allows a delegator to delegate its voting power to a voter. If this delegator already has a delegated voter,
-    /// this change won't take effects until the next lockup period.
-    DelegationPoolDelegateVotingPower {
-        pool_address: AccountAddress,
-        new_voter: AccountAddress,
-    },
-
-    /// Enable partial governance voting on a stake pool. The voter of this stake pool will be managed by this module.
-    /// THe existing voter will be replaced. The function is permissionless.
-    DelegationPoolEnablePartialGovernanceVoting {
-        pool_address: AccountAddress,
-    },
-
-    /// Initialize a delegation pool of custom fixed `operator_commission_percentage`.
-    /// A resource account is created from `owner` signer and its supplied `delegation_pool_creation_seed`
-    /// to host the delegation pool resource and own the underlying stake pool.
-    /// Ownership over setting the operator/voter is granted to `owner` who has both roles initially.
-    DelegationPoolInitializeDelegationPool {
-        operator_commission_percentage: u64,
-        delegation_pool_creation_seed: Vec<u8>,
-    },
-
-    /// Move `amount` of coins from pending_inactive to active.
-    DelegationPoolReactivateStake {
-        pool_address: AccountAddress,
-        amount: u64,
-    },
-
-    /// Allows an operator to change its beneficiary. Any existing unpaid commission rewards will be paid to the new
-    /// beneficiary. To ensures payment to the current beneficiary, one should first call `synchronize_delegation_pool`
-    /// before switching the beneficiary. An operator can set one beneficiary for delegation pools, not a separate
-    /// one for each pool.
-    DelegationPoolSetBeneficiaryForOperator {
-        new_beneficiary: AccountAddress,
-    },
-
-    /// Allows an owner to change the delegated voter of the underlying stake pool.
-    DelegationPoolSetDelegatedVoter {
-        new_voter: AccountAddress,
-    },
-
-    /// Allows an owner to change the operator of the underlying stake pool.
-    DelegationPoolSetOperator {
-        new_operator: AccountAddress,
-    },
-
-    /// Synchronize delegation and stake pools: distribute yet-undetected rewards to the corresponding internal
-    /// shares pools, assign commission to operator and eventually prepare delegation pool for a new lockup cycle.
-    DelegationPoolSynchronizeDelegationPool {
-        pool_address: AccountAddress,
-    },
-
-    /// Unlock `amount` from the active + pending_active stake of `delegator` or
-    /// at most how much active stake there is on the stake pool.
-    DelegationPoolUnlock {
-        pool_address: AccountAddress,
-        amount: u64,
-    },
-
-    /// Allows an owner to update the commission percentage for the operator of the underlying stake pool.
-    DelegationPoolUpdateCommissionPercentage {
-        new_commission_percentage: u64,
-    },
-
-    /// Vote on a proposal with a voter's voting power. To successfully vote, the following conditions must be met:
-    /// 1. The voting period of the proposal hasn't ended.
-    /// 2. The delegation pool's lockup period ends after the voting period of the proposal.
-    /// 3. The voter still has spare voting power on this proposal.
-    /// 4. The delegation pool never votes on the proposal before enabling partial governance voting.
-    DelegationPoolVote {
-        pool_address: AccountAddress,
-        proposal_id: u64,
-        voting_power: u64,
-        should_pass: bool,
-    },
-
-    /// Withdraw `amount` of owned inactive stake from the delegation pool at `pool_address`.
-    DelegationPoolWithdraw {
-        pool_address: AccountAddress,
-        amount: u64,
-    },
-
     /// Withdraw an `amount` of coin `CoinType` from `account` and burn it.
     ManagedCoinBurn {
         coin_type: TypeTag,
         amount: u64,
     },
 
-    /// Initialize new coin `CoinType` in Aptos Blockchain.
+    /// Initialize new coin `CoinType` in Supra Blockchain.
     /// Mint and Burn Capabilities will be stored under `account` in `Capabilities` resource.
     ManagedCoinInitialize {
         coin_type: TypeTag,
@@ -485,6 +320,7 @@ pub enum EntryFunctionCall {
         num_signatures_required: u64,
         metadata_keys: Vec<Vec<u8>>,
         metadata_values: Vec<Vec<u8>>,
+        timeout_duration: u64,
     },
 
     /// Create a multisig transaction, which will have one approval initially (from the creator).
@@ -519,6 +355,7 @@ pub enum EntryFunctionCall {
         create_multisig_account_signed_message: Vec<u8>,
         metadata_keys: Vec<Vec<u8>>,
         metadata_values: Vec<Vec<u8>>,
+        timeout_duration: u64,
     },
 
     /// Creates a new multisig account on top of an existing account and immediately rotate the origin auth key to 0x0.
@@ -535,6 +372,7 @@ pub enum EntryFunctionCall {
         create_multisig_account_signed_message: Vec<u8>,
         metadata_keys: Vec<Vec<u8>>,
         metadata_values: Vec<Vec<u8>>,
+        timeout_duration: u64,
     },
 
     /// Creates a new multisig account with the specified additional owner list and signatures required.
@@ -548,6 +386,7 @@ pub enum EntryFunctionCall {
         num_signatures_required: u64,
         metadata_keys: Vec<Vec<u8>>,
         metadata_values: Vec<Vec<u8>>,
+        timeout_duration: u64,
     },
 
     /// Like `create_with_owners`, but removes the calling account after creation.
@@ -559,11 +398,18 @@ pub enum EntryFunctionCall {
         num_signatures_required: u64,
         metadata_keys: Vec<Vec<u8>>,
         metadata_values: Vec<Vec<u8>>,
+        timeout_duration: u64,
     },
 
     /// Remove the next transaction if it has sufficient owner rejections.
     MultisigAccountExecuteRejectedTransaction {
         multisig_account: AccountAddress,
+    },
+
+    /// Remove the next transactions until the final_sequence_number if they have sufficient owner rejections.
+    MultisigAccountExecuteRejectedTransactions {
+        multisig_account: AccountAddress,
+        final_sequence_number: u64,
     },
 
     /// Reject a multisig transaction.
@@ -629,7 +475,29 @@ pub enum EntryFunctionCall {
         new_num_signatures_required: u64,
     },
 
+    /// Update the timeout duration for the multisig account.
+    MultisigAccountUpdateTimeoutDuration {
+        timeout_duration: u64,
+    },
+
     /// Generic function that can be used to either approve or reject a multisig transaction
+    MultisigAccountVoteTransaction {
+        multisig_account: AccountAddress,
+        sequence_number: u64,
+        approved: bool,
+    },
+
+    /// Generic function that can be used to either approve or reject a batch of transactions within a specified range.
+    MultisigAccountVoteTransactions {
+        multisig_account: AccountAddress,
+        starting_sequence_number: u64,
+        final_sequence_number: u64,
+        approved: bool,
+    },
+
+    /// Generic function that can be used to either approve or reject a multisig transaction
+    /// Retained for backward compatibility: the function with the typographical error in its name
+    /// will continue to be an accessible entry point.
     MultisigAccountVoteTransanction {
         multisig_account: AccountAddress,
         sequence_number: u64,
@@ -651,15 +519,10 @@ pub enum EntryFunctionCall {
         code: Vec<Vec<u8>>,
     },
 
-    /// A voter could create a governance proposal by this function. To successfully create a proposal, the voter's
-    /// voting power in THIS delegation pool must be not less than the minimum required voting power specified in
-    /// `aptos_governance.move`.
-    PboDelegationPoolCreateProposal {
+    /// Add `amount` of coins to the delegation pool `pool_address`.
+    PboDelegationPoolAddStake {
         pool_address: AccountAddress,
-        execution_hash: Vec<u8>,
-        metadata_location: Vec<u8>,
-        metadata_hash: Vec<u8>,
-        is_multi_step_proposal: bool,
+        amount: u64,
     },
 
     /// Allows a delegator to delegate its voting power to a voter. If this delegator already has a delegated voter,
@@ -679,6 +542,16 @@ pub enum EntryFunctionCall {
     PboDelegationPoolReactivateStake {
         pool_address: AccountAddress,
         amount: u64,
+    },
+
+    /// CAUTION: This is to be used only in the rare circumstances where multisig_admin is convinced that a delegator was the
+    /// rightful owner of `old_delegator` but has lost access and the delegator is also the rightful
+    /// owner of `new_delegator` , Only for those stakeholders which were added at the time of creation
+    /// This does not apply to anyone who added stake later or operator
+    PboDelegationPoolReplaceDelegator {
+        pool_address: AccountAddress,
+        old_delegator: AccountAddress,
+        new_delegator: AccountAddress,
     },
 
     /// Allows an operator to change its beneficiary. Any existing unpaid commission rewards will be paid to the new
@@ -715,18 +588,6 @@ pub enum EntryFunctionCall {
     /// Allows an owner to update the commission percentage for the operator of the underlying stake pool.
     PboDelegationPoolUpdateCommissionPercentage {
         new_commission_percentage: u64,
-    },
-
-    /// Vote on a proposal with a voter's voting power. To successfully vote, the following conditions must be met:
-    /// 1. The voting period of the proposal hasn't ended.
-    /// 2. The delegation pool's lockup period ends after the voting period of the proposal.
-    /// 3. The voter still has spare voting power on this proposal.
-    /// 4. The delegation pool never votes on the proposal before enabling partial governance voting.
-    PboDelegationPoolVote {
-        pool_address: AccountAddress,
-        proposal_id: u64,
-        voting_power: u64,
-        should_pass: bool,
     },
 
     /// Withdraw `amount` of owned inactive stake from the delegation pool at `pool_address`.
@@ -959,6 +820,44 @@ pub enum EntryFunctionCall {
         new_voter: AccountAddress,
     },
 
+    /// Batch version of SUPRA transfer.
+    SupraAccountBatchTransfer {
+        recipients: Vec<AccountAddress>,
+        amounts: Vec<u64>,
+    },
+
+    /// Batch version of transfer_coins.
+    SupraAccountBatchTransferCoins {
+        coin_type: TypeTag,
+        recipients: Vec<AccountAddress>,
+        amounts: Vec<u64>,
+    },
+
+    /// Basic account creation methods.
+    SupraAccountCreateAccount {
+        auth_key: AccountAddress,
+    },
+
+    /// Set whether `account` can receive direct transfers of coins that they have not explicitly registered to receive.
+    SupraAccountSetAllowDirectCoinTransfers {
+        allow: bool,
+    },
+
+    /// Convenient function to transfer SUPRA to a recipient account that might not exist.
+    /// This would create the recipient account first, which also registers it to receive SUPRA, before transferring.
+    SupraAccountTransfer {
+        to: AccountAddress,
+        amount: u64,
+    },
+
+    /// Convenient function to transfer a custom CoinType to a recipient account that might not exist.
+    /// This would create the recipient account first and register it to receive the CoinType, before transferring.
+    SupraAccountTransferCoins {
+        coin_type: TypeTag,
+        to: AccountAddress,
+        amount: u64,
+    },
+
     /// Only callable in tests and testnets where the core resources account exists.
     /// Claim the delegated mint capability and destroy the delegated token.
     SupraCoinClaimMintCapability {},
@@ -976,8 +875,73 @@ pub enum EntryFunctionCall {
         amount: u64,
     },
 
-    /// Updates the major version to a larger version.
-    /// This can be called by on chain governance.
+    SupraGovernanceAddSupraApprovedScriptHashScript {
+        proposal_id: u64,
+    },
+
+    /// Change epoch immediately.
+    /// If `RECONFIGURE_WITH_DKG` is enabled and we are in the middle of a DKG,
+    /// stop waiting for DKG and enter the new epoch without randomness.
+    ///
+    /// WARNING: currently only used by tests. In most cases you should use `reconfigure()` instead.
+    /// TODO: migrate these tests to be aware of async reconfiguration.
+    SupraGovernanceForceEndEpoch {},
+
+    /// `force_end_epoch()` equivalent but only called in testnet,
+    /// where the core resources account exists and has been granted power to mint Supra coins.
+    SupraGovernanceForceEndEpochTestOnly {},
+
+    /// Manually reconfigure. Called at the end of a governance txn that alters on-chain configs.
+    ///
+    /// WARNING: this function always ensures a reconfiguration starts, but when the reconfiguration finishes depends.
+    /// - If feature `RECONFIGURE_WITH_DKG` is disabled, it finishes immediately.
+    ///   - At the end of the calling transaction, we will be in a new epoch.
+    /// - If feature `RECONFIGURE_WITH_DKG` is enabled, it starts DKG, and the new epoch will start in a block prologue after DKG finishes.
+    ///
+    /// This behavior affects when an update of an on-chain config (e.g. `ConsensusConfig`, `Features`) takes effect,
+    /// since such updates are applied whenever we enter an new epoch.
+    SupraGovernanceReconfigure {},
+
+    /// Create a single-step proposal with the backing `stake_pool`.
+    /// @param execution_hash Required. This is the hash of the resolution script. When the proposal is resolved,
+    /// only the exact script with matching hash can be successfully executed.
+    SupraGovernanceSupraCreateProposal {
+        execution_hash: Vec<u8>,
+        metadata_location: Vec<u8>,
+        metadata_hash: Vec<u8>,
+    },
+
+    /// Create a single-step or multi-step proposal with the backing `stake_pool`.
+    /// @param execution_hash Required. This is the hash of the resolution script. When the proposal is resolved,
+    /// only the exact script with matching hash can be successfully executed.
+    SupraGovernanceSupraCreateProposalV2 {
+        execution_hash: Vec<u8>,
+        metadata_location: Vec<u8>,
+        metadata_hash: Vec<u8>,
+        is_multi_step_proposal: bool,
+    },
+
+    /// Vote on proposal with `proposal_id` and all voting power from `stake_pool`.
+    SupraGovernanceSupraVote {
+        proposal_id: u64,
+        should_pass: bool,
+    },
+
+    TransactionFeeConvertToAptosFaBurnRef {},
+
+    /// Used in on-chain governances to update the major version for the next epoch.
+    /// Example usage:
+    /// - `supra_framework::version::set_for_next_epoch(&framework_signer, new_version);`
+    /// - `supra_framework::supra_governance::reconfigure(&framework_signer);`
+    VersionSetForNextEpoch {
+        major: u64,
+    },
+
+    /// Deprecated by `set_for_next_epoch()`.
+    ///
+    /// WARNING: calling this while randomness is enabled will trigger a new epoch without randomness!
+    ///
+    /// TODO: update all the tests that reference this function, then disable this function.
     VersionSetVersion {
         major: u64,
     },
@@ -1123,6 +1087,11 @@ pub enum EntryFunctionCall {
     VestingWithoutStakingVest {
         contract_address: AccountAddress,
     },
+
+    VestingWithoutStakingVestIndividual {
+        contract_address: AccountAddress,
+        shareholder_address: AccountAddress,
+    },
 }
 
 impl EntryFunctionCall {
@@ -1189,67 +1158,13 @@ impl EntryFunctionCall {
                 new_public_key_bytes,
                 cap_update_table,
             ),
-            AptosAccountBatchTransfer {
-                recipients,
-                amounts,
-            } => aptos_account_batch_transfer(recipients, amounts),
-            AptosAccountBatchTransferCoins {
-                coin_type,
-                recipients,
-                amounts,
-            } => aptos_account_batch_transfer_coins(coin_type, recipients, amounts),
-            AptosAccountCreateAccount { auth_key } => aptos_account_create_account(auth_key),
-            AptosAccountSetAllowDirectCoinTransfers { allow } => {
-                aptos_account_set_allow_direct_coin_transfers(allow)
-            },
-            AptosAccountTransfer { to, amount } => aptos_account_transfer(to, amount),
-            AptosAccountTransferCoins {
-                coin_type,
-                to,
-                amount,
-            } => aptos_account_transfer_coins(coin_type, to, amount),
-            AptosGovernanceAddApprovedScriptHashScript { proposal_id } => {
-                aptos_governance_add_approved_script_hash_script(proposal_id)
-            },
-            AptosGovernanceCreateProposal {
-                stake_pool,
-                execution_hash,
-                metadata_location,
-                metadata_hash,
-            } => aptos_governance_create_proposal(
-                stake_pool,
-                execution_hash,
-                metadata_location,
-                metadata_hash,
-            ),
-            AptosGovernanceCreateProposalV2 {
-                stake_pool,
-                execution_hash,
-                metadata_location,
-                metadata_hash,
-                is_multi_step_proposal,
-            } => aptos_governance_create_proposal_v2(
-                stake_pool,
-                execution_hash,
-                metadata_location,
-                metadata_hash,
-                is_multi_step_proposal,
-            ),
-            AptosGovernancePartialVote {
-                stake_pool,
-                proposal_id,
-                voting_power,
-                should_pass,
-            } => aptos_governance_partial_vote(stake_pool, proposal_id, voting_power, should_pass),
-            AptosGovernanceVote {
-                stake_pool,
-                proposal_id,
-                should_pass,
-            } => aptos_governance_vote(stake_pool, proposal_id, should_pass),
             CodePublishPackageTxn {
                 metadata_serialized,
                 code,
             } => code_publish_package_txn(metadata_serialized, code),
+            CoinCreateCoinConversionMap {} => coin_create_coin_conversion_map(),
+            CoinCreatePairing { coin_type } => coin_create_pairing(coin_type),
+            CoinMigrateToFungibleStore { coin_type } => coin_migrate_to_fungible_store(coin_type),
             CoinTransfer {
                 coin_type,
                 to,
@@ -1361,70 +1276,6 @@ impl EntryFunctionCall {
                 network_port,
                 rpc_port,
             ),
-            DelegationPoolAddStake {
-                pool_address,
-                amount,
-            } => delegation_pool_add_stake(pool_address, amount),
-            DelegationPoolCreateProposal {
-                pool_address,
-                execution_hash,
-                metadata_location,
-                metadata_hash,
-                is_multi_step_proposal,
-            } => delegation_pool_create_proposal(
-                pool_address,
-                execution_hash,
-                metadata_location,
-                metadata_hash,
-                is_multi_step_proposal,
-            ),
-            DelegationPoolDelegateVotingPower {
-                pool_address,
-                new_voter,
-            } => delegation_pool_delegate_voting_power(pool_address, new_voter),
-            DelegationPoolEnablePartialGovernanceVoting { pool_address } => {
-                delegation_pool_enable_partial_governance_voting(pool_address)
-            },
-            DelegationPoolInitializeDelegationPool {
-                operator_commission_percentage,
-                delegation_pool_creation_seed,
-            } => delegation_pool_initialize_delegation_pool(
-                operator_commission_percentage,
-                delegation_pool_creation_seed,
-            ),
-            DelegationPoolReactivateStake {
-                pool_address,
-                amount,
-            } => delegation_pool_reactivate_stake(pool_address, amount),
-            DelegationPoolSetBeneficiaryForOperator { new_beneficiary } => {
-                delegation_pool_set_beneficiary_for_operator(new_beneficiary)
-            },
-            DelegationPoolSetDelegatedVoter { new_voter } => {
-                delegation_pool_set_delegated_voter(new_voter)
-            },
-            DelegationPoolSetOperator { new_operator } => {
-                delegation_pool_set_operator(new_operator)
-            },
-            DelegationPoolSynchronizeDelegationPool { pool_address } => {
-                delegation_pool_synchronize_delegation_pool(pool_address)
-            },
-            DelegationPoolUnlock {
-                pool_address,
-                amount,
-            } => delegation_pool_unlock(pool_address, amount),
-            DelegationPoolUpdateCommissionPercentage {
-                new_commission_percentage,
-            } => delegation_pool_update_commission_percentage(new_commission_percentage),
-            DelegationPoolVote {
-                pool_address,
-                proposal_id,
-                voting_power,
-                should_pass,
-            } => delegation_pool_vote(pool_address, proposal_id, voting_power, should_pass),
-            DelegationPoolWithdraw {
-                pool_address,
-                amount,
-            } => delegation_pool_withdraw(pool_address, amount),
             ManagedCoinBurn { coin_type, amount } => managed_coin_burn(coin_type, amount),
             ManagedCoinInitialize {
                 coin_type,
@@ -1456,7 +1307,13 @@ impl EntryFunctionCall {
                 num_signatures_required,
                 metadata_keys,
                 metadata_values,
-            } => multisig_account_create(num_signatures_required, metadata_keys, metadata_values),
+                timeout_duration,
+            } => multisig_account_create(
+                num_signatures_required,
+                metadata_keys,
+                metadata_values,
+                timeout_duration,
+            ),
             MultisigAccountCreateTransaction {
                 multisig_account,
                 payload,
@@ -1474,6 +1331,7 @@ impl EntryFunctionCall {
                 create_multisig_account_signed_message,
                 metadata_keys,
                 metadata_values,
+                timeout_duration,
             } => multisig_account_create_with_existing_account(
                 multisig_address,
                 owners,
@@ -1483,6 +1341,7 @@ impl EntryFunctionCall {
                 create_multisig_account_signed_message,
                 metadata_keys,
                 metadata_values,
+                timeout_duration,
             ),
             MultisigAccountCreateWithExistingAccountAndRevokeAuthKey {
                 multisig_address,
@@ -1493,6 +1352,7 @@ impl EntryFunctionCall {
                 create_multisig_account_signed_message,
                 metadata_keys,
                 metadata_values,
+                timeout_duration,
             } => multisig_account_create_with_existing_account_and_revoke_auth_key(
                 multisig_address,
                 owners,
@@ -1502,32 +1362,44 @@ impl EntryFunctionCall {
                 create_multisig_account_signed_message,
                 metadata_keys,
                 metadata_values,
+                timeout_duration,
             ),
             MultisigAccountCreateWithOwners {
                 additional_owners,
                 num_signatures_required,
                 metadata_keys,
                 metadata_values,
+                timeout_duration,
             } => multisig_account_create_with_owners(
                 additional_owners,
                 num_signatures_required,
                 metadata_keys,
                 metadata_values,
+                timeout_duration,
             ),
             MultisigAccountCreateWithOwnersThenRemoveBootstrapper {
                 owners,
                 num_signatures_required,
                 metadata_keys,
                 metadata_values,
+                timeout_duration,
             } => multisig_account_create_with_owners_then_remove_bootstrapper(
                 owners,
                 num_signatures_required,
                 metadata_keys,
                 metadata_values,
+                timeout_duration,
             ),
             MultisigAccountExecuteRejectedTransaction { multisig_account } => {
                 multisig_account_execute_rejected_transaction(multisig_account)
             },
+            MultisigAccountExecuteRejectedTransactions {
+                multisig_account,
+                final_sequence_number,
+            } => multisig_account_execute_rejected_transactions(
+                multisig_account,
+                final_sequence_number,
+            ),
             MultisigAccountRejectTransaction {
                 multisig_account,
                 sequence_number,
@@ -1561,6 +1433,25 @@ impl EntryFunctionCall {
             MultisigAccountUpdateSignaturesRequired {
                 new_num_signatures_required,
             } => multisig_account_update_signatures_required(new_num_signatures_required),
+            MultisigAccountUpdateTimeoutDuration { timeout_duration } => {
+                multisig_account_update_timeout_duration(timeout_duration)
+            },
+            MultisigAccountVoteTransaction {
+                multisig_account,
+                sequence_number,
+                approved,
+            } => multisig_account_vote_transaction(multisig_account, sequence_number, approved),
+            MultisigAccountVoteTransactions {
+                multisig_account,
+                starting_sequence_number,
+                final_sequence_number,
+                approved,
+            } => multisig_account_vote_transactions(
+                multisig_account,
+                starting_sequence_number,
+                final_sequence_number,
+                approved,
+            ),
             MultisigAccountVoteTransanction {
                 multisig_account,
                 sequence_number,
@@ -1571,19 +1462,10 @@ impl EntryFunctionCall {
                 metadata_serialized,
                 code,
             } => object_code_deployment_publish(metadata_serialized, code),
-            PboDelegationPoolCreateProposal {
+            PboDelegationPoolAddStake {
                 pool_address,
-                execution_hash,
-                metadata_location,
-                metadata_hash,
-                is_multi_step_proposal,
-            } => pbo_delegation_pool_create_proposal(
-                pool_address,
-                execution_hash,
-                metadata_location,
-                metadata_hash,
-                is_multi_step_proposal,
-            ),
+                amount,
+            } => pbo_delegation_pool_add_stake(pool_address, amount),
             PboDelegationPoolDelegateVotingPower {
                 pool_address,
                 new_voter,
@@ -1595,6 +1477,11 @@ impl EntryFunctionCall {
                 pool_address,
                 amount,
             } => pbo_delegation_pool_reactivate_stake(pool_address, amount),
+            PboDelegationPoolReplaceDelegator {
+                pool_address,
+                old_delegator,
+                new_delegator,
+            } => pbo_delegation_pool_replace_delegator(pool_address, old_delegator, new_delegator),
             PboDelegationPoolSetBeneficiaryForOperator { new_beneficiary } => {
                 pbo_delegation_pool_set_beneficiary_for_operator(new_beneficiary)
             },
@@ -1614,12 +1501,6 @@ impl EntryFunctionCall {
             PboDelegationPoolUpdateCommissionPercentage {
                 new_commission_percentage,
             } => pbo_delegation_pool_update_commission_percentage(new_commission_percentage),
-            PboDelegationPoolVote {
-                pool_address,
-                proposal_id,
-                voting_power,
-                should_pass,
-            } => pbo_delegation_pool_vote(pool_address, proposal_id, voting_power, should_pass),
             PboDelegationPoolWithdraw {
                 pool_address,
                 amount,
@@ -1761,9 +1642,62 @@ impl EntryFunctionCall {
                 operator,
                 new_voter,
             } => staking_proxy_set_voter(operator, new_voter),
+            SupraAccountBatchTransfer {
+                recipients,
+                amounts,
+            } => supra_account_batch_transfer(recipients, amounts),
+            SupraAccountBatchTransferCoins {
+                coin_type,
+                recipients,
+                amounts,
+            } => supra_account_batch_transfer_coins(coin_type, recipients, amounts),
+            SupraAccountCreateAccount { auth_key } => supra_account_create_account(auth_key),
+            SupraAccountSetAllowDirectCoinTransfers { allow } => {
+                supra_account_set_allow_direct_coin_transfers(allow)
+            },
+            SupraAccountTransfer { to, amount } => supra_account_transfer(to, amount),
+            SupraAccountTransferCoins {
+                coin_type,
+                to,
+                amount,
+            } => supra_account_transfer_coins(coin_type, to, amount),
             SupraCoinClaimMintCapability {} => supra_coin_claim_mint_capability(),
             SupraCoinDelegateMintCapability { to } => supra_coin_delegate_mint_capability(to),
             SupraCoinMint { dst_addr, amount } => supra_coin_mint(dst_addr, amount),
+            SupraGovernanceAddSupraApprovedScriptHashScript { proposal_id } => {
+                supra_governance_add_supra_approved_script_hash_script(proposal_id)
+            },
+            SupraGovernanceForceEndEpoch {} => supra_governance_force_end_epoch(),
+            SupraGovernanceForceEndEpochTestOnly {} => supra_governance_force_end_epoch_test_only(),
+            SupraGovernanceReconfigure {} => supra_governance_reconfigure(),
+            SupraGovernanceSupraCreateProposal {
+                execution_hash,
+                metadata_location,
+                metadata_hash,
+            } => supra_governance_supra_create_proposal(
+                execution_hash,
+                metadata_location,
+                metadata_hash,
+            ),
+            SupraGovernanceSupraCreateProposalV2 {
+                execution_hash,
+                metadata_location,
+                metadata_hash,
+                is_multi_step_proposal,
+            } => supra_governance_supra_create_proposal_v2(
+                execution_hash,
+                metadata_location,
+                metadata_hash,
+                is_multi_step_proposal,
+            ),
+            SupraGovernanceSupraVote {
+                proposal_id,
+                should_pass,
+            } => supra_governance_supra_vote(proposal_id, should_pass),
+            TransactionFeeConvertToAptosFaBurnRef {} => {
+                transaction_fee_convert_to_aptos_fa_burn_ref()
+            },
+            VersionSetForNextEpoch { major } => version_set_for_next_epoch(major),
             VersionSetVersion { major } => version_set_version(major),
             VestingAdminWithdraw { contract_address } => vesting_admin_withdraw(contract_address),
             VestingDistribute { contract_address } => vesting_distribute(contract_address),
@@ -1856,6 +1790,10 @@ impl EntryFunctionCall {
             VestingWithoutStakingVest { contract_address } => {
                 vesting_without_staking_vest(contract_address)
             },
+            VestingWithoutStakingVestIndividual {
+                contract_address,
+                shareholder_address,
+            } => vesting_without_staking_vest_individual(contract_address, shareholder_address),
         }
     }
 
@@ -2123,244 +2061,6 @@ pub fn account_rotate_authentication_key_with_rotation_capability(
     ))
 }
 
-/// Batch version of APT transfer.
-pub fn aptos_account_batch_transfer(
-    recipients: Vec<AccountAddress>,
-    amounts: Vec<u64>,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_account").to_owned(),
-        ),
-        ident_str!("batch_transfer").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&recipients).unwrap(),
-            bcs::to_bytes(&amounts).unwrap(),
-        ],
-    ))
-}
-
-/// Batch version of transfer_coins.
-pub fn aptos_account_batch_transfer_coins(
-    coin_type: TypeTag,
-    recipients: Vec<AccountAddress>,
-    amounts: Vec<u64>,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_account").to_owned(),
-        ),
-        ident_str!("batch_transfer_coins").to_owned(),
-        vec![coin_type],
-        vec![
-            bcs::to_bytes(&recipients).unwrap(),
-            bcs::to_bytes(&amounts).unwrap(),
-        ],
-    ))
-}
-
-/// Basic account creation methods.
-pub fn aptos_account_create_account(auth_key: AccountAddress) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_account").to_owned(),
-        ),
-        ident_str!("create_account").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&auth_key).unwrap()],
-    ))
-}
-
-/// Set whether `account` can receive direct transfers of coins that they have not explicitly registered to receive.
-pub fn aptos_account_set_allow_direct_coin_transfers(allow: bool) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_account").to_owned(),
-        ),
-        ident_str!("set_allow_direct_coin_transfers").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&allow).unwrap()],
-    ))
-}
-
-/// Convenient function to transfer APT to a recipient account that might not exist.
-/// This would create the recipient account first, which also registers it to receive APT, before transferring.
-pub fn aptos_account_transfer(to: AccountAddress, amount: u64) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_account").to_owned(),
-        ),
-        ident_str!("transfer").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&to).unwrap(), bcs::to_bytes(&amount).unwrap()],
-    ))
-}
-
-/// Convenient function to transfer a custom CoinType to a recipient account that might not exist.
-/// This would create the recipient account first and register it to receive the CoinType, before transferring.
-pub fn aptos_account_transfer_coins(
-    coin_type: TypeTag,
-    to: AccountAddress,
-    amount: u64,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_account").to_owned(),
-        ),
-        ident_str!("transfer_coins").to_owned(),
-        vec![coin_type],
-        vec![bcs::to_bytes(&to).unwrap(), bcs::to_bytes(&amount).unwrap()],
-    ))
-}
-
-pub fn aptos_governance_add_approved_script_hash_script(proposal_id: u64) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_governance").to_owned(),
-        ),
-        ident_str!("add_approved_script_hash_script").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&proposal_id).unwrap()],
-    ))
-}
-
-/// Create a single-step proposal with the backing `stake_pool`.
-/// @param execution_hash Required. This is the hash of the resolution script. When the proposal is resolved,
-/// only the exact script with matching hash can be successfully executed.
-pub fn aptos_governance_create_proposal(
-    stake_pool: AccountAddress,
-    execution_hash: Vec<u8>,
-    metadata_location: Vec<u8>,
-    metadata_hash: Vec<u8>,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_governance").to_owned(),
-        ),
-        ident_str!("create_proposal").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&stake_pool).unwrap(),
-            bcs::to_bytes(&execution_hash).unwrap(),
-            bcs::to_bytes(&metadata_location).unwrap(),
-            bcs::to_bytes(&metadata_hash).unwrap(),
-        ],
-    ))
-}
-
-/// Create a single-step or multi-step proposal with the backing `stake_pool`.
-/// @param execution_hash Required. This is the hash of the resolution script. When the proposal is resolved,
-/// only the exact script with matching hash can be successfully executed.
-pub fn aptos_governance_create_proposal_v2(
-    stake_pool: AccountAddress,
-    execution_hash: Vec<u8>,
-    metadata_location: Vec<u8>,
-    metadata_hash: Vec<u8>,
-    is_multi_step_proposal: bool,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_governance").to_owned(),
-        ),
-        ident_str!("create_proposal_v2").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&stake_pool).unwrap(),
-            bcs::to_bytes(&execution_hash).unwrap(),
-            bcs::to_bytes(&metadata_location).unwrap(),
-            bcs::to_bytes(&metadata_hash).unwrap(),
-            bcs::to_bytes(&is_multi_step_proposal).unwrap(),
-        ],
-    ))
-}
-
-/// Vote on proposal with `proposal_id` and specified voting power from `stake_pool`.
-pub fn aptos_governance_partial_vote(
-    stake_pool: AccountAddress,
-    proposal_id: u64,
-    voting_power: u64,
-    should_pass: bool,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_governance").to_owned(),
-        ),
-        ident_str!("partial_vote").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&stake_pool).unwrap(),
-            bcs::to_bytes(&proposal_id).unwrap(),
-            bcs::to_bytes(&voting_power).unwrap(),
-            bcs::to_bytes(&should_pass).unwrap(),
-        ],
-    ))
-}
-
-/// Vote on proposal with `proposal_id` and all voting power from `stake_pool`.
-pub fn aptos_governance_vote(
-    stake_pool: AccountAddress,
-    proposal_id: u64,
-    should_pass: bool,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("aptos_governance").to_owned(),
-        ),
-        ident_str!("vote").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&stake_pool).unwrap(),
-            bcs::to_bytes(&proposal_id).unwrap(),
-            bcs::to_bytes(&should_pass).unwrap(),
-        ],
-    ))
-}
-
 /// Same as `publish_package` but as an entry function which can be called as a transaction. Because
 /// of current restrictions for txn parameters, the metadata needs to be passed in serialized form.
 pub fn code_publish_package_txn(
@@ -2381,6 +2081,53 @@ pub fn code_publish_package_txn(
             bcs::to_bytes(&metadata_serialized).unwrap(),
             bcs::to_bytes(&code).unwrap(),
         ],
+    ))
+}
+
+pub fn coin_create_coin_conversion_map() -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("coin").to_owned(),
+        ),
+        ident_str!("create_coin_conversion_map").to_owned(),
+        vec![],
+        vec![],
+    ))
+}
+
+/// Create SUPRA pairing by passing `SupraCoin`.
+pub fn coin_create_pairing(coin_type: TypeTag) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("coin").to_owned(),
+        ),
+        ident_str!("create_pairing").to_owned(),
+        vec![coin_type],
+        vec![],
+    ))
+}
+
+/// Voluntarily migrate to fungible store for `CoinType` if not yet.
+pub fn coin_migrate_to_fungible_store(coin_type: TypeTag) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("coin").to_owned(),
+        ),
+        ident_str!("migrate_to_fungible_store").to_owned(),
+        vec![coin_type],
+        vec![],
     ))
 }
 
@@ -2657,303 +2404,6 @@ pub fn committee_map_upsert_committee_member_bulk(
     ))
 }
 
-/// Add `amount` of coins to the delegation pool `pool_address`.
-pub fn delegation_pool_add_stake(pool_address: AccountAddress, amount: u64) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("delegation_pool").to_owned(),
-        ),
-        ident_str!("add_stake").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&pool_address).unwrap(),
-            bcs::to_bytes(&amount).unwrap(),
-        ],
-    ))
-}
-
-/// A voter could create a governance proposal by this function. To successfully create a proposal, the voter's
-/// voting power in THIS delegation pool must be not less than the minimum required voting power specified in
-/// `aptos_governance.move`.
-pub fn delegation_pool_create_proposal(
-    pool_address: AccountAddress,
-    execution_hash: Vec<u8>,
-    metadata_location: Vec<u8>,
-    metadata_hash: Vec<u8>,
-    is_multi_step_proposal: bool,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("delegation_pool").to_owned(),
-        ),
-        ident_str!("create_proposal").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&pool_address).unwrap(),
-            bcs::to_bytes(&execution_hash).unwrap(),
-            bcs::to_bytes(&metadata_location).unwrap(),
-            bcs::to_bytes(&metadata_hash).unwrap(),
-            bcs::to_bytes(&is_multi_step_proposal).unwrap(),
-        ],
-    ))
-}
-
-/// Allows a delegator to delegate its voting power to a voter. If this delegator already has a delegated voter,
-/// this change won't take effects until the next lockup period.
-pub fn delegation_pool_delegate_voting_power(
-    pool_address: AccountAddress,
-    new_voter: AccountAddress,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("delegation_pool").to_owned(),
-        ),
-        ident_str!("delegate_voting_power").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&pool_address).unwrap(),
-            bcs::to_bytes(&new_voter).unwrap(),
-        ],
-    ))
-}
-
-/// Enable partial governance voting on a stake pool. The voter of this stake pool will be managed by this module.
-/// THe existing voter will be replaced. The function is permissionless.
-pub fn delegation_pool_enable_partial_governance_voting(
-    pool_address: AccountAddress,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("delegation_pool").to_owned(),
-        ),
-        ident_str!("enable_partial_governance_voting").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&pool_address).unwrap()],
-    ))
-}
-
-/// Initialize a delegation pool of custom fixed `operator_commission_percentage`.
-/// A resource account is created from `owner` signer and its supplied `delegation_pool_creation_seed`
-/// to host the delegation pool resource and own the underlying stake pool.
-/// Ownership over setting the operator/voter is granted to `owner` who has both roles initially.
-pub fn delegation_pool_initialize_delegation_pool(
-    operator_commission_percentage: u64,
-    delegation_pool_creation_seed: Vec<u8>,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("delegation_pool").to_owned(),
-        ),
-        ident_str!("initialize_delegation_pool").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&operator_commission_percentage).unwrap(),
-            bcs::to_bytes(&delegation_pool_creation_seed).unwrap(),
-        ],
-    ))
-}
-
-/// Move `amount` of coins from pending_inactive to active.
-pub fn delegation_pool_reactivate_stake(
-    pool_address: AccountAddress,
-    amount: u64,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("delegation_pool").to_owned(),
-        ),
-        ident_str!("reactivate_stake").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&pool_address).unwrap(),
-            bcs::to_bytes(&amount).unwrap(),
-        ],
-    ))
-}
-
-/// Allows an operator to change its beneficiary. Any existing unpaid commission rewards will be paid to the new
-/// beneficiary. To ensures payment to the current beneficiary, one should first call `synchronize_delegation_pool`
-/// before switching the beneficiary. An operator can set one beneficiary for delegation pools, not a separate
-/// one for each pool.
-pub fn delegation_pool_set_beneficiary_for_operator(
-    new_beneficiary: AccountAddress,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("delegation_pool").to_owned(),
-        ),
-        ident_str!("set_beneficiary_for_operator").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&new_beneficiary).unwrap()],
-    ))
-}
-
-/// Allows an owner to change the delegated voter of the underlying stake pool.
-pub fn delegation_pool_set_delegated_voter(new_voter: AccountAddress) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("delegation_pool").to_owned(),
-        ),
-        ident_str!("set_delegated_voter").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&new_voter).unwrap()],
-    ))
-}
-
-/// Allows an owner to change the operator of the underlying stake pool.
-pub fn delegation_pool_set_operator(new_operator: AccountAddress) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("delegation_pool").to_owned(),
-        ),
-        ident_str!("set_operator").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&new_operator).unwrap()],
-    ))
-}
-
-/// Synchronize delegation and stake pools: distribute yet-undetected rewards to the corresponding internal
-/// shares pools, assign commission to operator and eventually prepare delegation pool for a new lockup cycle.
-pub fn delegation_pool_synchronize_delegation_pool(
-    pool_address: AccountAddress,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("delegation_pool").to_owned(),
-        ),
-        ident_str!("synchronize_delegation_pool").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&pool_address).unwrap()],
-    ))
-}
-
-/// Unlock `amount` from the active + pending_active stake of `delegator` or
-/// at most how much active stake there is on the stake pool.
-pub fn delegation_pool_unlock(pool_address: AccountAddress, amount: u64) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("delegation_pool").to_owned(),
-        ),
-        ident_str!("unlock").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&pool_address).unwrap(),
-            bcs::to_bytes(&amount).unwrap(),
-        ],
-    ))
-}
-
-/// Allows an owner to update the commission percentage for the operator of the underlying stake pool.
-pub fn delegation_pool_update_commission_percentage(
-    new_commission_percentage: u64,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("delegation_pool").to_owned(),
-        ),
-        ident_str!("update_commission_percentage").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&new_commission_percentage).unwrap()],
-    ))
-}
-
-/// Vote on a proposal with a voter's voting power. To successfully vote, the following conditions must be met:
-/// 1. The voting period of the proposal hasn't ended.
-/// 2. The delegation pool's lockup period ends after the voting period of the proposal.
-/// 3. The voter still has spare voting power on this proposal.
-/// 4. The delegation pool never votes on the proposal before enabling partial governance voting.
-pub fn delegation_pool_vote(
-    pool_address: AccountAddress,
-    proposal_id: u64,
-    voting_power: u64,
-    should_pass: bool,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("delegation_pool").to_owned(),
-        ),
-        ident_str!("vote").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&pool_address).unwrap(),
-            bcs::to_bytes(&proposal_id).unwrap(),
-            bcs::to_bytes(&voting_power).unwrap(),
-            bcs::to_bytes(&should_pass).unwrap(),
-        ],
-    ))
-}
-
-/// Withdraw `amount` of owned inactive stake from the delegation pool at `pool_address`.
-pub fn delegation_pool_withdraw(pool_address: AccountAddress, amount: u64) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("delegation_pool").to_owned(),
-        ),
-        ident_str!("withdraw").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&pool_address).unwrap(),
-            bcs::to_bytes(&amount).unwrap(),
-        ],
-    ))
-}
-
 /// Withdraw an `amount` of coin `CoinType` from `account` and burn it.
 pub fn managed_coin_burn(coin_type: TypeTag, amount: u64) -> TransactionPayload {
     TransactionPayload::EntryFunction(EntryFunction::new(
@@ -2970,7 +2420,7 @@ pub fn managed_coin_burn(coin_type: TypeTag, amount: u64) -> TransactionPayload 
     ))
 }
 
-/// Initialize new coin `CoinType` in Aptos Blockchain.
+/// Initialize new coin `CoinType` in Supra Blockchain.
 /// Mint and Burn Capabilities will be stored under `account` in `Capabilities` resource.
 pub fn managed_coin_initialize(
     coin_type: TypeTag,
@@ -3124,6 +2574,7 @@ pub fn multisig_account_create(
     num_signatures_required: u64,
     metadata_keys: Vec<Vec<u8>>,
     metadata_values: Vec<Vec<u8>>,
+    timeout_duration: u64,
 ) -> TransactionPayload {
     TransactionPayload::EntryFunction(EntryFunction::new(
         ModuleId::new(
@@ -3139,6 +2590,7 @@ pub fn multisig_account_create(
             bcs::to_bytes(&num_signatures_required).unwrap(),
             bcs::to_bytes(&metadata_keys).unwrap(),
             bcs::to_bytes(&metadata_values).unwrap(),
+            bcs::to_bytes(&timeout_duration).unwrap(),
         ],
     ))
 }
@@ -3207,6 +2659,7 @@ pub fn multisig_account_create_with_existing_account(
     create_multisig_account_signed_message: Vec<u8>,
     metadata_keys: Vec<Vec<u8>>,
     metadata_values: Vec<Vec<u8>>,
+    timeout_duration: u64,
 ) -> TransactionPayload {
     TransactionPayload::EntryFunction(EntryFunction::new(
         ModuleId::new(
@@ -3227,6 +2680,7 @@ pub fn multisig_account_create_with_existing_account(
             bcs::to_bytes(&create_multisig_account_signed_message).unwrap(),
             bcs::to_bytes(&metadata_keys).unwrap(),
             bcs::to_bytes(&metadata_values).unwrap(),
+            bcs::to_bytes(&timeout_duration).unwrap(),
         ],
     ))
 }
@@ -3245,6 +2699,7 @@ pub fn multisig_account_create_with_existing_account_and_revoke_auth_key(
     create_multisig_account_signed_message: Vec<u8>,
     metadata_keys: Vec<Vec<u8>>,
     metadata_values: Vec<Vec<u8>>,
+    timeout_duration: u64,
 ) -> TransactionPayload {
     TransactionPayload::EntryFunction(EntryFunction::new(
         ModuleId::new(
@@ -3265,6 +2720,7 @@ pub fn multisig_account_create_with_existing_account_and_revoke_auth_key(
             bcs::to_bytes(&create_multisig_account_signed_message).unwrap(),
             bcs::to_bytes(&metadata_keys).unwrap(),
             bcs::to_bytes(&metadata_values).unwrap(),
+            bcs::to_bytes(&timeout_duration).unwrap(),
         ],
     ))
 }
@@ -3280,6 +2736,7 @@ pub fn multisig_account_create_with_owners(
     num_signatures_required: u64,
     metadata_keys: Vec<Vec<u8>>,
     metadata_values: Vec<Vec<u8>>,
+    timeout_duration: u64,
 ) -> TransactionPayload {
     TransactionPayload::EntryFunction(EntryFunction::new(
         ModuleId::new(
@@ -3296,6 +2753,7 @@ pub fn multisig_account_create_with_owners(
             bcs::to_bytes(&num_signatures_required).unwrap(),
             bcs::to_bytes(&metadata_keys).unwrap(),
             bcs::to_bytes(&metadata_values).unwrap(),
+            bcs::to_bytes(&timeout_duration).unwrap(),
         ],
     ))
 }
@@ -3309,6 +2767,7 @@ pub fn multisig_account_create_with_owners_then_remove_bootstrapper(
     num_signatures_required: u64,
     metadata_keys: Vec<Vec<u8>>,
     metadata_values: Vec<Vec<u8>>,
+    timeout_duration: u64,
 ) -> TransactionPayload {
     TransactionPayload::EntryFunction(EntryFunction::new(
         ModuleId::new(
@@ -3325,6 +2784,7 @@ pub fn multisig_account_create_with_owners_then_remove_bootstrapper(
             bcs::to_bytes(&num_signatures_required).unwrap(),
             bcs::to_bytes(&metadata_keys).unwrap(),
             bcs::to_bytes(&metadata_values).unwrap(),
+            bcs::to_bytes(&timeout_duration).unwrap(),
         ],
     ))
 }
@@ -3344,6 +2804,28 @@ pub fn multisig_account_execute_rejected_transaction(
         ident_str!("execute_rejected_transaction").to_owned(),
         vec![],
         vec![bcs::to_bytes(&multisig_account).unwrap()],
+    ))
+}
+
+/// Remove the next transactions until the final_sequence_number if they have sufficient owner rejections.
+pub fn multisig_account_execute_rejected_transactions(
+    multisig_account: AccountAddress,
+    final_sequence_number: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("multisig_account").to_owned(),
+        ),
+        ident_str!("execute_rejected_transactions").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&multisig_account).unwrap(),
+            bcs::to_bytes(&final_sequence_number).unwrap(),
+        ],
     ))
 }
 
@@ -3526,7 +3008,75 @@ pub fn multisig_account_update_signatures_required(
     ))
 }
 
+/// Update the timeout duration for the multisig account.
+pub fn multisig_account_update_timeout_duration(timeout_duration: u64) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("multisig_account").to_owned(),
+        ),
+        ident_str!("update_timeout_duration").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&timeout_duration).unwrap()],
+    ))
+}
+
 /// Generic function that can be used to either approve or reject a multisig transaction
+pub fn multisig_account_vote_transaction(
+    multisig_account: AccountAddress,
+    sequence_number: u64,
+    approved: bool,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("multisig_account").to_owned(),
+        ),
+        ident_str!("vote_transaction").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&multisig_account).unwrap(),
+            bcs::to_bytes(&sequence_number).unwrap(),
+            bcs::to_bytes(&approved).unwrap(),
+        ],
+    ))
+}
+
+/// Generic function that can be used to either approve or reject a batch of transactions within a specified range.
+pub fn multisig_account_vote_transactions(
+    multisig_account: AccountAddress,
+    starting_sequence_number: u64,
+    final_sequence_number: u64,
+    approved: bool,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("multisig_account").to_owned(),
+        ),
+        ident_str!("vote_transactions").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&multisig_account).unwrap(),
+            bcs::to_bytes(&starting_sequence_number).unwrap(),
+            bcs::to_bytes(&final_sequence_number).unwrap(),
+            bcs::to_bytes(&approved).unwrap(),
+        ],
+    ))
+}
+
+/// Generic function that can be used to either approve or reject a multisig transaction
+/// Retained for backward compatibility: the function with the typographical error in its name
+/// will continue to be an accessible entry point.
 pub fn multisig_account_vote_transanction(
     multisig_account: AccountAddress,
     sequence_number: u64,
@@ -3591,15 +3141,10 @@ pub fn object_code_deployment_publish(
     ))
 }
 
-/// A voter could create a governance proposal by this function. To successfully create a proposal, the voter's
-/// voting power in THIS delegation pool must be not less than the minimum required voting power specified in
-/// `aptos_governance.move`.
-pub fn pbo_delegation_pool_create_proposal(
+/// Add `amount` of coins to the delegation pool `pool_address`.
+pub fn pbo_delegation_pool_add_stake(
     pool_address: AccountAddress,
-    execution_hash: Vec<u8>,
-    metadata_location: Vec<u8>,
-    metadata_hash: Vec<u8>,
-    is_multi_step_proposal: bool,
+    amount: u64,
 ) -> TransactionPayload {
     TransactionPayload::EntryFunction(EntryFunction::new(
         ModuleId::new(
@@ -3609,14 +3154,11 @@ pub fn pbo_delegation_pool_create_proposal(
             ]),
             ident_str!("pbo_delegation_pool").to_owned(),
         ),
-        ident_str!("create_proposal").to_owned(),
+        ident_str!("add_stake").to_owned(),
         vec![],
         vec![
             bcs::to_bytes(&pool_address).unwrap(),
-            bcs::to_bytes(&execution_hash).unwrap(),
-            bcs::to_bytes(&metadata_location).unwrap(),
-            bcs::to_bytes(&metadata_hash).unwrap(),
-            bcs::to_bytes(&is_multi_step_proposal).unwrap(),
+            bcs::to_bytes(&amount).unwrap(),
         ],
     ))
 }
@@ -3681,6 +3223,33 @@ pub fn pbo_delegation_pool_reactivate_stake(
         vec![
             bcs::to_bytes(&pool_address).unwrap(),
             bcs::to_bytes(&amount).unwrap(),
+        ],
+    ))
+}
+
+/// CAUTION: This is to be used only in the rare circumstances where multisig_admin is convinced that a delegator was the
+/// rightful owner of `old_delegator` but has lost access and the delegator is also the rightful
+/// owner of `new_delegator` , Only for those stakeholders which were added at the time of creation
+/// This does not apply to anyone who added stake later or operator
+pub fn pbo_delegation_pool_replace_delegator(
+    pool_address: AccountAddress,
+    old_delegator: AccountAddress,
+    new_delegator: AccountAddress,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("pbo_delegation_pool").to_owned(),
+        ),
+        ident_str!("replace_delegator").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&pool_address).unwrap(),
+            bcs::to_bytes(&old_delegator).unwrap(),
+            bcs::to_bytes(&new_delegator).unwrap(),
         ],
     ))
 }
@@ -3792,36 +3361,6 @@ pub fn pbo_delegation_pool_update_commission_percentage(
         ident_str!("update_commission_percentage").to_owned(),
         vec![],
         vec![bcs::to_bytes(&new_commission_percentage).unwrap()],
-    ))
-}
-
-/// Vote on a proposal with a voter's voting power. To successfully vote, the following conditions must be met:
-/// 1. The voting period of the proposal hasn't ended.
-/// 2. The delegation pool's lockup period ends after the voting period of the proposal.
-/// 3. The voter still has spare voting power on this proposal.
-/// 4. The delegation pool never votes on the proposal before enabling partial governance voting.
-pub fn pbo_delegation_pool_vote(
-    pool_address: AccountAddress,
-    proposal_id: u64,
-    voting_power: u64,
-    should_pass: bool,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("pbo_delegation_pool").to_owned(),
-        ),
-        ident_str!("vote").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&pool_address).unwrap(),
-            bcs::to_bytes(&proposal_id).unwrap(),
-            bcs::to_bytes(&voting_power).unwrap(),
-            bcs::to_bytes(&should_pass).unwrap(),
-        ],
     ))
 }
 
@@ -4584,6 +4123,121 @@ pub fn staking_proxy_set_voter(
     ))
 }
 
+/// Batch version of SUPRA transfer.
+pub fn supra_account_batch_transfer(
+    recipients: Vec<AccountAddress>,
+    amounts: Vec<u64>,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_account").to_owned(),
+        ),
+        ident_str!("batch_transfer").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&recipients).unwrap(),
+            bcs::to_bytes(&amounts).unwrap(),
+        ],
+    ))
+}
+
+/// Batch version of transfer_coins.
+pub fn supra_account_batch_transfer_coins(
+    coin_type: TypeTag,
+    recipients: Vec<AccountAddress>,
+    amounts: Vec<u64>,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_account").to_owned(),
+        ),
+        ident_str!("batch_transfer_coins").to_owned(),
+        vec![coin_type],
+        vec![
+            bcs::to_bytes(&recipients).unwrap(),
+            bcs::to_bytes(&amounts).unwrap(),
+        ],
+    ))
+}
+
+/// Basic account creation methods.
+pub fn supra_account_create_account(auth_key: AccountAddress) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_account").to_owned(),
+        ),
+        ident_str!("create_account").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&auth_key).unwrap()],
+    ))
+}
+
+/// Set whether `account` can receive direct transfers of coins that they have not explicitly registered to receive.
+pub fn supra_account_set_allow_direct_coin_transfers(allow: bool) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_account").to_owned(),
+        ),
+        ident_str!("set_allow_direct_coin_transfers").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&allow).unwrap()],
+    ))
+}
+
+/// Convenient function to transfer SUPRA to a recipient account that might not exist.
+/// This would create the recipient account first, which also registers it to receive SUPRA, before transferring.
+pub fn supra_account_transfer(to: AccountAddress, amount: u64) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_account").to_owned(),
+        ),
+        ident_str!("transfer").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&to).unwrap(), bcs::to_bytes(&amount).unwrap()],
+    ))
+}
+
+/// Convenient function to transfer a custom CoinType to a recipient account that might not exist.
+/// This would create the recipient account first and register it to receive the CoinType, before transferring.
+pub fn supra_account_transfer_coins(
+    coin_type: TypeTag,
+    to: AccountAddress,
+    amount: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_account").to_owned(),
+        ),
+        ident_str!("transfer_coins").to_owned(),
+        vec![coin_type],
+        vec![bcs::to_bytes(&to).unwrap(), bcs::to_bytes(&amount).unwrap()],
+    ))
+}
+
 /// Only callable in tests and testnets where the core resources account exists.
 /// Claim the delegated mint capability and destroy the delegated token.
 pub fn supra_coin_claim_mint_capability() -> TransactionPayload {
@@ -4638,8 +4292,197 @@ pub fn supra_coin_mint(dst_addr: AccountAddress, amount: u64) -> TransactionPayl
     ))
 }
 
-/// Updates the major version to a larger version.
-/// This can be called by on chain governance.
+pub fn supra_governance_add_supra_approved_script_hash_script(
+    proposal_id: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_governance").to_owned(),
+        ),
+        ident_str!("add_supra_approved_script_hash_script").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&proposal_id).unwrap()],
+    ))
+}
+
+/// Change epoch immediately.
+/// If `RECONFIGURE_WITH_DKG` is enabled and we are in the middle of a DKG,
+/// stop waiting for DKG and enter the new epoch without randomness.
+///
+/// WARNING: currently only used by tests. In most cases you should use `reconfigure()` instead.
+/// TODO: migrate these tests to be aware of async reconfiguration.
+pub fn supra_governance_force_end_epoch() -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_governance").to_owned(),
+        ),
+        ident_str!("force_end_epoch").to_owned(),
+        vec![],
+        vec![],
+    ))
+}
+
+/// `force_end_epoch()` equivalent but only called in testnet,
+/// where the core resources account exists and has been granted power to mint Supra coins.
+pub fn supra_governance_force_end_epoch_test_only() -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_governance").to_owned(),
+        ),
+        ident_str!("force_end_epoch_test_only").to_owned(),
+        vec![],
+        vec![],
+    ))
+}
+
+/// Manually reconfigure. Called at the end of a governance txn that alters on-chain configs.
+///
+/// WARNING: this function always ensures a reconfiguration starts, but when the reconfiguration finishes depends.
+/// - If feature `RECONFIGURE_WITH_DKG` is disabled, it finishes immediately.
+///   - At the end of the calling transaction, we will be in a new epoch.
+/// - If feature `RECONFIGURE_WITH_DKG` is enabled, it starts DKG, and the new epoch will start in a block prologue after DKG finishes.
+///
+/// This behavior affects when an update of an on-chain config (e.g. `ConsensusConfig`, `Features`) takes effect,
+/// since such updates are applied whenever we enter an new epoch.
+pub fn supra_governance_reconfigure() -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_governance").to_owned(),
+        ),
+        ident_str!("reconfigure").to_owned(),
+        vec![],
+        vec![],
+    ))
+}
+
+/// Create a single-step proposal with the backing `stake_pool`.
+/// @param execution_hash Required. This is the hash of the resolution script. When the proposal is resolved,
+/// only the exact script with matching hash can be successfully executed.
+pub fn supra_governance_supra_create_proposal(
+    execution_hash: Vec<u8>,
+    metadata_location: Vec<u8>,
+    metadata_hash: Vec<u8>,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_governance").to_owned(),
+        ),
+        ident_str!("supra_create_proposal").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&execution_hash).unwrap(),
+            bcs::to_bytes(&metadata_location).unwrap(),
+            bcs::to_bytes(&metadata_hash).unwrap(),
+        ],
+    ))
+}
+
+/// Create a single-step or multi-step proposal with the backing `stake_pool`.
+/// @param execution_hash Required. This is the hash of the resolution script. When the proposal is resolved,
+/// only the exact script with matching hash can be successfully executed.
+pub fn supra_governance_supra_create_proposal_v2(
+    execution_hash: Vec<u8>,
+    metadata_location: Vec<u8>,
+    metadata_hash: Vec<u8>,
+    is_multi_step_proposal: bool,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_governance").to_owned(),
+        ),
+        ident_str!("supra_create_proposal_v2").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&execution_hash).unwrap(),
+            bcs::to_bytes(&metadata_location).unwrap(),
+            bcs::to_bytes(&metadata_hash).unwrap(),
+            bcs::to_bytes(&is_multi_step_proposal).unwrap(),
+        ],
+    ))
+}
+
+/// Vote on proposal with `proposal_id` and all voting power from `stake_pool`.
+pub fn supra_governance_supra_vote(proposal_id: u64, should_pass: bool) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("supra_governance").to_owned(),
+        ),
+        ident_str!("supra_vote").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&proposal_id).unwrap(),
+            bcs::to_bytes(&should_pass).unwrap(),
+        ],
+    ))
+}
+
+pub fn transaction_fee_convert_to_aptos_fa_burn_ref() -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("transaction_fee").to_owned(),
+        ),
+        ident_str!("convert_to_aptos_fa_burn_ref").to_owned(),
+        vec![],
+        vec![],
+    ))
+}
+
+/// Used in on-chain governances to update the major version for the next epoch.
+/// Example usage:
+/// - `supra_framework::version::set_for_next_epoch(&framework_signer, new_version);`
+/// - `supra_framework::supra_governance::reconfigure(&framework_signer);`
+pub fn version_set_for_next_epoch(major: u64) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("version").to_owned(),
+        ),
+        ident_str!("set_for_next_epoch").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&major).unwrap()],
+    ))
+}
+
+/// Deprecated by `set_for_next_epoch()`.
+///
+/// WARNING: calling this while randomness is enabled will trigger a new epoch without randomness!
+///
+/// TODO: update all the tests that reference this function, then disable this function.
 pub fn version_set_version(major: u64) -> TransactionPayload {
     TransactionPayload::EntryFunction(EntryFunction::new(
         ModuleId::new(
@@ -5156,6 +4999,27 @@ pub fn vesting_without_staking_vest(contract_address: AccountAddress) -> Transac
         vec![bcs::to_bytes(&contract_address).unwrap()],
     ))
 }
+
+pub fn vesting_without_staking_vest_individual(
+    contract_address: AccountAddress,
+    shareholder_address: AccountAddress,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("vesting_without_staking").to_owned(),
+        ),
+        ident_str!("vest_individual").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&contract_address).unwrap(),
+            bcs::to_bytes(&shareholder_address).unwrap(),
+        ],
+    ))
+}
 mod decoder {
     use super::*;
     pub fn account_offer_rotation_capability(
@@ -5278,153 +5142,43 @@ mod decoder {
         }
     }
 
-    pub fn aptos_account_batch_transfer(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosAccountBatchTransfer {
-                recipients: bcs::from_bytes(script.args().get(0)?).ok()?,
-                amounts: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_account_batch_transfer_coins(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosAccountBatchTransferCoins {
-                coin_type: script.ty_args().get(0)?.clone(),
-                recipients: bcs::from_bytes(script.args().get(0)?).ok()?,
-                amounts: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_account_create_account(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosAccountCreateAccount {
-                auth_key: bcs::from_bytes(script.args().get(0)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_account_set_allow_direct_coin_transfers(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosAccountSetAllowDirectCoinTransfers {
-                allow: bcs::from_bytes(script.args().get(0)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_account_transfer(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosAccountTransfer {
-                to: bcs::from_bytes(script.args().get(0)?).ok()?,
-                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_account_transfer_coins(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosAccountTransferCoins {
-                coin_type: script.ty_args().get(0)?.clone(),
-                to: bcs::from_bytes(script.args().get(0)?).ok()?,
-                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_governance_add_approved_script_hash_script(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(
-                EntryFunctionCall::AptosGovernanceAddApprovedScriptHashScript {
-                    proposal_id: bcs::from_bytes(script.args().get(0)?).ok()?,
-                },
-            )
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_governance_create_proposal(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosGovernanceCreateProposal {
-                stake_pool: bcs::from_bytes(script.args().get(0)?).ok()?,
-                execution_hash: bcs::from_bytes(script.args().get(1)?).ok()?,
-                metadata_location: bcs::from_bytes(script.args().get(2)?).ok()?,
-                metadata_hash: bcs::from_bytes(script.args().get(3)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_governance_create_proposal_v2(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosGovernanceCreateProposalV2 {
-                stake_pool: bcs::from_bytes(script.args().get(0)?).ok()?,
-                execution_hash: bcs::from_bytes(script.args().get(1)?).ok()?,
-                metadata_location: bcs::from_bytes(script.args().get(2)?).ok()?,
-                metadata_hash: bcs::from_bytes(script.args().get(3)?).ok()?,
-                is_multi_step_proposal: bcs::from_bytes(script.args().get(4)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_governance_partial_vote(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosGovernancePartialVote {
-                stake_pool: bcs::from_bytes(script.args().get(0)?).ok()?,
-                proposal_id: bcs::from_bytes(script.args().get(1)?).ok()?,
-                voting_power: bcs::from_bytes(script.args().get(2)?).ok()?,
-                should_pass: bcs::from_bytes(script.args().get(3)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn aptos_governance_vote(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AptosGovernanceVote {
-                stake_pool: bcs::from_bytes(script.args().get(0)?).ok()?,
-                proposal_id: bcs::from_bytes(script.args().get(1)?).ok()?,
-                should_pass: bcs::from_bytes(script.args().get(2)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
     pub fn code_publish_package_txn(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(script) = payload {
             Some(EntryFunctionCall::CodePublishPackageTxn {
                 metadata_serialized: bcs::from_bytes(script.args().get(0)?).ok()?,
                 code: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn coin_create_coin_conversion_map(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(_script) = payload {
+            Some(EntryFunctionCall::CoinCreateCoinConversionMap {})
+        } else {
+            None
+        }
+    }
+
+    pub fn coin_create_pairing(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::CoinCreatePairing {
+                coin_type: script.ty_args().get(0)?.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn coin_migrate_to_fungible_store(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::CoinMigrateToFungibleStore {
+                coin_type: script.ty_args().get(0)?.clone(),
             })
         } else {
             None
@@ -5589,181 +5343,6 @@ mod decoder {
         }
     }
 
-    pub fn delegation_pool_add_stake(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::DelegationPoolAddStake {
-                pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
-                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn delegation_pool_create_proposal(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::DelegationPoolCreateProposal {
-                pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
-                execution_hash: bcs::from_bytes(script.args().get(1)?).ok()?,
-                metadata_location: bcs::from_bytes(script.args().get(2)?).ok()?,
-                metadata_hash: bcs::from_bytes(script.args().get(3)?).ok()?,
-                is_multi_step_proposal: bcs::from_bytes(script.args().get(4)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn delegation_pool_delegate_voting_power(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::DelegationPoolDelegateVotingPower {
-                pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
-                new_voter: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn delegation_pool_enable_partial_governance_voting(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(
-                EntryFunctionCall::DelegationPoolEnablePartialGovernanceVoting {
-                    pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
-                },
-            )
-        } else {
-            None
-        }
-    }
-
-    pub fn delegation_pool_initialize_delegation_pool(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::DelegationPoolInitializeDelegationPool {
-                operator_commission_percentage: bcs::from_bytes(script.args().get(0)?).ok()?,
-                delegation_pool_creation_seed: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn delegation_pool_reactivate_stake(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::DelegationPoolReactivateStake {
-                pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
-                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn delegation_pool_set_beneficiary_for_operator(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::DelegationPoolSetBeneficiaryForOperator {
-                new_beneficiary: bcs::from_bytes(script.args().get(0)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn delegation_pool_set_delegated_voter(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::DelegationPoolSetDelegatedVoter {
-                new_voter: bcs::from_bytes(script.args().get(0)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn delegation_pool_set_operator(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::DelegationPoolSetOperator {
-                new_operator: bcs::from_bytes(script.args().get(0)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn delegation_pool_synchronize_delegation_pool(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::DelegationPoolSynchronizeDelegationPool {
-                pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn delegation_pool_unlock(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::DelegationPoolUnlock {
-                pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
-                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn delegation_pool_update_commission_percentage(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(
-                EntryFunctionCall::DelegationPoolUpdateCommissionPercentage {
-                    new_commission_percentage: bcs::from_bytes(script.args().get(0)?).ok()?,
-                },
-            )
-        } else {
-            None
-        }
-    }
-
-    pub fn delegation_pool_vote(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::DelegationPoolVote {
-                pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
-                proposal_id: bcs::from_bytes(script.args().get(1)?).ok()?,
-                voting_power: bcs::from_bytes(script.args().get(2)?).ok()?,
-                should_pass: bcs::from_bytes(script.args().get(3)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn delegation_pool_withdraw(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::DelegationPoolWithdraw {
-                pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
-                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
     pub fn managed_coin_burn(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(script) = payload {
             Some(EntryFunctionCall::ManagedCoinBurn {
@@ -5865,6 +5444,7 @@ mod decoder {
                 num_signatures_required: bcs::from_bytes(script.args().get(0)?).ok()?,
                 metadata_keys: bcs::from_bytes(script.args().get(1)?).ok()?,
                 metadata_values: bcs::from_bytes(script.args().get(2)?).ok()?,
+                timeout_duration: bcs::from_bytes(script.args().get(3)?).ok()?,
             })
         } else {
             None
@@ -5914,6 +5494,7 @@ mod decoder {
                         .ok()?,
                     metadata_keys: bcs::from_bytes(script.args().get(6)?).ok()?,
                     metadata_values: bcs::from_bytes(script.args().get(7)?).ok()?,
+                    timeout_duration: bcs::from_bytes(script.args().get(8)?).ok()?,
                 },
             )
         } else {
@@ -5936,6 +5517,7 @@ mod decoder {
                         .ok()?,
                     metadata_keys: bcs::from_bytes(script.args().get(6)?).ok()?,
                     metadata_values: bcs::from_bytes(script.args().get(7)?).ok()?,
+                    timeout_duration: bcs::from_bytes(script.args().get(8)?).ok()?,
                 },
             )
         } else {
@@ -5952,6 +5534,7 @@ mod decoder {
                 num_signatures_required: bcs::from_bytes(script.args().get(1)?).ok()?,
                 metadata_keys: bcs::from_bytes(script.args().get(2)?).ok()?,
                 metadata_values: bcs::from_bytes(script.args().get(3)?).ok()?,
+                timeout_duration: bcs::from_bytes(script.args().get(4)?).ok()?,
             })
         } else {
             None
@@ -5968,6 +5551,7 @@ mod decoder {
                     num_signatures_required: bcs::from_bytes(script.args().get(1)?).ok()?,
                     metadata_keys: bcs::from_bytes(script.args().get(2)?).ok()?,
                     metadata_values: bcs::from_bytes(script.args().get(3)?).ok()?,
+                    timeout_duration: bcs::from_bytes(script.args().get(4)?).ok()?,
                 },
             )
         } else {
@@ -5982,6 +5566,21 @@ mod decoder {
             Some(
                 EntryFunctionCall::MultisigAccountExecuteRejectedTransaction {
                     multisig_account: bcs::from_bytes(script.args().get(0)?).ok()?,
+                },
+            )
+        } else {
+            None
+        }
+    }
+
+    pub fn multisig_account_execute_rejected_transactions(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(
+                EntryFunctionCall::MultisigAccountExecuteRejectedTransactions {
+                    multisig_account: bcs::from_bytes(script.args().get(0)?).ok()?,
+                    final_sequence_number: bcs::from_bytes(script.args().get(1)?).ok()?,
                 },
             )
         } else {
@@ -6089,6 +5688,47 @@ mod decoder {
         }
     }
 
+    pub fn multisig_account_update_timeout_duration(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::MultisigAccountUpdateTimeoutDuration {
+                timeout_duration: bcs::from_bytes(script.args().get(0)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn multisig_account_vote_transaction(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::MultisigAccountVoteTransaction {
+                multisig_account: bcs::from_bytes(script.args().get(0)?).ok()?,
+                sequence_number: bcs::from_bytes(script.args().get(1)?).ok()?,
+                approved: bcs::from_bytes(script.args().get(2)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn multisig_account_vote_transactions(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::MultisigAccountVoteTransactions {
+                multisig_account: bcs::from_bytes(script.args().get(0)?).ok()?,
+                starting_sequence_number: bcs::from_bytes(script.args().get(1)?).ok()?,
+                final_sequence_number: bcs::from_bytes(script.args().get(2)?).ok()?,
+                approved: bcs::from_bytes(script.args().get(3)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn multisig_account_vote_transanction(
         payload: &TransactionPayload,
     ) -> Option<EntryFunctionCall> {
@@ -6127,16 +5767,13 @@ mod decoder {
         }
     }
 
-    pub fn pbo_delegation_pool_create_proposal(
+    pub fn pbo_delegation_pool_add_stake(
         payload: &TransactionPayload,
     ) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::PboDelegationPoolCreateProposal {
+            Some(EntryFunctionCall::PboDelegationPoolAddStake {
                 pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
-                execution_hash: bcs::from_bytes(script.args().get(1)?).ok()?,
-                metadata_location: bcs::from_bytes(script.args().get(2)?).ok()?,
-                metadata_hash: bcs::from_bytes(script.args().get(3)?).ok()?,
-                is_multi_step_proposal: bcs::from_bytes(script.args().get(4)?).ok()?,
+                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
             })
         } else {
             None
@@ -6177,6 +5814,20 @@ mod decoder {
             Some(EntryFunctionCall::PboDelegationPoolReactivateStake {
                 pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
                 amount: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn pbo_delegation_pool_replace_delegator(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::PboDelegationPoolReplaceDelegator {
+                pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
+                old_delegator: bcs::from_bytes(script.args().get(1)?).ok()?,
+                new_delegator: bcs::from_bytes(script.args().get(2)?).ok()?,
             })
         } else {
             None
@@ -6255,19 +5906,6 @@ mod decoder {
                     new_commission_percentage: bcs::from_bytes(script.args().get(0)?).ok()?,
                 },
             )
-        } else {
-            None
-        }
-    }
-
-    pub fn pbo_delegation_pool_vote(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::PboDelegationPoolVote {
-                pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
-                proposal_id: bcs::from_bytes(script.args().get(1)?).ok()?,
-                voting_power: bcs::from_bytes(script.args().get(2)?).ok()?,
-                should_pass: bcs::from_bytes(script.args().get(3)?).ok()?,
-            })
         } else {
             None
         }
@@ -6721,6 +6359,76 @@ mod decoder {
         }
     }
 
+    pub fn supra_account_batch_transfer(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraAccountBatchTransfer {
+                recipients: bcs::from_bytes(script.args().get(0)?).ok()?,
+                amounts: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_account_batch_transfer_coins(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraAccountBatchTransferCoins {
+                coin_type: script.ty_args().get(0)?.clone(),
+                recipients: bcs::from_bytes(script.args().get(0)?).ok()?,
+                amounts: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_account_create_account(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraAccountCreateAccount {
+                auth_key: bcs::from_bytes(script.args().get(0)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_account_set_allow_direct_coin_transfers(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraAccountSetAllowDirectCoinTransfers {
+                allow: bcs::from_bytes(script.args().get(0)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_account_transfer(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraAccountTransfer {
+                to: bcs::from_bytes(script.args().get(0)?).ok()?,
+                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_account_transfer_coins(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraAccountTransferCoins {
+                coin_type: script.ty_args().get(0)?.clone(),
+                to: bcs::from_bytes(script.args().get(0)?).ok()?,
+                amount: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn supra_coin_claim_mint_capability(
         payload: &TransactionPayload,
     ) -> Option<EntryFunctionCall> {
@@ -6748,6 +6456,108 @@ mod decoder {
             Some(EntryFunctionCall::SupraCoinMint {
                 dst_addr: bcs::from_bytes(script.args().get(0)?).ok()?,
                 amount: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_governance_add_supra_approved_script_hash_script(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(
+                EntryFunctionCall::SupraGovernanceAddSupraApprovedScriptHashScript {
+                    proposal_id: bcs::from_bytes(script.args().get(0)?).ok()?,
+                },
+            )
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_governance_force_end_epoch(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(_script) = payload {
+            Some(EntryFunctionCall::SupraGovernanceForceEndEpoch {})
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_governance_force_end_epoch_test_only(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(_script) = payload {
+            Some(EntryFunctionCall::SupraGovernanceForceEndEpochTestOnly {})
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_governance_reconfigure(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(_script) = payload {
+            Some(EntryFunctionCall::SupraGovernanceReconfigure {})
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_governance_supra_create_proposal(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraGovernanceSupraCreateProposal {
+                execution_hash: bcs::from_bytes(script.args().get(0)?).ok()?,
+                metadata_location: bcs::from_bytes(script.args().get(1)?).ok()?,
+                metadata_hash: bcs::from_bytes(script.args().get(2)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_governance_supra_create_proposal_v2(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraGovernanceSupraCreateProposalV2 {
+                execution_hash: bcs::from_bytes(script.args().get(0)?).ok()?,
+                metadata_location: bcs::from_bytes(script.args().get(1)?).ok()?,
+                metadata_hash: bcs::from_bytes(script.args().get(2)?).ok()?,
+                is_multi_step_proposal: bcs::from_bytes(script.args().get(3)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn supra_governance_supra_vote(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::SupraGovernanceSupraVote {
+                proposal_id: bcs::from_bytes(script.args().get(0)?).ok()?,
+                should_pass: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn transaction_fee_convert_to_aptos_fa_burn_ref(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(_script) = payload {
+            Some(EntryFunctionCall::TransactionFeeConvertToAptosFaBurnRef {})
+        } else {
+            None
+        }
+    }
+
+    pub fn version_set_for_next_epoch(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::VersionSetForNextEpoch {
+                major: bcs::from_bytes(script.args().get(0)?).ok()?,
             })
         } else {
             None
@@ -7069,6 +6879,19 @@ mod decoder {
             None
         }
     }
+
+    pub fn vesting_without_staking_vest_individual(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::VestingWithoutStakingVestIndividual {
+                contract_address: bcs::from_bytes(script.args().get(0)?).ok()?,
+                shareholder_address: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 type EntryFunctionDecoderMap = std::collections::HashMap<
@@ -7120,52 +6943,20 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
             Box::new(decoder::account_rotate_authentication_key_with_rotation_capability),
         );
         map.insert(
-            "aptos_account_batch_transfer".to_string(),
-            Box::new(decoder::aptos_account_batch_transfer),
-        );
-        map.insert(
-            "aptos_account_batch_transfer_coins".to_string(),
-            Box::new(decoder::aptos_account_batch_transfer_coins),
-        );
-        map.insert(
-            "aptos_account_create_account".to_string(),
-            Box::new(decoder::aptos_account_create_account),
-        );
-        map.insert(
-            "aptos_account_set_allow_direct_coin_transfers".to_string(),
-            Box::new(decoder::aptos_account_set_allow_direct_coin_transfers),
-        );
-        map.insert(
-            "aptos_account_transfer".to_string(),
-            Box::new(decoder::aptos_account_transfer),
-        );
-        map.insert(
-            "aptos_account_transfer_coins".to_string(),
-            Box::new(decoder::aptos_account_transfer_coins),
-        );
-        map.insert(
-            "aptos_governance_add_approved_script_hash_script".to_string(),
-            Box::new(decoder::aptos_governance_add_approved_script_hash_script),
-        );
-        map.insert(
-            "aptos_governance_create_proposal".to_string(),
-            Box::new(decoder::aptos_governance_create_proposal),
-        );
-        map.insert(
-            "aptos_governance_create_proposal_v2".to_string(),
-            Box::new(decoder::aptos_governance_create_proposal_v2),
-        );
-        map.insert(
-            "aptos_governance_partial_vote".to_string(),
-            Box::new(decoder::aptos_governance_partial_vote),
-        );
-        map.insert(
-            "aptos_governance_vote".to_string(),
-            Box::new(decoder::aptos_governance_vote),
-        );
-        map.insert(
             "code_publish_package_txn".to_string(),
             Box::new(decoder::code_publish_package_txn),
+        );
+        map.insert(
+            "coin_create_coin_conversion_map".to_string(),
+            Box::new(decoder::coin_create_coin_conversion_map),
+        );
+        map.insert(
+            "coin_create_pairing".to_string(),
+            Box::new(decoder::coin_create_pairing),
+        );
+        map.insert(
+            "coin_migrate_to_fungible_store".to_string(),
+            Box::new(decoder::coin_migrate_to_fungible_store),
         );
         map.insert(
             "coin_transfer".to_string(),
@@ -7206,62 +6997,6 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "committee_map_upsert_committee_member_bulk".to_string(),
             Box::new(decoder::committee_map_upsert_committee_member_bulk),
-        );
-        map.insert(
-            "delegation_pool_add_stake".to_string(),
-            Box::new(decoder::delegation_pool_add_stake),
-        );
-        map.insert(
-            "delegation_pool_create_proposal".to_string(),
-            Box::new(decoder::delegation_pool_create_proposal),
-        );
-        map.insert(
-            "delegation_pool_delegate_voting_power".to_string(),
-            Box::new(decoder::delegation_pool_delegate_voting_power),
-        );
-        map.insert(
-            "delegation_pool_enable_partial_governance_voting".to_string(),
-            Box::new(decoder::delegation_pool_enable_partial_governance_voting),
-        );
-        map.insert(
-            "delegation_pool_initialize_delegation_pool".to_string(),
-            Box::new(decoder::delegation_pool_initialize_delegation_pool),
-        );
-        map.insert(
-            "delegation_pool_reactivate_stake".to_string(),
-            Box::new(decoder::delegation_pool_reactivate_stake),
-        );
-        map.insert(
-            "delegation_pool_set_beneficiary_for_operator".to_string(),
-            Box::new(decoder::delegation_pool_set_beneficiary_for_operator),
-        );
-        map.insert(
-            "delegation_pool_set_delegated_voter".to_string(),
-            Box::new(decoder::delegation_pool_set_delegated_voter),
-        );
-        map.insert(
-            "delegation_pool_set_operator".to_string(),
-            Box::new(decoder::delegation_pool_set_operator),
-        );
-        map.insert(
-            "delegation_pool_synchronize_delegation_pool".to_string(),
-            Box::new(decoder::delegation_pool_synchronize_delegation_pool),
-        );
-        map.insert(
-            "delegation_pool_unlock".to_string(),
-            Box::new(decoder::delegation_pool_unlock),
-        );
-        map.insert(
-            "delegation_pool_update_commission_percentage".to_string(),
-            Box::new(decoder::delegation_pool_update_commission_percentage),
-        );
-        map.insert(
-            "delegation_pool_vote".to_string(),
-            Box::new(decoder::delegation_pool_vote),
-        );
-        map.insert(
-            "delegation_pool_withdraw".to_string(),
-            Box::new(decoder::delegation_pool_withdraw),
         );
         map.insert(
             "managed_coin_burn".to_string(),
@@ -7328,6 +7063,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
             Box::new(decoder::multisig_account_execute_rejected_transaction),
         );
         map.insert(
+            "multisig_account_execute_rejected_transactions".to_string(),
+            Box::new(decoder::multisig_account_execute_rejected_transactions),
+        );
+        map.insert(
             "multisig_account_reject_transaction".to_string(),
             Box::new(decoder::multisig_account_reject_transaction),
         );
@@ -7360,6 +7099,18 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
             Box::new(decoder::multisig_account_update_signatures_required),
         );
         map.insert(
+            "multisig_account_update_timeout_duration".to_string(),
+            Box::new(decoder::multisig_account_update_timeout_duration),
+        );
+        map.insert(
+            "multisig_account_vote_transaction".to_string(),
+            Box::new(decoder::multisig_account_vote_transaction),
+        );
+        map.insert(
+            "multisig_account_vote_transactions".to_string(),
+            Box::new(decoder::multisig_account_vote_transactions),
+        );
+        map.insert(
             "multisig_account_vote_transanction".to_string(),
             Box::new(decoder::multisig_account_vote_transanction),
         );
@@ -7372,8 +7123,8 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
             Box::new(decoder::object_code_deployment_publish),
         );
         map.insert(
-            "pbo_delegation_pool_create_proposal".to_string(),
-            Box::new(decoder::pbo_delegation_pool_create_proposal),
+            "pbo_delegation_pool_add_stake".to_string(),
+            Box::new(decoder::pbo_delegation_pool_add_stake),
         );
         map.insert(
             "pbo_delegation_pool_delegate_voting_power".to_string(),
@@ -7386,6 +7137,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "pbo_delegation_pool_reactivate_stake".to_string(),
             Box::new(decoder::pbo_delegation_pool_reactivate_stake),
+        );
+        map.insert(
+            "pbo_delegation_pool_replace_delegator".to_string(),
+            Box::new(decoder::pbo_delegation_pool_replace_delegator),
         );
         map.insert(
             "pbo_delegation_pool_set_beneficiary_for_operator".to_string(),
@@ -7410,10 +7165,6 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "pbo_delegation_pool_update_commission_percentage".to_string(),
             Box::new(decoder::pbo_delegation_pool_update_commission_percentage),
-        );
-        map.insert(
-            "pbo_delegation_pool_vote".to_string(),
-            Box::new(decoder::pbo_delegation_pool_vote),
         );
         map.insert(
             "pbo_delegation_pool_withdraw".to_string(),
@@ -7561,6 +7312,30 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
             Box::new(decoder::staking_proxy_set_voter),
         );
         map.insert(
+            "supra_account_batch_transfer".to_string(),
+            Box::new(decoder::supra_account_batch_transfer),
+        );
+        map.insert(
+            "supra_account_batch_transfer_coins".to_string(),
+            Box::new(decoder::supra_account_batch_transfer_coins),
+        );
+        map.insert(
+            "supra_account_create_account".to_string(),
+            Box::new(decoder::supra_account_create_account),
+        );
+        map.insert(
+            "supra_account_set_allow_direct_coin_transfers".to_string(),
+            Box::new(decoder::supra_account_set_allow_direct_coin_transfers),
+        );
+        map.insert(
+            "supra_account_transfer".to_string(),
+            Box::new(decoder::supra_account_transfer),
+        );
+        map.insert(
+            "supra_account_transfer_coins".to_string(),
+            Box::new(decoder::supra_account_transfer_coins),
+        );
+        map.insert(
             "supra_coin_claim_mint_capability".to_string(),
             Box::new(decoder::supra_coin_claim_mint_capability),
         );
@@ -7571,6 +7346,42 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "supra_coin_mint".to_string(),
             Box::new(decoder::supra_coin_mint),
+        );
+        map.insert(
+            "supra_governance_add_supra_approved_script_hash_script".to_string(),
+            Box::new(decoder::supra_governance_add_supra_approved_script_hash_script),
+        );
+        map.insert(
+            "supra_governance_force_end_epoch".to_string(),
+            Box::new(decoder::supra_governance_force_end_epoch),
+        );
+        map.insert(
+            "supra_governance_force_end_epoch_test_only".to_string(),
+            Box::new(decoder::supra_governance_force_end_epoch_test_only),
+        );
+        map.insert(
+            "supra_governance_reconfigure".to_string(),
+            Box::new(decoder::supra_governance_reconfigure),
+        );
+        map.insert(
+            "supra_governance_supra_create_proposal".to_string(),
+            Box::new(decoder::supra_governance_supra_create_proposal),
+        );
+        map.insert(
+            "supra_governance_supra_create_proposal_v2".to_string(),
+            Box::new(decoder::supra_governance_supra_create_proposal_v2),
+        );
+        map.insert(
+            "supra_governance_supra_vote".to_string(),
+            Box::new(decoder::supra_governance_supra_vote),
+        );
+        map.insert(
+            "transaction_fee_convert_to_aptos_fa_burn_ref".to_string(),
+            Box::new(decoder::transaction_fee_convert_to_aptos_fa_burn_ref),
+        );
+        map.insert(
+            "version_set_for_next_epoch".to_string(),
+            Box::new(decoder::version_set_for_next_epoch),
         );
         map.insert(
             "version_set_version".to_string(),
@@ -7676,6 +7487,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "vesting_without_staking_vest".to_string(),
             Box::new(decoder::vesting_without_staking_vest),
+        );
+        map.insert(
+            "vesting_without_staking_vest_individual".to_string(),
+            Box::new(decoder::vesting_without_staking_vest_individual),
         );
         map
     });

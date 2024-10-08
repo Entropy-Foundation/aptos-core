@@ -1,7 +1,7 @@
 spec supra_framework::genesis {
     /// <high-level-req>
     /// No.: 1
-    /// Requirement: All the core resources and modules should be created during genesis and owned by the Aptos framework
+    /// Requirement: All the core resources and modules should be created during genesis and owned by the Supra framework
     /// account.
     /// Criticality: Critical
     /// Implementation: Resources created during genesis initialization: GovernanceResponsbility, ConsensusConfig,
@@ -9,7 +9,7 @@ spec supra_framework::genesis {
     /// StorageGasConfig, StorageGas, GasScheduleV2, AggregatorFactory, SupplyConfig, ChainId, Configuration,
     /// BlockResource, StateStorageUsage, CurrentTimeMicroseconds. If some of the resources were to be owned by a
     /// malicious account, it could lead to the compromise of the chain, as these are core resources. It should be
-    /// formally verified by a post condition to ensure that all the critical resources are owned by the Aptos framework.
+    /// formally verified by a post condition to ensure that all the critical resources are owned by the Supra framework.
     /// Enforcement: Formally verified via [high-level-req-1](initialize).
     ///
     /// No.: 2
@@ -22,11 +22,11 @@ spec supra_framework::genesis {
     /// Enforcement: Formally verified via [high-level-req-2](initialize).
     ///
     /// No.: 3
-    /// Requirement: The Aptos coin should be initialized during genesis and only the Aptos framework account should own
-    /// the mint and burn capabilities for the APT token.
+    /// Requirement: The Supra coin should be initialized during genesis and only the Supra framework account should own
+    /// the mint and burn capabilities for the SUPRA token.
     /// Criticality: Critical
     /// Implementation: Both mint and burn capabilities are wrapped inside the stake::SupraCoinCapabilities and
-    /// transaction_fee::SupraCoinCapabilities resources which are stored under the aptos framework account.
+    /// transaction_fee::SupraCoinCapabilities resources which are stored under the supra framework account.
     /// Enforcement: Formally verified via [high-level-req-3](initialize_supra_coin).
     ///
     /// No.: 4
@@ -75,11 +75,12 @@ spec supra_framework::genesis {
         ensures exists<account::Account>(@0x9);
         ensures exists<account::Account>(@0xa);
 
-        // property 1: All the core resources and modules should be created during genesis and owned by the Aptos framework account.
+        // property 1: All the core resources and modules should be created during genesis and owned by the Supra framework account.
         /// [high-level-req-1]
-        ensures exists<aptos_governance::GovernanceResponsbility>(@supra_framework);
+        ensures exists<supra_governance::GovernanceResponsbility>(@supra_framework);
         ensures exists<consensus_config::ConsensusConfig>(@supra_framework);
         ensures exists<execution_config::ExecutionConfig>(@supra_framework);
+        ensures exists<supra_config::SupraConfig>(@supra_framework);
         ensures exists<version::Version>(@supra_framework);
         ensures exists<stake::ValidatorSet>(@supra_framework);
         ensures exists<stake::ValidatorPerformance>(@supra_framework);
@@ -99,8 +100,8 @@ spec supra_framework::genesis {
     }
 
     spec initialize_supra_coin {
-        // property 3: The Aptos coin should be initialized during genesis and only the Aptos framework account should
-        // own the mint and burn capabilities for the APT token.
+        // property 3: The Supra coin should be initialized during genesis and only the Aptos framework account should
+        // own the mint and burn capabilities for the SUPRA token.
         /// [high-level-req-3]
         requires !exists<stake::SupraCoinCapabilities>(@supra_framework);
         ensures exists<stake::SupraCoinCapabilities>(@supra_framework);
@@ -112,12 +113,16 @@ spec supra_framework::genesis {
         pragma verify_duration_estimate = 120;
 
         include stake::ResourceRequirement;
+        include stake::GetReconfigStartTimeRequirement;
         include CompareTimeRequires;
         include supra_coin::ExistsSupraCoin;
     }
 
     spec create_initialize_validators {
+        pragma verify_duration_estimate = 120;
+
         include stake::ResourceRequirement;
+        include stake::GetReconfigStartTimeRequirement;
         include CompareTimeRequires;
         include supra_coin::ExistsSupraCoin;
     }
@@ -145,14 +150,6 @@ spec supra_framework::genesis {
         aborts_if addr != @supra_framework;
         aborts_if exists<chain_status::GenesisEndMarker>(@supra_framework);
         ensures global<chain_status::GenesisEndMarker>(@supra_framework) == chain_status::GenesisEndMarker {};
-    }
-
-    spec create_delegation_pools {
-        pragma verify = false;
-    }
-
-    spec create_delegation_pool {
-        pragma verify = false;
     }
 
     spec create_pbo_delegation_pools {

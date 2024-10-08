@@ -1,7 +1,7 @@
 spec supra_framework::reconfiguration {
     /// <high-level-req>
     /// No.: 1
-    /// Requirement: The Configuration resource is stored under the Aptos framework account with initial values upon
+    /// Requirement: The Configuration resource is stored under the Supra framework account with initial values upon
     /// module's initialization.
     /// Criticality: Medium
     /// Implementation: The Configuration resource may only be initialized with specific values and published under the
@@ -131,7 +131,8 @@ spec supra_framework::reconfiguration {
         use supra_framework::staking_config;
 
         // TODO: set because of timeout (property proved)
-        pragma verify_duration_estimate = 120;
+        pragma verify = true;
+        pragma verify_duration_estimate = 600;
         requires exists<stake::ValidatorFees>(@supra_framework);
 
         let success = !(chain_status::is_genesis() || timestamp::spec_now_microseconds() == 0 || !reconfiguration_enabled())

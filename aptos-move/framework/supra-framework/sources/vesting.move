@@ -1,5 +1,5 @@
 ///
-/// Simple vesting contract that allows specifying how much APT coins should be vesting in each fixed-size period. The
+/// Simple vesting contract that allows specifying how much SUPRA coins should be vesting in each fixed-size period. The
 /// vesting contract also comes with staking and allows shareholders to withdraw rewards anytime.
 ///
 /// Vesting schedule is represented as a vector of distributions. For example, a vesting schedule of
@@ -45,10 +45,10 @@ module supra_framework::vesting {
     use aptos_std::simple_map::{Self, SimpleMap};
 
     use supra_framework::account::{Self, SignerCapability, new_event_handle};
-    use supra_framework::aptos_account::{Self, assert_account_is_registered_for_apt};
+    use supra_framework::supra_account::{Self, assert_account_is_registered_for_supra};
     use supra_framework::supra_coin::SupraCoin;
     use supra_framework::coin::{Self, Coin};
-    use supra_framework::event::{EventHandle, emit_event};
+    use supra_framework::event::{EventHandle, emit, emit_event};
     use supra_framework::stake;
     use supra_framework::staking_contract;
     use supra_framework::system_addresses;
@@ -168,6 +168,90 @@ module supra_framework::vesting {
         nonce: u64,
 
         create_events: EventHandle<CreateVestingContractEvent>,
+    }
+
+    #[event]
+    struct CreateVestingContract has drop, store {
+        operator: address,
+        voter: address,
+        grant_amount: u64,
+        withdrawal_address: address,
+        vesting_contract_address: address,
+        staking_pool_address: address,
+        commission_percentage: u64,
+    }
+
+    #[event]
+    struct UpdateOperator has drop, store {
+        admin: address,
+        vesting_contract_address: address,
+        staking_pool_address: address,
+        old_operator: address,
+        new_operator: address,
+        commission_percentage: u64,
+    }
+
+    #[event]
+    struct UpdateVoter has drop, store {
+        admin: address,
+        vesting_contract_address: address,
+        staking_pool_address: address,
+        old_voter: address,
+        new_voter: address,
+    }
+
+    #[event]
+    struct ResetLockup has drop, store {
+        admin: address,
+        vesting_contract_address: address,
+        staking_pool_address: address,
+        new_lockup_expiration_secs: u64,
+    }
+
+    #[event]
+    struct SetBeneficiary has drop, store {
+        admin: address,
+        vesting_contract_address: address,
+        shareholder: address,
+        old_beneficiary: address,
+        new_beneficiary: address,
+    }
+
+    #[event]
+    struct UnlockRewards has drop, store {
+        admin: address,
+        vesting_contract_address: address,
+        staking_pool_address: address,
+        amount: u64,
+    }
+
+    #[event]
+    struct Vest has drop, store {
+        admin: address,
+        vesting_contract_address: address,
+        staking_pool_address: address,
+        period_vested: u64,
+        amount: u64,
+    }
+
+    #[event]
+    struct Distribute has drop, store {
+        admin: address,
+        vesting_contract_address: address,
+        amount: u64,
+    }
+
+    #[event]
+    struct Terminate has drop, store {
+        admin: address,
+        vesting_contract_address: address,
+    }
+
+    #[event]
+    struct AdminWithdraw has drop, store {
+        admin: address,
+        vesting_contract_address: address,
+        amount: u64,
     }
 
     struct CreateVestingContractEvent has drop, store {
@@ -393,7 +477,10 @@ module supra_framework::vesting {
     /// address is actually a shareholder address, just return the address back.
     ///
     /// This returns 0x0 if no shareholder is found for the given beneficiary / the address is not a shareholder itself.
-    public fun shareholder(vesting_contract_address: address, shareholder_or_beneficiary: address): address acquires VestingContract {
+    public fun shareholder(
+        vesting_contract_address: address,
+        shareholder_or_beneficiary: address
+    ): address acquires VestingContract {
         assert_active_vesting_contract(vesting_contract_address);
 
         let shareholders = &shareholders(vesting_contract_address);
@@ -452,7 +539,7 @@ module supra_framework::vesting {
             !system_addresses::is_reserved_address(withdrawal_address),
             error::invalid_argument(EINVALID_WITHDRAWAL_ADDRESS),
         );
-        assert_account_is_registered_for_apt(withdrawal_address);
+        assert_account_is_registered_for_supra(withdrawal_address);
         assert!(vector::length(shareholders) > 0, error::invalid_argument(ENO_SHAREHOLDERS));
         assert!(
             simple_map::length(&buy_ins) == vector::length(shareholders),
@@ -497,6 +584,19 @@ module supra_framework::vesting {
         let contract_address = signer::address_of(&contract_signer);
         let admin_store = borrow_global_mut<AdminStore>(admin_address);
         vector::push_back(&mut admin_store.vesting_contracts, contract_address);
+        if (std::features::module_event_migration_enabled()) {
+            emit(
+                CreateVestingContract {
+                    operator,
+                    voter,
+                    withdrawal_address,
+                    grant_amount,
+                    vesting_contract_address: contract_address,
+                    staking_pool_address: pool_address,
+                    commission_percentage,
+                },
+            );
+        };
         emit_event(
             &mut admin_store.create_events,
             CreateVestingContractEvent {
@@ -595,6 +695,17 @@ module supra_framework::vesting {
         vesting_schedule.last_vested_period = next_period_to_vest;
         unlock_stake(vesting_contract, vested_amount);
 
+        if (std::features::module_event_migration_enabled()) {
+            emit(
+                Vest {
+                    admin: vesting_contract.admin,
+                    vesting_contract_address: contract_address,
+                    staking_pool_address: vesting_contract.staking.pool_address,
+                    period_vested: next_period_to_vest,
+                    amount: vested_amount,
+                },
+            );
+        };
         emit_event(
             &mut vesting_contract.vest_events,
             VestEvent {
@@ -640,16 +751,25 @@ module supra_framework::vesting {
             let amount = pool_u64::shares_to_amount_with_total_coins(grant_pool, shares, total_distribution_amount);
             let share_of_coins = coin::extract(&mut coins, amount);
             let recipient_address = get_beneficiary(vesting_contract, shareholder);
-            aptos_account::deposit_coins(recipient_address, share_of_coins);
+            supra_account::deposit_coins(recipient_address, share_of_coins);
         });
 
         // Send any remaining "dust" (leftover due to rounding error) to the withdrawal address.
         if (coin::value(&coins) > 0) {
-            aptos_account::deposit_coins(vesting_contract.withdrawal_address, coins);
+            supra_account::deposit_coins(vesting_contract.withdrawal_address, coins);
         } else {
             coin::destroy_zero(coins);
         };
 
+        if (std::features::module_event_migration_enabled()) {
+            emit(
+                Distribute {
+                    admin: vesting_contract.admin,
+                    vesting_contract_address: contract_address,
+                    amount: total_distribution_amount,
+                },
+            );
+        };
         emit_event(
             &mut vesting_contract.distribute_events,
             DistributeEvent {
@@ -689,6 +809,14 @@ module supra_framework::vesting {
         vesting_contract.remaining_grant = 0;
         unlock_stake(vesting_contract, active_stake);
 
+        if (std::features::module_event_migration_enabled()) {
+            emit(
+                Terminate {
+                    admin: vesting_contract.admin,
+                    vesting_contract_address: contract_address,
+                },
+            );
+        };
         emit_event(
             &mut vesting_contract.terminate_events,
             TerminateEvent {
@@ -702,7 +830,10 @@ module supra_framework::vesting {
     /// has already been terminated.
     public entry fun admin_withdraw(admin: &signer, contract_address: address) acquires VestingContract {
         let vesting_contract = borrow_global<VestingContract>(contract_address);
-        assert!(vesting_contract.state == VESTING_POOL_TERMINATED, error::invalid_state(EVESTING_CONTRACT_STILL_ACTIVE));
+        assert!(
+            vesting_contract.state == VESTING_POOL_TERMINATED,
+            error::invalid_state(EVESTING_CONTRACT_STILL_ACTIVE)
+        );
 
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
         verify_admin(admin, vesting_contract);
@@ -712,8 +843,17 @@ module supra_framework::vesting {
             coin::destroy_zero(coins);
             return
         };
-        aptos_account::deposit_coins(vesting_contract.withdrawal_address, coins);
+        supra_account::deposit_coins(vesting_contract.withdrawal_address, coins);
 
+        if (std::features::module_event_migration_enabled()) {
+            emit(
+                AdminWithdraw {
+                    admin: vesting_contract.admin,
+                    vesting_contract_address: contract_address,
+                    amount,
+                },
+            );
+        };
         emit_event(
             &mut vesting_contract.admin_withdraw_events,
             AdminWithdrawEvent {
@@ -738,6 +878,18 @@ module supra_framework::vesting {
         vesting_contract.staking.operator = new_operator;
         vesting_contract.staking.commission_percentage = commission_percentage;
 
+        if (std::features::module_event_migration_enabled()) {
+            emit(
+                UpdateOperator {
+                    admin: vesting_contract.admin,
+                    vesting_contract_address: contract_address,
+                    staking_pool_address: vesting_contract.staking.pool_address,
+                    old_operator,
+                    new_operator,
+                    commission_percentage,
+                },
+            );
+        };
         emit_event(
             &mut vesting_contract.update_operator_events,
             UpdateOperatorEvent {
@@ -787,6 +939,17 @@ module supra_framework::vesting {
         staking_contract::update_voter(contract_signer, vesting_contract.staking.operator, new_voter);
         vesting_contract.staking.voter = new_voter;
 
+        if (std::features::module_event_migration_enabled()) {
+            emit(
+                UpdateVoter {
+                    admin: vesting_contract.admin,
+                    vesting_contract_address: contract_address,
+                    staking_pool_address: vesting_contract.staking.pool_address,
+                    old_voter,
+                    new_voter,
+                },
+            );
+        };
         emit_event(
             &mut vesting_contract.update_voter_events,
             UpdateVoterEvent {
@@ -808,6 +971,16 @@ module supra_framework::vesting {
         let contract_signer = &get_vesting_account_signer_internal(vesting_contract);
         staking_contract::reset_lockup(contract_signer, vesting_contract.staking.operator);
 
+        if (std::features::module_event_migration_enabled()) {
+            emit(
+                ResetLockup {
+                    admin: vesting_contract.admin,
+                    vesting_contract_address: contract_address,
+                    staking_pool_address: vesting_contract.staking.pool_address,
+                    new_lockup_expiration_secs: stake::get_lockup_secs(vesting_contract.staking.pool_address),
+                },
+            );
+        };
         emit_event(
             &mut vesting_contract.reset_lockup_events,
             ResetLockupEvent {
@@ -825,9 +998,9 @@ module supra_framework::vesting {
         shareholder: address,
         new_beneficiary: address,
     ) acquires VestingContract {
-        // Verify that the beneficiary account is set up to receive APT. This is a requirement so distribute() wouldn't
-        // fail and block all other accounts from receiving APT if one beneficiary is not registered.
-        assert_account_is_registered_for_apt(new_beneficiary);
+        // Verify that the beneficiary account is set up to receive SUPRA. This is a requirement so distribute() wouldn't
+        // fail and block all other accounts from receiving SUPRA if one beneficiary is not registered.
+        assert_account_is_registered_for_supra(new_beneficiary);
 
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
         verify_admin(admin, vesting_contract);
@@ -841,6 +1014,17 @@ module supra_framework::vesting {
             simple_map::add(beneficiaries, shareholder, new_beneficiary);
         };
 
+        if (std::features::module_event_migration_enabled()) {
+            emit(
+                SetBeneficiary {
+                    admin: vesting_contract.admin,
+                    vesting_contract_address: contract_address,
+                    shareholder,
+                    old_beneficiary,
+                    new_beneficiary,
+                },
+            );
+        };
         emit_event(
             &mut vesting_contract.set_beneficiary_events,
             SetBeneficiaryEvent {
@@ -950,7 +1134,7 @@ module supra_framework::vesting {
         vector::append(&mut seed, contract_creation_seed);
 
         let (account_signer, signer_cap) = account::create_resource_account(admin, seed);
-        // Register the vesting contract account to receive APT as it'll be sent to it when claiming unlocked stake from
+        // Register the vesting contract account to receive SUPRA as it'll be sent to it when claiming unlocked stake from
         // the underlying staking contract.
         coin::register<SupraCoin>(&account_signer);
 
@@ -1001,10 +1185,10 @@ module supra_framework::vesting {
     use aptos_std::math64::min;
 
     #[test_only]
-    const MIN_STAKE: u64 = 100000000000000; // 1M APT coins with 8 decimals.
+    const MIN_STAKE: u64 = 100000000000000; // 1M SUPRA coins with 8 decimals.
 
     #[test_only]
-    const GRANT_AMOUNT: u64 = 20000000000000000; // 200M APT coins with 8 decimals.
+    const GRANT_AMOUNT: u64 = 20000000000000000; // 200M SUPRA coins with 8 decimals.
 
     #[test_only]
     const VESTING_SCHEDULE_CLIFF: u64 = 31536000; // 1 year
@@ -1027,9 +1211,18 @@ module supra_framework::vesting {
 
     #[test_only]
     public fun setup(supra_framework: &signer, accounts: &vector<address>) {
-        use supra_framework::aptos_account::create_account;
+        use supra_framework::supra_account::create_account;
 
-        stake::initialize_for_test_custom(supra_framework, MIN_STAKE, GRANT_AMOUNT * 10, 3600, true, 10, 10000, 1000000);
+        stake::initialize_for_test_custom(
+            supra_framework,
+            MIN_STAKE,
+            GRANT_AMOUNT * 10,
+            3600,
+            true,
+            10,
+            10000,
+            1000000
+        );
 
         vector::for_each_ref(accounts, |addr| {
             let addr: address = *addr;
@@ -1038,7 +1231,7 @@ module supra_framework::vesting {
             };
         });
 
-        std::features::change_feature_flags(supra_framework, vector[MODULE_EVENT, OPERATOR_BENEFICIARY_CHANGE], vector[]);
+        std::features::change_feature_flags_for_testing(supra_framework, vector[MODULE_EVENT, OPERATOR_BENEFICIARY_CHANGE], vector[]);
     }
 
     #[test_only]
@@ -1260,7 +1453,7 @@ module supra_framework::vesting {
     }
 
     #[test(supra_framework = @0x1, admin = @0x123)]
-    #[expected_failure(abort_code = 0x60001, location = supra_framework::aptos_account)]
+    #[expected_failure(abort_code = 0x60001, location = supra_framework::supra_account)]
     public entry fun test_create_vesting_contract_with_invalid_withdrawal_address_should_fail(
         supra_framework: &signer,
         admin: &signer,
@@ -1271,7 +1464,7 @@ module supra_framework::vesting {
     }
 
     #[test(supra_framework = @0x1, admin = @0x123)]
-    #[expected_failure(abort_code = 0x60001, location = supra_framework::aptos_account)]
+    #[expected_failure(abort_code = 0x60001, location = supra_framework::supra_account)]
     public entry fun test_create_vesting_contract_with_missing_withdrawal_account_should_fail(
         supra_framework: &signer,
         admin: &signer,
@@ -1282,7 +1475,7 @@ module supra_framework::vesting {
     }
 
     #[test(supra_framework = @0x1, admin = @0x123)]
-    #[expected_failure(abort_code = 0x60002, location = supra_framework::aptos_account)]
+    #[expected_failure(abort_code = 0x60002, location = supra_framework::supra_account)]
     public entry fun test_create_vesting_contract_with_unregistered_withdrawal_account_should_fail(
         supra_framework: &signer,
         admin: &signer,
@@ -1413,7 +1606,13 @@ module supra_framework::vesting {
 
         // Distribution should pay commission to operator first and remaining amount to shareholders.
         stake::fast_forward_to_unlock(stake_pool_address);
-        stake::assert_stake_pool(stake_pool_address, with_rewards(GRANT_AMOUNT), with_rewards(accumulated_rewards), 0, 0);
+        stake::assert_stake_pool(
+            stake_pool_address,
+            with_rewards(GRANT_AMOUNT),
+            with_rewards(accumulated_rewards),
+            0,
+            0
+        );
         // Operator also earns more commission from the rewards earnt on the withdrawn rewards.
         let commission_on_staker_rewards = (with_rewards(staker_rewards) - staker_rewards) / 10;
         staker_rewards = with_rewards(staker_rewards) - commission_on_staker_rewards;
@@ -1464,7 +1663,13 @@ module supra_framework::vesting {
 
         // Distribution should pay commission to operator first and remaining amount to shareholders.
         stake::fast_forward_to_unlock(stake_pool_address);
-        stake::assert_stake_pool(stake_pool_address, with_rewards(GRANT_AMOUNT), with_rewards(accumulated_rewards), 0, 0);
+        stake::assert_stake_pool(
+            stake_pool_address,
+            with_rewards(GRANT_AMOUNT),
+            with_rewards(accumulated_rewards),
+            0,
+            0
+        );
         // Operator also earns more commission from the rewards earnt on the withdrawn rewards.
         let commission_on_staker_rewards = (with_rewards(staker_rewards) - staker_rewards) / 10;
         staker_rewards = with_rewards(staker_rewards) - commission_on_staker_rewards;
@@ -1519,7 +1724,10 @@ module supra_framework::vesting {
 
         // Stake pool earns some rewards.
         stake::end_epoch();
-        let (_, accumulated_rewards, _) = staking_contract::staking_contract_amounts(contract_address, operator_address);
+        let (_, accumulated_rewards, _) = staking_contract::staking_contract_amounts(
+            contract_address,
+            operator_address
+        );
 
         // Update commission percentage to 20%. This also immediately requests commission.
         update_commission_percentage(admin, contract_address, 20);
@@ -1532,7 +1740,10 @@ module supra_framework::vesting {
 
         // Stake pool earns some more rewards.
         stake::end_epoch();
-        let (_, accumulated_rewards, _) = staking_contract::staking_contract_amounts(contract_address, operator_address);
+        let (_, accumulated_rewards, _) = staking_contract::staking_contract_amounts(
+            contract_address,
+            operator_address
+        );
 
         // Request commission again.
         staking_contract::request_commission(operator, contract_address, operator_address);
@@ -1550,7 +1761,14 @@ module supra_framework::vesting {
         assert!(coin::balance<SupraCoin>(operator_address) == expected_commission, 1);
     }
 
-    #[test(supra_framework = @0x1, admin = @0x123, shareholder = @0x234, operator1 = @0x345, beneficiary = @0x456, operator2 = @0x567)]
+    #[test(
+        supra_framework = @0x1,
+        admin = @0x123,
+        shareholder = @0x234,
+        operator1 = @0x345,
+        beneficiary = @0x456,
+        operator2 = @0x567
+    )]
     public entry fun test_set_beneficiary_for_operator(
         supra_framework: &signer,
         admin: &signer,
@@ -1626,7 +1844,6 @@ module supra_framework::vesting {
         // Assert that the rewards go to operator2, and the balance of the operator1's beneficiay remains the same.
         assert!(coin::balance<SupraCoin>(operator_address2) >= expected_commission, 1);
         assert!(coin::balance<SupraCoin>(beneficiary_address) == old_beneficiay_balance, 1);
-
     }
 
     #[test(supra_framework = @0x1, admin = @0x123, shareholder = @0x234)]
@@ -1792,7 +2009,7 @@ module supra_framework::vesting {
     }
 
     #[test(supra_framework = @0x1, admin = @0x123)]
-    #[expected_failure(abort_code = 0x60001, location = supra_framework::aptos_account)]
+    #[expected_failure(abort_code = 0x60001, location = supra_framework::supra_account)]
     public entry fun test_set_beneficiary_with_missing_account_should_fail(
         supra_framework: &signer,
         admin: &signer,
@@ -1805,7 +2022,7 @@ module supra_framework::vesting {
     }
 
     #[test(supra_framework = @0x1, admin = @0x123)]
-    #[expected_failure(abort_code = 0x60002, location = supra_framework::aptos_account)]
+    #[expected_failure(abort_code = 0x60002, location = supra_framework::supra_account)]
     public entry fun test_set_beneficiary_with_unregistered_account_should_fail(
         supra_framework: &signer,
         admin: &signer,

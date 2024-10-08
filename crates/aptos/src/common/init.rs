@@ -24,7 +24,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, str::FromStr};
 
-/// 1 APT (might not actually get that much, depending on the faucet)
+/// 1 SUPRA (might not actually get that much, depending on the faucet)
 const NUM_DEFAULT_OCTAS: u64 = 100000000;
 
 /// Tool to initialize current directory for the aptos tool
@@ -183,7 +183,7 @@ impl CliCommand<()> for InitTool {
         };
 
         // Set the derivation_path to the one user chose
-        profile_config.derivation_path = derivation_path.clone();
+        profile_config.derivation_path.clone_from(&derivation_path);
 
         // Private key
         let private_key = if self.is_hardware_wallet() {
@@ -305,7 +305,7 @@ impl CliCommand<()> for InitTool {
                 eprintln!("Account {} has been already found onchain", address);
             } else {
                 eprintln!(
-                    "Account {} doesn't exist, creating it and funding it with {} Octas",
+                    "Account {} doesn't exist, creating it and funding it with {} Quants",
                     address, NUM_DEFAULT_OCTAS
                 );
                 fund_account(

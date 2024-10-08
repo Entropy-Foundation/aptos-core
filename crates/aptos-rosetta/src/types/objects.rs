@@ -33,7 +33,7 @@ use aptos_types::{
     event::EventKey,
     fee_statement::FeeStatement,
     stake_pool::{SetOperatorEvent, StakePool},
-    state_store::state_key::{StateKey, StateKeyInner},
+    state_store::state_key::{inner::StateKeyInner, StateKey},
     transaction::{EntryFunction, TransactionPayload},
     write_set::{WriteOp, WriteSet},
 };
@@ -856,6 +856,7 @@ pub enum TransactionType {
     BlockMetadataExt,
     StateCheckpoint,
     Validator,
+    BlockEpilogue,
 }
 
 impl Display for TransactionType {
@@ -868,6 +869,7 @@ impl Display for TransactionType {
             BlockMetadataExt => "BlockResourceExt",
             StateCheckpoint => "StateCheckpoint",
             Validator => "Validator",
+            BlockEpilogue => "BlockEpilogue",
         })
     }
 }
@@ -892,6 +894,7 @@ impl Transaction {
             ),
             StateCheckpoint(_) => (TransactionType::StateCheckpoint, None, txn.info, vec![]),
             ValidatorTransaction(_) => (TransactionType::Validator, None, txn.info, txn.events),
+            BlockEpilogue(_) => (TransactionType::BlockEpilogue, None, txn.info, vec![]),
         };
 
         // Operations must be sequential and operation index must always be in the same order
@@ -1231,7 +1234,7 @@ async fn parse_operations_from_write_set(
         struct_tag.address,
         struct_tag.module.as_str(),
         struct_tag.name.as_str(),
-        struct_tag.type_params.len(),
+        struct_tag.type_args.len(),
     ) {
         (AccountAddress::ONE, ACCOUNT_MODULE, ACCOUNT_RESOURCE, 0) => {
             parse_account_resource_changes(version, address, data, maybe_sender, operation_index)
@@ -1261,7 +1264,7 @@ async fn parse_operations_from_write_set(
                 .await
         },
         (AccountAddress::ONE, COIN_MODULE, COIN_STORE_RESOURCE, 1) => {
-            if let Some(type_tag) = struct_tag.type_params.first() {
+            if let Some(type_tag) = struct_tag.type_args.first() {
                 // TODO: This will need to be updated to support more coins
                 if type_tag == &native_coin_tag() {
                     parse_coinstore_changes(
@@ -1846,7 +1849,7 @@ fn get_fee_statement_from_event(events: &[ContractEvent]) -> Vec<FeeStatement> {
         .filter_map(|event| {
             if let Ok(fee_statement_event) = bcs::from_bytes::<FeeStatement>(event.event_data()) {
                 if fee_statement_event.storage_fee_refund() != 0 {
-                    Some(fee_statement_event) // Collect only if storage_fee_refund_octas is non-zero
+                    Some(fee_statement_event) // Collect only if storage_fee_refund_quants is non-zero
                 } else {
                     None
                 }
@@ -2183,13 +2186,13 @@ impl InternalOperation {
     ) -> ApiResult<(aptos_types::transaction::TransactionPayload, AccountAddress)> {
         Ok(match self {
             InternalOperation::CreateAccount(create_account) => (
-                aptos_stdlib::aptos_account_create_account(create_account.new_account),
+                aptos_stdlib::supra_account_create_account(create_account.new_account),
                 create_account.sender,
             ),
             InternalOperation::Transfer(transfer) => {
                 is_native_coin(&transfer.currency)?;
                 (
-                    aptos_stdlib::aptos_account_transfer(transfer.receiver, transfer.amount.0),
+                    aptos_stdlib::supra_account_transfer(transfer.receiver, transfer.amount.0),
                     transfer.sender,
                 )
             },
@@ -2257,21 +2260,21 @@ impl InternalOperation {
                 distribute_staking_rewards.sender,
             ),
             InternalOperation::AddDelegatedStake(add_delegated_stake) => (
-                aptos_stdlib::delegation_pool_add_stake(
+                aptos_stdlib::pbo_delegation_pool_add_stake(
                     add_delegated_stake.pool_address,
                     add_delegated_stake.amount,
                 ),
                 add_delegated_stake.delegator,
             ),
             InternalOperation::UnlockDelegatedStake(unlock_delegated_stake) => (
-                aptos_stdlib::delegation_pool_unlock(
+                aptos_stdlib::pbo_delegation_pool_unlock(
                     unlock_delegated_stake.pool_address,
                     unlock_delegated_stake.amount,
                 ),
                 unlock_delegated_stake.delegator,
             ),
             InternalOperation::WithdrawUndelegated(withdraw_undelegated) => (
-                aptos_stdlib::delegation_pool_withdraw(
+                aptos_stdlib::pbo_delegation_pool_withdraw(
                     withdraw_undelegated.pool_address,
                     withdraw_undelegated.amount_withdrawn,
                 ),

@@ -13,17 +13,17 @@ use clap::Parser;
 use serde::Serialize;
 use std::collections::BTreeMap;
 
-// TODO: Add ability to transfer non-APT coins
+// TODO: Add ability to transfer non-SUPRA coins
 // TODO: Add ability to not create account by default
-/// Transfer APT between accounts
+/// Transfer SUPRA between accounts
 ///
 #[derive(Debug, Parser)]
 pub struct TransferCoins {
-    /// Address of account to send APT to
+    /// Address of account to send SUPRA to
     #[clap(long, value_parser = crate::common::types::load_account_arg)]
     pub(crate) account: AccountAddress,
 
-    /// Amount of Octas (10^-8 APT) to transfer
+    /// Amount of Quants (10^-8 SUPRA) to transfer
     #[clap(long)]
     pub(crate) amount: u64,
 
@@ -39,7 +39,7 @@ impl CliCommand<TransferSummary> for TransferCoins {
 
     async fn execute(self) -> CliTypedResult<TransferSummary> {
         self.txn_options
-            .submit_transaction(aptos_stdlib::aptos_account_transfer(
+            .submit_transaction(aptos_stdlib::supra_account_transfer(
                 self.account,
                 self.amount,
             ))
@@ -48,7 +48,7 @@ impl CliCommand<TransferSummary> for TransferCoins {
     }
 }
 
-const SUPPORTED_COINS: [&str; 1] = ["0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>"];
+const SUPPORTED_COINS: [&str; 1] = ["0x1::coin::CoinStore<0x1::supra_coin::SupraCoin>"];
 
 /// A shortened transaction output
 #[derive(Clone, Debug, Serialize)]
@@ -64,7 +64,7 @@ pub struct TransferSummary {
 }
 
 impl TransferSummary {
-    pub fn octa_spent(&self) -> u64 {
+    pub fn quant_spent(&self) -> u64 {
         self.gas_unit_price * self.gas_used
     }
 }

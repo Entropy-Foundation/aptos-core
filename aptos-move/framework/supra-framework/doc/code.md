@@ -94,7 +94,7 @@ The package registry at the given address.
 Metadata for a package. All byte blobs are represented as base64-of-gzipped-bytes
 
 
-<pre><code><b>struct</b> <a href="code.md#0x1_code_PackageMetadata">PackageMetadata</a> <b>has</b> drop, store
+<pre><code><b>struct</b> <a href="code.md#0x1_code_PackageMetadata">PackageMetadata</a> <b>has</b> <b>copy</b>, drop, store
 </code></pre>
 
 
@@ -200,7 +200,7 @@ A dependency to a package published at address
 Metadata about a module in a package.
 
 
-<pre><code><b>struct</b> <a href="code.md#0x1_code_ModuleMetadata">ModuleMetadata</a> <b>has</b> drop, store
+<pre><code><b>struct</b> <a href="code.md#0x1_code_ModuleMetadata">ModuleMetadata</a> <b>has</b> <b>copy</b>, drop, store
 </code></pre>
 
 
@@ -687,9 +687,17 @@ package.
     );
 
     <b>let</b> registry = <b>borrow_global_mut</b>&lt;<a href="code.md#0x1_code_PackageRegistry">PackageRegistry</a>&gt;(code_object_addr);
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_mut">vector::for_each_mut</a>&lt;<a href="code.md#0x1_code_PackageMetadata">PackageMetadata</a>&gt;(&<b>mut</b> registry.packages, |pack| {
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_mut">vector::for_each_mut</a>(&<b>mut</b> registry.packages, |pack| {
         <b>let</b> package: &<b>mut</b> <a href="code.md#0x1_code_PackageMetadata">PackageMetadata</a> = pack;
         package.upgrade_policy = <a href="code.md#0x1_code_upgrade_policy_immutable">upgrade_policy_immutable</a>();
+    });
+
+    // We unfortunately have <b>to</b> make a <b>copy</b> of each package <b>to</b> avoid borrow checker issues <b>as</b> check_dependencies
+    // needs <b>to</b> borrow <a href="code.md#0x1_code_PackageRegistry">PackageRegistry</a> from the dependency packages.
+    // This would increase the amount of gas used, but this is a rare operation and it's rare <b>to</b> have many packages
+    // in a single <a href="code.md#0x1_code">code</a> <a href="object.md#0x1_object">object</a>.
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(registry.packages, |pack| {
+        <a href="code.md#0x1_code_check_dependencies">check_dependencies</a>(code_object_addr, &pack);
     });
 }
 </code></pre>
@@ -1003,7 +1011,7 @@ Native function to initiate module loading, including a list of allowed dependen
 <td>Updating a package should fail if the user is not the owner of it.</td>
 <td>Critical</td>
 <td>The publish_package function may only be able to update the package if the signer is the actual owner of the package.</td>
-<td>The Aptos upgrade native functions have been manually audited.</td>
+<td>The Supra upgrade native functions have been manually audited.</td>
 </tr>
 
 <tr>

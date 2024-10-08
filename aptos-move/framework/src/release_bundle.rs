@@ -203,7 +203,7 @@ impl ReleasePackage {
         emitln!(writer, "script {");
         writer.indent();
         emitln!(writer, "use std::vector;");
-        emitln!(writer, "use supra_framework::aptos_governance;");
+        emitln!(writer, "use supra_framework::supra_governance;");
         emitln!(writer, "use supra_framework::code;\n");
 
         if is_testnet && !is_multi_step {
@@ -211,7 +211,7 @@ impl ReleasePackage {
             writer.indent();
             emitln!(
                 writer,
-                "let framework_signer = aptos_governance::get_signer_testnet_only(core_resources, @{});",
+                "let framework_signer = supra_governance::get_signer_testnet_only(core_resources, @{});",
                 for_address
             );
         } else if !is_multi_step {
@@ -219,7 +219,7 @@ impl ReleasePackage {
             writer.indent();
             emitln!(
                 writer,
-                "let framework_signer = aptos_governance::resolve(proposal_id, @{});",
+                "let framework_signer = supra_governance::supra_resolve(proposal_id, @{});",
                 for_address
             );
         } else {
@@ -232,7 +232,7 @@ impl ReleasePackage {
 
         for i in 0..self.code.len() {
             emitln!(writer, "let chunk{} = ", i);
-            Self::generate_blob(&writer, &self.code[i]);
+            Self::generate_blob_as_hex_string(&writer, &self.code[i]);
             emitln!(writer, ";");
             emitln!(writer, "vector::push_back(&mut code, chunk{});", i);
         }
@@ -253,7 +253,7 @@ impl ReleasePackage {
             };
             let chunk = metadata.drain(0..to_drain).collect::<Vec<_>>();
             emit!(writer, "let chunk{} = ", i);
-            Self::generate_blob(&writer, &chunk);
+            Self::generate_blob_as_hex_string(&writer, &chunk);
             emitln!(writer, ";")
         }
 
@@ -273,18 +273,12 @@ impl ReleasePackage {
         Ok(())
     }
 
-    fn generate_blob(writer: &CodeWriter, data: &[u8]) {
-        emitln!(writer, "vector[");
-        writer.indent();
-        for (i, b) in data.iter().enumerate() {
-            if (i + 1) % 20 == 0 {
-                emitln!(writer);
-            }
-            emit!(writer, "{}u8,", b);
+    fn generate_blob_as_hex_string(writer: &CodeWriter, data: &[u8]) {
+        emit!(writer, "x\"");
+        for b in data.iter() {
+            emit!(writer, "{:02x}", b);
         }
-        emitln!(writer);
-        writer.unindent();
-        emit!(writer, "]")
+        emit!(writer, "\"");
     }
 
     fn generate_next_execution_hash_blob(
@@ -295,14 +289,14 @@ impl ReleasePackage {
         if next_execution_hash == "vector::empty<u8>()".as_bytes() {
             emitln!(
                 writer,
-                "let framework_signer = aptos_governance::resolve_multi_step_proposal(proposal_id, @{}, {});\n",
+                "let framework_signer = supra_governance::resolve_multi_step_proposal(proposal_id, @{}, {});\n",
                 for_address,
                 "vector::empty<u8>()",
             );
         } else {
             emitln!(
                 writer,
-                "let framework_signer = aptos_governance::resolve_multi_step_proposal("
+                "let framework_signer = supra_governance::resolve_multi_step_proposal("
             );
             writer.indent();
             emitln!(writer, "proposal_id,");

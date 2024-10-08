@@ -135,14 +135,14 @@ impl NetworkConfig {
 
         std::fs::write(fas_script_path.as_path(), format!(r#"
         script {{
-            use aptos_framework::aptos_governance;
+            use aptos_framework::supra_governance;
 
             fun main(core_resources: &signer) {{
-                let core_signer = aptos_governance::get_signer_testnet_only(core_resources, @0000000000000000000000000000000000000000000000000000000000000001);
+                let core_signer = supra_governance::get_signer_testnet_only(core_resources, @0000000000000000000000000000000000000000000000000000000000000001);
 
                 let framework_signer = &core_signer;
 
-                aptos_governance::update_governance_config(framework_signer, 0, 0, {});
+                supra_governance::update_governance_config(framework_signer, 0, 0, {});
             }}
         }}
         "#, resolution_time).as_bytes())?;
@@ -232,7 +232,7 @@ impl NetworkConfig {
         let event = Client::new(self.endpoint.clone())
             .get_account_events(
                 AccountAddress::ONE,
-                "0x1::aptos_governance::GovernanceEvents",
+                "0x1::supra_governance::GovernanceEvents",
                 "create_proposal_events",
                 None,
                 Some(1),
@@ -281,7 +281,7 @@ impl NetworkConfig {
         let args = vec![
             "",
             "--function-id",
-            "0x1::aptos_coin::mint",
+            "0x1::supra_coin::mint",
             "--sender-account",
             "0xa550c18",
             "--args",
@@ -306,7 +306,7 @@ impl NetworkConfig {
         let args = vec![
             "",
             "--function-id",
-            "0x1::aptos_governance::add_approved_script_hash_script",
+            "0x1::supra_governance::add_approved_script_hash_script",
             "--sender-account",
             "0xa550c18",
             "--args",
@@ -399,7 +399,9 @@ async fn execute_release(
     } else {
         scripts_path.path()
     };
-    release_config.generate_release_proposal_scripts(proposal_folder)?;
+    release_config
+        .generate_release_proposal_scripts(proposal_folder)
+        .await?;
 
     network_config.increase_lockup().await?;
 
@@ -466,7 +468,9 @@ async fn execute_release(
             },
         };
         if validate_release {
-            release_config.validate_upgrade(&network_config.endpoint, proposal)?;
+            release_config
+                .validate_upgrade(&network_config.endpoint, proposal)
+                .await?;
         }
     }
     Ok(())

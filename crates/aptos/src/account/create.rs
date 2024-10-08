@@ -7,7 +7,7 @@ use aptos_types::account_address::AccountAddress;
 use async_trait::async_trait;
 use clap::Parser;
 
-// 1 APT
+// 1 SUPRA
 pub const DEFAULT_FUNDED_COINS: u64 = 100_000_000;
 
 /// Create a new account on-chain
@@ -34,7 +34,7 @@ impl CliCommand<TransactionSummary> for CreateAccount {
     async fn execute(self) -> CliTypedResult<TransactionSummary> {
         let address = self.account;
         self.txn_options
-            .submit_transaction(aptos_stdlib::aptos_account_create_account(address))
+            .submit_transaction(aptos_stdlib::supra_account_create_account(address))
             .await
             .map(TransactionSummary::from)
     }

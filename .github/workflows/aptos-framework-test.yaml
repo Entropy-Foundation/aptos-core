@@ -3,12 +3,10 @@ name: Run aptos framework checks
 on:
   push:
     branches: 
-        - master
-        - integrate_consensus_key
+        - dev
   pull_request:
     branches:
-        - master
-        - integrate_consensus_key
+        - dev
 
 env:
   CARGO_TERM_COLOR: always
@@ -37,4 +35,12 @@ jobs:
     - name: Run tests
       run: |
         ${{ env.CARGO_BIN }} test --release -p aptos-framework -- --skip prover
-        ${{ env.CARGO_BIN }} nextest run -p e2e-move-tests
+        RUST_MIN_STACK=104857600 ${{ env.CARGO_BIN }} nextest run -p e2e-move-tests --no-fail-fast
+
+    - name: Slack Notification
+      if: failure()
+      uses: rtCamp/action-slack-notify@v2
+      env:
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+        SLACK_CHANNEL: aptos-core-notifications # Specify your channel
+        SLACK_MESSAGE: 'Job ${{ job.status }}: ${{ github.event.head_commit.message }}'

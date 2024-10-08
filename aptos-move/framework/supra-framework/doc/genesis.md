@@ -18,12 +18,12 @@
 -  [Function `initialize_core_resources_and_supra_coin`](#0x1_genesis_initialize_core_resources_and_supra_coin)
 -  [Function `create_accounts`](#0x1_genesis_create_accounts)
 -  [Function `create_account`](#0x1_genesis_create_account)
+-  [Function `create_multiple_multisig_accounts_with_schema`](#0x1_genesis_create_multiple_multisig_accounts_with_schema)
+-  [Function `create_multisig_account_with_balance`](#0x1_genesis_create_multisig_account_with_balance)
 -  [Function `create_employee_validators`](#0x1_genesis_create_employee_validators)
 -  [Function `create_initialize_validators_with_commission`](#0x1_genesis_create_initialize_validators_with_commission)
 -  [Function `create_initialize_validators`](#0x1_genesis_create_initialize_validators)
 -  [Function `create_initialize_validator`](#0x1_genesis_create_initialize_validator)
--  [Function `create_delegation_pools`](#0x1_genesis_create_delegation_pools)
--  [Function `create_delegation_pool`](#0x1_genesis_create_delegation_pool)
 -  [Function `create_pbo_delegation_pools`](#0x1_genesis_create_pbo_delegation_pools)
 -  [Function `create_pbo_delegation_pool`](#0x1_genesis_create_pbo_delegation_pool)
 -  [Function `assert_validator_addresses_check`](#0x1_genesis_assert_validator_addresses_check)
@@ -39,26 +39,29 @@
     -  [Function `create_initialize_validators_with_commission`](#@Specification_1_create_initialize_validators_with_commission)
     -  [Function `create_initialize_validators`](#@Specification_1_create_initialize_validators)
     -  [Function `create_initialize_validator`](#@Specification_1_create_initialize_validator)
+    -  [Function `create_pbo_delegation_pools`](#@Specification_1_create_pbo_delegation_pools)
+    -  [Function `create_pbo_delegation_pool`](#@Specification_1_create_pbo_delegation_pool)
+    -  [Function `assert_validator_addresses_check`](#@Specification_1_assert_validator_addresses_check)
+    -  [Function `create_vesting_without_staking_pools`](#@Specification_1_create_vesting_without_staking_pools)
     -  [Function `set_genesis_end`](#@Specification_1_set_genesis_end)
     -  [Function `initialize_for_verification`](#@Specification_1_initialize_for_verification)
 
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
 <b>use</b> <a href="aggregator_factory.md#0x1_aggregator_factory">0x1::aggregator_factory</a>;
-<b>use</b> <a href="aptos_governance.md#0x1_aptos_governance">0x1::aptos_governance</a>;
 <b>use</b> <a href="block.md#0x1_block">0x1::block</a>;
 <b>use</b> <a href="chain_id.md#0x1_chain_id">0x1::chain_id</a>;
 <b>use</b> <a href="chain_status.md#0x1_chain_status">0x1::chain_status</a>;
 <b>use</b> <a href="coin.md#0x1_coin">0x1::coin</a>;
 <b>use</b> <a href="consensus_config.md#0x1_consensus_config">0x1::consensus_config</a>;
 <b>use</b> <a href="create_signer.md#0x1_create_signer">0x1::create_signer</a>;
-<b>use</b> <a href="delegation_pool.md#0x1_delegation_pool">0x1::delegation_pool</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
 <b>use</b> <a href="execution_config.md#0x1_execution_config">0x1::execution_config</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/fixed_point32.md#0x1_fixed_point32">0x1::fixed_point32</a>;
 <b>use</b> <a href="gas_schedule.md#0x1_gas_schedule">0x1::gas_schedule</a>;
-<b>use</b> <a href="jwks.md#0x1_jwks">0x1::jwks</a>;
+<b>use</b> <a href="multisig_account.md#0x1_multisig_account">0x1::multisig_account</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
 <b>use</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool">0x1::pbo_delegation_pool</a>;
 <b>use</b> <a href="reconfiguration.md#0x1_reconfiguration">0x1::reconfiguration</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map">0x1::simple_map</a>;
@@ -67,7 +70,11 @@
 <b>use</b> <a href="staking_contract.md#0x1_staking_contract">0x1::staking_contract</a>;
 <b>use</b> <a href="state_storage.md#0x1_state_storage">0x1::state_storage</a>;
 <b>use</b> <a href="storage_gas.md#0x1_storage_gas">0x1::storage_gas</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string">0x1::string</a>;
+<b>use</b> <a href="supra_account.md#0x1_supra_account">0x1::supra_account</a>;
 <b>use</b> <a href="supra_coin.md#0x1_supra_coin">0x1::supra_coin</a>;
+<b>use</b> <a href="supra_config.md#0x1_supra_config">0x1::supra_config</a>;
+<b>use</b> <a href="supra_governance.md#0x1_supra_governance">0x1::supra_governance</a>;
 <b>use</b> <a href="timestamp.md#0x1_timestamp">0x1::timestamp</a>;
 <b>use</b> <a href="transaction_fee.md#0x1_transaction_fee">0x1::transaction_fee</a>;
 <b>use</b> <a href="transaction_validation.md#0x1_transaction_validation">0x1::transaction_validation</a>;
@@ -135,7 +142,7 @@
 
 </dd>
 <dt>
-<code>vesting_percentage: u8</code>
+<code>vpool_locking_percentage: u8</code>
 </dt>
 <dd>
 
@@ -408,7 +415,31 @@
 
 </dd>
 <dt>
-<code>principle_lockup_time: u64</code>
+<code>multisig_admin: <b>address</b></code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>unlock_schedule_numerators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>unlock_schedule_denominator: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>unlock_startup_time_from_now: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>unlock_period_duration: u64</code>
 </dt>
 <dd>
 
@@ -441,20 +472,20 @@
 
 
 
-<a id="0x1_genesis_EACCOUNT_NOT_REGISTERED_FOR_COIN"></a>
-
-
-
-<pre><code><b>const</b> <a href="genesis.md#0x1_genesis_EACCOUNT_NOT_REGISTERED_FOR_COIN">EACCOUNT_NOT_REGISTERED_FOR_COIN</a>: u64 = 9;
-</code></pre>
-
-
-
 <a id="0x1_genesis_EDENOMINATOR_IS_ZERO"></a>
 
 
 
 <pre><code><b>const</b> <a href="genesis.md#0x1_genesis_EDENOMINATOR_IS_ZERO">EDENOMINATOR_IS_ZERO</a>: u64 = 8;
+</code></pre>
+
+
+
+<a id="0x1_genesis_EACCOUNT_NOT_REGISTERED_FOR_COIN"></a>
+
+
+
+<pre><code><b>const</b> <a href="genesis.md#0x1_genesis_EACCOUNT_NOT_REGISTERED_FOR_COIN">EACCOUNT_NOT_REGISTERED_FOR_COIN</a>: u64 = 9;
 </code></pre>
 
 
@@ -486,20 +517,20 @@
 
 
 
+<a id="0x1_genesis_EPERCENTAGE_INVALID"></a>
+
+
+
+<pre><code><b>const</b> <a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>: u64 = 6;
+</code></pre>
+
+
+
 <a id="0x1_genesis_EVESTING_SCHEDULE_IS_ZERO"></a>
 
 
 
 <pre><code><b>const</b> <a href="genesis.md#0x1_genesis_EVESTING_SCHEDULE_IS_ZERO">EVESTING_SCHEDULE_IS_ZERO</a>: u64 = 3;
-</code></pre>
-
-
-
-<a id="0x1_genesis_PERCENTAGE_INVALID"></a>
-
-
-
-<pre><code><b>const</b> <a href="genesis.md#0x1_genesis_PERCENTAGE_INVALID">PERCENTAGE_INVALID</a>: u64 = 6;
 </code></pre>
 
 
@@ -520,7 +551,7 @@
 Genesis step 1: Initialize aptos framework account and core modules on chain.
 
 
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize">initialize</a>(<a href="gas_schedule.md#0x1_gas_schedule">gas_schedule</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, initial_version: u64, <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="execution_config.md#0x1_execution_config">execution_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, epoch_interval_microsecs: u64, minimum_stake: u64, maximum_stake: u64, recurring_lockup_duration_secs: u64, allow_validator_set_change: bool, rewards_rate: u64, rewards_rate_denominator: u64, voting_power_increase_limit: u64)
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize">initialize</a>(<a href="gas_schedule.md#0x1_gas_schedule">gas_schedule</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, initial_version: u64, <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="execution_config.md#0x1_execution_config">execution_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="supra_config.md#0x1_supra_config">supra_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, epoch_interval_microsecs: u64, minimum_stake: u64, maximum_stake: u64, recurring_lockup_duration_secs: u64, allow_validator_set_change: bool, rewards_rate: u64, rewards_rate_denominator: u64, voting_power_increase_limit: u64, genesis_timestamp_in_microseconds: u64)
 </code></pre>
 
 
@@ -535,6 +566,7 @@ Genesis step 1: Initialize aptos framework account and core modules on chain.
     initial_version: u64,
     <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
     <a href="execution_config.md#0x1_execution_config">execution_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    <a href="supra_config.md#0x1_supra_config">supra_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
     epoch_interval_microsecs: u64,
     minimum_stake: u64,
     maximum_stake: u64,
@@ -543,6 +575,7 @@ Genesis step 1: Initialize aptos framework account and core modules on chain.
     rewards_rate: u64,
     rewards_rate_denominator: u64,
     voting_power_increase_limit: u64,
+    genesis_timestamp_in_microseconds: u64,
 ) {
     // Initialize the aptos framework <a href="account.md#0x1_account">account</a>. This is the <a href="account.md#0x1_account">account</a> <b>where</b> system resources and modules will be
     // deployed <b>to</b>. This will be entirely managed by on-chain governance and no entities have the key or privileges
@@ -560,18 +593,19 @@ Genesis step 1: Initialize aptos framework account and core modules on chain.
     );
 
     // Give the decentralized on-chain governance control over the core framework <a href="account.md#0x1_account">account</a>.
-    <a href="aptos_governance.md#0x1_aptos_governance_store_signer_cap">aptos_governance::store_signer_cap</a>(&supra_framework_account, @supra_framework, supra_framework_signer_cap);
+    <a href="supra_governance.md#0x1_supra_governance_store_signer_cap">supra_governance::store_signer_cap</a>(&supra_framework_account, @supra_framework, supra_framework_signer_cap);
 
     // put reserved framework reserved accounts under aptos governance
     <b>let</b> framework_reserved_addresses = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;[@0x2, @0x3, @0x4, @0x5, @0x6, @0x7, @0x8, @0x9, @0xa];
     <b>while</b> (!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&framework_reserved_addresses)) {
         <b>let</b> <b>address</b> = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>&lt;<b>address</b>&gt;(&<b>mut</b> framework_reserved_addresses);
         <b>let</b> (_, framework_signer_cap) = <a href="account.md#0x1_account_create_framework_reserved_account">account::create_framework_reserved_account</a>(<b>address</b>);
-        <a href="aptos_governance.md#0x1_aptos_governance_store_signer_cap">aptos_governance::store_signer_cap</a>(&supra_framework_account, <b>address</b>, framework_signer_cap);
+        <a href="supra_governance.md#0x1_supra_governance_store_signer_cap">supra_governance::store_signer_cap</a>(&supra_framework_account, <b>address</b>, framework_signer_cap);
     };
 
     <a href="consensus_config.md#0x1_consensus_config_initialize">consensus_config::initialize</a>(&supra_framework_account, <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>);
     <a href="execution_config.md#0x1_execution_config_set">execution_config::set</a>(&supra_framework_account, <a href="execution_config.md#0x1_execution_config">execution_config</a>);
+    <a href="supra_config.md#0x1_supra_config_initialize">supra_config::initialize</a>(&supra_framework_account, <a href="supra_config.md#0x1_supra_config">supra_config</a>);
     <a href="version.md#0x1_version_initialize">version::initialize</a>(&supra_framework_account, initial_version);
     <a href="stake.md#0x1_stake_initialize">stake::initialize</a>(&supra_framework_account);
     <a href="staking_config.md#0x1_staking_config_initialize">staking_config::initialize</a>(
@@ -595,8 +629,7 @@ Genesis step 1: Initialize aptos framework account and core modules on chain.
     <a href="reconfiguration.md#0x1_reconfiguration_initialize">reconfiguration::initialize</a>(&supra_framework_account);
     <a href="block.md#0x1_block_initialize">block::initialize</a>(&supra_framework_account, epoch_interval_microsecs);
     <a href="state_storage.md#0x1_state_storage_initialize">state_storage::initialize</a>(&supra_framework_account);
-    <a href="timestamp.md#0x1_timestamp_set_time_has_started">timestamp::set_time_has_started</a>(&supra_framework_account);
-    <a href="jwks.md#0x1_jwks_initialize">jwks::initialize</a>(&supra_framework_account);
+    <a href="timestamp.md#0x1_timestamp_set_time_has_started">timestamp::set_time_has_started</a>(&supra_framework_account, genesis_timestamp_in_microseconds);
 }
 </code></pre>
 
@@ -608,7 +641,7 @@ Genesis step 1: Initialize aptos framework account and core modules on chain.
 
 ## Function `initialize_supra_coin`
 
-Genesis step 2: Initialize Aptos coin.
+Genesis step 2: Initialize Supra coin.
 
 
 <pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_coin">initialize_supra_coin</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
@@ -622,6 +655,8 @@ Genesis step 2: Initialize Aptos coin.
 
 <pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_coin">initialize_supra_coin</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
     <b>let</b> (burn_cap, mint_cap) = <a href="supra_coin.md#0x1_supra_coin_initialize">supra_coin::initialize</a>(supra_framework);
+    <a href="coin.md#0x1_coin_create_coin_conversion_map">coin::create_coin_conversion_map</a>(supra_framework);
+    <a href="coin.md#0x1_coin_create_pairing">coin::create_pairing</a>&lt;SupraCoin&gt;(supra_framework);
     // Give <a href="stake.md#0x1_stake">stake</a> <b>module</b> MintCapability&lt;SupraCoin&gt; so it can mint rewards.
     <a href="stake.md#0x1_stake_store_supra_coin_mint_cap">stake::store_supra_coin_mint_cap</a>(supra_framework, mint_cap);
     // Give <a href="transaction_fee.md#0x1_transaction_fee">transaction_fee</a> <b>module</b> BurnCapability&lt;SupraCoin&gt; so it can burn gas.
@@ -656,6 +691,8 @@ Only called for testnets and e2e tests.
     core_resources_auth_key: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
 ) {
     <b>let</b> (burn_cap, mint_cap) = <a href="supra_coin.md#0x1_supra_coin_initialize">supra_coin::initialize</a>(supra_framework);
+    <a href="coin.md#0x1_coin_create_coin_conversion_map">coin::create_coin_conversion_map</a>(supra_framework);
+    <a href="coin.md#0x1_coin_create_pairing">coin::create_pairing</a>&lt;SupraCoin&gt;(supra_framework);
     // Give <a href="stake.md#0x1_stake">stake</a> <b>module</b> MintCapability&lt;SupraCoin&gt; so it can mint rewards.
     <a href="stake.md#0x1_stake_store_supra_coin_mint_cap">stake::store_supra_coin_mint_cap</a>(supra_framework, mint_cap);
     // Give <a href="transaction_fee.md#0x1_transaction_fee">transaction_fee</a> <b>module</b> BurnCapability&lt;SupraCoin&gt; so it can burn gas.
@@ -664,6 +701,7 @@ Only called for testnets and e2e tests.
     <a href="transaction_fee.md#0x1_transaction_fee_store_supra_coin_mint_cap">transaction_fee::store_supra_coin_mint_cap</a>(supra_framework, mint_cap);
 
     <b>let</b> core_resources = <a href="account.md#0x1_account_create_account">account::create_account</a>(@core_resources);
+    <a href="supra_account.md#0x1_supra_account_register_supra">supra_account::register_supra</a>(&core_resources); // register Supra store
     <a href="account.md#0x1_account_rotate_authentication_key_internal">account::rotate_authentication_key_internal</a>(&core_resources, core_resources_auth_key);
     <a href="supra_coin.md#0x1_supra_coin_configure_accounts_for_test">supra_coin::configure_accounts_for_test</a>(supra_framework, &core_resources, mint_cap);
 }
@@ -738,6 +776,77 @@ If it exists, it just returns the signer.
         <a href="account.md#0x1_account">account</a>
     }
 }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_genesis_create_multiple_multisig_accounts_with_schema"></a>
+
+## Function `create_multiple_multisig_accounts_with_schema`
+
+
+
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_multiple_multisig_accounts_with_schema">create_multiple_multisig_accounts_with_schema</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, owner: <b>address</b>, additional_owners: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, num_signatures_required: u64, metadata_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, metadata_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, timeout_duration: u64, balance: u64, num_of_accounts: u32): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_multiple_multisig_accounts_with_schema">create_multiple_multisig_accounts_with_schema</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+owner: <b>address</b>, additional_owners: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,num_signatures_required:u64,metadata_keys:<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,metadata_values:<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;,
+timeout_duration:u64, balance:u64, num_of_accounts: u32): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; {
+
+    <b>let</b> counter = 0;
+    <b>let</b> result = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
+    <b>while</b> (counter &lt; num_of_accounts) {
+        <b>let</b> account_addr = <a href="genesis.md#0x1_genesis_create_multisig_account_with_balance">create_multisig_account_with_balance</a>(supra_framework, owner, additional_owners,
+                            num_signatures_required,metadata_keys,metadata_values,timeout_duration,balance);
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> result,account_addr);
+        <a href="account.md#0x1_account_increment_sequence_number">account::increment_sequence_number</a>(owner);
+        counter = counter + 1;
+    };
+    result
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_genesis_create_multisig_account_with_balance"></a>
+
+## Function `create_multisig_account_with_balance`
+
+
+
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_multisig_account_with_balance">create_multisig_account_with_balance</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, owner: <b>address</b>, additional_owners: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, num_signatures_required: u64, metadata_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, metadata_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, timeout_duration: u64, balance: u64): <b>address</b>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_multisig_account_with_balance">create_multisig_account_with_balance</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, owner: <b>address</b>, additional_owners: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
+                            num_signatures_required:u64, metadata_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
+                            metadata_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, timeout_duration: u64, balance:u64 ) : <b>address</b> {
+
+
+    <b>assert</b>!(<a href="account.md#0x1_account_exists_at">account::exists_at</a>(owner),<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EACCOUNT_DOES_NOT_EXIST">EACCOUNT_DOES_NOT_EXIST</a>));
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_all">vector::all</a>(&additional_owners,|ao_addr|{<a href="account.md#0x1_account_exists_at">account::exists_at</a>(*ao_addr)}),<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EACCOUNT_DOES_NOT_EXIST">EACCOUNT_DOES_NOT_EXIST</a>));
+    <b>let</b> addr = <a href="multisig_account.md#0x1_multisig_account_get_next_multisig_account_address">multisig_account::get_next_multisig_account_address</a>(owner);
+    <b>let</b> owner_signer = <a href="create_signer.md#0x1_create_signer">create_signer</a>(owner);
+    <a href="multisig_account.md#0x1_multisig_account_create_with_owners">multisig_account::create_with_owners</a>(&owner_signer,additional_owners,num_signatures_required,metadata_keys,metadata_values,timeout_duration);
+    <a href="supra_coin.md#0x1_supra_coin_mint">supra_coin::mint</a>(supra_framework,addr,balance);
+    addr
+
+    }
 </code></pre>
 
 
@@ -854,6 +963,8 @@ If it exists, it just returns the signer.
 
 ## Function `create_initialize_validators_with_commission`
 
+DEPRECATED
+
 
 
 <pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_initialize_validators_with_commission">create_initialize_validators_with_commission</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, use_staking_contract: bool, validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_ValidatorConfigurationWithCommission">genesis::ValidatorConfigurationWithCommission</a>&gt;)
@@ -874,12 +985,6 @@ If it exists, it just returns the signer.
         <b>let</b> validator: &<a href="genesis.md#0x1_genesis_ValidatorConfigurationWithCommission">ValidatorConfigurationWithCommission</a> = validator;
         <a href="genesis.md#0x1_genesis_create_initialize_validator">create_initialize_validator</a>(supra_framework, validator, use_staking_contract);
     });
-
-    // Destroy the aptos framework <a href="account.md#0x1_account">account</a>'s ability <b>to</b> mint coins now that we're done <b>with</b> setting up the initial
-    // validators.
-    <a href="supra_coin.md#0x1_supra_coin_destroy_mint_cap">supra_coin::destroy_mint_cap</a>(supra_framework);
-
-    <a href="stake.md#0x1_stake_on_new_epoch">stake::on_new_epoch</a>();
 }
 </code></pre>
 
@@ -890,6 +995,8 @@ If it exists, it just returns the signer.
 <a id="0x1_genesis_create_initialize_validators"></a>
 
 ## Function `create_initialize_validators`
+
+DEPRECATED
 
 Sets up the initial validator set for the network.
 The validator "owner" accounts, and their authentication
@@ -988,99 +1095,6 @@ encoded in a single BCS byte array.
 
 </details>
 
-<a id="0x1_genesis_create_delegation_pools"></a>
-
-## Function `create_delegation_pools`
-
-
-
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_delegation_pools">create_delegation_pools</a>(delegator_configs: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_DelegatorConfiguration">genesis::DelegatorConfiguration</a>&gt;)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_delegation_pools">create_delegation_pools</a>(
-    delegator_configs: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_DelegatorConfiguration">DelegatorConfiguration</a>&gt;,
-) {
-		<b>let</b> unique_accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_ref">vector::for_each_ref</a>(&delegator_configs, |delegator_config| {
-        <b>let</b> delegator_config: &<a href="genesis.md#0x1_genesis_DelegatorConfiguration">DelegatorConfiguration</a> = delegator_config;
-			//Ensure that there is a unique owner_address for each pool
-			//This is needed otherwise <b>move_to</b> of DelegationPoolOwnership at owner_address would fail
-			<b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&unique_accounts,&delegator_config.owner_address),
-				<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_already_exists">error::already_exists</a>(<a href="genesis.md#0x1_genesis_EDUPLICATE_ACCOUNT">EDUPLICATE_ACCOUNT</a>));
-				<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> unique_accounts,delegator_config.owner_address);
-        <a href="genesis.md#0x1_genesis_create_delegation_pool">create_delegation_pool</a>(delegator_config);
-    });
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_genesis_create_delegation_pool"></a>
-
-## Function `create_delegation_pool`
-
-
-
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_delegation_pool">create_delegation_pool</a>(delegator_config: &<a href="genesis.md#0x1_genesis_DelegatorConfiguration">genesis::DelegatorConfiguration</a>)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_delegation_pool">create_delegation_pool</a>(
-    delegator_config: &<a href="genesis.md#0x1_genesis_DelegatorConfiguration">DelegatorConfiguration</a>,
-) {
-    <b>let</b> unique_accounts:<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_ref">vector::for_each_ref</a>(&delegator_config.delegator_addresses, |delegator_address| {
-        <b>let</b> delegator_address: &<b>address</b> = delegator_address;
-        <b>assert</b>!(
-            !<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&unique_accounts, delegator_address),
-            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_already_exists">error::already_exists</a>(<a href="genesis.md#0x1_genesis_EDUPLICATE_ACCOUNT">EDUPLICATE_ACCOUNT</a>),
-        );
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> unique_accounts, *delegator_address);
-    });
-    <b>let</b> owner_signer = <a href="create_signer.md#0x1_create_signer">create_signer</a>(delegator_config.owner_address);
-    <a href="delegation_pool.md#0x1_delegation_pool_initialize_delegation_pool">delegation_pool::initialize_delegation_pool</a>(
-        &owner_signer,
-        delegator_config.validator.commission_percentage,
-        delegator_config.delegation_pool_creation_seed,
-    );
-    <b>let</b> pool_address = <a href="delegation_pool.md#0x1_delegation_pool_get_owned_pool_address">delegation_pool::get_owned_pool_address</a>(delegator_config.owner_address);
-
-    <b>let</b> i = 0;
-    <b>while</b> (i &lt; <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&delegator_config.delegator_addresses)) {
-        <b>let</b> delegator_address = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&delegator_config.delegator_addresses, i);
-        <b>let</b> delegator = &<a href="create_signer.md#0x1_create_signer">create_signer</a>(delegator_address);
-        <b>let</b> delegator_stake = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&delegator_config.delegator_stakes, i);
-        <a href="delegation_pool.md#0x1_delegation_pool_add_stake">delegation_pool::add_stake</a>(delegator, pool_address, delegator_stake);
-        i = i + 1;
-    };
-		
-		<b>let</b> validator = delegator_config.validator.validator_config;
-		<a href="genesis.md#0x1_genesis_assert_validator_addresses_check">assert_validator_addresses_check</a>(&validator);
-
-    <b>if</b> (delegator_config.validator.join_during_genesis) {
-            <a href="genesis.md#0x1_genesis_initialize_validator">initialize_validator</a>(pool_address,&validator);
-        };
-
-}
-</code></pre>
-
-
-
-</details>
-
 <a id="0x1_genesis_create_pbo_delegation_pools"></a>
 
 ## Function `create_pbo_delegation_pools`
@@ -1101,7 +1115,7 @@ encoded in a single BCS byte array.
     delegation_percentage: u64,
 ) {
 		<b>let</b> unique_accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
-    <b>assert</b>!(delegation_percentage &gt; 0 && delegation_percentage &lt;= 100, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_PERCENTAGE_INVALID">PERCENTAGE_INVALID</a>));
+    <b>assert</b>!(delegation_percentage &gt; 0 && delegation_percentage &lt;= 100, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>));
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_ref">vector::for_each_ref</a>(&pbo_delegator_configs, |pbo_delegator_config| {
         <b>let</b> pbo_delegator_config: &<a href="genesis.md#0x1_genesis_PboDelegatorConfiguration">PboDelegatorConfiguration</a> = pbo_delegator_config;
 			<b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&unique_accounts,&pbo_delegator_config.delegator_config.owner_address),
@@ -1135,6 +1149,7 @@ encoded in a single BCS byte array.
     pbo_delegator_config: &<a href="genesis.md#0x1_genesis_PboDelegatorConfiguration">PboDelegatorConfiguration</a>,
     delegation_percentage: u64,
 ) {
+		<b>assert</b>!(delegation_percentage&gt;0 && delegation_percentage&lt;=100,<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>));
     <b>let</b> unique_accounts:<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_ref">vector::for_each_ref</a>(&pbo_delegator_config.delegator_config.delegator_addresses, |delegator_address| {
         <b>let</b> delegator_address: &<b>address</b> = delegator_address;
@@ -1157,22 +1172,27 @@ encoded in a single BCS byte array.
     });
     <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_initialize_delegation_pool">pbo_delegation_pool::initialize_delegation_pool</a>(
         &owner_signer,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(pbo_delegator_config.multisig_admin),
         pbo_delegator_config.delegator_config.validator.commission_percentage,
         pbo_delegator_config.delegator_config.delegation_pool_creation_seed,
         pbo_delegator_config.delegator_config.delegator_addresses,
         pbo_delegator_config.delegator_config.delegator_stakes,
         coinInitialization,
-        pbo_delegator_config.principle_lockup_time,
+        pbo_delegator_config.unlock_schedule_numerators,
+        pbo_delegator_config.unlock_schedule_denominator,
+        pbo_delegator_config.unlock_startup_time_from_now+<a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>(),
+        pbo_delegator_config.unlock_period_duration,
     );
 
-    <b>let</b> pool_address = <a href="delegation_pool.md#0x1_delegation_pool_get_owned_pool_address">delegation_pool::get_owned_pool_address</a>(pbo_delegator_config.delegator_config.owner_address);
+    <b>let</b> pool_address = <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_get_owned_pool_address">pbo_delegation_pool::get_owned_pool_address</a>(pbo_delegator_config.delegator_config.owner_address);
 		<b>let</b> validator = pbo_delegator_config.delegator_config.validator.validator_config;
+		<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_set_operator">pbo_delegation_pool::set_operator</a>(&owner_signer,validator.operator_address);
+		<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_set_delegated_voter">pbo_delegation_pool::set_delegated_voter</a>(&owner_signer,validator.voter_address);
 		<a href="genesis.md#0x1_genesis_assert_validator_addresses_check">assert_validator_addresses_check</a>(&validator);
 
 		<b>if</b> (pbo_delegator_config.delegator_config.validator.join_during_genesis) {
-            <a href="genesis.md#0x1_genesis_initialize_validator">initialize_validator</a>(pool_address,&validator);
-        };
-
+        <a href="genesis.md#0x1_genesis_initialize_validator">initialize_validator</a>(pool_address,&validator);
+    };
 }
 </code></pre>
 
@@ -1195,21 +1215,19 @@ encoded in a single BCS byte array.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_assert_validator_addresses_check">assert_validator_addresses_check</a>(validator: &<a href="genesis.md#0x1_genesis_ValidatorConfiguration">ValidatorConfiguration</a>)
-	{
-		 <b>assert</b>!(
-               <a href="account.md#0x1_account_exists_at">account::exists_at</a>(validator.owner_address),
-               <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="genesis.md#0x1_genesis_EACCOUNT_DOES_NOT_EXIST">EACCOUNT_DOES_NOT_EXIST</a>),
-           );
-           <b>assert</b>!(
-               <a href="account.md#0x1_account_exists_at">account::exists_at</a>(validator.operator_address),
-               <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="genesis.md#0x1_genesis_EACCOUNT_DOES_NOT_EXIST">EACCOUNT_DOES_NOT_EXIST</a>),
-           );
-           <b>assert</b>!(
-               <a href="account.md#0x1_account_exists_at">account::exists_at</a>(validator.voter_address),
-               <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="genesis.md#0x1_genesis_EACCOUNT_DOES_NOT_EXIST">EACCOUNT_DOES_NOT_EXIST</a>),
-           );
-
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_assert_validator_addresses_check">assert_validator_addresses_check</a>(validator: &<a href="genesis.md#0x1_genesis_ValidatorConfiguration">ValidatorConfiguration</a>) {
+       <b>assert</b>!(
+           <a href="account.md#0x1_account_exists_at">account::exists_at</a>(validator.owner_address),
+           <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="genesis.md#0x1_genesis_EACCOUNT_DOES_NOT_EXIST">EACCOUNT_DOES_NOT_EXIST</a>),
+       );
+       <b>assert</b>!(
+           <a href="account.md#0x1_account_exists_at">account::exists_at</a>(validator.operator_address),
+           <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="genesis.md#0x1_genesis_EACCOUNT_DOES_NOT_EXIST">EACCOUNT_DOES_NOT_EXIST</a>),
+       );
+       <b>assert</b>!(
+           <a href="account.md#0x1_account_exists_at">account::exists_at</a>(validator.voter_address),
+           <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="genesis.md#0x1_genesis_EACCOUNT_DOES_NOT_EXIST">EACCOUNT_DOES_NOT_EXIST</a>),
+       );
 	}
 </code></pre>
 
@@ -1242,8 +1260,8 @@ encoded in a single BCS byte array.
         <b>let</b> schedule_length = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&pool_config.vesting_numerators);
         <b>assert</b>!(schedule_length &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EVESTING_SCHEDULE_IS_ZERO">EVESTING_SCHEDULE_IS_ZERO</a>));
         <b>assert</b>!(pool_config.vesting_denominator &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EDENOMINATOR_IS_ZERO">EDENOMINATOR_IS_ZERO</a>));
-        <b>assert</b>!(pool_config.vesting_percentage &gt; 0 && pool_config.vesting_percentage &lt;=100 ,
-            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_PERCENTAGE_INVALID">PERCENTAGE_INVALID</a>));
+        <b>assert</b>!(pool_config.vpool_locking_percentage &gt; 0 && pool_config.vpool_locking_percentage &lt;=100 ,
+            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>));
         //check the sum of numerator are &lt;= denominator.
         <b>let</b> sum = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_fold">vector::fold</a>(pool_config.vesting_numerators,0,|acc, x| acc + x);
         // Check that total of all fraction in `vesting_schedule` is not greater than 1
@@ -1280,7 +1298,7 @@ encoded in a single BCS byte array.
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> unique_accounts,shareholder);
             <b>let</b> shareholder_signer = <a href="create_signer.md#0x1_create_signer">create_signer</a>(shareholder);
             <b>let</b> amount = <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(shareholder);
-            <b>let</b> amount_to_extract = (amount * (pool_config.vesting_percentage <b>as</b> u64)) / 100;
+            <b>let</b> amount_to_extract = (amount * (pool_config.vpool_locking_percentage <b>as</b> u64)) / 100;
             <b>let</b> coin_share = <a href="coin.md#0x1_coin_withdraw">coin::withdraw</a>&lt;SupraCoin&gt;(&shareholder_signer, amount_to_extract);
             <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_add">simple_map::add</a>(&<b>mut</b> buy_ins,shareholder,coin_share);
             j = j + 1;
@@ -1354,6 +1372,11 @@ The last step of genesis.
 
 
 <pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_set_genesis_end">set_genesis_end</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
+    // Destroy the mint <a href="../../aptos-stdlib/doc/capability.md#0x1_capability">capability</a> owned by the framework <a href="account.md#0x1_account">account</a>. The <a href="stake.md#0x1_stake">stake</a> and <a href="transaction_fee.md#0x1_transaction_fee">transaction_fee</a>
+    // modules should be the only holders of this <a href="../../aptos-stdlib/doc/capability.md#0x1_capability">capability</a>, which they will <b>use</b> <b>to</b>
+    // mint <a href="block.md#0x1_block">block</a> rewards and storage refunds, respectively.
+    <a href="supra_coin.md#0x1_supra_coin_destroy_mint_cap">supra_coin::destroy_mint_cap</a>(supra_framework);
+    <a href="stake.md#0x1_stake_on_new_epoch">stake::on_new_epoch</a>();
     <a href="chain_status.md#0x1_chain_status_set_genesis_end">chain_status::set_genesis_end</a>(supra_framework);
 }
 </code></pre>
@@ -1369,7 +1392,7 @@ The last step of genesis.
 
 
 <pre><code>#[verify_only]
-<b>fun</b> <a href="genesis.md#0x1_genesis_initialize_for_verification">initialize_for_verification</a>(<a href="gas_schedule.md#0x1_gas_schedule">gas_schedule</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, initial_version: u64, <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="execution_config.md#0x1_execution_config">execution_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, epoch_interval_microsecs: u64, minimum_stake: u64, maximum_stake: u64, recurring_lockup_duration_secs: u64, allow_validator_set_change: bool, rewards_rate: u64, rewards_rate_denominator: u64, voting_power_increase_limit: u64, supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, min_voting_threshold: u128, required_proposer_stake: u64, voting_duration_secs: u64, accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_AccountMap">genesis::AccountMap</a>&gt;, employee_vesting_start: u64, employee_vesting_period_duration: u64, employees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_EmployeeAccountMap">genesis::EmployeeAccountMap</a>&gt;, validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_ValidatorConfigurationWithCommission">genesis::ValidatorConfigurationWithCommission</a>&gt;)
+<b>fun</b> <a href="genesis.md#0x1_genesis_initialize_for_verification">initialize_for_verification</a>(<a href="gas_schedule.md#0x1_gas_schedule">gas_schedule</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, initial_version: u64, <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="execution_config.md#0x1_execution_config">execution_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="supra_config.md#0x1_supra_config">supra_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, epoch_interval_microsecs: u64, minimum_stake: u64, maximum_stake: u64, recurring_lockup_duration_secs: u64, allow_validator_set_change: bool, rewards_rate: u64, rewards_rate_denominator: u64, voting_power_increase_limit: u64, supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, voting_duration_secs: u64, supra_min_voting_threshold: u64, voters: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_AccountMap">genesis::AccountMap</a>&gt;, employee_vesting_start: u64, employee_vesting_period_duration: u64, employees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_EmployeeAccountMap">genesis::EmployeeAccountMap</a>&gt;, validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_ValidatorConfigurationWithCommission">genesis::ValidatorConfigurationWithCommission</a>&gt;)
 </code></pre>
 
 
@@ -1384,6 +1407,7 @@ The last step of genesis.
     initial_version: u64,
     <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
     <a href="execution_config.md#0x1_execution_config">execution_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    <a href="supra_config.md#0x1_supra_config">supra_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
     epoch_interval_microsecs: u64,
     minimum_stake: u64,
     maximum_stake: u64,
@@ -1393,9 +1417,11 @@ The last step of genesis.
     rewards_rate_denominator: u64,
     voting_power_increase_limit: u64,
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    min_voting_threshold: u128,
-    required_proposer_stake: u64,
+    // min_voting_threshold: u128,
+    // required_proposer_stake: u64,
     voting_duration_secs: u64,
+    supra_min_voting_threshold: u64,
+    voters: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
     accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_AccountMap">AccountMap</a>&gt;,
     employee_vesting_start: u64,
     employee_vesting_period_duration: u64,
@@ -1408,6 +1434,7 @@ The last step of genesis.
         initial_version,
         <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>,
         <a href="execution_config.md#0x1_execution_config">execution_config</a>,
+        <a href="supra_config.md#0x1_supra_config">supra_config</a>,
         epoch_interval_microsecs,
         minimum_stake,
         maximum_stake,
@@ -1415,15 +1442,18 @@ The last step of genesis.
         allow_validator_set_change,
         rewards_rate,
         rewards_rate_denominator,
-        voting_power_increase_limit
+        voting_power_increase_limit,
+        0,
     );
-    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_change_feature_flags">features::change_feature_flags</a>(supra_framework, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[1, 2], <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]);
+    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_change_feature_flags_for_verification">features::change_feature_flags_for_verification</a>(supra_framework, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[1, 2, 11], <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]);
     <a href="genesis.md#0x1_genesis_initialize_supra_coin">initialize_supra_coin</a>(supra_framework);
-    <a href="aptos_governance.md#0x1_aptos_governance_initialize_for_verification">aptos_governance::initialize_for_verification</a>(
+    <a href="supra_governance.md#0x1_supra_governance_initialize_for_verification">supra_governance::initialize_for_verification</a>(
         supra_framework,
-        min_voting_threshold,
-        required_proposer_stake,
-        voting_duration_secs
+        // min_voting_threshold,
+        // required_proposer_stake,
+        voting_duration_secs,
+        supra_min_voting_threshold,
+        voters,
     );
     <a href="genesis.md#0x1_genesis_create_accounts">create_accounts</a>(supra_framework, accounts);
     <a href="genesis.md#0x1_genesis_create_employee_validators">create_employee_validators</a>(employee_vesting_start, employee_vesting_period_duration, employees);
@@ -1454,9 +1484,9 @@ The last step of genesis.
 
 <tr>
 <td>1</td>
-<td>All the core resources and modules should be created during genesis and owned by the Aptos framework account.</td>
+<td>All the core resources and modules should be created during genesis and owned by the Supra framework account.</td>
 <td>Critical</td>
-<td>Resources created during genesis initialization: GovernanceResponsbility, ConsensusConfig, ExecutionConfig, Version, SetVersionCapability, ValidatorSet, ValidatorPerformance, StakingConfig, StorageGasConfig, StorageGas, GasScheduleV2, AggregatorFactory, SupplyConfig, ChainId, Configuration, BlockResource, StateStorageUsage, CurrentTimeMicroseconds. If some of the resources were to be owned by a malicious account, it could lead to the compromise of the chain, as these are core resources. It should be formally verified by a post condition to ensure that all the critical resources are owned by the Aptos framework.</td>
+<td>Resources created during genesis initialization: GovernanceResponsbility, ConsensusConfig, ExecutionConfig, Version, SetVersionCapability, ValidatorSet, ValidatorPerformance, StakingConfig, StorageGasConfig, StorageGas, GasScheduleV2, AggregatorFactory, SupplyConfig, ChainId, Configuration, BlockResource, StateStorageUsage, CurrentTimeMicroseconds. If some of the resources were to be owned by a malicious account, it could lead to the compromise of the chain, as these are core resources. It should be formally verified by a post condition to ensure that all the critical resources are owned by the Supra framework.</td>
 <td>Formally verified via <a href="#high-level-req-1">initialize</a>.</td>
 </tr>
 
@@ -1464,15 +1494,15 @@ The last step of genesis.
 <td>2</td>
 <td>Addresses ranging from 0x0 - 0xa should be reserved for the framework and part of aptos governance.</td>
 <td>Critical</td>
-<td>The function genesis::initialize calls account::create_framework_reserved_account for addresses 0x0, 0x2, 0x3, 0x4, ..., 0xa which creates an account and authentication_key for them. This should be formally the reserved addresses, and at the end of the function, an Account resource exists.</td>
+<td>The function genesis::initialize calls account::create_framework_reserved_account for addresses 0x0, 0x2, 0x3, 0x4, ..., 0xa which creates an account and authentication_key for them. This should be formally verified by ensuring that at the beginning of the genesis::initialize function no Account resource exists for the reserved addresses, and at the end of the function, an Account resource exists.</td>
 <td>Formally verified via <a href="#high-level-req-2">initialize</a>.</td>
 </tr>
 
 <tr>
 <td>3</td>
-<td>The Aptos coin should be initialized during genesis and only the Aptos framework account should own the mint and burn capabilities for the APT token.</td>
+<td>The Supra coin should be initialized during genesis and only the Supra framework account should own the mint and burn capabilities for the SUPRA token.</td>
 <td>Critical</td>
-<td>Both mint and burn capabilities are wrapped inside the stake::SupraCoinCapabilities and</td>
+<td>Both mint and burn capabilities are wrapped inside the stake::SupraCoinCapabilities and transaction_fee::SupraCoinCapabilities resources which are stored under the supra framework account.</td>
 <td>Formally verified via <a href="#high-level-req-3">initialize_supra_coin</a>.</td>
 </tr>
 
@@ -1511,7 +1541,7 @@ The last step of genesis.
 ### Function `initialize`
 
 
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize">initialize</a>(<a href="gas_schedule.md#0x1_gas_schedule">gas_schedule</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, initial_version: u64, <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="execution_config.md#0x1_execution_config">execution_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, epoch_interval_microsecs: u64, minimum_stake: u64, maximum_stake: u64, recurring_lockup_duration_secs: u64, allow_validator_set_change: bool, rewards_rate: u64, rewards_rate_denominator: u64, voting_power_increase_limit: u64)
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize">initialize</a>(<a href="gas_schedule.md#0x1_gas_schedule">gas_schedule</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, initial_version: u64, <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="execution_config.md#0x1_execution_config">execution_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="supra_config.md#0x1_supra_config">supra_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, epoch_interval_microsecs: u64, minimum_stake: u64, maximum_stake: u64, recurring_lockup_duration_secs: u64, allow_validator_set_change: bool, rewards_rate: u64, rewards_rate_denominator: u64, voting_power_increase_limit: u64, genesis_timestamp_in_microseconds: u64)
 </code></pre>
 
 
@@ -1541,9 +1571,10 @@ The last step of genesis.
 <b>ensures</b> <b>exists</b>&lt;<a href="account.md#0x1_account_Account">account::Account</a>&gt;(@0x9);
 <b>ensures</b> <b>exists</b>&lt;<a href="account.md#0x1_account_Account">account::Account</a>&gt;(@0xa);
 // This enforces <a id="high-level-req-1" href="#high-level-req">high-level requirement 1</a>:
-<b>ensures</b> <b>exists</b>&lt;<a href="aptos_governance.md#0x1_aptos_governance_GovernanceResponsbility">aptos_governance::GovernanceResponsbility</a>&gt;(@supra_framework);
+<b>ensures</b> <b>exists</b>&lt;<a href="supra_governance.md#0x1_supra_governance_GovernanceResponsbility">supra_governance::GovernanceResponsbility</a>&gt;(@supra_framework);
 <b>ensures</b> <b>exists</b>&lt;<a href="consensus_config.md#0x1_consensus_config_ConsensusConfig">consensus_config::ConsensusConfig</a>&gt;(@supra_framework);
 <b>ensures</b> <b>exists</b>&lt;<a href="execution_config.md#0x1_execution_config_ExecutionConfig">execution_config::ExecutionConfig</a>&gt;(@supra_framework);
+<b>ensures</b> <b>exists</b>&lt;<a href="supra_config.md#0x1_supra_config_SupraConfig">supra_config::SupraConfig</a>&gt;(@supra_framework);
 <b>ensures</b> <b>exists</b>&lt;<a href="version.md#0x1_version_Version">version::Version</a>&gt;(@supra_framework);
 <b>ensures</b> <b>exists</b>&lt;<a href="stake.md#0x1_stake_ValidatorSet">stake::ValidatorSet</a>&gt;(@supra_framework);
 <b>ensures</b> <b>exists</b>&lt;<a href="stake.md#0x1_stake_ValidatorPerformance">stake::ValidatorPerformance</a>&gt;(@supra_framework);
@@ -1597,6 +1628,7 @@ The last step of genesis.
 
 <pre><code><b>pragma</b> verify_duration_estimate = 120;
 <b>include</b> <a href="stake.md#0x1_stake_ResourceRequirement">stake::ResourceRequirement</a>;
+<b>include</b> <a href="stake.md#0x1_stake_GetReconfigStartTimeRequirement">stake::GetReconfigStartTimeRequirement</a>;
 <b>include</b> <a href="genesis.md#0x1_genesis_CompareTimeRequires">CompareTimeRequires</a>;
 <b>include</b> <a href="supra_coin.md#0x1_supra_coin_ExistsSupraCoin">supra_coin::ExistsSupraCoin</a>;
 </code></pre>
@@ -1614,7 +1646,9 @@ The last step of genesis.
 
 
 
-<pre><code><b>include</b> <a href="stake.md#0x1_stake_ResourceRequirement">stake::ResourceRequirement</a>;
+<pre><code><b>pragma</b> verify_duration_estimate = 120;
+<b>include</b> <a href="stake.md#0x1_stake_ResourceRequirement">stake::ResourceRequirement</a>;
+<b>include</b> <a href="stake.md#0x1_stake_GetReconfigStartTimeRequirement">stake::GetReconfigStartTimeRequirement</a>;
 <b>include</b> <a href="genesis.md#0x1_genesis_CompareTimeRequires">CompareTimeRequires</a>;
 <b>include</b> <a href="supra_coin.md#0x1_supra_coin_ExistsSupraCoin">supra_coin::ExistsSupraCoin</a>;
 </code></pre>
@@ -1637,25 +1671,66 @@ The last step of genesis.
 
 
 
-<a id="@Specification_1_set_genesis_end"></a>
+<a id="@Specification_1_create_pbo_delegation_pools"></a>
 
-### Function `set_genesis_end`
+### Function `create_pbo_delegation_pools`
 
 
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_set_genesis_end">set_genesis_end</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_pbo_delegation_pools">create_pbo_delegation_pools</a>(pbo_delegator_configs: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_PboDelegatorConfiguration">genesis::PboDelegatorConfiguration</a>&gt;, delegation_percentage: u64)
 </code></pre>
 
 
 
 
-<pre><code><b>pragma</b> delegate_invariants_to_caller;
-// This enforces <a id="high-level-req-4" href="#high-level-req">high-level requirement 4</a>:
-<b>requires</b> len(<b>global</b>&lt;<a href="stake.md#0x1_stake_ValidatorSet">stake::ValidatorSet</a>&gt;(@supra_framework).active_validators) &gt;= 1;
-// This enforces <a id="high-level-req-5" href="#high-level-req">high-level requirement 5</a>:
-<b>let</b> addr = std::signer::address_of(supra_framework);
-<b>aborts_if</b> addr != @supra_framework;
-<b>aborts_if</b> <b>exists</b>&lt;<a href="chain_status.md#0x1_chain_status_GenesisEndMarker">chain_status::GenesisEndMarker</a>&gt;(@supra_framework);
-<b>ensures</b> <b>global</b>&lt;<a href="chain_status.md#0x1_chain_status_GenesisEndMarker">chain_status::GenesisEndMarker</a>&gt;(@supra_framework) == <a href="chain_status.md#0x1_chain_status_GenesisEndMarker">chain_status::GenesisEndMarker</a> {};
+<pre><code><b>pragma</b> verify = <b>false</b>;
+</code></pre>
+
+
+
+<a id="@Specification_1_create_pbo_delegation_pool"></a>
+
+### Function `create_pbo_delegation_pool`
+
+
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_pbo_delegation_pool">create_pbo_delegation_pool</a>(pbo_delegator_config: &<a href="genesis.md#0x1_genesis_PboDelegatorConfiguration">genesis::PboDelegatorConfiguration</a>, delegation_percentage: u64)
+</code></pre>
+
+
+
+
+<pre><code><b>pragma</b> verify = <b>false</b>;
+</code></pre>
+
+
+
+<a id="@Specification_1_assert_validator_addresses_check"></a>
+
+### Function `assert_validator_addresses_check`
+
+
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_assert_validator_addresses_check">assert_validator_addresses_check</a>(validator: &<a href="genesis.md#0x1_genesis_ValidatorConfiguration">genesis::ValidatorConfiguration</a>)
+</code></pre>
+
+
+
+
+<pre><code><b>pragma</b> verify = <b>false</b>;
+</code></pre>
+
+
+
+<a id="@Specification_1_create_vesting_without_staking_pools"></a>
+
+### Function `create_vesting_without_staking_pools`
+
+
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_vesting_without_staking_pools">create_vesting_without_staking_pools</a>(vesting_pool_map: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_VestingPoolsMap">genesis::VestingPoolsMap</a>&gt;)
+</code></pre>
+
+
+
+
+<pre><code><b>pragma</b> verify = <b>false</b>;
 </code></pre>
 
 
@@ -1691,13 +1766,36 @@ The last step of genesis.
 
 
 
+<a id="@Specification_1_set_genesis_end"></a>
+
+### Function `set_genesis_end`
+
+
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_set_genesis_end">set_genesis_end</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+</code></pre>
+
+
+
+
+<pre><code><b>pragma</b> delegate_invariants_to_caller;
+// This enforces <a id="high-level-req-4" href="#high-level-req">high-level requirement 4</a>:
+<b>requires</b> len(<b>global</b>&lt;<a href="stake.md#0x1_stake_ValidatorSet">stake::ValidatorSet</a>&gt;(@supra_framework).active_validators) &gt;= 1;
+// This enforces <a id="high-level-req-5" href="#high-level-req">high-level requirement 5</a>:
+<b>let</b> addr = std::signer::address_of(supra_framework);
+<b>aborts_if</b> addr != @supra_framework;
+<b>aborts_if</b> <b>exists</b>&lt;<a href="chain_status.md#0x1_chain_status_GenesisEndMarker">chain_status::GenesisEndMarker</a>&gt;(@supra_framework);
+<b>ensures</b> <b>global</b>&lt;<a href="chain_status.md#0x1_chain_status_GenesisEndMarker">chain_status::GenesisEndMarker</a>&gt;(@supra_framework) == <a href="chain_status.md#0x1_chain_status_GenesisEndMarker">chain_status::GenesisEndMarker</a> {};
+</code></pre>
+
+
+
 <a id="@Specification_1_initialize_for_verification"></a>
 
 ### Function `initialize_for_verification`
 
 
 <pre><code>#[verify_only]
-<b>fun</b> <a href="genesis.md#0x1_genesis_initialize_for_verification">initialize_for_verification</a>(<a href="gas_schedule.md#0x1_gas_schedule">gas_schedule</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, initial_version: u64, <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="execution_config.md#0x1_execution_config">execution_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, epoch_interval_microsecs: u64, minimum_stake: u64, maximum_stake: u64, recurring_lockup_duration_secs: u64, allow_validator_set_change: bool, rewards_rate: u64, rewards_rate_denominator: u64, voting_power_increase_limit: u64, supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, min_voting_threshold: u128, required_proposer_stake: u64, voting_duration_secs: u64, accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_AccountMap">genesis::AccountMap</a>&gt;, employee_vesting_start: u64, employee_vesting_period_duration: u64, employees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_EmployeeAccountMap">genesis::EmployeeAccountMap</a>&gt;, validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_ValidatorConfigurationWithCommission">genesis::ValidatorConfigurationWithCommission</a>&gt;)
+<b>fun</b> <a href="genesis.md#0x1_genesis_initialize_for_verification">initialize_for_verification</a>(<a href="gas_schedule.md#0x1_gas_schedule">gas_schedule</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, initial_version: u64, <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="execution_config.md#0x1_execution_config">execution_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="supra_config.md#0x1_supra_config">supra_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, epoch_interval_microsecs: u64, minimum_stake: u64, maximum_stake: u64, recurring_lockup_duration_secs: u64, allow_validator_set_change: bool, rewards_rate: u64, rewards_rate_denominator: u64, voting_power_increase_limit: u64, supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, voting_duration_secs: u64, supra_min_voting_threshold: u64, voters: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_AccountMap">genesis::AccountMap</a>&gt;, employee_vesting_start: u64, employee_vesting_period_duration: u64, employees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_EmployeeAccountMap">genesis::EmployeeAccountMap</a>&gt;, validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_ValidatorConfigurationWithCommission">genesis::ValidatorConfigurationWithCommission</a>&gt;)
 </code></pre>
 
 

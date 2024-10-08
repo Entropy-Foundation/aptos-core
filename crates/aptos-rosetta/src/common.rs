@@ -136,7 +136,7 @@ pub fn decode_key<T: DeserializeOwned + ValidCryptoMaterial>(
     T::from_encoded_string(str).map_err(|_| ApiError::deserialization_failed(type_name))
 }
 
-const DEFAULT_COIN: &str = "APT";
+const DEFAULT_COIN: &str = "SUPRA";
 const DEFAULT_DECIMALS: u8 = 8;
 
 pub fn native_coin() -> Currency {
@@ -154,7 +154,7 @@ pub fn native_coin_tag() -> TypeTag {
         address: AccountAddress::ONE,
         module: ident_str!(APTOS_COIN_MODULE).into(),
         name: ident_str!(APTOS_COIN_RESOURCE).into(),
-        type_params: vec![],
+        type_args: vec![],
     }))
 }
 
