@@ -72,8 +72,8 @@ const RANDOMNESS_CONFIG_MODULE_NAME: &str = "randomness_config";
 const RANDOMNESS_MODULE_NAME: &str = "randomness";
 const RECONFIGURATION_STATE_MODULE_NAME: &str = "reconfiguration_state";
 
-// Allows an APY with 3 decimals of precision to be specified as a u64.
-const APY_PRECISION: u64 = 100_000;
+// Allows an APY with 2 decimals of precision to be specified as a u64.
+const APY_PRECISION: u64 = 10_000;
 const NUM_SECONDS_PER_YEAR: u64 = 365 * 24 * 60 * 60;
 const MICRO_SECONDS_PER_SECOND: u64 = 1_000_000;
 const APTOS_COINS_BASE_WITH_DECIMALS: u64 = u64::pow(10, 8);
@@ -407,7 +407,7 @@ fn validate_genesis_config(genesis_config: &GenesisConfiguration) {
     );
     assert!(
         genesis_config.rewards_apy_percentage > 0 && genesis_config.rewards_apy_percentage < APY_PRECISION,
-        "Rewards APY must between >= 1 (i.e. 0.001%) and < 100,000 (i.e. 100%)"
+        "Rewards APY must between >= 1 (i.e. 0.01%) and < 10,000 (i.e. 100%)"
     );
     assert!(
         genesis_config.voting_duration_secs > 0,
@@ -1129,7 +1129,7 @@ pub fn generate_test_genesis(
             max_stake: 100_000_000_000_000,
             recurring_lockup_duration_secs: 7200,
             required_proposer_stake: 0,
-            rewards_apy_percentage: 10,
+            rewards_apy_percentage: 1000,
             voting_duration_secs: 3600,
             voters: vec![
                 AccountAddress::from_hex_literal("0xdd1").unwrap(),
@@ -1193,7 +1193,7 @@ fn mainnet_genesis_config() -> GenesisConfiguration {
         max_stake: 50_000_000 * APTOS_COINS_BASE_WITH_DECIMALS, // 50M SUPRA.
         recurring_lockup_duration_secs: 30 * 24 * 3600,         // 1 month
         required_proposer_stake: 1_000_000 * APTOS_COINS_BASE_WITH_DECIMALS, // 1M SUPRA
-        rewards_apy_percentage: 10,
+        rewards_apy_percentage: 1000,
         voting_duration_secs: 7 * 24 * 3600, // 7 days
         voters: vec![
             AccountAddress::from_hex_literal("0xdd1").unwrap(),
