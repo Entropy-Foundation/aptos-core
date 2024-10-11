@@ -5,7 +5,7 @@ use crate::{smoke_test_environment::SwarmBuilder, utils::get_on_chain_resource};
 use anyhow::bail;
 use aptos::common::types::GasOptions;
 use aptos_config::config::{OverrideNodeConfig, PersistableConfig};
-use aptos_crypto::{bls12381, Uniform};
+use aptos_crypto::{bls12381, ed25519, Uniform};
 use aptos_forge::{NodeExt, Swarm, SwarmExt};
 use aptos_logger::info;
 use aptos_rest_client::Client;
@@ -51,7 +51,8 @@ async fn consensus_key_rotation() {
     .unwrap();
     info!("Epoch 3 arrived.");
 
-    let (operator_addr, new_pk, pop, operator_idx) =
+    // let (operator_addr, new_pk, pop, operator_idx) =
+    let (operator_addr, new_pk, operator_idx) =
         if let Some(validator) = swarm.validators_mut().nth(n - 1) {
             let operator_sk = validator
                 .account_private_key()
@@ -75,9 +76,9 @@ async fn consensus_key_rotation() {
                 "Generating and writing new validator identity to {:?}.",
                 new_identity_path
             );
-            let new_sk = bls12381::PrivateKey::generate(&mut thread_rng());
-            let pop = bls12381::ProofOfPossession::create(&new_sk);
-            let new_pk = bls12381::PublicKey::from(&new_sk);
+            let new_sk = ed25519::PrivateKey::generate(&mut thread_rng());
+            // let pop = bls12381::ProofOfPossession::create(&new_sk);
+            let new_pk = ed25519::PublicKey::from(&new_sk);
             let mut validator_identity_blob = validator
                 .config()
                 .consensus
@@ -113,7 +114,8 @@ async fn consensus_key_rotation() {
             validator.start().unwrap();
             info!("Let it bake for 5 secs.");
             tokio::time::sleep(Duration::from_secs(5)).await;
-            (operator_addr, new_pk, pop, operator_idx)
+            // (operator_addr, new_pk, pop, operator_idx)
+            (operator_addr, new_pk, operator_idx)
         } else {
             unreachable!()
         };
@@ -138,7 +140,6 @@ async fn consensus_key_rotation() {
                 operator_idx,
                 None,
                 new_pk.clone(),
-                pop.clone(),
                 Some(gas_options),
             )
             .await;

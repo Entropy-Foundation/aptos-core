@@ -45,7 +45,7 @@ use aptos_types::{
     },
     vm_status::VMStatus,
     write_set::{WriteOp, WriteSet, WriteSetMut},
-    AptosCoinType, CoinType,
+    SupraCoinType, CoinType,
 };
 use aptos_vm::{
     block_executor::{AptosTransactionOutput, BlockAptosVM},
@@ -536,7 +536,7 @@ impl FakeExecutor {
     pub fn read_apt_coin_store_resource(
         &self,
         account: &Account,
-    ) -> Option<CoinStoreResource<AptosCoinType>> {
+    ) -> Option<CoinStoreResource<SupraCoinType>> {
         self.read_apt_coin_store_resource_at_address(account.address())
     }
 
@@ -559,8 +559,8 @@ impl FakeExecutor {
     }
 
     /// Reads the CoinInfo resource value from this executor's data store.
-    pub fn read_apt_coin_info_resource(&self) -> Option<CoinInfoResource<AptosCoinType>> {
-        self.read_resource(&AptosCoinType::coin_info_address())
+    pub fn read_apt_coin_info_resource(&self) -> Option<CoinInfoResource<SupraCoinType>> {
+        self.read_resource(&SupraCoinType::coin_info_address())
     }
 
     /// Reads the CoinStore resource value for an account under the given address from this executor's
@@ -568,7 +568,7 @@ impl FakeExecutor {
     pub fn read_apt_coin_store_resource_at_address(
         &self,
         addr: &AccountAddress,
-    ) -> Option<CoinStoreResource<AptosCoinType>> {
+    ) -> Option<CoinStoreResource<SupraCoinType>> {
         self.read_resource(addr)
     }
 

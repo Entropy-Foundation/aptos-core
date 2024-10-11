@@ -283,6 +283,8 @@ async fn get_proposal(
 #[derive(Parser)]
 pub struct SubmitProposal {
     #[clap(flatten)]
+    pub(crate) pool_address_args: PoolAddressArgs,
+    #[clap(flatten)]
     pub(crate) args: SubmitProposalArgs,
 }
 

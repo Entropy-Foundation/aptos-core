@@ -80,7 +80,7 @@ fn test_aggregators_in_enums() {
 fn make_harness(num_txns: usize) -> AggV2TestHarness {
     let source = r"
     module 0x1::enums_with_aggregators {
-      use aptos_framework::aggregator_v2::{Self, Aggregator};
+      use supra_framework::aggregator_v2::{Self, Aggregator};
 
       struct Integer has store, drop {
         value: u128,
@@ -141,8 +141,8 @@ fn make_harness(num_txns: usize) -> AggV2TestHarness {
     let mut builder = PackageBuilder::new("enums_with_aggregators");
     builder.add_source("enums_with_aggregators.move", source);
     builder.add_local_dep(
-        "AptosFramework",
-        &common::framework_dir_path("aptos-framework").to_string_lossy(),
+        "SupraFramework",
+        &common::framework_dir_path("supra-framework").to_string_lossy(),
     );
     let path = builder.write_to_temp().unwrap();
 

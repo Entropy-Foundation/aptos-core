@@ -18,11 +18,11 @@ use std::{convert::TryFrom, sync::Arc};
 #[cfg_attr(any(test, feature = "fuzzing"), derive(Clone))]
 pub struct ValidatorSigner {
     author: AccountAddress,
-    private_key: ed25519::PrivateKey,
+    private_key: Arc<ed25519::PrivateKey>,
 }
 
 impl ValidatorSigner {
-    pub fn new(author: AccountAddress, private_key: ed25519::PrivateKey) -> Self {
+    pub fn new(author: AccountAddress, private_key: Arc<ed25519::PrivateKey>) -> Self {
         ValidatorSigner {
             author,
             private_key,
@@ -50,7 +50,7 @@ impl ValidatorSigner {
     /// Returns the private key associated with this signer. Only available for testing purposes.
     #[cfg(any(test, feature = "fuzzing"))]
     pub fn private_key(&self) -> &ed25519::PrivateKey {
-        &self.private_key
+        self.private_key.as_ref()
     }
 }
 
@@ -63,7 +63,7 @@ impl ValidatorSigner {
         let mut rng = StdRng::from_seed(opt_rng_seed.into().unwrap_or(TEST_SEED));
         Self::new(
             AccountAddress::random(),
-            ed25519::PrivateKey::generate(&mut rng),
+            Arc::new(ed25519::PrivateKey::generate(&mut rng)),
         )
     }
 
@@ -73,7 +73,7 @@ impl ValidatorSigner {
         let mut address = [0; AccountAddress::LENGTH];
         address[0] = num;
         let private_key = ed25519::PrivateKey::generate_for_testing();
-        Self::new(AccountAddress::try_from(&address[..]).unwrap(), private_key)
+        Self::new(AccountAddress::try_from(&address[..]).unwrap(), Arc::new(private_key))
     }
 }
 
@@ -115,7 +115,7 @@ pub mod proptests {
             rand_signer(),
             LazyJust::new(|| {
                 let genesis_key = ed25519::PrivateKey::genesis();
-                ValidatorSigner::new(AccountAddress::random(), genesis_key)
+                ValidatorSigner::new(AccountAddress::random(), Arc::new(genesis_key))
             })
         ]
     }

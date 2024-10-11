@@ -713,7 +713,7 @@ fn test_txn_generator_workloads_calibrate_gas() {
     runner.run_with_tps_estimate(
         "CreateAccount",
         account_1,
-        aptos_stdlib::aptos_account_create_account(
+        aptos_stdlib::supra_account_create_account(
             AccountAddress::from_hex_literal("0xcafe1").unwrap(),
         ),
         if use_large_db_numbers { 1583.0 } else { 2215. },

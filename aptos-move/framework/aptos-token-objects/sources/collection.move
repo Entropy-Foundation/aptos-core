@@ -820,9 +820,9 @@ module aptos_token_objects::collection {
         object::transfer(creator, collection, trader_address);
     }
 
-    #[test(creator = @0x123, trader = @0x456, aptos_framework = @aptos_framework)]
-    entry fun test_create_and_transfer_as_owner(creator: &signer, trader: &signer, aptos_framework: &signer) {
-        features::change_feature_flags_for_testing(aptos_framework, vector[features::get_collection_owner_feature()], vector[]);
+    #[test(creator = @0x123, trader = @0x456, supra_framework = @supra_framework)]
+    entry fun test_create_and_transfer_as_owner(creator: &signer, trader: &signer, supra_framework: &signer) {
+        features::change_feature_flags_for_testing(supra_framework, vector[features::get_collection_owner_feature()], vector[]);
         let creator_address = signer::address_of(creator);
         let trader_address = signer::address_of(trader);
         let collection_name = string::utf8(b"collection name");

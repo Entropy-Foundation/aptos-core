@@ -24,7 +24,7 @@ use aptos_types::{
         EntryFunction, RawTransaction, Script, SignedTransaction, TransactionPayload,
     },
     write_set::{WriteOp, WriteSet, WriteSetMut},
-    AptosCoinType,
+    SupraCoinType,
 };
 use aptos_vm_genesis::GENESIS_KEYPAIR;
 use move_core_types::move_resource::MoveStructType;
@@ -190,7 +190,7 @@ impl Account {
     pub fn make_coin_store_access_path(&self) -> AccessPath {
         AccessPath::resource_access_path(
             self.addr,
-            CoinStoreResource::<AptosCoinType>::struct_tag(),
+            CoinStoreResource::<SupraCoinType>::struct_tag(),
         )
         .expect("access path in  test")
     }
@@ -399,7 +399,7 @@ impl CoinStore {
 
     /// Returns the Move Value for the account's CoinStore
     pub fn to_bytes(&self) -> Vec<u8> {
-        let coin_store = CoinStoreResource::<AptosCoinType>::new(
+        let coin_store = CoinStoreResource::<SupraCoinType>::new(
             self.coin,
             self.frozen,
             self.deposit_events.clone(),
@@ -644,7 +644,7 @@ impl AccountData {
 
         if let Some(coin_store) = &self.coin_store {
             write_set.push((
-                StateKey::resource_typed::<CoinStoreResource<AptosCoinType>>(self.address())
+                StateKey::resource_typed::<CoinStoreResource<SupraCoinType>>(self.address())
                     .unwrap(),
                 WriteOp::legacy_modification(coin_store.to_bytes().into()),
             ));

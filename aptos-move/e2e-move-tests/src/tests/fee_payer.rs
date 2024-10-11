@@ -13,7 +13,7 @@ use aptos_types::{
     move_utils::MemberId,
     on_chain_config::FeatureFlag,
     transaction::{EntryFunction, ExecutionStatus, Script, TransactionPayload, TransactionStatus},
-    AptosCoinType,
+    SupraCoinType,
 };
 use aptos_vm_types::storage::StorageGasParameters;
 use move_core_types::{move_resource::MoveStructType, vm_status::StatusCode};
@@ -115,9 +115,9 @@ fn test_account_not_exist_with_fee_payer() {
     let alice = Account::new();
     let bob = h.new_account_at(AccountAddress::from_hex_literal("0xb0b").unwrap());
 
-    let alice_start = h.read_resource::<CoinStoreResource<AptosCoinType>>(
+    let alice_start = h.read_resource::<CoinStoreResource<SupraCoinType>>(
         alice.address(),
-        CoinStoreResource::<AptosCoinType>::struct_tag(),
+        CoinStoreResource::<SupraCoinType>::struct_tag(),
     );
     assert!(alice_start.is_none());
     let bob_start = h.read_aptos_balance(bob.address());
@@ -134,9 +134,9 @@ fn test_account_not_exist_with_fee_payer() {
     let output = h.run_raw(transaction);
     assert_success!(*output.status());
 
-    let alice_after = h.read_resource::<CoinStoreResource<AptosCoinType>>(
+    let alice_after = h.read_resource::<CoinStoreResource<SupraCoinType>>(
         alice.address(),
-        CoinStoreResource::<AptosCoinType>::struct_tag(),
+        CoinStoreResource::<SupraCoinType>::struct_tag(),
     );
     assert!(alice_after.is_none());
     let bob_after = h.read_aptos_balance(bob.address());
@@ -157,9 +157,9 @@ fn test_account_not_exist_with_fee_payer_insufficient_gas() {
     let alice = Account::new();
     let bob = h.new_account_at(AccountAddress::from_hex_literal("0xb0b").unwrap());
 
-    let alice_start = h.read_resource::<CoinStoreResource<AptosCoinType>>(
+    let alice_start = h.read_resource::<CoinStoreResource<SupraCoinType>>(
         alice.address(),
-        CoinStoreResource::<AptosCoinType>::struct_tag(),
+        CoinStoreResource::<SupraCoinType>::struct_tag(),
     );
     assert!(alice_start.is_none());
     let bob_start = h.read_aptos_balance(bob.address());
@@ -179,9 +179,9 @@ fn test_account_not_exist_with_fee_payer_insufficient_gas() {
         &TransactionStatus::Discard(StatusCode::MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS),
     ));
 
-    let alice_after = h.read_resource::<CoinStoreResource<AptosCoinType>>(
+    let alice_after = h.read_resource::<CoinStoreResource<SupraCoinType>>(
         alice.address(),
-        CoinStoreResource::<AptosCoinType>::struct_tag(),
+        CoinStoreResource::<SupraCoinType>::struct_tag(),
     );
     assert!(alice_after.is_none());
     let bob_after = h.read_aptos_balance(bob.address());
@@ -201,9 +201,9 @@ fn test_account_not_exist_and_move_abort_with_fee_payer_create_account() {
     let alice = Account::new();
     let bob = h.new_account_at(AccountAddress::from_hex_literal("0xb0b").unwrap());
 
-    let alice_start = h.read_resource::<CoinStoreResource<AptosCoinType>>(
+    let alice_start = h.read_resource::<CoinStoreResource<SupraCoinType>>(
         alice.address(),
-        CoinStoreResource::<AptosCoinType>::struct_tag(),
+        CoinStoreResource::<SupraCoinType>::struct_tag(),
     );
     assert!(alice_start.is_none());
     let bob_start = h.read_aptos_balance(bob.address());
@@ -238,9 +238,9 @@ fn test_account_not_exist_and_move_abort_with_fee_payer_create_account() {
     assert!(output.gas_used() <= PRICING.new_account_upfront(GAS_UNIT_PRICE));
     assert!(output.gas_used() > PRICING.new_account_min_abort(GAS_UNIT_PRICE));
 
-    let alice_after = h.read_resource::<CoinStoreResource<AptosCoinType>>(
+    let alice_after = h.read_resource::<CoinStoreResource<SupraCoinType>>(
         alice.address(),
-        CoinStoreResource::<AptosCoinType>::struct_tag(),
+        CoinStoreResource::<SupraCoinType>::struct_tag(),
     );
     assert!(alice_after.is_none());
     let bob_after = h.read_aptos_balance(bob.address());
@@ -348,9 +348,9 @@ fn test_account_not_exist_with_fee_payer_without_create_account() {
     let alice = Account::new();
     let bob = h.new_account_at(AccountAddress::from_hex_literal("0xb0b").unwrap());
 
-    let alice_start = h.read_resource::<CoinStoreResource<AptosCoinType>>(
+    let alice_start = h.read_resource::<CoinStoreResource<SupraCoinType>>(
         alice.address(),
-        CoinStoreResource::<AptosCoinType>::struct_tag(),
+        CoinStoreResource::<SupraCoinType>::struct_tag(),
     );
     assert!(alice_start.is_none());
 

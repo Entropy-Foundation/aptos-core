@@ -806,7 +806,7 @@ The collection does not have a max supply
 Creates a fixed-sized collection, or a collection that supports a fixed amount of tokens.
 This is useful to create a guaranteed, limited supply on-chain digital asset. For example,
 a collection 1111 vicious vipers. Note, creating restrictions such as upward limits results
-in data structures that prevent Supra from parallelizing mints of this collection type.
+in data structures that prevent Aptos from parallelizing mints of this collection type.
 Beyond that, it adds supply tracking with events.
 
 
@@ -861,7 +861,7 @@ This means that the caller can transfer the collection to another address.
 This transfers ownership and minting permissions to the new address.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="collection.md#0x4_collection_create_fixed_collection_as_owner">create_fixed_collection_as_owner</a>(creator: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, description: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, max_supply: u64, name: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, <a href="royalty.md#0x4_royalty">royalty</a>: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="royalty.md#0x4_royalty_Royalty">royalty::Royalty</a>&gt;, uri: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <a href="../../aptos-framework/doc/object.md#0x1_object_ConstructorRef">object::ConstructorRef</a>
+<pre><code><b>public</b> <b>fun</b> <a href="collection.md#0x4_collection_create_fixed_collection_as_owner">create_fixed_collection_as_owner</a>(creator: &<a href="../../move-stdlib/doc/signer.md#0x1_signer">signer</a>, description: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, max_supply: u64, name: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, <a href="royalty.md#0x4_royalty">royalty</a>: <a href="../../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="royalty.md#0x4_royalty_Royalty">royalty::Royalty</a>&gt;, uri: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <a href="../../supra-framework/doc/object.md#0x1_object_ConstructorRef">object::ConstructorRef</a>
 </code></pre>
 
 
@@ -871,14 +871,14 @@ This transfers ownership and minting permissions to the new address.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="collection.md#0x4_collection_create_fixed_collection_as_owner">create_fixed_collection_as_owner</a>(
-    creator: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    creator: &<a href="../../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     description: String,
     max_supply: u64,
     name: String,
     <a href="royalty.md#0x4_royalty">royalty</a>: Option&lt;Royalty&gt;,
     uri: String,
 ): ConstructorRef {
-    <b>assert</b>!(<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_is_collection_owner_enabled">features::is_collection_owner_enabled</a>(), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_unavailable">error::unavailable</a>(<a href="collection.md#0x4_collection_ECOLLECTION_OWNER_NOT_SUPPORTED">ECOLLECTION_OWNER_NOT_SUPPORTED</a>));
+    <b>assert</b>!(<a href="../../move-stdlib/doc/features.md#0x1_features_is_collection_owner_enabled">features::is_collection_owner_enabled</a>(), <a href="../../move-stdlib/doc/error.md#0x1_error_unavailable">error::unavailable</a>(<a href="collection.md#0x4_collection_ECOLLECTION_OWNER_NOT_SUPPORTED">ECOLLECTION_OWNER_NOT_SUPPORTED</a>));
 
     <b>let</b> constructor_ref = <a href="collection.md#0x4_collection_create_fixed_collection">create_fixed_collection</a>(
         creator,
@@ -954,7 +954,7 @@ This means that the caller can transfer the collection to another address.
 This transfers ownership and minting permissions to the new address.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="collection.md#0x4_collection_create_unlimited_collection_as_owner">create_unlimited_collection_as_owner</a>(creator: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, description: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, name: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, <a href="royalty.md#0x4_royalty">royalty</a>: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="royalty.md#0x4_royalty_Royalty">royalty::Royalty</a>&gt;, uri: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <a href="../../aptos-framework/doc/object.md#0x1_object_ConstructorRef">object::ConstructorRef</a>
+<pre><code><b>public</b> <b>fun</b> <a href="collection.md#0x4_collection_create_unlimited_collection_as_owner">create_unlimited_collection_as_owner</a>(creator: &<a href="../../move-stdlib/doc/signer.md#0x1_signer">signer</a>, description: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, name: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, <a href="royalty.md#0x4_royalty">royalty</a>: <a href="../../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="royalty.md#0x4_royalty_Royalty">royalty::Royalty</a>&gt;, uri: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <a href="../../supra-framework/doc/object.md#0x1_object_ConstructorRef">object::ConstructorRef</a>
 </code></pre>
 
 
@@ -964,13 +964,13 @@ This transfers ownership and minting permissions to the new address.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="collection.md#0x4_collection_create_unlimited_collection_as_owner">create_unlimited_collection_as_owner</a>(
-    creator: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    creator: &<a href="../../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     description: String,
     name: String,
     <a href="royalty.md#0x4_royalty">royalty</a>: Option&lt;Royalty&gt;,
     uri: String,
 ): ConstructorRef {
-    <b>assert</b>!(<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_is_collection_owner_enabled">features::is_collection_owner_enabled</a>(), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_unavailable">error::unavailable</a>(<a href="collection.md#0x4_collection_ECOLLECTION_OWNER_NOT_SUPPORTED">ECOLLECTION_OWNER_NOT_SUPPORTED</a>));
+    <b>assert</b>!(<a href="../../move-stdlib/doc/features.md#0x1_features_is_collection_owner_enabled">features::is_collection_owner_enabled</a>(), <a href="../../move-stdlib/doc/error.md#0x1_error_unavailable">error::unavailable</a>(<a href="collection.md#0x4_collection_ECOLLECTION_OWNER_NOT_SUPPORTED">ECOLLECTION_OWNER_NOT_SUPPORTED</a>));
 
     <b>let</b> constructor_ref = <a href="collection.md#0x4_collection_create_unlimited_collection">create_unlimited_collection</a>(
         creator,
@@ -993,7 +993,7 @@ This transfers ownership and minting permissions to the new address.
 ## Function `create_untracked_collection`
 
 Creates an untracked collection, or a collection that supports an arbitrary amount of
-tokens. This is useful for mass airdrops that fully leverage Supra parallelization.
+tokens. This is useful for mass airdrops that fully leverage Aptos parallelization.
 TODO: Hide this until we bring back meaningful way to enforce burns
 
 
@@ -1098,7 +1098,7 @@ TODO: Hide this until we bring back meaningful way to enforce burns
 
 
 
-<pre><code><b>fun</b> <a href="collection.md#0x4_collection_enable_ungated_transfer">enable_ungated_transfer</a>(constructor_ref: &<a href="../../aptos-framework/doc/object.md#0x1_object_ConstructorRef">object::ConstructorRef</a>)
+<pre><code><b>fun</b> <a href="collection.md#0x4_collection_enable_ungated_transfer">enable_ungated_transfer</a>(constructor_ref: &<a href="../../supra-framework/doc/object.md#0x1_object_ConstructorRef">object::ConstructorRef</a>)
 </code></pre>
 
 
@@ -1108,8 +1108,8 @@ TODO: Hide this until we bring back meaningful way to enforce burns
 
 
 <pre><code>inline <b>fun</b> <a href="collection.md#0x4_collection_enable_ungated_transfer">enable_ungated_transfer</a>(constructor_ref: &ConstructorRef) {
-    <b>let</b> transfer_ref = <a href="../../aptos-framework/doc/object.md#0x1_object_generate_transfer_ref">object::generate_transfer_ref</a>(constructor_ref);
-    <a href="../../aptos-framework/doc/object.md#0x1_object_enable_ungated_transfer">object::enable_ungated_transfer</a>(&transfer_ref);
+    <b>let</b> transfer_ref = <a href="../../supra-framework/doc/object.md#0x1_object_generate_transfer_ref">object::generate_transfer_ref</a>(constructor_ref);
+    <a href="../../supra-framework/doc/object.md#0x1_object_enable_ungated_transfer">object::enable_ungated_transfer</a>(&transfer_ref);
 }
 </code></pre>
 

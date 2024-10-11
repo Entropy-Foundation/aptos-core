@@ -15664,7 +15664,7 @@ dependencies = [
  "anyhow",
  "aptos-types",
  "async-trait",
- "reqwest",
+ "reqwest 0.11.23",
 ]
 
 [[package]]
