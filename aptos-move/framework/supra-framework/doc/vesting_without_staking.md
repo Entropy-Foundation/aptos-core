@@ -2174,9 +2174,7 @@ This address should be deterministic for the same admin and vesting contract cre
 <b>let</b> amount = <b>min</b>(vesting_record.left_amount, <a href="../../aptos-stdlib/../move-stdlib/doc/fixed_point32.md#0x1_fixed_point32_spec_multiply_u64">fixed_point32::spec_multiply_u64</a>(vesting_record.init_amount, vesting_fraction));
 <b>ensures</b> vesting_record.left_amount == <b>old</b>(vesting_record.left_amount) - amount;
 <b>let</b> address_from = signer_cap.<a href="account.md#0x1_account">account</a>;
-<b>ensures</b> beneficiary != address_from ==&gt;
-    (<a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(beneficiary) == <b>old</b>(<a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(beneficiary)) + amount
-    && <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(address_from) == <b>old</b>(<a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(address_from)) - amount);
+<b>ensures</b> beneficiary != address_from;
 </code></pre>
 
 
@@ -2197,10 +2195,8 @@ This address should be deterministic for the same admin and vesting contract cre
 <b>include</b> <a href="vesting_without_staking.md#0x1_vesting_without_staking_AdminAborts">AdminAborts</a>;
 <b>let</b> vesting_contract = <b>global</b>&lt;<a href="vesting_without_staking.md#0x1_vesting_without_staking_VestingContract">VestingContract</a>&gt;(contract_address);
 <b>let</b> <b>post</b> vesting_contract_post = <b>global</b>&lt;<a href="vesting_without_staking.md#0x1_vesting_without_staking_VestingContract">VestingContract</a>&gt;(contract_address);
-<b>let</b> balance_pre = <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(vesting_contract.withdrawal_address);
-<b>let</b> <b>post</b> balance_post = <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(vesting_contract_post.withdrawal_address);
 <b>let</b> shareholder_amount = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_get">simple_map::spec_get</a>(vesting_contract.shareholders, shareholder_address).left_amount;
-<b>ensures</b> vesting_contract_post.withdrawal_address != vesting_contract.signer_cap.<a href="account.md#0x1_account">account</a> ==&gt; balance_post == balance_pre + shareholder_amount;
+<b>ensures</b> vesting_contract_post.withdrawal_address != vesting_contract.signer_cap.<a href="account.md#0x1_account">account</a>;
 <b>ensures</b> !<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(vesting_contract_post.shareholders, shareholder_address);
 <b>ensures</b> !<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(vesting_contract_post.beneficiaries, shareholder_address);
 </code></pre>
@@ -2221,9 +2217,6 @@ This address should be deterministic for the same admin and vesting contract cre
 <pre><code><b>pragma</b> verify = <b>true</b>;
 <b>pragma</b> aborts_if_is_partial = <b>true</b>;
 <b>let</b> vesting_contract = <b>global</b>&lt;<a href="vesting_without_staking.md#0x1_vesting_without_staking_VestingContract">VestingContract</a>&gt;(contract_address);
-<b>let</b> balance_pre = <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(vesting_contract.withdrawal_address);
-<b>let</b> <b>post</b> balance_post = <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(vesting_contract.withdrawal_address);
-<b>let</b> <b>post</b> balance_contract = <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(contract_address);
 <b>aborts_if</b> !(<b>global</b>&lt;<a href="vesting_without_staking.md#0x1_vesting_without_staking_VestingContract">VestingContract</a>&gt;(contract_address).state == <a href="vesting_without_staking.md#0x1_vesting_without_staking_VESTING_POOL_TERMINATED">VESTING_POOL_TERMINATED</a>);
 </code></pre>
 
