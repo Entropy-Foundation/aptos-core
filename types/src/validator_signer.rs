@@ -9,7 +9,7 @@ use aptos_crypto::{
 };
 use rand::{rngs::StdRng, SeedableRng};
 use serde::ser::Serialize;
-use std::convert::TryFrom;
+use std::{convert::TryFrom, sync::Arc};
 
 /// ValidatorSigner associates an author with public and private keys with helpers for signing and
 /// validating. This struct can be used for all signing operations including block and network
@@ -99,7 +99,7 @@ pub mod proptests {
         signing_key_strategy.prop_map(|signing_key| {
             ValidatorSigner::new(
                 AccountAddress::from_bytes(&signing_key.public_key().to_bytes()[0..32]).unwrap(),
-                signing_key,
+                Arc::new(signing_key),
             )
         })
     }
@@ -139,7 +139,7 @@ pub mod proptests {
         #[test]
         fn test_new_signer(signing_key in arb_signing_key()){
             let public_key = signing_key.public_key();
-            let signer = ValidatorSigner::new(AccountAddress::random(), signing_key);
+            let signer = ValidatorSigner::new(AccountAddress::random(), Arc::new(signing_key));
             prop_assert_eq!(public_key, signer.public_key());
         }
 

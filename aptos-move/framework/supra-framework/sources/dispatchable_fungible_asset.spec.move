@@ -14,4 +14,8 @@ spec supra_framework::dispatchable_fungible_asset {
     spec dispatchable_derived_balance{
         pragma opaque;
     }
+
+    spec dispatchable_derived_supply{
+        pragma opaque;
+    }
 }
