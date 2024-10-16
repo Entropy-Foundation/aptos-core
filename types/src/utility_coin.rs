@@ -8,7 +8,13 @@ use move_core_types::{
 };
 use once_cell::sync::Lazy;
 
-pub static SUPRA_COIN_TYPE: Lazy<TypeTag> = Lazy::new(|| {
+pub trait CoinType {
+    fn type_tag() -> TypeTag;
+
+    fn coin_info_address() -> AccountAddress;
+}
+
+static SUPRA_COIN_TYPE: Lazy<TypeTag> = Lazy::new(|| {
     TypeTag::Struct(Box::new(StructTag {
         address: AccountAddress::ONE,
         module: ident_str!("supra_coin").to_owned(),
@@ -16,3 +22,15 @@ pub static SUPRA_COIN_TYPE: Lazy<TypeTag> = Lazy::new(|| {
         type_args: vec![],
     }))
 });
+
+pub struct SupraCoinType;
+
+impl CoinType for SupraCoinType {
+    fn type_tag() -> TypeTag {
+        SUPRA_COIN_TYPE.clone()
+    }
+
+    fn coin_info_address() -> AccountAddress {
+        AccountAddress::ONE
+    }
+}

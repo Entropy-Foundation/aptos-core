@@ -388,7 +388,7 @@ async fn test_onchain_shuffling_change() {
 
     assert_eq!(
         current_execution_config.transaction_shuffler_type(),
-        TransactionShufflerType::SenderAwareV2(32),
+        TransactionShufflerType::default_for_genesis(),
     );
 
     assert_reordering(&mut swarm, true).await;
@@ -1336,6 +1336,7 @@ async fn test_owner_create_and_delegate_flow() {
             operator_cli_index,
             Some(owner_cli_index),
             operator_keys.consensus_public_key(),
+            None,
         )
         .await
         .unwrap(),
