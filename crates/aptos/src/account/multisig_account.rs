@@ -1,6 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+use anyhow::anyhow;
 use crate::common::{
     types::{
         CliCommand, CliError, CliTypedResult, EntryFunctionArguments, MultisigAccount,
@@ -43,6 +44,13 @@ pub struct Create {
     /// transaction.
     #[clap(long)]
     pub(crate) num_signatures_required: u64,
+    /// Allow the multisig account to update its own metadata key and value
+    /// Metadata Key
+    #[clap(long)]
+    metadata_keys: Vec<String>,
+    /// Metadata Value
+    #[clap(long)]
+    metadata_values: Vec<String>,
     #[clap(flatten)]
     pub(crate) txn_options: TransactionOptions,
 }
@@ -110,14 +118,25 @@ impl CliCommand<CreateSummary> for Create {
 #[async_trait]
 impl SupraCommand for Create {
     async fn supra_command_arguments(self) -> anyhow::Result<SupraCommandArguments> {
+        if self.metadata_keys.len() != self.metadata_values.len() {
+            return Err(anyhow!("Not all metadata key has a metadata value."))
+        };
+        let metadata_key = self.metadata_keys.iter()
+            .map(|k| to_bytes(k))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let metadata_value = self.metadata_values.iter()
+            .map(|v| to_bytes(v))
+            .collect::<Result<Vec<_>, _>>()?;
+
         let payload = aptos_stdlib::multisig_account_create_with_owners(
             self.additional_owners,
             self.num_signatures_required,
-            // TODO: Support passing in custom metadata.
-            vec![],
-            vec![],
+            metadata_key,
+            metadata_value,
             self.timeout_duration,
         );
+        
         Ok(
             SupraCommandArguments {
                 payload,
