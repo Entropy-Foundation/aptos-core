@@ -460,18 +460,10 @@ impl SupraCommand for ExecuteWithPayload {
         });
         Ok(SupraCommandArguments {
             payload,
-            sender_account: None,
-            profile_options: supra_aptos::ProfileOptions { profile: None },
-            rest_options: supra_aptos::RestOptions {
-                url: None,
-                connection_timeout_secs: 0,
-                node_api_key: None,
-            },
-            gas_options: supra_aptos::GasOptions{
-                gas_unit_price: None,
-                max_gas: None,
-                expiration_secs: 0,
-            },
+            sender_account: self.execute.txn_options.sender_account,
+            profile_options: supra_aptos::ProfileOptions::from(self.execute.txn_options.profile_options),
+            rest_options: supra_aptos::RestOptions::from(self.execute.txn_options.rest_options),
+            gas_options: supra_aptos::GasOptions::from(self.execute.txn_options.gas_options),
         })
     }
 }
@@ -516,5 +508,6 @@ impl SupraCommand for ExecuteReject {
             profile_options: supra_aptos::ProfileOptions::from(self.txn_options.profile_options),
             rest_options: supra_aptos::RestOptions::from(self.txn_options.rest_options),
             gas_options: supra_aptos::GasOptions::from(self.txn_options.gas_options),
-        })    }
+        })
+    }
 }
