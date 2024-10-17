@@ -107,6 +107,7 @@ impl CliCommand<CreateSummary> for Create {
     }
 }
 
+#[async_trait]
 impl SupraCommand for Create {
     async fn supra_command_arguments(self) -> anyhow::Result<SupraCommandArguments> {
         let payload = aptos_stdlib::multisig_account_create_with_owners(
@@ -174,6 +175,7 @@ impl CliCommand<TransactionSummary> for CreateTransaction {
     }
 }
 
+#[async_trait]
 impl SupraCommand for CreateTransaction {
     async fn supra_command_arguments(self) -> anyhow::Result<SupraCommandArguments> {
         let multisig_transaction_payload_bytes =
@@ -308,6 +310,7 @@ impl CliCommand<TransactionSummary> for Approve {
     }
 }
 
+#[async_trait]
 impl SupraCommand for Approve {
     async fn supra_command_arguments(self) -> anyhow::Result<SupraCommandArguments> {
         let payload = aptos_stdlib::multisig_account_approve_transaction(
@@ -359,6 +362,7 @@ impl CliCommand<TransactionSummary> for Reject {
     }
 }
 
+#[async_trait]
 impl SupraCommand for Reject {
     async fn supra_command_arguments(self) -> anyhow::Result<SupraCommandArguments> {
         let payload = aptos_stdlib::multisig_account_reject_transaction(
@@ -403,6 +407,7 @@ impl CliCommand<TransactionSummary> for Execute {
     }
 }
 
+#[async_trait]
 impl SupraCommand for Execute {
     async fn supra_command_arguments(self) -> anyhow::Result<SupraCommandArguments> {
         let payload = TransactionPayload::Multisig(Multisig {
@@ -446,6 +451,7 @@ impl CliCommand<TransactionSummary> for ExecuteWithPayload {
     }
 }
 
+#[async_trait]
 impl SupraCommand for ExecuteWithPayload {
     async fn supra_command_arguments(self) -> anyhow::Result<SupraCommandArguments> {
         let payload = TransactionPayload::Multisig(Multisig {
@@ -498,6 +504,7 @@ impl CliCommand<TransactionSummary> for ExecuteReject {
     }
 }
 
+#[async_trait]
 impl SupraCommand for ExecuteReject {
     async fn supra_command_arguments(self) -> anyhow::Result<SupraCommandArguments> {
         let payload = aptos_stdlib::multisig_account_execute_rejected_transaction(
