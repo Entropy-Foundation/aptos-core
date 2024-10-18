@@ -100,7 +100,7 @@ spec supra_framework::reconfiguration_state {
         include  copyable_any::type_name(global<State>(@supra_framework).variant).bytes
             == b"0x1::reconfiguration_state::StateActive" ==>
         copyable_any::UnpackAbortsIf<StateActive> {
-            x:  global<State>(@supra_framework).variant
+            self: global<State>(@supra_framework).variant
         };
         aborts_if copyable_any::type_name(global<State>(@supra_framework).variant).bytes
             != b"0x1::reconfiguration_state::StateActive";

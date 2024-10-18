@@ -85,6 +85,8 @@ module supra_framework::fungible_asset {
     const EAPT_NOT_DISPATCHABLE: u64 = 31;
     /// Flag for Concurrent Supply not enabled
     const ECONCURRENT_BALANCE_NOT_ENABLED: u64 = 32;
+    /// Provided derived_supply function type doesn't meet the signature requirement.
+    const EDERIVED_SUPPLY_FUNCTION_SIGNATURE_MISMATCH: u64 = 33;
 
     //
     // Constants
@@ -150,6 +152,11 @@ module supra_framework::fungible_asset {
 		withdraw_function: Option<FunctionInfo>,
 		deposit_function: Option<FunctionInfo>,
         derived_balance_function: Option<FunctionInfo>,
+    }
+
+    #[resource_group_member(group = supra_framework::object::ObjectGroup)]
+    struct DeriveSupply has key {
+        dispatch_function: Option<FunctionInfo>
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -348,27 +355,12 @@ module supra_framework::fungible_asset {
                 )
             );
         });
-
-        // Cannot register hook for SUPRA.
-        assert!(
-            object::address_from_constructor_ref(constructor_ref) != @aptos_fungible_asset,
-            error::permission_denied(EAPT_NOT_DISPATCHABLE)
-        );
-        assert!(
-            !object::can_generate_delete_ref(constructor_ref),
-            error::invalid_argument(EOBJECT_IS_DELETABLE)
-        );
+        register_dispatch_function_sanity_check(constructor_ref);
         assert!(
             !exists<DispatchFunctionStore>(
                 object::address_from_constructor_ref(constructor_ref)
             ),
             error::already_exists(EALREADY_REGISTERED)
-        );
-        assert!(
-            exists<Metadata>(
-                object::address_from_constructor_ref(constructor_ref)
-            ),
-            error::not_found(EFUNGIBLE_METADATA_EXISTENCE),
         );
 
         let store_obj = &object::generate_signer(constructor_ref);
@@ -381,6 +373,70 @@ module supra_framework::fungible_asset {
                 deposit_function,
                 derived_balance_function,
             }
+        );
+    }
+
+    /// Define the derived supply dispatch with the provided function.
+    public(friend) fun register_derive_supply_dispatch_function(
+        constructor_ref: &ConstructorRef,
+        dispatch_function: Option<FunctionInfo>
+    ) {
+        // Verify that caller type matches callee type so wrongly typed function cannot be registered.
+        option::for_each_ref(&dispatch_function, |supply_function| {
+            let function_info = function_info::new_function_info_from_address(
+                @supra_framework,
+                string::utf8(b"dispatchable_fungible_asset"),
+                string::utf8(b"dispatchable_derived_supply"),
+            );
+            // Verify that caller type matches callee type so wrongly typed function cannot be registered.
+            assert!(
+                function_info::check_dispatch_type_compatibility(
+                    &function_info,
+                    supply_function
+                ),
+                error::invalid_argument(
+                    EDERIVED_SUPPLY_FUNCTION_SIGNATURE_MISMATCH
+                )
+            );
+        });
+        register_dispatch_function_sanity_check(constructor_ref);
+        assert!(
+            !exists<DeriveSupply>(
+                object::address_from_constructor_ref(constructor_ref)
+            ),
+            error::already_exists(EALREADY_REGISTERED)
+        );
+
+
+        let store_obj = &object::generate_signer(constructor_ref);
+
+        // Store the overload function hook.
+        move_to<DeriveSupply>(
+            store_obj,
+            DeriveSupply {
+                dispatch_function
+            }
+        );
+    }
+
+    /// Check the requirements for registering a dispatchable function.
+    inline fun register_dispatch_function_sanity_check(
+        constructor_ref: &ConstructorRef,
+    )  {
+        // Cannot register hook for APT.
+        assert!(
+            object::address_from_constructor_ref(constructor_ref) != @aptos_fungible_asset,
+            error::permission_denied(EAPT_NOT_DISPATCHABLE)
+        );
+        assert!(
+            !object::can_generate_delete_ref(constructor_ref),
+            error::invalid_argument(EOBJECT_IS_DELETABLE)
+        );
+        assert!(
+            exists<Metadata>(
+                object::address_from_constructor_ref(constructor_ref)
+            ),
+            error::not_found(EFUNGIBLE_METADATA_EXISTENCE),
         );
     }
 
@@ -620,6 +676,15 @@ module supra_framework::fungible_asset {
         let metadata_addr = object::object_address(&fa_store.metadata);
         if (exists<DispatchFunctionStore>(metadata_addr)) {
             borrow_global<DispatchFunctionStore>(metadata_addr).derived_balance_function
+        } else {
+            option::none()
+        }
+    }
+
+    public(friend) fun derived_supply_dispatch_function<T: key>(metadata: Object<T>): Option<FunctionInfo> acquires DeriveSupply {
+        let metadata_addr = object::object_address(&metadata);
+        if (exists<DeriveSupply>(metadata_addr)) {
+            borrow_global<DeriveSupply>(metadata_addr).dispatch_function
         } else {
             option::none()
         }
@@ -895,19 +960,29 @@ module supra_framework::fungible_asset {
         let mutable_metadata = borrow_global_mut<Metadata>(metadata_address);
 
         if (option::is_some(&name)){
-            mutable_metadata.name = option::extract(&mut name);
+            let name = option::extract(&mut name);
+            assert!(string::length(&name) <= MAX_NAME_LENGTH, error::out_of_range(ENAME_TOO_LONG));
+            mutable_metadata.name = name;
         };
         if (option::is_some(&symbol)){
-            mutable_metadata.symbol = option::extract(&mut symbol);
+            let symbol = option::extract(&mut symbol);
+            assert!(string::length(&symbol) <= MAX_SYMBOL_LENGTH, error::out_of_range(ESYMBOL_TOO_LONG));
+            mutable_metadata.symbol = symbol;
         };
         if (option::is_some(&decimals)){
-            mutable_metadata.decimals = option::extract(&mut decimals);
+            let decimals = option::extract(&mut decimals);
+            assert!(decimals <= MAX_DECIMALS, error::out_of_range(EDECIMALS_TOO_LARGE));
+            mutable_metadata.decimals = decimals;
         };
         if (option::is_some(&icon_uri)){
-            mutable_metadata.icon_uri = option::extract(&mut icon_uri);
+            let icon_uri = option::extract(&mut icon_uri);
+            assert!(string::length(&icon_uri) <= MAX_URI_LENGTH, error::out_of_range(EURI_TOO_LONG));
+            mutable_metadata.icon_uri = icon_uri;
         };
         if (option::is_some(&project_uri)){
-            mutable_metadata.project_uri = option::extract(&mut project_uri);
+            let project_uri = option::extract(&mut project_uri);
+            assert!(string::length(&project_uri) <= MAX_URI_LENGTH, error::out_of_range(EURI_TOO_LONG));
+            mutable_metadata.project_uri = project_uri;
         };
     }
 
@@ -1246,13 +1321,13 @@ module supra_framework::fungible_asset {
         mutate_metadata(
             &mutate_metadata_ref,
             option::some(string::utf8(b"mutated_name")),
-            option::some(string::utf8(b"mutated_symbol")),
+            option::some(string::utf8(b"m_symbol")),
             option::none(),
             option::none(),
             option::none()
         );
         assert!(name(metadata) == string::utf8(b"mutated_name"), 8);
-        assert!(symbol(metadata) == string::utf8(b"mutated_symbol"), 9);
+        assert!(symbol(metadata) == string::utf8(b"m_symbol"), 9);
         assert!(decimals(metadata) == 0, 10);
         assert!(icon_uri(metadata) == string::utf8(b"http://www.example.com/favicon.ico"), 11);
         assert!(project_uri(metadata) == string::utf8(b"http://www.example.com"), 12);
@@ -1327,13 +1402,13 @@ module supra_framework::fungible_asset {
         mutate_metadata(
             &mutate_metadata_ref,
             option::some(string::utf8(b"mutated_name")),
-            option::some(string::utf8(b"mutated_symbol")),
+            option::some(string::utf8(b"m_symbol")),
             option::some(10),
             option::some(string::utf8(b"http://www.mutated-example.com/favicon.ico")),
             option::some(string::utf8(b"http://www.mutated-example.com"))
         );
         assert!(name(metadata) == string::utf8(b"mutated_name"), 1);
-        assert!(symbol(metadata) == string::utf8(b"mutated_symbol"), 2);
+        assert!(symbol(metadata) == string::utf8(b"m_symbol"), 2);
         assert!(decimals(metadata) == 10, 3);
         assert!(icon_uri(metadata) == string::utf8(b"http://www.mutated-example.com/favicon.ico"), 4);
         assert!(project_uri(metadata) == string::utf8(b"http://www.mutated-example.com"), 5);
@@ -1349,16 +1424,113 @@ module supra_framework::fungible_asset {
         mutate_metadata(
             &mutate_metadata_ref,
             option::some(string::utf8(b"mutated_name")),
-            option::some(string::utf8(b"mutated_symbol")),
+            option::some(string::utf8(b"m_symbol")),
             option::none(),
             option::none(),
             option::none()
         );
         assert!(name(metadata) == string::utf8(b"mutated_name"), 8);
-        assert!(symbol(metadata) == string::utf8(b"mutated_symbol"), 9);
+        assert!(symbol(metadata) == string::utf8(b"m_symbol"), 9);
         assert!(decimals(metadata) == 0, 10);
         assert!(icon_uri(metadata) == string::utf8(b"http://www.example.com/favicon.ico"), 11);
         assert!(project_uri(metadata) == string::utf8(b"http://www.example.com"), 12);
+    }
+
+    #[test(creator = @0xcafe)]
+    #[expected_failure(abort_code = 0x2000f, location = Self)]
+    fun test_mutate_metadata_name_over_maximum_length(
+        creator: &signer
+    ) acquires Metadata {
+        let (_mint_ref, _transfer_ref, _burn_ref, mutate_metadata_ref, _) = create_fungible_asset(creator);
+
+        mutate_metadata(
+            &mutate_metadata_ref,
+            option::some(string::utf8(b"mutated_name_will_be_too_long_for_the_maximum_length_check")),
+            option::none(),
+            option::none(),
+            option::none(),
+            option::none()
+        );
+    }
+
+    #[test(creator = @0xcafe)]
+    #[expected_failure(abort_code = 0x20010, location = Self)]
+    fun test_mutate_metadata_symbol_over_maximum_length(
+        creator: &signer
+    ) acquires Metadata {
+        let (_mint_ref, _transfer_ref, _burn_ref, mutate_metadata_ref, _) = create_fungible_asset(creator);
+
+        mutate_metadata(
+            &mutate_metadata_ref,
+            option::none(),
+            option::some(string::utf8(b"mutated_symbol_will_be_too_long_for_the_maximum_length_check")),
+            option::none(),
+            option::none(),
+            option::none()
+        );
+    }
+
+    #[test(creator = @0xcafe)]
+    #[expected_failure(abort_code = 0x20011, location = Self)]
+    fun test_mutate_metadata_decimals_over_maximum_amount(
+        creator: &signer
+    ) acquires Metadata {
+        let (_mint_ref, _transfer_ref, _burn_ref, mutate_metadata_ref, _) = create_fungible_asset(creator);
+
+        mutate_metadata(
+            &mutate_metadata_ref,
+            option::none(),
+            option::none(),
+            option::some(50),
+            option::none(),
+            option::none()
+        );
+    }
+
+    #[test_only]
+    fun create_exceedingly_long_uri(): vector<u8> {
+        use std::vector;
+
+        let too_long_of_uri = b"mutated_uri_will_be_too_long_for_the_maximum_length_check.com/";
+        for (i in 0..50) {
+            vector::append(&mut too_long_of_uri, b"too_long_of_uri");
+        };
+
+        too_long_of_uri
+    }
+
+    #[test(creator = @0xcafe)]
+    #[expected_failure(abort_code = 0x20013, location = Self)]
+    fun test_mutate_metadata_icon_uri_over_maximum_length(
+        creator: &signer
+    ) acquires Metadata {
+        let (_mint_ref, _transfer_ref, _burn_ref, mutate_metadata_ref, _) = create_fungible_asset(creator);
+        let too_long_of_uri = create_exceedingly_long_uri();
+        mutate_metadata(
+            &mutate_metadata_ref,
+            option::none(),
+            option::none(),
+            option::none(),
+            option::some(string::utf8(too_long_of_uri)),
+            option::none()
+        );
+    }
+
+    #[test(creator = @0xcafe)]
+    #[expected_failure(abort_code = 0x20013, location = Self)]
+    fun test_mutate_metadata_project_uri_over_maximum_length(
+        creator: &signer
+    ) acquires Metadata {
+        let (_mint_ref, _transfer_ref, _burn_ref, mutate_metadata_ref, _) = create_fungible_asset(creator);
+        let too_long_of_uri = create_exceedingly_long_uri();
+        mutate_metadata(
+            &mutate_metadata_ref,
+            option::none(),
+            option::none(),
+            option::none(),
+            option::none(),
+            option::some(string::utf8(too_long_of_uri))
+        );
     }
 
     #[test(creator = @0xcafe)]
