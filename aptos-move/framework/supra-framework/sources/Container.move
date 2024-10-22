@@ -1,5 +1,6 @@
 module supra_framework::Container {
 
+    use std::vector;
     use aptos_std::simple_map;
     use aptos_std::simple_map::SimpleMap;
     use supra_framework::system_addresses;
@@ -31,6 +32,22 @@ module supra_framework::Container {
                 }
             );
         }
+    }
+
+    /// Add a new container metadata to the storage
+    public fun AddContainerMetadata(supra_framework: &signer, address: address, container_metadata: ContainerMetadata) acquires AddressToContainerMap {
+        system_addresses::assert_supra_framework(supra_framework);
+        let container = borrow_global_mut<AddressToContainerMap>(@supra_framework);
+        simple_map::upsert(&mut container.address_container_map, address, container_metadata);
+    }
+
+    /// Add one module address to the container metadata
+    public fun AddModuleToContainer(supra_framework: &signer, address: address, module_address: address) acquires AddressToContainerMap {
+        system_addresses::assert_supra_framework(supra_framework);
+        assert(exists<AddressToContainerMap>(@supra_framework), 1);
+        let container = borrow_global_mut<AddressToContainerMap>(@supra_framework);
+        let container_metadata = simple_map::borrow_mut(&mut container.address_container_map, &address);
+        vector::insert(container_metadata.Module_adresses, module_address);
     }
 
     #[view]
