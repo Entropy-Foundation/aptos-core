@@ -3,18 +3,26 @@ module supra_framework::container {
     use std::vector;
     use aptos_std::simple_map;
     use aptos_std::simple_map::SimpleMap;
+    use aptos_std::table::Table;
     use supra_framework::system_addresses;
 
     struct AddressToContainerMap has key, store {
-        address_container_map: SimpleMap<address, ContainerMetadata>,
+        address_container_map: SimpleMap<address, vector<u64>>,
+        id_containerMetaData_map: Table<u64, ContainerMetadata>
     }
 
     //TODO: Add more fields for container metadata if needed
+    //TODO: Group discussion: charging metrics
     struct ContainerMetadata has copy, drop, store {
+        container_owner: address,
+        //TODO enforce uniqueness of container_indentifier
         /// The unique identifier of the supra container
         container_indentifier: u64,
         /// The addresses of modules in the container
         Module_adresses: vector<address>,
+        /// Pending proposal module address,
+        pending_proposal: SimpleMap<u64, vector<u8>>,
+        //TODO type information for the coin
         /// The address of the customer asset reciver
         customer_asset_reciver: address,
         /// The address of the supra coin reciver
@@ -34,15 +42,22 @@ module supra_framework::container {
         }
     }
 
-    /// Add a new container metadata to the storage
-    public fun AddContainerMetadata(supra_framework: &signer, address: address, container_metadata: ContainerMetadata) acquires AddressToContainerMap {
+    /// Create a new container
+    public fun creat_container(supra_framework: &signer, address: address, container_metadata: ContainerMetadata) acquires AddressToContainerMap {
         system_addresses::assert_supra_framework(supra_framework);
         let container = borrow_global_mut<AddressToContainerMap>(@supra_framework);
         simple_map::upsert(&mut container.address_container_map, address, container_metadata);
     }
 
-    /// Add one module address to the container metadata
-    public fun AddModuleToContainer(supra_framework: &signer, address: address, module_address: address) acquires AddressToContainerMap {
+    //TODO design choice: 1) Supraframework create container 2) every one can create container, there would be a charge
+    // the charge would go to some beneficiary address, the beneficiary address would be set and change by the supraframework
+
+    //TODO API to view and modify the metadata and requires the container owner's signer
+
+    //TODO Task for Aosen: how this will be published and how can we get the address back
+
+    /// Add one module address to the container
+    public fun add_module_to_container(supra_framework: &signer, address: address, module_address: address) acquires AddressToContainerMap {
         system_addresses::assert_supra_framework(supra_framework);
         assert(exists<AddressToContainerMap>(@supra_framework), 1);
         let container = borrow_global_mut<AddressToContainerMap>(@supra_framework);
@@ -51,7 +66,7 @@ module supra_framework::container {
     }
 
     #[view]
-    public fun GetContainerMetadata(supra_framework: &signer, address: address): ContainerMetadata acquires AddressToContainerMap {
+    public fun get_container_metadata(supra_framework: &signer, address: address): ContainerMetadata acquires AddressToContainerMap {
         system_addresses::assert_supra_framework(supra_framework);
         assert(exists<AddressToContainerMap>(address), 1);
         let container = borrow_global<AddressToContainerMap>(@supra_framework);
