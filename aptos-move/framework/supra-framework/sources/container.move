@@ -1,4 +1,4 @@
-module supra_framework::Container {
+module supra_framework::container {
 
     use std::vector;
     use aptos_std::simple_map;
