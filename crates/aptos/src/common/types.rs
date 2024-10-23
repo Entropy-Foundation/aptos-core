@@ -1918,16 +1918,16 @@ pub struct PoolAddressArgs {
 pub struct MultisigAccount {
     /// The address of the multisig account to interact with
     #[clap(long, value_parser = crate::common::types::load_account_arg)]
-    pub(crate) multisig_address: AccountAddress,
+    pub multisig_address: AccountAddress,
 }
 
 #[derive(Clone, Debug, Parser, Serialize)]
 pub struct MultisigAccountWithSequenceNumber {
     #[clap(flatten)]
-    pub(crate) multisig_account: MultisigAccount,
+    pub multisig_account: MultisigAccount,
     /// Multisig account sequence number to interact with
     #[clap(long)]
-    pub(crate) sequence_number: u64,
+    pub sequence_number: u64,
 }
 
 #[derive(Debug, Parser)]
