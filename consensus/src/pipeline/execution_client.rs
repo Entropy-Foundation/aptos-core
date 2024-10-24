@@ -52,13 +52,14 @@ use futures::{
 use futures_channel::mpsc::unbounded;
 use move_core_types::account_address::AccountAddress;
 use std::sync::Arc;
+use aptos_crypto::ed25519::Ed25519PrivateKey;
 
 #[async_trait::async_trait]
 pub trait TExecutionClient: Send + Sync {
     /// Initialize the execution phase for a new epoch.
     async fn start_epoch(
         &self,
-        maybe_consensus_key: Option<Arc<PrivateKey>>,
+        maybe_consensus_key: Option<Arc<Ed25519PrivateKey>>,
         epoch_state: Arc<EpochState>,
         commit_signer_provider: Arc<dyn CommitSignerProvider>,
         payload_manager: Arc<dyn TPayloadManager>,
@@ -184,7 +185,7 @@ impl ExecutionProxyClient {
 
     fn spawn_decoupled_execution(
         &self,
-        maybe_consensus_key: Option<Arc<PrivateKey>>,
+        maybe_consensus_key: Option<Arc<Ed25519PrivateKey>>,
         commit_signer_provider: Arc<dyn CommitSignerProvider>,
         epoch_state: Arc<EpochState>,
         rand_config: Option<RandConfig>,
@@ -298,7 +299,7 @@ impl ExecutionProxyClient {
 impl TExecutionClient for ExecutionProxyClient {
     async fn start_epoch(
         &self,
-        maybe_consensus_key: Option<Arc<PrivateKey>>,
+        maybe_consensus_key: Option<Arc<Ed25519PrivateKey>>,
         epoch_state: Arc<EpochState>,
         commit_signer_provider: Arc<dyn CommitSignerProvider>,
         payload_manager: Arc<dyn TPayloadManager>,
@@ -492,7 +493,7 @@ pub struct DummyExecutionClient;
 impl TExecutionClient for DummyExecutionClient {
     async fn start_epoch(
         &self,
-        _maybe_consensus_key: Option<Arc<PrivateKey>>,
+        _maybe_consensus_key: Option<Arc<Ed25519PrivateKey>>,
         _epoch_state: Arc<EpochState>,
         _commit_signer_provider: Arc<dyn CommitSignerProvider>,
         _payload_manager: Arc<dyn TPayloadManager>,

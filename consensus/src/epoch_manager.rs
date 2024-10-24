@@ -66,7 +66,7 @@ use aptos_consensus_types::{
     proof_of_store::ProofCache,
     utils::PayloadTxnsSize,
 };
-use aptos_crypto::ed25519::PrivateKey;
+use aptos_crypto::ed25519::{Ed25519PrivateKey, PrivateKey};
 use aptos_dkg::{
     pvss::{traits::Transcript, Player},
     weighted_vuf::traits::WeightedVUF,
@@ -760,7 +760,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
 
     async fn start_round_manager(
         &mut self,
-        consensus_key: Option<Arc<PrivateKey>>,
+        consensus_key: Option<Arc<Ed25519PrivateKey>>,
         recovery_data: RecoveryData,
         epoch_state: Arc<EpochState>,
         onchain_consensus_config: OnChainConsensusConfig,
@@ -1314,7 +1314,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
     async fn start_new_epoch_with_dag(
         &mut self,
         epoch_state: Arc<EpochState>,
-        loaded_consensus_key: Option<Arc<PrivateKey>>,
+        loaded_consensus_key: Option<Arc<Ed25519PrivateKey>>,
         onchain_consensus_config: OnChainConsensusConfig,
         on_chain_execution_config: OnChainExecutionConfig,
         onchain_randomness_config: OnChainRandomnessConfig,

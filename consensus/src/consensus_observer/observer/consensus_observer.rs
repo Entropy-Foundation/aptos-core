@@ -33,7 +33,7 @@ use aptos_config::{
     network_id::PeerNetworkId,
 };
 use aptos_consensus_types::{pipeline, pipelined_block::PipelinedBlock};
-use aptos_crypto::{bls12381, Genesis};
+use aptos_crypto::{bls12381, ed25519, Genesis};
 use aptos_event_notifications::{DbBackedOnChainConfig, ReconfigNotificationListener};
 use aptos_infallible::Mutex;
 use aptos_logger::{debug, error, info, warn};
@@ -790,7 +790,7 @@ impl ConsensusObserver {
         let epoch_state = self.get_epoch_state();
 
         // Start the new epoch
-        let sk = Arc::new(bls12381::PrivateKey::genesis());
+        let sk = Arc::new(ed25519::PrivateKey::genesis());
         let signer = Arc::new(ValidatorSigner::new(AccountAddress::ZERO, sk.clone()));
         let dummy_signer = Arc::new(DagCommitSigner::new(signer.clone()));
         let (_, rand_msg_rx) =

@@ -52,6 +52,7 @@ use std::{
 };
 use supra_aptos::{SupraCommand, SupraCommandArguments};
 use tempfile::TempDir;
+use crate::common::types::PoolAddressArgs;
 
 /// Tool for on-chain governance
 ///

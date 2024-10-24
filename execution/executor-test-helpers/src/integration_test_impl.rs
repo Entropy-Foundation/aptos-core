@@ -19,25 +19,13 @@ use aptos_storage_interface::{
     state_view::{DbStateViewAtVersion, VerifiedStateViewAtVersion},
     DbReaderWriter, Order,
 };
-use aptos_types::{
-    account_config::{aptos_test_root_address, AccountResource, CoinStoreResource},
-    block_metadata::BlockMetadata,
-    chain_id::ChainId,
-    event::EventKey,
-    ledger_info::LedgerInfo,
-    state_store::{MoveResourceExt, StateView},
-    test_helpers::transaction_test_helpers::{block, TEST_BLOCK_EXECUTOR_ONCHAIN_CONFIG},
-    transaction::{
-        signature_verified_transaction::{
-            into_signature_verified_block, SignatureVerifiedTransaction,
-        },
-        Transaction::{self, UserTransaction},
-        TransactionListWithProof, TransactionWithProof, WriteSetPayload,
+use aptos_types::{account_config::{aptos_test_root_address, AccountResource, CoinStoreResource}, block_metadata::BlockMetadata, chain_id::ChainId, event::EventKey, ledger_info::LedgerInfo, state_store::{MoveResourceExt, StateView}, test_helpers::transaction_test_helpers::{block, TEST_BLOCK_EXECUTOR_ONCHAIN_CONFIG}, transaction::{
+    signature_verified_transaction::{
+        into_signature_verified_block, SignatureVerifiedTransaction,
     },
-    trusted_state::{TrustedState, TrustedStateChange},
-    waypoint::Waypoint,
-    AptosCoinType,
-};
+    Transaction::{self, UserTransaction},
+    TransactionListWithProof, TransactionWithProof, WriteSetPayload,
+}, trusted_state::{TrustedState, TrustedStateChange}, waypoint::Waypoint, SupraCoinType};
 use aptos_vm::AptosVM;
 use rand::SeedableRng;
 use std::{path::Path, sync::Arc};
@@ -555,7 +543,7 @@ pub fn create_db_and_executor<P: AsRef<std::path::Path>>(
 }
 
 pub fn get_account_balance(state_view: &dyn StateView, address: &AccountAddress) -> u64 {
-    CoinStoreResource::<AptosCoinType>::fetch_move_resource(state_view, address)
+    CoinStoreResource::<SupraCoinType>::fetch_move_resource(state_view, address)
         .unwrap()
         .map_or(0, |coin_store| coin_store.coin())
 }
