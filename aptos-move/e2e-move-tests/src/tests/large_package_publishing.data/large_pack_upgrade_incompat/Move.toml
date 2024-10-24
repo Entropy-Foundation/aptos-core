@@ -1,0 +1,9 @@
+[package]
+name = "LargePackageExample"
+version = "0.0.0"
+upgrade_policy = "compatible"
+[dependencies]
+SupraFramework = { local = "../../../../../framework/supra-framework" }
+
+[addresses]
+large_package_example = "_"

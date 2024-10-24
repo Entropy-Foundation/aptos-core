@@ -90,9 +90,6 @@ spec supra_framework::supra_account {
         pragma verify = false;
         let account_addr_source = signer::address_of(source);
 
-        // The 'from' addr is implictly not equal to 'to' addr
-        requires account_addr_source != to;
-
         include CreateAccountTransferAbortsIf;
         include GuidAbortsIf<SupraCoin>;
         include WithdrawAbortsIf<SupraCoin>{from: source};
@@ -131,10 +128,10 @@ spec supra_framework::supra_account {
         let coin_store_source = global<coin::CoinStore<SupraCoin>>(account_addr_source);
         let balance_source = coin_store_source.coin.value;
 
-        requires forall i in 0..len(recipients):
-            recipients[i] != account_addr_source;
-        requires exists i in 0..len(recipients):
-            amounts[i] > 0;
+        // requires forall i in 0..len(recipients):
+        //     recipients[i] != account_addr_source;
+        // requires exists i in 0..len(recipients):
+        //     amounts[i] > 0;
 
         // create account properties
         aborts_if len(recipients) != len(amounts);
@@ -182,11 +179,11 @@ spec supra_framework::supra_account {
         let coin_store_source = global<coin::CoinStore<CoinType>>(account_addr_source);
         let balance_source = coin_store_source.coin.value;
 
-        requires forall i in 0..len(recipients):
-            recipients[i] != account_addr_source;
-
-        requires exists i in 0..len(recipients):
-            amounts[i] > 0;
+        // requires forall i in 0..len(recipients):
+        //     recipients[i] != account_addr_source;
+        //
+        // requires exists i in 0..len(recipients):
+        //     amounts[i] > 0;
 
         /// [high-level-req-7]
         aborts_if len(recipients) != len(amounts);
@@ -246,8 +243,6 @@ spec supra_framework::supra_account {
         pragma verify = false;
         let account_addr_source = signer::address_of(from);
 
-        //The 'from' addr is implictly not equal to 'to' addr
-        requires account_addr_source != to;
 
         include CreateAccountTransferAbortsIf;
         include WithdrawAbortsIf<CoinType>;

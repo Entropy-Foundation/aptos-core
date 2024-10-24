@@ -32,6 +32,7 @@ use crate::{
     validator_verifier::{ValidatorConsensusInfo, ValidatorVerifier},
     vm_status::VMStatus,
     write_set::{WriteOp, WriteSet, WriteSetMut},
+    SupraCoinType,
 };
 use aptos_crypto::{
     ed25519::{self, Ed25519PrivateKey, Ed25519PublicKey},
@@ -53,6 +54,7 @@ use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     iter::Iterator,
+    sync::Arc,
 };
 
 impl WriteOp {
@@ -189,7 +191,7 @@ impl AccountInfoUniverse {
         accounts.sort_by(|a, b| a.address.cmp(&b.address));
         let validator_signer = ValidatorSigner::new(
             accounts[0].address,
-            accounts[0].consensus_private_key.clone(),
+            Arc::new(accounts[0].consensus_private_key.clone()),
         );
         let validator_set_by_epoch = vec![(0, vec![validator_signer])].into_iter().collect();
 
@@ -652,8 +654,8 @@ pub struct CoinStoreResourceGen {
 }
 
 impl CoinStoreResourceGen {
-    pub fn materialize(self) -> CoinStoreResource {
-        CoinStoreResource::new(
+    pub fn materialize(self) -> CoinStoreResource<SupraCoinType> {
+        CoinStoreResource::<SupraCoinType>::new(
             self.coin,
             false,
             EventHandle::random(0),
@@ -685,7 +687,7 @@ impl AccountStateGen {
                 bcs::to_bytes(&account_resource).unwrap(),
             ),
             (
-                StateKey::resource_typed::<CoinStoreResource>(address).unwrap(),
+                StateKey::resource_typed::<CoinStoreResource<SupraCoinType>>(address).unwrap(),
                 bcs::to_bytes(&balance_resource).unwrap(),
             ),
         ]
@@ -1010,7 +1012,10 @@ impl ValidatorSetGen {
             .get_account_infos_dedup(&self.validators)
             .iter()
             .map(|account| {
-                ValidatorSigner::new(account.address, account.consensus_private_key.clone())
+                ValidatorSigner::new(
+                    account.address,
+                    Arc::new(account.consensus_private_key.clone()),
+                )
             })
             .collect()
     }

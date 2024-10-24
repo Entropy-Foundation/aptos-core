@@ -3,7 +3,7 @@
 
 # Module `0x4::token`
 
-This defines an object-based Token. The key differentiating features from the Supra standard
+This defines an object-based Token. The key differentiating features from the Aptos standard
 token are:
 * Decoupled token ownership from token data.
 * Explicit data model for token metadata via adjacent resources
@@ -20,13 +20,19 @@ token are:
 -  [Constants](#@Constants_0)
 -  [Function `create_common`](#0x4_token_create_common)
 -  [Function `create_common_with_collection`](#0x4_token_create_common_with_collection)
+-  [Function `create_common_with_collection_as_owner`](#0x4_token_create_common_with_collection_as_owner)
+-  [Function `create_common_with_collection_internal`](#0x4_token_create_common_with_collection_internal)
 -  [Function `create_token`](#0x4_token_create_token)
 -  [Function `create`](#0x4_token_create)
+-  [Function `create_token_as_collection_owner`](#0x4_token_create_token_as_collection_owner)
 -  [Function `create_numbered_token_object`](#0x4_token_create_numbered_token_object)
 -  [Function `create_numbered_token`](#0x4_token_create_numbered_token)
+-  [Function `create_numbered_token_as_collection_owner`](#0x4_token_create_numbered_token_as_collection_owner)
 -  [Function `create_named_token_object`](#0x4_token_create_named_token_object)
 -  [Function `create_named_token`](#0x4_token_create_named_token)
+-  [Function `create_named_token_as_collection_owner`](#0x4_token_create_named_token_as_collection_owner)
 -  [Function `create_named_token_from_seed`](#0x4_token_create_named_token_from_seed)
+-  [Function `create_named_token_from_seed_as_collection_owner`](#0x4_token_create_named_token_from_seed_as_collection_owner)
 -  [Function `create_from_account`](#0x4_token_create_from_account)
 -  [Function `create_token_address`](#0x4_token_create_token_address)
 -  [Function `create_token_address_with_seed`](#0x4_token_create_token_address_with_seed)
@@ -113,7 +119,7 @@ Represents the common fields to all tokens.
  Was populated until concurrent_token_v2_enabled feature flag was enabled.
 
  The name of the token, which should be unique within the collection; the length of name
- should be smaller than 128, characters, eg: "Supra Animal #1234"
+ should be smaller than 128, characters, eg: "Aptos Animal #1234"
 </dd>
 <dt>
 <code>uri: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a></code>
@@ -163,7 +169,7 @@ Started being populated once aggregator_v2_api_enabled was enabled.
 </dt>
 <dd>
  The name of the token, which should be unique within the collection; the length of name
- should be smaller than 128, characters, eg: "Supra Animal #1234"
+ should be smaller than 128, characters, eg: "Aptos Animal #1234"
 </dd>
 </dl>
 
@@ -380,6 +386,26 @@ The URI is over the maximum length
 
 
 
+<a id="0x4_token_ENOT_OWNER"></a>
+
+The calling signer is not the owner
+
+
+<pre><code><b>const</b> <a href="token.md#0x4_token_ENOT_OWNER">ENOT_OWNER</a>: u64 = 8;
+</code></pre>
+
+
+
+<a id="0x4_token_ECOLLECTION_OWNER_NOT_SUPPORTED"></a>
+
+The collection owner feature is not supported
+
+
+<pre><code><b>const</b> <a href="token.md#0x4_token_ECOLLECTION_OWNER_NOT_SUPPORTED">ECOLLECTION_OWNER_NOT_SUPPORTED</a>: u64 = 9;
+</code></pre>
+
+
+
 <a id="0x4_token_EDESCRIPTION_TOO_LONG"></a>
 
 The description is over the maximum length
@@ -544,6 +570,94 @@ The token name is over the maximum length
 ) {
     <b>assert</b>!(<a href="collection.md#0x4_collection_creator">collection::creator</a>(<a href="collection.md#0x4_collection">collection</a>) == <a href="../../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(creator), <a href="../../move-stdlib/doc/error.md#0x1_error_unauthenticated">error::unauthenticated</a>(<a href="token.md#0x4_token_ENOT_CREATOR">ENOT_CREATOR</a>));
 
+    <a href="token.md#0x4_token_create_common_with_collection_internal">create_common_with_collection_internal</a>(
+        constructor_ref,
+        <a href="collection.md#0x4_collection">collection</a>,
+        description,
+        name_prefix,
+        name_with_index_suffix,
+        <a href="royalty.md#0x4_royalty">royalty</a>,
+        uri
+    );
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x4_token_create_common_with_collection_as_owner"></a>
+
+## Function `create_common_with_collection_as_owner`
+
+
+
+<pre><code><b>fun</b> <a href="token.md#0x4_token_create_common_with_collection_as_owner">create_common_with_collection_as_owner</a>(owner: &<a href="../../move-stdlib/doc/signer.md#0x1_signer">signer</a>, constructor_ref: &<a href="../../supra-framework/doc/object.md#0x1_object_ConstructorRef">object::ConstructorRef</a>, <a href="collection.md#0x4_collection">collection</a>: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="collection.md#0x4_collection_Collection">collection::Collection</a>&gt;, description: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, name_prefix: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, name_with_index_suffix: <a href="../../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, <a href="royalty.md#0x4_royalty">royalty</a>: <a href="../../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="royalty.md#0x4_royalty_Royalty">royalty::Royalty</a>&gt;, uri: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code>inline <b>fun</b> <a href="token.md#0x4_token_create_common_with_collection_as_owner">create_common_with_collection_as_owner</a>(
+    owner: &<a href="../../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    constructor_ref: &ConstructorRef,
+    <a href="collection.md#0x4_collection">collection</a>: Object&lt;Collection&gt;,
+    description: String,
+    name_prefix: String,
+    // If <a href="../../move-stdlib/doc/option.md#0x1_option_some">option::some</a>, numbered <a href="token.md#0x4_token">token</a> is created - i.e. index is appended <b>to</b> the name.
+    // If <a href="../../move-stdlib/doc/option.md#0x1_option_none">option::none</a>, name_prefix is the full name of the <a href="token.md#0x4_token">token</a>.
+    name_with_index_suffix: Option&lt;String&gt;,
+    <a href="royalty.md#0x4_royalty">royalty</a>: Option&lt;Royalty&gt;,
+    uri: String,
+) {
+    <b>assert</b>!(<a href="../../move-stdlib/doc/features.md#0x1_features_is_collection_owner_enabled">features::is_collection_owner_enabled</a>(), <a href="../../move-stdlib/doc/error.md#0x1_error_unavailable">error::unavailable</a>(<a href="token.md#0x4_token_ECOLLECTION_OWNER_NOT_SUPPORTED">ECOLLECTION_OWNER_NOT_SUPPORTED</a>));
+    <b>assert</b>!(<a href="../../supra-framework/doc/object.md#0x1_object_owner">object::owner</a>(<a href="collection.md#0x4_collection">collection</a>) == <a href="../../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner), <a href="../../move-stdlib/doc/error.md#0x1_error_unauthenticated">error::unauthenticated</a>(<a href="token.md#0x4_token_ENOT_OWNER">ENOT_OWNER</a>));
+
+    <a href="token.md#0x4_token_create_common_with_collection_internal">create_common_with_collection_internal</a>(
+        constructor_ref,
+        <a href="collection.md#0x4_collection">collection</a>,
+        description,
+        name_prefix,
+        name_with_index_suffix,
+        <a href="royalty.md#0x4_royalty">royalty</a>,
+        uri
+    );
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x4_token_create_common_with_collection_internal"></a>
+
+## Function `create_common_with_collection_internal`
+
+
+
+<pre><code><b>fun</b> <a href="token.md#0x4_token_create_common_with_collection_internal">create_common_with_collection_internal</a>(constructor_ref: &<a href="../../supra-framework/doc/object.md#0x1_object_ConstructorRef">object::ConstructorRef</a>, <a href="collection.md#0x4_collection">collection</a>: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="collection.md#0x4_collection_Collection">collection::Collection</a>&gt;, description: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, name_prefix: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, name_with_index_suffix: <a href="../../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, <a href="royalty.md#0x4_royalty">royalty</a>: <a href="../../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="royalty.md#0x4_royalty_Royalty">royalty::Royalty</a>&gt;, uri: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code>inline <b>fun</b> <a href="token.md#0x4_token_create_common_with_collection_internal">create_common_with_collection_internal</a>(
+    constructor_ref: &ConstructorRef,
+    <a href="collection.md#0x4_collection">collection</a>: Object&lt;Collection&gt;,
+    description: String,
+    name_prefix: String,
+    // If <a href="../../move-stdlib/doc/option.md#0x1_option_some">option::some</a>, numbered <a href="token.md#0x4_token">token</a> is created - i.e. index is appended <b>to</b> the name.
+    // If <a href="../../move-stdlib/doc/option.md#0x1_option_none">option::none</a>, name_prefix is the full name of the <a href="token.md#0x4_token">token</a>.
+    name_with_index_suffix: Option&lt;String&gt;,
+    <a href="royalty.md#0x4_royalty">royalty</a>: Option&lt;Royalty&gt;,
+    uri: String,
+) {
     <b>if</b> (<a href="../../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&name_with_index_suffix)) {
         // Be conservative, <b>as</b> we don't know what length the index will be, and <b>assume</b> worst case (20 chars in MAX_U64)
         <b>assert</b>!(
@@ -693,6 +807,50 @@ for additional specialization.
 
 </details>
 
+<a id="0x4_token_create_token_as_collection_owner"></a>
+
+## Function `create_token_as_collection_owner`
+
+Same functionality as <code>create_token</code>, but the token can only be created by the collection owner.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="token.md#0x4_token_create_token_as_collection_owner">create_token_as_collection_owner</a>(creator: &<a href="../../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="collection.md#0x4_collection">collection</a>: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="collection.md#0x4_collection_Collection">collection::Collection</a>&gt;, description: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, name: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, <a href="royalty.md#0x4_royalty">royalty</a>: <a href="../../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="royalty.md#0x4_royalty_Royalty">royalty::Royalty</a>&gt;, uri: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <a href="../../supra-framework/doc/object.md#0x1_object_ConstructorRef">object::ConstructorRef</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="token.md#0x4_token_create_token_as_collection_owner">create_token_as_collection_owner</a>(
+    creator: &<a href="../../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    <a href="collection.md#0x4_collection">collection</a>: Object&lt;Collection&gt;,
+    description: String,
+    name: String,
+    <a href="royalty.md#0x4_royalty">royalty</a>: Option&lt;Royalty&gt;,
+    uri: String,
+): ConstructorRef {
+    <b>let</b> creator_address = <a href="../../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(creator);
+    <b>let</b> constructor_ref = <a href="../../supra-framework/doc/object.md#0x1_object_create_object">object::create_object</a>(creator_address);
+    <a href="token.md#0x4_token_create_common_with_collection_as_owner">create_common_with_collection_as_owner</a>(
+        creator,
+        &constructor_ref,
+        <a href="collection.md#0x4_collection">collection</a>,
+        description,
+        name,
+        <a href="../../move-stdlib/doc/option.md#0x1_option_none">option::none</a>(),
+        <a href="royalty.md#0x4_royalty">royalty</a>,
+        uri
+    );
+    constructor_ref
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x4_token_create_numbered_token_object"></a>
 
 ## Function `create_numbered_token_object`
@@ -780,6 +938,51 @@ while providing sequential names.
         creator,
         &constructor_ref,
         collection_name,
+        description,
+        name_with_index_prefix,
+        <a href="../../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(name_with_index_suffix),
+        <a href="royalty.md#0x4_royalty">royalty</a>,
+        uri
+    );
+    constructor_ref
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x4_token_create_numbered_token_as_collection_owner"></a>
+
+## Function `create_numbered_token_as_collection_owner`
+
+Same functionality as <code>create_numbered_token_object</code>, but the token can only be created by the collection owner.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="token.md#0x4_token_create_numbered_token_as_collection_owner">create_numbered_token_as_collection_owner</a>(creator: &<a href="../../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="collection.md#0x4_collection">collection</a>: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="collection.md#0x4_collection_Collection">collection::Collection</a>&gt;, description: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, name_with_index_prefix: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, name_with_index_suffix: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, <a href="royalty.md#0x4_royalty">royalty</a>: <a href="../../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="royalty.md#0x4_royalty_Royalty">royalty::Royalty</a>&gt;, uri: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <a href="../../supra-framework/doc/object.md#0x1_object_ConstructorRef">object::ConstructorRef</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="token.md#0x4_token_create_numbered_token_as_collection_owner">create_numbered_token_as_collection_owner</a>(
+    creator: &<a href="../../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    <a href="collection.md#0x4_collection">collection</a>: Object&lt;Collection&gt;,
+    description: String,
+    name_with_index_prefix: String,
+    name_with_index_suffix: String,
+    <a href="royalty.md#0x4_royalty">royalty</a>: Option&lt;Royalty&gt;,
+    uri: String,
+): ConstructorRef {
+    <b>let</b> creator_address = <a href="../../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(creator);
+    <b>let</b> constructor_ref = <a href="../../supra-framework/doc/object.md#0x1_object_create_object">object::create_object</a>(creator_address);
+    <a href="token.md#0x4_token_create_common_with_collection_as_owner">create_common_with_collection_as_owner</a>(
+        creator,
+        &constructor_ref,
+        <a href="collection.md#0x4_collection">collection</a>,
         description,
         name_with_index_prefix,
         <a href="../../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(name_with_index_suffix),
@@ -886,6 +1089,50 @@ additional specialization.
 
 </details>
 
+<a id="0x4_token_create_named_token_as_collection_owner"></a>
+
+## Function `create_named_token_as_collection_owner`
+
+Same functionality as <code>create_named_token_object</code>, but the token can only be created by the collection owner.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="token.md#0x4_token_create_named_token_as_collection_owner">create_named_token_as_collection_owner</a>(creator: &<a href="../../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="collection.md#0x4_collection">collection</a>: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="collection.md#0x4_collection_Collection">collection::Collection</a>&gt;, description: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, name: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, <a href="royalty.md#0x4_royalty">royalty</a>: <a href="../../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="royalty.md#0x4_royalty_Royalty">royalty::Royalty</a>&gt;, uri: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <a href="../../supra-framework/doc/object.md#0x1_object_ConstructorRef">object::ConstructorRef</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="token.md#0x4_token_create_named_token_as_collection_owner">create_named_token_as_collection_owner</a>(
+    creator: &<a href="../../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    <a href="collection.md#0x4_collection">collection</a>: Object&lt;Collection&gt;,
+    description: String,
+    name: String,
+    <a href="royalty.md#0x4_royalty">royalty</a>: Option&lt;Royalty&gt;,
+    uri: String,
+): ConstructorRef {
+    <b>let</b> seed = <a href="token.md#0x4_token_create_token_seed">create_token_seed</a>(&<a href="collection.md#0x4_collection_name">collection::name</a>(<a href="collection.md#0x4_collection">collection</a>), &name);
+    <b>let</b> constructor_ref = <a href="../../supra-framework/doc/object.md#0x1_object_create_named_object">object::create_named_object</a>(creator, seed);
+    <a href="token.md#0x4_token_create_common_with_collection_as_owner">create_common_with_collection_as_owner</a>(
+        creator,
+        &constructor_ref,
+        <a href="collection.md#0x4_collection">collection</a>,
+        description,
+        name,
+        <a href="../../move-stdlib/doc/option.md#0x1_option_none">option::none</a>(),
+        <a href="royalty.md#0x4_royalty">royalty</a>,
+        uri
+    );
+    constructor_ref
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x4_token_create_named_token_from_seed"></a>
 
 ## Function `create_named_token_from_seed`
@@ -916,6 +1163,51 @@ This function must be called if the collection name has been previously changed.
     <b>let</b> seed = <a href="token.md#0x4_token_create_token_name_with_seed">create_token_name_with_seed</a>(&<a href="collection.md#0x4_collection_name">collection::name</a>(<a href="collection.md#0x4_collection">collection</a>), &name, &seed);
     <b>let</b> constructor_ref = <a href="../../supra-framework/doc/object.md#0x1_object_create_named_object">object::create_named_object</a>(creator, seed);
     <a href="token.md#0x4_token_create_common_with_collection">create_common_with_collection</a>(creator, &constructor_ref, <a href="collection.md#0x4_collection">collection</a>, description, name, <a href="../../move-stdlib/doc/option.md#0x1_option_none">option::none</a>(), <a href="royalty.md#0x4_royalty">royalty</a>, uri);
+    constructor_ref
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x4_token_create_named_token_from_seed_as_collection_owner"></a>
+
+## Function `create_named_token_from_seed_as_collection_owner`
+
+Same functionality as <code>create_named_token_from_seed</code>, but the token can only be created by the collection owner.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="token.md#0x4_token_create_named_token_from_seed_as_collection_owner">create_named_token_from_seed_as_collection_owner</a>(creator: &<a href="../../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="collection.md#0x4_collection">collection</a>: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="collection.md#0x4_collection_Collection">collection::Collection</a>&gt;, description: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, name: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, seed: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, <a href="royalty.md#0x4_royalty">royalty</a>: <a href="../../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="royalty.md#0x4_royalty_Royalty">royalty::Royalty</a>&gt;, uri: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <a href="../../supra-framework/doc/object.md#0x1_object_ConstructorRef">object::ConstructorRef</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="token.md#0x4_token_create_named_token_from_seed_as_collection_owner">create_named_token_from_seed_as_collection_owner</a>(
+    creator: &<a href="../../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    <a href="collection.md#0x4_collection">collection</a>: Object&lt;Collection&gt;,
+    description: String,
+    name: String,
+    seed: String,
+    <a href="royalty.md#0x4_royalty">royalty</a>: Option&lt;Royalty&gt;,
+    uri: String,
+): ConstructorRef {
+    <b>let</b> seed = <a href="token.md#0x4_token_create_token_name_with_seed">create_token_name_with_seed</a>(&<a href="collection.md#0x4_collection_name">collection::name</a>(<a href="collection.md#0x4_collection">collection</a>), &name, &seed);
+    <b>let</b> constructor_ref = <a href="../../supra-framework/doc/object.md#0x1_object_create_named_object">object::create_named_object</a>(creator, seed);
+    <a href="token.md#0x4_token_create_common_with_collection_as_owner">create_common_with_collection_as_owner</a>(
+        creator,
+        &constructor_ref,
+        <a href="collection.md#0x4_collection">collection</a>,
+        description,
+        name,
+        <a href="../../move-stdlib/doc/option.md#0x1_option_none">option::none</a>(),
+        <a href="royalty.md#0x4_royalty">royalty</a>,
+        uri
+    );
     constructor_ref
 }
 </code></pre>
