@@ -90,7 +90,8 @@ module supra_framework::object {
     const OBJECT_FROM_SEED_ADDRESS_SCHEME: u8 = 0xFE;
 
     /// Address where unwanted objects can be forcefully transferred to.
-    const BURN_ADDRESS: address = @0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+    const BURN_ADDRESS: address =
+        @0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     /// The core of the object model that defines ownership, transferability, and events.
@@ -103,14 +104,14 @@ module supra_framework::object {
         /// transfers bypassing the use of a TransferRef.
         allow_ungated_transfer: bool,
         /// Emitted events upon transferring of ownership.
-        transfer_events: event::EventHandle<TransferEvent>,
+        transfer_events: event::EventHandle<TransferEvent>
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     /// This is added to objects that are burnt (ownership transferred to BURN_ADDRESS).
     struct TombStone has key {
         /// Track the previous owner before the object is burnt so they can reclaim later if so desired.
-        original_owner: address,
+        original_owner: address
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -126,48 +127,48 @@ module supra_framework::object {
     /// by any other module than the module that defined T. Similarly, the module that defines T
     /// can remove it from storage at any point in time.
     struct Object<phantom T> has copy, drop, store {
-        inner: address,
+        inner: address
     }
 
     /// This is a one time ability given to the creator to configure the object as necessary
     struct ConstructorRef has drop {
         self: address,
         /// True if the object can be deleted. Named objects are not deletable.
-        can_delete: bool,
+        can_delete: bool
     }
 
     /// Used to remove an object from storage.
     struct DeleteRef has drop, store {
-        self: address,
+        self: address
     }
 
     /// Used to create events or move additional resources into object storage.
     struct ExtendRef has drop, store {
-        self: address,
+        self: address
     }
 
     /// Used to create LinearTransferRef, hence ownership transfer.
     struct TransferRef has drop, store {
-        self: address,
+        self: address
     }
 
     /// Used to perform transfers. This locks transferring ability to a single time use bound to
     /// the current owner.
     struct LinearTransferRef has drop {
         self: address,
-        owner: address,
+        owner: address
     }
 
     /// Used to create derived objects from a given objects.
     struct DeriveRef has drop, store {
-        self: address,
+        self: address
     }
 
     /// Emitted whenever the object's owner field is changed.
     struct TransferEvent has drop, store {
         object: address,
         from: address,
-        to: address,
+        to: address
     }
 
     #[event]
@@ -175,7 +176,7 @@ module supra_framework::object {
     struct Transfer has drop, store {
         object: address,
         from: address,
-        to: address,
+        to: address
     }
 
     #[view]
@@ -213,10 +214,14 @@ module supra_framework::object {
         from_bcs::to_address(hash::sha3_256(bytes))
     }
 
-    native fun create_user_derived_object_address_impl(source: address, derive_from: address): address;
+    native fun create_user_derived_object_address_impl(
+        source: address, derive_from: address
+    ): address;
 
     /// Derives an object address from the source address and an object: sha3_256([source | object addr | 0xFC]).
-    public fun create_user_derived_object_address(source: address, derive_from: address): address {
+    public fun create_user_derived_object_address(
+        source: address, derive_from: address
+    ): address {
         if (std::features::object_native_derived_address_enabled()) {
             create_user_derived_object_address_impl(source, derive_from)
         } else {
@@ -228,7 +233,9 @@ module supra_framework::object {
     }
 
     /// Derives an object from an Account GUID.
-    public fun create_guid_object_address(source: address, creation_num: u64): address {
+    public fun create_guid_object_address(
+        source: address, creation_num: u64
+    ): address {
         let id = guid::create_id(source, creation_num);
         let bytes = bcs::to_bytes(&id);
         vector::push_back(&mut bytes, OBJECT_FROM_GUID_ADDRESS_SCHEME);
@@ -257,8 +264,11 @@ module supra_framework::object {
 
     /// Create a new object whose address is derived based on the creator account address and another object.
     /// Derivde objects, similar to named objects, cannot be deleted.
-    public(friend) fun create_user_derived_object(creator_address: address, derive_ref: &DeriveRef): ConstructorRef {
-        let obj_addr = create_user_derived_object_address(creator_address, derive_ref.self);
+    public(friend) fun create_user_derived_object(
+        creator_address: address, derive_ref: &DeriveRef
+    ): ConstructorRef {
+        let obj_addr =
+            create_user_derived_object_address(creator_address, derive_ref.self);
         create_object_internal(creator_address, obj_addr, false)
     }
 
@@ -279,8 +289,7 @@ module supra_framework::object {
 
     /// Create a sticky object at a specific address. Only used by supra_framework::coin.
     public(friend) fun create_sticky_object_at_address(
-        owner_address: address,
-        object_address: address,
+        owner_address: address, object_address: address
     ): ConstructorRef {
         create_object_internal(owner_address, object_address, false)
     }
@@ -309,7 +318,9 @@ module supra_framework::object {
         create_object_from_guid(signer::address_of(creator), guid)
     }
 
-    fun create_object_from_guid(creator_address: address, guid: guid::GUID): ConstructorRef {
+    fun create_object_from_guid(
+        creator_address: address, guid: guid::GUID
+    ): ConstructorRef {
         let bytes = bcs::to_bytes(&guid);
         vector::push_back(&mut bytes, OBJECT_FROM_GUID_ADDRESS_SCHEME);
         let obj_addr = from_bcs::to_address(hash::sha3_256(bytes));
@@ -319,7 +330,7 @@ module supra_framework::object {
     fun create_object_internal(
         creator_address: address,
         object: address,
-        can_delete: bool,
+        can_delete: bool
     ): ConstructorRef {
         assert!(!exists<ObjectCore>(object), error::already_exists(EOBJECT_EXISTS));
 
@@ -333,8 +344,8 @@ module supra_framework::object {
                 guid_creation_num,
                 owner: creator_address,
                 allow_ungated_transfer: true,
-                transfer_events: event::new_event_handle(transfer_events_guid),
-            },
+                transfer_events: event::new_event_handle(transfer_events_guid)
+            }
         );
         ConstructorRef { self: object, can_delete }
     }
@@ -354,7 +365,10 @@ module supra_framework::object {
 
     /// Generates the TransferRef, which can be used to manage object transfers.
     public fun generate_transfer_ref(ref: &ConstructorRef): TransferRef {
-        assert!(!exists<Untransferable>(ref.self), error::permission_denied(EOBJECT_NOT_TRANSFERRABLE));
+        assert!(
+            !exists<Untransferable>(ref.self),
+            error::permission_denied(EOBJECT_NOT_TRANSFERRABLE)
+        );
         TransferRef { self: ref.self }
     }
 
@@ -394,7 +408,7 @@ module supra_framework::object {
 
     /// Generate a new event handle.
     public fun new_event_handle<T: drop + store>(
-        object: &signer,
+        object: &signer
     ): event::EventHandle<T> acquires ObjectCore {
         event::new_event_handle(create_guid(object))
     }
@@ -418,11 +432,11 @@ module supra_framework::object {
             guid_creation_num: _,
             owner: _,
             allow_ungated_transfer: _,
-            transfer_events,
+            transfer_events
         } = object_core;
 
         if (exists<Untransferable>(ref.self)) {
-          let Untransferable {} = move_from<Untransferable>(ref.self);
+            let Untransferable {} = move_from<Untransferable>(ref.self);
         };
 
         event::destroy_handle(transfer_events);
@@ -458,25 +472,33 @@ module supra_framework::object {
 
     /// Enable direct transfer.
     public fun enable_ungated_transfer(ref: &TransferRef) acquires ObjectCore {
-        assert!(!exists<Untransferable>(ref.self), error::permission_denied(EOBJECT_NOT_TRANSFERRABLE));
+        assert!(
+            !exists<Untransferable>(ref.self),
+            error::permission_denied(EOBJECT_NOT_TRANSFERRABLE)
+        );
         let object = borrow_global_mut<ObjectCore>(ref.self);
         object.allow_ungated_transfer = true;
     }
 
     /// Create a LinearTransferRef for a one-time transfer. This requires that the owner at the
     /// time of generation is the owner at the time of transferring.
-    public fun generate_linear_transfer_ref(ref: &TransferRef): LinearTransferRef acquires ObjectCore {
-        assert!(!exists<Untransferable>(ref.self), error::permission_denied(EOBJECT_NOT_TRANSFERRABLE));
+    public fun generate_linear_transfer_ref(
+        ref: &TransferRef
+    ): LinearTransferRef acquires ObjectCore {
+        assert!(
+            !exists<Untransferable>(ref.self),
+            error::permission_denied(EOBJECT_NOT_TRANSFERRABLE)
+        );
         let owner = owner(Object<ObjectCore> { inner: ref.self });
-        LinearTransferRef {
-            self: ref.self,
-            owner,
-        }
+        LinearTransferRef { self: ref.self, owner }
     }
 
     /// Transfer to the destination address using a LinearTransferRef.
     public fun transfer_with_ref(ref: LinearTransferRef, to: address) acquires ObjectCore, TombStone {
-        assert!(!exists<Untransferable>(ref.self), error::permission_denied(EOBJECT_NOT_TRANSFERRABLE));
+        assert!(
+            !exists<Untransferable>(ref.self),
+            error::permission_denied(EOBJECT_NOT_TRANSFERRABLE)
+        );
 
         // Undo soft burn if present as we don't want the original owner to be able to reclaim by calling unburn later.
         if (exists<TombStone>(ref.self)) {
@@ -486,24 +508,16 @@ module supra_framework::object {
         let object = borrow_global_mut<ObjectCore>(ref.self);
         assert!(
             object.owner == ref.owner,
-            error::permission_denied(ENOT_OBJECT_OWNER),
+            error::permission_denied(ENOT_OBJECT_OWNER)
         );
         if (std::features::module_event_migration_enabled()) {
             event::emit(
-                Transfer {
-                    object: ref.self,
-                    from: object.owner,
-                    to,
-                },
+                Transfer { object: ref.self, from: object.owner, to }
             );
         };
         event::emit_event(
             &mut object.transfer_events,
-            TransferEvent {
-                object: ref.self,
-                from: object.owner,
-                to,
-            },
+            TransferEvent { object: ref.self, from: object.owner, to }
         );
         object.owner = to;
     }
@@ -512,7 +526,7 @@ module supra_framework::object {
     public entry fun transfer_call(
         owner: &signer,
         object: address,
-        to: address,
+        to: address
     ) acquires ObjectCore {
         transfer_raw(owner, object, to)
     }
@@ -522,7 +536,7 @@ module supra_framework::object {
     public entry fun transfer<T: key>(
         owner: &signer,
         object: Object<T>,
-        to: address,
+        to: address
     ) acquires ObjectCore {
         transfer_raw(owner, object.inner, to)
     }
@@ -534,7 +548,7 @@ module supra_framework::object {
     public fun transfer_raw(
         owner: &signer,
         object: address,
-        to: address,
+        to: address
     ) acquires ObjectCore {
         let owner_address = signer::address_of(owner);
         verify_ungated_and_descendant(owner_address, object);
@@ -546,20 +560,12 @@ module supra_framework::object {
         if (object_core.owner != to) {
             if (std::features::module_event_migration_enabled()) {
                 event::emit(
-                    Transfer {
-                        object,
-                        from: object_core.owner,
-                        to,
-                    },
+                    Transfer { object, from: object_core.owner, to }
                 );
             };
             event::emit_event(
                 &mut object_core.transfer_events,
-                TransferEvent {
-                    object,
-                    from: object_core.owner,
-                    to,
-                },
+                TransferEvent { object, from: object_core.owner, to }
             );
             object_core.owner = to;
         };
@@ -569,7 +575,7 @@ module supra_framework::object {
     public entry fun transfer_to_object<O: key, T: key>(
         owner: &signer,
         object: Object<O>,
-        to: Object<T>,
+        to: Object<T>
     ) acquires ObjectCore {
         transfer(owner, object, to.inner)
     }
@@ -577,17 +583,19 @@ module supra_framework::object {
     /// This checks that the destination address is eventually owned by the owner and that each
     /// object between the two allows for ungated transfers. Note, this is limited to a depth of 8
     /// objects may have cyclic dependencies.
-    fun verify_ungated_and_descendant(owner: address, destination: address) acquires ObjectCore {
+    fun verify_ungated_and_descendant(
+        owner: address, destination: address
+    ) acquires ObjectCore {
         let current_address = destination;
         assert!(
             exists<ObjectCore>(current_address),
-            error::not_found(EOBJECT_DOES_NOT_EXIST),
+            error::not_found(EOBJECT_DOES_NOT_EXIST)
         );
 
         let object = borrow_global<ObjectCore>(current_address);
         assert!(
             object.allow_ungated_transfer,
-            error::permission_denied(ENO_UNGATED_TRANSFERS),
+            error::permission_denied(ENO_UNGATED_TRANSFERS)
         );
 
         let current_address = object.owner;
@@ -599,12 +607,12 @@ module supra_framework::object {
             // object's owner is not an object. So we return a more sensible error.
             assert!(
                 exists<ObjectCore>(current_address),
-                error::permission_denied(ENOT_OBJECT_OWNER),
+                error::permission_denied(ENOT_OBJECT_OWNER)
             );
             let object = borrow_global<ObjectCore>(current_address);
             assert!(
                 object.allow_ungated_transfer,
-                error::permission_denied(ENO_UNGATED_TRANSFERS),
+                error::permission_denied(ENO_UNGATED_TRANSFERS)
             );
             current_address = object.owner;
         };
@@ -615,7 +623,9 @@ module supra_framework::object {
     /// Original owners can reclaim burnt objects any time in the future by calling unburn.
     public entry fun burn<T: key>(owner: &signer, object: Object<T>) acquires ObjectCore {
         let original_owner = signer::address_of(owner);
-        assert!(is_owner(object, original_owner), error::permission_denied(ENOT_OBJECT_OWNER));
+        assert!(
+            is_owner(object, original_owner), error::permission_denied(ENOT_OBJECT_OWNER)
+        );
         let object_addr = object.inner;
         move_to(&create_signer(object_addr), TombStone { original_owner });
         transfer_raw_inner(object_addr, BURN_ADDRESS);
@@ -623,14 +633,19 @@ module supra_framework::object {
 
     /// Allow origin owners to reclaim any objects they previous burnt.
     public entry fun unburn<T: key>(
-        original_owner: &signer,
-        object: Object<T>,
+        original_owner: &signer, object: Object<T>
     ) acquires TombStone, ObjectCore {
         let object_addr = object.inner;
-        assert!(exists<TombStone>(object_addr), error::invalid_argument(EOBJECT_NOT_BURNT));
+        assert!(
+            exists<TombStone>(object_addr), error::invalid_argument(EOBJECT_NOT_BURNT)
+        );
 
-        let TombStone { original_owner: original_owner_addr } = move_from<TombStone>(object_addr);
-        assert!(original_owner_addr == signer::address_of(original_owner), error::permission_denied(ENOT_OBJECT_OWNER));
+        let TombStone { original_owner: original_owner_addr } =
+            move_from<TombStone>(object_addr);
+        assert!(
+            original_owner_addr == signer::address_of(original_owner),
+            error::permission_denied(ENOT_OBJECT_OWNER)
+        );
         transfer_raw_inner(object_addr, original_owner_addr);
     }
 
@@ -639,7 +654,7 @@ module supra_framework::object {
     public fun ungated_transfer_allowed<T: key>(object: Object<T>): bool acquires ObjectCore {
         assert!(
             exists<ObjectCore>(object.inner),
-            error::not_found(EOBJECT_DOES_NOT_EXIST),
+            error::not_found(EOBJECT_DOES_NOT_EXIST)
         );
         borrow_global<ObjectCore>(object.inner).allow_ungated_transfer
     }
@@ -648,7 +663,7 @@ module supra_framework::object {
     public fun owner<T: key>(object: Object<T>): address acquires ObjectCore {
         assert!(
             exists<ObjectCore>(object.inner),
-            error::not_found(EOBJECT_DOES_NOT_EXIST),
+            error::not_found(EOBJECT_DOES_NOT_EXIST)
         );
         borrow_global<ObjectCore>(object.inner).owner
     }
@@ -667,7 +682,7 @@ module supra_framework::object {
 
         assert!(
             exists<ObjectCore>(current_address),
-            error::not_found(EOBJECT_DOES_NOT_EXIST),
+            error::not_found(EOBJECT_DOES_NOT_EXIST)
         );
 
         let object = borrow_global<ObjectCore>(current_address);
@@ -707,14 +722,14 @@ module supra_framework::object {
 
     #[test_only]
     struct HeroEquipEvent has drop, store {
-        weapon_id: Option<Object<Weapon>>,
+        weapon_id: Option<Object<Weapon>>
     }
 
     #[test_only]
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct Hero has key {
         equip_events: event::EventHandle<HeroEquipEvent>,
-        weapon: Option<Object<Weapon>>,
+        weapon: Option<Object<Weapon>>
     }
 
     #[test_only]
@@ -730,8 +745,8 @@ module supra_framework::object {
             &hero_signer,
             Hero {
                 weapon: option::none(),
-                equip_events: event::new_event_handle(guid_for_equip_events),
-            },
+                equip_events: event::new_event_handle(guid_for_equip_events)
+            }
         );
 
         let hero = object_from_constructor_ref<Hero>(&hero_constructor_ref);
@@ -751,14 +766,14 @@ module supra_framework::object {
     public fun hero_equip(
         owner: &signer,
         hero: Object<Hero>,
-        weapon: Object<Weapon>,
+        weapon: Object<Weapon>
     ) acquires Hero, ObjectCore {
         transfer_to_object(owner, weapon, hero);
         let hero_obj = borrow_global_mut<Hero>(object_address(&hero));
         option::fill(&mut hero_obj.weapon, weapon);
         event::emit_event(
             &mut hero_obj.equip_events,
-            HeroEquipEvent { weapon_id: option::some(weapon) },
+            HeroEquipEvent { weapon_id: option::some(weapon) }
         );
     }
 
@@ -766,14 +781,14 @@ module supra_framework::object {
     public fun hero_unequip(
         owner: &signer,
         hero: Object<Hero>,
-        weapon: Object<Weapon>,
+        weapon: Object<Weapon>
     ) acquires Hero, ObjectCore {
         transfer(owner, weapon, signer::address_of(owner));
         let hero = borrow_global_mut<Hero>(object_address(&hero));
         option::extract(&mut hero.weapon);
         event::emit_event(
             &mut hero.equip_events,
-            HeroEquipEvent { weapon_id: option::none() },
+            HeroEquipEvent { weapon_id: option::none() }
         );
     }
 
@@ -914,7 +929,9 @@ module supra_framework::object {
 
     #[test(creator = @0x123)]
     #[expected_failure(abort_code = 131078, location = Self)]
-    fun test_exceeding_maximum_object_nesting_owns_should_fail(creator: &signer) acquires ObjectCore {
+    fun test_exceeding_maximum_object_nesting_owns_should_fail(
+        creator: &signer
+    ) acquires ObjectCore {
         let obj1 = create_simple_object(creator, b"1");
         let obj2 = create_simple_object(creator, b"2");
         let obj3 = create_simple_object(creator, b"3");
@@ -949,7 +966,9 @@ module supra_framework::object {
 
     #[test(creator = @0x123)]
     #[expected_failure(abort_code = 131078, location = Self)]
-    fun test_exceeding_maximum_object_nesting_transfer_should_fail(creator: &signer) acquires ObjectCore {
+    fun test_exceeding_maximum_object_nesting_transfer_should_fail(
+        creator: &signer
+    ) acquires ObjectCore {
         let obj1 = create_simple_object(creator, b"1");
         let obj2 = create_simple_object(creator, b"2");
         let obj3 = create_simple_object(creator, b"3");
@@ -1003,7 +1022,9 @@ module supra_framework::object {
 
     #[test(creator = @0x123)]
     #[expected_failure(abort_code = 327689, location = Self)]
-    fun test_untransferable_direct_ownership_gen_transfer_ref(creator: &signer) acquires ObjectCore {
+    fun test_untransferable_direct_ownership_gen_transfer_ref(
+        creator: &signer
+    ) acquires ObjectCore {
         let (hero_constructor_ref, _) = create_hero(creator);
         set_untransferable(&hero_constructor_ref);
         generate_transfer_ref(&hero_constructor_ref);
@@ -1011,7 +1032,9 @@ module supra_framework::object {
 
     #[test(creator = @0x123)]
     #[expected_failure(abort_code = 327689, location = Self)]
-    fun test_untransferable_direct_ownership_gen_linear_transfer_ref(creator: &signer) acquires ObjectCore {
+    fun test_untransferable_direct_ownership_gen_linear_transfer_ref(
+        creator: &signer
+    ) acquires ObjectCore {
         let (hero_constructor_ref, _) = create_hero(creator);
         let transfer_ref = generate_transfer_ref(&hero_constructor_ref);
         set_untransferable(&hero_constructor_ref);
@@ -1020,7 +1043,9 @@ module supra_framework::object {
 
     #[test(creator = @0x123)]
     #[expected_failure(abort_code = 327689, location = Self)]
-    fun test_untransferable_direct_ownership_with_linear_transfer_ref(creator: &signer) acquires ObjectCore, TombStone {
+    fun test_untransferable_direct_ownership_with_linear_transfer_ref(
+        creator: &signer
+    ) acquires ObjectCore, TombStone {
         let (hero_constructor_ref, _) = create_hero(creator);
         let transfer_ref = generate_transfer_ref(&hero_constructor_ref);
         let linear_transfer_ref = generate_linear_transfer_ref(&transfer_ref);
@@ -1040,7 +1065,9 @@ module supra_framework::object {
 
     #[test(creator = @0x123)]
     #[expected_failure(abort_code = 327689, location = Self)]
-    fun test_untransferable_indirect_ownership_gen_transfer_ref(creator: &signer) acquires ObjectCore {
+    fun test_untransferable_indirect_ownership_gen_transfer_ref(
+        creator: &signer
+    ) acquires ObjectCore {
         let (_, hero) = create_hero(creator);
         let (weapon_constructor_ref, weapon) = create_weapon(creator);
         transfer_to_object(creator, weapon, hero);
@@ -1050,7 +1077,9 @@ module supra_framework::object {
 
     #[test(creator = @0x123)]
     #[expected_failure(abort_code = 327689, location = Self)]
-    fun test_untransferable_indirect_ownership_gen_linear_transfer_ref(creator: &signer) acquires ObjectCore {
+    fun test_untransferable_indirect_ownership_gen_linear_transfer_ref(
+        creator: &signer
+    ) acquires ObjectCore {
         let (_, hero) = create_hero(creator);
         let (weapon_constructor_ref, weapon) = create_weapon(creator);
         transfer_to_object(creator, weapon, hero);
@@ -1061,7 +1090,9 @@ module supra_framework::object {
 
     #[test(creator = @0x123)]
     #[expected_failure(abort_code = 327689, location = Self)]
-    fun test_untransferable_indirect_ownership_with_linear_transfer_ref(creator: &signer) acquires ObjectCore, TombStone {
+    fun test_untransferable_indirect_ownership_with_linear_transfer_ref(
+        creator: &signer
+    ) acquires ObjectCore, TombStone {
         let (_, hero) = create_hero(creator);
         let (weapon_constructor_ref, weapon) = create_weapon(creator);
         transfer_to_object(creator, weapon, hero);

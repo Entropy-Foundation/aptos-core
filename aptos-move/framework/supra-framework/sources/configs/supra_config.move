@@ -10,14 +10,16 @@ module supra_framework::supra_config {
     friend supra_framework::reconfiguration_with_dkg;
 
     struct SupraConfig has drop, key, store {
-        config: vector<u8>,
+        config: vector<u8>
     }
 
     /// The provided on chain config bytes are empty or invalid
     const EINVALID_CONFIG: u64 = 1;
 
     /// Publishes the SupraConfig config.
-    public(friend) fun initialize(supra_framework: &signer, config: vector<u8>) {
+    public(friend) fun initialize(
+        supra_framework: &signer, config: vector<u8>
+    ) {
         system_addresses::assert_supra_framework(supra_framework);
         assert!(vector::length(&config) > 0, error::invalid_argument(EINVALID_CONFIG));
         move_to(supra_framework, SupraConfig { config });
@@ -32,7 +34,7 @@ module supra_framework::supra_config {
     public fun set_for_next_epoch(account: &signer, config: vector<u8>) {
         system_addresses::assert_supra_framework(account);
         assert!(vector::length(&config) > 0, error::invalid_argument(EINVALID_CONFIG));
-        std::config_buffer::upsert<SupraConfig>(SupraConfig {config});
+        std::config_buffer::upsert<SupraConfig>(SupraConfig { config });
     }
 
     /// Only used in reconfigurations to apply the pending `SupraConfig`, if there is any.

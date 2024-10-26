@@ -19,7 +19,8 @@ spec supra_framework::supra_config {
         use supra_framework::chain_status;
         pragma verify = true;
         pragma aborts_if_is_strict;
-        invariant [suspendable] chain_status::is_operating() ==> exists<SupraConfig>(@supra_framework);
+        invariant [suspendable] chain_status::is_operating() ==>
+            exists<SupraConfig>(@supra_framework);
     }
 
     /// Ensure caller is admin.

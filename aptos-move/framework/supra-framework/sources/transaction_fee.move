@@ -1,6 +1,12 @@
 /// This module provides an interface to burn or collect and redistribute transaction fees.
 module supra_framework::transaction_fee {
-    use supra_framework::coin::{Self, AggregatableCoin, BurnCapability, Coin, MintCapability};
+    use supra_framework::coin::{
+        Self,
+        AggregatableCoin,
+        BurnCapability,
+        Coin,
+        MintCapability
+    };
     use supra_framework::supra_account;
     use supra_framework::supra_coin::SupraCoin;
     use supra_framework::stake;
@@ -31,17 +37,17 @@ module supra_framework::transaction_fee {
 
     /// Stores burn capability to burn the gas fees.
     struct SupraCoinCapabilities has key {
-        burn_cap: BurnCapability<SupraCoin>,
+        burn_cap: BurnCapability<SupraCoin>
     }
 
     /// Stores burn capability to burn the gas fees.
     struct SupraFABurnCapabilities has key {
-        burn_ref: BurnRef,
+        burn_ref: BurnRef
     }
 
     /// Stores mint capability to mint the refunds.
     struct SupraCoinMintCapability has key {
-        mint_cap: MintCapability<SupraCoin>,
+        mint_cap: MintCapability<SupraCoin>
     }
 
     /// Stores information about the block proposer and the amount of fees
@@ -49,7 +55,7 @@ module supra_framework::transaction_fee {
     struct CollectedFeesPerBlock has key {
         amount: AggregatableCoin<SupraCoin>,
         proposer: Option<address>,
-        burn_percentage: u8,
+        burn_percentage: u8
     }
 
     #[event]
@@ -82,12 +88,14 @@ module supra_framework::transaction_fee {
         /// Storage fee charge.
         storage_fee_quants: u64,
         /// Storage fee refund.
-        storage_fee_refund_quants: u64,
+        storage_fee_refund_quants: u64
     }
 
     /// Initializes the resource storing information about gas fees collection and
     /// distribution. Should be called by on-chain governance.
-    public fun initialize_fee_collection_and_distribution(supra_framework: &signer, burn_percentage: u8) {
+    public fun initialize_fee_collection_and_distribution(
+        supra_framework: &signer, burn_percentage: u8
+    ) {
         system_addresses::assert_supra_framework(supra_framework);
         assert!(
             !exists<CollectedFeesPerBlock>(@supra_framework),
@@ -102,7 +110,7 @@ module supra_framework::transaction_fee {
         let collected_fees = CollectedFeesPerBlock {
             amount: coin::initialize_aggregatable_coin(supra_framework),
             proposer: option::none(),
-            burn_percentage,
+            burn_percentage
         };
         move_to(supra_framework, collected_fees);
     }
@@ -113,8 +121,7 @@ module supra_framework::transaction_fee {
 
     /// Sets the burn percentage for collected fees to a new value. Should be called by on-chain governance.
     public fun upgrade_burn_percentage(
-        supra_framework: &signer,
-        new_burn_percentage: u8
+        supra_framework: &signer, new_burn_percentage: u8
     ) acquires SupraCoinCapabilities, CollectedFeesPerBlock {
         system_addresses::assert_supra_framework(supra_framework);
         assert!(new_burn_percentage <= 100, error::out_of_range(EINVALID_BURN_PERCENTAGE));
@@ -126,22 +133,28 @@ module supra_framework::transaction_fee {
 
         if (is_fees_collection_enabled()) {
             // Upgrade has no effect unless fees are being collected.
-            let burn_percentage = &mut borrow_global_mut<CollectedFeesPerBlock>(@supra_framework).burn_percentage;
+            let burn_percentage =
+                &mut borrow_global_mut<CollectedFeesPerBlock>(@supra_framework).burn_percentage;
             *burn_percentage = new_burn_percentage
         }
     }
 
     /// Registers the proposer of the block for gas fees collection. This function
     /// can only be called at the beginning of the block.
-    public(friend) fun register_proposer_for_fee_collection(proposer_addr: address) acquires CollectedFeesPerBlock {
+    public(friend) fun register_proposer_for_fee_collection(
+        proposer_addr: address
+    ) acquires CollectedFeesPerBlock {
         if (is_fees_collection_enabled()) {
-            let collected_fees = borrow_global_mut<CollectedFeesPerBlock>(@supra_framework);
+            let collected_fees =
+                borrow_global_mut<CollectedFeesPerBlock>(@supra_framework);
             let _ = option::swap_or_fill(&mut collected_fees.proposer, proposer_addr);
         }
     }
 
     /// Burns a specified fraction of the coin.
-    fun burn_coin_fraction(coin: &mut Coin<SupraCoin>, burn_percentage: u8) acquires SupraCoinCapabilities {
+    fun burn_coin_fraction(
+        coin: &mut Coin<SupraCoin>, burn_percentage: u8
+    ) acquires SupraCoinCapabilities {
         assert!(burn_percentage <= 100, error::out_of_range(EINVALID_BURN_PERCENTAGE));
 
         let collected_amount = coin::value(coin);
@@ -154,7 +167,7 @@ module supra_framework::transaction_fee {
             let coin_to_burn = coin::extract(coin, amount_to_burn);
             coin::burn(
                 coin_to_burn,
-                &borrow_global<SupraCoinCapabilities>(@supra_framework).burn_cap,
+                &borrow_global<SupraCoinCapabilities>(@supra_framework).burn_cap
             );
         }
     }
@@ -163,9 +176,7 @@ module supra_framework::transaction_fee {
     /// end of an epoch, and records it in the system. This function can only be called
     /// at the beginning of the block or during reconfiguration.
     public(friend) fun process_collected_fees() acquires SupraCoinCapabilities, CollectedFeesPerBlock {
-        if (!is_fees_collection_enabled()) {
-            return
-        };
+        if (!is_fees_collection_enabled()) { return };
         let collected_fees = borrow_global_mut<CollectedFeesPerBlock>(@supra_framework);
 
         // If there are no collected fees, only unset the proposer. See the rationale for
@@ -208,12 +219,16 @@ module supra_framework::transaction_fee {
     }
 
     /// Burn transaction fees in epilogue.
-    public(friend) fun burn_fee(account: address, fee: u64) acquires SupraFABurnCapabilities, SupraCoinCapabilities {
+    public(friend) fun burn_fee(
+        account: address, fee: u64
+    ) acquires SupraFABurnCapabilities, SupraCoinCapabilities {
         if (exists<SupraFABurnCapabilities>(@supra_framework)) {
-            let burn_ref = &borrow_global<SupraFABurnCapabilities>(@supra_framework).burn_ref;
+            let burn_ref =
+                &borrow_global<SupraFABurnCapabilities>(@supra_framework).burn_ref;
             supra_account::burn_from_fungible_store(burn_ref, account, fee);
         } else {
-            let burn_cap = &borrow_global<SupraCoinCapabilities>(@supra_framework).burn_cap;
+            let burn_cap =
+                &borrow_global<SupraCoinCapabilities>(@supra_framework).burn_cap;
             if (features::operations_default_to_fa_supra_store_enabled()) {
                 let (burn_ref, burn_receipt) = coin::get_paired_burn_ref(burn_cap);
                 supra_account::burn_from_fungible_store(&burn_ref, account, fee);
@@ -222,14 +237,16 @@ module supra_framework::transaction_fee {
                 coin::burn_from<SupraCoin>(
                     account,
                     fee,
-                    burn_cap,
+                    burn_cap
                 );
             };
         };
     }
 
     /// Mint refund in epilogue.
-    public(friend) fun mint_and_refund(account: address, refund: u64) acquires SupraCoinMintCapability {
+    public(friend) fun mint_and_refund(
+        account: address, refund: u64
+    ) acquires SupraCoinMintCapability {
         let mint_cap = &borrow_global<SupraCoinMintCapability>(@supra_framework).mint_cap;
         let refund_coin = coin::mint(refund, mint_cap);
         coin::force_deposit(account, refund_coin);
@@ -247,7 +264,9 @@ module supra_framework::transaction_fee {
     }
 
     /// Only called during genesis.
-    public(friend) fun store_supra_coin_burn_cap(supra_framework: &signer, burn_cap: BurnCapability<SupraCoin>) {
+    public(friend) fun store_supra_coin_burn_cap(
+        supra_framework: &signer, burn_cap: BurnCapability<SupraCoin>
+    ) {
         system_addresses::assert_supra_framework(supra_framework);
 
         if (features::operations_default_to_fa_supra_store_enabled()) {
@@ -258,18 +277,24 @@ module supra_framework::transaction_fee {
         }
     }
 
-    public entry fun convert_to_aptos_fa_burn_ref(supra_framework: &signer) acquires SupraCoinCapabilities {
-        assert!(features::operations_default_to_fa_supra_store_enabled(), EFA_GAS_CHARGING_NOT_ENABLED);
+    public entry fun convert_to_aptos_fa_burn_ref(
+        supra_framework: &signer
+    ) acquires SupraCoinCapabilities {
+        assert!(
+            features::operations_default_to_fa_supra_store_enabled(),
+            EFA_GAS_CHARGING_NOT_ENABLED
+        );
         system_addresses::assert_supra_framework(supra_framework);
-        let SupraCoinCapabilities {
-            burn_cap,
-        } = move_from<SupraCoinCapabilities>(signer::address_of(supra_framework));
+        let SupraCoinCapabilities { burn_cap } =
+            move_from<SupraCoinCapabilities>(signer::address_of(supra_framework));
         let burn_ref = coin::convert_and_take_paired_burn_ref(burn_cap);
         move_to(supra_framework, SupraFABurnCapabilities { burn_ref });
     }
 
     /// Only called during genesis.
-    public(friend) fun store_supra_coin_mint_cap(supra_framework: &signer, mint_cap: MintCapability<SupraCoin>) {
+    public(friend) fun store_supra_coin_mint_cap(
+        supra_framework: &signer, mint_cap: MintCapability<SupraCoin>
+    ) {
         system_addresses::assert_supra_framework(supra_framework);
         move_to(supra_framework, SupraCoinMintCapability { mint_cap })
     }
@@ -290,7 +315,9 @@ module supra_framework::transaction_fee {
     use supra_framework::object;
 
     #[test(supra_framework = @supra_framework)]
-    fun test_initialize_fee_collection_and_distribution(supra_framework: signer) acquires CollectedFeesPerBlock {
+    fun test_initialize_fee_collection_and_distribution(
+        supra_framework: signer
+    ) acquires CollectedFeesPerBlock {
         aggregator_factory::initialize_aggregator_factory_for_test(&supra_framework);
         initialize_fee_collection_and_distribution(&supra_framework, 25);
 
@@ -342,12 +369,19 @@ module supra_framework::transaction_fee {
         coin::destroy_mint_cap(mint_cap);
     }
 
-    #[test(supra_framework = @supra_framework, alice = @0xa11ce, bob = @0xb0b, carol = @0xca101)]
+    #[
+        test(
+            supra_framework = @supra_framework,
+            alice = @0xa11ce,
+            bob = @0xb0b,
+            carol = @0xca101
+        )
+    ]
     fun test_fees_distribution(
         supra_framework: signer,
         alice: signer,
         bob: signer,
-        carol: signer,
+        carol: signer
     ) acquires SupraCoinCapabilities, CollectedFeesPerBlock {
         use std::signer;
         use supra_framework::supra_account;
@@ -365,7 +399,11 @@ module supra_framework::transaction_fee {
         supra_account::create_account(alice_addr);
         supra_account::create_account(bob_addr);
         supra_account::create_account(carol_addr);
-        assert!(object::object_address(&coin::ensure_paired_metadata<SupraCoin>()) == @aptos_fungible_asset, 0);
+        assert!(
+            object::object_address(&coin::ensure_paired_metadata<SupraCoin>())
+                == @aptos_fungible_asset,
+            0
+        );
         coin::deposit(alice_addr, coin::mint(10000, &mint_cap));
         coin::deposit(bob_addr, coin::mint(10000, &mint_cap));
         coin::deposit(carol_addr, coin::mint(10000, &mint_cap));

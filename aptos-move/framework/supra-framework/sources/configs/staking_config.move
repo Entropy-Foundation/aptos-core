@@ -291,9 +291,7 @@ module supra_framework::staking_config {
     /// Update the min and max stake amounts.
     /// Can only be called as part of the Supra governance proposal process established by the SupraGovernance module.
     public fun update_required_stake(
-        supra_framework: &signer,
-        minimum_stake: u64,
-        maximum_stake: u64
+        supra_framework: &signer, minimum_stake: u64, maximum_stake: u64
     ) acquires StakingConfig {
         system_addresses::assert_supra_framework(supra_framework);
         validate_required_stake(minimum_stake, maximum_stake);
@@ -322,9 +320,7 @@ module supra_framework::staking_config {
     /// Update the rewards rate.
     /// Can only be called as part of the Supra governance proposal process established by the AptosGovernance module.
     public fun update_rewards_rate(
-        supra_framework: &signer,
-        new_rewards_rate: u64,
-        new_rewards_rate_denominator: u64
+        supra_framework: &signer, new_rewards_rate: u64, new_rewards_rate_denominator: u64
     ) acquires StakingConfig {
         assert!(
             !features::periodical_reward_rate_decrease_enabled(),
@@ -798,7 +794,9 @@ module supra_framework::staking_config {
             vector[]
         );
         timestamp::set_time_has_started_for_testing(supra_framework);
-        timestamp::update_global_time_for_test_secs(last_rewards_rate_period_start_in_secs);
+        timestamp::update_global_time_for_test_secs(
+            last_rewards_rate_period_start_in_secs
+        );
         initialize_rewards(
             supra_framework,
             rewards_rate,

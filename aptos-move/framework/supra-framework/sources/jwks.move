@@ -45,19 +45,19 @@ module supra_framework::jwks {
 
         /// The ut8-8 encoded OpenID configuration URL of the provider.
         /// E.g., b"https://www.facebook.com/.well-known/openid-configuration/".
-        config_url: vector<u8>,
+        config_url: vector<u8>
     }
 
     /// A list of OIDC providers whose JWKs should be watched by validators. Maintained by governance proposals.
     struct SupportedOIDCProviders has copy, drop, key, store {
-        providers: vector<OIDCProvider>,
+        providers: vector<OIDCProvider>
     }
 
     /// An JWK variant that represents the JWKs which were observed but not yet supported by Supra.
     /// Observing `UnsupportedJWK`s means the providers adopted a new key type/format, and the system should be updated.
     struct UnsupportedJWK has copy, drop, store {
         id: vector<u8>,
-        payload: vector<u8>,
+        payload: vector<u8>
     }
 
     /// A JWK variant where `kty` is `RSA`.
@@ -66,7 +66,7 @@ module supra_framework::jwks {
         kty: String,
         alg: String,
         e: String,
-        n: String,
+        n: String
     }
 
     /// A JSON web key.
@@ -75,7 +75,7 @@ module supra_framework::jwks {
         /// Currently the variant type is one of the following.
         /// - `RSA_JWK`
         /// - `UnsupportedJWK`
-        variant: Any,
+        variant: Any
     }
 
     /// A provider and its `JWK`s.
@@ -90,25 +90,25 @@ module supra_framework::jwks {
         version: u64,
 
         /// Vector of `JWK`'s sorted by their unique ID (from `get_jwk_id`) in dictionary order.
-        jwks: vector<JWK>,
+        jwks: vector<JWK>
     }
 
     /// Multiple `ProviderJWKs` objects, indexed by issuer and key ID.
     struct AllProvidersJWKs has copy, drop, store {
         /// Vector of `ProviderJWKs` sorted by `ProviderJWKs::issuer` in dictionary order.
-        entries: vector<ProviderJWKs>,
+        entries: vector<ProviderJWKs>
     }
 
     /// The `AllProvidersJWKs` that validators observed and agreed on.
     struct ObservedJWKs has copy, drop, key, store {
-        jwks: AllProvidersJWKs,
+        jwks: AllProvidersJWKs
     }
 
     #[event]
     /// When `ObservedJWKs` is updated, this event is sent to resync the JWK consensus state in all validators.
     struct ObservedJWKsUpdated has drop, store {
         epoch: u64,
-        jwks: AllProvidersJWKs,
+        jwks: AllProvidersJWKs
     }
 
     /// A small edit or patch that is applied to a `AllProvidersJWKs` to obtain `PatchedJWKs`.
@@ -119,7 +119,7 @@ module supra_framework::jwks {
         /// - `PatchRemoveIssuer`
         /// - `PatchRemoveJWK`
         /// - `PatchUpsertJWK`
-        variant: Any,
+        variant: Any
     }
 
     /// A `Patch` variant to remove all JWKs.
@@ -127,32 +127,32 @@ module supra_framework::jwks {
 
     /// A `Patch` variant to remove an issuer and all its JWKs.
     struct PatchRemoveIssuer has copy, drop, store {
-        issuer: vector<u8>,
+        issuer: vector<u8>
     }
 
     /// A `Patch` variant to remove a specific JWK of an issuer.
     struct PatchRemoveJWK has copy, drop, store {
         issuer: vector<u8>,
-        jwk_id: vector<u8>,
+        jwk_id: vector<u8>
     }
 
     /// A `Patch` variant to upsert a JWK for an issuer.
     struct PatchUpsertJWK has copy, drop, store {
         issuer: vector<u8>,
-        jwk: JWK,
+        jwk: JWK
     }
 
     /// A sequence of `Patch` objects that are applied *one by one* to the `ObservedJWKs`.
     ///
     /// Maintained by governance proposals.
     struct Patches has key {
-        patches: vector<Patch>,
+        patches: vector<Patch>
     }
 
     /// The result of applying the `Patches` to the `ObservedJWKs`.
     /// This is what applications should consume.
     struct PatchedJWKs has drop, key {
-        jwks: AllProvidersJWKs,
+        jwks: AllProvidersJWKs
     }
 
     //
@@ -169,7 +169,9 @@ module supra_framework::jwks {
 
     /// Get a JWK by issuer and key ID from the `PatchedJWKs`, if it exists.
     /// More convenient to call from Move, since it does not abort.
-    public fun try_get_patched_jwk(issuer: vector<u8>, jwk_id: vector<u8>): Option<JWK> acquires PatchedJWKs {
+    public fun try_get_patched_jwk(
+        issuer: vector<u8>, jwk_id: vector<u8>
+    ): Option<JWK> acquires PatchedJWKs {
         let jwks = &borrow_global<PatchedJWKs>(@supra_framework).jwks;
         try_get_jwk_by_issuer(jwks, issuer, jwk_id)
     }
@@ -177,13 +179,15 @@ module supra_framework::jwks {
     /// Deprecated by `upsert_oidc_provider_for_next_epoch()`.
     ///
     /// TODO: update all the tests that reference this function, then disable this function.
-    public fun upsert_oidc_provider(fx: &signer, name: vector<u8>, config_url: vector<u8>): Option<vector<u8>> acquires SupportedOIDCProviders {
+    public fun upsert_oidc_provider(
+        fx: &signer, name: vector<u8>, config_url: vector<u8>
+    ): Option<vector<u8>> acquires SupportedOIDCProviders {
         system_addresses::assert_supra_framework(fx);
         chain_status::assert_genesis();
 
         let provider_set = borrow_global_mut<SupportedOIDCProviders>(@supra_framework);
 
-        let old_config_url= remove_oidc_provider_internal(provider_set, name);
+        let old_config_url = remove_oidc_provider_internal(provider_set, name);
         vector::push_back(&mut provider_set.providers, OIDCProvider { name, config_url });
         old_config_url
     }
@@ -198,14 +202,17 @@ module supra_framework::jwks {
     /// );
     /// supra_framework::aptos_governance::reconfigure(&framework_signer);
     /// ```
-    public fun upsert_oidc_provider_for_next_epoch(fx: &signer, name: vector<u8>, config_url: vector<u8>): Option<vector<u8>> acquires SupportedOIDCProviders {
+    public fun upsert_oidc_provider_for_next_epoch(
+        fx: &signer, name: vector<u8>, config_url: vector<u8>
+    ): Option<vector<u8>> acquires SupportedOIDCProviders {
         system_addresses::assert_supra_framework(fx);
 
-        let provider_set = if (config_buffer::does_exist<SupportedOIDCProviders>()) {
-            config_buffer::extract<SupportedOIDCProviders>()
-        } else {
-            *borrow_global_mut<SupportedOIDCProviders>(@supra_framework)
-        };
+        let provider_set =
+            if (config_buffer::does_exist<SupportedOIDCProviders>()) {
+                config_buffer::extract<SupportedOIDCProviders>()
+            } else {
+                *borrow_global_mut<SupportedOIDCProviders>(@supra_framework)
+            };
 
         let old_config_url = remove_oidc_provider_internal(&mut provider_set, name);
         vector::push_back(&mut provider_set.providers, OIDCProvider { name, config_url });
@@ -216,7 +223,9 @@ module supra_framework::jwks {
     /// Deprecated by `remove_oidc_provider_for_next_epoch()`.
     ///
     /// TODO: update all the tests that reference this function, then disable this function.
-    public fun remove_oidc_provider(fx: &signer, name: vector<u8>): Option<vector<u8>> acquires SupportedOIDCProviders {
+    public fun remove_oidc_provider(
+        fx: &signer, name: vector<u8>
+    ): Option<vector<u8>> acquires SupportedOIDCProviders {
         system_addresses::assert_supra_framework(fx);
         chain_status::assert_genesis();
 
@@ -233,14 +242,17 @@ module supra_framework::jwks {
     /// );
     /// supra_framework::aptos_governance::reconfigure(&framework_signer);
     /// ```
-    public fun remove_oidc_provider_for_next_epoch(fx: &signer, name: vector<u8>): Option<vector<u8>> acquires SupportedOIDCProviders {
+    public fun remove_oidc_provider_for_next_epoch(
+        fx: &signer, name: vector<u8>
+    ): Option<vector<u8>> acquires SupportedOIDCProviders {
         system_addresses::assert_supra_framework(fx);
 
-        let provider_set = if (config_buffer::does_exist<SupportedOIDCProviders>()) {
-            config_buffer::extract<SupportedOIDCProviders>()
-        } else {
-            *borrow_global_mut<SupportedOIDCProviders>(@supra_framework)
-        };
+        let provider_set =
+            if (config_buffer::does_exist<SupportedOIDCProviders>()) {
+                config_buffer::extract<SupportedOIDCProviders>()
+            } else {
+                *borrow_global_mut<SupportedOIDCProviders>(@supra_framework)
+            };
         let ret = remove_oidc_provider_internal(&mut provider_set, name);
         config_buffer::upsert(provider_set);
         ret
@@ -260,7 +272,9 @@ module supra_framework::jwks {
     }
 
     /// Set the `Patches`. Only called in governance proposals.
-    public fun set_patches(fx: &signer, patches: vector<Patch>) acquires Patches, PatchedJWKs, ObservedJWKs {
+    public fun set_patches(
+        fx: &signer, patches: vector<Patch>
+    ) acquires Patches, PatchedJWKs, ObservedJWKs {
         system_addresses::assert_supra_framework(fx);
         borrow_global_mut<Patches>(@supra_framework).patches = patches;
         regenerate_patched_jwks();
@@ -269,19 +283,21 @@ module supra_framework::jwks {
     /// Create a `Patch` that removes all entries.
     public fun new_patch_remove_all(): Patch {
         Patch {
-            variant: copyable_any::pack(PatchRemoveAll {}),
+            variant: copyable_any::pack(PatchRemoveAll {})
         }
     }
 
     /// Create a `Patch` that removes the entry of a given issuer, if exists.
     public fun new_patch_remove_issuer(issuer: vector<u8>): Patch {
         Patch {
-            variant: copyable_any::pack(PatchRemoveIssuer { issuer }),
+            variant: copyable_any::pack(PatchRemoveIssuer { issuer })
         }
     }
 
     /// Create a `Patch` that removes the entry of a given issuer, if exists.
-    public fun new_patch_remove_jwk(issuer: vector<u8>, jwk_id: vector<u8>): Patch {
+    public fun new_patch_remove_jwk(
+        issuer: vector<u8>, jwk_id: vector<u8>
+    ): Patch {
         Patch {
             variant: copyable_any::pack(PatchRemoveJWK { issuer, jwk_id })
         }
@@ -297,13 +313,9 @@ module supra_framework::jwks {
     /// Create a `JWK` of variant `RSA_JWK`.
     public fun new_rsa_jwk(kid: String, alg: String, e: String, n: String): JWK {
         JWK {
-            variant: copyable_any::pack(RSA_JWK {
-                kid,
-                kty: utf8(b"RSA"),
-                e,
-                n,
-                alg,
-            }),
+            variant: copyable_any::pack(
+                RSA_JWK { kid, kty: utf8(b"RSA"), e, n, alg }
+            )
         }
     }
 
@@ -318,18 +330,27 @@ module supra_framework::jwks {
     public fun initialize(fx: &signer) {
         system_addresses::assert_supra_framework(fx);
         move_to(fx, SupportedOIDCProviders { providers: vector[] });
-        move_to(fx, ObservedJWKs { jwks: AllProvidersJWKs { entries: vector[] } });
+        move_to(fx, ObservedJWKs {
+            jwks: AllProvidersJWKs { entries: vector[] }
+        });
         move_to(fx, Patches { patches: vector[] });
-        move_to(fx, PatchedJWKs { jwks: AllProvidersJWKs { entries: vector[] } });
+        move_to(fx, PatchedJWKs {
+            jwks: AllProvidersJWKs { entries: vector[] }
+        });
     }
 
     /// Helper function that removes an OIDC provider from the `SupportedOIDCProviders`.
     /// Returns the old config URL of the provider, if any, as an `Option`.
-    fun remove_oidc_provider_internal(provider_set: &mut SupportedOIDCProviders, name: vector<u8>): Option<vector<u8>> {
-        let (name_exists, idx) = vector::find(&provider_set.providers, |obj| {
-            let provider: &OIDCProvider = obj;
-            provider.name == name
-        });
+    fun remove_oidc_provider_internal(
+        provider_set: &mut SupportedOIDCProviders, name: vector<u8>
+    ): Option<vector<u8>> {
+        let (name_exists, idx) = vector::find(
+            &provider_set.providers,
+            |obj| {
+                let provider: &OIDCProvider = obj;
+                provider.name == name
+            }
+        );
 
         if (name_exists) {
             let old_provider = vector::swap_remove(&mut provider_set.providers, idx);
@@ -343,13 +364,18 @@ module supra_framework::jwks {
     ///
     /// NOTE: It is assumed verification has been done to ensure each update is quorum-certified,
     /// and its `version` equals to the on-chain version + 1.
-    public fun upsert_into_observed_jwks(fx: &signer, provider_jwks_vec: vector<ProviderJWKs>) acquires ObservedJWKs, PatchedJWKs, Patches {
+    public fun upsert_into_observed_jwks(
+        fx: &signer, provider_jwks_vec: vector<ProviderJWKs>
+    ) acquires ObservedJWKs, PatchedJWKs, Patches {
         system_addresses::assert_supra_framework(fx);
         let observed_jwks = borrow_global_mut<ObservedJWKs>(@supra_framework);
-        vector::for_each(provider_jwks_vec, |obj| {
-            let provider_jwks: ProviderJWKs = obj;
-            upsert_provider_jwks(&mut observed_jwks.jwks, provider_jwks);
-        });
+        vector::for_each(
+            provider_jwks_vec,
+            |obj| {
+                let provider_jwks: ProviderJWKs = obj;
+                upsert_provider_jwks(&mut observed_jwks.jwks, provider_jwks);
+            }
+        );
 
         let epoch = reconfiguration::current_epoch();
         emit(ObservedJWKsUpdated { epoch, jwks: observed_jwks.jwks });
@@ -359,7 +385,9 @@ module supra_framework::jwks {
     /// Only used by governance to delete an issuer from `ObservedJWKs`, if it exists.
     ///
     /// Return the potentially existing `ProviderJWKs` of the given issuer.
-    public fun remove_issuer_from_observed_jwks(fx: &signer, issuer: vector<u8>): Option<ProviderJWKs> acquires ObservedJWKs, PatchedJWKs, Patches {
+    public fun remove_issuer_from_observed_jwks(
+        fx: &signer, issuer: vector<u8>
+    ): Option<ProviderJWKs> acquires ObservedJWKs, PatchedJWKs, Patches {
         system_addresses::assert_supra_framework(fx);
         let observed_jwks = borrow_global_mut<ObservedJWKs>(@supra_framework);
         let old_value = remove_issuer(&mut observed_jwks.jwks, issuer);
@@ -375,19 +403,27 @@ module supra_framework::jwks {
     fun regenerate_patched_jwks() acquires PatchedJWKs, Patches, ObservedJWKs {
         let jwks = borrow_global<ObservedJWKs>(@supra_framework).jwks;
         let patches = borrow_global<Patches>(@supra_framework);
-        vector::for_each_ref(&patches.patches, |obj|{
-            let patch: &Patch = obj;
-            apply_patch(&mut jwks, *patch);
-        });
+        vector::for_each_ref(
+            &patches.patches,
+            |obj| {
+                let patch: &Patch = obj;
+                apply_patch(&mut jwks, *patch);
+            }
+        );
         *borrow_global_mut<PatchedJWKs>(@supra_framework) = PatchedJWKs { jwks };
     }
 
     /// Get a JWK by issuer and key ID from a `AllProvidersJWKs`, if it exists.
-    fun try_get_jwk_by_issuer(jwks: &AllProvidersJWKs, issuer: vector<u8>, jwk_id: vector<u8>): Option<JWK> {
-        let (issuer_found, index) = vector::find(&jwks.entries, |obj| {
-            let provider_jwks: &ProviderJWKs = obj;
-            issuer == provider_jwks.issuer
-        });
+    fun try_get_jwk_by_issuer(
+        jwks: &AllProvidersJWKs, issuer: vector<u8>, jwk_id: vector<u8>
+    ): Option<JWK> {
+        let (issuer_found, index) = vector::find(
+            &jwks.entries,
+            |obj| {
+                let provider_jwks: &ProviderJWKs = obj;
+                issuer == provider_jwks.issuer
+            }
+        );
 
         if (issuer_found) {
             try_get_jwk_by_id(vector::borrow(&jwks.entries, index), jwk_id)
@@ -397,11 +433,16 @@ module supra_framework::jwks {
     }
 
     /// Get a JWK by key ID from a `ProviderJWKs`, if it exists.
-    fun try_get_jwk_by_id(provider_jwks: &ProviderJWKs, jwk_id: vector<u8>): Option<JWK> {
-        let (jwk_id_found, index) = vector::find(&provider_jwks.jwks, |obj|{
-            let jwk: &JWK = obj;
-            jwk_id == get_jwk_id(jwk)
-        });
+    fun try_get_jwk_by_id(
+        provider_jwks: &ProviderJWKs, jwk_id: vector<u8>
+    ): Option<JWK> {
+        let (jwk_id_found, index) = vector::find(
+            &provider_jwks.jwks,
+            |obj| {
+                let jwk: &JWK = obj;
+                jwk_id == get_jwk_id(jwk)
+            }
+        );
 
         if (jwk_id_found) {
             option::some(*vector::borrow(&provider_jwks.jwks, index))
@@ -426,7 +467,9 @@ module supra_framework::jwks {
 
     /// Upsert a `ProviderJWKs` into an `AllProvidersJWKs`. If this upsert replaced an existing entry, return it.
     /// Maintains the sorted-by-issuer invariant in `AllProvidersJWKs`.
-    fun upsert_provider_jwks(jwks: &mut AllProvidersJWKs, provider_jwks: ProviderJWKs): Option<ProviderJWKs> {
+    fun upsert_provider_jwks(
+        jwks: &mut AllProvidersJWKs, provider_jwks: ProviderJWKs
+    ): Option<ProviderJWKs> {
         // NOTE: Using a linear-time search here because we do not expect too many providers.
         let found = false;
         let index = 0;
@@ -444,15 +487,16 @@ module supra_framework::jwks {
 
         // Now if `found == true`, `index` points to the JWK we want to update/remove; otherwise, `index` points to
         // where we want to insert.
-        let ret = if (found) {
-            let entry = vector::borrow_mut(&mut jwks.entries, index);
-            let old_entry = option::some(*entry);
-            *entry = provider_jwks;
-            old_entry
-        } else {
-            vector::insert(&mut jwks.entries, index, provider_jwks);
-            option::none()
-        };
+        let ret =
+            if (found) {
+                let entry = vector::borrow_mut(&mut jwks.entries, index);
+                let old_entry = option::some(*entry);
+                *entry = provider_jwks;
+                old_entry
+            } else {
+                vector::insert(&mut jwks.entries, index, provider_jwks);
+                option::none()
+            };
 
         ret
     }
@@ -460,16 +504,20 @@ module supra_framework::jwks {
     /// Remove the entry of an issuer from a `AllProvidersJWKs` and return the entry, if exists.
     /// Maintains the sorted-by-issuer invariant in `AllProvidersJWKs`.
     fun remove_issuer(jwks: &mut AllProvidersJWKs, issuer: vector<u8>): Option<ProviderJWKs> {
-        let (found, index) = vector::find(&jwks.entries, |obj| {
-            let provider_jwk_set: &ProviderJWKs = obj;
-            provider_jwk_set.issuer == issuer
-        });
+        let (found, index) = vector::find(
+            &jwks.entries,
+            |obj| {
+                let provider_jwk_set: &ProviderJWKs = obj;
+                provider_jwk_set.issuer == issuer
+            }
+        );
 
-        let ret = if (found) {
-            option::some(vector::remove(&mut jwks.entries, index))
-        } else {
-            option::none()
-        };
+        let ret =
+            if (found) {
+                option::some(vector::remove(&mut jwks.entries, index))
+            } else {
+                option::none()
+            };
 
         ret
     }
@@ -492,31 +540,36 @@ module supra_framework::jwks {
 
         // Now if `found == true`, `index` points to the JWK we want to update/remove; otherwise, `index` points to
         // where we want to insert.
-        let ret = if (found) {
-            let entry = vector::borrow_mut(&mut set.jwks, index);
-            let old_entry = option::some(*entry);
-            *entry = jwk;
-            old_entry
-        } else {
-            vector::insert(&mut set.jwks, index, jwk);
-            option::none()
-        };
+        let ret =
+            if (found) {
+                let entry = vector::borrow_mut(&mut set.jwks, index);
+                let old_entry = option::some(*entry);
+                *entry = jwk;
+                old_entry
+            } else {
+                vector::insert(&mut set.jwks, index, jwk);
+                option::none()
+            };
 
         ret
     }
 
     /// Remove the entry of a key ID from a `ProviderJWKs` and return the entry, if exists.
     fun remove_jwk(jwks: &mut ProviderJWKs, jwk_id: vector<u8>): Option<JWK> {
-        let (found, index) = vector::find(&jwks.jwks, |obj| {
-            let jwk: &JWK = obj;
-            jwk_id == get_jwk_id(jwk)
-        });
+        let (found, index) = vector::find(
+            &jwks.jwks,
+            |obj| {
+                let jwk: &JWK = obj;
+                jwk_id == get_jwk_id(jwk)
+            }
+        );
 
-        let ret = if (found) {
-            option::some(vector::remove(&mut jwks.jwks, index))
-        } else {
-            option::none()
-        };
+        let ret =
+            if (found) {
+                option::some(vector::remove(&mut jwks.jwks, index))
+            } else {
+                option::none()
+            };
 
         ret
     }
@@ -545,15 +598,12 @@ module supra_framework::jwks {
             // TODO: This is inefficient: we remove the issuer, modify its JWKs & and reinsert the updated issuer. Why
             // not just update it in place?
             let existing_jwk_set = remove_issuer(jwks, cmd.issuer);
-            let jwk_set = if (option::is_some(&existing_jwk_set)) {
-                option::extract(&mut existing_jwk_set)
-            } else {
-                ProviderJWKs {
-                    version: 0,
-                    issuer: cmd.issuer,
-                    jwks: vector[],
-                }
-            };
+            let jwk_set =
+                if (option::is_some(&existing_jwk_set)) {
+                    option::extract(&mut existing_jwk_set)
+                } else {
+                    ProviderJWKs { version: 0, issuer: cmd.issuer, jwks: vector[] }
+                };
             upsert_jwk(&mut jwk_set, cmd.jwk);
             upsert_provider_jwks(jwks, jwk_set);
         } else {
@@ -587,31 +637,25 @@ module supra_framework::jwks {
         let alice_jwks_v1 = ProviderJWKs {
             issuer: b"alice",
             version: 1,
-            jwks: vector[jwk_0, jwk_1],
+            jwks: vector[jwk_0, jwk_1]
         };
-        let bob_jwks_v1 = ProviderJWKs{
+        let bob_jwks_v1 = ProviderJWKs {
             issuer: b"bob",
             version: 1,
-            jwks: vector[jwk_2, jwk_3],
+            jwks: vector[jwk_2, jwk_3]
         };
         upsert_into_observed_jwks(fx, vector[bob_jwks_v1]);
         upsert_into_observed_jwks(fx, vector[alice_jwks_v1]);
-        let expected = AllProvidersJWKs { entries: vector[
-            alice_jwks_v1,
-            bob_jwks_v1,
-        ] };
+        let expected = AllProvidersJWKs { entries: vector[alice_jwks_v1, bob_jwks_v1] };
         assert!(expected == borrow_global<ObservedJWKs>(@supra_framework).jwks, 2);
 
         let alice_jwks_v2 = ProviderJWKs {
             issuer: b"alice",
             version: 2,
-            jwks: vector[jwk_1, jwk_4],
+            jwks: vector[jwk_1, jwk_4]
         };
         upsert_into_observed_jwks(fx, vector[alice_jwks_v2]);
-        let expected = AllProvidersJWKs { entries: vector[
-            alice_jwks_v2,
-            bob_jwks_v1,
-        ] };
+        let expected = AllProvidersJWKs { entries: vector[alice_jwks_v2, bob_jwks_v1] };
         assert!(expected == borrow_global<ObservedJWKs>(@supra_framework).jwks, 3);
 
         remove_issuer_from_observed_jwks(fx, b"alice");
@@ -631,95 +675,126 @@ module supra_framework::jwks {
                             utf8(b"e4adfb436b9e197e2e1106af2c842284e4986aff"), // kid
                             utf8(b"RS256"), // alg
                             utf8(b"AQAB"), // e
-                            utf8(b"psply8S991RswM0JQJwv51fooFFvZUtYdL8avyKObshyzj7oJuJD8vkf5DKJJF1XOGi6Wv2D-U4b3htgrVXeOjAvaKTYtrQVUG_Txwjebdm2EvBJ4R6UaOULjavcSkb8VzW4l4AmP_yWoidkHq8n6vfHt9alDAONILi7jPDzRC7NvnHQ_x0hkRVh_OAmOJCpkgb0gx9-U8zSBSmowQmvw15AZ1I0buYZSSugY7jwNS2U716oujAiqtRkC7kg4gPouW_SxMleeo8PyRsHpYCfBME66m-P8Zr9Fh1Qgmqg4cWdy_6wUuNc1cbVY_7w1BpHZtZCNeQ56AHUgUFmo2LAQQ"), // n
+                            utf8(
+                                b"psply8S991RswM0JQJwv51fooFFvZUtYdL8avyKObshyzj7oJuJD8vkf5DKJJF1XOGi6Wv2D-U4b3htgrVXeOjAvaKTYtrQVUG_Txwjebdm2EvBJ4R6UaOULjavcSkb8VzW4l4AmP_yWoidkHq8n6vfHt9alDAONILi7jPDzRC7NvnHQ_x0hkRVh_OAmOJCpkgb0gx9-U8zSBSmowQmvw15AZ1I0buYZSSugY7jwNS2U716oujAiqtRkC7kg4gPouW_SxMleeo8PyRsHpYCfBME66m-P8Zr9Fh1Qgmqg4cWdy_6wUuNc1cbVY_7w1BpHZtZCNeQ56AHUgUFmo2LAQQ"
+                            ) // n
                         ),
-                        new_unsupported_jwk(b"key_id_0", b"key_content_0"),
-                    ],
+                        new_unsupported_jwk(b"key_id_0", b"key_content_0")
+                    ]
                 },
                 ProviderJWKs {
                     issuer: b"bob",
                     version: 222,
                     jwks: vector[
                         new_unsupported_jwk(b"key_id_1", b"key_content_1"),
-                        new_unsupported_jwk(b"key_id_2", b"key_content_2"),
-                    ],
-                },
-            ],
+                        new_unsupported_jwk(b"key_id_2", b"key_content_2")
+                    ]
+                }
+            ]
         };
 
         let patch = new_patch_remove_issuer(b"alice");
         apply_patch(&mut jwks, patch);
-        assert!(jwks == AllProvidersJWKs {
-            entries: vector[
-                ProviderJWKs {
-                    issuer: b"bob",
-                    version: 222,
-                    jwks: vector[
-                        new_unsupported_jwk(b"key_id_1", b"key_content_1"),
-                        new_unsupported_jwk(b"key_id_2", b"key_content_2"),
-                    ],
+        assert!(
+            jwks
+                == AllProvidersJWKs {
+                    entries: vector[
+                        ProviderJWKs {
+                            issuer: b"bob",
+                            version: 222,
+                            jwks: vector[
+                                new_unsupported_jwk(b"key_id_1", b"key_content_1"),
+                                new_unsupported_jwk(b"key_id_2", b"key_content_2")
+                            ]
+                        }
+                    ]
                 },
-            ],
-        }, 1);
+            1
+        );
 
         let patch = new_patch_remove_jwk(b"bob", b"key_id_1");
         apply_patch(&mut jwks, patch);
-        assert!(jwks == AllProvidersJWKs {
-            entries: vector[
-                ProviderJWKs {
-                    issuer: b"bob",
-                    version: 222,
-                    jwks: vector[
-                        new_unsupported_jwk(b"key_id_2", b"key_content_2"),
-                    ],
+        assert!(
+            jwks
+                == AllProvidersJWKs {
+                    entries: vector[
+                        ProviderJWKs {
+                            issuer: b"bob",
+                            version: 222,
+                            jwks: vector[new_unsupported_jwk(
+                                b"key_id_2", b"key_content_2"
+                            )]
+                        }
+                    ]
                 },
-            ],
-        }, 1);
+            1
+        );
 
-        let patch = new_patch_upsert_jwk(b"carl", new_rsa_jwk(
-            utf8(b"0ad1fec78504f447bae65bcf5afaedb65eec9e81"), // kid
-            utf8(b"RS256"), // alg
-            utf8(b"AQAB"), // e
-            utf8(b"sm72oBH-R2Rqt4hkjp66tz5qCtq42TMnVgZg2Pdm_zs7_-EoFyNs9sD1MKsZAFaBPXBHDiWywyaHhLgwETLN9hlJIZPzGCEtV3mXJFSYG-8L6t3kyKi9X1lUTZzbmNpE0tf-eMW-3gs3VQSBJQOcQnuiANxbSXwS3PFmi173C_5fDSuC1RoYGT6X3JqLc3DWUmBGucuQjPaUF0w6LMqEIy0W_WYbW7HImwANT6dT52T72md0JWZuAKsRRnRr_bvaUX8_e3K8Pb1K_t3dD6WSLvtmEfUnGQgLynVl3aV5sRYC0Hy_IkRgoxl2fd8AaZT1X_rdPexYpx152Pl_CHJ79Q"), // n
-        ));
+        let patch =
+            new_patch_upsert_jwk(
+                b"carl",
+                new_rsa_jwk(
+                    utf8(b"0ad1fec78504f447bae65bcf5afaedb65eec9e81"), // kid
+                    utf8(b"RS256"), // alg
+                    utf8(b"AQAB"), // e
+                    utf8(
+                        b"sm72oBH-R2Rqt4hkjp66tz5qCtq42TMnVgZg2Pdm_zs7_-EoFyNs9sD1MKsZAFaBPXBHDiWywyaHhLgwETLN9hlJIZPzGCEtV3mXJFSYG-8L6t3kyKi9X1lUTZzbmNpE0tf-eMW-3gs3VQSBJQOcQnuiANxbSXwS3PFmi173C_5fDSuC1RoYGT6X3JqLc3DWUmBGucuQjPaUF0w6LMqEIy0W_WYbW7HImwANT6dT52T72md0JWZuAKsRRnRr_bvaUX8_e3K8Pb1K_t3dD6WSLvtmEfUnGQgLynVl3aV5sRYC0Hy_IkRgoxl2fd8AaZT1X_rdPexYpx152Pl_CHJ79Q"
+                    ) // n
+                )
+            );
         apply_patch(&mut jwks, patch);
-        let edit = new_patch_upsert_jwk(b"bob", new_unsupported_jwk(b"key_id_2", b"key_content_2b"));
+        let edit =
+            new_patch_upsert_jwk(
+                b"bob", new_unsupported_jwk(b"key_id_2", b"key_content_2b")
+            );
         apply_patch(&mut jwks, edit);
-        let edit = new_patch_upsert_jwk(b"alice", new_unsupported_jwk(b"key_id_3", b"key_content_3"));
+        let edit =
+            new_patch_upsert_jwk(
+                b"alice", new_unsupported_jwk(b"key_id_3", b"key_content_3")
+            );
         apply_patch(&mut jwks, edit);
-        let edit = new_patch_upsert_jwk(b"alice", new_unsupported_jwk(b"key_id_0", b"key_content_0b"));
+        let edit =
+            new_patch_upsert_jwk(
+                b"alice", new_unsupported_jwk(b"key_id_0", b"key_content_0b")
+            );
         apply_patch(&mut jwks, edit);
-        assert!(jwks == AllProvidersJWKs {
-            entries: vector[
-                ProviderJWKs {
-                    issuer: b"alice",
-                    version: 0,
-                    jwks: vector[
-                        new_unsupported_jwk(b"key_id_0", b"key_content_0b"),
-                        new_unsupported_jwk(b"key_id_3", b"key_content_3"),
-                    ],
+        assert!(
+            jwks
+                == AllProvidersJWKs {
+                    entries: vector[
+                        ProviderJWKs {
+                            issuer: b"alice",
+                            version: 0,
+                            jwks: vector[
+                                new_unsupported_jwk(b"key_id_0", b"key_content_0b"),
+                                new_unsupported_jwk(b"key_id_3", b"key_content_3")
+                            ]
+                        },
+                        ProviderJWKs {
+                            issuer: b"bob",
+                            version: 222,
+                            jwks: vector[new_unsupported_jwk(
+                                b"key_id_2", b"key_content_2b"
+                            )]
+                        },
+                        ProviderJWKs {
+                            issuer: b"carl",
+                            version: 0,
+                            jwks: vector[
+                                new_rsa_jwk(
+                                    utf8(b"0ad1fec78504f447bae65bcf5afaedb65eec9e81"), // kid
+                                    utf8(b"RS256"), // alg
+                                    utf8(b"AQAB"), // e
+                                    utf8(
+                                        b"sm72oBH-R2Rqt4hkjp66tz5qCtq42TMnVgZg2Pdm_zs7_-EoFyNs9sD1MKsZAFaBPXBHDiWywyaHhLgwETLN9hlJIZPzGCEtV3mXJFSYG-8L6t3kyKi9X1lUTZzbmNpE0tf-eMW-3gs3VQSBJQOcQnuiANxbSXwS3PFmi173C_5fDSuC1RoYGT6X3JqLc3DWUmBGucuQjPaUF0w6LMqEIy0W_WYbW7HImwANT6dT52T72md0JWZuAKsRRnRr_bvaUX8_e3K8Pb1K_t3dD6WSLvtmEfUnGQgLynVl3aV5sRYC0Hy_IkRgoxl2fd8AaZT1X_rdPexYpx152Pl_CHJ79Q"
+                                    ) // n
+                                )
+                            ]
+                        }
+                    ]
                 },
-                ProviderJWKs {
-                    issuer: b"bob",
-                    version: 222,
-                    jwks: vector[
-                        new_unsupported_jwk(b"key_id_2", b"key_content_2b"),
-                    ],
-                },
-                ProviderJWKs {
-                    issuer: b"carl",
-                    version: 0,
-                    jwks: vector[
-                        new_rsa_jwk(
-                            utf8(b"0ad1fec78504f447bae65bcf5afaedb65eec9e81"), // kid
-                            utf8(b"RS256"), // alg
-                            utf8(b"AQAB"), // e
-                            utf8(b"sm72oBH-R2Rqt4hkjp66tz5qCtq42TMnVgZg2Pdm_zs7_-EoFyNs9sD1MKsZAFaBPXBHDiWywyaHhLgwETLN9hlJIZPzGCEtV3mXJFSYG-8L6t3kyKi9X1lUTZzbmNpE0tf-eMW-3gs3VQSBJQOcQnuiANxbSXwS3PFmi173C_5fDSuC1RoYGT6X3JqLc3DWUmBGucuQjPaUF0w6LMqEIy0W_WYbW7HImwANT6dT52T72md0JWZuAKsRRnRr_bvaUX8_e3K8Pb1K_t3dD6WSLvtmEfUnGQgLynVl3aV5sRYC0Hy_IkRgoxl2fd8AaZT1X_rdPexYpx152Pl_CHJ79Q"), // n
-                        )
-                    ],
-                },
-            ],
-        }, 1);
+            1
+        );
 
         let patch = new_patch_remove_all();
         apply_patch(&mut jwks, patch);
@@ -736,40 +811,37 @@ module supra_framework::jwks {
         let jwk_3b = new_unsupported_jwk(b"key_id_3", b"key_payload_3b");
 
         // Fake observation from validators.
-        upsert_into_observed_jwks(&supra_framework, vector [
-            ProviderJWKs {
-                issuer: b"alice",
-                version: 111,
-                jwks: vector[jwk_0, jwk_1],
-            },
-            ProviderJWKs{
-                issuer: b"bob",
-                version: 222,
-                jwks: vector[jwk_2, jwk_3],
-            },
-        ]);
+        upsert_into_observed_jwks(
+            &supra_framework,
+            vector[
+                ProviderJWKs { issuer: b"alice", version: 111, jwks: vector[jwk_0, jwk_1] },
+                ProviderJWKs { issuer: b"bob", version: 222, jwks: vector[jwk_2, jwk_3] }
+            ]
+        );
         assert!(jwk_3 == get_patched_jwk(b"bob", b"key_id_3"), 1);
         assert!(option::some(jwk_3) == try_get_patched_jwk(b"bob", b"key_id_3"), 1);
 
         // Ignore all Bob's keys.
-        set_patches(&supra_framework, vector[
-            new_patch_remove_issuer(b"bob"),
-        ]);
+        set_patches(&supra_framework, vector[new_patch_remove_issuer(b"bob")]);
         assert!(option::none() == try_get_patched_jwk(b"bob", b"key_id_3"), 1);
 
         // Update one of Bob's key..
-        set_patches(&supra_framework, vector[
-            new_patch_upsert_jwk(b"bob", jwk_3b),
-        ]);
+        set_patches(
+            &supra_framework,
+            vector[new_patch_upsert_jwk(b"bob", jwk_3b)]
+        );
         assert!(jwk_3b == get_patched_jwk(b"bob", b"key_id_3"), 1);
         assert!(option::some(jwk_3b) == try_get_patched_jwk(b"bob", b"key_id_3"), 1);
 
         // Wipe everything, then add some keys back.
-        set_patches(&supra_framework, vector[
-            new_patch_remove_all(),
-            new_patch_upsert_jwk(b"alice", jwk_1),
-            new_patch_upsert_jwk(b"bob", jwk_3),
-        ]);
+        set_patches(
+            &supra_framework,
+            vector[
+                new_patch_remove_all(),
+                new_patch_upsert_jwk(b"alice", jwk_1),
+                new_patch_upsert_jwk(b"bob", jwk_3)
+            ]
+        );
         assert!(jwk_3 == get_patched_jwk(b"bob", b"key_id_3"), 1);
         assert!(option::some(jwk_3) == try_get_patched_jwk(b"bob", b"key_id_3"), 1);
     }

@@ -4,7 +4,9 @@ spec supra_framework::supra_coin {
         pragma aborts_if_is_strict;
     }
 
-    spec initialize(supra_framework: &signer): (BurnCapability<SupraCoin>, MintCapability<SupraCoin>) {
+    spec initialize(supra_framework: &signer): (
+        BurnCapability<SupraCoin>, MintCapability<SupraCoin>
+    ) {
         use supra_framework::aggregator_factory;
 
         let addr = signer::address_of(supra_framework);
@@ -33,9 +35,7 @@ spec supra_framework::supra_coin {
 
     // Only callable in tests and testnets. not needed verify.
     spec mint(
-        account: &signer,
-        dst_addr: address,
-        amount: u64,
+        account: &signer, dst_addr: address, amount: u64
     ) {
         pragma verify = false;
     }
@@ -57,5 +57,4 @@ spec supra_framework::supra_coin {
     spec schema ExistsSupraCoin {
         requires exists<coin::CoinInfo<SupraCoin>>(@supra_framework);
     }
-
 }

@@ -30,7 +30,7 @@ module supra_framework::reconfiguration {
     /// with new configuration information. This is also called a
     /// "reconfiguration event"
     struct NewEpochEvent has drop, store {
-        epoch: u64,
+        epoch: u64
     }
 
     #[event]
@@ -38,7 +38,7 @@ module supra_framework::reconfiguration {
     /// with new configuration information. This is also called a
     /// "reconfiguration event"
     struct NewEpoch has drop, store {
-        epoch: u64,
+        epoch: u64
     }
 
     /// Holds information about state of reconfiguration
@@ -48,7 +48,7 @@ module supra_framework::reconfiguration {
         /// Time of last reconfiguration. Only changes on reconfiguration events.
         last_reconfiguration_time: u64,
         /// Event handle for reconfiguration events
-        events: event::EventHandle<NewEpochEvent>,
+        events: event::EventHandle<NewEpochEvent>
     }
 
     /// Reconfiguration will be disabled if this resource is published under the
@@ -72,13 +72,16 @@ module supra_framework::reconfiguration {
         system_addresses::assert_supra_framework(supra_framework);
 
         // assert it matches `new_epoch_event_key()`, otherwise the event can't be recognized
-        assert!(account::get_guid_next_creation_num(signer::address_of(supra_framework)) == 2, error::invalid_state(EINVALID_GUID_FOR_EVENT));
+        assert!(
+            account::get_guid_next_creation_num(signer::address_of(supra_framework)) == 2,
+            error::invalid_state(EINVALID_GUID_FOR_EVENT)
+        );
         move_to<Configuration>(
             supra_framework,
             Configuration {
                 epoch: 0,
                 last_reconfiguration_time: 0,
-                events: account::new_event_handle<NewEpochEvent>(supra_framework),
+                events: account::new_event_handle<NewEpochEvent>(supra_framework)
             }
         );
     }
@@ -97,7 +100,9 @@ module supra_framework::reconfiguration {
         system_addresses::assert_supra_framework(supra_framework);
 
         assert!(!reconfiguration_enabled(), error::invalid_state(ECONFIGURATION));
-        DisableReconfiguration {} = move_from<DisableReconfiguration>(signer::address_of(supra_framework));
+        DisableReconfiguration {} = move_from<DisableReconfiguration>(
+            signer::address_of(supra_framework)
+        );
     }
 
     fun reconfiguration_enabled(): bool {
@@ -107,9 +112,9 @@ module supra_framework::reconfiguration {
     /// Signal validators to start using new configuration. Must be called from friend config modules.
     public(friend) fun reconfigure() acquires Configuration {
         // Do not do anything if genesis has not finished.
-        if (chain_status::is_genesis() || timestamp::now_microseconds() == 0 || !reconfiguration_enabled()) {
-            return
-        };
+        if (chain_status::is_genesis()
+            || timestamp::now_microseconds() == 0
+            || !reconfiguration_enabled()) { return };
 
         let config_ref = borrow_global_mut<Configuration>(@supra_framework);
         let current_time = timestamp::now_microseconds();
@@ -126,9 +131,7 @@ module supra_framework::reconfiguration {
         // Thus, this check ensures that a transaction that does multiple "reconfiguration required" actions emits only
         // one reconfiguration event.
         //
-        if (current_time == config_ref.last_reconfiguration_time) {
-            return
-        };
+        if (current_time == config_ref.last_reconfiguration_time) { return };
 
         reconfiguration_state::on_reconfig_start();
 
@@ -150,7 +153,10 @@ module supra_framework::reconfiguration {
         stake::on_new_epoch();
         storage_gas::on_reconfig();
 
-        assert!(current_time > config_ref.last_reconfiguration_time, error::invalid_state(EINVALID_BLOCK_TIME));
+        assert!(
+            current_time > config_ref.last_reconfiguration_time,
+            error::invalid_state(EINVALID_BLOCK_TIME)
+        );
         config_ref.last_reconfiguration_time = current_time;
         spec {
             assume config_ref.epoch + 1 <= MAX_U64;
@@ -159,16 +165,12 @@ module supra_framework::reconfiguration {
 
         if (std::features::module_event_migration_enabled()) {
             event::emit(
-                NewEpoch {
-                    epoch: config_ref.epoch,
-                },
+                NewEpoch { epoch: config_ref.epoch }
             );
         };
         event::emit_event<NewEpochEvent>(
             &mut config_ref.events,
-            NewEpochEvent {
-                epoch: config_ref.epoch,
-            },
+            NewEpochEvent { epoch: config_ref.epoch }
         );
 
         reconfiguration_state::on_reconfig_finish();
@@ -186,22 +188,21 @@ module supra_framework::reconfiguration {
     /// reconfiguration event.
     fun emit_genesis_reconfiguration_event() acquires Configuration {
         let config_ref = borrow_global_mut<Configuration>(@supra_framework);
-        assert!(config_ref.epoch == 0 && config_ref.last_reconfiguration_time == 0, error::invalid_state(ECONFIGURATION));
+        assert!(
+            config_ref.epoch == 0 && config_ref.last_reconfiguration_time == 0,
+            error::invalid_state(ECONFIGURATION)
+        );
         config_ref.epoch = 1;
         config_ref.last_reconfiguration_time = timestamp::now_microseconds();
 
         if (std::features::module_event_migration_enabled()) {
             event::emit(
-                NewEpoch {
-                    epoch: config_ref.epoch,
-                },
+                NewEpoch { epoch: config_ref.epoch }
             );
         };
         event::emit_event<NewEpochEvent>(
             &mut config_ref.events,
-            NewEpochEvent {
-                epoch: config_ref.epoch,
-            },
+            NewEpochEvent { epoch: config_ref.epoch }
         );
     }
 
@@ -214,7 +215,7 @@ module supra_framework::reconfiguration {
             Configuration {
                 epoch: 0,
                 last_reconfiguration_time: 0,
-                events: account::new_event_handle<NewEpochEvent>(account),
+                events: account::new_event_handle<NewEpochEvent>(account)
             }
         );
     }
@@ -230,9 +231,7 @@ module supra_framework::reconfiguration {
     public fun reconfigure_for_test_custom() acquires Configuration {
         let config_ref = borrow_global_mut<Configuration>(@supra_framework);
         let current_time = timestamp::now_microseconds();
-        if (current_time == config_ref.last_reconfiguration_time) {
-            return
-        };
+        if (current_time == config_ref.last_reconfiguration_time) { return };
         config_ref.last_reconfiguration_time = current_time;
         config_ref.epoch = config_ref.epoch + 1;
     }

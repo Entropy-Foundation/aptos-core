@@ -24,7 +24,7 @@ module supra_framework::managed_coin {
     struct Capabilities<phantom CoinType> has key {
         burn_cap: BurnCapability<CoinType>,
         freeze_cap: FreezeCapability<CoinType>,
-        mint_cap: MintCapability<CoinType>,
+        mint_cap: MintCapability<CoinType>
     }
 
     //
@@ -32,15 +32,12 @@ module supra_framework::managed_coin {
     //
 
     /// Withdraw an `amount` of coin `CoinType` from `account` and burn it.
-    public entry fun burn<CoinType>(
-        account: &signer,
-        amount: u64,
-    ) acquires Capabilities {
+    public entry fun burn<CoinType>(account: &signer, amount: u64) acquires Capabilities {
         let account_addr = signer::address_of(account);
 
         assert!(
             exists<Capabilities<CoinType>>(account_addr),
-            error::not_found(ENO_CAPABILITIES),
+            error::not_found(ENO_CAPABILITIES)
         );
 
         let capabilities = borrow_global<Capabilities<CoinType>>(account_addr);
@@ -56,34 +53,34 @@ module supra_framework::managed_coin {
         name: vector<u8>,
         symbol: vector<u8>,
         decimals: u8,
-        monitor_supply: bool,
+        monitor_supply: bool
     ) {
-        let (burn_cap, freeze_cap, mint_cap) = coin::initialize<CoinType>(
-            account,
-            string::utf8(name),
-            string::utf8(symbol),
-            decimals,
-            monitor_supply,
-        );
+        let (burn_cap, freeze_cap, mint_cap) =
+            coin::initialize<CoinType>(
+                account,
+                string::utf8(name),
+                string::utf8(symbol),
+                decimals,
+                monitor_supply
+            );
 
-        move_to(account, Capabilities<CoinType> {
-            burn_cap,
-            freeze_cap,
-            mint_cap,
-        });
+        move_to(
+            account,
+            Capabilities<CoinType> { burn_cap, freeze_cap, mint_cap }
+        );
     }
 
     /// Create new coins `CoinType` and deposit them into dst_addr's account.
     public entry fun mint<CoinType>(
         account: &signer,
         dst_addr: address,
-        amount: u64,
+        amount: u64
     ) acquires Capabilities {
         let account_addr = signer::address_of(account);
 
         assert!(
             exists<Capabilities<CoinType>>(account_addr),
-            error::not_found(ENO_CAPABILITIES),
+            error::not_found(ENO_CAPABILITIES)
         );
 
         let capabilities = borrow_global<Capabilities<CoinType>>(account_addr);
@@ -112,15 +109,15 @@ module supra_framework::managed_coin {
 
     #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @0x1)]
     public entry fun test_end_to_end(
-        source: signer,
-        destination: signer,
-        mod_account: signer
+        source: signer, destination: signer, mod_account: signer
     ) acquires Capabilities {
         let source_addr = signer::address_of(&source);
         let destination_addr = signer::address_of(&destination);
         supra_framework::account::create_account_for_test(source_addr);
         supra_framework::account::create_account_for_test(destination_addr);
-        supra_framework::account::create_account_for_test(signer::address_of(&mod_account));
+        supra_framework::account::create_account_for_test(
+            signer::address_of(&mod_account)
+        );
         aggregator_factory::initialize_aggregator_factory_for_test(&mod_account);
 
         initialize<FakeMoney>(
@@ -163,13 +160,17 @@ module supra_framework::managed_coin {
     public entry fun fail_mint(
         source: signer,
         destination: signer,
-        mod_account: signer,
+        mod_account: signer
     ) acquires Capabilities {
         let source_addr = signer::address_of(&source);
 
         supra_framework::account::create_account_for_test(source_addr);
-        supra_framework::account::create_account_for_test(signer::address_of(&destination));
-        supra_framework::account::create_account_for_test(signer::address_of(&mod_account));
+        supra_framework::account::create_account_for_test(
+            signer::address_of(&destination)
+        );
+        supra_framework::account::create_account_for_test(
+            signer::address_of(&mod_account)
+        );
         aggregator_factory::initialize_aggregator_factory_for_test(&mod_account);
 
         initialize<FakeMoney>(&mod_account, b"Fake money", b"FMD", 1, true);
@@ -185,13 +186,17 @@ module supra_framework::managed_coin {
     public entry fun fail_burn(
         source: signer,
         destination: signer,
-        mod_account: signer,
+        mod_account: signer
     ) acquires Capabilities {
         let source_addr = signer::address_of(&source);
 
         supra_framework::account::create_account_for_test(source_addr);
-        supra_framework::account::create_account_for_test(signer::address_of(&destination));
-        supra_framework::account::create_account_for_test(signer::address_of(&mod_account));
+        supra_framework::account::create_account_for_test(
+            signer::address_of(&destination)
+        );
+        supra_framework::account::create_account_for_test(
+            signer::address_of(&mod_account)
+        );
         aggregator_factory::initialize_aggregator_factory_for_test(&mod_account);
 
         initialize<FakeMoney>(&mod_account, b"Fake money", b"FMD", 1, true);

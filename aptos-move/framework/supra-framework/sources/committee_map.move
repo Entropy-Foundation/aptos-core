@@ -49,14 +49,14 @@ module supra_framework::committee_map {
         add_committee_member: EventHandle<AddCommitteeMemberEvent>,
         remove_committee_member: EventHandle<RemoveCommitteeMemberEvent>,
         update_node_info: EventHandle<UpdateNodeInfoEvent>,
-        update_dkg_flag: EventHandle<UpdateDkgFlagEvent>,
+        update_dkg_flag: EventHandle<UpdateDkgFlagEvent>
     }
 
     struct CommitteeInfoStore has key {
         // map from unique committee id -> CommitteeInfo
         committee_map: SimpleMap<u64, CommitteeInfo>,
         // map from node address to committee to which the node belongs
-        node_to_committee_map: SimpleMap<address, u64>,
+        node_to_committee_map: SimpleMap<address, u64>
     }
 
     struct CommitteeInfo has store, drop, copy {
@@ -136,9 +136,15 @@ module supra_framework::committee_map {
     fun does_node_exist(committee: &CommitteeInfo, node_address: address): bool {
         simple_map::contains_key(&committee.map, &node_address)
     }
+
     /// Internal - Assert if the node exists in the committee
-    fun ensure_node_address_exist(committee: &CommitteeInfo, node_address: address) {
-        assert!(does_node_exist(committee, node_address), error::invalid_argument(NODE_NOT_FOUND))
+    fun ensure_node_address_exist(
+        committee: &CommitteeInfo, node_address: address
+    ) {
+        assert!(
+            does_node_exist(committee, node_address),
+            error::invalid_argument(NODE_NOT_FOUND)
+        )
     }
 
     /// Internal - create OwnerCap
@@ -148,30 +154,43 @@ module supra_framework::committee_map {
 
     /// Internal - create committeeInfo store functions
     fun create_committeeInfo_store(owner_signer: &signer): signer {
-        let (resource_signer, _) = account::create_resource_account(owner_signer, SEED_COMMITTEE);
-        move_to(&resource_signer, CommitteeInfoStore {
-            committee_map: simple_map::new(),
-            node_to_committee_map: simple_map::new()
-        });
+        let (resource_signer, _) =
+            account::create_resource_account(owner_signer, SEED_COMMITTEE);
+        move_to(
+            &resource_signer,
+            CommitteeInfoStore {
+                committee_map: simple_map::new(),
+                node_to_committee_map: simple_map::new()
+            }
+        );
         resource_signer
     }
 
     /// Internal - create event handler
     fun create_event_handler(resource_signer: &signer) {
-        move_to(resource_signer, SupraCommitteeEventHandler {
-            create: new_event_handle<CreateCommitteeInfoStoreEvent>(resource_signer),
-            add_committee: new_event_handle<AddCommitteeEvent>(resource_signer),
-            remove_committee: new_event_handle<RemoveCommitteeEvent>(resource_signer),
-            update_committee: new_event_handle<UpdateCommitteeEvent>(resource_signer),
-            add_committee_member: new_event_handle<AddCommitteeMemberEvent>(resource_signer),
-            remove_committee_member: new_event_handle<RemoveCommitteeMemberEvent>(resource_signer),
-            update_node_info: new_event_handle<UpdateNodeInfoEvent>(resource_signer),
-            update_dkg_flag: new_event_handle<UpdateDkgFlagEvent>(resource_signer),
-        });
+        move_to(
+            resource_signer,
+            SupraCommitteeEventHandler {
+                create: new_event_handle<CreateCommitteeInfoStoreEvent>(resource_signer),
+                add_committee: new_event_handle<AddCommitteeEvent>(resource_signer),
+                remove_committee: new_event_handle<RemoveCommitteeEvent>(resource_signer),
+                update_committee: new_event_handle<UpdateCommitteeEvent>(resource_signer),
+                add_committee_member: new_event_handle<AddCommitteeMemberEvent>(
+                    resource_signer
+                ),
+                remove_committee_member: new_event_handle<RemoveCommitteeMemberEvent>(
+                    resource_signer
+                ),
+                update_node_info: new_event_handle<UpdateNodeInfoEvent>(resource_signer),
+                update_dkg_flag: new_event_handle<UpdateDkgFlagEvent>(resource_signer)
+            }
+        );
     }
 
     fun get_committeeInfo_address(owner_signer: &signer): address {
-        account::create_resource_address(&signer::address_of(owner_signer), SEED_COMMITTEE)
+        account::create_resource_address(
+            &signer::address_of(owner_signer), SEED_COMMITTEE
+        )
     }
 
     /// Its Initial function which will be executed automatically while deployed packages
@@ -183,7 +202,9 @@ module supra_framework::committee_map {
 
     // Function to validate the committee type from an integer
     fun validate_committee_type(committee_type: u8, num_of_nodes: u64): u8 {
-        assert!(committee_type >= FAMILY && committee_type <= TRIBE, INVALID_COMMITTEE_TYPE);
+        assert!(
+            committee_type >= FAMILY && committee_type <= TRIBE, INVALID_COMMITTEE_TYPE
+        );
         if (committee_type == FAMILY) {
             // f+1, number of nodes in a family committee should be greater than 1
             assert!(num_of_nodes > 1, INVALID_NODE_NUMBERS);
@@ -192,14 +213,18 @@ module supra_framework::committee_map {
             assert!(num_of_nodes >= 3 && num_of_nodes % 2 == 1, INVALID_NODE_NUMBERS);
         } else {
             // 3f+1, number of nodes in a tribe committee should be in the format of 3f+1 and greater than 4
-            assert!(num_of_nodes >= 4 && (num_of_nodes - 1) % 3 == 0, INVALID_NODE_NUMBERS);
+            assert!(
+                num_of_nodes >= 4 && (num_of_nodes - 1) % 3 == 0, INVALID_NODE_NUMBERS
+            );
         };
         committee_type
     }
 
     #[view]
     /// Get the committee's node vector and committee type
-    public fun get_committee_info(com_store_addr: address, id: u64): (vector<NodeData>, u8) acquires CommitteeInfoStore {
+    public fun get_committee_info(
+        com_store_addr: address, id: u64
+    ): (vector<NodeData>, u8) acquires CommitteeInfoStore {
         let committee_store = borrow_global<CommitteeInfoStore>(com_store_addr);
         let committee = simple_map::borrow(&committee_store.committee_map, &id);
         let (addrs, nodes) = simple_map::to_vec_pair(committee.map);
@@ -214,7 +239,7 @@ module supra_framework::committee_map {
                 network_public_key: node_info.network_public_key,
                 cg_public_key: node_info.cg_public_key,
                 network_port: node_info.network_port,
-                rpc_port: node_info.rpc_port,
+                rpc_port: node_info.rpc_port
             };
             vector::push_back(&mut node_data_vec, node_data);
         };
@@ -231,8 +256,7 @@ module supra_framework::committee_map {
     #[view]
     /// Get the committee's id for a single node, only pass the address is okay
     public fun get_committee_id(
-        com_store_addr: address,
-        node_address: address
+        com_store_addr: address, node_address: address
     ): u64 acquires CommitteeInfoStore {
         let committee_store = borrow_global<CommitteeInfoStore>(com_store_addr);
         *simple_map::borrow(&committee_store.node_to_committee_map, &node_address)
@@ -241,9 +265,7 @@ module supra_framework::committee_map {
     #[view]
     /// Get the node's information
     public fun get_node_info(
-        com_store_addr: address,
-        id: u64,
-        node_address: address
+        com_store_addr: address, id: u64, node_address: address
     ): NodeData acquires CommitteeInfoStore {
         let committee_store = borrow_global<CommitteeInfoStore>(com_store_addr);
         let committee = simple_map::borrow(&committee_store.committee_map, &id);
@@ -259,38 +281,39 @@ module supra_framework::committee_map {
             network_public_key: node_info.network_public_key,
             cg_public_key: node_info.cg_public_key,
             network_port: node_info.network_port,
-            rpc_port: node_info.rpc_port,
+            rpc_port: node_info.rpc_port
         }
     }
 
     #[view]
     /// Get the committee's id for a single node
     public fun get_committee_id_for_node(
-        com_store_addr: address,
-        node_address: address
+        com_store_addr: address, node_address: address
     ): u64 acquires CommitteeInfoStore {
         let committee_store = borrow_global<CommitteeInfoStore>(com_store_addr);
-        let id = *simple_map::borrow(&committee_store.node_to_committee_map, &node_address);
+        let id =
+            *simple_map::borrow(&committee_store.node_to_committee_map, &node_address);
         id
     }
 
     #[view]
     /// Get a tuple of the node itself and node peers vector for a single node
     public fun get_peers_for_node(
-        com_store_addr: address,
-        node_address: address
+        com_store_addr: address, node_address: address
     ): (NodeData, vector<NodeData>) acquires CommitteeInfoStore {
         let committee_id = get_committee_id_for_node(com_store_addr, node_address);
         let this_node = get_node_info(com_store_addr, committee_id, node_address);
-        let (node_info,_) = get_committee_info(com_store_addr, committee_id);
+        let (node_info, _) = get_committee_info(com_store_addr, committee_id);
         let (_, index) = vector::index_of(&node_info, &this_node);
-        let self= vector::remove(&mut node_info, index);
+        let self = vector::remove(&mut node_info, index);
         (self, node_info)
     }
 
     #[view]
     /// Check if the committee has a valid dkg
-    public fun does_com_have_dkg(com_store_addr: address, com_id: u64): bool acquires CommitteeInfoStore {
+    public fun does_com_have_dkg(
+        com_store_addr: address, com_id: u64
+    ): bool acquires CommitteeInfoStore {
         let committee_store = borrow_global<CommitteeInfoStore>(com_store_addr);
         let committee = simple_map::borrow(&committee_store.committee_map, &com_id);
         committee.has_valid_dkg
@@ -306,15 +329,17 @@ module supra_framework::committee_map {
         // Only the OwnerCap capability can access it
         let _acquire = &capability::acquire(owner_signer, &OwnerCap {});
         let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
-        let committee = simple_map::borrow_mut(&mut committee_store.committee_map, &com_id);
+        let committee = simple_map::borrow_mut(
+            &mut committee_store.committee_map, &com_id
+        );
         committee.has_valid_dkg = flag_value;
-        let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(get_committeeInfo_address(owner_signer));
+        let event_handler =
+            borrow_global_mut<SupraCommitteeEventHandler>(
+                get_committeeInfo_address(owner_signer)
+            );
         emit_event(
             &mut event_handler.update_dkg_flag,
-            UpdateDkgFlagEvent {
-                committee_id: com_id,
-                flag_value
-            }
+            UpdateDkgFlagEvent { committee_id: com_id, flag_value }
         );
     }
 
@@ -376,12 +401,14 @@ module supra_framework::committee_map {
                 network_public_key: copy network_public_key,
                 cg_public_key: copy cg_public_key,
                 network_port,
-                rpc_port,
+                rpc_port
             };
             vector::push_back(&mut node_infos, node_info);
             // Also update the node_to_committee_map
             let node_address = vector::pop_back(&mut node_addresses_for_iteration);
-            simple_map::upsert(&mut committee_store.node_to_committee_map, node_address, id);
+            simple_map::upsert(
+                &mut committee_store.node_to_committee_map, node_address, id
+            );
         };
         vector::reverse(&mut node_infos);
         let committee_info = CommitteeInfo {
@@ -389,15 +416,17 @@ module supra_framework::committee_map {
             has_valid_dkg: false,
             committee_type: validate_committee_type(committee_type, node_address_len)
         };
-        let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(get_committeeInfo_address(owner_signer));
-        let (_, value) = simple_map::upsert(&mut committee_store.committee_map, id, committee_info);
+        let event_handler =
+            borrow_global_mut<SupraCommitteeEventHandler>(
+                get_committeeInfo_address(owner_signer)
+            );
+        let (_, value) =
+            simple_map::upsert(&mut committee_store.committee_map, id, committee_info);
         if (option::is_none(&value)) {
             emit_event(
                 &mut event_handler.add_committee,
-                AddCommitteeEvent {
-                    committee_id: id,
-                    committee_info: copy committee_info
-                }, )
+                AddCommitteeEvent { committee_id: id, committee_info: copy committee_info }
+            )
         } else {
             emit_event(
                 &mut event_handler.update_committee,
@@ -405,7 +434,7 @@ module supra_framework::committee_map {
                     committee_id: id,
                     old_committee_info: option::destroy_some(value),
                     new_committee_info: committee_info
-                },
+                }
             );
             // Destory the map
             simple_map::to_vec_pair(option::destroy_some(value).map);
@@ -484,9 +513,7 @@ module supra_framework::committee_map {
 
     /// Remove the committee from the store
     public entry fun remove_committee(
-        owner_signer: &signer,
-        com_store_addr: address,
-        id: u64
+        owner_signer: &signer, com_store_addr: address, id: u64
     ) acquires CommitteeInfoStore, SupraCommitteeEventHandler {
         // Only the OwnerCap capability can access it
         let _acquire = &capability::acquire(owner_signer, &OwnerCap {});
@@ -496,7 +523,8 @@ module supra_framework::committee_map {
             simple_map::contains_key(&committee_store.committee_map, &id),
             error::invalid_argument(INVALID_COMMITTEE_ID)
         );
-        let (id, committee_info) = simple_map::remove(&mut committee_store.committee_map, &id);
+        let (id, committee_info) =
+            simple_map::remove(&mut committee_store.committee_map, &id);
         // Also remove the node_to_committee_map
         let (addrs, _) = simple_map::to_vec_pair(committee_info.map);
         while (vector::length(&addrs) > 0) {
@@ -507,20 +535,19 @@ module supra_framework::committee_map {
             );
             simple_map::remove(&mut committee_store.node_to_committee_map, &addr);
         };
-        let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(get_committeeInfo_address(owner_signer));
+        let event_handler =
+            borrow_global_mut<SupraCommitteeEventHandler>(
+                get_committeeInfo_address(owner_signer)
+            );
         emit_event(
             &mut event_handler.remove_committee,
-            RemoveCommitteeEvent {
-                committee_id: id,
-                committee_info: committee_info
-            }, )
+            RemoveCommitteeEvent { committee_id: id, committee_info: committee_info }
+        )
     }
 
     /// Remove the committee in bulk
     public entry fun remove_committee_bulk(
-        owner_signer: &signer,
-        com_store_addr: address,
-        ids: vector<u64>
+        owner_signer: &signer, com_store_addr: address, ids: vector<u64>
     ) acquires CommitteeInfoStore, SupraCommitteeEventHandler {
         while (vector::length(&ids) > 0) {
             let id = vector::pop_back(&mut ids);
@@ -539,7 +566,7 @@ module supra_framework::committee_map {
         network_public_key: vector<u8>,
         cg_public_key: vector<u8>,
         network_port: u16,
-        rpc_port: u16,
+        rpc_port: u16
     ) acquires CommitteeInfoStore, SupraCommitteeEventHandler {
         // Only the OwnerCap capability can access it
         let _acquire = &capability::acquire(owner_signer, &OwnerCap {});
@@ -552,16 +579,17 @@ module supra_framework::committee_map {
             network_public_key: copy network_public_key,
             cg_public_key: copy cg_public_key,
             network_port: network_port,
-            rpc_port: rpc_port,
+            rpc_port: rpc_port
         };
-        let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(get_committeeInfo_address(owner_signer));
+        let event_handler =
+            borrow_global_mut<SupraCommitteeEventHandler>(
+                get_committeeInfo_address(owner_signer)
+            );
         if (!does_node_exist(committee, node_address)) {
             emit_event(
                 &mut event_handler.add_committee_member,
-                AddCommitteeMemberEvent {
-                    committee_id: id,
-                    committee_member: node_info
-                })
+                AddCommitteeMemberEvent { committee_id: id, committee_member: node_info }
+            )
         } else {
             emit_event(
                 &mut event_handler.update_node_info,
@@ -569,7 +597,8 @@ module supra_framework::committee_map {
                     committee_id: id,
                     old_node_info: *simple_map::borrow(&committee.map, &node_address),
                     new_node_info: node_info
-                })
+                }
+            )
         };
         simple_map::upsert(&mut committee.map, node_address, node_info);
         // Also update the node_to_committee_map
@@ -656,7 +685,10 @@ module supra_framework::committee_map {
         let committee = simple_map::borrow_mut(&mut committee_store.committee_map, &id);
         ensure_node_address_exist(committee, node_address);
         let (_, node_info) = simple_map::remove(&mut committee.map, &node_address);
-        let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(get_committeeInfo_address(owner_signer));
+        let event_handler =
+            borrow_global_mut<SupraCommitteeEventHandler>(
+                get_committeeInfo_address(owner_signer)
+            );
         emit_event(
             &mut event_handler.remove_committee_member,
             RemoveCommitteeMemberEvent {
@@ -667,7 +699,7 @@ module supra_framework::committee_map {
                     network_public_key: node_info.network_public_key,
                     cg_public_key: node_info.cg_public_key,
                     network_port: node_info.network_port,
-                    rpc_port: node_info.rpc_port,
+                    rpc_port: node_info.rpc_port
                 }
             }
         );
@@ -677,34 +709,38 @@ module supra_framework::committee_map {
 
     /// Find the node in the committee
     public fun find_node_in_committee(
-        com_store_add: address,
-        id: u64,
-        node_address: address
+        com_store_add: address, id: u64, node_address: address
     ): (bool, NodeData) acquires CommitteeInfoStore {
         let committee_store = borrow_global<CommitteeInfoStore>(com_store_add);
         let committee = simple_map::borrow(&committee_store.committee_map, &id);
         let flag = simple_map::contains_key(&committee.map, &node_address);
         if (!flag) {
-            return (false, NodeData {
-                operator: copy node_address,
-                ip_public_address: vector::empty(),
-                node_public_key: vector::empty(),
-                network_public_key: vector::empty(),
-                cg_public_key: vector::empty(),
-                network_port: 0,
-                rpc_port: 0,
-            })
+            return (
+                false,
+                NodeData {
+                    operator: copy node_address,
+                    ip_public_address: vector::empty(),
+                    node_public_key: vector::empty(),
+                    network_public_key: vector::empty(),
+                    cg_public_key: vector::empty(),
+                    network_port: 0,
+                    rpc_port: 0
+                }
+            )
         } else {
             let node_info = *simple_map::borrow(&committee.map, &node_address);
-            (true, NodeData {
-                operator: copy node_address,
-                ip_public_address: node_info.ip_public_address,
-                node_public_key: node_info.node_public_key,
-                network_public_key: node_info.network_public_key,
-                cg_public_key: node_info.cg_public_key,
-                network_port: node_info.network_port,
-                rpc_port: node_info.rpc_port,
-            })
+            (
+                true,
+                NodeData {
+                    operator: copy node_address,
+                    ip_public_address: node_info.ip_public_address,
+                    node_public_key: node_info.node_public_key,
+                    network_public_key: node_info.network_public_key,
+                    cg_public_key: node_info.cg_public_key,
+                    network_port: node_info.network_port,
+                    rpc_port: node_info.rpc_port
+                }
+            )
         }
     }
 
@@ -734,7 +770,7 @@ module supra_framework::committee_map {
             vector[123, 123],
             1
         );
-        remove_committee(owner_signer,resource_address,1);
+        remove_committee(owner_signer, resource_address, 1);
     }
 
     #[test(owner_signer = @0xCEFEF)]
@@ -821,7 +857,7 @@ module supra_framework::committee_map {
             vector[vector[vector[123], vector[124]], vector[vector[125], vector[126]]],
             vector[vector[123, 124], vector[125, 126]],
             vector[vector[123, 124], vector[125, 126]],
-            vector[1,1]
+            vector[1, 1]
         );
     }
 
@@ -968,7 +1004,7 @@ module supra_framework::committee_map {
             vector[123, 123],
             1
         );
-        let (node_data,_) = get_committee_info(resource_address, 1);
+        let (node_data, _) = get_committee_info(resource_address, 1);
         assert!(vector::length(&node_data) == 2, 0);
     }
 
@@ -1037,7 +1073,7 @@ module supra_framework::committee_map {
             vector[123, 123],
             1
         );
-        let (_,peers) = get_peers_for_node(resource_address, @0x1);
+        let (_, peers) = get_peers_for_node(resource_address, @0x1);
         assert!(vector::length(&peers) == 1, 0);
     }
 }

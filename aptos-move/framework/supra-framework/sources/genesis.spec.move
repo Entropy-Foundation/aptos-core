@@ -149,7 +149,8 @@ spec supra_framework::genesis {
         let addr = std::signer::address_of(supra_framework);
         aborts_if addr != @supra_framework;
         aborts_if exists<chain_status::GenesisEndMarker>(@supra_framework);
-        ensures global<chain_status::GenesisEndMarker>(@supra_framework) == chain_status::GenesisEndMarker {};
+        ensures global<chain_status::GenesisEndMarker>(@supra_framework)
+            == chain_status::GenesisEndMarker {};
     }
 
     spec create_pbo_delegation_pools {
@@ -181,7 +182,10 @@ spec supra_framework::genesis {
     }
 
     spec schema CompareTimeRequires {
-        let staking_rewards_config = global<staking_config::StakingRewardsConfig>(@supra_framework);
-        requires staking_rewards_config.last_rewards_rate_period_start_in_secs <= timestamp::spec_now_seconds();
+        let staking_rewards_config = global<staking_config::StakingRewardsConfig>(
+            @supra_framework
+        );
+        requires staking_rewards_config.last_rewards_rate_period_start_in_secs
+            <= timestamp::spec_now_seconds();
     }
 }

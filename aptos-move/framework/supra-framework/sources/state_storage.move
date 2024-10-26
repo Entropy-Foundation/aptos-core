@@ -11,14 +11,14 @@ module supra_framework::state_storage {
 
     struct Usage has copy, drop, store {
         items: u64,
-        bytes: u64,
+        bytes: u64
     }
 
     /// This is updated at the beginning of each epoch, reflecting the storage
     /// usage after the last txn of the previous epoch is committed.
     struct StateStorageUsage has key, store {
         epoch: u64,
-        usage: Usage,
+        usage: Usage
     }
 
     public(friend) fun initialize(supra_framework: &signer) {
@@ -27,13 +27,10 @@ module supra_framework::state_storage {
             !exists<StateStorageUsage>(@supra_framework),
             error::already_exists(ESTATE_STORAGE_USAGE)
         );
-        move_to(supra_framework, StateStorageUsage {
-            epoch: 0,
-            usage: Usage {
-                items: 0,
-                bytes: 0,
-            }
-        });
+        move_to(
+            supra_framework,
+            StateStorageUsage { epoch: 0, usage: Usage { items: 0, bytes: 0 } }
+        );
     }
 
     public(friend) fun on_new_block(epoch: u64) acquires StateStorageUsage {
@@ -71,17 +68,14 @@ module supra_framework::state_storage {
         );
         let usage = borrow_global_mut<StateStorageUsage>(@supra_framework);
         usage.epoch = epoch;
-        usage.usage = Usage {
-            items,
-            bytes
-        };
+        usage.usage = Usage { items, bytes };
     }
 
     // ======================== deprecated ============================
     friend supra_framework::reconfiguration;
 
     struct GasParameter has key, store {
-        usage: Usage,
+        usage: Usage
     }
 
     public(friend) fun on_reconfig() {

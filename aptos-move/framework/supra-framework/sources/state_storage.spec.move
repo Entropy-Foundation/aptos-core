@@ -45,8 +45,10 @@ spec supra_framework::state_storage {
         // After genesis, `StateStorageUsage` and `GasParameter` exist.
         /// [high-level-req-1]
         /// [high-level-req-5.3]
-        invariant [suspendable] chain_status::is_operating() ==> exists<StateStorageUsage>(@supra_framework);
-        invariant [suspendable] chain_status::is_operating() ==> exists<GasParameter>(@supra_framework);
+        invariant [suspendable] chain_status::is_operating() ==>
+            exists<StateStorageUsage>(@supra_framework);
+        invariant [suspendable] chain_status::is_operating() ==>
+            exists<GasParameter>(@supra_framework);
     }
 
     /// ensure caller is admin.
@@ -61,7 +63,9 @@ spec supra_framework::state_storage {
         ensures exists<StateStorageUsage>(@supra_framework);
         let post state_usage = global<StateStorageUsage>(@supra_framework);
         /// [high-level-req-2]
-        ensures state_usage.epoch == 0 && state_usage.usage.bytes == 0 && state_usage.usage.items == 0;
+        ensures state_usage.epoch == 0
+            && state_usage.usage.bytes == 0
+            && state_usage.usage.items == 0;
     }
 
     spec on_new_block(epoch: u64) {

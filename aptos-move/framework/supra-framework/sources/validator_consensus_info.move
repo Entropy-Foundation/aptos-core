@@ -4,25 +4,18 @@ module supra_framework::validator_consensus_info {
     struct ValidatorConsensusInfo has copy, drop, store {
         addr: address,
         pk_bytes: vector<u8>,
-        voting_power: u64,
+        voting_power: u64
     }
 
     /// Create a default `ValidatorConsensusInfo` object. Value may be invalid. Only for place holding prupose.
     public fun default(): ValidatorConsensusInfo {
-        ValidatorConsensusInfo {
-            addr: @vm,
-            pk_bytes: vector[],
-            voting_power: 0,
-        }
+        ValidatorConsensusInfo { addr: @vm, pk_bytes: vector[], voting_power: 0 }
     }
 
     /// Create a `ValidatorConsensusInfo` object.
-    public fun new(addr: address, pk_bytes: vector<u8>, voting_power: u64): ValidatorConsensusInfo {
+    public fun new(addr: address, pk_bytes: vector<u8>, voting_power: u64):
         ValidatorConsensusInfo {
-            addr,
-            pk_bytes,
-            voting_power,
-        }
+        ValidatorConsensusInfo { addr, pk_bytes, voting_power }
     }
 
     /// Get `ValidatorConsensusInfo.addr`.

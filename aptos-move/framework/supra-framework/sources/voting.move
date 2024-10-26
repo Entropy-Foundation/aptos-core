@@ -120,7 +120,7 @@ module supra_framework::voting {
         /// Whether the proposal has been resolved.
         is_resolved: bool,
         /// Resolution timestamp if the proposal has been resolved. 0 otherwise.
-        resolution_time_secs: u64,
+        resolution_time_secs: u64
     }
 
     struct VotingForum<ProposalType: store> has key {
@@ -129,14 +129,14 @@ module supra_framework::voting {
         proposals: Table<u64, Proposal<ProposalType>>,
         events: VotingEvents,
         /// Unique identifier for a proposal. This allows for 2 * 10**19 proposals.
-        next_proposal_id: u64,
+        next_proposal_id: u64
     }
 
     struct VotingEvents has store {
         create_proposal_events: EventHandle<CreateProposalEvent>,
         register_forum_events: EventHandle<RegisterForumEvent>,
         resolve_proposal_events: EventHandle<ResolveProposal>,
-        vote_events: EventHandle<VoteEvent>,
+        vote_events: EventHandle<VoteEvent>
     }
 
     #[event]
@@ -146,19 +146,19 @@ module supra_framework::voting {
         execution_hash: vector<u8>,
         expiration_secs: u64,
         metadata: SimpleMap<String, vector<u8>>,
-        min_vote_threshold: u128,
+        min_vote_threshold: u128
     }
 
     #[event]
     struct RegisterForum has drop, store {
         hosting_account: address,
-        proposal_type_info: TypeInfo,
+        proposal_type_info: TypeInfo
     }
 
     #[event]
     struct Vote has drop, store {
         proposal_id: u64,
-        num_votes: u64,
+        num_votes: u64
     }
 
     #[event]
@@ -175,31 +175,40 @@ module supra_framework::voting {
         execution_hash: vector<u8>,
         expiration_secs: u64,
         metadata: SimpleMap<String, vector<u8>>,
-        min_vote_threshold: u128,
+        min_vote_threshold: u128
     }
 
     struct RegisterForumEvent has drop, store {
         hosting_account: address,
-        proposal_type_info: TypeInfo,
+        proposal_type_info: TypeInfo
     }
 
     struct VoteEvent has drop, store {
         proposal_id: u64,
-        num_votes: u64,
+        num_votes: u64
     }
 
     public fun register<ProposalType: store>(account: &signer) {
         let addr = signer::address_of(account);
-        assert!(!exists<VotingForum<ProposalType>>(addr), error::already_exists(EVOTING_FORUM_ALREADY_REGISTERED));
+        assert!(
+            !exists<VotingForum<ProposalType>>(addr),
+            error::already_exists(EVOTING_FORUM_ALREADY_REGISTERED)
+        );
 
         let voting_forum = VotingForum<ProposalType> {
             next_proposal_id: 0,
             proposals: table::new<u64, Proposal<ProposalType>>(),
             events: VotingEvents {
-                create_proposal_events: account::new_event_handle<CreateProposalEvent>(account),
-                register_forum_events: account::new_event_handle<RegisterForumEvent>(account),
-                resolve_proposal_events: account::new_event_handle<ResolveProposal>(account),
-                vote_events: account::new_event_handle<VoteEvent>(account),
+                create_proposal_events: account::new_event_handle<CreateProposalEvent>(
+                    account
+                ),
+                register_forum_events: account::new_event_handle<RegisterForumEvent>(
+                    account
+                ),
+                resolve_proposal_events: account::new_event_handle<ResolveProposal>(
+                    account
+                ),
+                vote_events: account::new_event_handle<VoteEvent>(account)
             }
         };
 
@@ -207,16 +216,16 @@ module supra_framework::voting {
             event::emit(
                 RegisterForum {
                     hosting_account: addr,
-                    proposal_type_info: type_info::type_of<ProposalType>(),
-                },
+                    proposal_type_info: type_info::type_of<ProposalType>()
+                }
             );
         };
         event::emit_event<RegisterForumEvent>(
             &mut voting_forum.events.register_forum_events,
             RegisterForumEvent {
                 hosting_account: addr,
-                proposal_type_info: type_info::type_of<ProposalType>(),
-            },
+                proposal_type_info: type_info::type_of<ProposalType>()
+            }
         );
 
         move_to(account, voting_forum);
@@ -242,7 +251,7 @@ module supra_framework::voting {
         min_vote_threshold: u128,
         expiration_secs: u64,
         early_resolution_vote_threshold: Option<u128>,
-        metadata: SimpleMap<String, vector<u8>>,
+        metadata: SimpleMap<String, vector<u8>>
     ): u64 acquires VotingForum {
         create_proposal_v2(
             proposer,
@@ -279,50 +288,67 @@ module supra_framework::voting {
         expiration_secs: u64,
         early_resolution_vote_threshold: Option<u128>,
         metadata: SimpleMap<String, vector<u8>>,
-        is_multi_step_proposal: bool,
+        is_multi_step_proposal: bool
     ): u64 acquires VotingForum {
         if (option::is_some(&early_resolution_vote_threshold)) {
             assert!(
                 min_vote_threshold <= *option::borrow(&early_resolution_vote_threshold),
-                error::invalid_argument(EINVALID_MIN_VOTE_THRESHOLD),
+                error::invalid_argument(EINVALID_MIN_VOTE_THRESHOLD)
             );
         };
         // Make sure the execution script's hash is not empty.
-        assert!(vector::length(&execution_hash) > 0, error::invalid_argument(EPROPOSAL_EMPTY_EXECUTION_HASH));
+        assert!(
+            vector::length(&execution_hash) > 0,
+            error::invalid_argument(EPROPOSAL_EMPTY_EXECUTION_HASH)
+        );
 
-        let voting_forum = borrow_global_mut<VotingForum<ProposalType>>(voting_forum_address);
+        let voting_forum =
+            borrow_global_mut<VotingForum<ProposalType>>(voting_forum_address);
         let proposal_id = voting_forum.next_proposal_id;
         voting_forum.next_proposal_id = voting_forum.next_proposal_id + 1;
 
         // Add a flag to indicate if this proposal is single-step or multi-step.
-        simple_map::add(&mut metadata, utf8(IS_MULTI_STEP_PROPOSAL_KEY), to_bytes(&is_multi_step_proposal));
+        simple_map::add(
+            &mut metadata,
+            utf8(IS_MULTI_STEP_PROPOSAL_KEY),
+            to_bytes(&is_multi_step_proposal)
+        );
 
-        let is_multi_step_in_execution_key = utf8(IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
+        let is_multi_step_in_execution_key =
+            utf8(IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
         if (is_multi_step_proposal) {
             // If the given proposal is a multi-step proposal, we will add a flag to indicate if this multi-step proposal is in execution.
             // This value is by default false. We turn this value to true when we start executing the multi-step proposal. This value
             // will be used to disable further voting after we started executing the multi-step proposal.
-            simple_map::add(&mut metadata, is_multi_step_in_execution_key, to_bytes(&false));
+            simple_map::add(
+                &mut metadata, is_multi_step_in_execution_key, to_bytes(&false)
+            );
             // If the proposal is a single-step proposal, we check if the metadata passed by the client has the IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY key.
             // If they have the key, we will remove it, because a single-step proposal that doesn't need this key.
-        } else if (simple_map::contains_key(&mut metadata, &is_multi_step_in_execution_key)) {
+        } else if (simple_map::contains_key(
+            &mut metadata, &is_multi_step_in_execution_key
+        )) {
             simple_map::remove(&mut metadata, &is_multi_step_in_execution_key);
         };
 
-        table::add(&mut voting_forum.proposals, proposal_id, Proposal {
-            proposer,
-            creation_time_secs: timestamp::now_seconds(),
-            execution_content: option::some<ProposalType>(execution_content),
-            execution_hash,
-            metadata,
-            min_vote_threshold,
-            expiration_secs,
-            early_resolution_vote_threshold,
-            yes_votes: 0,
-            no_votes: 0,
-            is_resolved: false,
-            resolution_time_secs: 0,
-        });
+        table::add(
+            &mut voting_forum.proposals,
+            proposal_id,
+            Proposal {
+                proposer,
+                creation_time_secs: timestamp::now_seconds(),
+                execution_content: option::some<ProposalType>(execution_content),
+                execution_hash,
+                metadata,
+                min_vote_threshold,
+                expiration_secs,
+                early_resolution_vote_threshold,
+                yes_votes: 0,
+                no_votes: 0,
+                is_resolved: false,
+                resolution_time_secs: 0
+            }
+        );
 
         if (std::features::module_event_migration_enabled()) {
             event::emit(
@@ -332,8 +358,8 @@ module supra_framework::voting {
                     execution_hash,
                     expiration_secs,
                     metadata,
-                    min_vote_threshold,
-                },
+                    min_vote_threshold
+                }
             );
         };
         event::emit_event<CreateProposalEvent>(
@@ -344,8 +370,8 @@ module supra_framework::voting {
                 execution_hash,
                 expiration_secs,
                 metadata,
-                min_vote_threshold,
-            },
+                min_vote_threshold
+            }
         );
 
         proposal_id
@@ -364,23 +390,30 @@ module supra_framework::voting {
         voting_forum_address: address,
         proposal_id: u64,
         num_votes: u64,
-        should_pass: bool,
+        should_pass: bool
     ) acquires VotingForum {
-        let voting_forum = borrow_global_mut<VotingForum<ProposalType>>(voting_forum_address);
+        let voting_forum =
+            borrow_global_mut<VotingForum<ProposalType>>(voting_forum_address);
         let proposal = table::borrow_mut(&mut voting_forum.proposals, proposal_id);
         // Voting might still be possible after the proposal has enough yes votes to be resolved early. This would only
         // lead to possible proposal resolution failure if the resolve early threshold is not definitive (e.g. < 50% + 1
         // of the total voting token's supply). In this case, more voting might actually still be desirable.
         // Governance mechanisms built on this voting module can apply additional rules on when voting is closed as
         // appropriate.
-        assert!(!is_voting_period_over(proposal), error::invalid_state(EPROPOSAL_VOTING_ALREADY_ENDED));
+        assert!(
+            !is_voting_period_over(proposal),
+            error::invalid_state(EPROPOSAL_VOTING_ALREADY_ENDED)
+        );
         assert!(!proposal.is_resolved, error::invalid_state(EPROPOSAL_ALREADY_RESOLVED));
         // Assert this proposal is single-step, or if the proposal is multi-step, it is not in execution yet.
-        assert!(!simple_map::contains_key(&proposal.metadata, &utf8(IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY))
-            || *simple_map::borrow(&proposal.metadata, &utf8(IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY)) == to_bytes(
-            &false
-        ),
-            error::invalid_state(EMULTI_STEP_PROPOSAL_IN_EXECUTION));
+        assert!(
+            !simple_map::contains_key(
+                &proposal.metadata, &utf8(IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY)
+            ) || *simple_map::borrow(
+                &proposal.metadata, &utf8(IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY)
+            ) == to_bytes(&false),
+            error::invalid_state(EMULTI_STEP_PROPOSAL_IN_EXECUTION)
+        );
 
         if (should_pass) {
             proposal.yes_votes = proposal.yes_votes + (num_votes as u128);
@@ -402,30 +435,42 @@ module supra_framework::voting {
         };
         event::emit_event<VoteEvent>(
             &mut voting_forum.events.vote_events,
-            VoteEvent { proposal_id, num_votes },
+            VoteEvent { proposal_id, num_votes }
         );
     }
 
     /// Common checks on if a proposal is resolvable, regardless if the proposal is single-step or multi-step.
     fun is_proposal_resolvable<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64,
+        voting_forum_address: address, proposal_id: u64
     ) acquires VotingForum {
-        let proposal_state = get_proposal_state<ProposalType>(voting_forum_address, proposal_id);
-        assert!(proposal_state == PROPOSAL_STATE_SUCCEEDED, error::invalid_state(EPROPOSAL_CANNOT_BE_RESOLVED));
+        let proposal_state =
+            get_proposal_state<ProposalType>(voting_forum_address, proposal_id);
+        assert!(
+            proposal_state == PROPOSAL_STATE_SUCCEEDED,
+            error::invalid_state(EPROPOSAL_CANNOT_BE_RESOLVED)
+        );
 
-        let voting_forum = borrow_global_mut<VotingForum<ProposalType>>(voting_forum_address);
+        let voting_forum =
+            borrow_global_mut<VotingForum<ProposalType>>(voting_forum_address);
         let proposal = table::borrow_mut(&mut voting_forum.proposals, proposal_id);
         assert!(!proposal.is_resolved, error::invalid_state(EPROPOSAL_ALREADY_RESOLVED));
 
         // We need to make sure that the resolution is happening in
         // a separate transaction from the last vote to guard against any potential flashloan attacks.
-        let resolvable_time = to_u64(*simple_map::borrow(&proposal.metadata, &utf8(RESOLVABLE_TIME_METADATA_KEY)));
-        assert!(timestamp::now_seconds() > resolvable_time, error::invalid_state(ERESOLUTION_CANNOT_BE_ATOMIC));
+        let resolvable_time =
+            to_u64(
+                *simple_map::borrow(
+                    &proposal.metadata, &utf8(RESOLVABLE_TIME_METADATA_KEY)
+                )
+            );
+        assert!(
+            timestamp::now_seconds() > resolvable_time,
+            error::invalid_state(ERESOLUTION_CANNOT_BE_ATOMIC)
+        );
 
         assert!(
             transaction_context::get_script_hash() == proposal.execution_hash,
-            error::invalid_argument(EPROPOSAL_EXECUTION_HASH_NOT_MATCHING),
+            error::invalid_argument(EPROPOSAL_EXECUTION_HASH_NOT_MATCHING)
         );
     }
 
@@ -435,22 +480,28 @@ module supra_framework::voting {
     /// @param voting_forum_address The address of the forum where the proposals are stored.
     /// @param proposal_id The proposal id.
     public fun resolve<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64,
+        voting_forum_address: address, proposal_id: u64
     ): ProposalType acquires VotingForum {
         is_proposal_resolvable<ProposalType>(voting_forum_address, proposal_id);
 
-        let voting_forum = borrow_global_mut<VotingForum<ProposalType>>(voting_forum_address);
+        let voting_forum =
+            borrow_global_mut<VotingForum<ProposalType>>(voting_forum_address);
         let proposal = table::borrow_mut(&mut voting_forum.proposals, proposal_id);
 
         // Assert that the specified proposal is not a multi-step proposal.
         let multi_step_key = utf8(IS_MULTI_STEP_PROPOSAL_KEY);
-        let has_multi_step_key = simple_map::contains_key(&proposal.metadata, &multi_step_key);
+        let has_multi_step_key =
+            simple_map::contains_key(&proposal.metadata, &multi_step_key);
         if (has_multi_step_key) {
-            let is_multi_step_proposal = from_bcs::to_bool(*simple_map::borrow(&proposal.metadata, &multi_step_key));
+            let is_multi_step_proposal =
+                from_bcs::to_bool(
+                    *simple_map::borrow(&proposal.metadata, &multi_step_key)
+                );
             assert!(
                 !is_multi_step_proposal,
-                error::permission_denied(EMULTI_STEP_PROPOSAL_CANNOT_USE_SINGLE_STEP_RESOLVE_FUNCTION)
+                error::permission_denied(
+                    EMULTI_STEP_PROPOSAL_CANNOT_USE_SINGLE_STEP_RESOLVE_FUNCTION
+                )
             );
         };
 
@@ -464,8 +515,8 @@ module supra_framework::voting {
                     proposal_id,
                     yes_votes: proposal.yes_votes,
                     no_votes: proposal.no_votes,
-                    resolved_early,
-                },
+                    resolved_early
+                }
             );
         };
         event::emit_event<ResolveProposal>(
@@ -474,8 +525,8 @@ module supra_framework::voting {
                 proposal_id,
                 yes_votes: proposal.yes_votes,
                 no_votes: proposal.no_votes,
-                resolved_early,
-            },
+                resolved_early
+            }
         );
 
         option::extract(&mut proposal.execution_content)
@@ -492,27 +543,31 @@ module supra_framework::voting {
     public fun resolve_proposal_v2<ProposalType: store>(
         voting_forum_address: address,
         proposal_id: u64,
-        next_execution_hash: vector<u8>,
+        next_execution_hash: vector<u8>
     ) acquires VotingForum {
         is_proposal_resolvable<ProposalType>(voting_forum_address, proposal_id);
 
-        let voting_forum = borrow_global_mut<VotingForum<ProposalType>>(voting_forum_address);
+        let voting_forum =
+            borrow_global_mut<VotingForum<ProposalType>>(voting_forum_address);
         let proposal = table::borrow_mut(&mut voting_forum.proposals, proposal_id);
 
         // Update the IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY key to indicate that the multi-step proposal is in execution.
         let multi_step_in_execution_key = utf8(IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
         if (simple_map::contains_key(&proposal.metadata, &multi_step_in_execution_key)) {
-            let is_multi_step_proposal_in_execution_value = simple_map::borrow_mut(
-                &mut proposal.metadata,
-                &multi_step_in_execution_key
-            );
+            let is_multi_step_proposal_in_execution_value =
+                simple_map::borrow_mut(
+                    &mut proposal.metadata,
+                    &multi_step_in_execution_key
+                );
             *is_multi_step_proposal_in_execution_value = to_bytes(&true);
         };
 
         let multi_step_key = utf8(IS_MULTI_STEP_PROPOSAL_KEY);
-        let is_multi_step = simple_map::contains_key(&proposal.metadata, &multi_step_key) && from_bcs::to_bool(
-            *simple_map::borrow(&proposal.metadata, &multi_step_key)
-        );
+        let is_multi_step =
+            simple_map::contains_key(&proposal.metadata, &multi_step_key)
+                && from_bcs::to_bool(
+                    *simple_map::borrow(&proposal.metadata, &multi_step_key)
+                );
         let next_execution_hash_is_empty = vector::length(&next_execution_hash) == 0;
 
         // Assert that if this proposal is single-step, the `next_execution_hash` parameter is empty.
@@ -531,10 +586,11 @@ module supra_framework::voting {
 
             // Set the `IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY` value to false upon successful resolution of the last step of a multi-step proposal.
             if (is_multi_step) {
-                let is_multi_step_proposal_in_execution_value = simple_map::borrow_mut(
-                    &mut proposal.metadata,
-                    &multi_step_in_execution_key
-                );
+                let is_multi_step_proposal_in_execution_value =
+                    simple_map::borrow_mut(
+                        &mut proposal.metadata,
+                        &multi_step_in_execution_key
+                    );
                 *is_multi_step_proposal_in_execution_value = to_bytes(&false);
             };
         } else {
@@ -553,8 +609,8 @@ module supra_framework::voting {
                     proposal_id,
                     yes_votes: proposal.yes_votes,
                     no_votes: proposal.no_votes,
-                    resolved_early,
-                },
+                    resolved_early
+                }
             );
         };
         event::emit_event(
@@ -563,23 +619,24 @@ module supra_framework::voting {
                 proposal_id,
                 yes_votes: proposal.yes_votes,
                 no_votes: proposal.no_votes,
-                resolved_early,
-            },
+                resolved_early
+            }
         );
 
     }
 
     #[view]
     /// Return the next unassigned proposal id
-    public fun next_proposal_id<ProposalType: store>(voting_forum_address: address, ): u64 acquires VotingForum {
+    public fun next_proposal_id<ProposalType: store>(
+        voting_forum_address: address
+    ): u64 acquires VotingForum {
         let voting_forum = borrow_global<VotingForum<ProposalType>>(voting_forum_address);
         voting_forum.next_proposal_id
     }
 
     #[view]
     public fun get_proposer<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64
+        voting_forum_address: address, proposal_id: u64
     ): address acquires VotingForum {
         let proposal = get_proposal<ProposalType>(voting_forum_address, proposal_id);
         proposal.proposer
@@ -587,18 +644,21 @@ module supra_framework::voting {
 
     #[view]
     public fun is_voting_closed<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64
+        voting_forum_address: address, proposal_id: u64
     ): bool acquires VotingForum {
         let proposal = get_proposal<ProposalType>(voting_forum_address, proposal_id);
         can_be_resolved_early(proposal) || is_voting_period_over(proposal)
     }
 
     /// Return true if the proposal has reached early resolution threshold (if specified).
-    public fun can_be_resolved_early<ProposalType: store>(proposal: &Proposal<ProposalType>): bool {
+    public fun can_be_resolved_early<ProposalType: store>(
+        proposal: &Proposal<ProposalType>
+    ): bool {
         if (option::is_some(&proposal.early_resolution_vote_threshold)) {
-            let early_resolution_threshold = *option::borrow(&proposal.early_resolution_vote_threshold);
-            if (proposal.yes_votes >= early_resolution_threshold || proposal.no_votes >= early_resolution_threshold) {
+            let early_resolution_threshold =
+                *option::borrow(&proposal.early_resolution_vote_threshold);
+            if (proposal.yes_votes >= early_resolution_threshold
+                || proposal.no_votes >= early_resolution_threshold) {
                 return true
             };
         };
@@ -607,8 +667,7 @@ module supra_framework::voting {
 
     #[view]
     public fun get_proposal_metadata<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64,
+        voting_forum_address: address, proposal_id: u64
     ): SimpleMap<String, vector<u8>> acquires VotingForum {
         let proposal = get_proposal<ProposalType>(voting_forum_address, proposal_id);
         proposal.metadata
@@ -618,7 +677,7 @@ module supra_framework::voting {
     public fun get_proposal_metadata_value<ProposalType: store>(
         voting_forum_address: address,
         proposal_id: u64,
-        metadata_key: String,
+        metadata_key: String
     ): vector<u8> acquires VotingForum {
         let proposal = get_proposal<ProposalType>(voting_forum_address, proposal_id);
         *simple_map::borrow(&proposal.metadata, &metadata_key)
@@ -631,15 +690,15 @@ module supra_framework::voting {
     /// @param proposal_id The proposal id.
     /// @return Proposal state as an enum value.
     public fun get_proposal_state<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64,
+        voting_forum_address: address, proposal_id: u64
     ): u64 acquires VotingForum {
         if (is_voting_closed<ProposalType>(voting_forum_address, proposal_id)) {
             let proposal = get_proposal<ProposalType>(voting_forum_address, proposal_id);
             let yes_votes = proposal.yes_votes;
             let no_votes = proposal.no_votes;
 
-            if (yes_votes > no_votes && yes_votes + no_votes >= proposal.min_vote_threshold) {
+            if (yes_votes > no_votes
+                && yes_votes + no_votes >= proposal.min_vote_threshold) {
                 PROPOSAL_STATE_SUCCEEDED
             } else {
                 PROPOSAL_STATE_FAILED
@@ -652,8 +711,7 @@ module supra_framework::voting {
     #[view]
     /// Return the proposal's creation time.
     public fun get_proposal_creation_secs<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64,
+        voting_forum_address: address, proposal_id: u64
     ): u64 acquires VotingForum {
         let proposal = get_proposal<ProposalType>(voting_forum_address, proposal_id);
         proposal.creation_time_secs
@@ -662,8 +720,7 @@ module supra_framework::voting {
     #[view]
     /// Return the proposal's expiration time.
     public fun get_proposal_expiration_secs<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64,
+        voting_forum_address: address, proposal_id: u64
     ): u64 acquires VotingForum {
         let proposal = get_proposal<ProposalType>(voting_forum_address, proposal_id);
         proposal.expiration_secs
@@ -672,8 +729,7 @@ module supra_framework::voting {
     #[view]
     /// Return the proposal's execution hash.
     public fun get_execution_hash<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64,
+        voting_forum_address: address, proposal_id: u64
     ): vector<u8> acquires VotingForum {
         let proposal = get_proposal<ProposalType>(voting_forum_address, proposal_id);
         proposal.execution_hash
@@ -682,8 +738,7 @@ module supra_framework::voting {
     #[view]
     /// Return the proposal's minimum vote threshold
     public fun get_min_vote_threshold<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64,
+        voting_forum_address: address, proposal_id: u64
     ): u128 acquires VotingForum {
         let proposal = get_proposal<ProposalType>(voting_forum_address, proposal_id);
         proposal.min_vote_threshold
@@ -692,8 +747,7 @@ module supra_framework::voting {
     #[view]
     /// Return the proposal's early resolution minimum vote threshold (optionally set)
     public fun get_early_resolution_vote_threshold<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64,
+        voting_forum_address: address, proposal_id: u64
     ): Option<u128> acquires VotingForum {
         let proposal = get_proposal<ProposalType>(voting_forum_address, proposal_id);
         proposal.early_resolution_vote_threshold
@@ -702,8 +756,7 @@ module supra_framework::voting {
     #[view]
     /// Return the proposal's current vote count (yes_votes, no_votes)
     public fun get_votes<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64,
+        voting_forum_address: address, proposal_id: u64
     ): (u128, u128) acquires VotingForum {
         let proposal = get_proposal<ProposalType>(voting_forum_address, proposal_id);
         (proposal.yes_votes, proposal.no_votes)
@@ -712,8 +765,7 @@ module supra_framework::voting {
     #[view]
     /// Return true if the governance proposal has already been resolved.
     public fun is_resolved<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64,
+        voting_forum_address: address, proposal_id: u64
     ): bool acquires VotingForum {
         let proposal = get_proposal<ProposalType>(voting_forum_address, proposal_id);
         proposal.is_resolved
@@ -721,8 +773,7 @@ module supra_framework::voting {
 
     #[view]
     public fun get_resolution_time_secs<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64,
+        voting_forum_address: address, proposal_id: u64
     ): u64 acquires VotingForum {
         let proposal = get_proposal<ProposalType>(voting_forum_address, proposal_id);
         proposal.resolution_time_secs
@@ -731,27 +782,30 @@ module supra_framework::voting {
     #[view]
     /// Return true if the multi-step governance proposal is in execution.
     public fun is_multi_step_proposal_in_execution<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64,
+        voting_forum_address: address, proposal_id: u64
     ): bool acquires VotingForum {
         let voting_forum = borrow_global<VotingForum<ProposalType>>(voting_forum_address);
         let proposal = table::borrow(&voting_forum.proposals, proposal_id);
-        let is_multi_step_in_execution_key = utf8(IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
+        let is_multi_step_in_execution_key =
+            utf8(IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY);
         assert!(
             simple_map::contains_key(&proposal.metadata, &is_multi_step_in_execution_key),
             error::invalid_argument(EPROPOSAL_IS_SINGLE_STEP)
         );
-        from_bcs::to_bool(*simple_map::borrow(&proposal.metadata, &is_multi_step_in_execution_key))
+        from_bcs::to_bool(
+            *simple_map::borrow(&proposal.metadata, &is_multi_step_in_execution_key)
+        )
     }
 
     /// Return true if the voting period of the given proposal has already ended.
-    fun is_voting_period_over<ProposalType: store>(proposal: &Proposal<ProposalType>): bool {
+    fun is_voting_period_over<ProposalType: store>(
+        proposal: &Proposal<ProposalType>
+    ): bool {
         timestamp::now_seconds() > proposal.expiration_secs
     }
 
     inline fun get_proposal<ProposalType: store>(
-        voting_forum_address: address,
-        proposal_id: u64,
+        voting_forum_address: address, proposal_id: u64
     ): &Proposal<ProposalType> acquires VotingForum {
         let voting_forum = borrow_global<VotingForum<ProposalType>>(voting_forum_address);
         table::borrow(&voting_forum.proposals, proposal_id)
@@ -767,7 +821,7 @@ module supra_framework::voting {
     public fun create_test_proposal_generic(
         governance: &signer,
         early_resolution_threshold: Option<u128>,
-        use_generic_create_proposal_function: bool,
+        use_generic_create_proposal_function: bool
     ): u64 acquires VotingForum {
         // Register voting forum and create a proposal.
         register<TestProposal>(governance);
@@ -800,7 +854,7 @@ module supra_framework::voting {
                 10,
                 timestamp::now_seconds() + VOTING_DURATION_SECS,
                 early_resolution_threshold,
-                metadata,
+                metadata
             )
         }
     }
@@ -815,10 +869,14 @@ module supra_framework::voting {
         if (is_multi_step) {
             let execution_hash = vector::empty<u8>();
             vector::push_back(&mut execution_hash, 1);
-            resolve_proposal_v2<TestProposal>(voting_forum_address, proposal_id, execution_hash);
+            resolve_proposal_v2<TestProposal>(
+                voting_forum_address, proposal_id, execution_hash
+            );
 
             if (finish_multi_step_execution) {
-                resolve_proposal_v2<TestProposal>(voting_forum_address, proposal_id, vector::empty<u8>());
+                resolve_proposal_v2<TestProposal>(
+                    voting_forum_address, proposal_id, vector::empty<u8>()
+                );
             };
         } else {
             let proposal = resolve<TestProposal>(voting_forum_address, proposal_id);
@@ -828,16 +886,14 @@ module supra_framework::voting {
 
     #[test_only]
     public fun create_test_proposal(
-        governance: &signer,
-        early_resolution_threshold: Option<u128>,
+        governance: &signer, early_resolution_threshold: Option<u128>
     ): u64 acquires VotingForum {
         create_test_proposal_generic(governance, early_resolution_threshold, false)
     }
 
     #[test_only]
     public fun create_proposal_with_empty_execution_hash_should_fail_generic(
-        governance: &signer,
-        is_multi_step: bool
+        governance: &signer, is_multi_step: bool
     ) acquires VotingForum {
         account::create_account_for_test(@supra_framework);
         let governance_address = signer::address_of(governance);
@@ -867,14 +923,16 @@ module supra_framework::voting {
                 10,
                 100000,
                 option::none<u128>(),
-                simple_map::create<String, vector<u8>>(),
+                simple_map::create<String, vector<u8>>()
             );
         };
     }
 
     #[test(governance = @0x123)]
     #[expected_failure(abort_code = 0x10004, location = Self)]
-    public fun create_proposal_with_empty_execution_hash_should_fail(governance: &signer) acquires VotingForum {
+    public fun create_proposal_with_empty_execution_hash_should_fail(
+        governance: &signer
+    ) acquires VotingForum {
         create_proposal_with_empty_execution_hash_should_fail_generic(governance, false);
     }
 
@@ -899,8 +957,15 @@ module supra_framework::voting {
         // Register voting forum and create a proposal.
         let governance_address = signer::address_of(governance);
         account::create_account_for_test(governance_address);
-        let proposal_id = create_test_proposal_generic(governance, option::none<u128>(), use_create_multi_step);
-        assert!(get_proposal_state<TestProposal>(governance_address, proposal_id) == PROPOSAL_STATE_PENDING, 0);
+        let proposal_id =
+            create_test_proposal_generic(
+                governance, option::none<u128>(), use_create_multi_step
+            );
+        assert!(
+            get_proposal_state<TestProposal>(governance_address, proposal_id)
+                == PROPOSAL_STATE_PENDING,
+            0
+        );
 
         // Vote.
         let proof = TestProposal {};
@@ -909,52 +974,60 @@ module supra_framework::voting {
 
         // Resolve.
         timestamp::fast_forward_seconds(VOTING_DURATION_SECS + 1);
-        assert!(get_proposal_state<TestProposal>(governance_address, proposal_id) == PROPOSAL_STATE_SUCCEEDED, 1);
+        assert!(
+            get_proposal_state<TestProposal>(governance_address, proposal_id)
+                == PROPOSAL_STATE_SUCCEEDED,
+            1
+        );
 
         // This if statement is specifically for the test `test_voting_passed_single_step_can_use_generic_function()`.
         // It's testing when we have a single-step proposal that was created by the single-step `create_proposal()`,
         // we should be able to successfully resolve it using the generic `resolve_proposal_v2` function.
         if (!use_create_multi_step && use_resolve_multi_step) {
-            resolve_proposal_v2<TestProposal>(governance_address, proposal_id, vector::empty<u8>());
+            resolve_proposal_v2<TestProposal>(
+                governance_address, proposal_id, vector::empty<u8>()
+            );
         } else {
-            resolve_proposal_for_test<TestProposal>(governance_address, proposal_id, use_resolve_multi_step, true);
+            resolve_proposal_for_test<TestProposal>(
+                governance_address, proposal_id, use_resolve_multi_step, true
+            );
         };
         let voting_forum = borrow_global<VotingForum<TestProposal>>(governance_address);
         assert!(table::borrow(&voting_forum.proposals, proposal_id).is_resolved, 2);
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
-    public entry fun test_voting_passed(supra_framework: &signer, governance: &signer) acquires VotingForum {
+    public entry fun test_voting_passed(
+        supra_framework: &signer, governance: &signer
+    ) acquires VotingForum {
         test_voting_passed_generic(supra_framework, governance, false, false);
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
-    public entry fun test_voting_passed_multi_step(supra_framework: &signer, governance: &signer) acquires VotingForum {
+    public entry fun test_voting_passed_multi_step(
+        supra_framework: &signer, governance: &signer
+    ) acquires VotingForum {
         test_voting_passed_generic(supra_framework, governance, true, true);
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     #[expected_failure(abort_code = 0x5000a, location = Self)]
     public entry fun test_voting_passed_multi_step_cannot_use_single_step_resolve_function(
-        supra_framework: &signer,
-        governance: &signer
+        supra_framework: &signer, governance: &signer
     ) acquires VotingForum {
         test_voting_passed_generic(supra_framework, governance, true, false);
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     public entry fun test_voting_passed_single_step_can_use_generic_function(
-        supra_framework: &signer,
-        governance: &signer
+        supra_framework: &signer, governance: &signer
     ) acquires VotingForum {
         test_voting_passed_generic(supra_framework, governance, false, true);
     }
 
     #[test_only]
     public entry fun test_cannot_resolve_twice_generic(
-        supra_framework: &signer,
-        governance: &signer,
-        is_multi_step: bool
+        supra_framework: &signer, governance: &signer, is_multi_step: bool
     ) acquires VotingForum {
         account::create_account_for_test(@supra_framework);
         timestamp::set_time_has_started_for_testing(supra_framework);
@@ -962,8 +1035,13 @@ module supra_framework::voting {
         // Register voting forum and create a proposal.
         let governance_address = signer::address_of(governance);
         account::create_account_for_test(governance_address);
-        let proposal_id = create_test_proposal_generic(governance, option::none<u128>(), is_multi_step);
-        assert!(get_proposal_state<TestProposal>(governance_address, proposal_id) == PROPOSAL_STATE_PENDING, 0);
+        let proposal_id =
+            create_test_proposal_generic(governance, option::none<u128>(), is_multi_step);
+        assert!(
+            get_proposal_state<TestProposal>(governance_address, proposal_id)
+                == PROPOSAL_STATE_PENDING,
+            0
+        );
 
         // Vote.
         let proof = TestProposal {};
@@ -972,31 +1050,38 @@ module supra_framework::voting {
 
         // Resolve.
         timestamp::fast_forward_seconds(VOTING_DURATION_SECS + 1);
-        assert!(get_proposal_state<TestProposal>(governance_address, proposal_id) == PROPOSAL_STATE_SUCCEEDED, 1);
-        resolve_proposal_for_test<TestProposal>(governance_address, proposal_id, is_multi_step, true);
-        resolve_proposal_for_test<TestProposal>(governance_address, proposal_id, is_multi_step, true);
+        assert!(
+            get_proposal_state<TestProposal>(governance_address, proposal_id)
+                == PROPOSAL_STATE_SUCCEEDED,
+            1
+        );
+        resolve_proposal_for_test<TestProposal>(
+            governance_address, proposal_id, is_multi_step, true
+        );
+        resolve_proposal_for_test<TestProposal>(
+            governance_address, proposal_id, is_multi_step, true
+        );
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     #[expected_failure(abort_code = 0x30003, location = Self)]
-    public entry fun test_cannot_resolve_twice(supra_framework: &signer, governance: &signer) acquires VotingForum {
+    public entry fun test_cannot_resolve_twice(
+        supra_framework: &signer, governance: &signer
+    ) acquires VotingForum {
         test_cannot_resolve_twice_generic(supra_framework, governance, false);
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     #[expected_failure(abort_code = 0x30003, location = Self)]
     public entry fun test_cannot_resolve_twice_multi_step(
-        supra_framework: &signer,
-        governance: &signer
+        supra_framework: &signer, governance: &signer
     ) acquires VotingForum {
         test_cannot_resolve_twice_generic(supra_framework, governance, true);
     }
 
     #[test_only]
     public entry fun test_voting_passed_early_generic(
-        supra_framework: &signer,
-        governance: &signer,
-        is_multi_step: bool
+        supra_framework: &signer, governance: &signer, is_multi_step: bool
     ) acquires VotingForum {
         account::create_account_for_test(@supra_framework);
         timestamp::set_time_has_started_for_testing(supra_framework);
@@ -1004,12 +1089,20 @@ module supra_framework::voting {
         // Register voting forum and create a proposal.
         let governance_address = signer::address_of(governance);
         account::create_account_for_test(governance_address);
-        let proposal_id = create_test_proposal_generic(governance, option::some(100), is_multi_step);
-        assert!(get_proposal_state<TestProposal>(governance_address, proposal_id) == PROPOSAL_STATE_PENDING, 0);
+        let proposal_id =
+            create_test_proposal_generic(governance, option::some(100), is_multi_step);
+        assert!(
+            get_proposal_state<TestProposal>(governance_address, proposal_id)
+                == PROPOSAL_STATE_PENDING,
+            0
+        );
 
         // Assert that IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY has value `false` in proposal.metadata.
         if (is_multi_step) {
-            assert!(!is_multi_step_proposal_in_execution<TestProposal>(governance_address, 0), 1);
+            assert!(
+                !is_multi_step_proposal_in_execution<TestProposal>(governance_address, 0),
+                1
+            );
         };
 
         // Vote.
@@ -1020,86 +1113,107 @@ module supra_framework::voting {
 
         // Resolve early. Need to increase timestamp as resolution cannot happen in the same tx.
         timestamp::fast_forward_seconds(1);
-        assert!(get_proposal_state<TestProposal>(governance_address, proposal_id) == PROPOSAL_STATE_SUCCEEDED, 2);
+        assert!(
+            get_proposal_state<TestProposal>(governance_address, proposal_id)
+                == PROPOSAL_STATE_SUCCEEDED,
+            2
+        );
 
         if (is_multi_step) {
             // Assert that IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY still has value `false` in proposal.metadata before execution.
-            assert!(!is_multi_step_proposal_in_execution<TestProposal>(governance_address, 0), 3);
-            resolve_proposal_for_test<TestProposal>(governance_address, proposal_id, is_multi_step, false);
+            assert!(
+                !is_multi_step_proposal_in_execution<TestProposal>(governance_address, 0),
+                3
+            );
+            resolve_proposal_for_test<TestProposal>(
+                governance_address, proposal_id, is_multi_step, false
+            );
 
             // Assert that the multi-step proposal is in execution but not resolved yet.
-            assert!(is_multi_step_proposal_in_execution<TestProposal>(governance_address, 0), 4);
-            let voting_forum = borrow_global_mut<VotingForum<TestProposal>>(governance_address);
+            assert!(
+                is_multi_step_proposal_in_execution<TestProposal>(governance_address, 0),
+                4
+            );
+            let voting_forum =
+                borrow_global_mut<VotingForum<TestProposal>>(governance_address);
             let proposal = table::borrow_mut(&mut voting_forum.proposals, proposal_id);
             assert!(!proposal.is_resolved, 5);
         };
 
-        resolve_proposal_for_test<TestProposal>(governance_address, proposal_id, is_multi_step, true);
-        let voting_forum = borrow_global_mut<VotingForum<TestProposal>>(governance_address);
+        resolve_proposal_for_test<TestProposal>(
+            governance_address, proposal_id, is_multi_step, true
+        );
+        let voting_forum =
+            borrow_global_mut<VotingForum<TestProposal>>(governance_address);
         assert!(table::borrow(&voting_forum.proposals, proposal_id).is_resolved, 6);
 
         // Assert that the IS_MULTI_STEP_PROPOSAL_IN_EXECUTION_KEY value is set back to `false` upon successful resolution of this multi-step proposal.
         if (is_multi_step) {
-            assert!(!is_multi_step_proposal_in_execution<TestProposal>(governance_address, 0), 7);
+            assert!(
+                !is_multi_step_proposal_in_execution<TestProposal>(governance_address, 0),
+                7
+            );
         };
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
-    public entry fun test_voting_passed_early(supra_framework: &signer, governance: &signer) acquires VotingForum {
+    public entry fun test_voting_passed_early(
+        supra_framework: &signer, governance: &signer
+    ) acquires VotingForum {
         test_voting_passed_early_generic(supra_framework, governance, false);
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     public entry fun test_voting_passed_early_multi_step(
-        supra_framework: &signer,
-        governance: &signer
+        supra_framework: &signer, governance: &signer
     ) acquires VotingForum {
         test_voting_passed_early_generic(supra_framework, governance, true);
     }
 
     #[test_only]
     public entry fun test_voting_passed_early_in_same_tx_should_fail_generic(
-        supra_framework: &signer,
-        governance: &signer,
-        is_multi_step: bool
+        supra_framework: &signer, governance: &signer, is_multi_step: bool
     ) acquires VotingForum {
         account::create_account_for_test(@supra_framework);
         timestamp::set_time_has_started_for_testing(supra_framework);
         let governance_address = signer::address_of(governance);
         account::create_account_for_test(governance_address);
-        let proposal_id = create_test_proposal_generic(governance, option::some(100), is_multi_step);
+        let proposal_id =
+            create_test_proposal_generic(governance, option::some(100), is_multi_step);
         let proof = TestProposal {};
         vote<TestProposal>(&proof, governance_address, proposal_id, 40, true);
         vote<TestProposal>(&proof, governance_address, proposal_id, 60, true);
         let TestProposal {} = proof;
 
         // Resolving early should fail since timestamp hasn't changed since the last vote.
-        resolve_proposal_for_test<TestProposal>(governance_address, proposal_id, is_multi_step, true);
+        resolve_proposal_for_test<TestProposal>(
+            governance_address, proposal_id, is_multi_step, true
+        );
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     #[expected_failure(abort_code = 0x30008, location = Self)]
     public entry fun test_voting_passed_early_in_same_tx_should_fail(
-        supra_framework: &signer,
-        governance: &signer
+        supra_framework: &signer, governance: &signer
     ) acquires VotingForum {
-        test_voting_passed_early_in_same_tx_should_fail_generic(supra_framework, governance, false);
+        test_voting_passed_early_in_same_tx_should_fail_generic(
+            supra_framework, governance, false
+        );
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     #[expected_failure(abort_code = 0x30008, location = Self)]
     public entry fun test_voting_passed_early_in_same_tx_should_fail_multi_step(
-        supra_framework: &signer,
-        governance: &signer
+        supra_framework: &signer, governance: &signer
     ) acquires VotingForum {
-        test_voting_passed_early_in_same_tx_should_fail_generic(supra_framework, governance, true);
+        test_voting_passed_early_in_same_tx_should_fail_generic(
+            supra_framework, governance, true
+        );
     }
 
     #[test_only]
     public entry fun test_voting_failed_generic(
-        supra_framework: &signer,
-        governance: &signer,
-        is_multi_step: bool
+        supra_framework: &signer, governance: &signer, is_multi_step: bool
     ) acquires VotingForum {
         account::create_account_for_test(@supra_framework);
         timestamp::set_time_has_started_for_testing(supra_framework);
@@ -1107,7 +1221,8 @@ module supra_framework::voting {
         // Register voting forum and create a proposal.
         let governance_address = signer::address_of(governance);
         account::create_account_for_test(governance_address);
-        let proposal_id = create_test_proposal_generic(governance, option::none<u128>(), is_multi_step);
+        let proposal_id =
+            create_test_proposal_generic(governance, option::none<u128>(), is_multi_step);
 
         // Vote.
         let proof = TestProposal {};
@@ -1117,27 +1232,36 @@ module supra_framework::voting {
 
         // Resolve.
         timestamp::fast_forward_seconds(VOTING_DURATION_SECS + 1);
-        assert!(get_proposal_state<TestProposal>(governance_address, proposal_id) == PROPOSAL_STATE_FAILED, 1);
-        resolve_proposal_for_test<TestProposal>(governance_address, proposal_id, is_multi_step, true);
+        assert!(
+            get_proposal_state<TestProposal>(governance_address, proposal_id)
+                == PROPOSAL_STATE_FAILED,
+            1
+        );
+        resolve_proposal_for_test<TestProposal>(
+            governance_address, proposal_id, is_multi_step, true
+        );
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     #[expected_failure(abort_code = 0x30002, location = Self)]
-    public entry fun test_voting_failed(supra_framework: &signer, governance: &signer) acquires VotingForum {
+    public entry fun test_voting_failed(
+        supra_framework: &signer, governance: &signer
+    ) acquires VotingForum {
         test_voting_failed_generic(supra_framework, governance, false);
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     #[expected_failure(abort_code = 0x30002, location = Self)]
-    public entry fun test_voting_failed_multi_step(supra_framework: &signer, governance: &signer) acquires VotingForum {
+    public entry fun test_voting_failed_multi_step(
+        supra_framework: &signer, governance: &signer
+    ) acquires VotingForum {
         test_voting_failed_generic(supra_framework, governance, true);
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     #[expected_failure(abort_code = 0x30005, location = Self)]
     public entry fun test_cannot_vote_after_voting_period_is_over(
-        supra_framework: signer,
-        governance: signer
+        supra_framework: signer, governance: signer
     ) acquires VotingForum {
         account::create_account_for_test(@supra_framework);
         timestamp::set_time_has_started_for_testing(&supra_framework);
@@ -1154,8 +1278,7 @@ module supra_framework::voting {
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     #[expected_failure(abort_code = 0x30009, location = Self)]
     public entry fun test_cannot_vote_after_multi_step_proposal_starts_executing(
-        supra_framework: signer,
-        governance: signer
+        supra_framework: signer, governance: signer
     ) acquires VotingForum {
         account::create_account_for_test(@supra_framework);
         timestamp::set_time_has_started_for_testing(&supra_framework);
@@ -1163,8 +1286,13 @@ module supra_framework::voting {
         // Register voting forum and create a proposal.
         let governance_address = signer::address_of(&governance);
         account::create_account_for_test(governance_address);
-        let proposal_id = create_test_proposal_generic(&governance, option::some(100), true);
-        assert!(get_proposal_state<TestProposal>(governance_address, proposal_id) == PROPOSAL_STATE_PENDING, 0);
+        let proposal_id =
+            create_test_proposal_generic(&governance, option::some(100), true);
+        assert!(
+            get_proposal_state<TestProposal>(governance_address, proposal_id)
+                == PROPOSAL_STATE_PENDING,
+            0
+        );
 
         // Vote.
         let proof = TestProposal {};
@@ -1172,17 +1300,21 @@ module supra_framework::voting {
 
         // Resolve early.
         timestamp::fast_forward_seconds(1);
-        assert!(get_proposal_state<TestProposal>(governance_address, proposal_id) == PROPOSAL_STATE_SUCCEEDED, 1);
-        resolve_proposal_for_test<TestProposal>(governance_address, proposal_id, true, false);
+        assert!(
+            get_proposal_state<TestProposal>(governance_address, proposal_id)
+                == PROPOSAL_STATE_SUCCEEDED,
+            1
+        );
+        resolve_proposal_for_test<TestProposal>(
+            governance_address, proposal_id, true, false
+        );
         vote<TestProposal>(&proof, governance_address, proposal_id, 100, false);
         let TestProposal {} = proof;
     }
 
     #[test_only]
     public entry fun test_voting_failed_early_generic(
-        supra_framework: &signer,
-        governance: &signer,
-        is_multi_step: bool
+        supra_framework: &signer, governance: &signer, is_multi_step: bool
     ) acquires VotingForum {
         account::create_account_for_test(@supra_framework);
         timestamp::set_time_has_started_for_testing(supra_framework);
@@ -1190,7 +1322,8 @@ module supra_framework::voting {
         // Register voting forum and create a proposal.
         let governance_address = signer::address_of(governance);
         account::create_account_for_test(governance_address);
-        let proposal_id = create_test_proposal_generic(governance, option::some(100), is_multi_step);
+        let proposal_id =
+            create_test_proposal_generic(governance, option::some(100), is_multi_step);
 
         // Vote.
         let proof = TestProposal {};
@@ -1200,21 +1333,28 @@ module supra_framework::voting {
 
         // Resolve.
         timestamp::fast_forward_seconds(VOTING_DURATION_SECS + 1);
-        assert!(get_proposal_state<TestProposal>(governance_address, proposal_id) == PROPOSAL_STATE_FAILED, 1);
-        resolve_proposal_for_test<TestProposal>(governance_address, proposal_id, is_multi_step, true);
+        assert!(
+            get_proposal_state<TestProposal>(governance_address, proposal_id)
+                == PROPOSAL_STATE_FAILED,
+            1
+        );
+        resolve_proposal_for_test<TestProposal>(
+            governance_address, proposal_id, is_multi_step, true
+        );
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     #[expected_failure(abort_code = 0x30002, location = Self)]
-    public entry fun test_voting_failed_early(supra_framework: &signer, governance: &signer) acquires VotingForum {
+    public entry fun test_voting_failed_early(
+        supra_framework: &signer, governance: &signer
+    ) acquires VotingForum {
         test_voting_failed_early_generic(supra_framework, governance, true);
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     #[expected_failure(abort_code = 0x30002, location = Self)]
     public entry fun test_voting_failed_early_multi_step(
-        supra_framework: &signer,
-        governance: &signer
+        supra_framework: &signer, governance: &signer
     ) acquires VotingForum {
         test_voting_failed_early_generic(supra_framework, governance, false);
     }
@@ -1223,7 +1363,7 @@ module supra_framework::voting {
     public entry fun test_cannot_set_min_threshold_higher_than_early_resolution_generic(
         supra_framework: &signer,
         governance: &signer,
-        is_multi_step: bool,
+        is_multi_step: bool
     ) acquires VotingForum {
         account::create_account_for_test(@supra_framework);
         timestamp::set_time_has_started_for_testing(supra_framework);
@@ -1235,31 +1375,40 @@ module supra_framework::voting {
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     #[expected_failure(abort_code = 0x10007, location = Self)]
     public entry fun test_cannot_set_min_threshold_higher_than_early_resolution(
-        supra_framework: &signer,
-        governance: &signer,
+        supra_framework: &signer, governance: &signer
     ) acquires VotingForum {
-        test_cannot_set_min_threshold_higher_than_early_resolution_generic(supra_framework, governance, false);
+        test_cannot_set_min_threshold_higher_than_early_resolution_generic(
+            supra_framework, governance, false
+        );
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
     #[expected_failure(abort_code = 0x10007, location = Self)]
     public entry fun test_cannot_set_min_threshold_higher_than_early_resolution_multi_step(
-        supra_framework: &signer,
-        governance: &signer,
+        supra_framework: &signer, governance: &signer
     ) acquires VotingForum {
-        test_cannot_set_min_threshold_higher_than_early_resolution_generic(supra_framework, governance, true);
+        test_cannot_set_min_threshold_higher_than_early_resolution_generic(
+            supra_framework, governance, true
+        );
     }
 
     #[test(supra_framework = @supra_framework, governance = @0x123)]
-    public entry fun test_replace_execution_hash(supra_framework: &signer, governance: &signer) acquires VotingForum {
+    public entry fun test_replace_execution_hash(
+        supra_framework: &signer, governance: &signer
+    ) acquires VotingForum {
         account::create_account_for_test(@supra_framework);
         timestamp::set_time_has_started_for_testing(supra_framework);
 
         // Register voting forum and create a proposal.
         let governance_address = signer::address_of(governance);
         account::create_account_for_test(governance_address);
-        let proposal_id = create_test_proposal_generic(governance, option::none<u128>(), true);
-        assert!(get_proposal_state<TestProposal>(governance_address, proposal_id) == PROPOSAL_STATE_PENDING, 0);
+        let proposal_id =
+            create_test_proposal_generic(governance, option::none<u128>(), true);
+        assert!(
+            get_proposal_state<TestProposal>(governance_address, proposal_id)
+                == PROPOSAL_STATE_PENDING,
+            0
+        );
 
         // Vote.
         let proof = TestProposal {};
@@ -1268,7 +1417,11 @@ module supra_framework::voting {
 
         // Resolve.
         timestamp::fast_forward_seconds(VOTING_DURATION_SECS + 1);
-        assert!(get_proposal_state<TestProposal>(governance_address, proposal_id) == PROPOSAL_STATE_SUCCEEDED, 1);
+        assert!(
+            get_proposal_state<TestProposal>(governance_address, proposal_id)
+                == PROPOSAL_STATE_SUCCEEDED,
+            1
+        );
 
         resolve_proposal_v2<TestProposal>(governance_address, proposal_id, vector[10u8]);
         let voting_forum = borrow_global<VotingForum<TestProposal>>(governance_address);

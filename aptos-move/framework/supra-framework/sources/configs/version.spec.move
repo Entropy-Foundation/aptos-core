@@ -38,7 +38,8 @@ spec supra_framework::version {
         include transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply;
         include staking_config::StakingRewardsConfigRequirement;
         requires chain_status::is_genesis();
-        requires timestamp::spec_now_microseconds() >= reconfiguration::last_reconfiguration_time();
+        requires timestamp::spec_now_microseconds()
+            >= reconfiguration::last_reconfiguration_time();
         requires exists<stake::ValidatorFees>(@supra_framework);
         requires exists<CoinInfo<SupraCoin>>(@supra_framework);
 
@@ -63,7 +64,8 @@ spec supra_framework::version {
         ensures exists<Version>(@supra_framework);
         ensures exists<SetVersionCapability>(@supra_framework);
         ensures global<Version>(@supra_framework) == Version { major: initial_version };
-        ensures global<SetVersionCapability>(@supra_framework) == SetVersionCapability {};
+        ensures global<SetVersionCapability>(@supra_framework)
+            == SetVersionCapability {};
     }
 
     spec set_for_next_epoch(account: &signer, major: u64) {

@@ -102,12 +102,12 @@ module supra_framework::fungible_asset {
     struct Supply has key {
         current: u128,
         // option::none() means unlimited supply.
-        maximum: Option<u128>,
+        maximum: Option<u128>
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct ConcurrentSupply has key {
-        current: Aggregator<u128>,
+        current: Aggregator<u128>
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -126,7 +126,7 @@ module supra_framework::fungible_asset {
         /// asset.
         icon_uri: String,
         /// The Uniform Resource Identifier (uri) pointing to the website for the fungible asset.
-        project_uri: String,
+        project_uri: String
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -142,28 +142,28 @@ module supra_framework::fungible_asset {
         /// The balance of the fungible metadata.
         balance: u64,
         /// If true, owner transfer is disabled that only `TransferRef` can move in/out from this store.
-        frozen: bool,
+        frozen: bool
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct DispatchFunctionStore has key {
-		withdraw_function: Option<FunctionInfo>,
-		deposit_function: Option<FunctionInfo>,
-        derived_balance_function: Option<FunctionInfo>,
+        withdraw_function: Option<FunctionInfo>,
+        deposit_function: Option<FunctionInfo>,
+        derived_balance_function: Option<FunctionInfo>
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     /// The store object that holds concurrent fungible asset balance.
     struct ConcurrentFungibleBalance has key {
         /// The balance of the fungible metadata.
-        balance: Aggregator<u64>,
+        balance: Aggregator<u64>
     }
 
     /// FungibleAsset can be passed into function for type safety and to guarantee a specific amount.
     /// FungibleAsset is ephemeral and cannot be stored directly. It must be deposited back into a store.
     struct FungibleAsset {
         metadata: Object<Metadata>,
-        amount: u64,
+        amount: u64
     }
 
     /// MintRef can be used to mint the fungible asset into an account's store.
@@ -191,21 +191,21 @@ module supra_framework::fungible_asset {
     /// Emitted when fungible assets are deposited into a store.
     struct Deposit has drop, store {
         store: address,
-        amount: u64,
+        amount: u64
     }
 
     #[event]
     /// Emitted when fungible assets are withdrawn from a store.
     struct Withdraw has drop, store {
         store: address,
-        amount: u64,
+        amount: u64
     }
 
     #[event]
     /// Emitted when a store's frozen status is updated.
     struct Frozen has drop, store {
         store: address,
-        frozen: bool,
+        frozen: bool
     }
 
     inline fun default_to_concurrent_fungible_supply(): bool {
@@ -234,39 +234,54 @@ module supra_framework::fungible_asset {
         symbol: String,
         decimals: u8,
         icon_uri: String,
-        project_uri: String,
+        project_uri: String
     ): Object<Metadata> {
-        assert!(!object::can_generate_delete_ref(constructor_ref), error::invalid_argument(EOBJECT_IS_DELETABLE));
+        assert!(
+            !object::can_generate_delete_ref(constructor_ref),
+            error::invalid_argument(EOBJECT_IS_DELETABLE)
+        );
         let metadata_object_signer = &object::generate_signer(constructor_ref);
-        assert!(string::length(&name) <= MAX_NAME_LENGTH, error::out_of_range(ENAME_TOO_LONG));
-        assert!(string::length(&symbol) <= MAX_SYMBOL_LENGTH, error::out_of_range(ESYMBOL_TOO_LONG));
+        assert!(
+            string::length(&name) <= MAX_NAME_LENGTH, error::out_of_range(ENAME_TOO_LONG)
+        );
+        assert!(
+            string::length(&symbol) <= MAX_SYMBOL_LENGTH,
+            error::out_of_range(ESYMBOL_TOO_LONG)
+        );
         assert!(decimals <= MAX_DECIMALS, error::out_of_range(EDECIMALS_TOO_LARGE));
-        assert!(string::length(&icon_uri) <= MAX_URI_LENGTH, error::out_of_range(EURI_TOO_LONG));
-        assert!(string::length(&project_uri) <= MAX_URI_LENGTH, error::out_of_range(EURI_TOO_LONG));
-        move_to(metadata_object_signer,
-            Metadata {
-                name,
-                symbol,
-                decimals,
-                icon_uri,
-                project_uri,
-            }
+        assert!(
+            string::length(&icon_uri) <= MAX_URI_LENGTH, error::out_of_range(
+                EURI_TOO_LONG
+            )
+        );
+        assert!(
+            string::length(&project_uri) <= MAX_URI_LENGTH,
+            error::out_of_range(EURI_TOO_LONG)
+        );
+        move_to(
+            metadata_object_signer,
+            Metadata { name, symbol, decimals, icon_uri, project_uri }
         );
 
         if (default_to_concurrent_fungible_supply()) {
             let unlimited = option::is_none(&maximum_supply);
-            move_to(metadata_object_signer, ConcurrentSupply {
-                current: if (unlimited) {
-                    aggregator_v2::create_unbounded_aggregator()
-                } else {
-                    aggregator_v2::create_aggregator(option::extract(&mut maximum_supply))
-                },
-            });
+            move_to(
+                metadata_object_signer,
+                ConcurrentSupply {
+                    current: if (unlimited) {
+                        aggregator_v2::create_unbounded_aggregator()
+                    } else {
+                        aggregator_v2::create_aggregator(
+                            option::extract(&mut maximum_supply)
+                        )
+                    }
+                }
+            );
         } else {
-            move_to(metadata_object_signer, Supply {
-                current: 0,
-                maximum: maximum_supply
-            });
+            move_to(
+                metadata_object_signer,
+                Supply { current: 0, maximum: maximum_supply }
+            );
         };
 
         object::object_from_constructor_ref<Metadata>(constructor_ref)
@@ -275,11 +290,14 @@ module supra_framework::fungible_asset {
     /// Set that only untransferable stores can be created for this fungible asset.
     public fun set_untransferable(constructor_ref: &ConstructorRef) {
         let metadata_addr = object::address_from_constructor_ref(constructor_ref);
-        assert!(exists<Metadata>(metadata_addr), error::not_found(EFUNGIBLE_METADATA_EXISTENCE));
+        assert!(
+            exists<Metadata>(metadata_addr), error::not_found(
+                EFUNGIBLE_METADATA_EXISTENCE
+            )
+        );
         let metadata_signer = &object::generate_signer(constructor_ref);
         move_to(metadata_signer, Untransferable {});
     }
-
 
     #[view]
     /// Returns true if the FA is untransferable.
@@ -292,66 +310,75 @@ module supra_framework::fungible_asset {
         constructor_ref: &ConstructorRef,
         withdraw_function: Option<FunctionInfo>,
         deposit_function: Option<FunctionInfo>,
-        derived_balance_function: Option<FunctionInfo>,
+        derived_balance_function: Option<FunctionInfo>
     ) {
         // Verify that caller type matches callee type so wrongly typed function cannot be registered.
-        option::for_each_ref(&withdraw_function, |withdraw_function| {
-            let dispatcher_withdraw_function_info = function_info::new_function_info_from_address(
-                @supra_framework,
-                string::utf8(b"dispatchable_fungible_asset"),
-                string::utf8(b"dispatchable_withdraw"),
-            );
+        option::for_each_ref(
+            &withdraw_function,
+            |withdraw_function| {
+                let dispatcher_withdraw_function_info =
+                    function_info::new_function_info_from_address(
+                        @supra_framework,
+                        string::utf8(b"dispatchable_fungible_asset"),
+                        string::utf8(b"dispatchable_withdraw")
+                    );
 
-            assert!(
-                function_info::check_dispatch_type_compatibility(
-                    &dispatcher_withdraw_function_info,
-                    withdraw_function
-                ),
-                error::invalid_argument(
-                    EWITHDRAW_FUNCTION_SIGNATURE_MISMATCH
-                )
-            );
-        });
+                assert!(
+                    function_info::check_dispatch_type_compatibility(
+                        &dispatcher_withdraw_function_info,
+                        withdraw_function
+                    ),
+                    error::invalid_argument(EWITHDRAW_FUNCTION_SIGNATURE_MISMATCH)
+                );
+            }
+        );
 
-        option::for_each_ref(&deposit_function, |deposit_function| {
-            let dispatcher_deposit_function_info = function_info::new_function_info_from_address(
-                @supra_framework,
-                string::utf8(b"dispatchable_fungible_asset"),
-                string::utf8(b"dispatchable_deposit"),
-            );
-            // Verify that caller type matches callee type so wrongly typed function cannot be registered.
-            assert!(
-                function_info::check_dispatch_type_compatibility(
-                    &dispatcher_deposit_function_info,
-                    deposit_function
-                ),
-                error::invalid_argument(
-                    EDEPOSIT_FUNCTION_SIGNATURE_MISMATCH
-                )
-            );
-        });
+        option::for_each_ref(
+            &deposit_function,
+            |deposit_function| {
+                let dispatcher_deposit_function_info =
+                    function_info::new_function_info_from_address(
+                        @supra_framework,
+                        string::utf8(b"dispatchable_fungible_asset"),
+                        string::utf8(b"dispatchable_deposit")
+                    );
+                // Verify that caller type matches callee type so wrongly typed function cannot be registered.
+                assert!(
+                    function_info::check_dispatch_type_compatibility(
+                        &dispatcher_deposit_function_info,
+                        deposit_function
+                    ),
+                    error::invalid_argument(EDEPOSIT_FUNCTION_SIGNATURE_MISMATCH)
+                );
+            }
+        );
 
-        option::for_each_ref(&derived_balance_function, |balance_function| {
-            let dispatcher_derived_balance_function_info = function_info::new_function_info_from_address(
-                @supra_framework,
-                string::utf8(b"dispatchable_fungible_asset"),
-                string::utf8(b"dispatchable_derived_balance"),
-            );
-            // Verify that caller type matches callee type so wrongly typed function cannot be registered.
-            assert!(
-                function_info::check_dispatch_type_compatibility(
-                    &dispatcher_derived_balance_function_info,
-                    balance_function
-                ),
-                error::invalid_argument(
-                    EDERIVED_BALANCE_FUNCTION_SIGNATURE_MISMATCH
-                )
-            );
-        });
+        option::for_each_ref(
+            &derived_balance_function,
+            |balance_function| {
+                let dispatcher_derived_balance_function_info =
+                    function_info::new_function_info_from_address(
+                        @supra_framework,
+                        string::utf8(b"dispatchable_fungible_asset"),
+                        string::utf8(b"dispatchable_derived_balance")
+                    );
+                // Verify that caller type matches callee type so wrongly typed function cannot be registered.
+                assert!(
+                    function_info::check_dispatch_type_compatibility(
+                        &dispatcher_derived_balance_function_info,
+                        balance_function
+                    ),
+                    error::invalid_argument(
+                        EDERIVED_BALANCE_FUNCTION_SIGNATURE_MISMATCH
+                    )
+                );
+            }
+        );
 
         // Cannot register hook for SUPRA.
         assert!(
-            object::address_from_constructor_ref(constructor_ref) != @aptos_fungible_asset,
+            object::address_from_constructor_ref(constructor_ref)
+                != @aptos_fungible_asset,
             error::permission_denied(EAPT_NOT_DISPATCHABLE)
         );
         assert!(
@@ -365,10 +392,8 @@ module supra_framework::fungible_asset {
             error::already_exists(EALREADY_REGISTERED)
         );
         assert!(
-            exists<Metadata>(
-                object::address_from_constructor_ref(constructor_ref)
-            ),
-            error::not_found(EFUNGIBLE_METADATA_EXISTENCE),
+            exists<Metadata>(object::address_from_constructor_ref(constructor_ref)),
+            error::not_found(EFUNGIBLE_METADATA_EXISTENCE)
         );
 
         let store_obj = &object::generate_signer(constructor_ref);
@@ -379,7 +404,7 @@ module supra_framework::fungible_asset {
             DispatchFunctionStore {
                 withdraw_function,
                 deposit_function,
-                derived_balance_function,
+                derived_balance_function
             }
         );
     }
@@ -409,7 +434,9 @@ module supra_framework::fungible_asset {
     /// Creates a mutate metadata ref that can be used to change the metadata information of fungible assets from the
     /// given fungible object's constructor ref.
     /// This can only be called at object creation time as constructor_ref is only available then.
-    public fun generate_mutate_metadata_ref(constructor_ref: &ConstructorRef): MutateMetadataRef {
+    public fun generate_mutate_metadata_ref(
+        constructor_ref: &ConstructorRef
+    ): MutateMetadataRef {
         let metadata = object::object_from_constructor_ref<Metadata>(constructor_ref);
         MutateMetadataRef { metadata }
     }
@@ -521,34 +548,42 @@ module supra_framework::fungible_asset {
 
     #[view]
     /// Get the balance of a given store.
-    public fun balance<T: key>(store: Object<T>): u64 acquires FungibleStore, ConcurrentFungibleBalance {
+    public fun balance<T: key>(
+        store: Object<T>
+    ): u64 acquires FungibleStore, ConcurrentFungibleBalance {
         let store_addr = object::object_address(&store);
         if (store_exists_inline(store_addr)) {
             let store_balance = borrow_store_resource(&store).balance;
-            if (store_balance == 0 && concurrent_fungible_balance_exists_inline(store_addr)) {
-                let balance_resource = borrow_global<ConcurrentFungibleBalance>(store_addr);
+            if (store_balance == 0
+                && concurrent_fungible_balance_exists_inline(store_addr)) {
+                let balance_resource =
+                    borrow_global<ConcurrentFungibleBalance>(store_addr);
                 aggregator_v2::read(&balance_resource.balance)
             } else {
                 store_balance
             }
-        } else {
-            0
-        }
+        } else { 0 }
     }
 
     #[view]
     /// Check whether the balance of a given store is >= `amount`.
-    public fun is_balance_at_least<T: key>(store: Object<T>, amount: u64): bool acquires FungibleStore, ConcurrentFungibleBalance {
+    public fun is_balance_at_least<T: key>(
+        store: Object<T>, amount: u64
+    ): bool acquires FungibleStore, ConcurrentFungibleBalance {
         let store_addr = object::object_address(&store);
         is_address_balance_at_least(store_addr, amount)
     }
 
     /// Check whether the balance of a given store is >= `amount`.
-    public(friend) fun is_address_balance_at_least(store_addr: address, amount: u64): bool acquires FungibleStore, ConcurrentFungibleBalance {
+    public(friend) fun is_address_balance_at_least(
+        store_addr: address, amount: u64
+    ): bool acquires FungibleStore, ConcurrentFungibleBalance {
         if (store_exists_inline(store_addr)) {
             let store_balance = borrow_global<FungibleStore>(store_addr).balance;
-            if (store_balance == 0 && concurrent_fungible_balance_exists_inline(store_addr)) {
-                let balance_resource = borrow_global<ConcurrentFungibleBalance>(store_addr);
+            if (store_balance == 0
+                && concurrent_fungible_balance_exists_inline(store_addr)) {
+                let balance_resource =
+                    borrow_global<ConcurrentFungibleBalance>(store_addr);
                 aggregator_v2::is_at_least(&balance_resource.balance, amount)
             } else {
                 store_balance >= amount
@@ -564,7 +599,8 @@ module supra_framework::fungible_asset {
     /// If the store has not been created, we default to returning false so deposits can be sent to it.
     public fun is_frozen<T: key>(store: Object<T>): bool acquires FungibleStore {
         let store_addr = object::object_address(&store);
-        store_exists_inline(store_addr) && borrow_global<FungibleStore>(store_addr).frozen
+        store_exists_inline(store_addr)
+            && borrow_global<FungibleStore>(store_addr).frozen
     }
 
     #[view]
@@ -575,47 +611,59 @@ module supra_framework::fungible_asset {
         exists<DispatchFunctionStore>(metadata_addr)
     }
 
-    public fun deposit_dispatch_function<T: key>(store: Object<T>): Option<FunctionInfo> acquires FungibleStore, DispatchFunctionStore {
+    public fun deposit_dispatch_function<T: key>(
+        store: Object<T>
+    ): Option<FunctionInfo> acquires FungibleStore, DispatchFunctionStore {
         let fa_store = borrow_store_resource(&store);
         let metadata_addr = object::object_address(&fa_store.metadata);
-        if(exists<DispatchFunctionStore>(metadata_addr)) {
+        if (exists<DispatchFunctionStore>(metadata_addr)) {
             borrow_global<DispatchFunctionStore>(metadata_addr).deposit_function
         } else {
             option::none()
         }
     }
 
-    fun has_deposit_dispatch_function(metadata: Object<Metadata>): bool acquires DispatchFunctionStore {
+    fun has_deposit_dispatch_function(
+        metadata: Object<Metadata>
+    ): bool acquires DispatchFunctionStore {
         let metadata_addr = object::object_address(&metadata);
         // Short circuit on SUPRA for better perf
-        if(metadata_addr != @aptos_fungible_asset && exists<DispatchFunctionStore>(metadata_addr)) {
-            option::is_some(&borrow_global<DispatchFunctionStore>(metadata_addr).deposit_function)
-        } else {
-            false
-        }
+        if (metadata_addr != @aptos_fungible_asset
+            && exists<DispatchFunctionStore>(metadata_addr)) {
+            option::is_some(
+                &borrow_global<DispatchFunctionStore>(metadata_addr).deposit_function
+            )
+        } else { false }
     }
 
-    public fun withdraw_dispatch_function<T: key>(store: Object<T>): Option<FunctionInfo> acquires FungibleStore, DispatchFunctionStore {
+    public fun withdraw_dispatch_function<T: key>(
+        store: Object<T>
+    ): Option<FunctionInfo> acquires FungibleStore, DispatchFunctionStore {
         let fa_store = borrow_store_resource(&store);
         let metadata_addr = object::object_address(&fa_store.metadata);
-        if(exists<DispatchFunctionStore>(metadata_addr)) {
+        if (exists<DispatchFunctionStore>(metadata_addr)) {
             borrow_global<DispatchFunctionStore>(metadata_addr).withdraw_function
         } else {
             option::none()
         }
     }
 
-    fun has_withdraw_dispatch_function(metadata: Object<Metadata>): bool acquires DispatchFunctionStore {
+    fun has_withdraw_dispatch_function(
+        metadata: Object<Metadata>
+    ): bool acquires DispatchFunctionStore {
         let metadata_addr = object::object_address(&metadata);
         // Short circuit on SUPRA for better perf
-        if (metadata_addr != @aptos_fungible_asset && exists<DispatchFunctionStore>(metadata_addr)) {
-            option::is_some(&borrow_global<DispatchFunctionStore>(metadata_addr).withdraw_function)
-        } else {
-            false
-        }
+        if (metadata_addr != @aptos_fungible_asset
+            && exists<DispatchFunctionStore>(metadata_addr)) {
+            option::is_some(
+                &borrow_global<DispatchFunctionStore>(metadata_addr).withdraw_function
+            )
+        } else { false }
     }
 
-    public(friend) fun derived_balance_dispatch_function<T: key>(store: Object<T>): Option<FunctionInfo> acquires FungibleStore, DispatchFunctionStore {
+    public(friend) fun derived_balance_dispatch_function<T: key>(
+        store: Object<T>
+    ): Option<FunctionInfo> acquires FungibleStore, DispatchFunctionStore {
         let fa_store = borrow_store_resource(&store);
         let metadata_addr = object::object_address(&fa_store.metadata);
         if (exists<DispatchFunctionStore>(metadata_addr)) {
@@ -655,7 +703,7 @@ module supra_framework::fungible_asset {
         sender: &signer,
         from: Object<T>,
         to: Object<T>,
-        amount: u64,
+        amount: u64
     ) acquires FungibleStore, DispatchFunctionStore, ConcurrentFungibleBalance {
         let fa = withdraw(sender, from, amount);
         deposit(to, fa);
@@ -664,49 +712,57 @@ module supra_framework::fungible_asset {
     /// Allow an object to hold a store for fungible assets.
     /// Applications can use this to create multiple stores for isolating fungible assets for different purposes.
     public fun create_store<T: key>(
-        constructor_ref: &ConstructorRef,
-        metadata: Object<T>,
+        constructor_ref: &ConstructorRef, metadata: Object<T>
     ): Object<FungibleStore> {
         let store_obj = &object::generate_signer(constructor_ref);
-        move_to(store_obj, FungibleStore {
-            metadata: object::convert(metadata),
-            balance: 0,
-            frozen: false,
-        });
+        move_to(
+            store_obj,
+            FungibleStore {
+                metadata: object::convert(metadata),
+                balance: 0,
+                frozen: false
+            }
+        );
 
         if (is_untransferable(metadata)) {
             object::set_untransferable(constructor_ref);
         };
 
         if (default_to_concurrent_fungible_balance()) {
-            move_to(store_obj, ConcurrentFungibleBalance {
-                balance: aggregator_v2::create_unbounded_aggregator(),
-            });
+            move_to(
+                store_obj,
+                ConcurrentFungibleBalance {
+                    balance: aggregator_v2::create_unbounded_aggregator()
+                }
+            );
         };
 
         object::object_from_constructor_ref<FungibleStore>(constructor_ref)
     }
 
     /// Used to delete a store.  Requires the store to be completely empty prior to removing it
-    public fun remove_store(delete_ref: &DeleteRef) acquires FungibleStore, FungibleAssetEvents, ConcurrentFungibleBalance {
+    public fun remove_store(
+        delete_ref: &DeleteRef
+    ) acquires FungibleStore, FungibleAssetEvents, ConcurrentFungibleBalance {
         let store = &object::object_from_delete_ref<FungibleStore>(delete_ref);
         let addr = object::object_address(store);
-        let FungibleStore { metadata: _, balance, frozen: _ }
-            = move_from<FungibleStore>(addr);
+        let FungibleStore { metadata: _, balance, frozen: _ } =
+            move_from<FungibleStore>(addr);
         assert!(balance == 0, error::permission_denied(EBALANCE_IS_NOT_ZERO));
 
         if (concurrent_fungible_balance_exists_inline(addr)) {
-            let ConcurrentFungibleBalance { balance } = move_from<ConcurrentFungibleBalance>(addr);
-            assert!(aggregator_v2::read(&balance) == 0, error::permission_denied(EBALANCE_IS_NOT_ZERO));
+            let ConcurrentFungibleBalance { balance } =
+                move_from<ConcurrentFungibleBalance>(addr);
+            assert!(
+                aggregator_v2::read(&balance) == 0,
+                error::permission_denied(EBALANCE_IS_NOT_ZERO)
+            );
         };
 
         // Cleanup deprecated event handles if exist.
         if (exists<FungibleAssetEvents>(addr)) {
-            let FungibleAssetEvents {
-                deposit_events,
-                withdraw_events,
-                frozen_events,
-            } = move_from<FungibleAssetEvents>(addr);
+            let FungibleAssetEvents { deposit_events, withdraw_events, frozen_events } =
+                move_from<FungibleAssetEvents>(addr);
             event::destroy_handle(deposit_events);
             event::destroy_handle(withdraw_events);
             event::destroy_handle(frozen_events);
@@ -717,7 +773,7 @@ module supra_framework::fungible_asset {
     public fun withdraw<T: key>(
         owner: &signer,
         store: Object<T>,
-        amount: u64,
+        amount: u64
     ): FungibleAsset acquires FungibleStore, DispatchFunctionStore, ConcurrentFungibleBalance {
         withdraw_sanity_check(owner, store, true);
         withdraw_internal(object::object_address(&store), amount)
@@ -727,9 +783,12 @@ module supra_framework::fungible_asset {
     public(friend) fun withdraw_sanity_check<T: key>(
         owner: &signer,
         store: Object<T>,
-        abort_on_dispatch: bool,
+        abort_on_dispatch: bool
     ) acquires FungibleStore, DispatchFunctionStore {
-        assert!(object::owns(store, signer::address_of(owner)), error::permission_denied(ENOT_STORE_OWNER));
+        assert!(
+            object::owns(store, signer::address_of(owner)),
+            error::permission_denied(ENOT_STORE_OWNER)
+        );
         let fa_store = borrow_store_resource(&store);
         assert!(
             !abort_on_dispatch || !has_withdraw_dispatch_function(fa_store.metadata),
@@ -740,8 +799,7 @@ module supra_framework::fungible_asset {
 
     /// Deposit `amount` of the fungible asset to `store`.
     public fun deposit_sanity_check<T: key>(
-        store: Object<T>,
-        abort_on_dispatch: bool
+        store: Object<T>, abort_on_dispatch: bool
     ) acquires FungibleStore, DispatchFunctionStore {
         let fa_store = borrow_store_resource(&store);
         assert!(
@@ -752,7 +810,9 @@ module supra_framework::fungible_asset {
     }
 
     /// Deposit `amount` of the fungible asset to `store`.
-    public fun deposit<T: key>(store: Object<T>, fa: FungibleAsset) acquires FungibleStore, DispatchFunctionStore, ConcurrentFungibleBalance {
+    public fun deposit<T: key>(
+        store: Object<T>, fa: FungibleAsset
+    ) acquires FungibleStore, DispatchFunctionStore, ConcurrentFungibleBalance {
         deposit_sanity_check(store, true);
         deposit_internal(object::object_address(&store), fa);
     }
@@ -765,19 +825,16 @@ module supra_framework::fungible_asset {
 
     /// CAN ONLY BE CALLED BY coin.move for migration.
     public(friend) fun mint_internal(
-        metadata: Object<Metadata>,
-        amount: u64
+        metadata: Object<Metadata>, amount: u64
     ): FungibleAsset acquires Supply, ConcurrentSupply {
         increase_supply(&metadata, amount);
-        FungibleAsset {
-            metadata,
-            amount
-        }
+        FungibleAsset { metadata, amount }
     }
 
     /// Mint the specified `amount` of the fungible asset to a destination store.
-    public fun mint_to<T: key>(ref: &MintRef, store: Object<T>, amount: u64)
-    acquires FungibleStore, Supply, ConcurrentSupply, DispatchFunctionStore, ConcurrentFungibleBalance {
+    public fun mint_to<T: key>(
+        ref: &MintRef, store: Object<T>, amount: u64
+    ) acquires FungibleStore, Supply, ConcurrentSupply, DispatchFunctionStore, ConcurrentFungibleBalance {
         deposit_sanity_check(store, false);
         deposit_internal(object::object_address(&store), mint(ref, amount));
     }
@@ -786,18 +843,17 @@ module supra_framework::fungible_asset {
     public fun set_frozen_flag<T: key>(
         ref: &TransferRef,
         store: Object<T>,
-        frozen: bool,
+        frozen: bool
     ) acquires FungibleStore {
         assert!(
             ref.metadata == store_metadata(store),
-            error::invalid_argument(ETRANSFER_REF_AND_STORE_MISMATCH),
+            error::invalid_argument(ETRANSFER_REF_AND_STORE_MISMATCH)
         );
         set_frozen_flag_internal(store, frozen)
     }
 
     public(friend) fun set_frozen_flag_internal<T: key>(
-        store: Object<T>,
-        frozen: bool
+        store: Object<T>, frozen: bool
     ) acquires FungibleStore {
         let store_addr = object::object_address(&store);
         borrow_global_mut<FungibleStore>(store_addr).frozen = frozen;
@@ -815,31 +871,22 @@ module supra_framework::fungible_asset {
     }
 
     /// CAN ONLY BE CALLED BY coin.move for migration.
-    public(friend) fun burn_internal(
-        fa: FungibleAsset
-    ): u64 acquires Supply, ConcurrentSupply {
-        let FungibleAsset {
-            metadata,
-            amount
-        } = fa;
+    public(friend) fun burn_internal(fa: FungibleAsset): u64 acquires Supply, ConcurrentSupply {
+        let FungibleAsset { metadata, amount } = fa;
         decrease_supply(&metadata, amount);
         amount
     }
 
     /// Burn the `amount` of the fungible asset from the given store.
     public fun burn_from<T: key>(
-        ref: &BurnRef,
-        store: Object<T>,
-        amount: u64
+        ref: &BurnRef, store: Object<T>, amount: u64
     ) acquires FungibleStore, Supply, ConcurrentSupply, ConcurrentFungibleBalance {
         // ref metadata match is checked in burn() call
         burn(ref, withdraw_internal(object::object_address(&store), amount));
     }
 
     public(friend) fun address_burn_from(
-        ref: &BurnRef,
-        store_addr: address,
-        amount: u64
+        ref: &BurnRef, store_addr: address, amount: u64
     ) acquires FungibleStore, Supply, ConcurrentSupply, ConcurrentFungibleBalance {
         // ref metadata match is checked in burn() call
         burn(ref, withdraw_internal(store_addr, amount));
@@ -847,22 +894,18 @@ module supra_framework::fungible_asset {
 
     /// Withdraw `amount` of the fungible asset from the `store` ignoring `frozen`.
     public fun withdraw_with_ref<T: key>(
-        ref: &TransferRef,
-        store: Object<T>,
-        amount: u64
+        ref: &TransferRef, store: Object<T>, amount: u64
     ): FungibleAsset acquires FungibleStore, ConcurrentFungibleBalance {
         assert!(
             ref.metadata == store_metadata(store),
-            error::invalid_argument(ETRANSFER_REF_AND_STORE_MISMATCH),
+            error::invalid_argument(ETRANSFER_REF_AND_STORE_MISMATCH)
         );
         withdraw_internal(object::object_address(&store), amount)
     }
 
     /// Deposit the fungible asset into the `store` ignoring `frozen`.
     public fun deposit_with_ref<T: key>(
-        ref: &TransferRef,
-        store: Object<T>,
-        fa: FungibleAsset
+        ref: &TransferRef, store: Object<T>, fa: FungibleAsset
     ) acquires FungibleStore, ConcurrentFungibleBalance {
         assert!(
             ref.metadata == fa.metadata,
@@ -876,7 +919,7 @@ module supra_framework::fungible_asset {
         transfer_ref: &TransferRef,
         from: Object<T>,
         to: Object<T>,
-        amount: u64,
+        amount: u64
     ) acquires FungibleStore, ConcurrentFungibleBalance {
         let fa = withdraw_with_ref(transfer_ref, from, amount);
         deposit_with_ref(transfer_ref, to, fa);
@@ -889,24 +932,24 @@ module supra_framework::fungible_asset {
         symbol: Option<String>,
         decimals: Option<u8>,
         icon_uri: Option<String>,
-        project_uri: Option<String>,
+        project_uri: Option<String>
     ) acquires Metadata {
         let metadata_address = object::object_address(&metadata_ref.metadata);
         let mutable_metadata = borrow_global_mut<Metadata>(metadata_address);
 
-        if (option::is_some(&name)){
+        if (option::is_some(&name)) {
             mutable_metadata.name = option::extract(&mut name);
         };
-        if (option::is_some(&symbol)){
+        if (option::is_some(&symbol)) {
             mutable_metadata.symbol = option::extract(&mut symbol);
         };
-        if (option::is_some(&decimals)){
+        if (option::is_some(&decimals)) {
             mutable_metadata.decimals = option::extract(&mut decimals);
         };
-        if (option::is_some(&icon_uri)){
+        if (option::is_some(&icon_uri)) {
             mutable_metadata.icon_uri = option::extract(&mut icon_uri);
         };
-        if (option::is_some(&project_uri)){
+        if (option::is_some(&project_uri)) {
             mutable_metadata.project_uri = option::extract(&mut project_uri);
         };
     }
@@ -914,27 +957,30 @@ module supra_framework::fungible_asset {
     /// Create a fungible asset with zero amount.
     /// This can be useful when starting a series of computations where the initial value is 0.
     public fun zero<T: key>(metadata: Object<T>): FungibleAsset {
-        FungibleAsset {
-            metadata: object::convert(metadata),
-            amount: 0,
-        }
+        FungibleAsset { metadata: object::convert(metadata), amount: 0 }
     }
 
     /// Extract a given amount from the given fungible asset and return a new one.
     public fun extract(fungible_asset: &mut FungibleAsset, amount: u64): FungibleAsset {
-        assert!(fungible_asset.amount >= amount, error::invalid_argument(EINSUFFICIENT_BALANCE));
+        assert!(
+            fungible_asset.amount >= amount, error::invalid_argument(
+                EINSUFFICIENT_BALANCE
+            )
+        );
         fungible_asset.amount = fungible_asset.amount - amount;
-        FungibleAsset {
-            metadata: fungible_asset.metadata,
-            amount,
-        }
+        FungibleAsset { metadata: fungible_asset.metadata, amount }
     }
 
     /// "Merges" the two given fungible assets. The fungible asset passed in as `dst_fungible_asset` will have a value
     /// equal to the sum of the two (`dst_fungible_asset` and `src_fungible_asset`).
-    public fun merge(dst_fungible_asset: &mut FungibleAsset, src_fungible_asset: FungibleAsset) {
+    public fun merge(
+        dst_fungible_asset: &mut FungibleAsset, src_fungible_asset: FungibleAsset
+    ) {
         let FungibleAsset { metadata, amount } = src_fungible_asset;
-        assert!(metadata == dst_fungible_asset.metadata, error::invalid_argument(EFUNGIBLE_ASSET_MISMATCH));
+        assert!(
+            metadata == dst_fungible_asset.metadata,
+            error::invalid_argument(EFUNGIBLE_ASSET_MISMATCH)
+        );
         dst_fungible_asset.amount = dst_fungible_asset.amount + amount;
     }
 
@@ -944,16 +990,24 @@ module supra_framework::fungible_asset {
         assert!(amount == 0, error::invalid_argument(EAMOUNT_IS_NOT_ZERO));
     }
 
-    public(friend) fun deposit_internal(store_addr: address, fa: FungibleAsset) acquires FungibleStore, ConcurrentFungibleBalance {
+    public(friend) fun deposit_internal(
+        store_addr: address, fa: FungibleAsset
+    ) acquires FungibleStore, ConcurrentFungibleBalance {
         let FungibleAsset { metadata, amount } = fa;
-        assert!(exists<FungibleStore>(store_addr), error::not_found(EFUNGIBLE_STORE_EXISTENCE));
+        assert!(
+            exists<FungibleStore>(store_addr), error::not_found(EFUNGIBLE_STORE_EXISTENCE)
+        );
         let store = borrow_global_mut<FungibleStore>(store_addr);
-        assert!(metadata == store.metadata, error::invalid_argument(EFUNGIBLE_ASSET_AND_STORE_MISMATCH));
+        assert!(
+            metadata == store.metadata,
+            error::invalid_argument(EFUNGIBLE_ASSET_AND_STORE_MISMATCH)
+        );
 
         if (amount == 0) return;
 
         if (store.balance == 0 && concurrent_fungible_balance_exists_inline(store_addr)) {
-            let balance_resource = borrow_global_mut<ConcurrentFungibleBalance>(store_addr);
+            let balance_resource =
+                borrow_global_mut<ConcurrentFungibleBalance>(store_addr);
             aggregator_v2::add(&mut balance_resource.balance, amount);
         } else {
             store.balance = store.balance + amount;
@@ -964,22 +1018,29 @@ module supra_framework::fungible_asset {
 
     /// Extract `amount` of the fungible asset from `store`.
     public(friend) fun withdraw_internal(
-        store_addr: address,
-        amount: u64,
+        store_addr: address, amount: u64
     ): FungibleAsset acquires FungibleStore, ConcurrentFungibleBalance {
-        assert!(exists<FungibleStore>(store_addr), error::not_found(EFUNGIBLE_STORE_EXISTENCE));
+        assert!(
+            exists<FungibleStore>(store_addr), error::not_found(EFUNGIBLE_STORE_EXISTENCE)
+        );
 
         let store = borrow_global_mut<FungibleStore>(store_addr);
         let metadata = store.metadata;
         if (amount != 0) {
-            if (store.balance == 0 && concurrent_fungible_balance_exists_inline(store_addr)) {
-                let balance_resource = borrow_global_mut<ConcurrentFungibleBalance>(store_addr);
+            if (store.balance == 0
+                && concurrent_fungible_balance_exists_inline(store_addr)) {
+                let balance_resource =
+                    borrow_global_mut<ConcurrentFungibleBalance>(store_addr);
                 assert!(
                     aggregator_v2::try_sub(&mut balance_resource.balance, amount),
                     error::invalid_argument(EINSUFFICIENT_BALANCE)
                 );
             } else {
-                assert!(store.balance >= amount, error::invalid_argument(EINSUFFICIENT_BALANCE));
+                assert!(
+                    store.balance >= amount, error::invalid_argument(
+                        EINSUFFICIENT_BALANCE
+                    )
+                );
                 store.balance = store.balance - amount;
             };
 
@@ -990,9 +1051,7 @@ module supra_framework::fungible_asset {
 
     /// Increase the supply of a fungible asset by minting.
     fun increase_supply<T: key>(metadata: &Object<T>, amount: u64) acquires Supply, ConcurrentSupply {
-        if (amount == 0) {
-            return
-        };
+        if (amount == 0) { return };
         let metadata_address = object::object_address(metadata);
 
         if (exists<ConcurrentSupply>(metadata_address)) {
@@ -1018,9 +1077,7 @@ module supra_framework::fungible_asset {
 
     /// Decrease the supply of a fungible asset by burning.
     fun decrease_supply<T: key>(metadata: &Object<T>, amount: u64) acquires Supply, ConcurrentSupply {
-        if (amount == 0) {
-            return
-        };
+        if (amount == 0) { return };
         let metadata_address = object::object_address(metadata);
 
         if (exists<ConcurrentSupply>(metadata_address)) {
@@ -1043,9 +1100,7 @@ module supra_framework::fungible_asset {
         }
     }
 
-    inline fun borrow_fungible_metadata<T: key>(
-        metadata: &Object<T>
-    ): &Metadata acquires Metadata {
+    inline fun borrow_fungible_metadata<T: key>(metadata: &Object<T>): &Metadata acquires Metadata {
         let addr = object::object_address(metadata);
         borrow_global<Metadata>(addr)
     }
@@ -1057,58 +1112,64 @@ module supra_framework::fungible_asset {
         borrow_global_mut<Metadata>(addr)
     }
 
-    inline fun borrow_store_resource<T: key>(store: &Object<T>): &FungibleStore acquires FungibleStore {
+    inline fun borrow_store_resource<T: key>(
+        store: &Object<T>
+    ): &FungibleStore acquires FungibleStore {
         let store_addr = object::object_address(store);
-        assert!(exists<FungibleStore>(store_addr), error::not_found(EFUNGIBLE_STORE_EXISTENCE));
+        assert!(
+            exists<FungibleStore>(store_addr), error::not_found(EFUNGIBLE_STORE_EXISTENCE)
+        );
         borrow_global<FungibleStore>(store_addr)
     }
 
-    public fun upgrade_to_concurrent(
-        ref: &ExtendRef,
-    ) acquires Supply {
+    public fun upgrade_to_concurrent(ref: &ExtendRef) acquires Supply {
         let metadata_object_address = object::address_from_extend_ref(ref);
         let metadata_object_signer = object::generate_signer_for_extending(ref);
         assert!(
             features::concurrent_fungible_assets_enabled(),
             error::invalid_argument(ECONCURRENT_SUPPLY_NOT_ENABLED)
         );
-        assert!(exists<Supply>(metadata_object_address), error::not_found(ESUPPLY_NOT_FOUND));
-        let Supply {
-            current,
-            maximum,
-        } = move_from<Supply>(metadata_object_address);
+        assert!(
+            exists<Supply>(metadata_object_address), error::not_found(ESUPPLY_NOT_FOUND)
+        );
+        let Supply { current, maximum } = move_from<Supply>(metadata_object_address);
 
         let unlimited = option::is_none(&maximum);
         let supply = ConcurrentSupply {
             current: if (unlimited) {
                 aggregator_v2::create_unbounded_aggregator_with_value(current)
+            } else {
+                aggregator_v2::create_aggregator_with_value(
+                    current, option::extract(&mut maximum)
+                )
             }
-            else {
-                aggregator_v2::create_aggregator_with_value(current, option::extract(&mut maximum))
-            },
         };
         move_to(&metadata_object_signer, supply);
     }
 
     public entry fun upgrade_store_to_concurrent<T: key>(
-        owner: &signer,
-        store: Object<T>,
+        owner: &signer, store: Object<T>
     ) acquires FungibleStore {
-        assert!(object::owns(store, signer::address_of(owner)), error::permission_denied(ENOT_STORE_OWNER));
+        assert!(
+            object::owns(store, signer::address_of(owner)),
+            error::permission_denied(ENOT_STORE_OWNER)
+        );
         assert!(!is_frozen(store), error::invalid_argument(ESTORE_IS_FROZEN));
-        assert!(allow_upgrade_to_concurrent_fungible_balance(), error::invalid_argument(ECONCURRENT_BALANCE_NOT_ENABLED));
+        assert!(
+            allow_upgrade_to_concurrent_fungible_balance(),
+            error::invalid_argument(ECONCURRENT_BALANCE_NOT_ENABLED)
+        );
         ensure_store_upgraded_to_concurrent_internal(object::object_address(&store));
     }
 
     /// Ensure a known `FungibleStore` has `ConcurrentFungibleBalance`.
     fun ensure_store_upgraded_to_concurrent_internal(
-        fungible_store_address: address,
+        fungible_store_address: address
     ) acquires FungibleStore {
-        if (exists<ConcurrentFungibleBalance>(fungible_store_address)) {
-            return
-        };
+        if (exists<ConcurrentFungibleBalance>(fungible_store_address)) { return };
         let store = borrow_global_mut<FungibleStore>(fungible_store_address);
-        let balance = aggregator_v2::create_unbounded_aggregator_with_value(store.balance);
+        let balance =
+            aggregator_v2::create_unbounded_aggregator_with_value(store.balance);
         store.balance = 0;
         let object_signer = create_signer::create_signer(fungible_store_address);
         move_to(&object_signer, ConcurrentFungibleBalance { balance });
@@ -1134,7 +1195,9 @@ module supra_framework::fungible_asset {
     }
 
     #[test_only]
-    public fun init_test_metadata(constructor_ref: &ConstructorRef): (MintRef, TransferRef, BurnRef, MutateMetadataRef) {
+    public fun init_test_metadata(
+        constructor_ref: &ConstructorRef
+    ): (MintRef, TransferRef, BurnRef, MutateMetadataRef) {
         add_fungibility(
             constructor_ref,
             option::some(100) /* max supply */,
@@ -1142,12 +1205,12 @@ module supra_framework::fungible_asset {
             string::utf8(b"@@"),
             0,
             string::utf8(b"http://www.example.com/favicon.ico"),
-            string::utf8(b"http://www.example.com"),
+            string::utf8(b"http://www.example.com")
         );
         let mint_ref = generate_mint_ref(constructor_ref);
         let burn_ref = generate_burn_ref(constructor_ref);
         let transfer_ref = generate_transfer_ref(constructor_ref);
-        let mutate_metadata_ref= generate_mutate_metadata_ref(constructor_ref);
+        let mutate_metadata_ref = generate_mutate_metadata_ref(constructor_ref);
         (mint_ref, transfer_ref, burn_ref, mutate_metadata_ref)
     }
 
@@ -1161,7 +1224,9 @@ module supra_framework::fungible_asset {
     }
 
     #[test_only]
-    public fun create_test_store<T: key>(owner: &signer, metadata: Object<T>): Object<FungibleStore> {
+    public fun create_test_store<T: key>(
+        owner: &signer, metadata: Object<T>
+    ): Object<FungibleStore> {
         let owner_addr = signer::address_of(owner);
         if (!account::exists_at(owner_addr)) {
             account::create_account_for_test(owner_addr);
@@ -1178,16 +1243,22 @@ module supra_framework::fungible_asset {
         assert!(name(metadata) == string::utf8(b"TEST"), 3);
         assert!(symbol(metadata) == string::utf8(b"@@"), 4);
         assert!(decimals(metadata) == 0, 5);
-        assert!(icon_uri(metadata) == string::utf8(b"http://www.example.com/favicon.ico"), 6);
+        assert!(
+            icon_uri(metadata) == string::utf8(b"http://www.example.com/favicon.ico"), 6
+        );
         assert!(project_uri(metadata) == string::utf8(b"http://www.example.com"), 7);
 
-        assert!(metadata(metadata) == Metadata {
-            name: string::utf8(b"TEST"),
-            symbol: string::utf8(b"@@"),
-            decimals: 0,
-            icon_uri: string::utf8(b"http://www.example.com/favicon.ico"),
-            project_uri: string::utf8(b"http://www.example.com"),
-        }, 8);
+        assert!(
+            metadata(metadata)
+                == Metadata {
+                    name: string::utf8(b"TEST"),
+                    symbol: string::utf8(b"@@"),
+                    decimals: 0,
+                    icon_uri: string::utf8(b"http://www.example.com/favicon.ico"),
+                    project_uri: string::utf8(b"http://www.example.com")
+                },
+            8
+        );
 
         increase_supply(&metadata, 50);
         assert!(supply(metadata) == option::some(50), 9);
@@ -1204,7 +1275,9 @@ module supra_framework::fungible_asset {
     }
 
     #[test(creator = @0xcafe)]
-    fun test_create_and_remove_store(creator: &signer) acquires FungibleStore, FungibleAssetEvents, ConcurrentFungibleBalance {
+    fun test_create_and_remove_store(
+        creator: &signer
+    ) acquires FungibleStore, FungibleAssetEvents, ConcurrentFungibleBalance {
         let (_, _, _, _, metadata) = create_fungible_asset(creator);
         let creator_ref = object::create_object_from_account(creator);
         create_store(&creator_ref, metadata);
@@ -1214,10 +1287,10 @@ module supra_framework::fungible_asset {
 
     #[test(creator = @0xcafe, aaron = @0xface)]
     fun test_e2e_basic_flow(
-        creator: &signer,
-        aaron: &signer,
+        creator: &signer, aaron: &signer
     ) acquires FungibleStore, Supply, ConcurrentSupply, DispatchFunctionStore, ConcurrentFungibleBalance, Metadata {
-        let (mint_ref, transfer_ref, burn_ref, mutate_metadata_ref, test_token) = create_fungible_asset(creator);
+        let (mint_ref, transfer_ref, burn_ref, mutate_metadata_ref, test_token) =
+            create_fungible_asset(creator);
         let metadata = mint_ref.metadata;
         let creator_store = create_test_store(creator, metadata);
         let aaron_store = create_test_store(aaron, metadata);
@@ -1254,7 +1327,9 @@ module supra_framework::fungible_asset {
         assert!(name(metadata) == string::utf8(b"mutated_name"), 8);
         assert!(symbol(metadata) == string::utf8(b"mutated_symbol"), 9);
         assert!(decimals(metadata) == 0, 10);
-        assert!(icon_uri(metadata) == string::utf8(b"http://www.example.com/favicon.ico"), 11);
+        assert!(
+            icon_uri(metadata) == string::utf8(b"http://www.example.com/favicon.ico"), 11
+        );
         assert!(project_uri(metadata) == string::utf8(b"http://www.example.com"), 12);
     }
 
@@ -1263,7 +1338,8 @@ module supra_framework::fungible_asset {
     fun test_frozen(
         creator: &signer
     ) acquires FungibleStore, Supply, ConcurrentSupply, DispatchFunctionStore, ConcurrentFungibleBalance {
-        let (mint_ref, transfer_ref, _burn_ref, _mutate_metadata_ref,  _) = create_fungible_asset(creator);
+        let (mint_ref, transfer_ref, _burn_ref, _mutate_metadata_ref, _) =
+            create_fungible_asset(creator);
 
         let creator_store = create_test_store(creator, mint_ref.metadata);
         let fa = mint(&mint_ref, 100);
@@ -1276,7 +1352,8 @@ module supra_framework::fungible_asset {
     fun test_mint_to_frozen(
         creator: &signer
     ) acquires FungibleStore, ConcurrentFungibleBalance, Supply, ConcurrentSupply, DispatchFunctionStore {
-        let (mint_ref, transfer_ref, _burn_ref, _mutate_metadata_ref, _) = create_fungible_asset(creator);
+        let (mint_ref, transfer_ref, _burn_ref, _mutate_metadata_ref, _) =
+            create_fungible_asset(creator);
 
         let creator_store = create_test_store(creator, mint_ref.metadata);
         set_frozen_flag(&transfer_ref, creator_store, true);
@@ -1285,9 +1362,7 @@ module supra_framework::fungible_asset {
 
     #[test(creator = @0xcafe)]
     #[expected_failure(abort_code = 0x50003, location = supra_framework::object)]
-    fun test_untransferable(
-        creator: &signer
-    ) {
+    fun test_untransferable(creator: &signer) {
         let (creator_ref, _) = create_test_token(creator);
         let (mint_ref, _, _, _) = init_test_metadata(&creator_ref);
         set_untransferable(&creator_ref);
@@ -1298,10 +1373,10 @@ module supra_framework::fungible_asset {
 
     #[test(creator = @0xcafe, aaron = @0xface)]
     fun test_transfer_with_ref(
-        creator: &signer,
-        aaron: &signer,
+        creator: &signer, aaron: &signer
     ) acquires FungibleStore, Supply, ConcurrentSupply, ConcurrentFungibleBalance {
-        let (mint_ref, transfer_ref, _burn_ref, _mutate_metadata_ref, _) = create_fungible_asset(creator);
+        let (mint_ref, transfer_ref, _burn_ref, _mutate_metadata_ref, _) =
+            create_fungible_asset(creator);
         let metadata = mint_ref.metadata;
         let creator_store = create_test_store(creator, metadata);
         let aaron_store = create_test_store(aaron, metadata);
@@ -1318,10 +1393,9 @@ module supra_framework::fungible_asset {
     }
 
     #[test(creator = @0xcafe)]
-    fun test_mutate_metadata(
-        creator: &signer
-    ) acquires Metadata {
-        let (mint_ref, _transfer_ref, _burn_ref, mutate_metadata_ref, _) = create_fungible_asset(creator);
+    fun test_mutate_metadata(creator: &signer) acquires Metadata {
+        let (mint_ref, _transfer_ref, _burn_ref, mutate_metadata_ref, _) =
+            create_fungible_asset(creator);
         let metadata = mint_ref.metadata;
 
         mutate_metadata(
@@ -1335,15 +1409,20 @@ module supra_framework::fungible_asset {
         assert!(name(metadata) == string::utf8(b"mutated_name"), 1);
         assert!(symbol(metadata) == string::utf8(b"mutated_symbol"), 2);
         assert!(decimals(metadata) == 10, 3);
-        assert!(icon_uri(metadata) == string::utf8(b"http://www.mutated-example.com/favicon.ico"), 4);
-        assert!(project_uri(metadata) == string::utf8(b"http://www.mutated-example.com"), 5);
+        assert!(
+            icon_uri(metadata)
+                == string::utf8(b"http://www.mutated-example.com/favicon.ico"),
+            4
+        );
+        assert!(
+            project_uri(metadata) == string::utf8(b"http://www.mutated-example.com"), 5
+        );
     }
 
     #[test(creator = @0xcafe)]
-    fun test_partial_mutate_metadata(
-        creator: &signer
-    ) acquires Metadata {
-        let (mint_ref, _transfer_ref, _burn_ref, mutate_metadata_ref, _) = create_fungible_asset(creator);
+    fun test_partial_mutate_metadata(creator: &signer) acquires Metadata {
+        let (mint_ref, _transfer_ref, _burn_ref, mutate_metadata_ref, _) =
+            create_fungible_asset(creator);
         let metadata = mint_ref.metadata;
 
         mutate_metadata(
@@ -1357,13 +1436,16 @@ module supra_framework::fungible_asset {
         assert!(name(metadata) == string::utf8(b"mutated_name"), 8);
         assert!(symbol(metadata) == string::utf8(b"mutated_symbol"), 9);
         assert!(decimals(metadata) == 0, 10);
-        assert!(icon_uri(metadata) == string::utf8(b"http://www.example.com/favicon.ico"), 11);
+        assert!(
+            icon_uri(metadata) == string::utf8(b"http://www.example.com/favicon.ico"), 11
+        );
         assert!(project_uri(metadata) == string::utf8(b"http://www.example.com"), 12);
     }
 
     #[test(creator = @0xcafe)]
     fun test_merge_and_exact(creator: &signer) acquires Supply, ConcurrentSupply {
-        let (mint_ref, _transfer_ref, burn_ref, _mutate_metadata_ref, _) = create_fungible_asset(creator);
+        let (mint_ref, _transfer_ref, burn_ref, _mutate_metadata_ref, _) =
+            create_fungible_asset(creator);
         let fa = mint(&mint_ref, 100);
         let cash = extract(&mut fa, 80);
         assert!(fa.amount == 20, 1);
@@ -1385,40 +1467,43 @@ module supra_framework::fungible_asset {
 
     #[test(creator = @0xcafe, aaron = @0xface)]
     #[expected_failure(abort_code = 0x10006, location = Self)]
-    fun test_fungible_asset_mismatch_when_merge(creator: &signer, aaron: &signer) {
+    fun test_fungible_asset_mismatch_when_merge(
+        creator: &signer, aaron: &signer
+    ) {
         let (_, _, _, _, metadata1) = create_fungible_asset(creator);
         let (_, _, _, _, metadata2) = create_fungible_asset(aaron);
-        let base = FungibleAsset {
-            metadata: metadata1,
-            amount: 1,
-        };
-        let addon = FungibleAsset {
-            metadata: metadata2,
-            amount: 1
-        };
+        let base = FungibleAsset { metadata: metadata1, amount: 1 };
+        let addon = FungibleAsset { metadata: metadata2, amount: 1 };
         merge(&mut base, addon);
-        let FungibleAsset {
-            metadata: _,
-            amount: _
-        } = base;
+        let FungibleAsset { metadata: _, amount: _ } = base;
     }
 
     #[test(fx = @supra_framework, creator = @0xcafe)]
-    fun test_fungible_asset_upgrade(fx: &signer, creator: &signer) acquires Supply, ConcurrentSupply, FungibleStore, ConcurrentFungibleBalance {
+    fun test_fungible_asset_upgrade(
+        fx: &signer, creator: &signer
+    ) acquires Supply, ConcurrentSupply, FungibleStore, ConcurrentFungibleBalance {
         let supply_feature = features::get_concurrent_fungible_assets_feature();
         let balance_feature = features::get_concurrent_fungible_balance_feature();
-        let default_balance_feature = features::get_default_to_concurrent_fungible_balance_feature();
+        let default_balance_feature =
+            features::get_default_to_concurrent_fungible_balance_feature();
 
-        features::change_feature_flags_for_testing(fx, vector[], vector[supply_feature, balance_feature, default_balance_feature]);
+        features::change_feature_flags_for_testing(
+            fx,
+            vector[],
+            vector[supply_feature, balance_feature, default_balance_feature]
+        );
 
         let (creator_ref, token_object) = create_test_token(creator);
-        let (mint_ref, transfer_ref, _burn, _mutate_metadata_ref) = init_test_metadata(&creator_ref);
+        let (mint_ref, transfer_ref, _burn, _mutate_metadata_ref) =
+            init_test_metadata(&creator_ref);
         let test_token = object::convert<TestToken, Metadata>(token_object);
         assert!(exists<Supply>(object::object_address(&test_token)), 1);
         assert!(!exists<ConcurrentSupply>(object::object_address(&test_token)), 2);
         let creator_store = create_test_store(creator, test_token);
         assert!(exists<FungibleStore>(object::object_address(&creator_store)), 3);
-        assert!(!exists<ConcurrentFungibleBalance>(object::object_address(&creator_store)), 4);
+        assert!(
+            !exists<ConcurrentFungibleBalance>(object::object_address(&creator_store)), 4
+        );
 
         let fa = mint(&mint_ref, 30);
         assert!(supply(test_token) == option::some(30), 5);
@@ -1426,9 +1511,15 @@ module supra_framework::fungible_asset {
         deposit_with_ref(&transfer_ref, creator_store, fa);
         assert!(exists<FungibleStore>(object::object_address(&creator_store)), 13);
         assert!(borrow_store_resource(&creator_store).balance == 30, 14);
-        assert!(!exists<ConcurrentFungibleBalance>(object::object_address(&creator_store)), 15);
+        assert!(
+            !exists<ConcurrentFungibleBalance>(object::object_address(&creator_store)), 15
+        );
 
-        features::change_feature_flags_for_testing(fx, vector[supply_feature, balance_feature], vector[default_balance_feature]);
+        features::change_feature_flags_for_testing(
+            fx,
+            vector[supply_feature, balance_feature],
+            vector[default_balance_feature]
+        );
 
         let extend_ref = object::generate_extend_ref(&creator_ref);
         // manual conversion of supply
@@ -1442,28 +1533,47 @@ module supra_framework::fungible_asset {
         // both store and new balance need to exist. Old balance should be 0.
         assert!(exists<FungibleStore>(object::object_address(&creator_store)), 9);
         assert!(borrow_store_resource(&creator_store).balance == 0, 10);
-        assert!(exists<ConcurrentFungibleBalance>(object::object_address(&creator_store)), 11);
-        assert!(aggregator_v2::read(&borrow_global<ConcurrentFungibleBalance>(object::object_address(&creator_store)).balance) == 10, 12);
+        assert!(
+            exists<ConcurrentFungibleBalance>(object::object_address(&creator_store)), 11
+        );
+        assert!(
+            aggregator_v2::read(
+                &borrow_global<ConcurrentFungibleBalance>(
+                    object::object_address(&creator_store)
+                ).balance
+            ) == 10,
+            12
+        );
 
         deposit_with_ref(&transfer_ref, creator_store, fb);
     }
 
     #[test(fx = @supra_framework, creator = @0xcafe)]
-    fun test_fungible_asset_default_concurrent(fx: &signer, creator: &signer) acquires Supply, ConcurrentSupply, FungibleStore, ConcurrentFungibleBalance {
+    fun test_fungible_asset_default_concurrent(
+        fx: &signer, creator: &signer
+    ) acquires Supply, ConcurrentSupply, FungibleStore, ConcurrentFungibleBalance {
         let supply_feature = features::get_concurrent_fungible_assets_feature();
         let balance_feature = features::get_concurrent_fungible_balance_feature();
-        let default_balance_feature = features::get_default_to_concurrent_fungible_balance_feature();
+        let default_balance_feature =
+            features::get_default_to_concurrent_fungible_balance_feature();
 
-        features::change_feature_flags_for_testing(fx, vector[supply_feature, balance_feature, default_balance_feature], vector[]);
+        features::change_feature_flags_for_testing(
+            fx,
+            vector[supply_feature, balance_feature, default_balance_feature],
+            vector[]
+        );
 
         let (creator_ref, token_object) = create_test_token(creator);
-        let (mint_ref, transfer_ref, _burn, _mutate_metadata_ref) = init_test_metadata(&creator_ref);
+        let (mint_ref, transfer_ref, _burn, _mutate_metadata_ref) =
+            init_test_metadata(&creator_ref);
         let test_token = object::convert<TestToken, Metadata>(token_object);
         assert!(!exists<Supply>(object::object_address(&test_token)), 1);
         assert!(exists<ConcurrentSupply>(object::object_address(&test_token)), 2);
         let creator_store = create_test_store(creator, test_token);
         assert!(exists<FungibleStore>(object::object_address(&creator_store)), 3);
-        assert!(exists<ConcurrentFungibleBalance>(object::object_address(&creator_store)), 4);
+        assert!(
+            exists<ConcurrentFungibleBalance>(object::object_address(&creator_store)), 4
+        );
 
         let fa = mint(&mint_ref, 30);
         assert!(supply(test_token) == option::some(30), 5);
@@ -1472,8 +1582,17 @@ module supra_framework::fungible_asset {
 
         assert!(exists<FungibleStore>(object::object_address(&creator_store)), 9);
         assert!(borrow_store_resource(&creator_store).balance == 0, 10);
-        assert!(exists<ConcurrentFungibleBalance>(object::object_address(&creator_store)), 11);
-        assert!(aggregator_v2::read(&borrow_global<ConcurrentFungibleBalance>(object::object_address(&creator_store)).balance) == 30, 12);
+        assert!(
+            exists<ConcurrentFungibleBalance>(object::object_address(&creator_store)), 11
+        );
+        assert!(
+            aggregator_v2::read(
+                &borrow_global<ConcurrentFungibleBalance>(
+                    object::object_address(&creator_store)
+                ).balance
+            ) == 30,
+            12
+        );
     }
 
     #[deprecated]
@@ -1481,21 +1600,21 @@ module supra_framework::fungible_asset {
     struct FungibleAssetEvents has key {
         deposit_events: event::EventHandle<DepositEvent>,
         withdraw_events: event::EventHandle<WithdrawEvent>,
-        frozen_events: event::EventHandle<FrozenEvent>,
+        frozen_events: event::EventHandle<FrozenEvent>
     }
 
     #[deprecated]
     struct DepositEvent has drop, store {
-        amount: u64,
+        amount: u64
     }
 
     #[deprecated]
     struct WithdrawEvent has drop, store {
-        amount: u64,
+        amount: u64
     }
 
     #[deprecated]
     struct FrozenEvent has drop, store {
-        frozen: bool,
+        frozen: bool
     }
 }

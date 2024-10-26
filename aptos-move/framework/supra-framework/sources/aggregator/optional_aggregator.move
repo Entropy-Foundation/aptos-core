@@ -19,15 +19,12 @@ module supra_framework::optional_aggregator {
     /// Wrapper around integer with a custom overflow limit. Supports add, subtract and read just like `Aggregator`.
     struct Integer has store {
         value: u128,
-        limit: u128,
+        limit: u128
     }
 
     /// Creates a new integer which overflows on exceeding a `limit`.
     fun new_integer(limit: u128): Integer {
-        Integer {
-            value: 0,
-            limit,
-        }
+        Integer { value: 0, limit }
     }
 
     /// Adds `value` to integer. Aborts on overflowing the limit.
@@ -65,20 +62,22 @@ module supra_framework::optional_aggregator {
         // Parallelizable.
         aggregator: Option<Aggregator>,
         // Non-parallelizable.
-        integer: Option<Integer>,
+        integer: Option<Integer>
     }
 
     /// Creates a new optional aggregator.
     public(friend) fun new(limit: u128, parallelizable: bool): OptionalAggregator {
         if (parallelizable) {
             OptionalAggregator {
-                aggregator: option::some(aggregator_factory::create_aggregator_internal(limit)),
-                integer: option::none(),
+                aggregator: option::some(
+                    aggregator_factory::create_aggregator_internal(limit)
+                ),
+                integer: option::none()
             }
         } else {
             OptionalAggregator {
                 aggregator: option::none(),
-                integer: option::some(new_integer(limit)),
+                integer: option::some(new_integer(limit))
             }
         }
     }
@@ -136,7 +135,9 @@ module supra_framework::optional_aggregator {
     }
 
     /// Destroys parallelizable optional aggregator and returns its limit.
-    fun destroy_optional_aggregator(optional_aggregator: OptionalAggregator): u128 {
+    fun destroy_optional_aggregator(
+        optional_aggregator: OptionalAggregator
+    ): u128 {
         let OptionalAggregator { aggregator, integer } = optional_aggregator;
         let limit = aggregator::limit(option::borrow(&aggregator));
         aggregator::destroy(option::destroy_some(aggregator));
@@ -154,7 +155,9 @@ module supra_framework::optional_aggregator {
     }
 
     /// Adds `value` to optional aggregator, aborting on exceeding the `limit`.
-    public fun add(optional_aggregator: &mut OptionalAggregator, value: u128) {
+    public fun add(
+        optional_aggregator: &mut OptionalAggregator, value: u128
+    ) {
         if (option::is_some(&optional_aggregator.aggregator)) {
             let aggregator = option::borrow_mut(&mut optional_aggregator.aggregator);
             aggregator::add(aggregator, value);
@@ -165,7 +168,9 @@ module supra_framework::optional_aggregator {
     }
 
     /// Subtracts `value` from optional aggregator, aborting on going below zero.
-    public fun sub(optional_aggregator: &mut OptionalAggregator, value: u128) {
+    public fun sub(
+        optional_aggregator: &mut OptionalAggregator, value: u128
+    ) {
         if (option::is_some(&optional_aggregator.aggregator)) {
             let aggregator = option::borrow_mut(&mut optional_aggregator.aggregator);
             aggregator::sub(aggregator, value);

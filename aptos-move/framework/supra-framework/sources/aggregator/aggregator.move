@@ -26,7 +26,7 @@ module supra_framework::aggregator {
     struct Aggregator has store {
         handle: address,
         key: address,
-        limit: u128,
+        limit: u128
     }
 
     /// Returns `limit` exceeding which aggregator overflows.

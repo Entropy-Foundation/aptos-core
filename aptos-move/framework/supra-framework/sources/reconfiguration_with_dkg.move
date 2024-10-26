@@ -36,7 +36,7 @@ module supra_framework::reconfiguration_with_dkg {
             cur_epoch,
             randomness_config::current(),
             stake::cur_validator_consensus_infos(),
-            stake::next_validator_consensus_infos(),
+            stake::next_validator_consensus_infos()
         );
     }
 

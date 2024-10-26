@@ -24,10 +24,12 @@ spec supra_framework::execution_config {
         requires exists<stake::ValidatorFees>(@supra_framework);
         requires exists<staking_config::StakingRewardsConfig>(@supra_framework);
         requires len(config) > 0;
-        include features::spec_periodical_reward_rate_decrease_enabled() ==> staking_config::StakingRewardsConfigEnabledRequirement;
+        include features::spec_periodical_reward_rate_decrease_enabled() ==>
+            staking_config::StakingRewardsConfigEnabledRequirement;
         include supra_coin::ExistsSupraCoin;
         requires system_addresses::is_supra_framework_address(addr);
-        requires timestamp::spec_now_microseconds() >= reconfiguration::last_reconfiguration_time();
+        requires timestamp::spec_now_microseconds()
+            >= reconfiguration::last_reconfiguration_time();
 
         ensures exists<ExecutionConfig>(@supra_framework);
     }

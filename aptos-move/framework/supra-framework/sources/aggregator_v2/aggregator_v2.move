@@ -51,23 +51,25 @@ module supra_framework::aggregator_v2 {
     /// Currently supported types for IntElement are u64 and u128.
     struct Aggregator<IntElement> has store, drop {
         value: IntElement,
-        max_value: IntElement,
+        max_value: IntElement
     }
 
     /// Represents a constant value, that was derived from an aggregator at given instant in time.
     /// Unlike read() and storing the value directly, this enables parallel execution of transactions,
     /// while storing snapshot of aggregator state elsewhere.
     struct AggregatorSnapshot<IntElement> has store, drop {
-        value: IntElement,
+        value: IntElement
     }
 
     struct DerivedStringSnapshot has store, drop {
         value: String,
-        padding: vector<u8>,
+        padding: vector<u8>
     }
 
     /// Returns `max_value` exceeding which aggregator overflows.
-    public fun max_value<IntElement: copy + drop>(aggregator: &Aggregator<IntElement>): IntElement {
+    public fun max_value<IntElement: copy + drop>(
+        aggregator: &Aggregator<IntElement>
+    ): IntElement {
         aggregator.max_value
     }
 
@@ -75,9 +77,13 @@ module supra_framework::aggregator_v2 {
     ///
     /// Currently supported types for IntElement are u64 and u128.
     /// EAGGREGATOR_ELEMENT_TYPE_NOT_SUPPORTED raised if called with a different type.
-    public native fun create_aggregator<IntElement: copy + drop>(max_value: IntElement): Aggregator<IntElement>;
+    public native fun create_aggregator<IntElement: copy + drop>(
+        max_value: IntElement
+    ): Aggregator<IntElement>;
 
-    public fun create_aggregator_with_value<IntElement: copy + drop>(start_value: IntElement, max_value: IntElement): Aggregator<IntElement> {
+    public fun create_aggregator_with_value<IntElement: copy + drop>(
+        start_value: IntElement, max_value: IntElement
+    ): Aggregator<IntElement> {
         let aggregator = create_aggregator(max_value);
         add(&mut aggregator, start_value);
         aggregator
@@ -88,9 +94,12 @@ module supra_framework::aggregator_v2 {
     ///
     /// Currently supported types for IntElement are u64 and u128.
     /// EAGGREGATOR_ELEMENT_TYPE_NOT_SUPPORTED raised if called with a different type.
-    public native fun create_unbounded_aggregator<IntElement: copy + drop>(): Aggregator<IntElement>;
+    public native fun create_unbounded_aggregator<IntElement: copy + drop>():
+        Aggregator<IntElement>;
 
-    public fun create_unbounded_aggregator_with_value<IntElement: copy + drop>(start_value: IntElement): Aggregator<IntElement> {
+    public fun create_unbounded_aggregator_with_value<IntElement: copy + drop>(
+        start_value: IntElement
+    ): Aggregator<IntElement> {
         let aggregator = create_unbounded_aggregator();
         add(&mut aggregator, start_value);
         aggregator
@@ -100,13 +109,17 @@ module supra_framework::aggregator_v2 {
     /// If addition would exceed the max_value, `false` is returned, and aggregator value is left unchanged.
     ///
     /// Parallelism info: This operation enables speculative parallelism.
-    public native fun try_add<IntElement>(aggregator: &mut Aggregator<IntElement>, value: IntElement): bool;
+    public native fun try_add<IntElement>(
+        aggregator: &mut Aggregator<IntElement>, value: IntElement
+    ): bool;
 
     /// Adds `value` to aggregator, unconditionally.
     /// If addition would exceed the max_value, EAGGREGATOR_OVERFLOW exception will be thrown.
     ///
     /// Parallelism info: This operation enables speculative parallelism.
-    public fun add<IntElement>(aggregator: &mut Aggregator<IntElement>, value: IntElement) {
+    public fun add<IntElement>(
+        aggregator: &mut Aggregator<IntElement>, value: IntElement
+    ) {
         assert!(try_add(aggregator, value), error::out_of_range(EAGGREGATOR_OVERFLOW));
     }
 
@@ -114,17 +127,23 @@ module supra_framework::aggregator_v2 {
     /// If subtraction would result in a negative value, `false` is returned, and aggregator value is left unchanged.
     ///
     /// Parallelism info: This operation enables speculative parallelism.
-    public native fun try_sub<IntElement>(aggregator: &mut Aggregator<IntElement>, value: IntElement): bool;
+    public native fun try_sub<IntElement>(
+        aggregator: &mut Aggregator<IntElement>, value: IntElement
+    ): bool;
 
     // Subtracts `value` to aggregator, unconditionally.
     // If subtraction would result in a negative value, EAGGREGATOR_UNDERFLOW exception will be thrown.
     ///
     /// Parallelism info: This operation enables speculative parallelism.
-    public fun sub<IntElement>(aggregator: &mut Aggregator<IntElement>, value: IntElement) {
+    public fun sub<IntElement>(
+        aggregator: &mut Aggregator<IntElement>, value: IntElement
+    ) {
         assert!(try_sub(aggregator, value), error::out_of_range(EAGGREGATOR_UNDERFLOW));
     }
 
-    native fun is_at_least_impl<IntElement>(aggregator: &Aggregator<IntElement>, min_amount: IntElement): bool;
+    native fun is_at_least_impl<IntElement>(
+        aggregator: &Aggregator<IntElement>, min_amount: IntElement
+    ): bool;
 
     /// Returns true if aggregator value is larger than or equal to the given `min_amount`, false otherwise.
     ///
@@ -134,8 +153,13 @@ module supra_framework::aggregator_v2 {
     /// - for `is_equal(agg, value)`, you can do `is_at_least(value) && !is_at_least(value + 1)`
     ///
     /// Parallelism info: This operation enables speculative parallelism.
-    public fun is_at_least<IntElement>(aggregator: &Aggregator<IntElement>, min_amount: IntElement): bool {
-        assert!(features::aggregator_v2_is_at_least_api_enabled(), EAGGREGATOR_API_V2_NOT_ENABLED);
+    public fun is_at_least<IntElement>(
+        aggregator: &Aggregator<IntElement>, min_amount: IntElement
+    ): bool {
+        assert!(
+            features::aggregator_v2_is_at_least_api_enabled(),
+            EAGGREGATOR_API_V2_NOT_ENABLED
+        );
         is_at_least_impl(aggregator, min_amount)
     }
 
@@ -165,11 +189,15 @@ module supra_framework::aggregator_v2 {
     /// Unlike read(), it is fast and avoids sequential dependencies.
     ///
     /// Parallelism info: This operation enables parallelism.
-    public native fun snapshot<IntElement>(aggregator: &Aggregator<IntElement>): AggregatorSnapshot<IntElement>;
+    public native fun snapshot<IntElement>(
+        aggregator: &Aggregator<IntElement>
+    ): AggregatorSnapshot<IntElement>;
 
     /// Creates a snapshot of a given value.
     /// Useful for when object is sometimes created via snapshot() or string_concat(), and sometimes directly.
-    public native fun create_snapshot<IntElement: copy + drop>(value: IntElement): AggregatorSnapshot<IntElement>;
+    public native fun create_snapshot<IntElement: copy + drop>(
+        value: IntElement
+    ): AggregatorSnapshot<IntElement>;
 
     /// Returns a value stored in this snapshot.
     /// Note: This operation is resource-intensive, and reduces parallelism.
@@ -177,7 +205,9 @@ module supra_framework::aggregator_v2 {
     /// or has other read/write conflicts)
     ///
     /// Parallelism info: This operation *prevents* speculative parallelism.
-    public native fun read_snapshot<IntElement>(snapshot: &AggregatorSnapshot<IntElement>): IntElement;
+    public native fun read_snapshot<IntElement>(
+        snapshot: &AggregatorSnapshot<IntElement>
+    ): IntElement;
 
     /// Returns a value stored in this DerivedStringSnapshot.
     /// Note: This operation is resource-intensive, and reduces parallelism.
@@ -197,17 +227,23 @@ module supra_framework::aggregator_v2 {
     /// If length of prefix and suffix together exceed 256 bytes, ECONCAT_STRING_LENGTH_TOO_LARGE is raised.
     ///
     /// Parallelism info: This operation enables parallelism.
-    public native fun derive_string_concat<IntElement>(before: String, snapshot: &AggregatorSnapshot<IntElement>, after: String): DerivedStringSnapshot;
+    public native fun derive_string_concat<IntElement>(
+        before: String, snapshot: &AggregatorSnapshot<IntElement>, after: String
+    ): DerivedStringSnapshot;
 
     // ===== DEPRECATE/NOT YET IMPLEMENTED ====
 
     #[deprecated]
     /// NOT YET IMPLEMENTED, always raises EAGGREGATOR_FUNCTION_NOT_YET_SUPPORTED.
-    public native fun copy_snapshot<IntElement: copy + drop>(snapshot: &AggregatorSnapshot<IntElement>): AggregatorSnapshot<IntElement>;
+    public native fun copy_snapshot<IntElement: copy + drop>(
+        snapshot: &AggregatorSnapshot<IntElement>
+    ): AggregatorSnapshot<IntElement>;
 
     #[deprecated]
     /// DEPRECATED, use derive_string_concat() instead. always raises EAGGREGATOR_FUNCTION_NOT_YET_SUPPORTED.
-    public native fun string_concat<IntElement>(before: String, snapshot: &AggregatorSnapshot<IntElement>, after: String): AggregatorSnapshot<String>;
+    public native fun string_concat<IntElement>(
+        before: String, snapshot: &AggregatorSnapshot<IntElement>, after: String
+    ): AggregatorSnapshot<String>;
 
     // ========================================
 
@@ -283,7 +319,10 @@ module supra_framework::aggregator_v2 {
     #[test]
     fun test_string_concat1() {
         let snapshot = create_snapshot(42);
-        let derived = derive_string_concat(std::string::utf8(b"before"), &snapshot, std::string::utf8(b"after"));
+        let derived =
+            derive_string_concat(
+                std::string::utf8(b"before"), &snapshot, std::string::utf8(b"after")
+            );
         assert!(read_derived_string(&derived) == std::string::utf8(b"before42after"), 0);
     }
 

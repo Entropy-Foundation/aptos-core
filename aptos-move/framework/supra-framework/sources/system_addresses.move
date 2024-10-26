@@ -16,7 +16,10 @@ module supra_framework::system_addresses {
     }
 
     public fun assert_core_resource_address(addr: address) {
-        assert!(is_core_resource_address(addr), error::permission_denied(ENOT_CORE_RESOURCE_ADDRESS))
+        assert!(
+            is_core_resource_address(addr),
+            error::permission_denied(ENOT_CORE_RESOURCE_ADDRESS)
+        )
     }
 
     public fun is_core_resource_address(addr: address): bool {
@@ -26,7 +29,7 @@ module supra_framework::system_addresses {
     public fun assert_supra_framework(account: &signer) {
         assert!(
             is_supra_framework_address(signer::address_of(account)),
-            error::permission_denied(ENOT_APTOS_FRAMEWORK_ADDRESS),
+            error::permission_denied(ENOT_APTOS_FRAMEWORK_ADDRESS)
         )
     }
 
@@ -37,22 +40,22 @@ module supra_framework::system_addresses {
     public fun assert_framework_reserved(addr: address) {
         assert!(
             is_framework_reserved_address(addr),
-            error::permission_denied(ENOT_FRAMEWORK_RESERVED_ADDRESS),
+            error::permission_denied(ENOT_FRAMEWORK_RESERVED_ADDRESS)
         )
     }
 
     /// Return true if `addr` is 0x0 or under the on chain governance's control.
     public fun is_framework_reserved_address(addr: address): bool {
-        is_supra_framework_address(addr) ||
-            addr == @0x2 ||
-            addr == @0x3 ||
-            addr == @0x4 ||
-            addr == @0x5 ||
-            addr == @0x6 ||
-            addr == @0x7 ||
-            addr == @0x8 ||
-            addr == @0x9 ||
-            addr == @0xa
+        is_supra_framework_address(addr)
+            || addr == @0x2
+            || addr == @0x3
+            || addr == @0x4
+            || addr == @0x5
+            || addr == @0x6
+            || addr == @0x7
+            || addr == @0x8
+            || addr == @0x9
+            || addr == @0xa
     }
 
     /// Return true if `addr` is 0x1.

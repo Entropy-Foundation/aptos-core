@@ -25,7 +25,8 @@ spec supra_framework::consensus_config {
         use supra_framework::chain_status;
         pragma verify = true;
         pragma aborts_if_is_strict;
-        invariant [suspendable] chain_status::is_operating() ==> exists<ConsensusConfig>(@supra_framework);
+        invariant [suspendable] chain_status::is_operating() ==>
+            exists<ConsensusConfig>(@supra_framework);
     }
 
     /// Ensure caller is admin.
@@ -65,7 +66,8 @@ spec supra_framework::consensus_config {
         aborts_if !(len(config) > 0);
 
         requires chain_status::is_genesis();
-        requires timestamp::spec_now_microseconds() >= reconfiguration::last_reconfiguration_time();
+        requires timestamp::spec_now_microseconds()
+            >= reconfiguration::last_reconfiguration_time();
         requires exists<stake::ValidatorFees>(@supra_framework);
         requires exists<CoinInfo<SupraCoin>>(@supra_framework);
         ensures global<ConsensusConfig>(@supra_framework).config == config;
@@ -84,7 +86,10 @@ spec supra_framework::consensus_config {
     spec validator_txn_enabled(): bool {
         pragma opaque;
         aborts_if !exists<ConsensusConfig>(@supra_framework);
-        ensures [abstract] result == spec_validator_txn_enabled_internal(global<ConsensusConfig>(@supra_framework).config);
+        ensures [abstract] result
+            == spec_validator_txn_enabled_internal(
+                global<ConsensusConfig>(@supra_framework).config
+            );
     }
 
     spec validator_txn_enabled_internal(config_bytes: vector<u8>): bool {

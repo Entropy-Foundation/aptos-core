@@ -47,7 +47,8 @@ spec supra_framework::reconfiguration {
         pragma aborts_if_is_strict;
 
         // After genesis, `Configuration` exists.
-        invariant [suspendable] chain_status::is_operating() ==> exists<Configuration>(@supra_framework);
+        invariant [suspendable] chain_status::is_operating() ==>
+            exists<Configuration>(@supra_framework);
         invariant [suspendable] chain_status::is_operating() ==>
             (timestamp::spec_now_microseconds() >= last_reconfiguration_time());
     }
@@ -79,15 +80,13 @@ spec supra_framework::reconfiguration {
         /// [high-level-req-1]
         ensures exists<Configuration>(@supra_framework);
         ensures config.epoch == 0 && config.last_reconfiguration_time == 0;
-        ensures config.events == event::EventHandle<NewEpochEvent> {
-            counter: 0,
-            guid: guid::GUID {
-                id: guid::ID {
-                    creation_num: 2,
-                    addr: @supra_framework
+        ensures config.events
+            == event::EventHandle<NewEpochEvent> {
+                counter: 0,
+                guid: guid::GUID {
+                    id: guid::ID { creation_num: 2, addr: @supra_framework }
                 }
-            }
-        };
+            };
     }
 
     spec current_epoch(): u64 {
@@ -122,7 +121,8 @@ spec supra_framework::reconfiguration {
 
     spec last_reconfiguration_time {
         aborts_if !exists<Configuration>(@supra_framework);
-        ensures result == global<Configuration>(@supra_framework).last_reconfiguration_time;
+        ensures result
+            == global<Configuration>(@supra_framework).last_reconfiguration_time;
     }
 
     spec reconfigure {
@@ -135,9 +135,15 @@ spec supra_framework::reconfiguration {
         pragma verify_duration_estimate = 600;
         requires exists<stake::ValidatorFees>(@supra_framework);
 
-        let success = !(chain_status::is_genesis() || timestamp::spec_now_microseconds() == 0 || !reconfiguration_enabled())
-            && timestamp::spec_now_microseconds() != global<Configuration>(@supra_framework).last_reconfiguration_time;
-        include features::spec_periodical_reward_rate_decrease_enabled() ==> staking_config::StakingRewardsConfigEnabledRequirement;
+        let success = !(
+            chain_status::is_genesis()
+                || timestamp::spec_now_microseconds() == 0
+                || !reconfiguration_enabled()
+        )
+            && timestamp::spec_now_microseconds()
+                != global<Configuration>(@supra_framework).last_reconfiguration_time;
+        include features::spec_periodical_reward_rate_decrease_enabled() ==>
+            staking_config::StakingRewardsConfigEnabledRequirement;
         include success ==> supra_coin::ExistsSupraCoin;
         include transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply;
         aborts_if false;
@@ -145,15 +151,21 @@ spec supra_framework::reconfiguration {
         // but its existing ensure conditions satisfy hp.
         // The property below is not proved within 500s and still cause an timeout
         // property 3: Synchronization of NewEpochEvent counter with configuration epoch.
-        ensures success ==> global<Configuration>(@supra_framework).epoch == old(global<Configuration>(@supra_framework).epoch) + 1;
-        ensures success ==> global<Configuration>(@supra_framework).last_reconfiguration_time == timestamp::spec_now_microseconds();
+        ensures success ==>
+            global<Configuration>(@supra_framework).epoch
+                == old(global<Configuration>(@supra_framework).epoch) + 1;
+        ensures success ==>
+            global<Configuration>(@supra_framework).last_reconfiguration_time
+                == timestamp::spec_now_microseconds();
         // We remove the ensures of event increment due to inconsisency
         // TODO: property 4: Only performs reconfiguration if genesis has started and reconfiguration is enabled.
         // Also, the last reconfiguration must not be the current time, returning early without further actions otherwise.
         // property 5: Consecutive reconfigurations without the passage of time are not permitted.
         /// [high-level-req-4]
         /// [high-level-req-5]
-        ensures !success ==> global<Configuration>(@supra_framework).epoch == old(global<Configuration>(@supra_framework).epoch);
+        ensures !success ==>
+            global<Configuration>(@supra_framework).epoch
+                == old(global<Configuration>(@supra_framework).epoch);
     }
 
     spec reconfiguration_enabled {

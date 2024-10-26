@@ -122,22 +122,24 @@ spec supra_framework::account {
     spec create_account_if_does_not_exist(account_address: address) {
         let authentication_key = bcs::to_bytes(account_address);
 
-        aborts_if !exists<Account>(account_address) && (
-            account_address == @vm_reserved
-            || account_address == @supra_framework
-            || account_address == @aptos_token
-            || !(len(authentication_key) == 32)
-        );
+        aborts_if !exists<Account>(account_address)
+            && (
+                account_address == @vm_reserved
+                    || account_address == @supra_framework
+                    || account_address == @aptos_token
+                    || !(len(authentication_key) == 32)
+            );
         ensures exists<Account>(account_address);
     }
-
 
     /// Check if the bytes of the new address is 32.
     /// The Account does not exist under the new address before creating the account.
     /// Limit the new account address is not @vm_reserved / @supra_framework / @aptos_toke.
     spec create_account(new_address: address): signer {
-        include CreateAccountAbortsIf {addr: new_address};
-        aborts_if new_address == @vm_reserved || new_address == @supra_framework || new_address == @aptos_token;
+        include CreateAccountAbortsIf { addr: new_address };
+        aborts_if new_address == @vm_reserved
+            || new_address == @supra_framework
+            || new_address == @aptos_token;
         ensures signer::address_of(result) == new_address;
         /// [high-level-req-2]
         ensures exists<Account>(new_address);
@@ -146,7 +148,7 @@ spec supra_framework::account {
     /// Check if the bytes of the new address is 32.
     /// The Account does not exist under the new address before creating the account.
     spec create_account_unchecked(new_address: address): signer {
-        include CreateAccountAbortsIf {addr: new_address};
+        include CreateAccountAbortsIf { addr: new_address };
         ensures signer::address_of(result) == new_address;
         ensures exists<Account>(new_address);
     }
@@ -213,34 +215,56 @@ spec supra_framework::account {
         ensures account_resource.authentication_key == new_auth_key;
     }
 
-    spec fun spec_assert_valid_rotation_proof_signature_and_get_auth_key(scheme: u8, public_key_bytes: vector<u8>, signature: vector<u8>, challenge: RotationProofChallenge): vector<u8>;
+    spec fun spec_assert_valid_rotation_proof_signature_and_get_auth_key(
+        scheme: u8,
+        public_key_bytes: vector<u8>,
+        signature: vector<u8>,
+        challenge: RotationProofChallenge
+    ): vector<u8>;
 
-    spec assert_valid_rotation_proof_signature_and_get_auth_key(scheme: u8, public_key_bytes: vector<u8>, signature: vector<u8>, challenge: &RotationProofChallenge): vector<u8> {
+    spec assert_valid_rotation_proof_signature_and_get_auth_key(
+        scheme: u8,
+        public_key_bytes: vector<u8>,
+        signature: vector<u8>,
+        challenge: &RotationProofChallenge
+    ): vector<u8> {
         pragma opaque;
         include AssertValidRotationProofSignatureAndGetAuthKeyAbortsIf;
-        ensures [abstract] result == spec_assert_valid_rotation_proof_signature_and_get_auth_key(scheme, public_key_bytes, signature, challenge);
+        ensures [abstract] result
+            == spec_assert_valid_rotation_proof_signature_and_get_auth_key(
+                scheme, public_key_bytes, signature, challenge
+            );
     }
+
     spec schema AssertValidRotationProofSignatureAndGetAuthKeyAbortsIf {
         scheme: u8;
         public_key_bytes: vector<u8>;
         signature: vector<u8>;
         challenge: RotationProofChallenge;
 
-        include scheme == ED25519_SCHEME ==> ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf { bytes: public_key_bytes };
-        include scheme == ED25519_SCHEME ==> ed25519::NewSignatureFromBytesAbortsIf { bytes: signature };
-        aborts_if scheme == ED25519_SCHEME && !ed25519::spec_signature_verify_strict_t(
-            ed25519::Signature { bytes: signature },
-            ed25519::UnvalidatedPublicKey { bytes: public_key_bytes },
-            challenge
-        );
+        include scheme == ED25519_SCHEME ==>
+            ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf { bytes: public_key_bytes };
+        include scheme == ED25519_SCHEME ==>
+            ed25519::NewSignatureFromBytesAbortsIf { bytes: signature };
+        aborts_if scheme == ED25519_SCHEME
+            && !ed25519::spec_signature_verify_strict_t(
+                ed25519::Signature { bytes: signature },
+                ed25519::UnvalidatedPublicKey { bytes: public_key_bytes },
+                challenge
+            );
 
-        include scheme == MULTI_ED25519_SCHEME ==> multi_ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf { bytes: public_key_bytes };
-        include scheme == MULTI_ED25519_SCHEME ==> multi_ed25519::NewSignatureFromBytesAbortsIf { bytes: signature };
-        aborts_if scheme == MULTI_ED25519_SCHEME && !multi_ed25519::spec_signature_verify_strict_t(
-            multi_ed25519::Signature { bytes: signature },
-            multi_ed25519::UnvalidatedPublicKey { bytes: public_key_bytes },
-            challenge
-        );
+        include scheme == MULTI_ED25519_SCHEME ==>
+            multi_ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf {
+                bytes: public_key_bytes
+            };
+        include scheme == MULTI_ED25519_SCHEME ==>
+            multi_ed25519::NewSignatureFromBytesAbortsIf { bytes: signature };
+        aborts_if scheme == MULTI_ED25519_SCHEME
+            && !multi_ed25519::spec_signature_verify_strict_t(
+                multi_ed25519::Signature { bytes: signature },
+                multi_ed25519::UnvalidatedPublicKey { bytes: public_key_bytes },
+                challenge
+            );
         aborts_if scheme != ED25519_SCHEME && scheme != MULTI_ED25519_SCHEME;
     }
 
@@ -253,35 +277,51 @@ spec supra_framework::account {
         to_scheme: u8,
         to_public_key_bytes: vector<u8>,
         cap_rotate_key: vector<u8>,
-        cap_update_table: vector<u8>,
+        cap_update_table: vector<u8>
     ) {
         let addr = signer::address_of(account);
         let account_resource = global<Account>(addr);
         aborts_if !exists<Account>(addr);
 
         /// [high-level-req-6.1]
-        include from_scheme == ED25519_SCHEME ==> ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf { bytes: from_public_key_bytes };
-        aborts_if from_scheme == ED25519_SCHEME && ({
-            let expected_auth_key = ed25519::spec_public_key_bytes_to_authentication_key(from_public_key_bytes);
-            account_resource.authentication_key != expected_auth_key
-        });
-        include from_scheme == MULTI_ED25519_SCHEME ==> multi_ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf { bytes: from_public_key_bytes };
-        aborts_if from_scheme == MULTI_ED25519_SCHEME && ({
-            let from_auth_key = multi_ed25519::spec_public_key_bytes_to_authentication_key(from_public_key_bytes);
-            account_resource.authentication_key != from_auth_key
-        });
+        include from_scheme == ED25519_SCHEME ==>
+            ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf {
+                bytes: from_public_key_bytes
+            };
+        aborts_if from_scheme == ED25519_SCHEME
+            && ({
+                let expected_auth_key =
+                    ed25519::spec_public_key_bytes_to_authentication_key(
+                        from_public_key_bytes
+                    );
+                account_resource.authentication_key != expected_auth_key
+            });
+        include from_scheme == MULTI_ED25519_SCHEME ==>
+            multi_ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf {
+                bytes: from_public_key_bytes
+            };
+        aborts_if from_scheme == MULTI_ED25519_SCHEME
+            && ({
+                let from_auth_key =
+                    multi_ed25519::spec_public_key_bytes_to_authentication_key(
+                        from_public_key_bytes
+                    );
+                account_resource.authentication_key != from_auth_key
+            });
 
         /// [high-level-req-5.1]
         aborts_if from_scheme != ED25519_SCHEME && from_scheme != MULTI_ED25519_SCHEME;
 
-        let curr_auth_key = from_bcs::deserialize<address>(account_resource.authentication_key);
+        let curr_auth_key = from_bcs::deserialize<address>(
+            account_resource.authentication_key
+        );
         aborts_if !from_bcs::deserializable<address>(account_resource.authentication_key);
 
         let challenge = RotationProofChallenge {
             sequence_number: account_resource.sequence_number,
             originator: addr,
             current_auth_key: curr_auth_key,
-            new_public_key: to_public_key_bytes,
+            new_public_key: to_public_key_bytes
         };
 
         /// [high-level-req-9.1]
@@ -289,35 +329,36 @@ spec supra_framework::account {
             scheme: from_scheme,
             public_key_bytes: from_public_key_bytes,
             signature: cap_rotate_key,
-            challenge,
+            challenge
         };
 
         include AssertValidRotationProofSignatureAndGetAuthKeyAbortsIf {
             scheme: to_scheme,
             public_key_bytes: to_public_key_bytes,
             signature: cap_update_table,
-            challenge,
+            challenge
         };
 
         // Verify all properties in update_auth_key_and_originating_address_table
         let originating_addr = addr;
-        let new_auth_key_vector = spec_assert_valid_rotation_proof_signature_and_get_auth_key(to_scheme, to_public_key_bytes, cap_update_table, challenge);
+        let new_auth_key_vector = spec_assert_valid_rotation_proof_signature_and_get_auth_key(
+            to_scheme, to_public_key_bytes, cap_update_table, challenge
+        );
 
         let address_map = global<OriginatingAddress>(@supra_framework).address_map;
         let new_auth_key = from_bcs::deserialize<address>(new_auth_key_vector);
 
         aborts_if !exists<OriginatingAddress>(@supra_framework);
         aborts_if !from_bcs::deserializable<address>(account_resource.authentication_key);
-        aborts_if table::spec_contains(address_map, curr_auth_key) &&
-            table::spec_get(address_map, curr_auth_key) != originating_addr;
+        aborts_if table::spec_contains(address_map, curr_auth_key)
+            && table::spec_get(address_map, curr_auth_key) != originating_addr;
 
         aborts_if !from_bcs::deserializable<address>(new_auth_key_vector);
 
-        aborts_if curr_auth_key != new_auth_key && table::spec_contains(address_map, new_auth_key);
+        aborts_if curr_auth_key != new_auth_key
+            && table::spec_contains(address_map, new_auth_key);
 
-        include UpdateAuthKeyAndOriginatingAddressTableAbortsIf {
-            originating_addr: addr,
-        };
+        include UpdateAuthKeyAndOriginatingAddressTableAbortsIf { originating_addr: addr };
 
         let post auth_key = global<Account>(addr).authentication_key;
         ensures auth_key == new_auth_key_vector;
@@ -334,41 +375,53 @@ spec supra_framework::account {
         aborts_if !exists<Account>(rotation_cap_offerer_address);
         let delegate_address = signer::address_of(delegate_signer);
         let offerer_account_resource = global<Account>(rotation_cap_offerer_address);
-        aborts_if !from_bcs::deserializable<address>(offerer_account_resource.authentication_key);
-        let curr_auth_key = from_bcs::deserialize<address>(offerer_account_resource.authentication_key);
+        aborts_if !from_bcs::deserializable<address>(
+            offerer_account_resource.authentication_key
+        );
+        let curr_auth_key = from_bcs::deserialize<address>(
+            offerer_account_resource.authentication_key
+        );
         aborts_if !exists<Account>(delegate_address);
         let challenge = RotationProofChallenge {
             sequence_number: global<Account>(delegate_address).sequence_number,
             originator: rotation_cap_offerer_address,
             current_auth_key: curr_auth_key,
-            new_public_key: new_public_key_bytes,
+            new_public_key: new_public_key_bytes
         };
         /// [high-level-req-6.2]
-        aborts_if !option::spec_contains(offerer_account_resource.rotation_capability_offer.for, delegate_address);
+        aborts_if !option::spec_contains(
+            offerer_account_resource.rotation_capability_offer.for, delegate_address
+        );
         /// [high-level-req-9.1]
         include AssertValidRotationProofSignatureAndGetAuthKeyAbortsIf {
             scheme: new_scheme,
             public_key_bytes: new_public_key_bytes,
             signature: cap_update_table,
-            challenge,
+            challenge
         };
 
-        let new_auth_key_vector = spec_assert_valid_rotation_proof_signature_and_get_auth_key(new_scheme, new_public_key_bytes, cap_update_table, challenge);
+        let new_auth_key_vector = spec_assert_valid_rotation_proof_signature_and_get_auth_key(
+            new_scheme, new_public_key_bytes, cap_update_table, challenge
+        );
         let address_map = global<OriginatingAddress>(@supra_framework).address_map;
 
         // Verify all properties in update_auth_key_and_originating_address_table
         aborts_if !exists<OriginatingAddress>(@supra_framework);
-        aborts_if !from_bcs::deserializable<address>(offerer_account_resource.authentication_key);
-        aborts_if table::spec_contains(address_map, curr_auth_key) &&
-            table::spec_get(address_map, curr_auth_key) != rotation_cap_offerer_address;
+        aborts_if !from_bcs::deserializable<address>(
+            offerer_account_resource.authentication_key
+        );
+        aborts_if table::spec_contains(address_map, curr_auth_key)
+            && table::spec_get(address_map, curr_auth_key)
+                != rotation_cap_offerer_address;
 
         aborts_if !from_bcs::deserializable<address>(new_auth_key_vector);
         let new_auth_key = from_bcs::deserialize<address>(new_auth_key_vector);
 
-        aborts_if curr_auth_key != new_auth_key && table::spec_contains(address_map, new_auth_key);
+        aborts_if curr_auth_key != new_auth_key
+            && table::spec_contains(address_map, new_auth_key);
         include UpdateAuthKeyAndOriginatingAddressTableAbortsIf {
             originating_addr: rotation_cap_offerer_address,
-            account_resource: offerer_account_resource,
+            account_resource: offerer_account_resource
         };
 
         let post auth_key = global<Account>(rotation_cap_offerer_address).authentication_key;
@@ -380,7 +433,7 @@ spec supra_framework::account {
         rotation_capability_sig_bytes: vector<u8>,
         account_scheme: u8,
         account_public_key_bytes: vector<u8>,
-        recipient_address: address,
+        recipient_address: address
     ) {
         let source_address = signer::address_of(account);
         let account_resource = global<Account>(source_address);
@@ -388,39 +441,60 @@ spec supra_framework::account {
             chain_id: global<chain_id::ChainId>(@supra_framework).id,
             sequence_number: account_resource.sequence_number,
             source_address,
-            recipient_address,
+            recipient_address
         };
 
         aborts_if !exists<chain_id::ChainId>(@supra_framework);
         aborts_if !exists<Account>(recipient_address);
         aborts_if !exists<Account>(source_address);
 
-        include account_scheme == ED25519_SCHEME ==> ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf { bytes: account_public_key_bytes };
-        aborts_if account_scheme == ED25519_SCHEME && ({
-            let expected_auth_key = ed25519::spec_public_key_bytes_to_authentication_key(account_public_key_bytes);
-            account_resource.authentication_key != expected_auth_key
-        });
-        include account_scheme == ED25519_SCHEME ==> ed25519::NewSignatureFromBytesAbortsIf { bytes: rotation_capability_sig_bytes };
-        aborts_if account_scheme == ED25519_SCHEME && !ed25519::spec_signature_verify_strict_t(
-            ed25519::Signature { bytes: rotation_capability_sig_bytes },
-            ed25519::UnvalidatedPublicKey { bytes: account_public_key_bytes },
-            proof_challenge
-        );
+        include account_scheme == ED25519_SCHEME ==>
+            ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf {
+                bytes: account_public_key_bytes
+            };
+        aborts_if account_scheme == ED25519_SCHEME
+            && ({
+                let expected_auth_key =
+                    ed25519::spec_public_key_bytes_to_authentication_key(
+                        account_public_key_bytes
+                    );
+                account_resource.authentication_key != expected_auth_key
+            });
+        include account_scheme == ED25519_SCHEME ==>
+            ed25519::NewSignatureFromBytesAbortsIf { bytes: rotation_capability_sig_bytes };
+        aborts_if account_scheme == ED25519_SCHEME
+            && !ed25519::spec_signature_verify_strict_t(
+                ed25519::Signature { bytes: rotation_capability_sig_bytes },
+                ed25519::UnvalidatedPublicKey { bytes: account_public_key_bytes },
+                proof_challenge
+            );
 
-        include account_scheme == MULTI_ED25519_SCHEME ==> multi_ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf { bytes: account_public_key_bytes };
-        aborts_if account_scheme == MULTI_ED25519_SCHEME && ({
-            let expected_auth_key = multi_ed25519::spec_public_key_bytes_to_authentication_key(account_public_key_bytes);
-            account_resource.authentication_key != expected_auth_key
-        });
-        include account_scheme == MULTI_ED25519_SCHEME ==> multi_ed25519::NewSignatureFromBytesAbortsIf { bytes: rotation_capability_sig_bytes };
-        aborts_if account_scheme == MULTI_ED25519_SCHEME && !multi_ed25519::spec_signature_verify_strict_t(
-            multi_ed25519::Signature { bytes: rotation_capability_sig_bytes },
-            multi_ed25519::UnvalidatedPublicKey { bytes: account_public_key_bytes },
-            proof_challenge
-        );
+        include account_scheme == MULTI_ED25519_SCHEME ==>
+            multi_ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf {
+                bytes: account_public_key_bytes
+            };
+        aborts_if account_scheme == MULTI_ED25519_SCHEME
+            && ({
+                let expected_auth_key =
+                    multi_ed25519::spec_public_key_bytes_to_authentication_key(
+                        account_public_key_bytes
+                    );
+                account_resource.authentication_key != expected_auth_key
+            });
+        include account_scheme == MULTI_ED25519_SCHEME ==>
+            multi_ed25519::NewSignatureFromBytesAbortsIf {
+                bytes: rotation_capability_sig_bytes
+            };
+        aborts_if account_scheme == MULTI_ED25519_SCHEME
+            && !multi_ed25519::spec_signature_verify_strict_t(
+                multi_ed25519::Signature { bytes: rotation_capability_sig_bytes },
+                multi_ed25519::UnvalidatedPublicKey { bytes: account_public_key_bytes },
+                proof_challenge
+            );
 
         /// [high-level-req-5.2]
-        aborts_if account_scheme != ED25519_SCHEME && account_scheme != MULTI_ED25519_SCHEME;
+        aborts_if account_scheme != ED25519_SCHEME
+            && account_scheme != MULTI_ED25519_SCHEME;
 
         /// [high-level-req-7.1]
         modifies global<Account>(source_address);
@@ -442,38 +516,59 @@ spec supra_framework::account {
         let proof_challenge = SignerCapabilityOfferProofChallengeV2 {
             sequence_number: account_resource.sequence_number,
             source_address,
-            recipient_address,
+            recipient_address
         };
 
         aborts_if !exists<Account>(recipient_address);
         aborts_if !exists<Account>(source_address);
 
-        include account_scheme == ED25519_SCHEME ==> ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf { bytes: account_public_key_bytes };
-        aborts_if account_scheme == ED25519_SCHEME && ({
-            let expected_auth_key = ed25519::spec_public_key_bytes_to_authentication_key(account_public_key_bytes);
-            account_resource.authentication_key != expected_auth_key
-        });
-        include account_scheme == ED25519_SCHEME ==> ed25519::NewSignatureFromBytesAbortsIf { bytes: signer_capability_sig_bytes };
-        aborts_if account_scheme == ED25519_SCHEME && !ed25519::spec_signature_verify_strict_t(
-            ed25519::Signature { bytes: signer_capability_sig_bytes },
-            ed25519::UnvalidatedPublicKey { bytes: account_public_key_bytes },
-            proof_challenge
-        );
+        include account_scheme == ED25519_SCHEME ==>
+            ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf {
+                bytes: account_public_key_bytes
+            };
+        aborts_if account_scheme == ED25519_SCHEME
+            && ({
+                let expected_auth_key =
+                    ed25519::spec_public_key_bytes_to_authentication_key(
+                        account_public_key_bytes
+                    );
+                account_resource.authentication_key != expected_auth_key
+            });
+        include account_scheme == ED25519_SCHEME ==>
+            ed25519::NewSignatureFromBytesAbortsIf { bytes: signer_capability_sig_bytes };
+        aborts_if account_scheme == ED25519_SCHEME
+            && !ed25519::spec_signature_verify_strict_t(
+                ed25519::Signature { bytes: signer_capability_sig_bytes },
+                ed25519::UnvalidatedPublicKey { bytes: account_public_key_bytes },
+                proof_challenge
+            );
 
-        include account_scheme == MULTI_ED25519_SCHEME ==> multi_ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf { bytes: account_public_key_bytes };
-        aborts_if account_scheme == MULTI_ED25519_SCHEME && ({
-            let expected_auth_key = multi_ed25519::spec_public_key_bytes_to_authentication_key(account_public_key_bytes);
-            account_resource.authentication_key != expected_auth_key
-        });
-        include account_scheme == MULTI_ED25519_SCHEME ==> multi_ed25519::NewSignatureFromBytesAbortsIf { bytes: signer_capability_sig_bytes };
-        aborts_if account_scheme == MULTI_ED25519_SCHEME && !multi_ed25519::spec_signature_verify_strict_t(
-            multi_ed25519::Signature { bytes: signer_capability_sig_bytes },
-            multi_ed25519::UnvalidatedPublicKey { bytes: account_public_key_bytes },
-            proof_challenge
-        );
+        include account_scheme == MULTI_ED25519_SCHEME ==>
+            multi_ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf {
+                bytes: account_public_key_bytes
+            };
+        aborts_if account_scheme == MULTI_ED25519_SCHEME
+            && ({
+                let expected_auth_key =
+                    multi_ed25519::spec_public_key_bytes_to_authentication_key(
+                        account_public_key_bytes
+                    );
+                account_resource.authentication_key != expected_auth_key
+            });
+        include account_scheme == MULTI_ED25519_SCHEME ==>
+            multi_ed25519::NewSignatureFromBytesAbortsIf {
+                bytes: signer_capability_sig_bytes
+            };
+        aborts_if account_scheme == MULTI_ED25519_SCHEME
+            && !multi_ed25519::spec_signature_verify_strict_t(
+                multi_ed25519::Signature { bytes: signer_capability_sig_bytes },
+                multi_ed25519::UnvalidatedPublicKey { bytes: account_public_key_bytes },
+                proof_challenge
+            );
 
         /// [high-level-req-5.3]
-        aborts_if account_scheme != ED25519_SCHEME && account_scheme != MULTI_ED25519_SCHEME;
+        aborts_if account_scheme != ED25519_SCHEME
+            && account_scheme != MULTI_ED25519_SCHEME;
 
         /// [high-level-req-7.2]
         modifies global<Account>(source_address);
@@ -508,7 +603,9 @@ spec supra_framework::account {
         let addr = signer::address_of(account);
         let account_resource = global<Account>(addr);
         aborts_if !exists<Account>(addr);
-        aborts_if !option::spec_contains(account_resource.signer_capability_offer.for,to_be_revoked_address);
+        aborts_if !option::spec_contains(
+            account_resource.signer_capability_offer.for, to_be_revoked_address
+        );
         modifies global<Account>(addr);
         ensures exists<Account>(to_be_revoked_address);
     }
@@ -526,7 +623,9 @@ spec supra_framework::account {
         let addr = signer::address_of(account);
         let account_resource = global<Account>(addr);
         aborts_if !exists<Account>(addr);
-        aborts_if !option::spec_contains(account_resource.rotation_capability_offer.for,to_be_revoked_address);
+        aborts_if !option::spec_contains(
+            account_resource.rotation_capability_offer.for, to_be_revoked_address
+        );
         modifies global<Account>(addr);
         ensures exists<Account>(to_be_revoked_address);
         let post offer_for = global<Account>(addr).rotation_capability_offer.for;
@@ -548,10 +647,7 @@ spec supra_framework::account {
     /// The value of signer_capability_offer.for of Account resource under the signer is offerer_address.
     spec create_authorized_signer(account: &signer, offerer_address: address): signer {
         /// [high-level-req-8]
-        include AccountContainsAddr{
-            account,
-            address: offerer_address,
-        };
+        include AccountContainsAddr { account, address: offerer_address };
         modifies global<Account>(offerer_address);
         ensures exists<Account>(offerer_address);
         ensures signer::address_of(result) == offerer_address;
@@ -564,7 +660,9 @@ spec supra_framework::account {
         let account_resource = global<Account>(address);
         aborts_if !exists<Account>(address);
         /// [create_signer::high-level-spec-3]
-        aborts_if !option::spec_contains(account_resource.signer_capability_offer.for,addr);
+        aborts_if !option::spec_contains(
+            account_resource.signer_capability_offer.for, addr
+        );
     }
 
     /// The Account existed under the signer
@@ -584,8 +682,10 @@ spec supra_framework::account {
         let resource_addr = spec_create_resource_address(source_addr, seed);
 
         aborts_if len(ZERO_AUTH_KEY) != 32;
-        include exists_at(resource_addr) ==> CreateResourceAccountAbortsIf;
-        include !exists_at(resource_addr) ==> CreateAccountAbortsIf {addr: resource_addr};
+        include exists_at(resource_addr) ==>
+            CreateResourceAccountAbortsIf;
+        include !exists_at(resource_addr) ==>
+            CreateAccountAbortsIf { addr: resource_addr };
 
         ensures signer::address_of(result_1) == resource_addr;
         let post offer_for = global<Account>(resource_addr).signer_capability_offer.for;
@@ -598,34 +698,33 @@ spec supra_framework::account {
     /// The system reserved addresses is @0x1 / @0x2 / @0x3 / @0x4 / @0x5  / @0x6 / @0x7 / @0x8 / @0x9 / @0xa.
     spec create_framework_reserved_account(addr: address): (signer, SignerCapability) {
         aborts_if spec_is_framework_address(addr);
-        include CreateAccountAbortsIf {addr};
+        include CreateAccountAbortsIf { addr };
         ensures signer::address_of(result_1) == addr;
         ensures result_2 == SignerCapability { account: addr };
     }
 
-    spec fun spec_is_framework_address(addr: address): bool{
-        addr != @0x1 &&
-        addr != @0x2 &&
-        addr != @0x3 &&
-        addr != @0x4 &&
-        addr != @0x5 &&
-        addr != @0x6 &&
-        addr != @0x7 &&
-        addr != @0x8 &&
-        addr != @0x9 &&
-        addr != @0xa
+    spec fun spec_is_framework_address(addr: address): bool {
+        addr != @0x1
+            && addr != @0x2
+            && addr != @0x3
+            && addr != @0x4
+            && addr != @0x5
+            && addr != @0x6
+            && addr != @0x7
+            && addr != @0x8
+            && addr != @0x9
+            && addr != @0xa
     }
 
     /// The Account existed under the signer.
     /// The guid_creation_num of the ccount resource is up to MAX_U64.
     spec create_guid(account_signer: &signer): guid::GUID {
         let addr = signer::address_of(account_signer);
-        include NewEventHandleAbortsIf {
-            account: account_signer,
-        };
+        include NewEventHandleAbortsIf { account: account_signer };
         modifies global<Account>(addr);
         /// [high-level-req-11]
-        ensures global<Account>(addr).guid_creation_num == old(global<Account>(addr).guid_creation_num) + 1;
+        ensures global<Account>(addr).guid_creation_num
+            == old(global<Account>(addr).guid_creation_num) + 1;
     }
 
     /// The Account existed under the signer.
@@ -633,6 +732,7 @@ spec supra_framework::account {
     spec new_event_handle<T: drop + store>(account: &signer): EventHandle<T> {
         include NewEventHandleAbortsIf;
     }
+
     spec schema NewEventHandleAbortsIf {
         account: &signer;
         let addr = signer::address_of(account);
@@ -663,26 +763,33 @@ spec supra_framework::account {
     spec update_auth_key_and_originating_address_table(
         originating_addr: address,
         account_resource: &mut Account,
-        new_auth_key_vector: vector<u8>,
+        new_auth_key_vector: vector<u8>
     ) {
         modifies global<OriginatingAddress>(@supra_framework);
         include UpdateAuthKeyAndOriginatingAddressTableAbortsIf;
     }
+
     spec schema UpdateAuthKeyAndOriginatingAddressTableAbortsIf {
         originating_addr: address;
         account_resource: Account;
         new_auth_key_vector: vector<u8>;
         let address_map = global<OriginatingAddress>(@supra_framework).address_map;
-        let curr_auth_key = from_bcs::deserialize<address>(account_resource.authentication_key);
+        let curr_auth_key = from_bcs::deserialize<address>(
+            account_resource.authentication_key
+        );
         let new_auth_key = from_bcs::deserialize<address>(new_auth_key_vector);
         aborts_if !exists<OriginatingAddress>(@supra_framework);
         aborts_if !from_bcs::deserializable<address>(account_resource.authentication_key);
-        aborts_if table::spec_contains(address_map, curr_auth_key) &&
-            table::spec_get(address_map, curr_auth_key) != originating_addr;
+        aborts_if table::spec_contains(address_map, curr_auth_key)
+            && table::spec_get(address_map, curr_auth_key) != originating_addr;
         aborts_if !from_bcs::deserializable<address>(new_auth_key_vector);
-        aborts_if curr_auth_key != new_auth_key && table::spec_contains(address_map, new_auth_key);
+        aborts_if curr_auth_key != new_auth_key
+            && table::spec_contains(address_map, new_auth_key);
 
-        ensures table::spec_contains(global<OriginatingAddress>(@supra_framework).address_map, from_bcs::deserialize<address>(new_auth_key_vector));
+        ensures table::spec_contains(
+            global<OriginatingAddress>(@supra_framework).address_map,
+            from_bcs::deserialize<address>(new_auth_key_vector)
+        );
     }
 
     spec verify_signed_message<T: drop>(
@@ -690,7 +797,7 @@ spec supra_framework::account {
         account_scheme: u8,
         account_public_key: vector<u8>,
         signed_message_bytes: vector<u8>,
-        message: T,
+        message: T
     ) {
         pragma aborts_if_is_partial;
 
@@ -698,19 +805,32 @@ spec supra_framework::account {
         let account_resource = global<Account>(account);
         aborts_if !exists<Account>(account);
 
-        include account_scheme == ED25519_SCHEME ==> ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf { bytes: account_public_key };
-        aborts_if account_scheme == ED25519_SCHEME && ({
-            let expected_auth_key = ed25519::spec_public_key_bytes_to_authentication_key(account_public_key);
-            account_resource.authentication_key != expected_auth_key
-        });
+        include account_scheme == ED25519_SCHEME ==>
+            ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf { bytes: account_public_key };
+        aborts_if account_scheme == ED25519_SCHEME
+            && ({
+                let expected_auth_key =
+                    ed25519::spec_public_key_bytes_to_authentication_key(
+                        account_public_key
+                    );
+                account_resource.authentication_key != expected_auth_key
+            });
 
-        include account_scheme == MULTI_ED25519_SCHEME ==> multi_ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf { bytes: account_public_key };
-        aborts_if account_scheme == MULTI_ED25519_SCHEME && ({
-            let expected_auth_key = multi_ed25519::spec_public_key_bytes_to_authentication_key(account_public_key);
-            account_resource.authentication_key != expected_auth_key
-        });
+        include account_scheme == MULTI_ED25519_SCHEME ==>
+            multi_ed25519::NewUnvalidatedPublicKeyFromBytesAbortsIf {
+                bytes: account_public_key
+            };
+        aborts_if account_scheme == MULTI_ED25519_SCHEME
+            && ({
+                let expected_auth_key =
+                    multi_ed25519::spec_public_key_bytes_to_authentication_key(
+                        account_public_key
+                    );
+                account_resource.authentication_key != expected_auth_key
+            });
 
-        include account_scheme == ED25519_SCHEME ==> ed25519::NewSignatureFromBytesAbortsIf { bytes: signed_message_bytes };
+        include account_scheme == ED25519_SCHEME ==>
+            ed25519::NewSignatureFromBytesAbortsIf { bytes: signed_message_bytes };
         // TODO: compiler error with message T
         // aborts_if account_scheme == ED25519_SCHEME && !ed25519::spec_signature_verify_strict_t(
         //     ed25519::Signature { bytes: signed_message_bytes },
@@ -718,7 +838,8 @@ spec supra_framework::account {
         //     message
         // );
 
-        include account_scheme == MULTI_ED25519_SCHEME ==> multi_ed25519::NewSignatureFromBytesAbortsIf { bytes: signed_message_bytes };
+        include account_scheme == MULTI_ED25519_SCHEME ==>
+            multi_ed25519::NewSignatureFromBytesAbortsIf { bytes: signed_message_bytes };
         // TODO: compiler error with message T
         // aborts_if account_scheme == MULTI_ED25519_SCHEME && !multi_ed25519::spec_signature_verify_strict_t(
         //     multi_ed25519::Signature { bytes: signed_message_bytes },
@@ -726,6 +847,7 @@ spec supra_framework::account {
         //     message
         // );
 
-        aborts_if account_scheme != ED25519_SCHEME && account_scheme != MULTI_ED25519_SCHEME;
+        aborts_if account_scheme != ED25519_SCHEME
+            && account_scheme != MULTI_ED25519_SCHEME;
     }
 }

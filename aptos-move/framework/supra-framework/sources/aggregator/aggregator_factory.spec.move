@@ -60,6 +60,7 @@ spec supra_framework::aggregator_factory {
         ensures aggregator::spec_get_limit(result) == limit;
         ensures aggregator::spec_aggregator_get_val(result) == 0;
     }
+
     spec schema CreateAggregatorInternalAbortsIf {
         aborts_if !exists<AggregatorFactory>(@supra_framework);
     }

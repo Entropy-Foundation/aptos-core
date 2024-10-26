@@ -12,7 +12,7 @@ module supra_framework::execution_config {
     friend supra_framework::reconfiguration_with_dkg;
 
     struct ExecutionConfig has drop, key, store {
-        config: vector<u8>,
+        config: vector<u8>
     }
 
     /// The provided on chain config bytes are empty or invalid
@@ -30,7 +30,8 @@ module supra_framework::execution_config {
         assert!(vector::length(&config) > 0, error::invalid_argument(EINVALID_CONFIG));
 
         if (exists<ExecutionConfig>(@supra_framework)) {
-            let config_ref = &mut borrow_global_mut<ExecutionConfig>(@supra_framework).config;
+            let config_ref =
+                &mut borrow_global_mut<ExecutionConfig>(@supra_framework).config;
             *config_ref = config;
         } else {
             move_to(account, ExecutionConfig { config });

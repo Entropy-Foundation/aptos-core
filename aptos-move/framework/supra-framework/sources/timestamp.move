@@ -10,7 +10,7 @@ module supra_framework::timestamp {
 
     /// A singleton resource holding the current Unix time in microseconds
     struct CurrentTimeMicroseconds has key {
-        microseconds: u64,
+        microseconds: u64
     }
 
     /// Conversion factor between seconds and microseconds
@@ -22,7 +22,9 @@ module supra_framework::timestamp {
     const EINVALID_TIMESTAMP: u64 = 2;
 
     /// Marks that time has started. This can only be called from genesis and with the aptos framework account.
-    public(friend) fun set_time_has_started(supra_framework: &signer, start_time_in_microseconds: u64) {
+    public(friend) fun set_time_has_started(
+        supra_framework: &signer, start_time_in_microseconds: u64
+    ) {
         system_addresses::assert_supra_framework(supra_framework);
         let timer = CurrentTimeMicroseconds { microseconds: start_time_in_microseconds };
         move_to(supra_framework, timer);
@@ -30,9 +32,7 @@ module supra_framework::timestamp {
 
     /// Updates the wall clock time by consensus. Requires VM privilege and will be invoked during block prologue.
     public fun update_global_time(
-        account: &signer,
-        proposer: address,
-        timestamp: u64
+        account: &signer, proposer: address, timestamp: u64
     ) acquires CurrentTimeMicroseconds {
         // Can only be invoked by AptosVM signer.
         system_addresses::assert_vm(account);
@@ -52,7 +52,7 @@ module supra_framework::timestamp {
     #[test_only]
     public fun set_time_has_started_for_testing(account: &signer) {
         if (!exists<CurrentTimeMicroseconds>(@supra_framework)) {
-            set_time_has_started(account,0);
+            set_time_has_started(account, 0);
         };
     }
 
@@ -69,7 +69,9 @@ module supra_framework::timestamp {
     }
 
     #[test_only]
-    public fun update_global_time_for_test(timestamp_microsecs: u64) acquires CurrentTimeMicroseconds {
+    public fun update_global_time_for_test(
+        timestamp_microsecs: u64
+    ) acquires CurrentTimeMicroseconds {
         let global_timer = borrow_global_mut<CurrentTimeMicroseconds>(@supra_framework);
         let now = global_timer.microseconds;
         assert!(now < timestamp_microsecs, error::invalid_argument(EINVALID_TIMESTAMP));
@@ -77,7 +79,9 @@ module supra_framework::timestamp {
     }
 
     #[test_only]
-    public fun update_global_time_for_test_secs(timestamp_seconds: u64) acquires CurrentTimeMicroseconds {
+    public fun update_global_time_for_test_secs(
+        timestamp_seconds: u64
+    ) acquires CurrentTimeMicroseconds {
         update_global_time_for_test(timestamp_seconds * MICRO_CONVERSION_FACTOR);
     }
 

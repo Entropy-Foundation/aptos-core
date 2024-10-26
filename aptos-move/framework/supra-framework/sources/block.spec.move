@@ -43,9 +43,11 @@ spec supra_framework::block {
     spec module {
         use supra_framework::chain_status;
         // After genesis, `BlockResource` exist.
-        invariant [suspendable] chain_status::is_operating() ==> exists<BlockResource>(@supra_framework);
+        invariant [suspendable] chain_status::is_operating() ==>
+            exists<BlockResource>(@supra_framework);
         // After genesis, `CommitHistory` exist.
-        invariant [suspendable] chain_status::is_operating() ==> exists<CommitHistory>(@supra_framework);
+        invariant [suspendable] chain_status::is_operating() ==>
+            exists<CommitHistory>(@supra_framework);
     }
 
     spec BlockResource {
@@ -64,7 +66,6 @@ spec supra_framework::block {
     }
 
     spec block_prologue {
-
         pragma verify_duration_estimate = 1000; // TODO: set because of timeout (property proved)
         requires timestamp >= reconfiguration::last_reconfiguration_time();
         include BlockRequirement;
@@ -85,7 +86,8 @@ spec supra_framework::block {
 
         requires chain_status::is_operating();
         requires system_addresses::is_vm(vm);
-        requires event::counter(global<BlockResource>(@supra_framework).new_block_events) == 0;
+        requires event::counter(global<BlockResource>(@supra_framework).new_block_events) ==
+            0;
         requires (timestamp::spec_now_microseconds() == 0);
 
         aborts_if false;
@@ -98,8 +100,10 @@ spec supra_framework::block {
 
         requires chain_status::is_operating();
         requires system_addresses::is_vm(vm);
-        requires (proposer == @vm_reserved) ==> (timestamp::spec_now_microseconds() == timestamp);
-        requires (proposer != @vm_reserved) ==> (timestamp::spec_now_microseconds() < timestamp);
+        requires (proposer == @vm_reserved) ==>
+            (timestamp::spec_now_microseconds() == timestamp);
+        requires (proposer != @vm_reserved) ==>
+            (timestamp::spec_now_microseconds() < timestamp);
         /// [high-level-req-5]
         requires event::counter(event_handle) == new_block_event.height;
 
@@ -142,9 +146,12 @@ spec supra_framework::block {
         requires chain_status::is_operating();
         requires system_addresses::is_vm(vm);
         /// [high-level-req-4]
-        requires proposer == @vm_reserved || stake::spec_is_current_epoch_validator(proposer);
-        requires (proposer == @vm_reserved) ==> (timestamp::spec_now_microseconds() == timestamp);
-        requires (proposer != @vm_reserved) ==> (timestamp::spec_now_microseconds() < timestamp);
+        requires proposer == @vm_reserved
+            || stake::spec_is_current_epoch_validator(proposer);
+        requires (proposer == @vm_reserved) ==>
+            (timestamp::spec_now_microseconds() == timestamp);
+        requires (proposer != @vm_reserved) ==>
+            (timestamp::spec_now_microseconds() < timestamp);
         requires exists<stake::ValidatorFees>(@supra_framework);
         requires exists<CoinInfo<SupraCoin>>(@supra_framework);
         include transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply;
@@ -180,10 +187,7 @@ spec supra_framework::block {
     /// The caller is @supra_framework.
     /// The new_epoch_interval must be greater than 0.
     /// The BlockResource existed under the @supra_framework.
-    spec update_epoch_interval_microsecs(
-        supra_framework: &signer,
-        new_epoch_interval: u64,
-    ) {
+    spec update_epoch_interval_microsecs(supra_framework: &signer, new_epoch_interval: u64) {
         /// [high-level-req-3.1]
         include UpdateEpochIntervalMicrosecs;
     }
