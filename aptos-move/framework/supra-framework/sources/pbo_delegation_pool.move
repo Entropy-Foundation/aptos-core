@@ -7492,6 +7492,7 @@ module supra_framework::pbo_delegation_pool {
             new_delegator_balance2
         );
     }
+
     #[
         test(
             supra_framework = @supra_framework,
@@ -7500,8 +7501,8 @@ module supra_framework::pbo_delegation_pool {
             funder = @0x999
         )
     ]
-    #[expected_failure(abort_code=327716, location=Self)]
-    /// Test that if a if some random person tries to add delegator locked stake, it does not get added to 
+    #[expected_failure(abort_code = 327716, location = Self)]
+    /// Test that if a if some random person tries to add delegator locked stake, it does not get added to
     /// `principle_stake` table and therefore remains outside the purview of replacement
     public entry fun test_unlock_delegator_not_part_of_principle_stake_cannot_be_locked_by_strangers_failure(
         supra_framework: &signer, validator: &signer, delegator: &signer
@@ -7558,11 +7559,9 @@ module supra_framework::pbo_delegation_pool {
             validator,
             pool_address,
             vector[new_delegator_address],
-            vector[1*ONE_SUPRA]
+            vector[1 * ONE_SUPRA]
         );
-            }
-
-
+    }
 
     #[
         test(
@@ -7572,7 +7571,7 @@ module supra_framework::pbo_delegation_pool {
             funder = @0x999
         )
     ]
-    /// Test that if a multisig admin adds a delegator with zero stake, it does not get added to 
+    /// Test that if a multisig admin adds a delegator with zero stake, it does not get added to
     /// `principle_stake` table and therefore remains outside the purview of replacement
     public entry fun test_unlock_zero_funded_delegator_not_part_of_principle_stake_success(
         supra_framework: &signer, validator: &signer, delegator: &signer
@@ -7632,7 +7631,7 @@ module supra_framework::pbo_delegation_pool {
             vector[0]
         );
         {
-        // if the locked stake is zero, assert that it does not get added to `principle_stake` table
+            // if the locked stake is zero, assert that it does not get added to `principle_stake` table
             let pool = borrow_global<DelegationPool>(pool_address);
             assert!(!table::contains(&pool.principle_stake, new_delegator_address), 999);
         };
