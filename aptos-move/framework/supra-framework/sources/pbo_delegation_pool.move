@@ -395,6 +395,7 @@ module supra_framework::pbo_delegation_pool {
     }
 
     struct AddStakeEvent has drop, store {
+        stake_funder: address,
         pool_address: address,
         delegator_address: address,
         amount_added: u64,
@@ -865,7 +866,33 @@ module supra_framework::pbo_delegation_pool {
             enable_partial_governance_voting(pool_address);
         }
     }
+    
+    public entry fun fund_delegators_with_locked_stake(funder: &signer, pool_address: address, delegators: vector<address>, stakes: vector<u64>) acquires DelegationPool, BeneficiaryForOperator, GovernanceRecords, NextCommissionPercentage {
 
+
+        let  pool = borrow_global_mut<DelegationPool>(pool_address);
+        
+        vector::zip_reverse(delegators,stakes,|delegator,stake| {
+            
+        if(table::contains(&pool.principle_stake,delegator)) {
+            let stake_amount = table::borrow_mut(&mut pool.principle_stake,delegator);
+            *stake_amount = *stake_amount+stake; 
+        }
+        else {
+            table::add(&mut pool.principle_stake,delegator,stake);
+        }
+        });
+
+        fund_delegators_with_stake(funder,pool_address,delegators,stakes);
+    }
+
+    public entry fun fund_delegators_with_stake(funder: &signer, pool_address: address, delegators: vector<address>, stakes : vector<u64>) acquires DelegationPool, BeneficiaryForOperator, GovernanceRecords, NextCommissionPercentage {
+        //length equality check is performed by `zip_reverse`
+        vector::zip_reverse(delegators,stakes, |delegator,stake| {
+            fund_delegator_stake(funder,delegator,pool_address,stake);
+        } );
+
+    }
     #[view]
     public fun get_admin(pool_address: address): option::Option<address> acquires DelegationPool {
         return borrow_global<DelegationPool>(pool_address).multisig_admin
@@ -1271,9 +1298,8 @@ module supra_framework::pbo_delegation_pool {
         assert_min_active_balance(pool, delegator_address);
     }
 
-    /// Add `amount` of coins to the delegation pool `pool_address`.
-    public entry fun add_stake(delegator: &signer, pool_address: address, amount: u64) acquires DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
-        // short-circuit if amount to add is 0 so no event is emitted
+    fun fund_delegator_stake (funder: &signer, delegator_address: address, pool_address: address, amount: u64) acquires DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
+         // short-circuit if amount to add is 0 so no event is emitted
         if (amount == 0) { return };
         // synchronize delegation and stake pools before any user operation
         synchronize_delegation_pool(pool_address);
@@ -1282,10 +1308,8 @@ module supra_framework::pbo_delegation_pool {
         let add_stake_fee = get_add_stake_fee(pool_address, amount);
 
         let pool = borrow_global_mut<DelegationPool>(pool_address);
-        let delegator_address = signer::address_of(delegator);
 
         // stake the entire amount to the stake pool
-        supra_account::transfer(delegator, pool_address, amount);
         stake::add_stake(&retrieve_stake_pool_owner(pool), amount);
 
         // but buy shares for delegator just for the remaining amount after fee
@@ -1298,14 +1322,22 @@ module supra_framework::pbo_delegation_pool {
         // in order to appreciate all shares on the active pool atomically
         buy_in_active_shares(pool, NULL_SHAREHOLDER, add_stake_fee);
 
+        supra_account::transfer(funder, pool_address, amount);
+        let funder_address = signer::address_of(funder);
         event::emit_event(&mut pool.add_stake_events,
             AddStakeEvent {
+                stake_funder: funder_address,
                 pool_address,
                 delegator_address,
                 amount_added: amount,
                 add_stake_fee,
             },
         );
+
+    }
+    /// Add `amount` of coins to the delegation pool `pool_address`.
+    public entry fun add_stake(delegator: &signer, pool_address: address, amount: u64) acquires DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
+       fund_delegator_stake(delegator,signer::address_of(delegator),pool_address,amount) 
     }
 
     fun replace_in_smart_tables<Key: copy + drop, Val>(
