@@ -941,23 +941,34 @@ module supra_framework::pbo_delegation_pool {
         delegators: vector<address>,
         stakes: vector<u64>
     ) acquires DelegationPool, BeneficiaryForOperator, GovernanceRecords, NextCommissionPercentage {
+        {
+            assert!(
+                is_admin(signer::address_of(funder), pool_address),
+                error::permission_denied(ENOT_AUTHORIZED)
+            );
+        };
         vector::zip_reverse(
             delegators,
             stakes,
             |delegator, stake| {
-
-                //Compute the actual stake that would be added, `principle_stake` has to be
-                //populated in the table accordingly
-                let added_stake = stake - get_add_stake_fee(pool_address, stake);
-                //TODO: getting global mutable reference in this loop is inefficient, figure out a way without
-                //borrow checker violation
-                let principle_stake_table =
-                    &mut (borrow_global_mut<DelegationPool>(pool_address).principle_stake);
-                if (table::contains(principle_stake_table, delegator)) {
-                    let stake_amount = table::borrow_mut(principle_stake_table, delegator);
-                    *stake_amount = *stake_amount + added_stake;
-                } else {
-                    table::add(principle_stake_table, delegator, added_stake);
+                //Ignore if stake to be added is `0`
+                if (stake > 0) {
+                    //Compute the actual stake that would be added, `principle_stake` has to be
+                    //populated in the table accordingly
+                    let added_stake = stake - get_add_stake_fee(pool_address, stake);
+                    //TODO: getting global mutable reference in this loop is inefficient, figure out a way without
+                    //borrow checker violation
+                    let principle_stake_table =
+                        &mut (
+                            borrow_global_mut<DelegationPool>(pool_address).principle_stake
+                        );
+                    if (table::contains(principle_stake_table, delegator)) {
+                        let stake_amount =
+                            table::borrow_mut(principle_stake_table, delegator);
+                        *stake_amount = *stake_amount + added_stake;
+                    } else {
+                        table::add(principle_stake_table, delegator, added_stake);
+                    }
                 }
             }
         );
@@ -980,6 +991,16 @@ module supra_framework::pbo_delegation_pool {
             }
         );
 
+    }
+
+    #[view]
+    public fun is_admin(user_addr: address, pool_address: address): bool acquires DelegationPool {
+        let option_multisig = get_admin(pool_address);
+        if (!option::is_some(&option_multisig)) {
+            return false
+        } else {
+            user_addr == *option::borrow(&option_multisig)
+        }
     }
 
     #[view]
@@ -1080,9 +1101,7 @@ module supra_framework::pbo_delegation_pool {
     }
 
     fun coins_to_redeem_to_ensure_min_stake(
-        src_shares_pool: &pool_u64::Pool,
-        shareholder: address,
-        amount: u64
+        src_shares_pool: &pool_u64::Pool, shareholder: address, amount: u64
     ): u64 {
         // find how many coins would be redeemed if supplying `amount`
         let redeemed_coins =
@@ -1556,6 +1575,12 @@ module supra_framework::pbo_delegation_pool {
         new_delegator: address
     ) acquires DelegationPool, GovernanceRecords {
 
+        //Ensure that authorized admin is calling
+        let admin_addr = signer::address_of(multisig_admin);
+        assert!(
+            is_admin(admin_addr, pool_address),
+            error::permission_denied(ENOT_AUTHORIZED)
+        );
         //Ensure replacement address is different
         assert!(
             old_delegator != new_delegator,
@@ -1568,16 +1593,6 @@ module supra_framework::pbo_delegation_pool {
         );
 
         let pool: &mut DelegationPool = borrow_global_mut<DelegationPool>(pool_address);
-        let admin_addr = signer::address_of(multisig_admin);
-        //Ensure that authorized admin is calling
-        assert!(
-            admin_addr != @0x0, error::invalid_argument(EADMIN_ADDRESS_CANNOT_BE_ZERO)
-        );
-        assert!(
-            admin_addr == option::get_with_default(&pool.multisig_admin, @0x0),
-            error::permission_denied(ENOT_AUTHORIZED)
-        );
-
         //Ensure `old_delegator` is part of original principle stakers before commencing the replacement
         assert!(
             table::contains(&pool.principle_stake, old_delegator),
@@ -1925,11 +1940,7 @@ module supra_framework::pbo_delegation_pool {
 
         event::emit_event(
             &mut pool.withdraw_stake_events,
-            WithdrawStakeEvent {
-                pool_address,
-                delegator_address,
-                amount_withdrawn: amount
-            }
+            WithdrawStakeEvent { pool_address, delegator_address, amount_withdrawn: amount }
         );
     }
 
@@ -1975,9 +1986,7 @@ module supra_framework::pbo_delegation_pool {
     /// Buy shares into the active pool on behalf of delegator `shareholder` who
     /// deposited `coins_amount`. This function doesn't make any coin transfer.
     fun buy_in_active_shares(
-        pool: &mut DelegationPool,
-        shareholder: address,
-        coins_amount: u64
+        pool: &mut DelegationPool, shareholder: address, coins_amount: u64
     ): u128 acquires GovernanceRecords {
         let new_shares = pool_u64::amount_to_shares(&pool.active_shares, coins_amount);
         // No need to buy 0 shares.
@@ -2002,9 +2011,7 @@ module supra_framework::pbo_delegation_pool {
     /// If delegator's pending withdrawal exists and has been inactivated, execute it firstly
     /// to ensure there is always only one withdrawal request.
     fun buy_in_pending_inactive_shares(
-        pool: &mut DelegationPool,
-        shareholder: address,
-        coins_amount: u64
+        pool: &mut DelegationPool, shareholder: address, coins_amount: u64
     ): u128 acquires GovernanceRecords {
         let new_shares =
             pool_u64::amount_to_shares(
@@ -2046,9 +2053,7 @@ module supra_framework::pbo_delegation_pool {
     /// Convert `coins_amount` of coins to be redeemed from shares pool `shares_pool`
     /// to the exact number of shares to redeem in order to achieve this.
     fun amount_to_shares_to_redeem(
-        shares_pool: &pool_u64::Pool,
-        shareholder: address,
-        coins_amount: u64
+        shares_pool: &pool_u64::Pool, shareholder: address, coins_amount: u64
     ): u128 {
         if (coins_amount >= pool_u64::balance(shares_pool, shareholder)) {
             // cap result at total shares of shareholder to pass `EINSUFFICIENT_SHARES` on subsequent redeem
@@ -2063,9 +2068,7 @@ module supra_framework::pbo_delegation_pool {
     /// Extracted coins will be used to buy shares into the pending_inactive pool and
     /// be available for withdrawal when current OLC ends.
     fun redeem_active_shares(
-        pool: &mut DelegationPool,
-        shareholder: address,
-        coins_amount: u64
+        pool: &mut DelegationPool, shareholder: address, coins_amount: u64
     ): u64 acquires GovernanceRecords {
         let shares_to_redeem =
             amount_to_shares_to_redeem(&pool.active_shares, shareholder, coins_amount);
@@ -3064,9 +3067,7 @@ module supra_framework::pbo_delegation_pool {
 
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
     public entry fun test_never_create_pending_withdrawal_if_no_shares_bought(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator: &signer
+        supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         let delegator_address = vector[@0x010];
@@ -3414,9 +3415,7 @@ module supra_framework::pbo_delegation_pool {
 
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
     public entry fun test_add_stake_many(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator: &signer
+        supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         let delegator_address = vector[@0x010];
@@ -3578,9 +3577,7 @@ module supra_framework::pbo_delegation_pool {
 
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
     public entry fun test_unlock_single(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator: &signer
+        supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         let delegator_address_vec = vector[@0x010];
@@ -4439,9 +4436,7 @@ module supra_framework::pbo_delegation_pool {
 
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
     public entry fun test_withdraw_many(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator: &signer
+        supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         let delegator_address = vector[@0x010];
@@ -4651,9 +4646,7 @@ module supra_framework::pbo_delegation_pool {
 
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
     public entry fun test_inactivate_no_excess_stake(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator: &signer
+        supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         let delegator_address_vec = vector[@0x010];
@@ -5099,9 +5092,7 @@ module supra_framework::pbo_delegation_pool {
 
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
     public entry fun test_active_stake_rewards_multiple(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator: &signer
+        supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         let delegator_address = vector[@0x010];
@@ -6104,9 +6095,7 @@ module supra_framework::pbo_delegation_pool {
 
     #[test(supra_framework = @supra_framework, operator = @0x123, delegator = @0x010)]
     public entry fun test_update_commission_percentage(
-        supra_framework: &signer,
-        operator: &signer,
-        delegator: &signer
+        supra_framework: &signer, operator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
 
@@ -6208,9 +6197,7 @@ module supra_framework::pbo_delegation_pool {
     #[test(supra_framework = @supra_framework, operator = @0x123, delegator = @0x010)]
     #[expected_failure(abort_code = 196629, location = Self)]
     public entry fun test_last_minute_commission_rate_change_failed(
-        supra_framework: &signer,
-        operator: &signer,
-        delegator: &signer
+        supra_framework: &signer, operator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         let operator_address = signer::address_of(operator);
@@ -6593,7 +6580,10 @@ module supra_framework::pbo_delegation_pool {
 
     #[test_only]
     public fun assert_inactive_shares_pool(
-        pool_address: address, olc: u64, exists: bool, stake: u64
+        pool_address: address,
+        olc: u64,
+        exists: bool,
+        stake: u64
     ) acquires DelegationPool {
         assert_delegation_pool_exists(pool_address);
         let pool = borrow_global<DelegationPool>(pool_address);
@@ -6615,9 +6605,7 @@ module supra_framework::pbo_delegation_pool {
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
     #[expected_failure(abort_code = 65561, location = Self)]
     public entry fun test_withdraw_before_principle_lockup_time_fail(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator: &signer
+        supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         let delegator_address = vector[@0x010];
@@ -6650,9 +6638,7 @@ module supra_framework::pbo_delegation_pool {
 
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
     public entry fun test_withdraw_after_principle_lockup_time(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator: &signer
+        supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         let delegator_address = vector[@0x010];
@@ -6724,9 +6710,7 @@ module supra_framework::pbo_delegation_pool {
 
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator1 = @0x010)]
     public entry fun test_unlock_mutiple_times(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator1: &signer
+        supra_framework: &signer, validator: &signer, delegator1: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         let delegator_address = vector[@0x010, @0x020];
@@ -7247,9 +7231,7 @@ module supra_framework::pbo_delegation_pool {
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
     /// if old_delegator has already unlocked 100, the new_delegator should be able to withdraw 100 coins
     public entry fun test_replace_delegation_before_withdraw_and_after_withdraw_success(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator: &signer
+        supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         account::create_account_for_test(signer::address_of(validator));
@@ -7315,9 +7297,7 @@ module supra_framework::pbo_delegation_pool {
     #[expected_failure(abort_code = 65545, location = Self)]
     /// after replace_delegator` succeeds, old_delegator must not be able to perform unlock or withdraw or vote (if partial_voting is enable)
     public entry fun test_replace_delegation_after_withdraw_using_old_address_failure(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator: &signer
+        supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         account::create_account_for_test(signer::address_of(validator));
@@ -7367,9 +7347,7 @@ module supra_framework::pbo_delegation_pool {
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
     /// after replace_delegator succeeds, new_delegator should be able to perform unlock and withdraw on the funds as per unlocking schedule
     public entry fun test_replace_delegation_unlock_and_withdraw_success(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator: &signer
+        supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         account::create_account_for_test(signer::address_of(validator));
@@ -7523,6 +7501,93 @@ module supra_framework::pbo_delegation_pool {
             funder = @0x999
         )
     ]
+    /// Test that
+    public entry fun test_unlock_zero_funded_delegator_not_part_of_principle_stake_success(
+        supra_framework: &signer, validator: &signer, delegator: &signer
+    ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
+        initialize_for_test(supra_framework);
+        account::create_account_for_test(signer::address_of(validator));
+        let delegator_address = signer::address_of(delegator);
+        let delegator_address_vec = vector[delegator_address, @0x020];
+        let principle_stake = vector[300 * ONE_SUPRA, 200 * ONE_SUPRA];
+        let coin = stake::mint_coins(500 * ONE_SUPRA);
+        let principle_lockup_time = 7776000;
+        let multisig = generate_multisig_account(validator, vector[@0x12134], 2);
+
+        initialize_test_validator(
+            validator,
+            0,
+            true,
+            true,
+            0,
+            delegator_address_vec,
+            principle_stake,
+            coin,
+            option::some(multisig),
+            vector[2, 2, 3],
+            10,
+            principle_lockup_time,
+            LOCKUP_CYCLE_SECONDS
+        );
+
+        let validator_address = signer::address_of(validator);
+        let pool_address = get_owned_pool_address(validator_address);
+
+        let new_delegator_address = @0x0215;
+        let new_delegator_address_signer =
+            account::create_account_for_test(new_delegator_address);
+        let funder_signer = account::create_signer_for_test(multisig);
+        let funder = signer::address_of(&funder_signer);
+        stake::mint(&funder_signer, 100 * ONE_SUPRA);
+        stake::mint(&new_delegator_address_signer, 100 * ONE_SUPRA);
+        assert!(
+            coin::balance<SupraCoin>(funder) == (100 * ONE_SUPRA),
+            0
+        );
+
+        assert!(
+            coin::balance<SupraCoin>(new_delegator_address) == (100 * ONE_SUPRA),
+            0
+        );
+
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+        add_stake(&new_delegator_address_signer, pool_address, 100 * ONE_SUPRA);
+        fund_delegators_with_locked_stake(
+            &funder_signer,
+            pool_address,
+            vector[new_delegator_address],
+            vector[0]
+        );
+        {
+        // if the locked stake is zero, assert that it does not get added to `principle_stake` table
+            let pool = borrow_global<DelegationPool>(pool_address);
+            assert!(!table::contains(&pool.principle_stake, new_delegator_address), 999);
+        };
+
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+
+        unlock(&new_delegator_address_signer, pool_address, (100 * ONE_SUPRA));
+
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+        withdraw(&new_delegator_address_signer, pool_address, (100 * ONE_SUPRA));
+        let new_delegator_balance = coin::balance<SupraCoin>(new_delegator_address);
+        assert!(
+            new_delegator_balance == (100 * ONE_SUPRA) - 1,
+            new_delegator_balance
+        );
+    }
+
+    #[
+        test(
+            supra_framework = @supra_framework,
+            validator = @0x123,
+            delegator = @0x010,
+            funder = @0x999
+        )
+    ]
     /// if a single delegator was not part of one of the principle stake holder, and not funded with locked stake,
     /// they can unlock/withdraw without restriction
     public entry fun test_unlock_withdraw_funded_delegator_not_part_of_principle_stake_success(
@@ -7662,10 +7727,7 @@ module supra_framework::pbo_delegation_pool {
     /// say unlocking schedule is 3 month cliff, monthly unlocking of 10% and principle stake is 100 coins then
     /// between 3 and 4 months, check that it's can't unlock there principal stacke
     public entry fun test_unlocking_before_cliff_period_funded_delegators_failure(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator: &signer,
-        funder: address
+        supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         account::create_account_for_test(signer::address_of(validator));
@@ -7691,6 +7753,8 @@ module supra_framework::pbo_delegation_pool {
             principle_lockup_time,
             LOCKUP_CYCLE_SECONDS // monthly unlocking
         );
+        let funder_signer = account::create_signer_for_test(multisig);
+        let funder = signer::address_of(&funder_signer);
         let validator_address = signer::address_of(validator);
         let pool_address = get_owned_pool_address(validator_address);
         let one_year_in_secs = 31536000;
@@ -7710,7 +7774,7 @@ module supra_framework::pbo_delegation_pool {
         let new_delegator_address2 = @0x0216;
         let new_delegator_address_signer2 =
             account::create_account_for_test(new_delegator_address2);
-        let funder_signer = account::create_account_for_test(funder);
+
         stake::mint(&funder_signer, 100 * ONE_SUPRA);
         assert!(
             coin::balance<SupraCoin>(funder) == (100 * ONE_SUPRA),
@@ -7750,10 +7814,7 @@ module supra_framework::pbo_delegation_pool {
     /// say unlocking schedule is 3 month cliff, monthly unlocking of 10% and principle stake is 100 coins then
     /// between 3 and 4 months, check that it's can't unlock there principal stacke
     public entry fun test_unlocking_after_cliff_period_initial_and_funded_delegators_success(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator: &signer,
-        funder: address
+        supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         account::create_account_for_test(signer::address_of(validator));
@@ -7795,7 +7856,8 @@ module supra_framework::pbo_delegation_pool {
         let new_delegator_address2 = @0x0216;
         let new_delegator_address_signer2 =
             account::create_account_for_test(new_delegator_address2);
-        let funder_signer = account::create_account_for_test(funder);
+        let funder_signer = account::create_signer_for_test(multisig);
+        let funder = signer::address_of(&funder_signer);
         stake::mint(&funder_signer, 100 * ONE_SUPRA);
         assert!(
             coin::balance<SupraCoin>(funder) == (100 * ONE_SUPRA),
@@ -7838,10 +7900,7 @@ module supra_framework::pbo_delegation_pool {
     /// say unlocking schedule is 3 month cliff, monthly unlocking of 10% and principle stake is 100 coins then
     /// between 3 and 4 months, check that it's can't unlock there principal stacke
     public entry fun test_unlocking_after_3_period_initial_and_funded_delegators_success(
-        supra_framework: &signer,
-        validator: &signer,
-        delegator: &signer,
-        funder: address
+        supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         account::create_account_for_test(signer::address_of(validator));
@@ -7883,7 +7942,8 @@ module supra_framework::pbo_delegation_pool {
         let new_delegator_address2 = @0x0216;
         let new_delegator_address_signer2 =
             account::create_account_for_test(new_delegator_address2);
-        let funder_signer = account::create_account_for_test(funder);
+        let funder_signer = account::create_signer_for_test(multisig);
+        let funder = signer::address_of(&funder_signer);
         stake::mint(&funder_signer, 100 * ONE_SUPRA);
         assert!(
             coin::balance<SupraCoin>(funder) == (100 * ONE_SUPRA),
