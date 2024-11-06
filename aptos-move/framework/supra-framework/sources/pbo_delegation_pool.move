@@ -395,7 +395,6 @@ module supra_framework::pbo_delegation_pool {
     }
 
     struct AddStakeEvent has drop, store {
-        stake_funder: address,
         pool_address: address,
         delegator_address: address,
         amount_added: u64,
@@ -1331,7 +1330,6 @@ module supra_framework::pbo_delegation_pool {
         let funder_address = signer::address_of(funder);
         event::emit_event(&mut pool.add_stake_events,
             AddStakeEvent {
-                stake_funder: funder_address,
                 pool_address,
                 delegator_address,
                 amount_added: amount,
@@ -5046,7 +5044,7 @@ module supra_framework::pbo_delegation_pool {
         assert!(new_delegator_balance2 == (70 * ONE_SUPRA) - 1 , new_delegator_balance2);
     }
 
-
+    
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010, funder=@0x999)]
     /// if a single delegator was not part of one of the principle stake holder, and not funded with locked stake, 
     /// they can unlock/withdraw without restriction
