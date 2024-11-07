@@ -797,17 +797,23 @@ If it exists, it just returns the signer.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_multiple_multisig_accounts_with_schema">create_multiple_multisig_accounts_with_schema</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-owner: <b>address</b>, additional_owners: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,num_signatures_required:u64,metadata_keys:<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,metadata_values:<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;,
-timeout_duration:u64, balance:u64, num_of_accounts: u32): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; {
-
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_multiple_multisig_accounts_with_schema">create_multiple_multisig_accounts_with_schema</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    owner: <b>address</b>,
+    additional_owners: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
+    num_signatures_required:u64,
+    metadata_keys:<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
+    metadata_values:<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;,
+    timeout_duration:u64,
+    balance:u64,
+    num_of_accounts: u32
+): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; {
     <b>let</b> counter = 0;
     <b>let</b> result = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
     <b>while</b> (counter &lt; num_of_accounts) {
         <b>let</b> account_addr = <a href="genesis.md#0x1_genesis_create_multisig_account_with_balance">create_multisig_account_with_balance</a>(supra_framework, owner, additional_owners,
                             num_signatures_required,metadata_keys,metadata_values,timeout_duration,balance);
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> result,account_addr);
-        <a href="account.md#0x1_account_increment_sequence_number">account::increment_sequence_number</a>(owner);
         counter = counter + 1;
     };
     result
@@ -833,20 +839,25 @@ timeout_duration:u64, balance:u64, num_of_accounts: u32): <a href="../../aptos-s
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_multisig_account_with_balance">create_multisig_account_with_balance</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, owner: <b>address</b>, additional_owners: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
-                            num_signatures_required:u64, metadata_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
-                            metadata_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, timeout_duration: u64, balance:u64 ) : <b>address</b> {
-
-
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_multisig_account_with_balance">create_multisig_account_with_balance</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    owner: <b>address</b>,
+    additional_owners: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
+    num_signatures_required:u64,
+    metadata_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
+    metadata_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;,
+    timeout_duration: u64,
+    balance:u64,
+): <b>address</b> {
     <b>assert</b>!(<a href="account.md#0x1_account_exists_at">account::exists_at</a>(owner),<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EACCOUNT_DOES_NOT_EXIST">EACCOUNT_DOES_NOT_EXIST</a>));
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_all">vector::all</a>(&additional_owners,|ao_addr|{<a href="account.md#0x1_account_exists_at">account::exists_at</a>(*ao_addr)}),<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EACCOUNT_DOES_NOT_EXIST">EACCOUNT_DOES_NOT_EXIST</a>));
     <b>let</b> addr = <a href="multisig_account.md#0x1_multisig_account_get_next_multisig_account_address">multisig_account::get_next_multisig_account_address</a>(owner);
     <b>let</b> owner_signer = <a href="create_signer.md#0x1_create_signer">create_signer</a>(owner);
     <a href="multisig_account.md#0x1_multisig_account_create_with_owners">multisig_account::create_with_owners</a>(&owner_signer,additional_owners,num_signatures_required,metadata_keys,metadata_values,timeout_duration);
     <a href="supra_coin.md#0x1_supra_coin_mint">supra_coin::mint</a>(supra_framework,addr,balance);
+    <a href="account.md#0x1_account_increment_sequence_number">account::increment_sequence_number</a>(owner);
     addr
-
-    }
+}
 </code></pre>
 
 

@@ -54,11 +54,13 @@ use move_vm_types::gas::UnmeteredGasMeter;
 use once_cell::sync::Lazy;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
+use aptos_types::account_address::{create_resource_address, create_seed_for_pbo_module};
 
 // The seed is arbitrarily picked to produce a consistent key. XXX make this more formal?
 const GENESIS_SEED: [u8; 32] = [42; 32];
 
 const GENESIS_MODULE_NAME: &str = "genesis";
+const PBO_DELEGATION_POOL_MODULE_NAME: &str = "pbo_delegation_pool";
 const GOVERNANCE_MODULE_NAME: &str = "supra_governance";
 const CODE_MODULE_NAME: &str = "code";
 const VERSION_MODULE_NAME: &str = "version";
@@ -176,6 +178,8 @@ pub fn encode_supra_mainnet_genesis_transaction(
 
     // All PBO delegated validators are initialized here
     create_pbo_delegation_pools(&mut session, delegation_pools);
+
+    add_owner_stakes_for_delegation_pools(&mut session, delegation_pools);
 
     // PBO vesting accounts, employees, investors etc. are placed in their vesting pools
     create_vesting_without_staking_pools(&mut session, vesting_pools);
@@ -332,6 +336,8 @@ pub fn encode_genesis_change_set_for_testnet(
     } else {
         // All PBO delegated validators are initialized here
         create_pbo_delegation_pools(&mut session, delegation_pools);
+
+        add_owner_stakes_for_delegation_pools(&mut session, delegation_pools);
 
         // PBO vesting accounts, employees, investors etc. are placed in their vesting pools
         create_vesting_without_staking_pools(&mut session, vesting_pools);
@@ -871,6 +877,28 @@ fn create_pbo_delegation_pools(
         vec![],
         serialized_values,
     )
+}
+
+fn add_owner_stakes_for_delegation_pools(
+    session: &mut SessionExt,
+    pbo_delegator_configuration: &[PboDelegatorConfiguration],
+) {
+    for pool_config in pbo_delegator_configuration {
+        let pbo_pool_seed = create_seed_for_pbo_module(&pool_config.delegator_config.delegation_pool_creation_seed);
+        let pool_address = create_resource_address(pool_config.delegator_config.owner_address, &pbo_pool_seed);
+        let mut serialized_values = serialize_values(&vec![
+            MoveValue::Signer(pool_config.delegator_config.owner_address),
+            MoveValue::Address(pool_address),
+            MoveValue::U64(55000000 * APTOS_COINS_BASE_WITH_DECIMALS)
+        ]);
+        exec_function(
+            session,
+            PBO_DELEGATION_POOL_MODULE_NAME,
+            "add_stake",
+            vec![],
+            serialized_values,
+        )
+    }
 }
 
 fn create_vesting_without_staking_pools(

@@ -1114,7 +1114,7 @@ Create a vesting schedule with the given schedule of distributions, a vesting st
 
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="vesting_without_staking.md#0x1_vesting_without_staking_create_vesting_contract_with_amounts">create_vesting_contract_with_amounts</a>(admin: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, shareholders: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, amounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, schedule_numerator: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, schedule_denominator: u64, start_timestamp_secs: u64, period_duration: u64, withdrawal_address: <b>address</b>, contract_creation_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>public</b> entry <b>fun</b> <a href="vesting_without_staking.md#0x1_vesting_without_staking_create_vesting_contract_with_amounts">create_vesting_contract_with_amounts</a>(admin: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, shareholders: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, shares: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, vesting_numerators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, vesting_denominator: u64, start_timestamp_secs: u64, period_duration: u64, withdrawal_address: <b>address</b>, contract_creation_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
 </code></pre>
 
 
@@ -1126,9 +1126,9 @@ Create a vesting schedule with the given schedule of distributions, a vesting st
 <pre><code><b>public</b> entry <b>fun</b> <a href="vesting_without_staking.md#0x1_vesting_without_staking_create_vesting_contract_with_amounts">create_vesting_contract_with_amounts</a> (
     admin: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     shareholders: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
-    amounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
-    schedule_numerator: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
-    schedule_denominator: u64,
+    shares: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
+    vesting_numerators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
+    vesting_denominator: u64,
     start_timestamp_secs: u64,
     period_duration: u64,
     withdrawal_address: <b>address</b>,
@@ -1136,11 +1136,11 @@ Create a vesting schedule with the given schedule of distributions, a vesting st
 ) <b>acquires</b> <a href="vesting_without_staking.md#0x1_vesting_without_staking_AdminStore">AdminStore</a> {
     <b>assert</b>!(!<a href="system_addresses.md#0x1_system_addresses_is_reserved_address">system_addresses::is_reserved_address</a>(withdrawal_address),
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_EINVALID_WITHDRAWAL_ADDRESS">EINVALID_WITHDRAWAL_ADDRESS</a>),);
-    assert_account_is_registered_for_apt(withdrawal_address);
+    assert_account_is_registered_for_supra(withdrawal_address);
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&shareholders) &gt; 0,
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_ENO_SHAREHOLDERS">ENO_SHAREHOLDERS</a>));
     <b>assert</b>!(
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&shareholders) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&amounts),
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&shareholders) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&shares),
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_ESHARES_LENGTH_MISMATCH">ESHARES_LENGTH_MISMATCH</a>),
     );
 
@@ -1160,15 +1160,15 @@ Create a vesting schedule with the given schedule of distributions, a vesting st
     <b>let</b> (contract_signer, contract_signer_cap) = <a href="vesting_without_staking.md#0x1_vesting_without_staking_create_vesting_contract_account">create_vesting_contract_account</a>(admin,
         contract_creation_seed);
     <b>let</b> contract_signer_address = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&contract_signer);
-    <b>let</b> schedule = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_map_ref">vector::map_ref</a>(&schedule_numerator, |numerator| {
-        <b>let</b> <a href="event.md#0x1_event">event</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/fixed_point32.md#0x1_fixed_point32_create_from_rational">fixed_point32::create_from_rational</a>(*numerator, schedule_denominator);
+    <b>let</b> schedule = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_map_ref">vector::map_ref</a>(&vesting_numerators, |numerator| {
+        <b>let</b> <a href="event.md#0x1_event">event</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/fixed_point32.md#0x1_fixed_point32_create_from_rational">fixed_point32::create_from_rational</a>(*numerator, vesting_denominator);
         <a href="event.md#0x1_event">event</a>
     });
 
     <b>let</b> vesting_schedule = <a href="vesting_without_staking.md#0x1_vesting_without_staking_create_vesting_schedule">create_vesting_schedule</a>(schedule, start_timestamp_secs, period_duration);
     <b>let</b> shareholders_map = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_create">simple_map::create</a>&lt;<b>address</b>, <a href="vesting_without_staking.md#0x1_vesting_without_staking_VestingRecord">VestingRecord</a>&gt;();
     <b>let</b> grant_amount = 0;
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_reverse">vector::for_each_reverse</a>(amounts, |amount| {
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_reverse">vector::for_each_reverse</a>(shares, |amount| {
         <b>let</b> shareholder = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> shareholders);
         <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_add">simple_map::add</a>(&<b>mut</b> shareholders_map,
             shareholder,
