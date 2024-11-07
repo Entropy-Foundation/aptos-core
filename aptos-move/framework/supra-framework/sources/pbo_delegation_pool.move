@@ -1725,8 +1725,9 @@ module supra_framework::pbo_delegation_pool {
 
     }
 
-    /// This function can only be used to check unlockability for delegators are in the principle_stake table
-    /// Use with function for other delegators will return true
+    /// CAUTION: This function should only be used for delegators which have locked principle stake
+    /// For those who are part of the pool but do not have locked principle stake, the function
+    /// would always return `true`, even if `amount > total_stake_in_the_pool`
     public fun can_principle_unlock(
         delegator_addr: address, pool_address: address, amount: u64
     ): bool acquires DelegationPool {
