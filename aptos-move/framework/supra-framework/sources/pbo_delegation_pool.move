@@ -1528,7 +1528,6 @@ module supra_framework::pbo_delegation_pool {
         // in order to appreciate all shares on the active pool atomically
         buy_in_active_shares(pool, NULL_SHAREHOLDER, add_stake_fee);
 
-        let funder_address = signer::address_of(funder);
         event::emit_event(
             &mut pool.add_stake_events,
             AddStakeEvent {
@@ -7840,11 +7839,7 @@ module supra_framework::pbo_delegation_pool {
         );
 
         let new_delegator_address = @0x0215;
-        let new_delegator_address_signer =
-            account::create_account_for_test(new_delegator_address);
         let new_delegator_address2 = @0x0216;
-        let new_delegator_address_signer2 =
-            account::create_account_for_test(new_delegator_address2);
 
         stake::mint(&funder_signer, 100 * ONE_SUPRA);
         assert!(
@@ -7925,8 +7920,6 @@ module supra_framework::pbo_delegation_pool {
         );
 
         let new_delegator_address2 = @0x0216;
-        let new_delegator_address_signer2 =
-            account::create_account_for_test(new_delegator_address2);
         let funder_signer = account::create_signer_for_test(multisig);
         let funder = signer::address_of(&funder_signer);
         stake::mint(&funder_signer, 100 * ONE_SUPRA);
@@ -8011,8 +8004,6 @@ module supra_framework::pbo_delegation_pool {
         );
 
         let new_delegator_address2 = @0x0216;
-        let new_delegator_address_signer2 =
-            account::create_account_for_test(new_delegator_address2);
         let funder_signer = account::create_signer_for_test(multisig);
         let funder = signer::address_of(&funder_signer);
         stake::mint(&funder_signer, 100 * ONE_SUPRA);
