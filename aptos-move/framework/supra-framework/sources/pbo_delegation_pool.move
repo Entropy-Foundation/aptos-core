@@ -7796,7 +7796,7 @@ module supra_framework::pbo_delegation_pool {
     ]
     #[expected_failure(abort_code = 10, location = Self)]
     /// say unlocking schedule is 3 month cliff, monthly unlocking of 10% and principle stake is 100 coins then
-    /// between 3 and 4 months, check that it's can't unlock there principal stacke
+    /// between 3 and 4 months, check that it's can't unlock there principal stake
     public entry fun test_unlocking_before_cliff_period_funded_delegators_failure(
         supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
