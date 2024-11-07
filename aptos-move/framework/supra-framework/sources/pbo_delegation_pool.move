@@ -7962,7 +7962,7 @@ module supra_framework::pbo_delegation_pool {
         delegator = @0x010,
     )
     ]
-    #[expected_failure(abort_code = 65561)]
+    #[expected_failure(abort_code = 65561, location=Self)]
     public entry fun test_unlocking_mixed_principle_stake_before_cliff_period_funded_delegators_failure(
         supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
