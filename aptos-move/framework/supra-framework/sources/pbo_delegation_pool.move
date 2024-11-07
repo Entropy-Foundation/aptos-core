@@ -949,10 +949,8 @@ module supra_framework::pbo_delegation_pool {
                 error::permission_denied(ENOT_AUTHORIZED)
             );
         };
-          let principle_stake_table =
-                        &mut (
-                            borrow_global_mut<DelegationPool>(pool_address).principle_stake
-                        );
+        let principle_stake_table =
+            &mut (borrow_global_mut<DelegationPool>(pool_address).principle_stake);
 
         vector::zip_reverse(
             delegators,
@@ -962,7 +960,7 @@ module supra_framework::pbo_delegation_pool {
                 if (stake > 0) {
                     //Compute the actual stake that would be added, `principle_stake` has to be
                     //populated in the table accordingly
-                                      if (table::contains(principle_stake_table, delegator)) {
+                    if (table::contains(principle_stake_table, delegator)) {
                         let stake_amount =
                             table::borrow_mut(principle_stake_table, delegator);
                         *stake_amount = *stake_amount + stake;
@@ -1683,22 +1681,23 @@ module supra_framework::pbo_delegation_pool {
         );
 
     }
-    
 
     #[view]
-    public fun is_principle_stakeholder(delegator_addr: address, pool_addr: address): bool acquires DelegationPool {
+    public fun is_principle_stakeholder(
+        delegator_addr: address, pool_addr: address
+    ): bool acquires DelegationPool {
         let pool = borrow_global<DelegationPool>(pool_addr);
-        table::contains(&pool.principle_stake,delegator_addr)
+        table::contains(&pool.principle_stake, delegator_addr)
     }
 
-    #[view] 
-    public fun get_principle_stake(delegator_addr: address, pool_addr: address) : u64 acquires DelegationPool {
+    #[view]
+    public fun get_principle_stake(
+        delegator_addr: address, pool_addr: address
+    ): u64 acquires DelegationPool {
         let pool = borrow_global<DelegationPool>(pool_addr);
-        if(!table::contains(&pool.principle_stake,delegator_addr)) {
-            0
-        }
+        if (!table::contains(&pool.principle_stake, delegator_addr)) { 0 }
         else {
-            *table::borrow(&pool.principle_stake,delegator_addr)
+            *table::borrow(&pool.principle_stake, delegator_addr)
         }
     }
 
@@ -1814,11 +1813,11 @@ module supra_framework::pbo_delegation_pool {
 
         let delegator_address = signer::address_of(delegator);
         // fail if the amount after withdraw is less than the principle stake and the lockup time is not expired
-        if (is_principle_stakeholder(delegator_address,pool_address)) {
-        assert!(
-            can_principle_unlock(delegator_address, pool_address, amount),
-            error::invalid_argument(EAMOUNT_REQUESTED_NOT_UNLOCKABLE)
-        );
+        if (is_principle_stakeholder(delegator_address, pool_address)) {
+            assert!(
+                can_principle_unlock(delegator_address, pool_address, amount),
+                error::invalid_argument(EAMOUNT_REQUESTED_NOT_UNLOCKABLE)
+            );
         };
         let pool = borrow_global_mut<DelegationPool>(pool_address);
         amount = coins_to_transfer_to_ensure_min_stake(
@@ -7514,13 +7513,9 @@ module supra_framework::pbo_delegation_pool {
         );
     }
 
-    #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator = @0x010,
-        )
-    ]
+    #[test(
+        supra_framework = @supra_framework, validator = @0x123, delegator = @0x010
+    )]
     #[expected_failure(abort_code = 327716, location = Self)]
     /// Test that if a if some random person tries to add delegator locked stake, it does not get added to
     /// `principle_stake` table and therefore remains outside the purview of replacement
@@ -7583,13 +7578,9 @@ module supra_framework::pbo_delegation_pool {
         );
     }
 
-    #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator = @0x010,
-        )
-    ]
+    #[test(
+        supra_framework = @supra_framework, validator = @0x123, delegator = @0x010
+    )]
     /// Test that if a multisig admin adds a delegator with zero stake, it does not get added to
     /// `principle_stake` table and therefore remains outside the purview of replacement
     public entry fun test_unlock_zero_funded_delegator_not_part_of_principle_stake_success(
@@ -7805,13 +7796,9 @@ module supra_framework::pbo_delegation_pool {
         );
     }
 
-    #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator = @0x010,
-        )
-    ]
+    #[test(
+        supra_framework = @supra_framework, validator = @0x123, delegator = @0x010
+    )]
     #[expected_failure(abort_code = 65561, location = Self)]
     /// say unlocking schedule is 3 month cliff, monthly unlocking of 10% and principle stake is 100 coins then
     /// between 3 and 4 months, check that it's can't unlock there principal stake
@@ -7883,16 +7870,12 @@ module supra_framework::pbo_delegation_pool {
         timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
         end_aptos_epoch();
 
-        unlock(&new_delegator_signer,pool_address,(1*ONE_SUPRA));
-       }
+        unlock(&new_delegator_signer, pool_address, (1 * ONE_SUPRA));
+    }
 
-    #[
-    test(
-        supra_framework = @supra_framework,
-        validator = @0x123,
-        delegator = @0x010,
-    )
-    ]
+    #[test(
+        supra_framework = @supra_framework, validator = @0x123, delegator = @0x010
+    )]
     public entry fun test_unlocking_mixed_principle_stake_before_cliff_period_funded_delegators_success(
         supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
@@ -7967,19 +7950,16 @@ module supra_framework::pbo_delegation_pool {
         timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
         end_aptos_epoch();
 
-        let new_delegator_address_signer = account::create_signer_for_test(new_delegator_address);
+        let new_delegator_address_signer =
+            account::create_signer_for_test(new_delegator_address);
         unlock(&new_delegator_address_signer, pool_address, 30 * ONE_SUPRA);
         unlock(&new_delegator_address_signer, pool_address, 1 * ONE_SUPRA);
     }
 
-    #[
-    test(
-        supra_framework = @supra_framework,
-        validator = @0x123,
-        delegator = @0x010,
-    )
-    ]
-    #[expected_failure(abort_code = 65561, location=Self)]
+    #[test(
+        supra_framework = @supra_framework, validator = @0x123, delegator = @0x010
+    )]
+    #[expected_failure(abort_code = 65561, location = Self)]
     public entry fun test_unlocking_mixed_principle_stake_before_cliff_period_funded_delegators_failure(
         supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
@@ -8054,18 +8034,15 @@ module supra_framework::pbo_delegation_pool {
         timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
         end_aptos_epoch();
 
-        let new_delegator_address_signer = account::create_signer_for_test(new_delegator_address);
+        let new_delegator_address_signer =
+            account::create_signer_for_test(new_delegator_address);
         unlock(&new_delegator_address_signer, pool_address, 30 * ONE_SUPRA);
         unlock(&new_delegator_address_signer, pool_address, 2 * ONE_SUPRA);
     }
 
-    #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator = @0x010,
-        )
-    ]
+    #[test(
+        supra_framework = @supra_framework, validator = @0x123, delegator = @0x010
+    )]
     /// say unlocking schedule is 3 month cliff, monthly unlocking of 10% and principle stake is 100 coins then
     /// between 3 and 4 months, check that it's can't unlock there principal stacke
     public entry fun test_unlocking_after_cliff_period_initial_and_funded_delegators_success(
@@ -8135,16 +8112,12 @@ module supra_framework::pbo_delegation_pool {
         timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS + 1);
         end_aptos_epoch();
         //10% of 130 so 13 should be unlockable
-        unlock(delegator,pool_address,13*ONE_SUPRA);
+        unlock(delegator, pool_address, 13 * ONE_SUPRA);
     }
 
-    #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator = @0x010,
-        )
-    ]
+    #[test(
+        supra_framework = @supra_framework, validator = @0x123, delegator = @0x010
+    )]
     /// test that delegators are indeed added to `principle_stake` table, appropriate
     /// stakes they can unlock
     public entry fun test_principle_stake_unlocking_success(
@@ -8204,40 +8177,40 @@ module supra_framework::pbo_delegation_pool {
         );
         assert!(coin::balance<SupraCoin>(funder) == 0, 0);
         //Check that funded delegator was indeed added as a principle stake holder
-        assert!(is_principle_stakeholder(new_delegator_address2,pool_address),9);
+        assert!(is_principle_stakeholder(new_delegator_address2, pool_address), 9);
         // 4 month
         timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
         end_aptos_epoch();
-        let (active_amount,_,_) = get_stake(pool_address, new_delegator_address2);
-        assert!(active_amount==70*ONE_SUPRA, active_amount);
-        let d2_principle_stake = get_principle_stake(new_delegator_address2,pool_address);
-        assert!(active_amount== d2_principle_stake, active_amount-d2_principle_stake);
+        let (active_amount, _, _) = get_stake(pool_address, new_delegator_address2);
+        assert!(active_amount == 70 * ONE_SUPRA, active_amount);
+        let d2_principle_stake = get_principle_stake(new_delegator_address2, pool_address);
+        assert!(
+            active_amount == d2_principle_stake,
+            active_amount - d2_principle_stake
+        );
         timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
         end_aptos_epoch();
         timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
         end_aptos_epoch();
         timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
         end_aptos_epoch();
-        unlock(delegator,pool_address,13*ONE_SUPRA);
-                // After 6 months
+        unlock(delegator, pool_address, 13 * ONE_SUPRA);
+        // After 6 months
         timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
         end_aptos_epoch();
         timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
         end_aptos_epoch();
         // 30% of 130, so  39*ONE_SUPRA should be unlockable out of which 13 were already unlocked earlier
-        let unlock_coin = can_principle_unlock(delegator_address, pool_address, 26*ONE_SUPRA);
+        let unlock_coin =
+            can_principle_unlock(delegator_address, pool_address, 26 * ONE_SUPRA);
         let amount = cached_unlockable_balance(delegator_address, pool_address);
         assert!(unlock_coin, amount);
 
     }
 
-    #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator = @0x010,
-        )
-    ]
+    #[test(
+        supra_framework = @supra_framework, validator = @0x123, delegator = @0x010
+    )]
     /// say unlocking schedule is 3 month cliff, monthly unlocking of 10% and principle stake is 100 coins then
     /// between 3 and 4 months, check that it's can't unlock there principal stacke
     public entry fun test_unlocking_after_3_period_initial_and_funded_delegators_success(
@@ -8306,8 +8279,8 @@ module supra_framework::pbo_delegation_pool {
         end_aptos_epoch();
         timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
         end_aptos_epoch();
-        unlock(delegator,pool_address,13*ONE_SUPRA);
-        
+        unlock(delegator, pool_address, 13 * ONE_SUPRA);
+
         // After 6 months
         timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
         end_aptos_epoch();
@@ -8315,7 +8288,7 @@ module supra_framework::pbo_delegation_pool {
         end_aptos_epoch();
 
         // 30% of 130, so little bit less than 39*ONE_SUPRA should be unlockable, 13 already unlocked
-        unlock(delegator,pool_address,26*ONE_SUPRA);
+        unlock(delegator, pool_address, 26 * ONE_SUPRA);
 
     }
 
