@@ -133,8 +133,6 @@ module supra_framework::pbo_delegation_pool {
     use supra_framework::staking_config;
     use supra_framework::timestamp;
     use supra_framework::multisig_account;
-    #[test_only]
-    use aptos_std::debug;
 
     const MODULE_SALT: vector<u8> = b"supra_framework::pbo_delegation_pool";
 
