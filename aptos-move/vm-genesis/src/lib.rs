@@ -125,6 +125,7 @@ pub fn encode_supra_mainnet_genesis_transaction(
     accounts: &[AccountBalance],
     multisig_accounts: &[MultiSigAccountWithBalance],
     owner_group: Option<MultiSigAccountSchema>,
+    owner_stake_for_pbo_pool: u64,
     delegation_pools: &[PboDelegatorConfiguration],
     vesting_pools: &[VestingPoolsMap],
     initial_unlock_vesting_pools: &[VestingPoolsMap],
@@ -179,7 +180,7 @@ pub fn encode_supra_mainnet_genesis_transaction(
     // All PBO delegated validators are initialized here
     create_pbo_delegation_pools(&mut session, delegation_pools);
 
-    add_owner_stakes_for_delegation_pools(&mut session, delegation_pools);
+    add_owner_stakes_for_delegation_pools(&mut session, delegation_pools, owner_stake_for_pbo_pool);
 
     // PBO vesting accounts, employees, investors etc. are placed in their vesting pools
     create_vesting_without_staking_pools(&mut session, vesting_pools);
@@ -229,6 +230,8 @@ pub fn encode_supra_mainnet_genesis_transaction(
 pub fn encode_genesis_transaction_for_testnet(
     aptos_root_key: Ed25519PublicKey,
     validators: &[Validator],
+    owner_group: Option<MultiSigAccountSchema>,
+    owner_stake_for_pbo_pool: u64,
     delegation_pools: &[PboDelegatorConfiguration],
     vesting_pools: &[VestingPoolsMap],
     initial_unlock_vesting_pools: &[VestingPoolsMap],
@@ -244,7 +247,8 @@ pub fn encode_genesis_transaction_for_testnet(
         &aptos_root_key,
         &[],
         &[],
-        None,
+        owner_group,
+        owner_stake_for_pbo_pool,
         validators,
         delegation_pools,
         vesting_pools,
@@ -264,6 +268,7 @@ pub fn encode_genesis_change_set_for_testnet(
     accounts: &[AccountBalance],
     multisig_account: &[MultiSigAccountWithBalance],
     owner_group: Option<MultiSigAccountSchema>,
+    owner_stake_for_pbo_pool: u64,
     validators: &[Validator],
     delegation_pools: &[PboDelegatorConfiguration],
     vesting_pools: &[VestingPoolsMap],
@@ -337,7 +342,7 @@ pub fn encode_genesis_change_set_for_testnet(
         // All PBO delegated validators are initialized here
         create_pbo_delegation_pools(&mut session, delegation_pools);
 
-        add_owner_stakes_for_delegation_pools(&mut session, delegation_pools);
+        add_owner_stakes_for_delegation_pools(&mut session, delegation_pools, owner_stake_for_pbo_pool);
 
         // PBO vesting accounts, employees, investors etc. are placed in their vesting pools
         create_vesting_without_staking_pools(&mut session, vesting_pools);
@@ -882,14 +887,20 @@ fn create_pbo_delegation_pools(
 fn add_owner_stakes_for_delegation_pools(
     session: &mut SessionExt,
     pbo_delegator_configuration: &[PboDelegatorConfiguration],
+    owner_stake_for_pbo_pool: u64,
 ) {
     for pool_config in pbo_delegator_configuration {
-        let pbo_pool_seed = create_seed_for_pbo_module(&pool_config.delegator_config.delegation_pool_creation_seed);
-        let pool_address = create_resource_address(pool_config.delegator_config.owner_address, &pbo_pool_seed);
-        let mut serialized_values = serialize_values(&vec![
+        let pbo_pool_seed = create_seed_for_pbo_module(
+            &pool_config.delegator_config.delegation_pool_creation_seed
+        );
+        let pool_address = create_resource_address(
+            pool_config.delegator_config.owner_address,
+            &pbo_pool_seed
+        );
+        let serialized_values = serialize_values(&vec![
             MoveValue::Signer(pool_config.delegator_config.owner_address),
             MoveValue::Address(pool_address),
-            MoveValue::U64(55000000 * APTOS_COINS_BASE_WITH_DECIMALS)
+            MoveValue::U64(owner_stake_for_pbo_pool)
         ]);
         exec_function(
             session,
@@ -1141,6 +1152,7 @@ pub fn generate_test_genesis(
         &[],
         &[],
         None,
+        0,
         validators,
         &[],
         &[],
@@ -1194,6 +1206,7 @@ pub fn generate_mainnet_genesis(
         &[],
         &[],
         None,
+        0,
         validators,
         &[],
         &[],
@@ -1797,6 +1810,7 @@ pub fn test_mainnet_end_to_end() {
         &accounts,
         &[],
         None,
+        0,
         &pbo_delegator_configs,
         &[employee_vesting_config1],
         &[],

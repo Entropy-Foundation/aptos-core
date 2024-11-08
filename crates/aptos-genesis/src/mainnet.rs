@@ -130,6 +130,7 @@ impl MainnetGenesisInfo {
             &self.accounts,
             &[],
             None,
+            0,
             &[],
             &[],
             &[],
