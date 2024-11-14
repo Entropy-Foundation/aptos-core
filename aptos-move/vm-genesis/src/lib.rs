@@ -249,7 +249,7 @@ pub fn encode_genesis_transaction_for_testnet(
     Transaction::GenesisTransaction(WriteSetPayload::Direct(
         encode_genesis_change_set_for_testnet(
             &aptos_root_key,
-            &[],
+            &BTreeSet::new(),
             &[],
             owner_group,
             validators,
@@ -1162,7 +1162,7 @@ pub fn generate_test_genesis(
 
     let genesis = encode_genesis_change_set_for_testnet(
         &GENESIS_KEYPAIR.1,
-        &[],
+        &BTreeSet::new(),
         &[],
         None,
         validators,
@@ -1216,7 +1216,7 @@ pub fn generate_mainnet_genesis(
 
     let genesis = encode_genesis_change_set_for_testnet(
         &GENESIS_KEYPAIR.1,
-        &[],
+        &BTreeSet::new(),
         &[],
         None,
         validators,
@@ -1482,7 +1482,7 @@ pub fn test_mainnet_end_to_end() {
     let employee9 = AccountAddress::from_hex_literal("0xe9").unwrap();
 
     // All the above accounts to be created at genesis
-    let accounts = vec![
+    let accounts = BTreeSet::from([
         AccountBalance {
             account_address: supra_foundation,
             balance: supra_foundation_balance,
@@ -1663,7 +1663,8 @@ pub fn test_mainnet_end_to_end() {
             account_address: employee9,
             balance: employee_balance,
         },
-    ];
+    ]);
+    
 
     let pbo_config_val0 = PboDelegatorConfiguration {
         delegator_config: DelegatorConfiguration {
