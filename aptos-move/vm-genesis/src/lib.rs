@@ -504,17 +504,20 @@ fn initialize_on_chain_governance(session: &mut SessionExt, genesis_config: &Gen
 }
 
 fn create_accounts(session: &mut SessionExt, accounts: &[AccountBalance]) {
-    let accounts_bytes = bcs::to_bytes(accounts).expect("AccountMaps can be serialized");
-    let mut serialized_values = serialize_values(&vec![MoveValue::Signer(CORE_CODE_ADDRESS)]);
-    serialized_values.push(accounts_bytes);
-    exec_function(
-        session,
-        GENESIS_MODULE_NAME,
-        "create_accounts",
-        vec![],
-        serialized_values,
-    );
-}
+    for account in accounts { // creating accounts one by one to avoid the quadratic complexity of the Move function create_accounts.
+        let accounts = vec![account];
+        let accounts_bytes = bcs::to_bytes(accounts.as_slice()).expect("AccountMaps can be serialized");
+        let mut serialized_values = serialize_values(&vec![MoveValue::Signer(CORE_CODE_ADDRESS)]);
+        serialized_values.push(accounts_bytes);
+        exec_function(
+            session,
+            GENESIS_MODULE_NAME,
+            "create_accounts",
+            vec![],
+            serialized_values,
+        );
+    }
+}       
 
 fn create_employee_validators(
     session: &mut SessionExt,
