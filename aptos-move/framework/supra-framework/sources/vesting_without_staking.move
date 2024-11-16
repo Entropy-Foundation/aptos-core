@@ -34,6 +34,8 @@ module supra_framework::vesting_without_staking {
     const ENO_SHAREHOLDERS: u64 = 4;
     /// The length of shareholders and shares lists don't match.
     const ESHARES_LENGTH_MISMATCH: u64 = 5;
+    /// Deprecated.
+    /// 
     /// Vesting cannot start before or at the current block timestamp. Has to be in the future.
     const EVESTING_START_TOO_SOON: u64 = 6;
     /// The signer is not the admin of the vesting contract.
@@ -274,11 +276,7 @@ module supra_framework::vesting_without_staking {
         assert!(fixed_point32::get_raw_value(*vector::borrow(&schedule, schedule_len - 1))
             != 0,
             error::invalid_argument(EEMPTY_VESTING_SCHEDULE));
-
         assert!(period_duration > 0, error::invalid_argument(EZERO_VESTING_SCHEDULE_PERIOD));
-        assert!(start_timestamp_secs >= timestamp::now_seconds(),
-            error::invalid_argument(EVESTING_START_TOO_SOON),);
-
         VestingSchedule {
             schedule,
             start_timestamp_secs,
