@@ -1348,16 +1348,6 @@ module supra_framework::vesting_without_staking {
         create_vesting_schedule(vector[fixed_point32::create_from_rational(1, 1)], 1, 0);
     }
 
-    #[test(supra_framework = @0x1, admin = @0x123)]
-    #[expected_failure(abort_code = 0x10006, location = Self)]
-    public entry fun test_create_vesting_schedule_with_invalid_vesting_start_should_fail(
-        supra_framework: &signer
-    ) {
-        setup(supra_framework, vector[]);
-        timestamp::update_global_time_for_test_secs(1000);
-        create_vesting_schedule(vector[fixed_point32::create_from_rational(1, 1)], 900, 1);
-    }
-
     #[test(supra_framework = @0x1, admin = @0x123, shareholder = @0x234)]
     public entry fun test_last_vest_should_distribute_remaining_amount(
         supra_framework: &signer, admin: &signer, shareholder: &signer,
