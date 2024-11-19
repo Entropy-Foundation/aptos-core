@@ -143,3 +143,53 @@ fn script_large_ty() {
 
     assert_eq!(res.major_status(), StatusCode::TOO_MANY_TYPE_NODES);
 }
+
+#[test]
+fn test_module_call_edge() {
+    let test_str = r#"
+    module 0x42::ModuleA {
+        use 0x58::ModuleB;
+        public fun function_a() {
+            ModuleB::function_b();
+        }
+    }
+
+    module 0x58::ModuleB {
+        public fun function_b() {
+            // Function body
+        }
+    }
+    "#;
+
+    let mut units = compile_units_with_stdlib(test_str).unwrap();
+
+    let decompiled_module_a = as_module(units.pop().unwrap());
+    let decompiled_module_b = as_module(units.pop().unwrap());
+
+    let verifier_config = VerifierConfig {
+        max_loop_depth: Some(5),
+        max_generic_instantiation_length: Some(32),
+        max_function_parameters: Some(128),
+        max_basic_blocks: Some(1024),
+        max_value_stack_size: 1024,
+        max_type_nodes: Some(256),
+        max_push_size: Some(10000),
+        max_struct_definitions: Some(200),
+        max_fields_in_struct: Some(30),
+        max_function_definitions: Some(1000),
+        ..Default::default()
+    };
+
+    move_bytecode_verifier::verify_module_with_config(&verifier_config, &decompiled_module_a)
+        .unwrap();
+    move_bytecode_verifier::verify_module_with_config(&verifier_config, &decompiled_module_b)
+        .unwrap();
+
+    let mut module_a = vec![];
+    decompiled_module_a.serialize(&mut module_a).unwrap();
+    CompiledModule::deserialize(&module_a).unwrap();
+
+    let mut module_b = vec![];
+    decompiled_module_b.serialize(&mut module_b).unwrap();
+    CompiledModule::deserialize(&module_b).unwrap();
+}
