@@ -24,9 +24,9 @@ module supra_framework::container {
         pending_proposal: SimpleMap<u64, vector<u8>>,
         //TODO type information for the coin
         /// The address of the customer asset reciver
-        customer_asset_reciver: address,
+        customer_asset_receiver: address,
         /// The address of the supra coin reciver
-        supra_coin_reciver: address
+        supra_coin_receiver: address
     }
 
     /// Initialize the container metadata storage
@@ -43,7 +43,7 @@ module supra_framework::container {
     }
 
     /// Create a new container
-    public fun creat_container(supra_framework: &signer, address: address, container_metadata: ContainerMetadata) acquires AddressToContainerMap {
+    public fun create_container(supra_framework: &signer, address: address, container_metadata: ContainerMetadata) acquires AddressToContainerMap {
         system_addresses::assert_supra_framework(supra_framework);
         let container = borrow_global_mut<AddressToContainerMap>(@supra_framework);
         simple_map::upsert(&mut container.address_container_map, address, container_metadata);
