@@ -1978,6 +1978,19 @@ impl From<BlockMetadataExt> for Transaction {
 }
 
 impl Transaction {
+    pub fn get_events(&self) -> Option<Vec<ContractEvent>> {
+        match self {
+            Self::GenesisTransaction(payload) => {
+                if let WriteSetPayload::Direct(change_set) = payload {
+                    Some(change_set.events().to_vec())
+                } else {
+                    None
+                }
+            },
+            _ => None,
+        }
+    }
+
     pub fn try_as_signed_user_txn(&self) -> Option<&SignedTransaction> {
         match self {
             Transaction::UserTransaction(txn) => Some(txn),

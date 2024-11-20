@@ -299,6 +299,47 @@ module supra_framework::genesis {
         addr
     }
 
+    fun create_multiple_multisig_accounts_with_schema_v0(
+        supra_framework: &signer,
+        owner: address,
+        additional_owners: vector<address>,
+        num_signatures_required:u64,
+        metadata_keys:vector<String>,
+        metadata_values:vector<vector<u8>>,
+        timeout_duration:u64,
+        balance:u64,
+        num_of_accounts: u32
+    ): vector<address> {
+        let counter = 0;
+        let result = vector::empty();
+        while (counter < num_of_accounts) {
+            let account_addr = create_multisig_account_with_balance_v0(supra_framework, owner, additional_owners,
+                num_signatures_required,metadata_keys,metadata_values,timeout_duration,balance);
+            vector::push_back(&mut result,account_addr);
+            account::increment_sequence_number(owner);
+            counter = counter + 1;
+        };
+        result
+    }
+
+    fun create_multisig_account_with_balance_v0(
+        supra_framework: &signer,
+        owner: address,
+        additional_owners: vector<address>,
+        num_signatures_required:u64,
+        metadata_keys: vector<String>,
+        metadata_values: vector<vector<u8>>,
+        timeout_duration: u64, balance:u64
+    ) : address {
+        assert!(account::exists_at(owner),error::invalid_argument(EACCOUNT_DOES_NOT_EXIST));
+        assert!(vector::all(&additional_owners,|ao_addr|{account::exists_at(*ao_addr)}),error::invalid_argument(EACCOUNT_DOES_NOT_EXIST));
+        let addr = multisig_account::get_next_multisig_account_address(owner);
+        let owner_signer = create_signer(owner);
+        multisig_account::create_with_owners(&owner_signer,additional_owners,num_signatures_required,metadata_keys,metadata_values,timeout_duration);
+        supra_coin::mint(supra_framework,addr,balance);
+        addr
+    }
+
     fun create_employee_validators(
         employee_vesting_start: u64,
         employee_vesting_period_duration: u64,
@@ -619,6 +660,12 @@ module supra_framework::genesis {
             validator.full_node_network_addresses,
         );
         stake::join_validator_set_internal(operator, pool_address);
+    }
+
+    /// The last step of genesis.
+    fun set_genesis_end_v0(supra_framework: &signer) {
+        stake::on_new_epoch();
+        chain_status::set_genesis_end(supra_framework);
     }
 
     /// The last step of genesis.

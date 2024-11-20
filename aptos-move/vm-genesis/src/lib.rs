@@ -227,6 +227,106 @@ pub fn encode_supra_mainnet_genesis_transaction(
     Transaction::GenesisTransaction(WriteSetPayload::Direct(change_set))
 }
 
+pub fn encode_supra_mainnet_genesis_transaction_v0(
+    accounts: &[AccountBalance],
+    multisig_accounts: &[MultiSigAccountWithBalance],
+    owner_group: Option<MultiSigAccountSchema>,
+    delegation_pools: &[PboDelegatorConfiguration],
+    vesting_pools: &[VestingPoolsMap],
+    framework: &ReleaseBundle,
+    chain_id: ChainId,
+    genesis_config: &GenesisConfiguration,
+    supra_config_bytes: Vec<u8>,
+) -> Transaction {
+    assert!(!genesis_config.is_test, "This is mainnet!");
+    validate_genesis_config(genesis_config);
+
+    // Create a Move VM session, so we can invoke on-chain genesis initializations.
+    let mut state_view = GenesisStateView::new();
+    for (module_bytes, module) in framework.code_and_compiled_modules() {
+        state_view.add_module(&module.self_id(), module_bytes);
+    }
+
+    let vm = GenesisMoveVM::new(chain_id);
+    let resolver = state_view.as_move_resolver();
+    let mut session = vm.new_genesis_session(&resolver, HashValue::zero());
+
+    // On-chain genesis process.
+    let consensus_config = OnChainConsensusConfig::default_for_genesis();
+    let execution_config = OnChainExecutionConfig::default_for_genesis();
+    let gas_schedule = default_gas_schedule();
+    initialize(
+        &mut session,
+        chain_id,
+        genesis_config,
+        &consensus_config,
+        &execution_config,
+        &gas_schedule,
+        supra_config_bytes,
+    );
+    initialize_features(
+        &mut session,
+        genesis_config
+            .initial_features_override
+            .clone()
+            .map(Features::into_flag_vec),
+    );
+    initialize_supra_coin(&mut session);
+    initialize_on_chain_governance(&mut session, genesis_config);
+    create_accounts(&mut session, accounts);
+
+    if let Some(owner_group) = owner_group {
+        create_multiple_multisig_accounts_with_schema_v0(&mut session, owner_group);
+    }
+
+    create_multisig_accounts_with_balance_v0(&mut session, multisig_accounts);
+
+    // All PBO delegated validators are initialized here
+    create_pbo_delegation_pools(&mut session, delegation_pools);
+
+    // PBO vesting accounts, employees, investors etc. are placed in their vesting pools
+    create_vesting_without_staking_pools(&mut session, vesting_pools);
+
+
+    set_genesis_end_v0(&mut session);
+
+    // Reconfiguration should happen after all on-chain invocations.
+    emit_new_block_and_epoch_event(&mut session);
+
+    let configs = vm.genesis_change_set_configs();
+    let mut change_set = session.finish(&configs).unwrap();
+
+    // Publish the framework, using a different session id, in case both scripts create tables.
+    let state_view = GenesisStateView::new();
+    let resolver = state_view.as_move_resolver();
+
+    let mut new_id = [0u8; 32];
+    new_id[31] = 1;
+    let mut session = vm.new_genesis_session(&resolver, HashValue::new(new_id));
+    publish_framework(&mut session, framework);
+    let additional_change_set = session.finish(&configs).unwrap();
+    change_set
+        .squash_additional_change_set(additional_change_set, &configs)
+        .unwrap();
+
+    // Publishing stdlib should not produce any deltas around aggregators and map to write ops and
+    // not deltas. The second session only publishes the framework module bundle, which should not
+    // produce deltas either.
+    assert!(
+        change_set.aggregator_v1_delta_set().is_empty(),
+        "non-empty delta change set in genesis"
+    );
+    assert!(!change_set
+        .concrete_write_set_iter()
+        .any(|(_, op)| op.expect("expect only concrete write ops").is_deletion()));
+    verify_genesis_write_set(change_set.events());
+
+    let change_set = change_set
+        .try_into_storage_change_set()
+        .expect("Constructing a ChangeSet from VMChangeSet should always succeed at genesis");
+    Transaction::GenesisTransaction(WriteSetPayload::Direct(change_set))
+}
+
 pub fn encode_genesis_transaction_for_testnet(
     aptos_root_key: Ed25519PublicKey,
     validators: &[Validator],
@@ -362,6 +462,135 @@ pub fn encode_genesis_change_set_for_testnet(
     initialize_jwks_resources(&mut session);
     initialize_keyless_accounts(&mut session, chain_id);
     set_genesis_end(&mut session);
+
+    // Reconfiguration should happen after all on-chain invocations.
+    emit_new_block_and_epoch_event(&mut session);
+
+    let configs = vm.genesis_change_set_configs();
+    let mut change_set = session.finish(&configs).unwrap();
+
+    let state_view = GenesisStateView::new();
+    let resolver = state_view.as_move_resolver();
+
+    // Publish the framework, using a different id, in case both scripts create tables.
+    let mut new_id = [0u8; 32];
+    new_id[31] = 1;
+    let mut session = vm.new_genesis_session(&resolver, HashValue::new(new_id));
+    publish_framework(&mut session, framework);
+    let additional_change_set = session.finish(&configs).unwrap();
+    change_set
+        .squash_additional_change_set(additional_change_set, &configs)
+        .unwrap();
+
+    // Publishing stdlib should not produce any deltas around aggregators and map to write ops and
+    // not deltas. The second session only publishes the framework module bundle, which should not
+    // produce deltas either.
+    assert!(
+        change_set.aggregator_v1_delta_set().is_empty(),
+        "non-empty delta change set in genesis"
+    );
+
+    assert!(!change_set
+        .concrete_write_set_iter()
+        .any(|(_, op)| op.expect("expect only concrete write ops").is_deletion()));
+    verify_genesis_write_set(change_set.events());
+    change_set
+        .try_into_storage_change_set()
+        .expect("Constructing a ChangeSet from VMChangeSet should always succeed at genesis")
+}
+
+pub fn encode_genesis_change_set_for_testnet_v0(
+    core_resources_key: &Ed25519PublicKey,
+    accounts: &[AccountBalance],
+    multisig_account: &[MultiSigAccountWithBalance],
+    owner_group: Option<MultiSigAccountSchema>,
+    validators: &[Validator],
+    delegation_pools: &[PboDelegatorConfiguration],
+    vesting_pools: &[VestingPoolsMap],
+    framework: &ReleaseBundle,
+    chain_id: ChainId,
+    genesis_config: &GenesisConfiguration,
+    consensus_config: &OnChainConsensusConfig,
+    execution_config: &OnChainExecutionConfig,
+    gas_schedule: &GasScheduleV2,
+    supra_config_bytes: Vec<u8>,
+) -> ChangeSet {
+    validate_genesis_config(genesis_config);
+
+    // Create a Move VM session so we can invoke on-chain genesis initializations.
+    let mut state_view = GenesisStateView::new();
+    for (module_bytes, module) in framework.code_and_compiled_modules() {
+        state_view.add_module(&module.self_id(), module_bytes);
+    }
+
+    let resolver = state_view.as_move_resolver();
+    let vm = GenesisMoveVM::new(chain_id);
+    let mut session = vm.new_genesis_session(&resolver, HashValue::zero());
+
+    // On-chain genesis process.
+    initialize(
+        &mut session,
+        chain_id,
+        genesis_config,
+        consensus_config,
+        execution_config,
+        gas_schedule,
+        supra_config_bytes,
+    );
+    initialize_features(
+        &mut session,
+        genesis_config
+            .initial_features_override
+            .clone()
+            .map(Features::into_flag_vec),
+    );
+    if genesis_config.is_test {
+        initialize_core_resources_and_supra_coin(&mut session, core_resources_key);
+    } else {
+        initialize_supra_coin(&mut session);
+    }
+    initialize_config_buffer(&mut session);
+    initialize_dkg(&mut session);
+    initialize_reconfiguration_state(&mut session);
+    let randomness_config = genesis_config
+        .randomness_config_override
+        .clone()
+        .unwrap_or_else(OnChainRandomnessConfig::default_for_genesis);
+    initialize_randomness_api_v0_config(&mut session);
+    initialize_randomness_config_seqnum(&mut session);
+    initialize_randomness_config(&mut session, randomness_config);
+    initialize_randomness_resources(&mut session);
+    initialize_on_chain_governance(&mut session, genesis_config);
+
+    create_accounts(&mut session, accounts);
+
+    create_multisig_accounts_with_balance_v0(&mut session, multisig_account);
+
+    if let Some(owner_group) = owner_group {
+        create_multiple_multisig_accounts_with_schema_v0(&mut session, owner_group);
+    }
+
+    if validators.len() > 0 {
+        create_and_initialize_validators(&mut session, validators);
+    } else {
+        // All PBO delegated validators are initialized here
+        create_pbo_delegation_pools(&mut session, delegation_pools);
+
+        // PBO vesting accounts, employees, investors etc. are placed in their vesting pools
+        create_vesting_without_staking_pools(&mut session, vesting_pools);
+    }
+
+    if genesis_config.is_test {
+        allow_core_resources_to_set_version(&mut session);
+    }
+    let jwk_consensus_config = genesis_config
+        .jwk_consensus_config_override
+        .clone()
+        .unwrap_or_else(OnChainJWKConsensusConfig::default_for_genesis);
+    initialize_jwk_consensus_config(&mut session, &jwk_consensus_config);
+    initialize_jwks_resources(&mut session);
+    initialize_keyless_accounts(&mut session, chain_id);
+    set_genesis_end_v0(&mut session);
 
     // Reconfiguration should happen after all on-chain invocations.
     emit_new_block_and_epoch_event(&mut session);
@@ -654,6 +883,16 @@ fn initialize_jwks_resources(session: &mut SessionExt) {
     );
 }
 
+fn set_genesis_end_v0(session: &mut SessionExt) {
+    exec_function(
+        session,
+        GENESIS_MODULE_NAME,
+        "set_genesis_end_v0",
+        vec![],
+        serialize_values(&vec![MoveValue::Signer(CORE_CODE_ADDRESS)]),
+    );
+}
+
 fn set_genesis_end(session: &mut SessionExt) {
     exec_function(
         session,
@@ -818,6 +1057,55 @@ fn create_multiple_multisig_accounts_with_schema(
     );
 }
 
+fn create_multiple_multisig_accounts_with_schema_v0(
+    session: &mut SessionExt,
+    multiple_multi_sig_account_with_balance: MultiSigAccountSchema,
+) {
+    let mut serialized_values = serialize_values(&vec![
+        MoveValue::Signer(CORE_CODE_ADDRESS),
+    ]);
+
+    let owners_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.owner)
+        .expect("Owner address for MultiSig accounts should be serializable");
+    serialized_values.push(owners_bytes);
+
+    let additional_owners_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.additional_owners)
+        .expect("Additional owners addresses for MultiSig accounts should be serializable");
+    serialized_values.push(additional_owners_bytes);
+
+    let num_signatures_required_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.num_signatures_required)
+        .expect("num_signatures_required for MultiSig accounts should be serializable");
+    serialized_values.push(num_signatures_required_bytes);
+
+    let metadata_keys_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.metadata_keys)
+        .expect("metadata_keys for MultiSig accounts should be serializable");
+    serialized_values.push(metadata_keys_bytes);
+
+    let metadata_values_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.metadata_values)
+        .expect("metadata_values for MultiSig accounts should be serializable");
+    serialized_values.push(metadata_values_bytes);
+
+    let timeout_duration_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.timeout_duration)
+        .expect("timeout_duration for MultiSig accounts should be serializable");
+    serialized_values.push(timeout_duration_bytes);
+
+    let balance_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.balance)
+        .expect("balance for MultiSig accounts should be serializable");
+    serialized_values.push(balance_bytes);
+
+    let num_of_accounts_bytes = bcs::to_bytes(&multiple_multi_sig_account_with_balance.num_of_accounts)
+        .expect("num_of_accounts for MultiSig accounts should be serializable");
+    serialized_values.push(num_of_accounts_bytes);
+
+    exec_function(
+        session,
+        GENESIS_MODULE_NAME,
+        "create_multiple_multisig_accounts_with_schema_v0",
+        vec![],
+        serialized_values,
+    );
+}
+
 fn create_multisig_accounts_with_balance(
     session: &mut SessionExt,
     multisig_accounts: &[MultiSigAccountWithBalance],
@@ -859,6 +1147,53 @@ fn create_multisig_accounts_with_balance(
             session,
             GENESIS_MODULE_NAME,
             "create_multisig_account_with_balance",
+            vec![],
+            serialized_values,
+        );
+    }
+}
+
+fn create_multisig_accounts_with_balance_v0(
+    session: &mut SessionExt,
+    multisig_accounts: &[MultiSigAccountWithBalance],
+) {
+    for account_configuration in multisig_accounts {
+        let mut serialized_values = serialize_values(&vec![
+            MoveValue::Signer(CORE_CODE_ADDRESS),
+        ]);
+
+        let owners_bytes = bcs::to_bytes(&account_configuration.owner)
+            .expect("Owner for MultiSig accounts should be serializable");
+        serialized_values.push(owners_bytes);
+
+        let additional_owners_bytes = bcs::to_bytes(&account_configuration.additional_owners)
+            .expect("Additional owners for MultiSig accounts should be serializable");
+        serialized_values.push(additional_owners_bytes);
+
+        let threshold_bytes = bcs::to_bytes(&account_configuration.num_signatures_required)
+            .expect("Threshold u64 for MultiSig accounts should be serializable");
+        serialized_values.push(threshold_bytes);
+
+        let metadata_keys_bytes = bcs::to_bytes(&account_configuration.metadata_keys)
+            .expect("Metadata Keys for MultiSig accounts should be serializable");
+        serialized_values.push(metadata_keys_bytes);
+
+        let metadata_values_bytes = bcs::to_bytes(&account_configuration.metadata_values)
+            .expect("Metadata Values for MultiSig accounts should be serializable");
+        serialized_values.push(metadata_values_bytes);
+
+        let timeout_duration_bytes = bcs::to_bytes(&account_configuration.timeout_duration)
+            .expect("Timeout duration for MultiSig accounts should be serializable");
+        serialized_values.push(timeout_duration_bytes);
+
+        let balance_bytes = bcs::to_bytes(&account_configuration.balance)
+            .expect("Timeout duration for MultiSig accounts should be serializable");
+        serialized_values.push(balance_bytes);
+
+        exec_function(
+            session,
+            GENESIS_MODULE_NAME,
+            "create_multisig_account_with_balance_v0",
             vec![],
             serialized_values,
         );
