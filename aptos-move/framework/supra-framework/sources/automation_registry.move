@@ -1,6 +1,6 @@
 /// Supra Automation Registry
 ///
-/// This contract is part of the Supra Framework and is designed to manage automated registry entries
+/// This contract is part of the Supra Framework and is designed to manage automated task entries
 module supra_framework::automation_registry {
 
     use std::signer;
@@ -16,27 +16,24 @@ module supra_framework::automation_registry {
     struct RegistryData has key, store {
         /// The current unique index counter for registries. This value increments as new registries are added.
         current_index: u64,
-        /// A collection of registry entries that are pending completion.
-        pending_registries: table::Table<u64, RegistryEntry>,
-        /// A collection of registry entries that have been marked as completed or expired.
-        completed_registries: table::Table<u64, RegistryEntry>,
+        /// A collection of automation task entries that are active state.
+        pending_registries: table::Table<u64, AutomationTaskMetaData>,
     }
 
     #[event]
-    /// `RegistryEntry` represents a single registry item, containing metadata.
-    struct RegistryEntry has copy, store, drop {
-        registry_id: u64,
+    /// `AutomationTaskMetaData` represents a single automation task item, containing metadata.
+    struct AutomationTaskMetaData has copy, store, drop {
+        id: u64,
         /// The address of the registry owner.
         owner: address,
         /// The function signature associated with the registry entry.
-        function_sig: vector<u8>,
+        payload_tx: vector<u8>,
         /// Expiry of the registry entry, represented in either epoch time or a timestamp.
-        /// todo : duration either epoch or timestamp - needs to be confirm,
-        expiry: u64,
+        expiry_time: u64,
         /// The transaction hash of the request transaction.
         tx_hash: vector<u8>,
-        /// A boolean status indicating whether the registry entry processed or not. If it's expired -> false
-        status: bool
+        /// A boolean is_active indicating whether the registry entry processed or not. If it's expired -> false
+        is_active: bool
     }
 
     // todo : this function should call during initialzation, but since we already done genesis in that case who can access the function
@@ -45,45 +42,41 @@ module supra_framework::automation_registry {
         move_to(supra_framework, RegistryData {
             current_index: 0,
             pending_registries: table::new(),
-            completed_registries: table::new()
         })
     }
 
-    /// Registers a new registry entry.
-    public entry fun register(owner: &signer, function_sig: vector<u8>, expiry: u64) acquires RegistryData {
-        // todo : well formedness check of function_sig
-
+    /// Registers a new automation task entry.
+    public entry fun register(owner: &signer, payload_tx: vector<u8>, expiry_time: u64) acquires RegistryData {
+        // todo : well formedness check of payload_tx
         // todo : pre-paid amount collect from the user
+        // todo : duration/expiry in seconds
+        // todo : expiry does not go beyond upper cap duration set by admin/governance
+        // todo : expiry should not be before the start of next epoch
 
         let registry_data = borrow_global_mut<RegistryData>(@supra_framework);
         registry_data.current_index = registry_data.current_index + 1;
 
-        let registry_entry = RegistryEntry {
-            registry_id: registry_data.current_index,
+        let automation_task_metadata = AutomationTaskMetaData {
+            id: registry_data.current_index,
             owner: signer::address_of(owner),
-            function_sig,
-            expiry,
-            status: false,
+            payload_tx,
+            expiry_time,
+            is_active: false,
             tx_hash: transaction_context::get_transaction_hash() // todo : need to double check is that work or not
         };
 
-        table::add(&mut registry_data.pending_registries, registry_data.current_index, registry_entry);
+        table::add(&mut registry_data.pending_registries, registry_data.current_index, automation_task_metadata);
 
-        event::emit(registry_entry);
+        event::emit(automation_task_metadata);
     }
 
     #[view]
-    /// Retrieves the details of a registry entry by its ID.
+    /// Retrieves the details of a automation task entry by its ID.
     /// Returns a tuple where the first element indicates if the registry is completed/failed (`true`) or pending (`false`),
-    /// and the second element contains the `RegistryEntry` details.
-    public fun get_registry(registry_id: u64): (bool, RegistryEntry) acquires RegistryData {
-        let registry = borrow_global<RegistryData>(@supra_framework);
-        if (table::contains(&registry.pending_registries, registry_id)) {
-            (false, *table::borrow(&registry.pending_registries, registry_id))
-        } else if (table::contains(&registry.completed_registries, registry_id)) {
-            (true, *table::borrow(&registry.completed_registries, registry_id))
-        } else {
-            abort EREGITRY_NOT_FOUND
-        }
+    /// and the second element contains the `AutomationTaskMetaData` details.
+    public fun get_task_details(id: u64): AutomationTaskMetaData acquires RegistryData {
+        let automation_task_metadata = borrow_global<RegistryData>(@supra_framework);
+        assert!(table::contains(&automation_task_metadata.pending_registries, id), EREGITRY_NOT_FOUND);
+        *table::borrow(&automation_task_metadata.pending_registries, id)
     }
 }
