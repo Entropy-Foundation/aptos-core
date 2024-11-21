@@ -91,7 +91,7 @@ spec supra_framework::supra_account {
         let account_addr_source = signer::address_of(source);
 
         // The 'from' addr is implictly not equal to 'to' addr
-        // requires account_addr_source != to;
+        requires account_addr_source != to;
 
         include CreateAccountTransferAbortsIf;
         include GuidAbortsIf<SupraCoin>;
