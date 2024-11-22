@@ -132,6 +132,14 @@ module supra_framework::transaction_context {
     }
     native fun entry_function_payload_internal(): Option<EntryFunctionPayload>;
 
+    /// Returns the original transaction hash calculated on the raw-bytes.
+    /// This function aborts if called outside of the transaction prologue, execution, or epilogue phases.
+    public fun txn_app_hash(): vector<u8> {
+        assert!(features::transaction_context_extension_enabled(), error::invalid_state(ETRANSACTION_CONTEXT_EXTENSION_NOT_ENABLED));
+        txn_app_hash_internal()
+    }
+    native fun txn_app_hash_internal(): vector<u8>;
+
     /// Returns the account address of the entry function payload.
     public fun account_address(payload: &EntryFunctionPayload): address {
         assert!(features::transaction_context_extension_enabled(), error::invalid_state(ETRANSACTION_CONTEXT_EXTENSION_NOT_ENABLED));
@@ -258,5 +266,12 @@ module supra_framework::transaction_context {
     fun test_call_multisig_payload() {
         // expected to fail with the error code of `invalid_state(E_TRANSACTION_CONTEXT_NOT_AVAILABLE)`
         let _multisig = multisig_payload();
+    }
+
+    #[test]
+    #[expected_failure(abort_code=196609, location = Self)]
+    fun test_call_txn_app_hash() {
+        // expected to fail with the error code of `invalid_state(E_TRANSACTION_CONTEXT_NOT_AVAILABLE)`
+        let _txn_app_hash = txn_app_hash();
     }
 }
