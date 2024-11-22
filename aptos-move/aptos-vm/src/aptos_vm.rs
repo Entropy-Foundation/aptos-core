@@ -2433,6 +2433,9 @@ impl AptosVM {
                     self.process_validator_transaction(resolver, txn.clone(), log_context)?;
                 (vm_status, output)
             },
+            Transaction::AutomatedTransaction(_) => {
+                unimplemented!("AutomatedTransaction execution is coming soon")
+            }
         })
     }
 }
