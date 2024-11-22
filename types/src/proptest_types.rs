@@ -54,6 +54,8 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     iter::Iterator,
 };
+use aptos_crypto::hash::CryptoHash;
+use crate::transaction::automated_transaction::AutomatedTransaction;
 
 impl WriteOp {
     pub fn value_strategy() -> impl Strategy<Value = Self> {
@@ -476,6 +478,21 @@ impl Arbitrary for SignedTransaction {
     fn arbitrary_with(_args: ()) -> Self::Strategy {
         any::<SignatureCheckedTransaction>()
             .prop_map(|txn| txn.into_inner())
+            .boxed()
+    }
+}
+
+/// This `Arbitrary` impl only generates valid automated transactions.
+impl Arbitrary for AutomatedTransaction {
+    type Parameters = ();
+    type Strategy = BoxedStrategy<Self>;
+
+    fn arbitrary_with(_args: ()) -> Self::Strategy {
+        any::<RawTransaction>()
+            .prop_map(|txn| {
+                let authenticator = txn.hash();
+                AutomatedTransaction::new(txn, authenticator, 1)
+            })
             .boxed()
     }
 }

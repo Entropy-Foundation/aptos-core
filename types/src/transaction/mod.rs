@@ -51,6 +51,7 @@ mod script;
 pub mod signature_verified_transaction;
 pub mod user_transaction_context;
 pub mod webauthn;
+pub mod automated_transaction;
 
 pub use self::block_epilogue::{BlockEndInfo, BlockEpiloguePayload};
 #[cfg(any(test, feature = "fuzzing"))]
@@ -76,6 +77,7 @@ pub use script::{
 };
 use serde::de::DeserializeOwned;
 use std::{collections::BTreeSet, hash::Hash, ops::Deref, sync::atomic::AtomicU64};
+use crate::transaction::automated_transaction::AutomatedTransaction;
 
 pub type Version = u64; // Height - also used for MVCC in StateDB
 pub type AtomicVersion = AtomicU64;
@@ -1966,6 +1968,11 @@ pub enum Transaction {
     /// The hash value inside is unique block id which can generate unique hash of state checkpoint transaction
     /// Replaces StateCheckpoint, with optionally having more data.
     BlockEpilogue(BlockEpiloguePayload),
+
+    /// Transaction corresponding to automation tasks from automation registry.
+    /// Verification is skipped for this type of transaction as it is auto-generated from state
+    /// and is considered as `SignatureVerifiedTransaction::Valid` by default
+    AutomatedTransaction(AutomatedTransaction),
 }
 
 impl From<BlockMetadataExt> for Transaction {
@@ -2015,6 +2022,7 @@ impl Transaction {
             Transaction::BlockEpilogue(_) => "block_epilogue",
             Transaction::ValidatorTransaction(vt) => vt.type_name(),
             Transaction::BlockMetadataExt(_) => "block_metadata_ext",
+            Transaction::AutomatedTransaction(_) => "automated_transaction"
         }
     }
 
@@ -2030,6 +2038,7 @@ impl Transaction {
             | Transaction::GenesisTransaction(_)
             | Transaction::BlockMetadata(_)
             | Transaction::BlockMetadataExt(_)
+            | Transaction::AutomatedTransaction(_)
             | Transaction::ValidatorTransaction(_) => false,
         }
     }
