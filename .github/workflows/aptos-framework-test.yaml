@@ -2,12 +2,17 @@ name: Run aptos framework checks
 
 on:
   push:
-    branches: 
-        - dev
-  pull_request:
     branches:
-        - dev
+      - dev
+      - "release/**"
+      - "feature/**"
 
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+    branches:
+      - dev
+      - "release/**"
+      - "feature/**"
 env:
   CARGO_TERM_COLOR: always
   CARGO_BIN: ~/.cargo/bin/cargo
