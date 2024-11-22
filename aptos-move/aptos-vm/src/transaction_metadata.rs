@@ -12,6 +12,7 @@ use aptos_types::{
         SignedTransaction, TransactionPayload,
     },
 };
+use aptos_types::transaction::automated_transaction::AutomatedTransaction;
 
 pub struct TransactionMetadata {
     pub sender: AccountAddress,
@@ -31,6 +32,7 @@ pub struct TransactionMetadata {
     pub is_keyless: bool,
     pub entry_function_payload: Option<EntryFunction>,
     pub multisig_payload: Option<Multisig>,
+    pub txn_app_hash: Vec<u8>
 }
 
 impl TransactionMetadata {
@@ -80,6 +82,7 @@ impl TransactionMetadata {
                 TransactionPayload::Multisig(m) => Some(m.clone()),
                 _ => None,
             },
+            txn_app_hash: HashValue::sha3_256_of(&bcs::to_bytes(&txn).expect("Unable to serialize SignedTransaction")).to_vec(),
         }
     }
 
@@ -161,6 +164,35 @@ impl TransactionMetadata {
                 .map(|entry_func| entry_func.as_entry_function_payload()),
             self.multisig_payload()
                 .map(|multisig| multisig.as_multisig_payload()),
+            self.txn_app_hash.clone(),
         )
+    }
+}
+
+impl From<&AutomatedTransaction> for TransactionMetadata {
+    fn from(txn: &AutomatedTransaction) -> Self {
+        Self {
+            sender: txn.sender(),
+            authentication_key: txn.authenticator().to_vec(),
+            secondary_signers: vec![],
+            secondary_authentication_keys: vec![],
+            sequence_number: txn.sequence_number(),
+            fee_payer: None,
+            fee_payer_authentication_key: None,
+            max_gas_amount: txn.max_gas_amount().into(),
+            gas_unit_price: txn.gas_unit_price().into(),
+            transaction_size: (txn.raw_txn_bytes_len() as u64).into(),
+            expiration_timestamp_secs: txn.expiration_timestamp_secs(),
+            chain_id: txn.chain_id(),
+            script_hash: vec![],
+            script_size: NumBytes::zero(),
+            is_keyless: false,
+            entry_function_payload: match txn.payload() {
+                TransactionPayload::EntryFunction(e) => Some(e.clone()),
+                _ => None,
+            },
+            multisig_payload: None,
+            txn_app_hash: txn.hash().to_vec()
+        }
     }
 }
