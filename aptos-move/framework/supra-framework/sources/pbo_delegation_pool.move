@@ -109,6 +109,52 @@ into the pending_inactive one on A's behalf</li>
 </ol>
 </ol>
  */
+ /// Supra Customizations
+ ///
+ /// 
+ /// UnlockSchedule  - This is similar to `VestingSchedule` description of which can be found in `vesting_without_staking.move`.
+ /// Those delegators which are added at the time of creation of the pool would be called principle stake holders.
+ /// 
+ /// UnlockSchedule has been implemented to allow Liquid Staking. People have to lock in their money
+ /// but at some regular interval they are allowed to unlock some fraction of the original principle stake locked.
+ /// While the amount remains locked and `active`, it would continue to earn staking rewards.
+ /// `cumulative_fraction` is meant for caching/performance optimization which tracks how much cumulative
+ /// fraction is unlocked for this pool at a given time
+ /// 
+ /// Here' a flow for principles stake holder
+ /// 
+ /// A delegation pool would be created with a map `principle_stake : address -> amount`
+ /// and with sufficient initial amount that would be equal to sum of all the amounts specified in
+ /// `principle_stake`
+ /// 
+ /// Say, two delegators Alice and Bob are added with 1000 Supra each as principle stake holders (amount
+ /// was funded by the creator of the pool)
+ /// `start_timestamp_sec` is set to 12 months from now, `period_duration` is set to 1 month and
+ /// the `UnlockSchedule` is [10/100,5/20,2/100]
+ /// - Delegator Alice tries to `add_stake` with additional 500 Supra, since this was funded by Alice
+ /// this amount is not subjected to any restriction imposed by `UnlockSchedule` so Alice is free to
+ /// `unlock` and `withdraw` 500 Supra and corresponding rewards anytime. Alice can also withdraw
+ /// rewards accrued on the principle (1000 Supra) anytime she desires.
+ /// - If we ignore rewards for a moment, if Alice tries to unlock 600 Supra before 13 months are over,
+ /// she would not be able to do so, since her balance in `active_shares` pool would go below her principle
+ /// amount (1000 Supra).
+ /// - At the end of 13 months Alice would be able to unlock and withdraw 600 Supra (500 she added on her own and 100 is now unlockable)
+ /// - At the end of 14 months Alice would be able to unlock 250 Supra (5/20 is 25%, `cumulative_unlocked_fraction` is now at 35% (10% + 25%))
+ /// - From then onwards every month Alice would be able to unlock 20 Supra (2%)
+ /// - Charlie adds 900 Supra via `add_stake`
+ /// - A multisig admin, may be able to replace Bob with Diana with any legal and justifiable reason (Bob was funded by the creator)
+ /// - Now, Diana can unlock/withdraw 350 Supra if 2 months have passed from `start_timestamp_sec`
+ /// - Charlie can use `fund_delegators_with_stake` to add Elon as a delegator (but not principle stake holder)
+ ///    with 400 Supra stake. Elon is free to unlock/withdraw without any restriction of `UnlockSchedule`
+ /// - A multisig admin may be able to use `fund_delegators_with_locked_stake` to add 300 Supra stake for
+ ///    Frederick. If 1 month has not passed since `start_timestamp_secs`, Frederick may not be able to withdraw
+ ///    any portion of principle stake of 300 Supra (since it would be subjected to `UnlockSchedule`) Frederick is
+ ///    free to unlock/withdraw any rewards earned on 300 Supra
+ /// - A multisig admin by discovering any legal and justifiable reason, may be able to replace Alice with
+ ///   George via `replace_delegator`
+ /// 
+ /// 
+ /// 
 module supra_framework::pbo_delegation_pool {
     use std::error;
     use std::features;
