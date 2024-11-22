@@ -1,6 +1,43 @@
 ///
 /// Vesting without staking contract
-///
+/// This contract allows one to create a vesting contract with a given schedule.
+///  `VestingSchedule` specifies a vector of fractions i.e., [10/100, 5/20, 2/100] that indicates
+///  how much fraction of `VestingRecord::init_amount` to vest at each `VestingSchedule::period_duration`
+/// The last fraction would be reused until `left_amount` for a shareholder becomes zero. For example,
+/// in the schedule above after 1st duration, 10% will be vested, afer 2nd duration 25% would be vested and 
+/// then onwards for completion of every `period_duration` 2% will continue to vest until `left_amount` becomes zero.
+/// 
+/// `start_timestamp_sec` marks the start of vesting, which can be used to set a cliff period. For example,
+/// if `start_timestamp_sec` is set for 12 months and `period_duration` is for 1 month, the first fraction
+/// would be vested at the end of 13 months
+/// 
+/// 
+/// Each `shareholder` has a corresponding `VestingRecord` mentioning the `init_amount` (to calculate
+/// the fraction of amount to be vested based on `VestingSchedule`), `left_amount` (balance amount remaining
+/// which is yet to vest), `last_vested_period` to record when was the last time the shareholder claimed
+/// their vested amount via a call to `vest_individual`
+/// 
+/// The execution flow would be as follows
+/// - `owner` would create a vesting contract and fund it with amount which would be equivalent to
+///    sum of `init_amount` for all shareholders.
+/// - `vest_individual` can be called by anyone for a shareholder, and if there is any amount that has
+///    vested (because enough period is passed), it would be transferred from the contract resource account
+///     to the `beneficiary` of the shareholder.
+/// - `beneficiary` can be set by the `admin` or `owner`, this is done with the primary motivation
+///    to cater to employer/employee relationship and to allow passing on benefit of the employee to next-of-kin
+///    in case of an eventuality. For the purpose of Supra blockchain, all such `owner`/`admin` would be
+///    initialized as a multisig authority
+/// -  Anyone can alternatively also call `vest_all` which would call `vest_individual` for each shareholder
+///    thus ensuring that whatever amount that is vested would be transferred to their corresponding
+///    `beneficiary` address (if `beneficiary` is set), otherwise it would go to the shareholder.
+/// `owner` or `admin` may call termination of the contract, however, this would call `vest_all`, thus ensuring
+///   that all the amount that is already vested is transferre to corresponding accounts first before the 
+///   contract is terminated
+/// `owner` or `admin` has a power to remove a shareholder. If a shareholder is removed, all the `left_amount`
+///  would be transferred to a `withdrawal_address` which would be specified at the time of contract creation itself
+///  Purposes for which this should be used would be (i) employer/employee relationship has ended (ii) if contract
+/// was created as part of some give-away/airdrop program and a foul play by a `shareholder` has been found. In all cases,
+///  before calling such a method, `owner/admin` should ensure that it does not violate any law/regulation.
 module supra_framework::vesting_without_staking {
     use std::bcs;
     use std::error;
