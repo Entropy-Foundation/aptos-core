@@ -1,5 +1,7 @@
 ///
 /// Vesting without staking contract
+/// Note that as the name suggests, this is a contract that implements simple vesting
+/// and the locked amount earns no reward/interest.
 /// This contract allows one to create a vesting contract with a given schedule.
 ///  `VestingSchedule` specifies a vector of fractions i.e., [10/100, 5/20, 2/100] that indicates
 ///  how much fraction of `VestingRecord::init_amount` to vest at each `VestingSchedule::period_duration`
