@@ -1,3 +1,6 @@
+// Copyright (c) Supra Oracles
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::chain_id::ChainId;
 use crate::transaction::{RawTransaction, Transaction, TransactionPayload};
 use aptos_crypto::HashValue;
