@@ -230,6 +230,7 @@ export interface Transaction {
     | undefined;
   /** value 22 is used up below (all Transaction fields have to have different index), so going to 23 */
   blockEpilogue?: BlockEpilogueTransaction | undefined;
+  automated?: AutomatedTransaction | undefined;
   sizeInfo?: TransactionSizeInfo | undefined;
 }
 
@@ -242,6 +243,7 @@ export enum Transaction_TransactionType {
   /** TRANSACTION_TYPE_VALIDATOR - values 5-19 skipped for no reason */
   TRANSACTION_TYPE_VALIDATOR = 20,
   TRANSACTION_TYPE_BLOCK_EPILOGUE = 21,
+  TRANSACTION_TYPE_AUTOMATED = 22,
   UNRECOGNIZED = -1,
 }
 
@@ -268,6 +270,9 @@ export function transaction_TransactionTypeFromJSON(object: any): Transaction_Tr
     case 21:
     case "TRANSACTION_TYPE_BLOCK_EPILOGUE":
       return Transaction_TransactionType.TRANSACTION_TYPE_BLOCK_EPILOGUE;
+    case 22:
+    case "TRANSACTION_TYPE_AUTOMATED":
+      return Transaction_TransactionType.TRANSACTION_TYPE_AUTOMATED;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -291,6 +296,8 @@ export function transaction_TransactionTypeToJSON(object: Transaction_Transactio
       return "TRANSACTION_TYPE_VALIDATOR";
     case Transaction_TransactionType.TRANSACTION_TYPE_BLOCK_EPILOGUE:
       return "TRANSACTION_TYPE_BLOCK_EPILOGUE";
+    case Transaction_TransactionType.TRANSACTION_TYPE_AUTOMATED:
+      return "TRANSACTION_TYPE_AUTOMATED";
     case Transaction_TransactionType.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
@@ -388,6 +395,11 @@ export interface UserTransaction {
   events?: Event[] | undefined;
 }
 
+export interface AutomatedTransaction {
+  meta?: AutomatedTaskMeta | undefined;
+  events?: Event[] | undefined;
+}
+
 export interface Event {
   key?: EventKey | undefined;
   sequenceNumber?: bigint | undefined;
@@ -421,6 +433,16 @@ export interface UserTransactionRequest {
   expirationTimestampSecs?: Timestamp | undefined;
   payload?: TransactionPayload | undefined;
   signature?: Signature | undefined;
+}
+
+export interface AutomatedTaskMeta {
+  sender?: string | undefined;
+  index?: bigint | undefined;
+  maxGasAmount?: bigint | undefined;
+  gasUnitPrice?: bigint | undefined;
+  expirationTimestampSecs?: Timestamp | undefined;
+  payload?: TransactionPayload | undefined;
+  registrationHash?: Uint8Array | undefined;
 }
 
 export interface WriteSet {
@@ -1340,6 +1362,7 @@ function createBaseTransaction(): Transaction {
     user: undefined,
     validator: undefined,
     blockEpilogue: undefined,
+    automated: undefined,
     sizeInfo: undefined,
   };
 }
@@ -1390,6 +1413,9 @@ export const Transaction = {
     }
     if (message.blockEpilogue !== undefined) {
       BlockEpilogueTransaction.encode(message.blockEpilogue, writer.uint32(186).fork()).ldelim();
+    }
+    if (message.automated !== undefined) {
+      AutomatedTransaction.encode(message.automated, writer.uint32(194).fork()).ldelim();
     }
     if (message.sizeInfo !== undefined) {
       TransactionSizeInfo.encode(message.sizeInfo, writer.uint32(178).fork()).ldelim();
@@ -1488,6 +1514,13 @@ export const Transaction = {
 
           message.blockEpilogue = BlockEpilogueTransaction.decode(reader, reader.uint32());
           continue;
+        case 24:
+          if (tag !== 194) {
+            break;
+          }
+
+          message.automated = AutomatedTransaction.decode(reader, reader.uint32());
+          continue;
         case 22:
           if (tag !== 178) {
             break;
@@ -1552,6 +1585,7 @@ export const Transaction = {
       user: isSet(object.user) ? UserTransaction.fromJSON(object.user) : undefined,
       validator: isSet(object.validator) ? ValidatorTransaction.fromJSON(object.validator) : undefined,
       blockEpilogue: isSet(object.blockEpilogue) ? BlockEpilogueTransaction.fromJSON(object.blockEpilogue) : undefined,
+      automated: isSet(object.automated) ? AutomatedTransaction.fromJSON(object.automated) : undefined,
       sizeInfo: isSet(object.sizeInfo) ? TransactionSizeInfo.fromJSON(object.sizeInfo) : undefined,
     };
   },
@@ -1594,6 +1628,9 @@ export const Transaction = {
     if (message.blockEpilogue !== undefined) {
       obj.blockEpilogue = BlockEpilogueTransaction.toJSON(message.blockEpilogue);
     }
+    if (message.automated !== undefined) {
+      obj.automated = AutomatedTransaction.toJSON(message.automated);
+    }
     if (message.sizeInfo !== undefined) {
       obj.sizeInfo = TransactionSizeInfo.toJSON(message.sizeInfo);
     }
@@ -1632,6 +1669,9 @@ export const Transaction = {
       : undefined;
     message.blockEpilogue = (object.blockEpilogue !== undefined && object.blockEpilogue !== null)
       ? BlockEpilogueTransaction.fromPartial(object.blockEpilogue)
+      : undefined;
+    message.automated = (object.automated !== undefined && object.automated !== null)
+      ? AutomatedTransaction.fromPartial(object.automated)
       : undefined;
     message.sizeInfo = (object.sizeInfo !== undefined && object.sizeInfo !== null)
       ? TransactionSizeInfo.fromPartial(object.sizeInfo)
@@ -3716,6 +3756,118 @@ export const UserTransaction = {
   },
 };
 
+function createBaseAutomatedTransaction(): AutomatedTransaction {
+  return { meta: undefined, events: [] };
+}
+
+export const AutomatedTransaction = {
+  encode(message: AutomatedTransaction, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.meta !== undefined) {
+      AutomatedTaskMeta.encode(message.meta, writer.uint32(10).fork()).ldelim();
+    }
+    if (message.events !== undefined && message.events.length !== 0) {
+      for (const v of message.events) {
+        Event.encode(v!, writer.uint32(18).fork()).ldelim();
+      }
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): AutomatedTransaction {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseAutomatedTransaction();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.meta = AutomatedTaskMeta.decode(reader, reader.uint32());
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.events!.push(Event.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  // encodeTransform encodes a source of message objects.
+  // Transform<AutomatedTransaction, Uint8Array>
+  async *encodeTransform(
+    source:
+      | AsyncIterable<AutomatedTransaction | AutomatedTransaction[]>
+      | Iterable<AutomatedTransaction | AutomatedTransaction[]>,
+  ): AsyncIterable<Uint8Array> {
+    for await (const pkt of source) {
+      if (globalThis.Array.isArray(pkt)) {
+        for (const p of (pkt as any)) {
+          yield* [AutomatedTransaction.encode(p).finish()];
+        }
+      } else {
+        yield* [AutomatedTransaction.encode(pkt as any).finish()];
+      }
+    }
+  },
+
+  // decodeTransform decodes a source of encoded messages.
+  // Transform<Uint8Array, AutomatedTransaction>
+  async *decodeTransform(
+    source: AsyncIterable<Uint8Array | Uint8Array[]> | Iterable<Uint8Array | Uint8Array[]>,
+  ): AsyncIterable<AutomatedTransaction> {
+    for await (const pkt of source) {
+      if (globalThis.Array.isArray(pkt)) {
+        for (const p of (pkt as any)) {
+          yield* [AutomatedTransaction.decode(p)];
+        }
+      } else {
+        yield* [AutomatedTransaction.decode(pkt as any)];
+      }
+    }
+  },
+
+  fromJSON(object: any): AutomatedTransaction {
+    return {
+      meta: isSet(object.meta) ? AutomatedTaskMeta.fromJSON(object.meta) : undefined,
+      events: globalThis.Array.isArray(object?.events) ? object.events.map((e: any) => Event.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: AutomatedTransaction): unknown {
+    const obj: any = {};
+    if (message.meta !== undefined) {
+      obj.meta = AutomatedTaskMeta.toJSON(message.meta);
+    }
+    if (message.events?.length) {
+      obj.events = message.events.map((e) => Event.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AutomatedTransaction>): AutomatedTransaction {
+    return AutomatedTransaction.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AutomatedTransaction>): AutomatedTransaction {
+    const message = createBaseAutomatedTransaction();
+    message.meta = (object.meta !== undefined && object.meta !== null)
+      ? AutomatedTaskMeta.fromPartial(object.meta)
+      : undefined;
+    message.events = object.events?.map((e) => Event.fromPartial(e)) || [];
+    return message;
+  },
+};
+
 function createBaseEvent(): Event {
   return { key: undefined, sequenceNumber: BigInt("0"), type: undefined, typeStr: "", data: "" };
 }
@@ -4414,6 +4566,211 @@ export const UserTransactionRequest = {
     message.signature = (object.signature !== undefined && object.signature !== null)
       ? Signature.fromPartial(object.signature)
       : undefined;
+    return message;
+  },
+};
+
+function createBaseAutomatedTaskMeta(): AutomatedTaskMeta {
+  return {
+    sender: "",
+    index: BigInt("0"),
+    maxGasAmount: BigInt("0"),
+    gasUnitPrice: BigInt("0"),
+    expirationTimestampSecs: undefined,
+    payload: undefined,
+    registrationHash: new Uint8Array(0),
+  };
+}
+
+export const AutomatedTaskMeta = {
+  encode(message: AutomatedTaskMeta, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.sender !== undefined && message.sender !== "") {
+      writer.uint32(10).string(message.sender);
+    }
+    if (message.index !== undefined && message.index !== BigInt("0")) {
+      if (BigInt.asUintN(64, message.index) !== message.index) {
+        throw new globalThis.Error("value provided for field message.index of type uint64 too large");
+      }
+      writer.uint32(16).uint64(message.index.toString());
+    }
+    if (message.maxGasAmount !== undefined && message.maxGasAmount !== BigInt("0")) {
+      if (BigInt.asUintN(64, message.maxGasAmount) !== message.maxGasAmount) {
+        throw new globalThis.Error("value provided for field message.maxGasAmount of type uint64 too large");
+      }
+      writer.uint32(24).uint64(message.maxGasAmount.toString());
+    }
+    if (message.gasUnitPrice !== undefined && message.gasUnitPrice !== BigInt("0")) {
+      if (BigInt.asUintN(64, message.gasUnitPrice) !== message.gasUnitPrice) {
+        throw new globalThis.Error("value provided for field message.gasUnitPrice of type uint64 too large");
+      }
+      writer.uint32(32).uint64(message.gasUnitPrice.toString());
+    }
+    if (message.expirationTimestampSecs !== undefined) {
+      Timestamp.encode(message.expirationTimestampSecs, writer.uint32(42).fork()).ldelim();
+    }
+    if (message.payload !== undefined) {
+      TransactionPayload.encode(message.payload, writer.uint32(50).fork()).ldelim();
+    }
+    if (message.registrationHash !== undefined && message.registrationHash.length !== 0) {
+      writer.uint32(58).bytes(message.registrationHash);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): AutomatedTaskMeta {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseAutomatedTaskMeta();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.sender = reader.string();
+          continue;
+        case 2:
+          if (tag !== 16) {
+            break;
+          }
+
+          message.index = longToBigint(reader.uint64() as Long);
+          continue;
+        case 3:
+          if (tag !== 24) {
+            break;
+          }
+
+          message.maxGasAmount = longToBigint(reader.uint64() as Long);
+          continue;
+        case 4:
+          if (tag !== 32) {
+            break;
+          }
+
+          message.gasUnitPrice = longToBigint(reader.uint64() as Long);
+          continue;
+        case 5:
+          if (tag !== 42) {
+            break;
+          }
+
+          message.expirationTimestampSecs = Timestamp.decode(reader, reader.uint32());
+          continue;
+        case 6:
+          if (tag !== 50) {
+            break;
+          }
+
+          message.payload = TransactionPayload.decode(reader, reader.uint32());
+          continue;
+        case 7:
+          if (tag !== 58) {
+            break;
+          }
+
+          message.registrationHash = reader.bytes();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  // encodeTransform encodes a source of message objects.
+  // Transform<AutomatedTaskMeta, Uint8Array>
+  async *encodeTransform(
+    source: AsyncIterable<AutomatedTaskMeta | AutomatedTaskMeta[]> | Iterable<AutomatedTaskMeta | AutomatedTaskMeta[]>,
+  ): AsyncIterable<Uint8Array> {
+    for await (const pkt of source) {
+      if (globalThis.Array.isArray(pkt)) {
+        for (const p of (pkt as any)) {
+          yield* [AutomatedTaskMeta.encode(p).finish()];
+        }
+      } else {
+        yield* [AutomatedTaskMeta.encode(pkt as any).finish()];
+      }
+    }
+  },
+
+  // decodeTransform decodes a source of encoded messages.
+  // Transform<Uint8Array, AutomatedTaskMeta>
+  async *decodeTransform(
+    source: AsyncIterable<Uint8Array | Uint8Array[]> | Iterable<Uint8Array | Uint8Array[]>,
+  ): AsyncIterable<AutomatedTaskMeta> {
+    for await (const pkt of source) {
+      if (globalThis.Array.isArray(pkt)) {
+        for (const p of (pkt as any)) {
+          yield* [AutomatedTaskMeta.decode(p)];
+        }
+      } else {
+        yield* [AutomatedTaskMeta.decode(pkt as any)];
+      }
+    }
+  },
+
+  fromJSON(object: any): AutomatedTaskMeta {
+    return {
+      sender: isSet(object.sender) ? globalThis.String(object.sender) : "",
+      index: isSet(object.index) ? BigInt(object.index) : BigInt("0"),
+      maxGasAmount: isSet(object.maxGasAmount) ? BigInt(object.maxGasAmount) : BigInt("0"),
+      gasUnitPrice: isSet(object.gasUnitPrice) ? BigInt(object.gasUnitPrice) : BigInt("0"),
+      expirationTimestampSecs: isSet(object.expirationTimestampSecs)
+        ? Timestamp.fromJSON(object.expirationTimestampSecs)
+        : undefined,
+      payload: isSet(object.payload) ? TransactionPayload.fromJSON(object.payload) : undefined,
+      registrationHash: isSet(object.registrationHash) ? bytesFromBase64(object.registrationHash) : new Uint8Array(0),
+    };
+  },
+
+  toJSON(message: AutomatedTaskMeta): unknown {
+    const obj: any = {};
+    if (message.sender !== undefined && message.sender !== "") {
+      obj.sender = message.sender;
+    }
+    if (message.index !== undefined && message.index !== BigInt("0")) {
+      obj.index = message.index.toString();
+    }
+    if (message.maxGasAmount !== undefined && message.maxGasAmount !== BigInt("0")) {
+      obj.maxGasAmount = message.maxGasAmount.toString();
+    }
+    if (message.gasUnitPrice !== undefined && message.gasUnitPrice !== BigInt("0")) {
+      obj.gasUnitPrice = message.gasUnitPrice.toString();
+    }
+    if (message.expirationTimestampSecs !== undefined) {
+      obj.expirationTimestampSecs = Timestamp.toJSON(message.expirationTimestampSecs);
+    }
+    if (message.payload !== undefined) {
+      obj.payload = TransactionPayload.toJSON(message.payload);
+    }
+    if (message.registrationHash !== undefined && message.registrationHash.length !== 0) {
+      obj.registrationHash = base64FromBytes(message.registrationHash);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AutomatedTaskMeta>): AutomatedTaskMeta {
+    return AutomatedTaskMeta.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AutomatedTaskMeta>): AutomatedTaskMeta {
+    const message = createBaseAutomatedTaskMeta();
+    message.sender = object.sender ?? "";
+    message.index = object.index ?? BigInt("0");
+    message.maxGasAmount = object.maxGasAmount ?? BigInt("0");
+    message.gasUnitPrice = object.gasUnitPrice ?? BigInt("0");
+    message.expirationTimestampSecs =
+      (object.expirationTimestampSecs !== undefined && object.expirationTimestampSecs !== null)
+        ? Timestamp.fromPartial(object.expirationTimestampSecs)
+        : undefined;
+    message.payload = (object.payload !== undefined && object.payload !== null)
+      ? TransactionPayload.fromPartial(object.payload)
+      : undefined;
+    message.registrationHash = object.registrationHash ?? new Uint8Array(0);
     return message;
   },
 };
