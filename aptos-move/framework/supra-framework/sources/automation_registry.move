@@ -25,42 +25,42 @@ module supra_framework::automation_registry {
 
     /// It tracks entries both pending and completed, organized by unique indices.
     struct AutomationRegistry has key, store {
-        /// The current unique index counter for registries. This value increments as new registries are added.
+        /// The current unique index counter for registered tasks. This value increments as new tasks are added.
         current_index: u64,
-        /// automation gas limit
+        /// Automation task gas limit
         automation_gas_limit: u64,
-        /// duration upper limit
+        /// Automation task duration upper limit.
         duration_upper_limit: u64,
-        /// it's resource address which is use to deposit user automation fee
+        /// It's resource address which is use to deposit user automation fee
         registry_fee_address: address,
-        /// resource account signature capability
+        /// Resource account signature capability
         registry_fee_address_signer_cap: SignerCapability,
         /// A collection of automation task entries that are active state.
-        registries: table::Table<u64, AutomationTaskMetaData>,
+        tasks: table::Table<u64, AutomationTaskMetaData>,
     }
 
     #[event]
     /// `AutomationTaskMetaData` represents a single automation task item, containing metadata.
     struct AutomationTaskMetaData has copy, store, drop {
-        /// Automation task request id which is unique
+        /// Automation task index in registry
         id: u64,
-        /// The address of the registry owner.
+        /// The address of the task owner.
         owner: address,
         /// The function signature associated with the registry entry.
         payload_tx: vector<u8>,
-        /// Expiry of the registry entry, represented in a timestamp.
+        /// Expiry of the task, represented in a timestamp in second.
         expiry_time: u64,
         /// The transaction hash of the request transaction.
         tx_hash: vector<u8>,
-        /// Max gas fee of automation task
-        max_gas: u64,
-        /// maximum gas price cap for the task
+        /// Max gas amount of automation task
+        max_gas_amount: u64,
+        /// Maximum gas price cap for the task
         gas_price_cap: u64,
-        /// registration epoch number
+        /// Registration epoch number
         registration_epoch: u64,
-        /// registration epoch time
+        /// Registration epoch time
         registration_time: u64,
-        /// A boolean is_active indicating whether the registry entry start processing or not
+        /// Flag indicating whether the task is active.
         is_active: bool
     }
 
@@ -79,7 +79,7 @@ module supra_framework::automation_registry {
             duration_upper_limit: DEFAULT_DURATION_UPPER_LIMIT,
             registry_fee_address: signer::address_of(&registry_fee_resource_signer),
             registry_fee_address_signer_cap,
-            registries: table::new(),
+            tasks: table::new(),
         })
     }
 
@@ -96,7 +96,7 @@ module supra_framework::automation_registry {
         owner: &signer,
         payload_tx: vector<u8>,
         expiry_time: u64,
-        max_gas: u64,
+        max_gas_amount: u64,
         gas_price_cap: u64
     ) acquires AutomationRegistry {
         // todo : well formedness check of payload_tx
@@ -115,7 +115,7 @@ module supra_framework::automation_registry {
             owner: signer::address_of(owner),
             payload_tx,
             expiry_time,
-            max_gas,
+            max_gas_amount,
             gas_price_cap,
             is_active: false,
             registration_epoch: reconfiguration::current_epoch(),
@@ -123,7 +123,7 @@ module supra_framework::automation_registry {
             tx_hash: transaction_context::get_transaction_hash() // todo : need to double check is that work or not
         };
 
-        table::add(&mut registry_data.registries, registry_data.current_index, automation_task_metadata);
+        table::add(&mut registry_data.tasks, registry_data.current_index, automation_task_metadata);
 
         event::emit(automation_task_metadata);
     }
@@ -131,7 +131,7 @@ module supra_framework::automation_registry {
     #[view]
     /// List all the active automation task
     public fun get_active_tasks(): vector<AutomationTaskMetaData> acquires AutomationRegistry {
-        let automation_task_metadata = borrow_global<AutomationRegistry>(@supra_framework);
+        let _automation_task_metadata = borrow_global<AutomationRegistry>(@supra_framework);
         // todo : It's depends upto are we using vector or table
         vector[]
     }
@@ -142,7 +142,7 @@ module supra_framework::automation_registry {
     /// and the second element contains the `AutomationTaskMetaData` details.
     public fun get_task_details(id: u64): AutomationTaskMetaData acquires AutomationRegistry {
         let automation_task_metadata = borrow_global<AutomationRegistry>(@supra_framework);
-        assert!(table::contains(&automation_task_metadata.registries, id), EREGITRY_NOT_FOUND);
-        *table::borrow(&automation_task_metadata.registries, id)
+        assert!(table::contains(&automation_task_metadata.tasks, id), EREGITRY_NOT_FOUND);
+        *table::borrow(&automation_task_metadata.tasks, id)
     }
 }
