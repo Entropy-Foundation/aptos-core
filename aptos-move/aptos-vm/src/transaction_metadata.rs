@@ -1,9 +1,12 @@
 // Copyright © Aptos Foundation
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2024 Supra.
 
 use aptos_crypto::HashValue;
 use aptos_gas_algebra::{FeePerGasUnit, Gas, NumBytes};
+use aptos_types::transaction::automated_transaction::AutomatedTransaction;
 use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
@@ -12,7 +15,6 @@ use aptos_types::{
         SignedTransaction, TransactionPayload,
     },
 };
-use aptos_types::transaction::automated_transaction::AutomatedTransaction;
 
 pub struct TransactionMetadata {
     pub sender: AccountAddress,
@@ -32,7 +34,7 @@ pub struct TransactionMetadata {
     pub is_keyless: bool,
     pub entry_function_payload: Option<EntryFunction>,
     pub multisig_payload: Option<Multisig>,
-    pub txn_app_hash: Vec<u8>
+    pub txn_app_hash: Vec<u8>,
 }
 
 impl TransactionMetadata {
@@ -82,7 +84,10 @@ impl TransactionMetadata {
                 TransactionPayload::Multisig(m) => Some(m.clone()),
                 _ => None,
             },
-            txn_app_hash: HashValue::sha3_256_of(&bcs::to_bytes(&txn).expect("Unable to serialize SignedTransaction")).to_vec(),
+            txn_app_hash: HashValue::sha3_256_of(
+                &bcs::to_bytes(&txn).expect("Unable to serialize SignedTransaction"),
+            )
+            .to_vec(),
         }
     }
 
@@ -192,7 +197,7 @@ impl From<&AutomatedTransaction> for TransactionMetadata {
                 _ => None,
             },
             multisig_payload: None,
-            txn_app_hash: txn.hash().to_vec()
+            txn_app_hash: txn.hash().to_vec(),
         }
     }
 }

@@ -1,5 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2024 Supra.
 
 use aptos_gas_schedule::gas_params::natives::aptos_framework::*;
 use aptos_native_interface::{
@@ -252,14 +254,15 @@ fn native_txn_app_hash_internal(
 
     let user_transaction_context_opt = get_user_transaction_context_opt_from_context(context);
     if let Some(transaction_context) = user_transaction_context_opt {
-        Ok(smallvec![Value::vector_u8(transaction_context.txn_app_hash())])
+        Ok(smallvec![Value::vector_u8(
+            transaction_context.txn_app_hash()
+        )])
     } else {
         Err(SafeNativeError::Abort {
             abort_code: error::invalid_state(abort_codes::ETRANSACTION_CONTEXT_NOT_AVAILABLE),
         })
     }
 }
-
 
 fn create_option_some_value(value: Value) -> Value {
     Value::struct_(Struct::pack(vec![create_singleton_vector(value)]))
@@ -429,10 +432,7 @@ pub fn make_all(
             "multisig_payload_internal",
             native_multisig_payload_internal,
         ),
-        (
-            "txn_app_hash_internal",
-            native_txn_app_hash_internal,
-        ),
+        ("txn_app_hash_internal", native_txn_app_hash_internal),
     ];
 
     builder.make_named_natives(natives)
