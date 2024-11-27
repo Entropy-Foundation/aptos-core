@@ -1,6 +1,8 @@
 // Copyright © Aptos Foundation
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2024 Supra.
 
 use crate::{
     block_executor::{AptosTransactionOutput, BlockAptosVM},
@@ -761,10 +763,11 @@ impl AptosVM {
             let module_id = traversal_context
                 .referenced_module_ids
                 .alloc(entry_fn.module().clone());
-            session.check_dependencies_and_charge_gas(gas_meter, traversal_context, [(
-                module_id.address(),
-                module_id.name(),
-            )])?;
+            session.check_dependencies_and_charge_gas(
+                gas_meter,
+                traversal_context,
+                [(module_id.address(), module_id.name())],
+            )?;
         }
 
         let function =
@@ -2435,7 +2438,7 @@ impl AptosVM {
             },
             Transaction::AutomatedTransaction(_) => {
                 unimplemented!("AutomatedTransaction execution is coming soon")
-            }
+            },
         })
     }
 }
