@@ -1,5 +1,4 @@
-// Copyright (c) Supra Oracles
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2024 Supra.
 
 use crate::chain_id::ChainId;
 use crate::transaction::{RawTransaction, Transaction, TransactionPayload};

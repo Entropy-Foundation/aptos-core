@@ -1,5 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2024 Supra.
 
 use move_core_types::account_address::AccountAddress;
 
