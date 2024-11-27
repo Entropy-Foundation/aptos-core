@@ -1,6 +1,8 @@
 // Copyright © Aptos Foundation
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2024 Supra.
 
 use crate::{
     Address, AptosError, EntryFunctionId, EventGuid, HashValue, HexEncodedBytes,
@@ -25,11 +27,11 @@ use aptos_types::{
     jwks::{jwk::JWK, ProviderJWKs, QuorumCertifiedUpdate},
     keyless,
     transaction::{
-        automated_transaction::AutomatedTransaction as UserAutomatedTransaction,
         authenticator::{
             AccountAuthenticator, AnyPublicKey, AnySignature, MultiKey, MultiKeyAuthenticator,
             SingleKeyAuthenticator, TransactionAuthenticator, MAX_NUM_OF_SIGS,
         },
+        automated_transaction::AutomatedTransaction as UserAutomatedTransaction,
         webauthn::{PartialAuthenticatorAssertionResponse, MAX_WEBAUTHN_SIGNATURE_BYTES},
         Script, SignedTransaction, TransactionOutput, TransactionWithProof,
     },
@@ -196,7 +198,7 @@ impl Transaction {
             Transaction::StateCheckpointTransaction(txn) => txn.timestamp.0,
             Transaction::BlockEpilogueTransaction(txn) => txn.timestamp.0,
             Transaction::ValidatorTransaction(txn) => txn.timestamp().0,
-            Transaction::AutomatedTransaction(txn) => {txn.timestamp.0}
+            Transaction::AutomatedTransaction(txn) => txn.timestamp.0,
         }
     }
 
@@ -209,7 +211,7 @@ impl Transaction {
             Transaction::StateCheckpointTransaction(txn) => Some(txn.info.version.into()),
             Transaction::BlockEpilogueTransaction(txn) => Some(txn.info.version.into()),
             Transaction::ValidatorTransaction(txn) => Some(txn.transaction_info().version.into()),
-            Transaction::AutomatedTransaction(txn   ) => Some(txn.info.version.into()),
+            Transaction::AutomatedTransaction(txn) => Some(txn.info.version.into()),
         }
     }
 
@@ -310,13 +312,13 @@ impl
 }
 
 impl
-From<(
-    &UserAutomatedTransaction,
-    TransactionInfo,
-    TransactionPayload,
-    Vec<Event>,
-    u64,
-)> for Transaction
+    From<(
+        &UserAutomatedTransaction,
+        TransactionInfo,
+        TransactionPayload,
+        Vec<Event>,
+        u64,
+    )> for Transaction
 {
     fn from(
         (txn, info, payload, events, timestamp): (
@@ -397,7 +399,13 @@ impl From<(&SignedTransaction, TransactionPayload)> for UserTransactionRequest {
 }
 
 impl From<(HashValue, &UserAutomatedTransaction, TransactionPayload)> for AutomatedTaskMeta {
-    fn from((registration_hash, txn, payload): (HashValue, &UserAutomatedTransaction, TransactionPayload)) -> Self {
+    fn from(
+        (registration_hash, txn, payload): (
+            HashValue,
+            &UserAutomatedTransaction,
+            TransactionPayload,
+        ),
+    ) -> Self {
         Self {
             sender: txn.sender().into(),
             index: txn.sequence_number().into(),
