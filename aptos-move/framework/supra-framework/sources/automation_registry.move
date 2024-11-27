@@ -4,17 +4,20 @@
 module supra_framework::automation_registry {
 
     use std::signer;
-    use aptos_std::table;
-    use supra_framework::timestamp;
-    use supra_framework::reconfiguration;
+
     use supra_framework::account;
     use supra_framework::account::SignerCapability;
+    use supra_framework::enumerable_map::{Self, EnumerableMap};
     use supra_framework::event;
-    use supra_framework::transaction_context;
+    use supra_framework::reconfiguration;
     use supra_framework::system_addresses;
+    use supra_framework::timestamp;
+    use supra_framework::transaction_context;
 
     /// Registry Id not found
     const EREGITRY_NOT_FOUND: u64 = 1;
+    /// Expiry time does not go beyond upper cap duration
+    const EEXPIRY_TIME_UPPER: u64 = 2;
 
     /// Default automation gas limit
     const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 1000000;
@@ -36,7 +39,7 @@ module supra_framework::automation_registry {
         /// Resource account signature capability
         registry_fee_address_signer_cap: SignerCapability,
         /// A collection of automation task entries that are active state.
-        tasks: table::Table<u64, AutomationTaskMetaData>,
+        tasks: EnumerableMap<u64, AutomationTaskMetaData>,
     }
 
     #[event]
@@ -79,7 +82,7 @@ module supra_framework::automation_registry {
             duration_upper_limit: DEFAULT_DURATION_UPPER_LIMIT,
             registry_fee_address: signer::address_of(&registry_fee_resource_signer),
             registry_fee_address_signer_cap,
-            tasks: table::new(),
+            tasks: enumerable_map::new_map(),
         })
     }
 
@@ -99,15 +102,17 @@ module supra_framework::automation_registry {
         max_gas_amount: u64,
         gas_price_cap: u64
     ) acquires AutomationRegistry {
+        let registry_data = borrow_global_mut<AutomationRegistry>(@supra_framework);
+
         // todo : well formedness check of payload_tx
         // todo : pre-paid amount collect from the user
         // todo : duration/expiry in seconds
-        // todo : expiry does not go beyond upper cap duration set by admin/governance
+        // Expiry time does not go beyond upper cap duration set by admin/governance
+        assert!(expiry_time < registry_data.duration_upper_limit, EEXPIRY_TIME_UPPER);
         // todo : expiry should not be before the start of next epoch
         // todo : automation_gas_limit check
         // todo : gas_price_cap should not below chain minimum
 
-        let registry_data = borrow_global_mut<AutomationRegistry>(@supra_framework);
         registry_data.current_index = registry_data.current_index + 1;
 
         let automation_task_metadata = AutomationTaskMetaData {
@@ -123,17 +128,16 @@ module supra_framework::automation_registry {
             tx_hash: transaction_context::get_transaction_hash() // todo : need to double check is that work or not
         };
 
-        table::add(&mut registry_data.tasks, registry_data.current_index, automation_task_metadata);
+        enumerable_map::add_value(&mut registry_data.tasks, registry_data.current_index, automation_task_metadata);
 
         event::emit(automation_task_metadata);
     }
 
     #[view]
-    /// List all the active automation task
-    public fun get_active_tasks(): vector<AutomationTaskMetaData> acquires AutomationRegistry {
-        let _automation_task_metadata = borrow_global<AutomationRegistry>(@supra_framework);
-        // todo : It's depends upto are we using vector or table
-        vector[]
+    /// List all the automation task ids
+    public fun get_active_task_ids(): vector<u64> acquires AutomationRegistry {
+        let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
+        enumerable_map::get_map_list(&automation_registry.tasks)
     }
 
     #[view]
@@ -142,7 +146,7 @@ module supra_framework::automation_registry {
     /// and the second element contains the `AutomationTaskMetaData` details.
     public fun get_task_details(id: u64): AutomationTaskMetaData acquires AutomationRegistry {
         let automation_task_metadata = borrow_global<AutomationRegistry>(@supra_framework);
-        assert!(table::contains(&automation_task_metadata.tasks, id), EREGITRY_NOT_FOUND);
-        *table::borrow(&automation_task_metadata.tasks, id)
+        assert!(enumerable_map::contains(&automation_task_metadata.tasks, id), EREGITRY_NOT_FOUND);
+        enumerable_map::get_value(&automation_task_metadata.tasks, id)
     }
 }
