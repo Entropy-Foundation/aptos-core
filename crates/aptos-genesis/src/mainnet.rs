@@ -126,11 +126,13 @@ impl MainnetGenesisInfo {
     }
 
     fn generate_genesis_txn(&self) -> Transaction {
+        let unique_accounts = self.accounts.iter().cloned().collect();
         aptos_vm_genesis::encode_supra_mainnet_genesis_transaction(
-            &self.accounts,
+            &unique_accounts,
             &[],
             None,
             &[],
+            0,
             &[],
             &[],
             &self.framework,
