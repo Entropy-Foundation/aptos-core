@@ -214,7 +214,7 @@ spec supra_framework::multisig_voting {
         pragma aborts_if_is_partial = true;
         include AbortsIfNotContainProposalID<ProposalType>;
         // aborts_if !exists<timestamp::CurrentTimeMicroseconds>(@supra_framework);
-        // ensures result == spec_is_voting_closed<ProposalType>(voting_forum_address, proposal_id);
+        ensures result == spec_is_voting_closed<ProposalType>(voting_forum_address, proposal_id);
     }
 
     spec can_be_resolved_early {
@@ -414,7 +414,7 @@ spec supra_framework::multisig_voting {
     spec fun spec_is_voting_closed<ProposalType: store>(voting_forum_address: address, proposal_id: u64): bool {
         let voting_forum = global<VotingForum<ProposalType>>(voting_forum_address);
         let proposal = table::spec_get(voting_forum.proposals, proposal_id);
-        is_voting_period_over(proposal)
+        spec_can_be_resolved_early(proposal)||is_voting_period_over(proposal)
     }
 
     spec fun spec_can_be_resolved_early<ProposalType: store>(proposal: Proposal<ProposalType>): bool {
