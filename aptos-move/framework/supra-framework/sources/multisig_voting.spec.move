@@ -249,7 +249,7 @@ spec supra_framework::multisig_voting {
         include AbortsIfNotContainProposalID<ProposalType>;
 
         let voting_forum = global<VotingForum<ProposalType>>(voting_forum_address);
-        // ensures result == spec_get_proposal_state(voting_forum_address, proposal_id, voting_forum);
+        ensures result == spec_get_proposal_state(voting_forum_address, proposal_id, voting_forum);
     }
 
     spec get_proposal_creation_secs {
@@ -402,10 +402,12 @@ spec supra_framework::multisig_voting {
         let proposal = table::spec_get(voting_forum.proposals, proposal_id);
         let voting_closed = spec_is_voting_closed<ProposalType>(voting_forum_address, proposal_id);
         let proposal_vote_cond = (proposal.yes_votes > proposal.no_votes && proposal.yes_votes + proposal.no_votes >= proposal.min_vote_threshold);
-        if (voting_closed && proposal_vote_cond) {
-            PROPOSAL_STATE_SUCCEEDED
-        } else if (voting_closed && !proposal_vote_cond) {
-            PROPOSAL_STATE_FAILED
+        if (voting_closed) {
+            if (proposal.yes_votes >= proposal.min_vote_threshold) {
+                PROPOSAL_STATE_SUCCEEDED
+            } else {
+                PROPOSAL_STATE_FAILED
+            }
         } else {
             PROPOSAL_STATE_PENDING
         }
