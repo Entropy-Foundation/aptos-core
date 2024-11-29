@@ -130,12 +130,12 @@ spec supra_framework::gas_schedule {
         aborts_if false;
     }
 
-    spec set_storage_gas_config(supra_framework: &signer, config: storage_gas::StorageGasConfig) {
+    spec set_storage_gas_config(supra_framework: &signer, config: StorageGasConfig) {
         include system_addresses::AbortsIfNotSupraFramework{ account: supra_framework };
         aborts_if !exists<storage_gas::StorageGasConfig>(@supra_framework);
     }
 
-    spec set_storage_gas_config_for_next_epoch(supra_framework: &signer, config: storage_gas::StorageGasConfig) {
+    spec set_storage_gas_config_for_next_epoch(supra_framework: &signer, config: StorageGasConfig) {
         include system_addresses::AbortsIfNotSupraFramework{ account: supra_framework };
         aborts_if !exists<storage_gas::StorageGasConfig>(@supra_framework);
     }
