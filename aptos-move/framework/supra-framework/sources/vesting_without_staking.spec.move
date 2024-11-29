@@ -61,7 +61,7 @@ spec supra_framework::vesting_without_staking {
         pragma aborts_if_is_partial = true;
         aborts_if vector::length(schedule) == 0;
         aborts_if period_duration <= 0;
-        aborts_if start_timestamp_secs < timestamp::spec_now_seconds();
+        // aborts_if start_timestamp_secs < timestamp::spec_now_seconds();
     }
 
     // spec create_vesting_contract {

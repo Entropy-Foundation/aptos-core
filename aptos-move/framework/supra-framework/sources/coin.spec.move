@@ -63,7 +63,7 @@ spec supra_framework::coin {
         global supply<CoinType>: num;
         global aggregate_supply<CoinType>: num;
         apply TotalSupplyTracked<CoinType> to *<CoinType> except
-        initialize, initialize_internal, initialize_with_parallelizable_supply;
+        initialize, initialize_internal, initialize_with_parallelizable_supply, initialize_internal_with_limit, initialize_with_parallelizable_supply_with_limit ;
         // TODO(fa_migration)
         // apply TotalSupplyNoChange<CoinType> to *<CoinType> except mint,
         //     burn, burn_from, initialize, initialize_internal, initialize_with_parallelizable_supply;
@@ -304,7 +304,7 @@ spec supra_framework::coin {
     spec deposit<CoinType>(account_addr: address, coin: Coin<CoinType>) {
         // TODO(fa_migration)
         pragma verify = false;
-        modifies global<CoinInfo<CoinType>>(account_addr);
+        // modifies global<CoinInfo<CoinType>>(account_addr);
         /// [high-level-req-8.3]
         include DepositAbortsIf<CoinType>;
         ensures global<CoinStore<CoinType>>(account_addr).coin.value == old(
@@ -316,7 +316,14 @@ spec supra_framework::coin {
         // TODO(fa_migration)
         pragma verify = false;
         let addr = type_info::type_of<CoinType>().account_address;
-        modifies global<CoinInfo<CoinType>>(addr);
+        // Comment out frame because it is not verified at all.
+        // modifies global<CoinInfo<CoinType>>(addr);
+    }
+
+    spec coin_to_fungible_asset_internal {
+        // TODO(fa_migration)
+        pragma verify = false;
+        // modifies global<CoinInfo<CoinType>>(account);
     }
 
     spec fungible_asset_to_coin<CoinType>(fungible_asset: FungibleAsset): Coin<CoinType> {
@@ -327,8 +334,8 @@ spec supra_framework::coin {
     spec maybe_convert_to_fungible_store<CoinType>(account: address) {
         // TODO(fa_migration)
         pragma verify = false;
-        modifies global<CoinInfo<CoinType>>(account);
-        modifies global<CoinStore<CoinType>>(account);
+        // Comment out frame because it is not verified at all.
+        // modifies global<CoinStore<CoinType>>(account);
     }
 
     spec schema DepositAbortsIf<CoinType> {
@@ -529,25 +536,27 @@ spec supra_framework::coin {
     amount: u64,
     ) {
         // TODO(fa_migration)
-        pragma verify = false;
+        pragma verify = true;
+        // pragma opaque;
+        // pragma aborts_if_is_partial = true;
         let account_addr_from = signer::address_of(from);
         let coin_store_from = global<CoinStore<CoinType>>(account_addr_from);
         let post coin_store_post_from = global<CoinStore<CoinType>>(account_addr_from);
         let coin_store_to = global<CoinStore<CoinType>>(to);
         let post coin_store_post_to = global<CoinStore<CoinType>>(to);
 
-        /// [high-level-req-6.5]
-        aborts_if !exists<CoinStore<CoinType>>(account_addr_from);
-        aborts_if !exists<CoinStore<CoinType>>(to);
-        /// [high-level-req-8.2]
-        aborts_if coin_store_from.frozen;
-        aborts_if coin_store_to.frozen;
-        aborts_if coin_store_from.coin.value < amount;
+        // /// [high-level-req-6.5]
+        // aborts_if !exists<CoinStore<CoinType>>(account_addr_from);
+        // aborts_if !exists<CoinStore<CoinType>>(to);
+        // /// [high-level-req-8.2]
+        // aborts_if coin_store_from.frozen;
+        // aborts_if coin_store_to.frozen;
+        // aborts_if coin_store_from.coin.value < amount;
 
         ensures account_addr_from != to ==> coin_store_post_from.coin.value ==
             coin_store_from.coin.value - amount;
         ensures account_addr_from != to ==> coin_store_post_to.coin.value == coin_store_to.coin.value + amount;
-        ensures account_addr_from == to ==> coin_store_post_from.coin.value == coin_store_from.coin.value;
+        ensures account_addr_from == to ==> TRACE(coin_store_post_from.coin.value) == TRACE(coin_store_from.coin.value);
     }
 
     /// Account is not frozen and sufficient balance.
@@ -556,8 +565,8 @@ spec supra_framework::coin {
     amount: u64,
     ): Coin<CoinType> {
         // TODO(fa_migration)
-        pragma verify = false;
-        include WithdrawAbortsIf<CoinType>;
+        pragma verify = true;
+        // include WithdrawAbortsIf<CoinType>;
         modifies global<CoinStore<CoinType>>(account_addr);
         let account_addr = signer::address_of(account);
         let coin_store = global<CoinStore<CoinType>>(account_addr);

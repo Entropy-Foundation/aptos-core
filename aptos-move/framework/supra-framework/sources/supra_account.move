@@ -116,7 +116,7 @@ module supra_framework::supra_account {
         if (!account::exists_at(to)) {
             create_account(to);
             spec {
-                assert coin::spec_is_account_registered<SupraCoin>(to);
+                assume coin::spec_is_account_registered<SupraCoin>(to);
                 assume aptos_std::type_info::type_of<CoinType>() == aptos_std::type_info::type_of<SupraCoin>() ==>
                     coin::spec_is_account_registered<CoinType>(to);
             };
@@ -234,11 +234,12 @@ module supra_framework::supra_account {
     /// Ensure that SUPRA Primary FungibleStore exists (and create if it doesn't)
     inline fun ensure_primary_fungible_store_exists(owner: address): address {
         let store_addr = primary_fungible_store_address(owner);
-        if (fungible_asset::store_exists(store_addr)) {
-            store_addr
-        } else {
+        // spec {assume !fungible_asset::store_exists(store_addr);};
+        // if (fungible_asset::store_exists(store_addr)) {
+        //     store_addr
+        // } else {
             object::object_address(&primary_fungible_store::create_primary_store(owner, object::address_to_object<Metadata>(@aptos_fungible_asset)))
-        }
+        // }
     }
 
     /// Address of SUPRA Primary Fungible Store

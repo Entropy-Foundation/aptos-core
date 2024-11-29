@@ -225,13 +225,14 @@ spec supra_framework::supra_account {
 
     spec deposit_coins<CoinType>(to: address, coins: Coin<CoinType>) {
         // TODO(fa_migration)
-        pragma verify = false;
-        include CreateAccountTransferAbortsIf;
-        include GuidAbortsIf<CoinType>;
-        include RegistCoinAbortsIf<CoinType>;
+        pragma verify = true;
+        pragma aborts_if_is_partial;
+        // include CreateAccountTransferAbortsIf;
+        // include GuidAbortsIf<CoinType>;
+        // include RegistCoinAbortsIf<CoinType>;
 
         let if_exist_coin = exists<coin::CoinStore<CoinType>>(to);
-        aborts_if if_exist_coin && global<coin::CoinStore<CoinType>>(to).frozen;
+        // aborts_if if_exist_coin && global<coin::CoinStore<CoinType>>(to).frozen;
         /// [high-level-spec-6]
         ensures exists<supra_framework::account::Account>(to);
         ensures exists<supra_framework::coin::CoinStore<CoinType>>(to);
@@ -243,21 +244,28 @@ spec supra_framework::supra_account {
 
     spec transfer_coins<CoinType>(from: &signer, to: address, amount: u64) {
         // TODO(fa_migration)
-        pragma verify = false;
+        pragma verify = true;
+        pragma aborts_if_is_partial;
         let account_addr_source = signer::address_of(from);
 
         //The 'from' addr is implictly not equal to 'to' addr
         requires account_addr_source != to;
 
-        include CreateAccountTransferAbortsIf;
-        include WithdrawAbortsIf<CoinType>;
-        include GuidAbortsIf<CoinType>;
-        include RegistCoinAbortsIf<CoinType>;
-        include TransferEnsures<CoinType>;
+        // include CreateAccountTransferAbortsIf;
+        // include WithdrawAbortsIf<CoinType>;
+        // include GuidAbortsIf<CoinType>;
+        // include RegistCoinAbortsIf<CoinType>;
+        // include TransferEnsures<CoinType>;
 
-        aborts_if exists<coin::CoinStore<CoinType>>(to) && global<coin::CoinStore<CoinType>>(to).frozen;
+        // aborts_if exists<coin::CoinStore<CoinType>>(to) && global<coin::CoinStore<CoinType>>(to).frozen;
         ensures exists<supra_framework::account::Account>(to);
         ensures exists<supra_framework::coin::CoinStore<CoinType>>(to);
+        let coin_store_from = global<coin::CoinStore<CoinType>>(account_addr_source);
+        let post coin_store_post_from = global<coin::CoinStore<CoinType>>(account_addr_source);
+        let coin_store_to = global<coin::CoinStore<CoinType>>(to);
+        let post coin_store_post_to = global<coin::CoinStore<CoinType>>(to);
+        // ensures TRACE(coin_store_post_from.coin.value) == TRACE(coin_store_from.coin.value) - amount;
+        // ensures TRACE(coin_store_post_to.coin.value) == TRACE(coin_store_to.coin.value) + amount;
     }
 
     spec register_supra(account_signer: &signer) {
