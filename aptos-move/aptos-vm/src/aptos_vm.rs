@@ -38,6 +38,7 @@ use aptos_logger::{enabled, prelude::*, Level};
 use aptos_metrics_core::TimerHelper;
 #[cfg(any(test, feature = "testing"))]
 use aptos_types::state_store::StateViewId;
+use aptos_types::transaction::automation::AutomationTransactionPayload;
 use aptos_types::{
     account_config::{self, new_block_event_key, AccountResource},
     block_executor::{
@@ -834,6 +835,7 @@ impl AptosVM {
             },
             TransactionPayload::EntryFunction(entry_fn) => {
                 session.execute(|session| {
+                    // TODO To enclosed payload validation as well before actually executing the entry function
                     self.validate_and_execute_entry_function(
                         resolver,
                         session,
@@ -849,6 +851,87 @@ impl AptosVM {
             // Not reachable as this function should only be invoked for entry or script
             // transaction payload.
             _ => unreachable!("Only scripts or entry functions are executed"),
+        };
+
+        session.execute(|session| {
+            self.resolve_pending_code_publish(
+                session,
+                gas_meter,
+                traversal_context,
+                new_published_modules_loaded,
+            )
+        })?;
+
+        let epilogue_session = self.charge_change_set_and_respawn_session(
+            session,
+            resolver,
+            gas_meter,
+            change_set_configs,
+            txn_data,
+        )?;
+
+        self.success_transaction_cleanup(
+            epilogue_session,
+            gas_meter,
+            txn_data,
+            log_context,
+            change_set_configs,
+            traversal_context,
+        )
+    }
+    fn execute_automation_transaction<'a, 'r, 'l>(
+        &'l self,
+        resolver: &'r impl AptosMoveResolver,
+        mut session: UserSession<'r, 'l>,
+        gas_meter: &mut impl AptosGasMeter,
+        traversal_context: &mut TraversalContext<'a>,
+        txn_data: &TransactionMetadata,
+        payload: &'a AutomationTransactionPayload,
+        log_context: &AdapterLogSchema,
+        new_published_modules_loaded: &mut bool,
+        change_set_configs: &ChangeSetConfigs,
+    ) -> Result<(VMStatus, VMOutput), VMStatus> {
+        fail_point!("aptos_vm::execute_automation_transaction", |_| {
+            Err(VMStatus::Error {
+                status_code: StatusCode::UNKNOWN_INVARIANT_VIOLATION_ERROR,
+                sub_status: Some(move_core_types::vm_status::sub_status::unknown_invariant_violation::EPARANOID_FAILURE),
+                message: None,
+            })
+        });
+        if !payload.is_valid() {
+            return Err(VMStatus::error(
+                StatusCode::INVALID_AUTOMATION_PAYLOAD,
+                Some(AutomationTransactionPayload::entry_function_reference()),
+            ));
+        }
+
+        gas_meter.charge_intrinsic_gas_for_transaction(txn_data.transaction_size())?;
+        if txn_data.is_keyless() {
+            gas_meter.charge_keyless()?;
+        }
+
+        match payload {
+            AutomationTransactionPayload::EntryFunction(entry_fn) => {
+                session.execute(|session| {
+                    self.validate_automation_txn_inner_payload(
+                        session,
+                        gas_meter,
+                        txn_data.senders(),
+                        entry_fn,
+                    )
+                })?;
+                session.execute(|session| {
+                    self.validate_and_execute_entry_function(
+                        resolver,
+                        session,
+                        gas_meter,
+                        traversal_context,
+                        txn_data.senders(),
+                        entry_fn,
+                        txn_data,
+                    )
+                })?;
+            },
         };
 
         session.execute(|session| {
@@ -1741,6 +1824,18 @@ impl AptosVM {
             TransactionPayload::ModuleBundle(_) => {
                 unwrap_or_discard!(Err(deprecated_module_bundle!()))
             },
+            TransactionPayload::Automation(automation_payload) => self
+                .execute_automation_transaction(
+                    resolver,
+                    user_session,
+                    gas_meter,
+                    &mut traversal_context,
+                    &txn_data,
+                    automation_payload,
+                    log_context,
+                    &mut new_published_modules_loaded,
+                    change_set_configs,
+                ),
         };
 
         let gas_usage = txn_data
@@ -2257,14 +2352,14 @@ impl AptosVM {
         )?;
 
         match payload {
-            TransactionPayload::Script(_) | TransactionPayload::EntryFunction(_) => {
-                transaction_validation::run_script_prologue(
-                    session,
-                    txn_data,
-                    log_context,
-                    traversal_context,
-                )
-            },
+            TransactionPayload::Script(_)
+            | TransactionPayload::EntryFunction(_)
+            | TransactionPayload::Automation(_) => transaction_validation::run_script_prologue(
+                session,
+                txn_data,
+                log_context,
+                traversal_context,
+            ),
             TransactionPayload::Multisig(multisig_payload) => {
                 // Still run script prologue for multisig transaction to ensure the same tx
                 // validations are still run for this multisig execution tx, which is submitted by
@@ -2439,6 +2534,57 @@ impl AptosVM {
                 unimplemented!("AutomatedTransaction execution is coming soon")
             },
         })
+    }
+
+    /// Validates inner payload/entry function of automation transaction to be valid.
+    /// It is expected that the first actual argument of the automation transaction payload is
+    /// the bcs serialized payload/entry function representing automation task.
+    fn validate_automation_txn_inner_payload(
+        &self,
+        session: &mut SessionExt,
+        _gas_meter: &mut impl AptosGasMeter,
+        senders: Vec<AccountAddress>,
+        automation_entry_fn: &EntryFunction,
+    ) -> Result<(), VMStatus> {
+        if automation_entry_fn.args().is_empty() {
+            return Err(VMStatus::error(
+                StatusCode::INVALID_AUTOMATION_PAYLOAD_ARGUMENTS,
+                Some("Automation transaction payload arguments are empty".to_string()),
+            ));
+        }
+        let maybe_inner_payload_bytes = &automation_entry_fn.args()[0];
+        let inner_entry_function = bcs::from_bytes::<EntryFunction>(maybe_inner_payload_bytes).map_err(|e| {
+            VMStatus::error(StatusCode::FAILED_TO_DESERIALIZE_ARGUMENT,
+            Some(format!("Automation transaction payload first argument is expected to be BCS bytes of entry-function {}", e)))
+        })?;
+
+        let function = session.load_function(
+            inner_entry_function.module(),
+            inner_entry_function.function(),
+            inner_entry_function.ty_args(),
+        )?;
+        let struct_constructors_enabled =
+            self.features().is_enabled(FeatureFlag::STRUCT_CONSTRUCTORS);
+        let (_, _, _, actual_args) = inner_entry_function.into_inner();
+        // By constructing args we are making sure that function execution in scope of automated
+        // task will not fail due to invalid arguments passed
+        verifier::transaction_arg_validation::validate_combine_signer_and_txn_args(
+            session,
+            senders,
+            actual_args,
+            &function,
+            struct_constructors_enabled,
+        )
+        .map_err(|e| {
+            VMStatus::error(
+                StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD,
+                Some(format!(
+                    "Automation transaction inner payload validation failed. Details: {:?}",
+                    e
+                )),
+            )
+        })
+        .map(drop)
     }
 }
 

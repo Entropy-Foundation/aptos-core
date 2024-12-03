@@ -43,6 +43,8 @@ use std::{
 
 pub mod analyzed_transaction;
 pub mod authenticator;
+pub mod automated_transaction;
+pub mod automation;
 pub mod block_epilogue;
 mod block_output;
 mod change_set;
@@ -52,11 +54,12 @@ mod script;
 pub mod signature_verified_transaction;
 pub mod user_transaction_context;
 pub mod webauthn;
-pub mod automated_transaction;
 
 pub use self::block_epilogue::{BlockEndInfo, BlockEpiloguePayload};
 #[cfg(any(test, feature = "fuzzing"))]
 use crate::state_store::create_empty_sharded_state_updates;
+use crate::transaction::automated_transaction::AutomatedTransaction;
+use crate::transaction::automation::AutomationTransactionPayload;
 use crate::{
     block_metadata_ext::BlockMetadataExt, contract_event::TransactionEvent, executable::ModulePath,
     fee_statement::FeeStatement, proof::accumulator::InMemoryEventAccumulator,
@@ -78,7 +81,6 @@ pub use script::{
 };
 use serde::de::DeserializeOwned;
 use std::{collections::BTreeSet, hash::Hash, ops::Deref, sync::atomic::AtomicU64};
-use crate::transaction::automated_transaction::AutomatedTransaction;
 
 pub type Version = u64; // Height - also used for MVCC in StateDB
 pub type AtomicVersion = AtomicU64;
@@ -198,6 +200,27 @@ impl RawTransaction {
             sender,
             sequence_number,
             payload: TransactionPayload::Multisig(multisig),
+            max_gas_amount,
+            gas_unit_price,
+            expiration_timestamp_secs,
+            chain_id,
+        }
+    }
+
+    /// Create a new `RawTransaction` of automation type.
+    pub fn new_automation(
+        sender: AccountAddress,
+        sequence_number: u64,
+        entry_function: AutomationTransactionPayload,
+        max_gas_amount: u64,
+        gas_unit_price: u64,
+        expiration_timestamp_secs: u64,
+        chain_id: ChainId,
+    ) -> Self {
+        RawTransaction {
+            sender,
+            sequence_number,
+            payload: TransactionPayload::Automation(entry_function),
             max_gas_amount,
             gas_unit_price,
             expiration_timestamp_secs,
@@ -422,6 +445,9 @@ pub enum TransactionPayload {
     /// A multisig transaction that allows an owner of a multisig account to execute a pre-approved
     /// transaction as the multisig account.
     Multisig(Multisig),
+    /// An automation transaction to register an automation task.
+    /// Expected EntryFunction
+    Automation(AutomationTransactionPayload),
 }
 
 impl TransactionPayload {
@@ -2023,7 +2049,7 @@ impl Transaction {
             Transaction::BlockEpilogue(_) => "block_epilogue",
             Transaction::ValidatorTransaction(vt) => vt.type_name(),
             Transaction::BlockMetadataExt(_) => "block_metadata_ext",
-            Transaction::AutomatedTransaction(_) => "automated_transaction"
+            Transaction::AutomatedTransaction(_) => "automated_transaction",
         }
     }
 

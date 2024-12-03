@@ -22,6 +22,7 @@ use aptos_crypto::{hash::CryptoHash, HashValue};
 use aptos_logger::{sample, sample::SampleRate};
 use aptos_resource_viewer::AptosValueAnnotator;
 use aptos_storage_interface::DbReader;
+use aptos_types::transaction::automation::AutomationTransactionPayload;
 use aptos_types::{
     access_path::{AccessPath, Path},
     chain_id::ChainId,
@@ -178,8 +179,8 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
         data: TransactionOnChainData,
     ) -> Result<Transaction> {
         use aptos_types::transaction::Transaction::{
-            BlockEpilogue, BlockMetadata, BlockMetadataExt, GenesisTransaction, StateCheckpoint,
-            UserTransaction, AutomatedTransaction
+            AutomatedTransaction, BlockEpilogue, BlockMetadata, BlockMetadataExt,
+            GenesisTransaction, StateCheckpoint, UserTransaction,
         };
         let aux_data = self
             .db
@@ -278,7 +279,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
         use aptos_types::transaction::TransactionPayload::*;
         let ret = match payload {
             Script(s) => TransactionPayload::ScriptPayload(s.try_into()?),
-            EntryFunction(fun) => {
+            Automation(AutomationTransactionPayload::EntryFunction(fun)) | EntryFunction(fun) => {
                 let (module, function, ty_args, args) = fun.into_inner();
                 let func_args = self
                     .inner

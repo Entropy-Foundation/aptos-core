@@ -6,6 +6,7 @@
 use aptos_crypto::HashValue;
 use aptos_gas_algebra::{FeePerGasUnit, Gas, NumBytes};
 use aptos_types::transaction::automated_transaction::AutomatedTransaction;
+use aptos_types::transaction::automation::AutomationTransactionPayload;
 use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
@@ -33,6 +34,7 @@ pub struct TransactionMetadata {
     pub is_keyless: bool,
     pub entry_function_payload: Option<EntryFunction>,
     pub multisig_payload: Option<Multisig>,
+    pub automation_payload: Option<AutomationTransactionPayload>,
     pub txn_app_hash: Vec<u8>,
 }
 
@@ -67,6 +69,7 @@ impl TransactionMetadata {
                 // Deprecated. Return an empty vec because we cannot do anything
                 // else here, only `unreachable!` otherwise.
                 TransactionPayload::ModuleBundle(_) => vec![],
+                TransactionPayload::Automation(_) => vec![],
             },
             script_size: match txn.payload() {
                 TransactionPayload::Script(s) => (s.code().len() as u64).into(),
@@ -81,6 +84,10 @@ impl TransactionMetadata {
             },
             multisig_payload: match txn.payload() {
                 TransactionPayload::Multisig(m) => Some(m.clone()),
+                _ => None,
+            },
+            automation_payload: match txn.payload() {
+                TransactionPayload::Automation(a) => Some(a.clone()),
                 _ => None,
             },
             txn_app_hash: HashValue::sha3_256_of(
@@ -168,6 +175,9 @@ impl TransactionMetadata {
                 .map(|entry_func| entry_func.as_entry_function_payload()),
             self.multisig_payload()
                 .map(|multisig| multisig.as_multisig_payload()),
+            self.automation_payload
+                .as_ref()
+                .and_then(|e| e.as_entry_function_payload()),
             self.txn_app_hash.clone(),
         )
     }
@@ -196,6 +206,7 @@ impl From<&AutomatedTransaction> for TransactionMetadata {
                 _ => None,
             },
             multisig_payload: None,
+            automation_payload: None,
             txn_app_hash: txn.hash().to_vec(),
         }
     }

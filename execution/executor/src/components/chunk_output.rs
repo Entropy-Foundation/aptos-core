@@ -19,6 +19,7 @@ use aptos_storage_interface::{
     state_delta::StateDelta,
     ExecutedTrees,
 };
+use aptos_types::transaction::automation::AutomationTransactionPayload;
 use aptos_types::{
     account_config::CORE_CODE_ADDRESS,
     block_executor::{
@@ -408,7 +409,10 @@ pub fn update_counters_for_processed_chunk<T, O>(
                         .with_label_values(&[process_type, "script", state])
                         .inc();
                 },
-                aptos_types::transaction::TransactionPayload::EntryFunction(function) => {
+                aptos_types::transaction::TransactionPayload::Automation(
+                    AutomationTransactionPayload::EntryFunction(function),
+                )
+                | aptos_types::transaction::TransactionPayload::EntryFunction(function) => {
                     metrics::APTOS_PROCESSED_USER_TRANSACTIONS_PAYLOAD_TYPE
                         .with_label_values(&[process_type, "function", state])
                         .inc();
