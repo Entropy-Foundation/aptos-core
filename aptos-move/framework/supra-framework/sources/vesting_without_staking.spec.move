@@ -52,16 +52,11 @@ spec supra_framework::vesting_without_staking {
     //     include VestingContractActive{contract_address: vesting_contract_address};
     // }
 
-    // spec shareholder {
-    //     pragma verify = true;
-    // }
-
     spec create_vesting_schedule {
         pragma verify = true;
         pragma aborts_if_is_partial = true;
         aborts_if vector::length(schedule) == 0;
         aborts_if period_duration <= 0;
-        // aborts_if start_timestamp_secs < timestamp::spec_now_seconds();
     }
 
     // spec create_vesting_contract {
