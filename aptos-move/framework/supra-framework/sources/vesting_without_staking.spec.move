@@ -108,7 +108,7 @@ spec supra_framework::vesting_without_staking {
 
     spec vest_transfer {
         // TODO(fa_migration)
-        pragma verify = false;
+        pragma verify = true;
         let amount = min(vesting_record.left_amount, fixed_point32::spec_multiply_u64(vesting_record.init_amount, vesting_fraction));
         // Ensure that the amount is substracted from the left_amount
         ensures vesting_record.left_amount == old(vesting_record.left_amount) - amount;
@@ -126,7 +126,7 @@ spec supra_framework::vesting_without_staking {
 
     spec remove_shareholder {
         // TODO(fa_migration)
-        pragma verify = false;
+        pragma verify = true;
         pragma aborts_if_is_partial = true;
         include AdminAborts;
         let vesting_contract = global<VestingContract>(contract_address);
