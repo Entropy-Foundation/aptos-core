@@ -835,7 +835,6 @@ impl AptosVM {
             },
             TransactionPayload::EntryFunction(entry_fn) => {
                 session.execute(|session| {
-                    // TODO To enclosed payload validation as well before actually executing the entry function
                     self.validate_and_execute_entry_function(
                         resolver,
                         session,

@@ -1,5 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2024 Supra.
 
 use crate::transaction_shuffler::fairness::conflict_key::ConflictKey;
 use aptos_types::transaction::automation::AutomationTransactionPayload;
