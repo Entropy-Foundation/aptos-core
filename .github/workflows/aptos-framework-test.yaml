@@ -42,6 +42,10 @@ jobs:
         ${{ env.CARGO_BIN }} test --release -p aptos-framework -- --skip prover
         RUST_MIN_STACK=104857600 ${{ env.CARGO_BIN }} nextest run -p e2e-move-tests --no-fail-fast
 
+    - name: Run e2e-testsuite
+      run: |
+        RUST_MIN_STACK=104857600 ${{ env.CARGO_BIN }} nextest run -p language-e2e-testsuite --no-fail-fast
+
     - name: Slack Notification
       if: failure()
       uses: rtCamp/action-slack-notify@v2

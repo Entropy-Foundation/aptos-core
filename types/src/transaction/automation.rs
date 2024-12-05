@@ -29,9 +29,7 @@ pub enum AutomationTransactionPayload {
 
 impl AutomationTransactionPayload {
     pub fn entry_function(&self) -> Option<&EntryFunction> {
-        let AutomationTransactionPayload::EntryFunction(function) = &self else {
-            return None;
-        };
+        let AutomationTransactionPayload::EntryFunction(function) = &self;
         Some(function)
     }
 
