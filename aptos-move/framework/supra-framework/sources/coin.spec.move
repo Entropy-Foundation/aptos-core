@@ -539,8 +539,6 @@ spec supra_framework::coin {
     ) {
         // TODO(fa_migration)
         pragma verify = true;
-        // pragma opaque;
-        // pragma aborts_if_is_partial = true;
         let account_addr_from = signer::address_of(from);
         let coin_store_from = global<CoinStore<CoinType>>(account_addr_from);
         let post coin_store_post_from = global<CoinStore<CoinType>>(account_addr_from);
@@ -558,7 +556,7 @@ spec supra_framework::coin {
         ensures account_addr_from != to ==> coin_store_post_from.coin.value ==
             coin_store_from.coin.value - amount;
         ensures account_addr_from != to ==> coin_store_post_to.coin.value == coin_store_to.coin.value + amount;
-        ensures account_addr_from == to ==> TRACE(coin_store_post_from.coin.value) == TRACE(coin_store_from.coin.value);
+        ensures account_addr_from == to ==> coin_store_post_from.coin.value == coin_store_from.coin.value;
     }
 
     /// Account is not frozen and sufficient balance.
