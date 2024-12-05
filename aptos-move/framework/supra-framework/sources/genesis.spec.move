@@ -142,6 +142,7 @@ spec supra_framework::genesis {
 
     spec set_genesis_end {
         pragma delegate_invariants_to_caller;
+        // Without this pragma, the function will timeout (property proved)
         pragma aborts_if_is_partial;
         // property 4: An initial set of validators should exist before the end of genesis.
         /// [high-level-req-4]
@@ -155,6 +156,7 @@ spec supra_framework::genesis {
         let addr = std::signer::address_of(supra_framework);
         aborts_if addr != @supra_framework;
         aborts_if exists<chain_status::GenesisEndMarker>(@supra_framework);
+        aborts_if !exists<supra_coin::MintCapStore>(@supra_framework);
         ensures global<chain_status::GenesisEndMarker>(@supra_framework) == chain_status::GenesisEndMarker {};
     }
 
