@@ -222,7 +222,7 @@ spec supra_framework::coin {
 
     spec supply<CoinType>(): Option<u128> {
         // TODO(fa_migration)
-        pragma verify = false;
+        pragma verify = true;
     }
 
     spec coin_supply<CoinType>(): Option<u128> {
@@ -256,7 +256,7 @@ spec supra_framework::coin {
 
     spec burn_internal<CoinType>(coin: Coin<CoinType>): u64 {
         // TODO(fa_migration)
-        pragma verify = false;
+        pragma verify = true;
         let addr = type_info::type_of<CoinType>().account_address;
         modifies global<CoinInfo<CoinType>>(addr);
     }
@@ -267,7 +267,7 @@ spec supra_framework::coin {
     burn_cap: &BurnCapability<CoinType>,
     ) {
         // TODO(fa_migration)
-        pragma verify = false;
+        pragma verify = true;
         let addr = type_info::type_of<CoinType>().account_address;
         let coin_store = global<CoinStore<CoinType>>(account_addr);
         let post post_coin_store = global<CoinStore<CoinType>>(account_addr);
@@ -303,7 +303,9 @@ spec supra_framework::coin {
     /// `account_addr` is not frozen.
     spec deposit<CoinType>(account_addr: address, coin: Coin<CoinType>) {
         // TODO(fa_migration)
-        pragma verify = false;
+        pragma verify = true;
+        // can not make this opaque because fa
+        // pragma opaque;
         // modifies global<CoinInfo<CoinType>>(account_addr);
         /// [high-level-req-8.3]
         include DepositAbortsIf<CoinType>;

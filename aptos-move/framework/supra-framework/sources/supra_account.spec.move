@@ -260,12 +260,6 @@ spec supra_framework::supra_account {
         // aborts_if exists<coin::CoinStore<CoinType>>(to) && global<coin::CoinStore<CoinType>>(to).frozen;
         ensures exists<supra_framework::account::Account>(to);
         ensures exists<supra_framework::coin::CoinStore<CoinType>>(to);
-        let coin_store_from = global<coin::CoinStore<CoinType>>(account_addr_source);
-        let post coin_store_post_from = global<coin::CoinStore<CoinType>>(account_addr_source);
-        let coin_store_to = global<coin::CoinStore<CoinType>>(to);
-        let post coin_store_post_to = global<coin::CoinStore<CoinType>>(to);
-        // ensures TRACE(coin_store_post_from.coin.value) == TRACE(coin_store_from.coin.value) - amount;
-        // ensures TRACE(coin_store_post_to.coin.value) == TRACE(coin_store_to.coin.value) + amount;
     }
 
     spec register_supra(account_signer: &signer) {
