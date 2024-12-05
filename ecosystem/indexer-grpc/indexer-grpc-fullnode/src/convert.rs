@@ -1,5 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2024 Supra.
 
 use aptos_api_types::{
     transaction::ValidatorTransaction as ApiValidatorTransactionEnum, AccountSignature,
@@ -766,6 +768,9 @@ pub fn convert_transaction(
         Transaction::ValidatorTransaction(_) => {
             transaction::transaction::TransactionType::Validator
         },
+        Transaction::AutomatedTransaction(_) => {
+            transaction::transaction::TransactionType::Automated
+        },
     };
 
     let txn_data = match &transaction {
@@ -834,6 +839,25 @@ pub fn convert_transaction(
         Transaction::PendingTransaction(_) => panic!("PendingTransaction not supported"),
         Transaction::ValidatorTransaction(api_validator_txn) => {
             convert_validator_transaction(api_validator_txn)
+        },
+        Transaction::AutomatedTransaction(at) => {
+            timestamp = Some(convert_timestamp_usecs(at.timestamp.0));
+            let expiration_timestamp_secs = Some(convert_timestamp_secs(std::cmp::min(
+                at.meta.expiration_timestamp_secs.0,
+                chrono::NaiveDateTime::MAX.timestamp() as u64,
+            )));
+            transaction::transaction::TxnData::Automated(transaction::AutomatedTransaction {
+                meta: Some(transaction::AutomatedTaskMeta {
+                    sender: at.meta.sender.to_string(),
+                    index: at.meta.index.0,
+                    max_gas_amount: at.meta.max_gas_amount.0,
+                    gas_unit_price: at.meta.gas_unit_price.0,
+                    expiration_timestamp_secs,
+                    payload: Some(convert_transaction_payload(&at.meta.payload)),
+                    registration_hash: at.meta.registration_hash.0.to_vec(),
+                }),
+                events: convert_events(&at.events),
+            })
         },
     };
 

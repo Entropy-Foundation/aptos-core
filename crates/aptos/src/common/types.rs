@@ -1,5 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2024 Supra.
 
 use super::utils::fund_account;
 use crate::{
@@ -1375,6 +1377,18 @@ impl From<&Transaction> for TransactionSummary {
                 timestamp_us: Some(txn.timestamp().0),
                 version: Some(txn.transaction_info().version.0),
                 vm_status: Some(txn.transaction_info().vm_status.clone()),
+            },
+            Transaction::AutomatedTransaction(txn) => TransactionSummary {
+                transaction_hash: txn.info.hash,
+                sender: Some(*txn.meta.sender.inner()),
+                gas_used: Some(txn.info.gas_used.0),
+                gas_unit_price: Some(txn.meta.gas_unit_price.0),
+                success: Some(txn.info.success),
+                version: Some(txn.info.version.0),
+                vm_status: Some(txn.info.vm_status.clone()),
+                sequence_number: Some(txn.meta.index.0),
+                timestamp_us: Some(txn.timestamp.0),
+                pending: None,
             },
         }
     }

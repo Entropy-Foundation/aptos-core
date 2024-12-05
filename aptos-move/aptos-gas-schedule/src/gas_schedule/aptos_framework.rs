@@ -1,5 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2024 Supra.
 
 //! This module defines the gas parameters for Aptos Framework & Stdlib.
 
@@ -269,6 +271,7 @@ crate::gas_schedule::macros::define_gas_parameters!(
 
         [transaction_context_get_txn_hash_base: InternalGas, { 10.. => "transaction_context.get_txn_hash.base" }, 735],
         [transaction_context_get_script_hash_base: InternalGas, "transaction_context.get_script_hash.base", 735],
+        [transaction_context_get_txn_app_hash_base: InternalGas, "transaction_context.get_txn_app_hash.base", 735],
         // Based on SHA3-256's cost
         [transaction_context_generate_unique_address_base: InternalGas, { 10.. => "transaction_context.generate_unique_address.base" }, 14704],
         [transaction_context_sender_base: InternalGas, {RELEASE_V1_12.. => "transaction_context.sender.base"}, 735],

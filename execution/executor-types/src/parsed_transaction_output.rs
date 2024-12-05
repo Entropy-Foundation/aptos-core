@@ -1,5 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2024 Supra.
 
 use aptos_types::{
     contract_event::ContractEvent,
@@ -139,6 +141,7 @@ impl TransactionsWithParsedOutput {
             Transaction::BlockMetadata(_)
             | Transaction::BlockMetadataExt(_)
             | Transaction::UserTransaction(_)
+            | Transaction::AutomatedTransaction(_)
             | Transaction::ValidatorTransaction(_) => false,
             Transaction::GenesisTransaction(_)
             | Transaction::StateCheckpoint(_)

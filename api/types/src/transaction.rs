@@ -1,6 +1,8 @@
 // Copyright © Aptos Foundation
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2024 Supra.
 
 use crate::{
     Address, AptosError, EntryFunctionId, EventGuid, HashValue, HexEncodedBytes,
@@ -29,6 +31,7 @@ use aptos_types::{
             AccountAuthenticator, AnyPublicKey, AnySignature, MultiKey, MultiKeyAuthenticator,
             SingleKeyAuthenticator, TransactionAuthenticator, MAX_NUM_OF_SIGS,
         },
+        automated_transaction::AutomatedTransaction as UserAutomatedTransaction,
         webauthn::{PartialAuthenticatorAssertionResponse, MAX_WEBAUTHN_SIGNATURE_BYTES},
         Script, SignedTransaction, TransactionOutput, TransactionWithProof,
     },
@@ -177,6 +180,7 @@ impl
 pub enum Transaction {
     PendingTransaction(PendingTransaction),
     UserTransaction(Box<UserTransaction>),
+    AutomatedTransaction(Box<AutomatedTransaction>),
     GenesisTransaction(GenesisTransaction),
     BlockMetadataTransaction(BlockMetadataTransaction),
     StateCheckpointTransaction(StateCheckpointTransaction),
@@ -194,6 +198,7 @@ impl Transaction {
             Transaction::StateCheckpointTransaction(txn) => txn.timestamp.0,
             Transaction::BlockEpilogueTransaction(txn) => txn.timestamp.0,
             Transaction::ValidatorTransaction(txn) => txn.timestamp().0,
+            Transaction::AutomatedTransaction(txn) => txn.timestamp.0,
         }
     }
 
@@ -206,6 +211,7 @@ impl Transaction {
             Transaction::StateCheckpointTransaction(txn) => Some(txn.info.version.into()),
             Transaction::BlockEpilogueTransaction(txn) => Some(txn.info.version.into()),
             Transaction::ValidatorTransaction(txn) => Some(txn.transaction_info().version.into()),
+            Transaction::AutomatedTransaction(txn) => Some(txn.info.version.into()),
         }
     }
 
@@ -218,6 +224,7 @@ impl Transaction {
             Transaction::StateCheckpointTransaction(txn) => txn.info.success,
             Transaction::BlockEpilogueTransaction(txn) => txn.info.success,
             Transaction::ValidatorTransaction(txn) => txn.transaction_info().success,
+            Transaction::AutomatedTransaction(txn) => txn.info.success,
         }
     }
 
@@ -234,6 +241,7 @@ impl Transaction {
             Transaction::StateCheckpointTransaction(txn) => txn.info.vm_status.clone(),
             Transaction::BlockEpilogueTransaction(txn) => txn.info.vm_status.clone(),
             Transaction::ValidatorTransaction(txn) => txn.transaction_info().vm_status.clone(),
+            Transaction::AutomatedTransaction(txn) => txn.info.vm_status.clone(),
         }
     }
 
@@ -246,6 +254,7 @@ impl Transaction {
             Transaction::StateCheckpointTransaction(_) => "state_checkpoint_transaction",
             Transaction::BlockEpilogueTransaction(_) => "block_epilogue_transaction",
             Transaction::ValidatorTransaction(vt) => vt.type_str(),
+            Transaction::AutomatedTransaction(_) => "automated_transaction",
         }
     }
 
@@ -260,6 +269,7 @@ impl Transaction {
             Transaction::StateCheckpointTransaction(txn) => &txn.info,
             Transaction::BlockEpilogueTransaction(txn) => &txn.info,
             Transaction::ValidatorTransaction(txn) => txn.transaction_info(),
+            Transaction::AutomatedTransaction(txn) => &txn.info,
         })
     }
 }
@@ -295,6 +305,37 @@ impl
         Transaction::UserTransaction(Box::new(UserTransaction {
             info,
             request: (txn, payload).into(),
+            events,
+            timestamp: timestamp.into(),
+        }))
+    }
+}
+
+impl
+    From<(
+        &UserAutomatedTransaction,
+        TransactionInfo,
+        TransactionPayload,
+        Vec<Event>,
+        u64,
+    )> for Transaction
+{
+    fn from(
+        (txn, info, payload, events, timestamp): (
+            &UserAutomatedTransaction,
+            TransactionInfo,
+            TransactionPayload,
+            Vec<Event>,
+            u64,
+        ),
+    ) -> Self {
+        // If at some point Aptos will utilize Automation transactions then here we will use as
+        // registration hash(the hash of the transaction which registered this automation task)
+        // transaction hash calculated in Aptos-style,
+        // i.e Transaction::AutomatedTransaction(txn).hash() which is stored in TransactionInfo
+        Transaction::AutomatedTransaction(Box::new(AutomatedTransaction {
+            meta: (info.hash.clone(), txn, payload).into(),
+            info,
             events,
             timestamp: timestamp.into(),
         }))
@@ -357,6 +398,26 @@ impl From<(&SignedTransaction, TransactionPayload)> for UserTransactionRequest {
     }
 }
 
+impl From<(HashValue, &UserAutomatedTransaction, TransactionPayload)> for AutomatedTaskMeta {
+    fn from(
+        (registration_hash, txn, payload): (
+            HashValue,
+            &UserAutomatedTransaction,
+            TransactionPayload,
+        ),
+    ) -> Self {
+        Self {
+            sender: txn.sender().into(),
+            index: txn.sequence_number().into(),
+            max_gas_amount: txn.max_gas_amount().into(),
+            gas_unit_price: txn.gas_unit_price().into(),
+            expiration_timestamp_secs: txn.expiration_timestamp_secs().into(),
+            registration_hash,
+            payload,
+        }
+    }
+}
+
 /// Information related to how a transaction affected the state of the blockchain
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Object)]
 pub struct TransactionInfo {
@@ -410,6 +471,20 @@ pub struct UserTransaction {
     #[serde(flatten)]
     #[oai(flatten)]
     pub request: UserTransactionRequest,
+    /// Events generated by the transaction
+    pub events: Vec<Event>,
+    pub timestamp: U64,
+}
+
+/// A transaction registered by a user to run periodically in automated manner
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Object)]
+pub struct AutomatedTransaction {
+    #[serde(flatten)]
+    #[oai(flatten)]
+    pub info: TransactionInfo,
+    #[serde(flatten)]
+    #[oai(flatten)]
+    pub meta: AutomatedTaskMeta,
     /// Events generated by the transaction
     pub events: Vec<Event>,
     pub timestamp: U64,
@@ -514,6 +589,17 @@ pub struct UserTransactionRequest {
     pub payload: TransactionPayload,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signature: Option<TransactionSignature>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Object)]
+pub struct AutomatedTaskMeta {
+    pub sender: Address,
+    pub index: U64,
+    pub max_gas_amount: U64,
+    pub gas_unit_price: U64,
+    pub expiration_timestamp_secs: U64,
+    pub payload: TransactionPayload,
+    pub registration_hash: HashValue,
 }
 
 /// Request to create signing messages

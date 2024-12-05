@@ -1,6 +1,8 @@
 // Copyright © Aptos Foundation
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2024 Supra.
 
 #![forbid(unsafe_code)]
 
@@ -334,6 +336,7 @@ pub fn update_counters_for_processed_chunk<T, O>(
             Some(Transaction::StateCheckpoint(_)) => "state_checkpoint",
             Some(Transaction::BlockEpilogue(_)) => "block_epilogue",
             Some(Transaction::ValidatorTransaction(_)) => "validator_transaction",
+            Some(Transaction::AutomatedTransaction(_)) => "automated_transaction",
             None => "unknown",
         };
 

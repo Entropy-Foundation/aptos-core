@@ -1,6 +1,8 @@
 // Copyright © Aptos Foundation
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (c) 2024 Supra.
 
 use crate::{
     transaction::{
@@ -178,7 +180,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
     ) -> Result<Transaction> {
         use aptos_types::transaction::Transaction::{
             BlockEpilogue, BlockMetadata, BlockMetadataExt, GenesisTransaction, StateCheckpoint,
-            UserTransaction,
+            UserTransaction, AutomatedTransaction
         };
         let aux_data = self
             .db
@@ -233,6 +235,10 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
             },
             aptos_types::transaction::Transaction::ValidatorTransaction(txn) => {
                 Transaction::ValidatorTransaction((txn, info, events, timestamp).into())
+            },
+            AutomatedTransaction(automated_txn) => {
+                let payload = self.try_into_transaction_payload(automated_txn.payload().clone())?;
+                (&automated_txn, info, payload, events, timestamp).into()
             },
         })
     }
