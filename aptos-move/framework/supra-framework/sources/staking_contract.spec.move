@@ -588,9 +588,9 @@ spec supra_framework::staking_contract {
         requires exists<staking_config::StakingRewardsConfig>(
             @supra_framework
         ) || !std::features::spec_periodical_reward_rate_decrease_enabled();
-        // requires exists<stake::ValidatorFees>(@supra_framework);
+        requires exists<stake::ValidatorFees>(@supra_framework);
         requires exists<supra_framework::timestamp::CurrentTimeMicroseconds>(@supra_framework);
-        // requires exists<stake::SupraCoinCapabilities>(@supra_framework);
+        requires exists<stake::SupraCoinCapabilities>(@supra_framework);
     }
 
     spec schema CreateStakePoolAbortsIf {
