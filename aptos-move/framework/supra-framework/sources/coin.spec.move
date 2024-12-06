@@ -539,19 +539,21 @@ spec supra_framework::coin {
     ) {
         // TODO(fa_migration)
         pragma verify = true;
+        pragma aborts_if_is_partial;
         let account_addr_from = signer::address_of(from);
         let coin_store_from = global<CoinStore<CoinType>>(account_addr_from);
         let post coin_store_post_from = global<CoinStore<CoinType>>(account_addr_from);
         let coin_store_to = global<CoinStore<CoinType>>(to);
         let post coin_store_post_to = global<CoinStore<CoinType>>(to);
 
-        // /// [high-level-req-6.5]
+        // The two comment out aborts conditions are related to withdraw, which subject fa migration.
+        /// [high-level-req-6.5]
         // aborts_if !exists<CoinStore<CoinType>>(account_addr_from);
-        // aborts_if !exists<CoinStore<CoinType>>(to);
-        // /// [high-level-req-8.2]
+        aborts_if !exists<CoinStore<CoinType>>(to);
+        /// [high-level-req-8.2]
         // aborts_if coin_store_from.frozen;
-        // aborts_if coin_store_to.frozen;
-        // aborts_if coin_store_from.coin.value < amount;
+        aborts_if coin_store_to.frozen;
+        aborts_if coin_store_from.coin.value < amount;
 
         ensures account_addr_from != to ==> coin_store_post_from.coin.value ==
             coin_store_from.coin.value - amount;
