@@ -132,13 +132,13 @@ module supra_framework::transaction_context {
     }
     native fun entry_function_payload_internal(): Option<EntryFunctionPayload>;
 
-    /// Returns the automation transaction entry function payload if the current transaction has such a payload. Otherwise, return `None`.
+    /// Returns true if current user transaction has automation payload type. Otherwise, return `false`.
     /// This function aborts if called outside of the transaction prologue, execution, or epilogue phases.
-    public fun automation_payload(): Option<EntryFunctionPayload> {
+    public fun has_automation_payload(): bool {
         assert!(features::transaction_context_extension_enabled(), error::invalid_state(ETRANSACTION_CONTEXT_EXTENSION_NOT_ENABLED));
-        automation_payload_internal()
+        has_automation_payload_internal()
     }
-    native fun automation_payload_internal(): Option<EntryFunctionPayload>;
+    native fun has_automation_payload_internal(): bool;
 
     /// Returns the original transaction hash calculated on the raw-bytes.
     /// This function aborts if called outside of the transaction prologue, execution, or epilogue phases.
@@ -280,7 +280,7 @@ module supra_framework::transaction_context {
     #[expected_failure(abort_code=196609, location = Self)]
     fun test_call_automation_payload() {
         // expected to fail with the error code of `invalid_state(E_TRANSACTION_CONTEXT_NOT_AVAILABLE)`
-        let _automation = automation_payload();
+        let _automation = has_automation_payload();
     }
 
     #[test]

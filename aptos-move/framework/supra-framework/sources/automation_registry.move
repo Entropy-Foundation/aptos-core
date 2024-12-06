@@ -6,6 +6,7 @@ module supra_framework::automation_registry {
     use std::signer;
     use std::vector;
 
+    friend supra_framework::genesis;
     use supra_std::enumerable_map::{Self, EnumerableMap};
 
     use supra_framework::account::{Self, SignerCapability};
@@ -40,6 +41,8 @@ module supra_framework::automation_registry {
     const EAUTOMATION_TASK_NOT_EXIST: u64 = 7;
     /// Unauthorized access: the caller is not the owner of the task
     const EUNAUTHORIZED_TASK_OWNER: u64 = 8;
+    /// Entry function is called not from automation transaction context.
+    const ENOT_AUTOMATION_TXN_CONTEXT: u64 = 7;
 
     /// The default automation task gas limit
     const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 100000000;
@@ -247,6 +250,7 @@ module supra_framework::automation_registry {
         max_gas_amount: u64,
         gas_price_cap: u64
     ) acquires AutomationRegistry {
+        assert!(transaction_context::has_automation_payload(), ENOT_AUTOMATION_TXN_CONTEXT);
         let registry_data = borrow_global_mut<AutomationRegistry>(@supra_framework);
 
         // todo : well formedness check of payload_tx
@@ -322,6 +326,13 @@ module supra_framework::automation_registry {
         let refund_amount = expiry_time_duration * automation_unit_price;
         transfer_fee_to_account_internal(user, refund_amount);
         event::emit(RefundFeeUser { user, amount: refund_amount });
+    }
+
+    #[view]
+    /// List all the automation task ids
+    public fun get_next_task_index(): u64 acquires AutomationRegistry {
+        let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
+        automation_registry.current_index + 1
     }
 
     #[view]

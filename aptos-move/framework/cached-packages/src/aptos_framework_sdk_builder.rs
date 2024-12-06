@@ -147,6 +147,14 @@ pub enum EntryFunctionCall {
         cap_update_table: Vec<u8>,
     },
 
+    /// Registers a new automation task entry.
+    AutomationRegistryRegister {
+        payload_tx: Vec<u8>,
+        expiry_time: u64,
+        max_gas_amount: u64,
+        gas_price_cap: u64,
+    },
+
     /// Same as `publish_package` but as an entry function which can be called as a transaction. Because
     /// of current restrictions for txn parameters, the metadata needs to be passed in serialized form.
     CodePublishPackageTxn {
@@ -1181,6 +1189,14 @@ impl EntryFunctionCall {
                 new_public_key_bytes,
                 cap_update_table,
             ),
+            AutomationRegistryRegister {
+                payload_tx,
+                expiry_time,
+                max_gas_amount,
+                gas_price_cap,
+            } => {
+                automation_registry_register(payload_tx, expiry_time, max_gas_amount, gas_price_cap)
+            },
             CodePublishPackageTxn {
                 metadata_serialized,
                 code,
@@ -2113,6 +2129,32 @@ pub fn account_rotate_authentication_key_with_rotation_capability(
             bcs::to_bytes(&new_scheme).unwrap(),
             bcs::to_bytes(&new_public_key_bytes).unwrap(),
             bcs::to_bytes(&cap_update_table).unwrap(),
+        ],
+    ))
+}
+
+/// Registers a new automation task entry.
+pub fn automation_registry_register(
+    payload_tx: Vec<u8>,
+    expiry_time: u64,
+    max_gas_amount: u64,
+    gas_price_cap: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("automation_registry").to_owned(),
+        ),
+        ident_str!("register").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&payload_tx).unwrap(),
+            bcs::to_bytes(&expiry_time).unwrap(),
+            bcs::to_bytes(&max_gas_amount).unwrap(),
+            bcs::to_bytes(&gas_price_cap).unwrap(),
         ],
     ))
 }
@@ -5277,6 +5319,19 @@ mod decoder {
         }
     }
 
+    pub fn automation_registry_register(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::AutomationRegistryRegister {
+                payload_tx: bcs::from_bytes(script.args().get(0)?).ok()?,
+                expiry_time: bcs::from_bytes(script.args().get(1)?).ok()?,
+                max_gas_amount: bcs::from_bytes(script.args().get(2)?).ok()?,
+                gas_price_cap: bcs::from_bytes(script.args().get(3)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn code_publish_package_txn(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(script) = payload {
             Some(EntryFunctionCall::CodePublishPackageTxn {
@@ -7129,6 +7184,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "account_rotate_authentication_key_with_rotation_capability".to_string(),
             Box::new(decoder::account_rotate_authentication_key_with_rotation_capability),
+        );
+        map.insert(
+            "automation_registry_register".to_string(),
+            Box::new(decoder::automation_registry_register),
         );
         map.insert(
             "code_publish_package_txn".to_string(),

@@ -394,7 +394,9 @@ fn native_multisig_payload_internal(
     }
 }
 
-fn native_automation_payload_internal(
+/// Checks whether user-transaction context is from on the automation transaction,
+/// i.e. original transaction has Automation payload.
+fn native_has_automation_payload_internal(
     context: &mut SafeNativeContext,
     mut _ty_args: Vec<Type>,
     _args: VecDeque<Value>,
@@ -404,17 +406,7 @@ fn native_automation_payload_internal(
     let user_transaction_context_opt = get_user_transaction_context_opt_from_context(context);
 
     if let Some(transaction_context) = user_transaction_context_opt {
-        if let Some(entry_function_payload) = transaction_context.automation_payload() {
-            let num_bytes = num_bytes_from_entry_function_payload(&entry_function_payload);
-            context.charge(
-                TRANSACTION_CONTEXT_ENTRY_FUNCTION_PAYLOAD_PER_BYTE_IN_STR
-                    * NumBytes::new(num_bytes as u64),
-            )?;
-            let payload = create_entry_function_payload(entry_function_payload);
-            Ok(smallvec![create_option_some_value(payload)])
-        } else {
-            Ok(smallvec![create_option_none()])
-        }
+        Ok(smallvec![Value::bool(transaction_context.has_automation_payload())])
     } else {
         Err(SafeNativeError::Abort {
             abort_code: error::invalid_state(abort_codes::ETRANSACTION_CONTEXT_NOT_AVAILABLE),
@@ -460,8 +452,8 @@ pub fn make_all(
             native_multisig_payload_internal,
         ),
         (
-            "automation_payload_internal",
-            native_automation_payload_internal,
+            "has_automation_payload_internal",
+            native_has_automation_payload_internal,
         ),
         ("txn_app_hash_internal", native_txn_app_hash_internal),
     ];

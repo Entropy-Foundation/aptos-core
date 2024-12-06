@@ -1,0 +1,237 @@
+// Copyright (c) 2024 Supra.
+
+use std::ops::{Deref, DerefMut};
+use aptos_cached_packages::aptos_framework_sdk_builder;
+use aptos_language_e2e_tests::account::{Account, AccountData};
+use aptos_language_e2e_tests::executor::FakeExecutor;
+use aptos_types::transaction::automation::AutomationTransactionPayload;
+use aptos_types::transaction::{EntryFunction, ExecutionStatus, SignedTransaction, TransactionOutput, TransactionPayload, TransactionStatus};
+use move_core_types::account_address::AccountAddress;
+use move_core_types::ident_str;
+use move_core_types::language_storage::ModuleId;
+use move_core_types::vm_status::StatusCode;
+
+
+struct AutomationTransactionTestContext {
+    executor: FakeExecutor,
+    txn_sender: AccountData,
+}
+
+impl AutomationTransactionTestContext {
+    fn new() -> Self {
+        let mut executor = FakeExecutor::from_head_genesis();
+        let mut root = Account::new_aptos_root();
+        let (private_key, public_key) = aptos_vm_genesis::GENESIS_KEYPAIR.clone();
+        root.rotate_key(private_key, public_key);
+
+        // Prepare automation transaction sender
+        let txn_sender = executor.create_raw_account_data(1_000_000, 0);
+        executor.add_account_data(&txn_sender);
+        Self {
+            executor,
+            txn_sender,
+        }
+    }
+
+    fn new_account_data(&mut self, amount: u64, seq_num: u64) -> AccountData {
+        let new_account_data = self.create_raw_account_data(amount, seq_num);
+        self.add_account_data(&new_account_data);
+        new_account_data
+    }
+
+    fn create_automation_txn_payload(&self, seq_num: u64, inner_payload: EntryFunction, expiry_time: u64, max_gas_amount: u64, gas_price_cap: u64 ) -> SignedTransaction {
+        let inner_entry_function_bytes =
+            bcs::to_bytes(&inner_payload).expect("Can't serialize entry function");
+        self.create_automation_txn_payload_raw(seq_num, inner_entry_function_bytes, expiry_time, max_gas_amount, gas_price_cap)
+    }
+
+    fn create_automation_txn_payload_raw(&self, seq_num: u64, inner_entry_function_bytes: Vec<u8>, expiry_time: u64, max_gas_amount: u64, gas_price_cap: u64 ) -> SignedTransaction {
+        let automation_txn_payload = aptos_framework_sdk_builder::automation_registry_register(
+            inner_entry_function_bytes,
+            expiry_time,
+            max_gas_amount,
+            gas_price_cap,
+        )
+            .into_entry_function();
+        let automation_txn = TransactionPayload::Automation(
+            AutomationTransactionPayload::EntryFunction(automation_txn_payload),
+        );
+        self.txn_sender
+            .account()
+            .transaction()
+            .payload(automation_txn)
+            .sequence_number(seq_num)
+            .sign()
+    }
+
+    fn check_miscellaneous_output(output: TransactionOutput, expected_status_code: StatusCode) {
+        match output.status() {
+            TransactionStatus::Keep(ExecutionStatus::MiscellaneousError(maybe_status_code)) => {
+                assert_eq!(
+                    maybe_status_code.as_ref().unwrap(),
+                    &expected_status_code,
+                    "{output:?}"
+                );
+            },
+            _ => panic!("Unexpected transaction status: {output:?}"),
+        }
+
+    }
+}
+
+impl Deref for AutomationTransactionTestContext {
+    type Target = FakeExecutor;
+
+    fn deref(&self) -> &Self::Target {
+        &self.executor
+    }
+}
+
+impl DerefMut for AutomationTransactionTestContext {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.executor
+    }
+}
+
+
+#[test]
+fn check_successful_registration() {
+    let mut test_context = AutomationTransactionTestContext::new();
+    // Prepare inner-entry-function to be automated.
+    let dest_account = test_context.new_account_data(0, 0);
+    let inner_entry_function =
+        aptos_framework_sdk_builder::supra_coin_mint(dest_account.address().clone(), 100)
+            .into_entry_function();
+
+    // TODO: Update expiry_time, max_gas_amount, gas_price_cap when
+    let automation_txn = test_context.create_automation_txn_payload(0, inner_entry_function, 3600, 100, 100);
+
+
+    let output = test_context.execute_and_apply(automation_txn);
+    assert_eq!(
+        output.status(),
+        &TransactionStatus::Keep(ExecutionStatus::Success),
+        "{output:?}"
+    );
+
+    // Check automation registry state.
+    let view_output = test_context.execute_view_function(
+        str::parse("0x1::automation_registry::get_next_task_index").unwrap(),
+        vec![],
+        vec![],
+    );
+    let result = view_output.values.expect("Valid result");
+    assert_eq!(result.len(), 1);
+    let next_task_id = bcs::from_bytes::<u64>(&result[0]).unwrap();
+    assert_eq!(next_task_id, 2);
+}
+
+#[test]
+fn check_registration_from_non_automation_context() {
+    let mut test_context = AutomationTransactionTestContext::new();
+    // Prepare inner-entry-function to be automated.
+    let dest_account = test_context.new_account_data(0, 0);
+    let inner_entry_function =
+        aptos_framework_sdk_builder::supra_coin_mint(dest_account.address().clone(), 100)
+            .into_entry_function();
+    let inner_entry_function_bytes =
+        bcs::to_bytes(&inner_entry_function).expect("Can't serialize entry function");
+
+    let entry_with_register = aptos_framework_sdk_builder::automation_registry_register(
+        inner_entry_function_bytes,
+        3600,
+        100,
+        100,
+    );
+    let user_txn_with_register_entry = test_context.txn_sender
+        .account()
+        .transaction()
+        .payload(entry_with_register)
+        .sequence_number(0)
+        .sign();
+
+    let output = test_context.execute_transaction(user_txn_with_register_entry);
+    match output.status() {
+        TransactionStatus::Keep(ExecutionStatus::MoveAbort { code, .. }) => {
+            //ENOT_AUTOMATION_TXN_CONTEXT
+            assert_eq!(*code, 3);
+        },
+        _ => panic!("Unexpected transaction status: {output:?}"),
+    }
+}
+
+#[test]
+fn check_invalid_automation_txn() {
+    let mut test_context = AutomationTransactionTestContext::new();
+    check_automation_txn_with_invalid_payload(&mut test_context);
+    check_automation_txn_with_invalid_inner_function(&mut test_context);
+    check_automation_txn_with_empty_payload_arguments(&mut test_context);
+}
+
+fn check_automation_txn_with_invalid_payload(test_context: &mut AutomationTransactionTestContext) {
+    println!("checking automation txn within invalid payload");
+    let dest_account = test_context.new_account_data(0, 0);
+    let any_entry_function =
+        aptos_framework_sdk_builder::supra_coin_mint(dest_account.address().clone(), 100)
+            .into_entry_function();
+    let user_txn_with_register_entry = test_context.txn_sender
+        .account()
+        .transaction()
+        .payload(TransactionPayload::Automation(
+            AutomationTransactionPayload::EntryFunction(any_entry_function),
+        ))
+        .sequence_number(0)
+        .sign();
+
+    let output = test_context.execute_transaction(user_txn_with_register_entry);
+    AutomationTransactionTestContext::check_miscellaneous_output(output, StatusCode::INVALID_AUTOMATION_PAYLOAD)
+}
+
+fn check_automation_txn_with_invalid_inner_function(test_context: &mut AutomationTransactionTestContext) {
+    println!("checking automation txn within invalid inner function");
+    // Create automation transaction with non-entry-function
+    let automation_transaction = test_context.create_automation_txn_payload_raw( 0, vec![42;32], 100, 100, 100);
+    let output = test_context.execute_transaction(automation_transaction);
+    AutomationTransactionTestContext::check_miscellaneous_output(output, StatusCode::FAILED_TO_DESERIALIZE_ARGUMENT);
+
+    // Create automation transaction with entry-function with invalid arguments.
+    let dest_account = test_context.new_account_data(0, 0);
+    let (m_id, f_id, _, _) =
+        aptos_framework_sdk_builder::supra_coin_mint(dest_account.address().clone(), 100)
+            .into_entry_function()
+            .into_inner();
+    let inner_entry_function = EntryFunction::new(m_id, f_id, vec![], vec![]);
+    let automation_txn = test_context.create_automation_txn_payload(0, inner_entry_function, 3600, 100, 100);
+
+    let output = test_context.execute_transaction(automation_txn);
+    AutomationTransactionTestContext::check_miscellaneous_output(output, StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD);
+}
+
+fn check_automation_txn_with_empty_payload_arguments(test_context: &mut AutomationTransactionTestContext) {
+    println!("checking automation txn within empty payload arguments");
+    let register_payload =
+        EntryFunction::new(
+            ModuleId::new(
+                AccountAddress::new([
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 1,
+                ]),
+                ident_str!("automation_registry").to_owned(),
+            ),
+            ident_str!("register").to_owned(),
+            vec![],
+            vec![],
+        );
+
+    let automation_txn_payload = TransactionPayload::Automation(
+        AutomationTransactionPayload::EntryFunction(register_payload),
+    );
+    let automation_txn = test_context.txn_sender
+        .account()
+        .transaction()
+        .payload(automation_txn_payload)
+        .sequence_number(0)
+        .sign();
+    let output = test_context.execute_transaction(automation_txn);
+    AutomationTransactionTestContext::check_miscellaneous_output(output, StatusCode::INVALID_AUTOMATION_PAYLOAD_ARGUMENTS)
+}

@@ -6,7 +6,6 @@
 use aptos_crypto::HashValue;
 use aptos_gas_algebra::{FeePerGasUnit, Gas, NumBytes};
 use aptos_types::transaction::automated_transaction::AutomatedTransaction;
-use aptos_types::transaction::automation::AutomationTransactionPayload;
 use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
@@ -15,7 +14,9 @@ use aptos_types::{
         SignedTransaction, TransactionPayload,
     },
 };
+use aptos_types::transaction::user_transaction_context::{PayloadTypeReference, PayloadTypeReferenceContext};
 
+pub type PayloadTypeReferenceMeta = PayloadTypeReference<EntryFunction, Multisig>;
 pub struct TransactionMetadata {
     pub sender: AccountAddress,
     pub authentication_key: Vec<u8>,
@@ -32,14 +33,19 @@ pub struct TransactionMetadata {
     pub script_hash: Vec<u8>,
     pub script_size: NumBytes,
     pub is_keyless: bool,
-    pub entry_function_payload: Option<EntryFunction>,
-    pub multisig_payload: Option<Multisig>,
-    pub automation_payload: Option<AutomationTransactionPayload>,
+    pub payload_type_reference: PayloadTypeReferenceMeta,
     pub txn_app_hash: Vec<u8>,
 }
 
 impl TransactionMetadata {
     pub fn new(txn: &SignedTransaction) -> Self {
+        let payload_type_reference = match txn.payload() {
+            TransactionPayload::Script(_) |
+            TransactionPayload::ModuleBundle(_) => PayloadTypeReferenceMeta::Other,
+            TransactionPayload::EntryFunction(e) => PayloadTypeReferenceMeta::UserEntryFunction(e.clone()),
+            TransactionPayload::Multisig(m) => PayloadTypeReferenceMeta::Multisig(m.clone()),
+            TransactionPayload::Automation(_) => PayloadTypeReferenceMeta::Automation,
+        };
         Self {
             sender: txn.sender(),
             authentication_key: txn.authenticator().sender().authentication_key().to_vec(),
@@ -78,18 +84,7 @@ impl TransactionMetadata {
             is_keyless: aptos_types::keyless::get_authenticators(txn)
                 .map(|res| !res.is_empty())
                 .unwrap_or(false),
-            entry_function_payload: match txn.payload() {
-                TransactionPayload::EntryFunction(e) => Some(e.clone()),
-                _ => None,
-            },
-            multisig_payload: match txn.payload() {
-                TransactionPayload::Multisig(m) => Some(m.clone()),
-                _ => None,
-            },
-            automation_payload: match txn.payload() {
-                TransactionPayload::Automation(a) => Some(a.clone()),
-                _ => None,
-            },
+            payload_type_reference,
             txn_app_hash: HashValue::sha3_256_of(
                 &bcs::to_bytes(&txn).expect("Unable to serialize SignedTransaction"),
             )
@@ -156,14 +151,20 @@ impl TransactionMetadata {
     }
 
     pub fn entry_function_payload(&self) -> Option<EntryFunction> {
-        self.entry_function_payload.clone()
+        self.payload_type_reference.entry_function_payload()
     }
 
     pub fn multisig_payload(&self) -> Option<Multisig> {
-        self.multisig_payload.clone()
+        self.payload_type_reference.multisig_payload()
     }
 
     pub fn as_user_transaction_context(&self) -> UserTransactionContext {
+        let payload_type_reference = match &self.payload_type_reference {
+            PayloadTypeReferenceMeta::Other => PayloadTypeReferenceContext::Other,
+            PayloadTypeReferenceMeta::UserEntryFunction(e) => PayloadTypeReferenceContext::UserEntryFunction(e.as_entry_function_payload()),
+            PayloadTypeReferenceMeta::Multisig(m) => PayloadTypeReferenceContext::Multisig(m.as_multisig_payload()),
+            PayloadTypeReferenceMeta::Automation => PayloadTypeReferenceContext::Automation,
+        };
         UserTransactionContext::new(
             self.sender,
             self.secondary_signers.clone(),
@@ -171,13 +172,7 @@ impl TransactionMetadata {
             self.max_gas_amount.into(),
             self.gas_unit_price.into(),
             self.chain_id.id(),
-            self.entry_function_payload()
-                .map(|entry_func| entry_func.as_entry_function_payload()),
-            self.multisig_payload()
-                .map(|multisig| multisig.as_multisig_payload()),
-            self.automation_payload
-                .as_ref()
-                .and_then(|e| e.as_entry_function_payload()),
+            payload_type_reference,
             self.txn_app_hash.clone(),
         )
     }
@@ -201,12 +196,7 @@ impl From<&AutomatedTransaction> for TransactionMetadata {
             script_hash: vec![],
             script_size: NumBytes::zero(),
             is_keyless: false,
-            entry_function_payload: match txn.payload() {
-                TransactionPayload::EntryFunction(e) => Some(e.clone()),
-                _ => None,
-            },
-            multisig_payload: None,
-            automation_payload: None,
+            payload_type_reference: PayloadTypeReferenceMeta::Automation,
             txn_app_hash: txn.hash().to_vec(),
         }
     }

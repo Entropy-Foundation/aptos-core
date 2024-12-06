@@ -1131,6 +1131,7 @@ impl FakeExecutor {
             session.load_function(entry_fn.module(), entry_fn.function(), entry_fn.ty_args())?;
         let args = verifier::transaction_arg_validation::validate_combine_signer_and_txn_args(
             &mut session,
+            &mut UnmeteredGasMeter,
             senders,
             entry_fn.args().to_vec(),
             &func,

@@ -730,6 +730,7 @@ impl AptosVM {
 
         let args = verifier::transaction_arg_validation::validate_combine_signer_and_txn_args(
             session,
+            &mut UnmeteredGasMeter,
             senders,
             convert_txn_args(script.args()),
             &func,
@@ -787,6 +788,7 @@ impl AptosVM {
             self.features().is_enabled(FeatureFlag::STRUCT_CONSTRUCTORS);
         let args = verifier::transaction_arg_validation::validate_combine_signer_and_txn_args(
             session,
+            &mut UnmeteredGasMeter,
             senders,
             entry_fn.args().to_vec(),
             &function,
@@ -2541,7 +2543,7 @@ impl AptosVM {
     fn validate_automation_txn_inner_payload(
         &self,
         session: &mut SessionExt,
-        _gas_meter: &mut impl AptosGasMeter,
+        gas_meter: &mut impl AptosGasMeter,
         senders: Vec<AccountAddress>,
         automation_entry_fn: &EntryFunction,
     ) -> Result<(), VMStatus> {
@@ -2551,10 +2553,15 @@ impl AptosVM {
                 Some("Automation transaction payload arguments are empty".to_string()),
             ));
         }
-        let maybe_inner_payload_bytes = &automation_entry_fn.args()[0];
-        let inner_entry_function = bcs::from_bytes::<EntryFunction>(maybe_inner_payload_bytes).map_err(|e| {
-            VMStatus::error(StatusCode::FAILED_TO_DESERIALIZE_ARGUMENT,
-            Some(format!("Automation transaction payload first argument is expected to be BCS bytes of entry-function {}", e)))
+        // first we should deserialize actual parameter of Vec<u8> which represents bytes of the EntryFunction.
+        let param_bytes = &automation_entry_fn.args()[0];
+        let inner_entry_function = bcs::from_bytes::<Vec<u8>>(param_bytes)
+            .and_then(|payload_bytes| bcs::from_bytes::<EntryFunction>(&payload_bytes))
+            .map_err(|e| {
+                VMStatus::error(StatusCode::FAILED_TO_DESERIALIZE_ARGUMENT,
+                                Some(
+                                    format!("Automation transaction payload first argument is \
+                                    expected to be BCS bytes of entry-function {}", e)))
         })?;
 
         let function = session.load_function(
@@ -2569,6 +2576,7 @@ impl AptosVM {
         // task will not fail due to invalid arguments passed
         verifier::transaction_arg_validation::validate_combine_signer_and_txn_args(
             session,
+            gas_meter,
             senders,
             actual_args,
             &function,

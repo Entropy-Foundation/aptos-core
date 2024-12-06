@@ -9788,6 +9788,7 @@ dependencies = [
  "aptos-types",
  "aptos-vm",
  "aptos-vm-genesis",
+ "bcs 0.1.4",
  "claims",
  "fail",
  "move-binary-format",
