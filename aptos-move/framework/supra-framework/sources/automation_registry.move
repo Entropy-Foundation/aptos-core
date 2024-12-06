@@ -4,10 +4,12 @@
 module supra_framework::automation_registry {
 
     use std::signer;
+    use std::vector;
 
-    use supra_framework::account;
-    use supra_framework::account::SignerCapability;
-    use supra_framework::enumerable_map::{Self, EnumerableMap};
+    use supra_std::enumerable_map::{Self, EnumerableMap};
+
+    use supra_framework::account::{Self, SignerCapability};
+    use supra_framework::block;
     use supra_framework::event;
     use supra_framework::reconfiguration;
     use supra_framework::system_addresses;
@@ -16,13 +18,21 @@ module supra_framework::automation_registry {
 
     /// Registry Id not found
     const EREGITRY_NOT_FOUND: u64 = 1;
+    /// Invalid expiry time: it cannot be earlier than the current time
+    const EINVALID_EXPIRY_TIME: u64 = 2;
     /// Expiry time does not go beyond upper cap duration
-    const EEXPIRY_TIME_UPPER: u64 = 2;
+    const EEXPIRY_TIME_UPPER: u64 = 3;
+    /// Expiry time must be after the start of the next epoch
+    const EEXPIRY_BEFORE_NEXT_EPOCH: u64 = 4;
+    /// Gas amount does not go beyond upper cap limit
+    const EGAS_AMOUNT_UPPER: u64 = 5;
 
-    /// Default automation gas limit
-    const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 1000000;
-    /// Default upper gas duration in seconds
+    /// The default automation task gas limit
+    const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 100000000;
+    /// The default upper limit duration for automation task, specified in seconds (30 days).
     const DEFAULT_DURATION_UPPER_LIMIT: u64 = 2592000;
+    /// Conversion factor between microseconds and millisecond || millisecond and second
+    const MILLISECOND_CONVERSION_FACTOR: u64 = 1000;
     /// Registry resource creation seed
     const REGISTRY_RESOURCE_SEED: vector<u8> = b"supra_framework::automation_registry";
 
@@ -30,10 +40,12 @@ module supra_framework::automation_registry {
     struct AutomationRegistry has key, store {
         /// The current unique index counter for registered tasks. This value increments as new tasks are added.
         current_index: u64,
-        /// Automation task gas limit
+        /// Automation task gas limit. todo : updatable
         automation_gas_limit: u64,
-        /// Automation task duration upper limit.
+        /// Automation task duration upper limit. todo : updatable
         duration_upper_limit: u64,
+        /// Gas committed for next epoch
+        gas_committed_for_next_epoch: u64,
         /// It's resource address which is use to deposit user automation fee
         registry_fee_address: address,
         /// Resource account signature capability
@@ -80,18 +92,24 @@ module supra_framework::automation_registry {
             current_index: 0,
             automation_gas_limit: DEFAULT_AUTOMATION_GAS_LIMIT,
             duration_upper_limit: DEFAULT_DURATION_UPPER_LIMIT,
+            gas_committed_for_next_epoch: 0,
             registry_fee_address: signer::address_of(&registry_fee_resource_signer),
             registry_fee_address_signer_cap,
             tasks: enumerable_map::new_map(),
         })
     }
 
-    // todo withdraw amount from resource accoun to specified address
+    // todo withdraw amount from resource account to specified address
     fun withdraw() {}
-
 
     public(friend) fun on_new_epoch() {
         // todo : should perform clean up and updation of state
+        // sumup gas_committed_for_next_epoch whatever is add or remove
+    }
+
+    /// Calculate and collect registry charge from user
+    fun collect_from_owner(_owner: &signer, _expiry_time: u64, _max_gas_amount: u64) {
+        // todo : calculate and collect pre-paid amount from the user
     }
 
     /// Registers a new automation task entry.
@@ -105,13 +123,22 @@ module supra_framework::automation_registry {
         let registry_data = borrow_global_mut<AutomationRegistry>(@supra_framework);
 
         // todo : well formedness check of payload_tx
-        // todo : pre-paid amount collect from the user
-        // todo : duration/expiry in seconds
-        // Expiry time does not go beyond upper cap duration set by admin/governance
-        assert!(expiry_time < registry_data.duration_upper_limit, EEXPIRY_TIME_UPPER);
-        // todo : expiry should not be before the start of next epoch
-        // todo : automation_gas_limit check
+
+        let current_time = timestamp::now_seconds();
+        assert!(expiry_time > current_time, EINVALID_EXPIRY_TIME);
+        assert!((expiry_time - current_time) < registry_data.duration_upper_limit, EEXPIRY_TIME_UPPER);
+
+        let epoch_interval = block::get_epoch_interval_secs();
+        let last_epoch_time_ms = reconfiguration::last_reconfiguration_time() / MILLISECOND_CONVERSION_FACTOR;
+        let last_epoch_time = last_epoch_time_ms / MILLISECOND_CONVERSION_FACTOR;
+        assert!(expiry_time > (last_epoch_time + epoch_interval), EEXPIRY_BEFORE_NEXT_EPOCH);
+
+        registry_data.gas_committed_for_next_epoch = registry_data.gas_committed_for_next_epoch + max_gas_amount;
+        assert!(registry_data.gas_committed_for_next_epoch < registry_data.automation_gas_limit, EGAS_AMOUNT_UPPER);
+
         // todo : gas_price_cap should not below chain minimum
+
+        collect_from_owner(owner, expiry_time, max_gas_amount);
 
         registry_data.current_index = registry_data.current_index + 1;
 
@@ -137,7 +164,17 @@ module supra_framework::automation_registry {
     /// List all the automation task ids
     public fun get_active_task_ids(): vector<u64> acquires AutomationRegistry {
         let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
-        enumerable_map::get_map_list(&automation_registry.tasks)
+
+        let active_task_ids = vector[];
+        let ids = enumerable_map::get_map_list(&automation_registry.tasks);
+
+        vector::for_each(ids, |id| {
+            let task = enumerable_map::get_value(&automation_registry.tasks, id);
+            if (task.is_active) {
+                vector::push_back(&mut active_task_ids, id);
+            };
+        });
+        return active_task_ids
     }
 
     #[view]
