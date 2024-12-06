@@ -14,6 +14,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `initialize`](#0x1_automation_registry_initialize)
 -  [Function `withdraw`](#0x1_automation_registry_withdraw)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
+-  [Function `collect_from_owner`](#0x1_automation_registry_collect_from_owner)
 -  [Function `register`](#0x1_automation_registry_register)
 -  [Function `get_next_task_index`](#0x1_automation_registry_get_next_task_index)
 -  [Function `get_active_task_ids`](#0x1_automation_registry_get_active_task_ids)
@@ -21,13 +22,15 @@ This contract is part of the Supra Framework and is designed to manage automated
 
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
-<b>use</b> <a href="enumerable_map.md#0x1_enumerable_map">0x1::enumerable_map</a>;
+<b>use</b> <a href="block.md#0x1_block">0x1::block</a>;
+<b>use</b> <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map">0x1::enumerable_map</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
 <b>use</b> <a href="reconfiguration.md#0x1_reconfiguration">0x1::reconfiguration</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="timestamp.md#0x1_timestamp">0x1::timestamp</a>;
 <b>use</b> <a href="transaction_context.md#0x1_transaction_context">0x1::transaction_context</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 </code></pre>
 
 
@@ -59,13 +62,19 @@ It tracks entries both pending and completed, organized by unique indices.
 <code>automation_gas_limit: u64</code>
 </dt>
 <dd>
- Automation task gas limit
+ Automation task gas limit. todo : updatable
 </dd>
 <dt>
 <code>duration_upper_limit: u64</code>
 </dt>
 <dd>
- Automation task duration upper limit.
+ Automation task duration upper limit. todo : updatable
+</dd>
+<dt>
+<code>gas_committed_for_next_epoch: u64</code>
+</dt>
+<dd>
+ Gas committed for next epoch
 </dd>
 <dt>
 <code>registry_fee_address: <b>address</b></code>
@@ -80,7 +89,7 @@ It tracks entries both pending and completed, organized by unique indices.
  Resource account signature capability
 </dd>
 <dt>
-<code>tasks: <a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">enumerable_map::EnumerableMap</a>&lt;u64, <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>&gt;</code>
+<code>tasks: <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_EnumerableMap">enumerable_map::EnumerableMap</a>&lt;u64, <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>&gt;</code>
 </dt>
 <dd>
  A collection of automation task entries that are active state.
@@ -180,17 +189,17 @@ It tracks entries both pending and completed, organized by unique indices.
 
 <a id="0x1_automation_registry_DEFAULT_AUTOMATION_GAS_LIMIT"></a>
 
-Default automation gas limit
+The default automation task gas limit
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_DEFAULT_AUTOMATION_GAS_LIMIT">DEFAULT_AUTOMATION_GAS_LIMIT</a>: u64 = 1000000;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_DEFAULT_AUTOMATION_GAS_LIMIT">DEFAULT_AUTOMATION_GAS_LIMIT</a>: u64 = 100000000;
 </code></pre>
 
 
 
 <a id="0x1_automation_registry_DEFAULT_DURATION_UPPER_LIMIT"></a>
 
-Default upper gas duration in seconds - 3 days
+The default upper limit duration for automation task, specified in seconds (30 days).
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_DEFAULT_DURATION_UPPER_LIMIT">DEFAULT_DURATION_UPPER_LIMIT</a>: u64 = 2592000;
@@ -198,12 +207,42 @@ Default upper gas duration in seconds - 3 days
 
 
 
+<a id="0x1_automation_registry_EEXPIRY_BEFORE_NEXT_EPOCH"></a>
+
+Expiry time must be after the start of the next epoch
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_BEFORE_NEXT_EPOCH">EEXPIRY_BEFORE_NEXT_EPOCH</a>: u64 = 4;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_EEXPIRY_TIME_UPPER"></a>
 
-Expiry time does not go beyond upper cap duration.
+Expiry time does not go beyond upper cap duration
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_TIME_UPPER">EEXPIRY_TIME_UPPER</a>: u64 = 2;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_TIME_UPPER">EEXPIRY_TIME_UPPER</a>: u64 = 3;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_EGAS_AMOUNT_UPPER"></a>
+
+Gas amount does not go beyond upper cap limit
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EGAS_AMOUNT_UPPER">EGAS_AMOUNT_UPPER</a>: u64 = 5;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_EINVALID_EXPIRY_TIME"></a>
+
+Invalid expiry time: it cannot be earlier than the current time
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_EXPIRY_TIME">EINVALID_EXPIRY_TIME</a>: u64 = 2;
 </code></pre>
 
 
@@ -213,7 +252,7 @@ Expiry time does not go beyond upper cap duration.
 Entry function is called not from automation transaction context.
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ENOT_AUTOMATION_TXN_CONTEXT">ENOT_AUTOMATION_TXN_CONTEXT</a>: u64 = 3;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ENOT_AUTOMATION_TXN_CONTEXT">ENOT_AUTOMATION_TXN_CONTEXT</a>: u64 = 6;
 </code></pre>
 
 
@@ -224,6 +263,16 @@ Registry Id not found.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EREGITRY_NOT_FOUND">EREGITRY_NOT_FOUND</a>: u64 = 1;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_MILLISECOND_CONVERSION_FACTOR"></a>
+
+Conversion factor between microseconds and millisecond || millisecond and second
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_MILLISECOND_CONVERSION_FACTOR">MILLISECOND_CONVERSION_FACTOR</a>: u64 = 1000;
 </code></pre>
 
 
@@ -265,9 +314,10 @@ Registry resource creation seed
         current_index: 0,
         automation_gas_limit: <a href="automation_registry.md#0x1_automation_registry_DEFAULT_AUTOMATION_GAS_LIMIT">DEFAULT_AUTOMATION_GAS_LIMIT</a>,
         duration_upper_limit: <a href="automation_registry.md#0x1_automation_registry_DEFAULT_DURATION_UPPER_LIMIT">DEFAULT_DURATION_UPPER_LIMIT</a>,
+        gas_committed_for_next_epoch: 0,
         registry_fee_address: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&registry_fee_resource_signer),
         registry_fee_address_signer_cap,
-        tasks: <a href="enumerable_map.md#0x1_enumerable_map_new_map">enumerable_map::new_map</a>(),
+        tasks: <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_new_map">enumerable_map::new_map</a>(),
     })
 }
 </code></pre>
@@ -315,6 +365,32 @@ Registry resource creation seed
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() {
     // todo : should perform clean up and updation of state
+    // sumup gas_committed_for_next_epoch whatever is add or remove
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_collect_from_owner"></a>
+
+## Function `collect_from_owner`
+
+Calculate and collect registry charge from user
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_collect_from_owner">collect_from_owner</a>(_owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, _expiry_time: u64, _max_gas_amount: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_collect_from_owner">collect_from_owner</a>(_owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, _expiry_time: u64, _max_gas_amount: u64) {
+    // todo : calculate and collect pre-paid amount from the user
 }
 </code></pre>
 
@@ -349,13 +425,22 @@ Registers a new automation task entry.
     <b>let</b> registry_data = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
 
     // todo : well formedness check of payload_tx
-    // todo : pre-paid amount collect from the user
-    // todo : duration/expiry in seconds
-    // Expiry time does not go beyond upper cap duration set by admin/governance
-    <b>assert</b>!(expiry_time &lt; registry_data.duration_upper_limit, <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_TIME_UPPER">EEXPIRY_TIME_UPPER</a>);
-    // todo : expiry should not be before the start of next epoch
-    // todo : automation_gas_limit check
+
+    <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
+    <b>assert</b>!(expiry_time &gt; current_time, <a href="automation_registry.md#0x1_automation_registry_EINVALID_EXPIRY_TIME">EINVALID_EXPIRY_TIME</a>);
+    <b>assert</b>!((expiry_time - current_time) &lt; registry_data.duration_upper_limit, <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_TIME_UPPER">EEXPIRY_TIME_UPPER</a>);
+
+    <b>let</b> epoch_interval = <a href="block.md#0x1_block_get_epoch_interval_secs">block::get_epoch_interval_secs</a>();
+    <b>let</b> last_epoch_time_ms = <a href="reconfiguration.md#0x1_reconfiguration_last_reconfiguration_time">reconfiguration::last_reconfiguration_time</a>() / <a href="automation_registry.md#0x1_automation_registry_MILLISECOND_CONVERSION_FACTOR">MILLISECOND_CONVERSION_FACTOR</a>;
+    <b>let</b> last_epoch_time = last_epoch_time_ms / <a href="automation_registry.md#0x1_automation_registry_MILLISECOND_CONVERSION_FACTOR">MILLISECOND_CONVERSION_FACTOR</a>;
+    <b>assert</b>!(expiry_time &gt; (last_epoch_time + epoch_interval), <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_BEFORE_NEXT_EPOCH">EEXPIRY_BEFORE_NEXT_EPOCH</a>);
+
+    registry_data.gas_committed_for_next_epoch = registry_data.gas_committed_for_next_epoch + max_gas_amount;
+    <b>assert</b>!(registry_data.gas_committed_for_next_epoch &lt; registry_data.automation_gas_limit, <a href="automation_registry.md#0x1_automation_registry_EGAS_AMOUNT_UPPER">EGAS_AMOUNT_UPPER</a>);
+
     // todo : gas_price_cap should not below chain minimum
+
+    <a href="automation_registry.md#0x1_automation_registry_collect_from_owner">collect_from_owner</a>(owner, expiry_time, max_gas_amount);
 
     registry_data.current_index = registry_data.current_index + 1;
 
@@ -372,7 +457,7 @@ Registers a new automation task entry.
         tx_hash: <a href="transaction_context.md#0x1_transaction_context_get_transaction_hash">transaction_context::get_transaction_hash</a>() // todo : need <b>to</b> double check is that work or not
     };
 
-    <a href="enumerable_map.md#0x1_enumerable_map_add_value">enumerable_map::add_value</a>(&<b>mut</b> registry_data.tasks, registry_data.current_index, automation_task_metadata);
+    <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_add_value">enumerable_map::add_value</a>(&<b>mut</b> registry_data.tasks, registry_data.current_index, automation_task_metadata);
 
     <a href="event.md#0x1_event_emit">event::emit</a>(automation_task_metadata);
 }
@@ -428,7 +513,17 @@ List all the automation task ids
 
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_active_task_ids">get_active_task_ids</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt; <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
-    <a href="enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks)
+
+    <b>let</b> active_task_ids = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+    <b>let</b> ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
+
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(ids, |id| {
+        <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, id);
+        <b>if</b> (task.is_active) {
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> active_task_ids, id);
+        };
+    });
+    <b>return</b> active_task_ids
 }
 </code></pre>
 
@@ -457,8 +552,8 @@ and the second element contains the <code><a href="automation_registry.md#0x1_au
 
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_task_details">get_task_details</a>(id: u64): <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a> <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> automation_task_metadata = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
-    <b>assert</b>!(<a href="enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&automation_task_metadata.tasks, id), <a href="automation_registry.md#0x1_automation_registry_EREGITRY_NOT_FOUND">EREGITRY_NOT_FOUND</a>);
-    <a href="enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&automation_task_metadata.tasks, id)
+    <b>assert</b>!(<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&automation_task_metadata.tasks, id), <a href="automation_registry.md#0x1_automation_registry_EREGITRY_NOT_FOUND">EREGITRY_NOT_FOUND</a>);
+    <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&automation_task_metadata.tasks, id)
 }
 </code></pre>
 
