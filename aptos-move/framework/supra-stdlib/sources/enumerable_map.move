@@ -2,7 +2,7 @@
 /// efficient operations for addition, removal, and retrieval.
 /// It allows for enumeration of keys in insertion order, bulk operations, and updates while ensuring data consistency.
 /// The module includes error handling and a suite of test functions for validation.
-module supra_framework::enumerable_map {
+module supra_std::enumerable_map {
     use std::error;
     use std::vector;
     use aptos_std::table;
