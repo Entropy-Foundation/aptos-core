@@ -123,18 +123,14 @@ spec supra_framework::multisig_voting {
         use supra_framework::chain_status;
         // Ensures existence of Timestamp
         requires chain_status::is_operating();
-        //TODO: Remove pragma aborts_if_is_partial;
-        pragma aborts_if_is_partial = true;
-        // include IsProposalResolvableAbortsIf<ProposalType>;
+        include IsProposalResolvableAbortsIf<ProposalType>;
     }
 
     spec resolve {
         use supra_framework::chain_status;
         // Ensures existence of Timestamp
         requires chain_status::is_operating();
-        //TODO: Remove pragma aborts_if_is_partial;
-        pragma aborts_if_is_partial = true;
-        // include IsProposalResolvableAbortsIf<ProposalType>;
+        include IsProposalResolvableAbortsIf<ProposalType>;
         aborts_if !std::string::spec_internal_check_utf8(IS_MULTI_STEP_PROPOSAL_KEY);
         let voting_forum = global<VotingForum<ProposalType>>(voting_forum_address);
         let proposal = table::spec_get(voting_forum.proposals, proposal_id);
@@ -218,8 +214,6 @@ spec supra_framework::multisig_voting {
     }
 
     spec can_be_resolved_early {
-        //TODO: Remove pragma aborts_if_is_partial;
-        pragma aborts_if_is_partial = true;
         ensures result == spec_can_be_resolved_early<ProposalType>(proposal);
     }
 
@@ -311,7 +305,7 @@ spec supra_framework::multisig_voting {
         let proposal = table::spec_get(voting_forum.proposals, proposal_id);
         let voting_closed = spec_is_voting_closed<ProposalType>(voting_forum_address, proposal_id);
         // Avoid Overflow
-        aborts_if voting_closed && (proposal.yes_votes <= proposal.no_votes || proposal.yes_votes + proposal.no_votes < proposal.min_vote_threshold);
+        aborts_if voting_closed && !(proposal.yes_votes >= proposal.min_vote_threshold);
         // Resolvable_time Properties
         aborts_if !voting_closed;
 
