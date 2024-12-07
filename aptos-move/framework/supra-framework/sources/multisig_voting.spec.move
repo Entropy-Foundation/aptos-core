@@ -136,8 +136,7 @@ spec supra_framework::multisig_voting {
         let proposal = table::spec_get(voting_forum.proposals, proposal_id);
         let multi_step_key = std::string::spec_utf8(IS_MULTI_STEP_PROPOSAL_KEY);
         let has_multi_step_key = simple_map::spec_contains_key(proposal.metadata, multi_step_key);
-        aborts_if has_multi_step_key && !from_bcs::deserializable<bool>(simple_map::spec_get(proposal.metadata, multi_step_key));
-        aborts_if has_multi_step_key && from_bcs::deserialize<bool>(simple_map::spec_get(proposal.metadata, multi_step_key));
+        aborts_if has_multi_step_key && from_bcs::deserializable<bool>(simple_map::spec_get(proposal.metadata, multi_step_key));
 
         let post post_voting_forum = global<VotingForum<ProposalType>>(voting_forum_address);
         let post post_proposal = table::spec_get(post_voting_forum.proposals, proposal_id);
