@@ -2482,6 +2482,11 @@ Ownership over setting the operator/voter is granted to <code>owner</code> who h
         <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_delegation_pools_enabled">features::delegation_pools_enabled</a>(),
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EDELEGATION_POOLS_DISABLED">EDELEGATION_POOLS_DISABLED</a>)
     );
+    //Unlock start time can not be in the past
+    <b>assert</b>!(
+        unlock_start_time &gt;= <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>(),
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ESTARTUP_TIME_IN_PAST">ESTARTUP_TIME_IN_PAST</a>)
+    );
     //Unlock duration can not be zero
     <b>assert</b>!(unlock_duration &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EPERIOD_DURATION_IS_ZERO">EPERIOD_DURATION_IS_ZERO</a>));
     //Fraction denominator can not be zero

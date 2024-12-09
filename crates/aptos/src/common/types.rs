@@ -1,7 +1,6 @@
+// Copyright (c) 2024 Supra.
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
-//
-// Copyright (c) 2024 Supra.
 
 use super::utils::fund_account;
 use crate::{
