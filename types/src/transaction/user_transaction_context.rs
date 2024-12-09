@@ -6,8 +6,8 @@ use move_core_types::account_address::AccountAddress;
 use std::fmt::Debug;
 
 /// Generic means to describe transaction payload type and reference based on referenced context.
-/// EF describes entry-function type in the particular application context.
-/// MSF describes multisig payload type in the particular application context.
+/// EF describes entry-function type in the particular context of its reference.
+/// MSF describes multisig payload type in the particular context of its reference.
 #[derive(Debug)]
 pub enum PayloadTypeReference<EFP: Debug, MSP: Debug> {
     /// Indicates a transaction other than user txn with entry-function or multisig or automation payload.

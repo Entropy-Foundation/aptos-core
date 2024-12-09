@@ -1,8 +1,7 @@
+// Copyright (c) 2024 Supra.
 // Copyright (c) The Diem Core Contributors
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
-//
-// Copyright (c) 2024 Supra.
 
 #![allow(clippy::unit_arg)]
 #![allow(clippy::arc_with_non_send_sync)]

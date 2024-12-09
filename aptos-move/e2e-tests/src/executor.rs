@@ -1,8 +1,7 @@
+// Copyright (c) 2024 Supra.
 // Copyright © Aptos Foundation
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
-//
-// Copyright (c) 2024 Supra.
 
 //! Support for running the VM to execute and verify transactions.
 
