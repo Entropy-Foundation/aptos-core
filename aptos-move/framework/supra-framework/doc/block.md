@@ -924,7 +924,7 @@ new block event for WriteSetPayload.
 
 <tr>
 <td>1</td>
-<td>During the module's initialization, it guarantees that the BlockResource resource moves under the Supra framework account with initial values.</td>
+<td>During the module's initialization, it guarantees that the BlockResource resource moves under the Aptos framework account with initial values.</td>
 <td>High</td>
 <td>The initialize function is responsible for setting up the initial state of the module, ensuring that the following conditions are met (1) the BlockResource resource is created, indicating its existence within the module's context, and moved under the Supra framework account, (2) the block height is set to zero during initialization, and (3) the epoch interval is greater than zero.</td>
 <td>Formally Verified via <a href="#high-level-req-1">Initialize</a>.</td>
