@@ -23,7 +23,6 @@ use aptos_gas_meter::{StandardGasAlgebra, StandardGasMeter};
 use aptos_gas_profiling::{GasProfiler, TransactionGasLog};
 use aptos_gas_schedule::{AptosGasParameters, InitialGasSchedule, LATEST_GAS_FEATURE_VERSION};
 use aptos_keygen::KeyGen;
-use aptos_types::transaction::automation::AutomationTransactionPayload;
 use aptos_types::{
     account_config::{
         new_block_event_key, AccountResource, CoinInfoResource, CoinStoreResource, NewBlockEvent,
@@ -686,10 +685,13 @@ impl FakeExecutor {
             |gas_meter| {
                 let gas_profiler = match txn.payload() {
                     TransactionPayload::Script(_) => GasProfiler::new_script(gas_meter),
-                    TransactionPayload::Automation(
-                        AutomationTransactionPayload::EntryFunction(entry_func),
-                    )
-                    | TransactionPayload::EntryFunction(entry_func) => GasProfiler::new_function(
+                    TransactionPayload::Automation(auto_payload) => GasProfiler::new_function(
+                        gas_meter,
+                        auto_payload.module_id().clone(),
+                        auto_payload.function().to_owned(),
+                        auto_payload.ty_args().to_vec(),
+                    ),
+                    TransactionPayload::EntryFunction(entry_func) => GasProfiler::new_function(
                         gas_meter,
                         entry_func.module().clone(),
                         entry_func.function().to_owned(),

@@ -946,6 +946,7 @@ pub enum TransactionPayload {
     ModuleBundlePayload(DeprecatedModuleBundlePayload),
 
     MultisigPayload(MultisigPayload),
+    AutomationPayload(AutomationTransactionPayload),
 }
 
 impl VerifyInput for TransactionPayload {
@@ -959,6 +960,7 @@ impl VerifyInput for TransactionPayload {
             TransactionPayload::ModuleBundlePayload(_) => {
                 bail!("Module bundle payload has been removed")
             },
+            TransactionPayload::AutomationPayload(inner) => inner.verify(),
         }
     }
 }
@@ -1057,6 +1059,24 @@ impl VerifyInput for MultisigPayload {
             }
         }
 
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Object)]
+pub struct AutomationTransactionPayload {
+    pub inner_payload: EntryFunctionPayload,
+    pub expiration_timestamp_secs: u64,
+    pub max_gas_amount: u64,
+    pub gas_price_cap: u64,
+}
+
+impl VerifyInput for AutomationTransactionPayload {
+    fn verify(&self) -> anyhow::Result<()> {
+        self.inner_payload.function.verify()?;
+        for type_arg in self.inner_payload.type_arguments.iter() {
+            type_arg.verify(0)?;
+        }
         Ok(())
     }
 }

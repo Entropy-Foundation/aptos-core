@@ -931,7 +931,29 @@ impl AptosVM {
                         entry_fn,
                         txn_data,
                     )
+                })?
+            },
+            AutomationTransactionPayload::EntryFunctionArguments(args) => {
+                session.execute(|session| {
+                    self.validate_automation_txn_inner_payload_v2(
+                        session,
+                        gas_meter,
+                        txn_data.senders(),
+                        args.inner_payload(),
+                    )
                 })?;
+                let entry_function = EntryFunction::from(args.clone());
+                session.execute(|session| {
+                    self.validate_and_execute_entry_function(
+                        resolver,
+                        session,
+                        gas_meter,
+                        traversal_context,
+                        txn_data.senders(),
+                        &entry_function,
+                        txn_data,
+                    )
+                })?
             },
         };
 
@@ -2558,11 +2580,15 @@ impl AptosVM {
         let inner_entry_function = bcs::from_bytes::<Vec<u8>>(param_bytes)
             .and_then(|payload_bytes| bcs::from_bytes::<EntryFunction>(&payload_bytes))
             .map_err(|e| {
-                VMStatus::error(StatusCode::FAILED_TO_DESERIALIZE_ARGUMENT,
-                                Some(
-                                    format!("Automation transaction payload first argument is \
-                                    expected to be BCS bytes of entry-function {}", e)))
-        })?;
+                VMStatus::error(
+                    StatusCode::FAILED_TO_DESERIALIZE_ARGUMENT,
+                    Some(format!(
+                        "Automation transaction payload first argument is \
+                                    expected to be BCS bytes of entry-function {}",
+                        e
+                    )),
+                )
+            })?;
 
         let function = session.load_function(
             inner_entry_function.module(),
@@ -2586,8 +2612,44 @@ impl AptosVM {
             VMStatus::error(
                 StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD,
                 Some(format!(
-                    "Automation transaction inner payload validation failed. Details: {:?}",
-                    e
+                    "Automation transaction inner payload validation failed. Details: {e:?}",
+                )),
+            )
+        })
+        .map(drop)
+    }
+
+    /// Checks inner payload/entry function of automation transaction to be valid.
+    fn validate_automation_txn_inner_payload_v2(
+        &self,
+        session: &mut SessionExt,
+        gas_meter: &mut impl AptosGasMeter,
+        senders: Vec<AccountAddress>,
+        inner_entry_function: &EntryFunction,
+    ) -> Result<(), VMStatus> {
+        let function = session.load_function(
+            inner_entry_function.module(),
+            inner_entry_function.function(),
+            inner_entry_function.ty_args(),
+        )?;
+        let struct_constructors_enabled =
+            self.features().is_enabled(FeatureFlag::STRUCT_CONSTRUCTORS);
+        let actual_args = inner_entry_function.args().to_vec();
+        // By constructing args we are making sure that function execution in scope of automated
+        // task will not fail due to invalid arguments passed
+        verifier::transaction_arg_validation::validate_combine_signer_and_txn_args(
+            session,
+            gas_meter,
+            senders,
+            actual_args,
+            &function,
+            struct_constructors_enabled,
+        )
+        .map_err(|e| {
+            VMStatus::error(
+                StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD,
+                Some(format!(
+                    "Automation transaction inner payload validation failed. Details: {e:?}"
                 )),
             )
         })

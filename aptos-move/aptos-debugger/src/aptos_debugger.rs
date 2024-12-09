@@ -5,7 +5,6 @@
 use anyhow::{bail, format_err, Result};
 use aptos_gas_profiling::{GasProfiler, TransactionGasLog};
 use aptos_rest_client::Client;
-use aptos_types::transaction::automation::AutomationTransactionPayload;
 use aptos_types::{
     account_address::AccountAddress,
     state_store::TStateView,
@@ -101,7 +100,12 @@ impl AptosDebugger {
             |gas_meter| {
                 let gas_profiler = match txn.payload() {
                     TransactionPayload::Script(_) => GasProfiler::new_script(gas_meter),
-                    TransactionPayload::Automation(AutomationTransactionPayload::EntryFunction(entry_func)) |
+                    TransactionPayload::Automation(auto_payload) => GasProfiler::new_function(
+                        gas_meter,
+                        auto_payload.module_id().clone(),
+                        auto_payload.function().to_owned(),
+                        auto_payload.ty_args().to_vec(),
+                    ),
                     TransactionPayload::EntryFunction(entry_func) => GasProfiler::new_function(
                         gas_meter,
                         entry_func.module().clone(),

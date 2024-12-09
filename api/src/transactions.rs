@@ -1033,10 +1033,21 @@ impl TransactionsApi {
                         })?;
                 // Verify the signed transaction
                 match signed_transaction.payload() {
-                    TransactionPayload::Automation(
-                        AutomationTransactionPayload::EntryFunction(entry_function),
-                    )
-                    | TransactionPayload::EntryFunction(entry_function) => {
+                    TransactionPayload::Automation(auto_payload) => match auto_payload {
+                        AutomationTransactionPayload::EntryFunction(e) => {
+                            TransactionsApi::validate_entry_function_payload_format(
+                                ledger_info,
+                                e,
+                            )?;
+                        },
+                        AutomationTransactionPayload::EntryFunctionArguments(args) => {
+                            TransactionsApi::validate_entry_function_payload_format(
+                                ledger_info,
+                                args.inner_payload(),
+                            )?;
+                        },
+                    },
+                    TransactionPayload::EntryFunction(entry_function) => {
                         TransactionsApi::validate_entry_function_payload_format(
                             ledger_info,
                             entry_function,
@@ -1385,10 +1396,11 @@ impl TransactionsApi {
                 format!("Script::{}", txn.committed_hash()).to_string()
             },
             TransactionPayload::ModuleBundle(_) => "ModuleBundle::unknown".to_string(),
-            TransactionPayload::Automation(AutomationTransactionPayload::EntryFunction(
-                entry_function,
-            ))
-            | TransactionPayload::EntryFunction(entry_function) => FunctionStats::function_to_key(
+            TransactionPayload::Automation(auto_payload) => FunctionStats::function_to_key(
+                auto_payload.module_id(),
+                &auto_payload.function().into(),
+            ),
+            TransactionPayload::EntryFunction(entry_function) => FunctionStats::function_to_key(
                 entry_function.module(),
                 &entry_function.function().into(),
             ),

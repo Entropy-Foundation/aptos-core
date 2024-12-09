@@ -3,7 +3,9 @@
 use aptos_cached_packages::aptos_framework_sdk_builder;
 use aptos_language_e2e_tests::account::{Account, AccountData};
 use aptos_language_e2e_tests::executor::FakeExecutor;
-use aptos_types::transaction::automation::AutomationTransactionPayload;
+use aptos_types::transaction::automation::{
+    AutomationTransactionArguments, AutomationTransactionPayload,
+};
 use aptos_types::transaction::{
     EntryFunction, ExecutionStatus, SignedTransaction, TransactionOutput, TransactionPayload,
     TransactionStatus,
@@ -13,6 +15,7 @@ use move_core_types::ident_str;
 use move_core_types::language_storage::ModuleId;
 use move_core_types::vm_status::StatusCode;
 use std::ops::{Deref, DerefMut};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 struct AutomationTransactionTestContext {
     executor: FakeExecutor,
@@ -41,7 +44,7 @@ impl AutomationTransactionTestContext {
         new_account_data
     }
 
-    fn create_automation_txn_payload(
+    fn create_automation_txn(
         &self,
         seq_num: u64,
         inner_payload: EntryFunction,
@@ -51,7 +54,7 @@ impl AutomationTransactionTestContext {
     ) -> SignedTransaction {
         let inner_entry_function_bytes =
             bcs::to_bytes(&inner_payload).expect("Can't serialize entry function");
-        self.create_automation_txn_payload_raw(
+        self.create_automation_txn_with_raw_inner_payload(
             seq_num,
             inner_entry_function_bytes,
             expiry_time,
@@ -60,7 +63,32 @@ impl AutomationTransactionTestContext {
         )
     }
 
-    fn create_automation_txn_payload_raw(
+    fn create_automation_txn_with_arguments(
+        &self,
+        seq_num: u64,
+        inner_payload: EntryFunction,
+        expiry_time: u64,
+        max_gas_amount: u64,
+        gas_price_cap: u64,
+    ) -> SignedTransaction {
+        let txn_arguments = AutomationTransactionArguments::new(
+            inner_payload,
+            expiry_time,
+            max_gas_amount,
+            gas_price_cap,
+        );
+        let automation_txn = TransactionPayload::Automation(
+            AutomationTransactionPayload::EntryFunctionArguments(txn_arguments),
+        );
+        self.txn_sender
+            .account()
+            .transaction()
+            .payload(automation_txn)
+            .sequence_number(seq_num)
+            .sign()
+    }
+
+    fn create_automation_txn_with_raw_inner_payload(
         &self,
         seq_num: u64,
         inner_entry_function_bytes: Vec<u8>,
@@ -132,9 +160,9 @@ fn check_successful_registration() {
     assert_eq!(result.len(), 1);
     let now = bcs::from_bytes::<u64>(&result[0]).unwrap();
     let expiration_time = now + 4000;
-    let automation_txn = test_context.create_automation_txn_payload(
+    let automation_txn = test_context.create_automation_txn(
         0,
-        inner_entry_function,
+        inner_entry_function.clone(),
         expiration_time,
         100,
         100,
@@ -157,6 +185,31 @@ fn check_successful_registration() {
     assert_eq!(result.len(), 1);
     let next_task_id = bcs::from_bytes::<u64>(&result[0]).unwrap();
     assert_eq!(next_task_id, 2);
+
+    let automation_txn_with_args = test_context.create_automation_txn_with_arguments(
+        1,
+        inner_entry_function,
+        expiration_time,
+        100,
+        100,
+    );
+    let output = test_context.execute_and_apply(automation_txn_with_args);
+    assert_eq!(
+        output.status(),
+        &TransactionStatus::Keep(ExecutionStatus::Success),
+        "{output:?}"
+    );
+
+    // Check automation registry state.
+    let view_output = test_context.execute_view_function(
+        str::parse("0x1::automation_registry::get_next_task_index").unwrap(),
+        vec![],
+        vec![],
+    );
+    let result = view_output.values.expect("Valid result");
+    assert_eq!(result.len(), 1);
+    let next_task_id = bcs::from_bytes::<u64>(&result[0]).unwrap();
+    assert_eq!(next_task_id, 3);
 }
 
 #[test]
@@ -231,7 +284,7 @@ fn check_automation_txn_with_invalid_inner_function(
     println!("checking automation txn within invalid inner function");
     // Create automation transaction with non-entry-function
     let automation_transaction =
-        test_context.create_automation_txn_payload_raw(0, vec![42; 32], 100, 100, 100);
+        test_context.create_automation_txn_with_raw_inner_payload(0, vec![42; 32], 100, 100, 100);
     let output = test_context.execute_transaction(automation_transaction);
     AutomationTransactionTestContext::check_miscellaneous_output(
         output,
@@ -246,7 +299,7 @@ fn check_automation_txn_with_invalid_inner_function(
             .into_inner();
     let inner_entry_function = EntryFunction::new(m_id, f_id, vec![], vec![]);
     let automation_txn =
-        test_context.create_automation_txn_payload(0, inner_entry_function, 3600, 100, 100);
+        test_context.create_automation_txn(0, inner_entry_function, 3600, 100, 100);
 
     let output = test_context.execute_transaction(automation_txn);
     AutomationTransactionTestContext::check_miscellaneous_output(
