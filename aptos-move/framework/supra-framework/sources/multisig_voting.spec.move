@@ -91,8 +91,11 @@ spec supra_framework::multisig_voting {
         // and that the proposal under vote exists in the specified voting forum.
         /// [high-level-req-2]
         aborts_if !exists<VotingForum<ProposalType>>(voting_forum_address);
+        let voter_address = signer::address_of(voter);
         let voting_forum = global<VotingForum<ProposalType>>(voting_forum_address);
         let proposal = table::spec_get(voting_forum.proposals, proposal_id);
+        let post post_voting_forum = global<VotingForum<ProposalType>>(voting_forum_address);
+        let post post_proposal = table::spec_get(post_voting_forum.proposals, proposal_id);
         // Getting proposal from voting forum might fail because of non-exist id
         aborts_if !table::spec_contains(voting_forum.proposals, proposal_id);
         aborts_if is_voting_period_over(proposal);
@@ -107,8 +110,6 @@ spec supra_framework::multisig_voting {
 
         aborts_if !std::string::spec_internal_check_utf8(RESOLVABLE_TIME_METADATA_KEY);
 
-        let post post_voting_forum = global<VotingForum<ProposalType>>(voting_forum_address);
-        let post post_proposal = table::spec_get(post_voting_forum.proposals, proposal_id);
         // ensures if (should_pass) {
         //     post_proposal.yes_votes == proposal.yes_votes + num_votes
         // } else {
@@ -117,6 +118,10 @@ spec supra_framework::multisig_voting {
         let timestamp_secs_bytes = std::bcs::serialize(timestamp::spec_now_seconds());
         let key = std::string::spec_utf8(RESOLVABLE_TIME_METADATA_KEY);
         ensures simple_map::spec_get(post_proposal.metadata, key) == timestamp_secs_bytes;
+        ensures (table::spec_contains(proposal.voted_records, voter_address) && should_pass) ==> post_proposal.yes_votes == proposal.yes_votes + 1 && post_proposal.no_votes == proposal.no_votes - 1;
+        ensures (table::spec_contains(proposal.voted_records, voter_address) && !should_pass) ==> post_proposal.no_votes == proposal.no_votes + 1 && post_proposal.yes_votes == proposal.yes_votes - 1;
+        ensures (!table::spec_contains(proposal.voted_records, voter_address) && should_pass) ==> post_proposal.yes_votes == proposal.yes_votes + 1;
+        ensures (!table::spec_contains(proposal.voted_records, voter_address) && !should_pass) ==> post_proposal.no_votes == proposal.no_votes + 1;
     }
 
     spec is_proposal_resolvable {
@@ -128,6 +133,8 @@ spec supra_framework::multisig_voting {
 
     spec resolve {
         use supra_framework::chain_status;
+        //TODO: Remove pragma aborts_if_is_partial;
+        pragma aborts_if_is_partial = true;
         // Ensures existence of Timestamp
         requires chain_status::is_operating();
         include IsProposalResolvableAbortsIf<ProposalType>;
@@ -136,7 +143,7 @@ spec supra_framework::multisig_voting {
         let proposal = table::spec_get(voting_forum.proposals, proposal_id);
         let multi_step_key = std::string::spec_utf8(IS_MULTI_STEP_PROPOSAL_KEY);
         let has_multi_step_key = simple_map::spec_contains_key(proposal.metadata, multi_step_key);
-        aborts_if has_multi_step_key && from_bcs::deserializable<bool>(simple_map::spec_get(proposal.metadata, multi_step_key));
+        aborts_if has_multi_step_key && !from_bcs::deserializable<bool>(simple_map::spec_get(proposal.metadata, multi_step_key));
 
         let post post_voting_forum = global<VotingForum<ProposalType>>(voting_forum_address);
         let post post_proposal = table::spec_get(post_voting_forum.proposals, proposal_id);

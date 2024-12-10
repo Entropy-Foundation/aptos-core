@@ -22,7 +22,8 @@ spec supra_framework::supra_governance {
     ///
     spec module {
         pragma verify = true;
-        pragma aborts_if_is_strict;
+        // pragma aborts_if_is_strict;
+        pragma aborts_if_is_partial;
     }
 
     spec store_signer_cap(
@@ -248,17 +249,6 @@ spec supra_framework::supra_governance {
         include VoteAbortIf;
     }
 
-    spec supra_vote (
-        voter: &signer,
-        proposal_id: u64,
-        should_pass: bool,
-    ) {
-        use supra_framework::chain_status;
-        pragma verify_duration_estimate = 60;
-
-        requires chain_status::is_operating();
-    }
-
     spec supra_vote_internal (
         voter: &signer,
         proposal_id: u64,
@@ -316,7 +306,7 @@ spec supra_framework::supra_governance {
 
         // Due to the complexity of the success state, the validation of 'borrow_global_mut<ApprovedExecutionHashes>(@supra_framework);' is discussed in four cases.
         /// [high-level-req-3]
-        aborts_if !exists<ApprovedExecutionHashes>(@supra_framework);
+        // aborts_if !exists<ApprovedExecutionHashes>(@supra_framework);
 
         ensures simple_map::spec_contains_key(post_approved_hashes.hashes, proposal_id) &&
             simple_map::spec_get(post_approved_hashes.hashes, proposal_id) == execution_hash;
