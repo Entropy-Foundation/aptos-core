@@ -732,6 +732,8 @@ pub enum StatusCode {
     // Verification errors related to automation registration transaction
     // Validation of the entry function to be automated failed.
     INVALID_AUTOMATION_INNER_PAYLOAD = 1132,
+    // Automated transaction validation failures
+    INVALID_AUTOMATED_PAYLOAD = 1133,
 
 
     // These are errors that the VM might raise if a violation of internal

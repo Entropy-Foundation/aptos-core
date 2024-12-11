@@ -10,10 +10,13 @@
 -  [Function `initialize`](#0x1_transaction_validation_initialize)
 -  [Function `prologue_common`](#0x1_transaction_validation_prologue_common)
 -  [Function `script_prologue`](#0x1_transaction_validation_script_prologue)
+-  [Function `automated_tranaction_prologue`](#0x1_transaction_validation_automated_tranaction_prologue)
 -  [Function `multi_agent_script_prologue`](#0x1_transaction_validation_multi_agent_script_prologue)
 -  [Function `multi_agent_common_prologue`](#0x1_transaction_validation_multi_agent_common_prologue)
 -  [Function `fee_payer_script_prologue`](#0x1_transaction_validation_fee_payer_script_prologue)
 -  [Function `epilogue`](#0x1_transaction_validation_epilogue)
+-  [Function `automated_transaction_epilogue`](#0x1_transaction_validation_automated_transaction_epilogue)
+-  [Function `epilogue_gas_payer_only`](#0x1_transaction_validation_epilogue_gas_payer_only)
 -  [Function `epilogue_gas_payer`](#0x1_transaction_validation_epilogue_gas_payer)
 -  [Specification](#@Specification_1)
     -  [High-level Requirements](#high-level-req)
@@ -400,6 +403,55 @@ Only called during genesis to initialize system resources for this module.
 
 </details>
 
+<a id="0x1_transaction_validation_automated_tranaction_prologue"></a>
+
+## Function `automated_tranaction_prologue`
+
+
+
+<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_automated_tranaction_prologue">automated_tranaction_prologue</a>(sender: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, txn_gas_price: u64, txn_max_gas_units: u64, txn_expiration_time: u64, _script_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_automated_tranaction_prologue">automated_tranaction_prologue</a>(
+    sender: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    txn_gas_price: u64,
+    txn_max_gas_units: u64,
+    txn_expiration_time: u64,
+    _script_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+) {
+    <b>let</b> gas_payer = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&sender);
+    <b>assert</b>!(
+        <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>() &lt; txn_expiration_time,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ETRANSACTION_EXPIRED">PROLOGUE_ETRANSACTION_EXPIRED</a>),
+    );
+
+
+    <b>let</b> max_transaction_fee = txn_gas_price * txn_max_gas_units;
+
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_operations_default_to_fa_supra_store_enabled">features::operations_default_to_fa_supra_store_enabled</a>()) {
+        <b>assert</b>!(
+            <a href="supra_account.md#0x1_supra_account_is_fungible_balance_at_least">supra_account::is_fungible_balance_at_least</a>(gas_payer, max_transaction_fee),
+            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ECANT_PAY_GAS_DEPOSIT">PROLOGUE_ECANT_PAY_GAS_DEPOSIT</a>)
+        );
+    } <b>else</b> {
+        <b>assert</b>!(
+            <a href="coin.md#0x1_coin_is_balance_at_least">coin::is_balance_at_least</a>&lt;SupraCoin&gt;(gas_payer, max_transaction_fee),
+            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ECANT_PAY_GAS_DEPOSIT">PROLOGUE_ECANT_PAY_GAS_DEPOSIT</a>)
+        );
+    }
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_transaction_validation_multi_agent_script_prologue"></a>
 
 ## Function `multi_agent_script_prologue`
@@ -582,15 +634,15 @@ Called by the Adapter
 
 </details>
 
-<a id="0x1_transaction_validation_epilogue_gas_payer"></a>
+<a id="0x1_transaction_validation_automated_transaction_epilogue"></a>
 
-## Function `epilogue_gas_payer`
+## Function `automated_transaction_epilogue`
 
-Epilogue function with explicit gas payer specified, is run after a transaction is successfully executed.
+Epilogue function is run after a automated transaction is successfully executed.
 Called by the Adapter
 
 
-<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_epilogue_gas_payer">epilogue_gas_payer</a>(<a href="account.md#0x1_account">account</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, gas_payer: <b>address</b>, storage_fee_refunded: u64, txn_gas_price: u64, txn_max_gas_units: u64, gas_units_remaining: u64)
+<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_automated_transaction_epilogue">automated_transaction_epilogue</a>(<a href="account.md#0x1_account">account</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, storage_fee_refunded: u64, txn_gas_price: u64, txn_max_gas_units: u64, gas_units_remaining: u64)
 </code></pre>
 
 
@@ -599,8 +651,41 @@ Called by the Adapter
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_epilogue_gas_payer">epilogue_gas_payer</a>(
+<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_automated_transaction_epilogue">automated_transaction_epilogue</a>(
     <a href="account.md#0x1_account">account</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    storage_fee_refunded: u64,
+    txn_gas_price: u64,
+    txn_max_gas_units: u64,
+    gas_units_remaining: u64
+) {
+    <b>let</b> addr = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&<a href="account.md#0x1_account">account</a>);
+    <a href="transaction_validation.md#0x1_transaction_validation_epilogue_gas_payer_only">epilogue_gas_payer_only</a>(addr, storage_fee_refunded, txn_gas_price, txn_max_gas_units, gas_units_remaining);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_transaction_validation_epilogue_gas_payer_only"></a>
+
+## Function `epilogue_gas_payer_only`
+
+Epilogue function with explicit gas payer specified, is run after a transaction is successfully executed.
+Called by the Adapter.
+Only burns spent gas does not increment sequcence number of the sender account.
+
+
+<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_epilogue_gas_payer_only">epilogue_gas_payer_only</a>(gas_payer: <b>address</b>, storage_fee_refunded: u64, txn_gas_price: u64, txn_max_gas_units: u64, gas_units_remaining: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_epilogue_gas_payer_only">epilogue_gas_payer_only</a>(
     gas_payer: <b>address</b>,
     storage_fee_refunded: u64,
     txn_gas_price: u64,
@@ -652,6 +737,40 @@ Called by the Adapter
         <b>let</b> mint_amount = storage_fee_refunded - amount_to_burn;
         <a href="transaction_fee.md#0x1_transaction_fee_mint_and_refund">transaction_fee::mint_and_refund</a>(gas_payer, mint_amount)
     };
+
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_transaction_validation_epilogue_gas_payer"></a>
+
+## Function `epilogue_gas_payer`
+
+Epilogue function with explicit gas payer specified, is run after a transaction is successfully executed.
+Called by the Adapter
+
+
+<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_epilogue_gas_payer">epilogue_gas_payer</a>(<a href="account.md#0x1_account">account</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, gas_payer: <b>address</b>, storage_fee_refunded: u64, txn_gas_price: u64, txn_max_gas_units: u64, gas_units_remaining: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_epilogue_gas_payer">epilogue_gas_payer</a>(
+    <a href="account.md#0x1_account">account</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    gas_payer: <b>address</b>,
+    storage_fee_refunded: u64,
+    txn_gas_price: u64,
+    txn_max_gas_units: u64,
+    gas_units_remaining: u64
+) {
+    <a href="transaction_validation.md#0x1_transaction_validation_epilogue_gas_payer_only">epilogue_gas_payer_only</a>(gas_payer, storage_fee_refunded, txn_gas_price, txn_max_gas_units, gas_units_remaining);
 
     // Increment sequence number
     <b>let</b> addr = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&<a href="account.md#0x1_account">account</a>);
