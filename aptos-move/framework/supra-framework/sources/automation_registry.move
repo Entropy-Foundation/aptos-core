@@ -12,6 +12,7 @@ module supra_framework::automation_registry {
     use supra_framework::block;
     use supra_framework::event;
     use supra_framework::reconfiguration;
+    use supra_framework::supra_account;
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
     use supra_framework::transaction_context;
@@ -26,6 +27,8 @@ module supra_framework::automation_registry {
     const EEXPIRY_BEFORE_NEXT_EPOCH: u64 = 4;
     /// Gas amount does not go beyond upper cap limit
     const EGAS_AMOUNT_UPPER: u64 = 5;
+    /// Invalid gas price: it cannot be zero
+    const EINVALID_GAS_PRICE: u64 = 6;
 
     /// The default automation task gas limit
     const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 100000000;
@@ -144,8 +147,11 @@ module supra_framework::automation_registry {
     }
 
     /// Calculate and collect registry charge from user
-    fun collect_from_owner(_owner: &signer, _expiry_time: u64, _max_gas_amount: u64) {
+    fun collect_from_owner(owner: &signer, _expiry_time: u64, _max_gas_amount: u64) {
         // todo : calculate and collect pre-paid amount from the user
+        let static_amount = 100000000; // 1 Aptos
+        let registry_fee_address = get_registry_fee_address();
+        supra_account::transfer(owner, registry_fee_address, static_amount);
     }
 
     /// Registers a new automation task entry.
@@ -172,7 +178,7 @@ module supra_framework::automation_registry {
         registry_data.gas_committed_for_next_epoch = registry_data.gas_committed_for_next_epoch + max_gas_amount;
         assert!(registry_data.gas_committed_for_next_epoch < registry_data.automation_gas_limit, EGAS_AMOUNT_UPPER);
 
-        // todo : gas_price_cap should not below chain minimum
+        assert!(gas_price_cap > 0, EINVALID_GAS_PRICE);
 
         collect_from_owner(owner, expiry_time, max_gas_amount);
 
@@ -188,7 +194,7 @@ module supra_framework::automation_registry {
             is_active: false,
             registration_epoch: reconfiguration::current_epoch(),
             registration_time: timestamp::now_seconds(),
-            tx_hash: transaction_context::get_transaction_hash() // todo : need to double check is that work or not
+            tx_hash: transaction_context::txn_app_hash()
         };
 
         enumerable_map::add_value(&mut registry_data.tasks, registry_data.current_index, automation_task_metadata);
@@ -221,5 +227,10 @@ module supra_framework::automation_registry {
         let automation_task_metadata = borrow_global<AutomationRegistry>(@supra_framework);
         assert!(enumerable_map::contains(&automation_task_metadata.tasks, id), EREGITRY_NOT_FOUND);
         enumerable_map::get_value(&automation_task_metadata.tasks, id)
+    }
+
+    #[view]
+    public fun get_registry_fee_address(): address {
+        account::create_resource_address(&@supra_framework, REGISTRY_RESOURCE_SEED)
     }
 }
