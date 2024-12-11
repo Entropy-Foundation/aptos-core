@@ -132,6 +132,11 @@ module supra_std::enumerable_map {
         table::borrow(&map.map, key).value
     }
 
+    /// Returns the value of a key that is present in Enumerable Map
+    public fun get_value_mut<K : copy+drop, V : store+drop+copy>(map: &mut EnumerableMap<K, V>, key: K): &mut V {
+        &mut table::borrow_mut(&mut map.map, key).value
+    }
+
     /// Returns the list of keys that the Enumerable Map contains
     public fun get_map_list<K : copy+drop, V : store+drop+copy>(map: &EnumerableMap<K, V>): vector<K> {
         return map.list
