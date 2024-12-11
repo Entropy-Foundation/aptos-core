@@ -109,6 +109,7 @@ use std::{
     marker::Sync,
     sync::Arc,
 };
+use crate::automated_transaction_processor::AutomatedTransactionProcessor;
 
 static EXECUTION_CONCURRENCY_LEVEL: OnceCell<usize> = OnceCell::new();
 static NUM_EXECUTION_SHARD: OnceCell<usize> = OnceCell::new();
@@ -150,6 +151,8 @@ macro_rules! unwrap_or_discard {
         }
     };
 }
+
+pub(crate) use unwrap_or_discard;
 
 pub(crate) fn get_system_transaction_output(
     session: SessionExt,
@@ -271,7 +274,7 @@ impl AptosVM {
     }
 
     #[inline(always)]
-    fn features(&self) -> &Features {
+    pub(crate) fn features(&self) -> &Features {
         self.move_vm.env.features()
     }
 
@@ -397,7 +400,7 @@ impl AptosVM {
         )
     }
 
-    fn fee_statement_from_gas_meter(
+    pub(crate) fn fee_statement_from_gas_meter(
         txn_data: &TransactionMetadata,
         gas_meter: &impl AptosGasMeter,
         storage_fee_refund: u64,
@@ -488,7 +491,7 @@ impl AptosVM {
         }
     }
 
-    fn inject_abort_info_if_available(&self, status: ExecutionStatus) -> ExecutionStatus {
+    pub(crate) fn inject_abort_info_if_available(&self, status: ExecutionStatus) -> ExecutionStatus {
         match status {
             ExecutionStatus::MoveAbort {
                 location: AbortLocation::Module(module),
@@ -747,7 +750,7 @@ impl AptosVM {
         Ok(())
     }
 
-    fn validate_and_execute_entry_function(
+    pub(crate) fn validate_and_execute_entry_function(
         &self,
         resolver: &impl AptosMoveResolver,
         session: &mut SessionExt,
@@ -1053,7 +1056,7 @@ impl AptosVM {
         Ok(storage_refund)
     }
 
-    fn charge_change_set_and_respawn_session<'r, 'l>(
+    pub(crate) fn charge_change_set_and_respawn_session<'r, 'l>(
         &'l self,
         user_session: UserSession<'r, 'l>,
         resolver: &'r impl AptosMoveResolver,
@@ -1506,7 +1509,7 @@ impl AptosVM {
     }
 
     /// Resolve a pending code publish request registered via the NativeCodeContext.
-    fn resolve_pending_code_publish(
+    pub(crate) fn resolve_pending_code_publish(
         &self,
         session: &mut SessionExt,
         gas_meter: &mut impl AptosGasMeter,
@@ -1922,6 +1925,7 @@ impl AptosVM {
             )
         })
     }
+
 
     /// Main entrypoint for executing a user transaction that also allows the customization of the
     /// gas meter to be used.
@@ -2596,10 +2600,22 @@ impl AptosVM {
                     self.process_validator_transaction(resolver, txn.clone(), log_context)?;
                 (vm_status, output)
             },
-            Transaction::AutomatedTransaction(_) => {
-                unimplemented!("AutomatedTransaction execution is coming soon")
+            Transaction::AutomatedTransaction(txn) => {
+                AutomatedTransactionProcessor::new(self).execute_transaction(resolver, txn, log_context)
             },
         })
+    }
+
+    pub(crate) fn gas_params_internal(&self) -> &Result<AptosGasParameters, String> {
+        &self.gas_params
+    }
+
+    pub(crate) fn move_vm(&self) -> &MoveVmExt {
+       &self.move_vm
+    }
+
+    pub(crate) fn gas_feature_version(&self) -> u64 {
+        self.gas_feature_version
     }
 }
 

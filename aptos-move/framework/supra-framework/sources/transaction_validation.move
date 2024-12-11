@@ -167,6 +167,35 @@ module supra_framework::transaction_validation {
         )
     }
 
+    fun automated_tranaction_prologue(
+        sender: signer,
+        txn_gas_price: u64,
+        txn_max_gas_units: u64,
+        txn_expiration_time: u64,
+        _script_hash: vector<u8>,
+    ) {
+        let gas_payer = signer::address_of(&sender);
+        assert!(
+            timestamp::now_seconds() < txn_expiration_time,
+            error::invalid_argument(PROLOGUE_ETRANSACTION_EXPIRED),
+        );
+
+
+        let max_transaction_fee = txn_gas_price * txn_max_gas_units;
+
+        if (features::operations_default_to_fa_supra_store_enabled()) {
+            assert!(
+                supra_account::is_fungible_balance_at_least(gas_payer, max_transaction_fee),
+                error::invalid_argument(PROLOGUE_ECANT_PAY_GAS_DEPOSIT)
+            );
+        } else {
+            assert!(
+                coin::is_balance_at_least<SupraCoin>(gas_payer, max_transaction_fee),
+                error::invalid_argument(PROLOGUE_ECANT_PAY_GAS_DEPOSIT)
+            );
+        }
+    }
+
     fun multi_agent_script_prologue(
         sender: signer,
         txn_sequence_number: u64,
@@ -269,10 +298,23 @@ module supra_framework::transaction_validation {
         epilogue_gas_payer(account, addr, storage_fee_refunded, txn_gas_price, txn_max_gas_units, gas_units_remaining);
     }
 
-    /// Epilogue function with explicit gas payer specified, is run after a transaction is successfully executed.
+    /// Epilogue function is run after a automated transaction is successfully executed.
     /// Called by the Adapter
-    fun epilogue_gas_payer(
+    fun automated_transaction_epilogue(
         account: signer,
+        storage_fee_refunded: u64,
+        txn_gas_price: u64,
+        txn_max_gas_units: u64,
+        gas_units_remaining: u64
+    ) {
+        let addr = signer::address_of(&account);
+        epilogue_gas_payer_only(addr, storage_fee_refunded, txn_gas_price, txn_max_gas_units, gas_units_remaining);
+    }
+
+    /// Epilogue function with explicit gas payer specified, is run after a transaction is successfully executed.
+    /// Called by the Adapter.
+    /// Only burns spent gas does not increment sequcence number of the sender account.
+    fun epilogue_gas_payer_only(
         gas_payer: address,
         storage_fee_refunded: u64,
         txn_gas_price: u64,
@@ -324,6 +366,20 @@ module supra_framework::transaction_validation {
             let mint_amount = storage_fee_refunded - amount_to_burn;
             transaction_fee::mint_and_refund(gas_payer, mint_amount)
         };
+
+    }
+
+    /// Epilogue function with explicit gas payer specified, is run after a transaction is successfully executed.
+    /// Called by the Adapter
+    fun epilogue_gas_payer(
+        account: signer,
+        gas_payer: address,
+        storage_fee_refunded: u64,
+        txn_gas_price: u64,
+        txn_max_gas_units: u64,
+        gas_units_remaining: u64
+    ) {
+        epilogue_gas_payer_only(gas_payer, storage_fee_refunded, txn_gas_price, txn_max_gas_units, gas_units_remaining);
 
         // Increment sequence number
         let addr = signer::address_of(&account);
