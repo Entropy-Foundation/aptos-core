@@ -17,6 +17,13 @@ module supra_framework::automation_registry {
     use supra_framework::timestamp;
     use supra_framework::transaction_context;
 
+    #[test_only]
+    use supra_framework::coin;
+    #[test_only]
+    use supra_framework::supra_coin::{Self, SupraCoin};
+
+    friend supra_framework::genesis;
+
     /// Registry Id not found
     const EREGITRY_NOT_FOUND: u64 = 1;
     /// Invalid expiry time: it cannot be earlier than the current time
@@ -83,7 +90,7 @@ module supra_framework::automation_registry {
     }
 
     // todo : this function should call during initialzation, but since we already done genesis in that case who can access the function
-    fun initialize(supra_framework: &signer) {
+    public(friend) fun initialize(supra_framework: &signer) {
         system_addresses::assert_supra_framework(supra_framework);
 
         let (registry_fee_resource_signer, registry_fee_address_signer_cap) = account::create_resource_account(
@@ -232,5 +239,32 @@ module supra_framework::automation_registry {
     #[view]
     public fun get_registry_fee_address(): address {
         account::create_resource_address(&@supra_framework, REGISTRY_RESOURCE_SEED)
+    }
+
+    #[test_only]
+    fun initialize_registry_test(supra_framework: &signer, user: &signer) {
+        let user_addr = signer::address_of(user);
+        account::create_account_for_test(user_addr);
+        account::create_account_for_test(@supra_framework);
+
+        let (burn_cap, mint_cap) = supra_coin::initialize_for_test(supra_framework);
+        coin::register<SupraCoin>(user);
+        supra_coin::mint(supra_framework, user_addr, 100000000);
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_mint_cap(mint_cap);
+
+        block::initialize_for_test(supra_framework, 7200000000);
+        timestamp::set_time_has_started_for_testing(supra_framework);
+        reconfiguration::initialize_for_test(supra_framework);
+
+        initialize(supra_framework);
+    }
+
+    #[test(supra_framework = @supra_framework, user = @0x1cafe)]
+    fun test_registry(supra_framework: &signer, user: &signer) acquires AutomationRegistry {
+        initialize_registry_test(supra_framework, user);
+
+        let payload = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f4041424344";
+        register(user, payload, 86400, 1000, 100000);
     }
 }
