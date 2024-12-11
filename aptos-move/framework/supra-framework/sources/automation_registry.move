@@ -40,9 +40,9 @@ module supra_framework::automation_registry {
     struct AutomationRegistry has key, store {
         /// The current unique index counter for registered tasks. This value increments as new tasks are added.
         current_index: u64,
-        /// Automation task gas limit. todo : updatable
+        /// Automation task gas limit.
         automation_gas_limit: u64,
-        /// Automation task duration upper limit. todo : updatable
+        /// Automation task duration upper limit.
         duration_upper_limit: u64,
         /// Gas committed for next epoch
         gas_committed_for_next_epoch: u64,
@@ -102,9 +102,45 @@ module supra_framework::automation_registry {
     // todo withdraw amount from resource account to specified address
     fun withdraw() {}
 
-    public(friend) fun on_new_epoch() {
-        // todo : should perform clean up and updation of state
-        // sumup gas_committed_for_next_epoch whatever is add or remove
+    public(friend) fun on_new_epoch() acquires AutomationRegistry {
+        let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
+        let ids = enumerable_map::get_map_list(&automation_registry.tasks);
+
+        let current_time = timestamp::now_seconds();
+
+        // Perform clean up and updation of state
+        vector::for_each(ids, |id| {
+            let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, id);
+            if (task.expiry_time < current_time) {
+                enumerable_map::remove_value(&mut automation_registry.tasks, id);
+            } else if (!task.is_active && task.expiry_time > current_time) {
+                task.is_active = true;
+            }
+        });
+
+        // todo : sumup gas_committed_for_next_epoch whatever is add or remove
+    }
+
+    /// Update Automation gas limit
+    public entry fun update_automation_gas_limit(
+        supra_framework: &signer,
+        automation_gas_limit: u64
+    ) acquires AutomationRegistry {
+        system_addresses::assert_supra_framework(supra_framework);
+
+        let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
+        automation_registry.automation_gas_limit = automation_gas_limit;
+    }
+
+    /// Update duration upper limit
+    public entry fun update_duration_upper_limit(
+        supra_framework: &signer,
+        duration_upper_limit: u64
+    ) acquires AutomationRegistry {
+        system_addresses::assert_supra_framework(supra_framework);
+
+        let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
+        automation_registry.duration_upper_limit = duration_upper_limit;
     }
 
     /// Calculate and collect registry charge from user
