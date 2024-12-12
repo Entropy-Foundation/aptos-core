@@ -44,7 +44,7 @@ impl TransactionMetadata {
             TransactionPayload::ModuleBundle(_) => PayloadTypeReferenceMeta::Other,
             TransactionPayload::EntryFunction(e) => PayloadTypeReferenceMeta::UserEntryFunction(e.clone()),
             TransactionPayload::Multisig(m) => PayloadTypeReferenceMeta::Multisig(m.clone()),
-            TransactionPayload::Automation(_) => PayloadTypeReferenceMeta::Automation,
+            TransactionPayload::AutomationRegistration(_) => PayloadTypeReferenceMeta::AutomationRegistration,
         };
         Self {
             sender: txn.sender(),
@@ -75,7 +75,7 @@ impl TransactionMetadata {
                 // Deprecated. Return an empty vec because we cannot do anything
                 // else here, only `unreachable!` otherwise.
                 TransactionPayload::ModuleBundle(_) => vec![],
-                TransactionPayload::Automation(_) => vec![],
+                TransactionPayload::AutomationRegistration(_) => vec![],
             },
             script_size: match txn.payload() {
                 TransactionPayload::Script(s) => (s.code().len() as u64).into(),
@@ -163,7 +163,7 @@ impl TransactionMetadata {
             PayloadTypeReferenceMeta::Other => PayloadTypeReferenceContext::Other,
             PayloadTypeReferenceMeta::UserEntryFunction(e) => PayloadTypeReferenceContext::UserEntryFunction(e.as_entry_function_payload()),
             PayloadTypeReferenceMeta::Multisig(m) => PayloadTypeReferenceContext::Multisig(m.as_multisig_payload()),
-            PayloadTypeReferenceMeta::Automation => PayloadTypeReferenceContext::Automation,
+            PayloadTypeReferenceMeta::AutomationRegistration => PayloadTypeReferenceContext::AutomationRegistration,
         };
         UserTransactionContext::new(
             self.sender,
@@ -196,7 +196,7 @@ impl From<&AutomatedTransaction> for TransactionMetadata {
             script_hash: vec![],
             script_size: NumBytes::zero(),
             is_keyless: false,
-            payload_type_reference: PayloadTypeReferenceMeta::Automation,
+            payload_type_reference: PayloadTypeReferenceMeta::AutomationRegistration,
             txn_app_hash: txn.hash().to_vec(),
         }
     }

@@ -308,7 +308,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
 
             // Deprecated.
             ModuleBundle(_) => bail!("Module bundle payload has been removed"),
-            Automation(params) => {
+            AutomationRegistration(params) => {
                 let (inner_payload, max_gas_amount, gas_price_cap, expiration_timestamp_secs) =
                     params.into_inner();
                 let auto_payload = AutomationRegistrationParams {
@@ -317,7 +317,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                     max_gas_amount,
                     gas_price_cap,
                 };
-                TransactionPayload::AutomationPayload(auto_payload)
+                TransactionPayload::AutomationRegistrationPayload(auto_payload)
             },
         };
         Ok(ret)
@@ -678,7 +678,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
             TransactionPayload::ModuleBundlePayload(_) => {
                 bail!("Module bundle payload has been removed")
             },
-            TransactionPayload::AutomationPayload(payload) => {
+            TransactionPayload::AutomationRegistrationPayload(payload) => {
                 let AutomationRegistrationParams {
                     automated_function,
                     expiration_timestamp_secs,
@@ -687,7 +687,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                 } = payload;
                 let core_automated_function =
                     self.try_into_supra_core_entry_function(automated_function)?;
-                Target::Automation(RegistrationParams::new(
+                Target::AutomationRegistration(RegistrationParams::new(
                     core_automated_function,
                     expiration_timestamp_secs,
                     max_gas_amount,

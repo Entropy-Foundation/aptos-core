@@ -880,7 +880,7 @@ impl AptosVM {
             traversal_context,
         )
     }
-    fn execute_automation_transaction<'a, 'r, 'l>(
+    fn execute_automation_registration_txn<'a, 'r, 'l>(
         &'l self,
         resolver: &'r impl AptosMoveResolver,
         mut session: UserSession<'r, 'l>,
@@ -892,7 +892,7 @@ impl AptosVM {
         new_published_modules_loaded: &mut bool,
         change_set_configs: &ChangeSetConfigs,
     ) -> Result<(VMStatus, VMOutput), VMStatus> {
-        fail_point!("aptos_vm::execute_automation_transaction", |_| {
+        fail_point!("aptos_vm::execute_automation_registration_txn", |_| {
             Err(VMStatus::Error {
                 status_code: StatusCode::UNKNOWN_INVARIANT_VIOLATION_ERROR,
                 sub_status: Some(move_core_types::vm_status::sub_status::unknown_invariant_violation::EPARANOID_FAILURE),
@@ -1816,8 +1816,8 @@ impl AptosVM {
             TransactionPayload::ModuleBundle(_) => {
                 unwrap_or_discard!(Err(deprecated_module_bundle!()))
             },
-            TransactionPayload::Automation(automation_payload) => self
-                .execute_automation_transaction(
+            TransactionPayload::AutomationRegistration(automation_payload) => self
+                .execute_automation_registration_txn(
                     resolver,
                     user_session,
                     gas_meter,
@@ -2346,7 +2346,7 @@ impl AptosVM {
         match payload {
             TransactionPayload::Script(_)
             | TransactionPayload::EntryFunction(_)
-            | TransactionPayload::Automation(_) => transaction_validation::run_script_prologue(
+            | TransactionPayload::AutomationRegistration(_) => transaction_validation::run_script_prologue(
                 session,
                 txn_data,
                 log_context,
@@ -2528,7 +2528,7 @@ impl AptosVM {
         })
     }
 
-    /// Checks inner payload/entry function of automation transaction to be valid.
+    /// Checks inner payload/entry function of automation registration transaction to be valid.
     fn validate_automated_function(
         &self,
         session: &mut SessionExt,
@@ -2558,7 +2558,7 @@ impl AptosVM {
             VMStatus::error(
                 StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD,
                 Some(format!(
-                    "Automation transaction inner payload validation failed. Details: {e:?}"
+                    "Invalid entry function to be automated in scope of automation registration transaction. Details: {e:?}"
                 )),
             )
         })

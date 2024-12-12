@@ -17,7 +17,7 @@ pub enum PayloadTypeReference<EFP: Debug, MSP: Debug> {
     /// Indicates user transaction with multisig payload variant enclosing the multi-sig payload.
     Multisig(MSP),
     /// Indicates user transaction with automation payload variant.
-    Automation,
+    AutomationRegistration,
 }
 
 
@@ -40,8 +40,8 @@ where
         Some(multisig_payload.clone())
     }
 
-    pub fn is_automation(&self) -> bool {
-        matches!(self, Self::Automation)
+    pub fn is_automation_registration(&self) -> bool {
+        matches!(self, Self::AutomationRegistration)
     }
 }
 
@@ -114,8 +114,8 @@ impl UserTransactionContext {
         self.payload_type_reference.multisig_payload()
     }
 
-    pub fn has_automation_payload(&self) -> bool {
-        self.payload_type_reference.is_automation()
+    pub fn is_automation_registration(&self) -> bool {
+        self.payload_type_reference.is_automation_registration()
     }
     pub fn txn_app_hash(&self) -> Vec<u8> {
         self.txn_app_hash.clone()

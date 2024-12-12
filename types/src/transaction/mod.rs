@@ -220,7 +220,7 @@ impl RawTransaction {
         RawTransaction {
             sender,
             sequence_number,
-            payload: TransactionPayload::Automation(entry_function),
+            payload: TransactionPayload::AutomationRegistration(entry_function),
             max_gas_amount,
             gas_unit_price,
             expiration_timestamp_secs,
@@ -445,9 +445,8 @@ pub enum TransactionPayload {
     /// A multisig transaction that allows an owner of a multisig account to execute a pre-approved
     /// transaction as the multisig account.
     Multisig(Multisig),
-    /// An automation transaction to register an automation task.
-    /// Expected EntryFunction
-    Automation(RegistrationParams),
+    /// An automation registration transaction payload to register an automation task.
+    AutomationRegistration(RegistrationParams),
 }
 
 impl TransactionPayload {

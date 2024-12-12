@@ -183,7 +183,7 @@ pub fn convert_transaction_payload(
         TransactionPayload::ModuleBundlePayload(_) => {
             unreachable!("Module bundle payload has been removed")
         },
-        TransactionPayload::AutomationPayload(ap) => transaction::TransactionPayload {
+        TransactionPayload::AutomationRegistrationPayload(ap) => transaction::TransactionPayload {
             r#type: transaction::transaction_payload::Type::AutomationPayload as i32,
             payload: Some(
                 transaction::transaction_payload::Payload::AutomationPayload(

@@ -34,7 +34,7 @@ impl From<(&ModuleId, &IdentStr)> for EntryFunKey {
 impl ConflictKey<SignedTransaction> for EntryFunKey {
     fn extract_from(txn: &SignedTransaction) -> Self {
         match txn.payload() {
-            TransactionPayload::Automation(auto_payload) => {
+            TransactionPayload::AutomationRegistration(auto_payload) => {
                 EntryFunKey::from((auto_payload.module_id(), auto_payload.function()))
             }
             TransactionPayload::EntryFunction(entry_fun) => {

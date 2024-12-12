@@ -14,19 +14,19 @@ use std::ops::{Deref, DerefMut};
 const TIMESTAMP_NOW_SECONDS: &str = "0x1::timestamp::now_seconds";
 const AUTOMATION_NEXT_TASK_ID: &str = "0x1::automation_registry::get_next_task_index";
 
-struct AutomationTransactionTestContext {
+struct AutomationRegistrationTestContext {
     executor: FakeExecutor,
     txn_sender: AccountData,
 }
 
-impl AutomationTransactionTestContext {
+impl AutomationRegistrationTestContext {
     fn new() -> Self {
         let mut executor = FakeExecutor::from_head_genesis();
         let mut root = Account::new_aptos_root();
         let (private_key, public_key) = aptos_vm_genesis::GENESIS_KEYPAIR.clone();
         root.rotate_key(private_key, public_key);
 
-        // Prepare automation transaction sender
+        // Prepare automation registration transaction sender
         let txn_sender = executor.create_raw_account_data(100_000_000, 0);
         executor.add_account_data(&txn_sender);
         Self {
@@ -51,7 +51,7 @@ impl AutomationTransactionTestContext {
     ) -> SignedTransaction {
         let txn_arguments =
             RegistrationParams::new(inner_payload, expiry_time, max_gas_amount, gas_price_cap);
-        let automation_txn = TransactionPayload::Automation(txn_arguments);
+        let automation_txn = TransactionPayload::AutomationRegistration(txn_arguments);
         self.txn_sender
             .account()
             .transaction()
@@ -74,7 +74,7 @@ impl AutomationTransactionTestContext {
     }
 }
 
-impl Deref for AutomationTransactionTestContext {
+impl Deref for AutomationRegistrationTestContext {
     type Target = FakeExecutor;
 
     fn deref(&self) -> &Self::Target {
@@ -82,7 +82,7 @@ impl Deref for AutomationTransactionTestContext {
     }
 }
 
-impl DerefMut for AutomationTransactionTestContext {
+impl DerefMut for AutomationRegistrationTestContext {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.executor
     }
@@ -90,7 +90,7 @@ impl DerefMut for AutomationTransactionTestContext {
 
 #[test]
 fn check_successful_registration() {
-    let mut test_context = AutomationTransactionTestContext::new();
+    let mut test_context = AutomationRegistrationTestContext::new();
     // Prepare inner-entry-function to be automated.
     let dest_account = test_context.new_account_data(0, 0);
     let inner_entry_function =
@@ -135,7 +135,7 @@ fn check_successful_registration() {
 
 #[test]
 fn check_registration_from_non_automation_context() {
-    let mut test_context = AutomationTransactionTestContext::new();
+    let mut test_context = AutomationRegistrationTestContext::new();
     // Prepare inner-entry-function to be automated.
     let dest_account = test_context.new_account_data(0, 0);
     let inner_entry_function =
@@ -170,8 +170,8 @@ fn check_registration_from_non_automation_context() {
 
 #[test]
 fn check_invalid_automation_txn() {
-    let mut test_context = AutomationTransactionTestContext::new();
-    // Create automation transaction with entry-function with invalid arguments.
+    let mut test_context = AutomationRegistrationTestContext::new();
+    // Create automation registration transaction with entry-function with invalid arguments.
     let dest_account = test_context.new_account_data(0, 0);
     let (m_id, f_id, _, _) =
         aptos_framework_sdk_builder::supra_coin_mint(dest_account.address().clone(), 100)
@@ -182,7 +182,7 @@ fn check_invalid_automation_txn() {
         test_context.create_automation_txn(0, inner_entry_function, 3600, 100, 100);
 
     let output = test_context.execute_transaction(automation_txn);
-    AutomationTransactionTestContext::check_miscellaneous_output(
+    AutomationRegistrationTestContext::check_miscellaneous_output(
         output,
         StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD,
     );

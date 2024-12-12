@@ -249,7 +249,7 @@ module supra_framework::automation_registry {
         max_gas_amount: u64,
         gas_price_cap: u64
     ) acquires AutomationRegistry {
-        assert!(transaction_context::has_automation_payload(), ENOT_AUTOMATION_TXN_CONTEXT);
+        assert!(transaction_context::is_automation_registration(), ENOT_AUTOMATION_TXN_CONTEXT);
         let registry_data = borrow_global_mut<AutomationRegistry>(@supra_framework);
 
         // todo : well formedness check of payload_tx

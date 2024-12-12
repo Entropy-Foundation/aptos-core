@@ -328,7 +328,7 @@ impl
             u64,
         ),
     ) -> Self {
-        // If at some point Aptos will utilize Automation transactions then here we will use as
+        // If at some point Aptos will utilize Automated transactions then here we will use as
         // registration hash(the hash of the transaction which registered this automation task)
         // transaction hash calculated in Aptos-style,
         // i.e Transaction::AutomatedTransaction(txn).hash() which is stored in TransactionInfo
@@ -946,7 +946,7 @@ pub enum TransactionPayload {
     ModuleBundlePayload(DeprecatedModuleBundlePayload),
 
     MultisigPayload(MultisigPayload),
-    AutomationPayload(AutomationRegistrationParams),
+    AutomationRegistrationPayload(AutomationRegistrationParams),
 }
 
 impl VerifyInput for TransactionPayload {
@@ -960,7 +960,7 @@ impl VerifyInput for TransactionPayload {
             TransactionPayload::ModuleBundlePayload(_) => {
                 bail!("Module bundle payload has been removed")
             },
-            TransactionPayload::AutomationPayload(inner) => inner.verify(),
+            TransactionPayload::AutomationRegistrationPayload(inner) => inner.verify(),
         }
     }
 }

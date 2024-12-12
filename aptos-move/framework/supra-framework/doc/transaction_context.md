@@ -30,8 +30,8 @@
 -  [Function `chain_id_internal`](#0x1_transaction_context_chain_id_internal)
 -  [Function `entry_function_payload`](#0x1_transaction_context_entry_function_payload)
 -  [Function `entry_function_payload_internal`](#0x1_transaction_context_entry_function_payload_internal)
--  [Function `has_automation_payload`](#0x1_transaction_context_has_automation_payload)
--  [Function `has_automation_payload_internal`](#0x1_transaction_context_has_automation_payload_internal)
+-  [Function `is_automation_registration`](#0x1_transaction_context_is_automation_registration)
+-  [Function `is_automation_registration_internal`](#0x1_transaction_context_is_automation_registration_internal)
 -  [Function `txn_app_hash`](#0x1_transaction_context_txn_app_hash)
 -  [Function `txn_app_hash_internal`](#0x1_transaction_context_txn_app_hash_internal)
 -  [Function `account_address`](#0x1_transaction_context_account_address)
@@ -738,15 +738,15 @@ This function aborts if called outside of the transaction prologue, execution, o
 
 </details>
 
-<a id="0x1_transaction_context_has_automation_payload"></a>
+<a id="0x1_transaction_context_is_automation_registration"></a>
 
-## Function `has_automation_payload`
+## Function `is_automation_registration`
 
-Returns true if current user transaction has automation payload type. Otherwise, return <code><b>false</b></code>.
+Returns true if current user transaction has automation registration payload type. Otherwise, return <code><b>false</b></code>.
 This function aborts if called outside of the transaction prologue, execution, or epilogue phases.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="transaction_context.md#0x1_transaction_context_has_automation_payload">has_automation_payload</a>(): bool
+<pre><code><b>public</b> <b>fun</b> <a href="transaction_context.md#0x1_transaction_context_is_automation_registration">is_automation_registration</a>(): bool
 </code></pre>
 
 
@@ -755,9 +755,9 @@ This function aborts if called outside of the transaction prologue, execution, o
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="transaction_context.md#0x1_transaction_context_has_automation_payload">has_automation_payload</a>(): bool {
+<pre><code><b>public</b> <b>fun</b> <a href="transaction_context.md#0x1_transaction_context_is_automation_registration">is_automation_registration</a>(): bool {
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_transaction_context_extension_enabled">features::transaction_context_extension_enabled</a>(), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="transaction_context.md#0x1_transaction_context_ETRANSACTION_CONTEXT_EXTENSION_NOT_ENABLED">ETRANSACTION_CONTEXT_EXTENSION_NOT_ENABLED</a>));
-    <a href="transaction_context.md#0x1_transaction_context_has_automation_payload_internal">has_automation_payload_internal</a>()
+    <a href="transaction_context.md#0x1_transaction_context_is_automation_registration_internal">is_automation_registration_internal</a>()
 }
 </code></pre>
 
@@ -765,13 +765,13 @@ This function aborts if called outside of the transaction prologue, execution, o
 
 </details>
 
-<a id="0x1_transaction_context_has_automation_payload_internal"></a>
+<a id="0x1_transaction_context_is_automation_registration_internal"></a>
 
-## Function `has_automation_payload_internal`
+## Function `is_automation_registration_internal`
 
 
 
-<pre><code><b>fun</b> <a href="transaction_context.md#0x1_transaction_context_has_automation_payload_internal">has_automation_payload_internal</a>(): bool
+<pre><code><b>fun</b> <a href="transaction_context.md#0x1_transaction_context_is_automation_registration_internal">is_automation_registration_internal</a>(): bool
 </code></pre>
 
 
@@ -780,7 +780,7 @@ This function aborts if called outside of the transaction prologue, execution, o
 <summary>Implementation</summary>
 
 
-<pre><code><b>native</b> <b>fun</b> <a href="transaction_context.md#0x1_transaction_context_has_automation_payload_internal">has_automation_payload_internal</a>(): bool;
+<pre><code><b>native</b> <b>fun</b> <a href="transaction_context.md#0x1_transaction_context_is_automation_registration_internal">is_automation_registration_internal</a>(): bool;
 </code></pre>
 
 

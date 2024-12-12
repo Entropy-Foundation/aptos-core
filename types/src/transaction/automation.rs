@@ -11,7 +11,7 @@ struct AutomationTransactionEntryRef {
     function: Identifier,
 }
 
-static AUTOMATION_TRANSACTION_ENTRY: Lazy<AutomationTransactionEntryRef> =
+static AUTOMATION_REGISTRATION_ENTRY: Lazy<AutomationTransactionEntryRef> =
     Lazy::new(|| AutomationTransactionEntryRef {
         module_id: ModuleId::new(
             CORE_CODE_ADDRESS,
@@ -57,12 +57,12 @@ impl RegistrationParams {
     }
     /// Module id containing registration function.
     pub fn module_id(&self) -> &ModuleId {
-        &AUTOMATION_TRANSACTION_ENTRY.module_id
+        &AUTOMATION_REGISTRATION_ENTRY.module_id
     }
 
     /// Registration function name accepting enclosed parameters.
     pub fn function(&self) -> &IdentStr {
-        &AUTOMATION_TRANSACTION_ENTRY.function
+        &AUTOMATION_REGISTRATION_ENTRY.function
     }
 
     /// Type arguments required by registration function.
@@ -80,8 +80,8 @@ impl From<RegistrationParams> for EntryFunction {
             expiration_timestamp_secs,
         } = value;
         EntryFunction::new(
-            AUTOMATION_TRANSACTION_ENTRY.module_id.clone(),
-            AUTOMATION_TRANSACTION_ENTRY.function.clone(),
+            AUTOMATION_REGISTRATION_ENTRY.module_id.clone(),
+            AUTOMATION_REGISTRATION_ENTRY.function.clone(),
             vec![],
             vec![
                 bcs::to_bytes(&bcs::to_bytes(&automated_function).unwrap()).unwrap(),

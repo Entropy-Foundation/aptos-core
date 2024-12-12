@@ -1032,7 +1032,7 @@ impl TransactionsApi {
                         })?;
                 // Verify the signed transaction
                 match signed_transaction.payload() {
-                    TransactionPayload::Automation(params) => {
+                    TransactionPayload::AutomationRegistration(params) => {
                         TransactionsApi::validate_entry_function_payload_format(
                             ledger_info,
                             params.automated_function(),
@@ -1387,7 +1387,7 @@ impl TransactionsApi {
                 format!("Script::{}", txn.committed_hash()).to_string()
             },
             TransactionPayload::ModuleBundle(_) => "ModuleBundle::unknown".to_string(),
-            TransactionPayload::Automation(auto_payload) => FunctionStats::function_to_key(
+            TransactionPayload::AutomationRegistration(auto_payload) => FunctionStats::function_to_key(
                 auto_payload.module_id(),
                 &auto_payload.function().into(),
             ),

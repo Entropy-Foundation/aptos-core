@@ -263,7 +263,7 @@ Invalid gas price: it cannot be zero
 
 <a id="0x1_automation_registry_ENOT_AUTOMATION_TXN_CONTEXT"></a>
 
-Entry function is called not from automation transaction context.
+Entry function is called not from automation registration transaction context.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ENOT_AUTOMATION_TXN_CONTEXT">ENOT_AUTOMATION_TXN_CONTEXT</a>: u64 = 7;
@@ -514,7 +514,7 @@ Registers a new automation task entry.
     max_gas_amount: u64,
     gas_price_cap: u64
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
-    <b>assert</b>!(<a href="transaction_context.md#0x1_transaction_context_has_automation_payload">transaction_context::has_automation_payload</a>(), <a href="automation_registry.md#0x1_automation_registry_ENOT_AUTOMATION_TXN_CONTEXT">ENOT_AUTOMATION_TXN_CONTEXT</a>);
+    <b>assert</b>!(<a href="transaction_context.md#0x1_transaction_context_is_automation_registration">transaction_context::is_automation_registration</a>(), <a href="automation_registry.md#0x1_automation_registry_ENOT_AUTOMATION_TXN_CONTEXT">ENOT_AUTOMATION_TXN_CONTEXT</a>);
     <b>let</b> registry_data = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
 
     // todo : well formedness check of payload_tx

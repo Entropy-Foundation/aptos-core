@@ -391,7 +391,7 @@ fn new_raw_transaction(
             expiration_time_secs,
             chain_id,
         ),
-        TransactionPayload::Automation(automation) => RawTransaction::new_automation(
+        TransactionPayload::AutomationRegistration(automation) => RawTransaction::new_automation(
             sender,
             sequence_number,
             automation,
