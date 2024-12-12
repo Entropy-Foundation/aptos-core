@@ -36,6 +36,10 @@ module supra_framework::automation_registry {
     const EGAS_AMOUNT_UPPER: u64 = 5;
     /// Invalid gas price: it cannot be zero
     const EINVALID_GAS_PRICE: u64 = 6;
+    /// Automation task not found
+    const EAUTOMATION_TASK_NOT_EXIST: u64 = 7;
+    /// Unauthorized access: the caller is not the owner of the task
+    const EUNAUTHORIZED_TASK_OWNER: u64 = 8;
 
     /// The default automation task gas limit
     const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 100000000;
@@ -89,6 +93,31 @@ module supra_framework::automation_registry {
         is_active: bool
     }
 
+    #[event]
+    /// Withdraw user's registration fee event
+    struct FeeWithdrawn has drop, store {
+        to: address,
+        amount: u64
+    }
+
+    #[event]
+    /// Update automation gas limit event
+    struct UpdateAutomationGasLimit has drop, store {
+        automation_gas_limit: u64
+    }
+
+    #[event]
+    /// Update duration upper limit event
+    struct UpdateDurationUpperLimit has drop, store {
+        duration_upper_limit: u64
+    }
+
+    #[event]
+    /// Remove automation task registry event
+    struct RemoveAutomationTask has drop, store {
+        id: u64
+    }
+
     // todo : this function should call during initialzation, but since we already done genesis in that case who can access the function
     public(friend) fun initialize(supra_framework: &signer) {
         system_addresses::assert_supra_framework(supra_framework);
@@ -109,26 +138,42 @@ module supra_framework::automation_registry {
         })
     }
 
-    // todo withdraw amount from resource account to specified address
-    fun withdraw() {}
+    public(friend) fun on_new_epoch(supra_framework: &signer) acquires AutomationRegistry {
+        system_addresses::assert_supra_framework(supra_framework);
 
-    public(friend) fun on_new_epoch() acquires AutomationRegistry {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let ids = enumerable_map::get_map_list(&automation_registry.tasks);
 
         let current_time = timestamp::now_seconds();
+        let expired_task_gas = 0;
 
         // Perform clean up and updation of state
         vector::for_each(ids, |id| {
             let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, id);
             if (task.expiry_time < current_time) {
+                expired_task_gas = expired_task_gas + task.max_gas_amount;
                 enumerable_map::remove_value(&mut automation_registry.tasks, id);
             } else if (!task.is_active && task.expiry_time > current_time) {
                 task.is_active = true;
             }
         });
 
-        // todo : sumup gas_committed_for_next_epoch whatever is add or remove
+        // Adjust the gas committed for the next epoch by subtracting the gas amount of the expired task
+        automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - expired_task_gas;
+    }
+
+    /// Withdraw user's deposited fee from the resource account
+    entry fun withdraw_fee(supra_framework: &signer, to: address, amount: u64) acquires AutomationRegistry {
+        system_addresses::assert_supra_framework(supra_framework);
+
+        let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
+        let resource_signer = account::create_signer_with_capability(
+            &automation_registry.registry_fee_address_signer_cap
+        );
+
+        supra_account::transfer(&resource_signer, to, amount);
+
+        event::emit(FeeWithdrawn { to, amount });
     }
 
     /// Update Automation gas limit
@@ -140,6 +185,8 @@ module supra_framework::automation_registry {
 
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         automation_registry.automation_gas_limit = automation_gas_limit;
+
+        event::emit(UpdateAutomationGasLimit { automation_gas_limit });
     }
 
     /// Update duration upper limit
@@ -151,6 +198,8 @@ module supra_framework::automation_registry {
 
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         automation_registry.duration_upper_limit = duration_upper_limit;
+
+        event::emit(UpdateDurationUpperLimit { duration_upper_limit });
     }
 
     /// Calculate and collect registry charge from user
@@ -207,6 +256,23 @@ module supra_framework::automation_registry {
         enumerable_map::add_value(&mut registry_data.tasks, registry_data.current_index, automation_task_metadata);
 
         event::emit(automation_task_metadata);
+    }
+
+    /// Remove Automatioon task entry.
+    public entry fun remove_task(owner: &signer, registry_id: u64) acquires AutomationRegistry {
+        let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
+        assert!(enumerable_map::contains(&automation_registry.tasks, registry_id), EAUTOMATION_TASK_NOT_EXIST);
+
+        let automation_task_metadata = enumerable_map::get_value(&automation_registry.tasks, registry_id);
+        assert!(automation_task_metadata.owner == signer::address_of(owner), EUNAUTHORIZED_TASK_OWNER);
+
+        enumerable_map::remove_value(&mut automation_registry.tasks, registry_id);
+
+        // Adjust the gas committed for the next epoch by subtracting the gas amount of the expired task
+        automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
+
+        // todo : refund to user
+        event::emit(RemoveAutomationTask { id: automation_task_metadata.id });
     }
 
     #[view]
