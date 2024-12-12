@@ -371,7 +371,7 @@ message MultisigTransactionPayload {
 }
 
 message AutomationPayload {
-    EntryFunctionPayload entry_function_payload = 1;
+    EntryFunctionPayload automated_function = 1;
     uint64 expiration_timestamp_secs = 2;
     uint64 max_gas_amount = 3;
     uint64 gas_price_cap = 4;

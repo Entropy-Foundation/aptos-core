@@ -1013,7 +1013,7 @@ impl serde::Serialize for AutomationPayload {
     {
         use serde::ser::SerializeStruct;
         let mut len = 0;
-        if self.entry_function_payload.is_some() {
+        if self.automated_function.is_some() {
             len += 1;
         }
         if self.expiration_timestamp_secs != 0 {
@@ -1026,8 +1026,8 @@ impl serde::Serialize for AutomationPayload {
             len += 1;
         }
         let mut struct_ser = serializer.serialize_struct("aptos.transaction.v1.AutomationPayload", len)?;
-        if let Some(v) = self.entry_function_payload.as_ref() {
-            struct_ser.serialize_field("entryFunctionPayload", v)?;
+        if let Some(v) = self.automated_function.as_ref() {
+            struct_ser.serialize_field("automatedFunction", v)?;
         }
         if self.expiration_timestamp_secs != 0 {
             struct_ser.serialize_field("expirationTimestampSecs", ToString::to_string(&self.expiration_timestamp_secs).as_str())?;
@@ -1048,8 +1048,8 @@ impl<'de> serde::Deserialize<'de> for AutomationPayload {
         D: serde::Deserializer<'de>,
     {
         const FIELDS: &[&str] = &[
-            "entry_function_payload",
-            "entryFunctionPayload",
+            "automated_function",
+            "automatedFunction",
             "expiration_timestamp_secs",
             "expirationTimestampSecs",
             "max_gas_amount",
@@ -1060,7 +1060,7 @@ impl<'de> serde::Deserialize<'de> for AutomationPayload {
 
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
-            EntryFunctionPayload,
+            AutomatedFunction,
             ExpirationTimestampSecs,
             MaxGasAmount,
             GasPriceCap,
@@ -1085,7 +1085,7 @@ impl<'de> serde::Deserialize<'de> for AutomationPayload {
                         E: serde::de::Error,
                     {
                         match value {
-                            "entryFunctionPayload" | "entry_function_payload" => Ok(GeneratedField::EntryFunctionPayload),
+                            "automatedFunction" | "automated_function" => Ok(GeneratedField::AutomatedFunction),
                             "expirationTimestampSecs" | "expiration_timestamp_secs" => Ok(GeneratedField::ExpirationTimestampSecs),
                             "maxGasAmount" | "max_gas_amount" => Ok(GeneratedField::MaxGasAmount),
                             "gasPriceCap" | "gas_price_cap" => Ok(GeneratedField::GasPriceCap),
@@ -1108,17 +1108,17 @@ impl<'de> serde::Deserialize<'de> for AutomationPayload {
                 where
                     V: serde::de::MapAccess<'de>,
             {
-                let mut entry_function_payload__ = None;
+                let mut automated_function__ = None;
                 let mut expiration_timestamp_secs__ = None;
                 let mut max_gas_amount__ = None;
                 let mut gas_price_cap__ = None;
                 while let Some(k) = map.next_key()? {
                     match k {
-                        GeneratedField::EntryFunctionPayload => {
-                            if entry_function_payload__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("entryFunctionPayload"));
+                        GeneratedField::AutomatedFunction => {
+                            if automated_function__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("automatedFunction"));
                             }
-                            entry_function_payload__ = map.next_value()?;
+                            automated_function__ = map.next_value()?;
                         }
                         GeneratedField::ExpirationTimestampSecs => {
                             if expiration_timestamp_secs__.is_some() {
@@ -1147,7 +1147,7 @@ impl<'de> serde::Deserialize<'de> for AutomationPayload {
                     }
                 }
                 Ok(AutomationPayload {
-                    entry_function_payload: entry_function_payload__,
+                    automated_function: automated_function__,
                     expiration_timestamp_secs: expiration_timestamp_secs__.unwrap_or_default(),
                     max_gas_amount: max_gas_amount__.unwrap_or_default(),
                     gas_price_cap: gas_price_cap__.unwrap_or_default(),

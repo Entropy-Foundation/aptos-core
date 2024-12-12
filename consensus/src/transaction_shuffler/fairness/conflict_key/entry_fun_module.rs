@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::transaction_shuffler::fairness::conflict_key::ConflictKey;
-use aptos_types::transaction::automation::AutomationTransactionPayload;
 use aptos_types::transaction::{SignedTransaction, TransactionPayload};
 use move_core_types::language_storage::ModuleId;
 
@@ -27,12 +26,8 @@ impl From<&ModuleId> for EntryFunModuleKey {
 impl ConflictKey<SignedTransaction> for EntryFunModuleKey {
     fn extract_from(txn: &SignedTransaction) -> Self {
         match txn.payload() {
-            TransactionPayload::Automation(auto_payload) => {
-                Self::from(auto_payload.module_id())
-            }
-            TransactionPayload::EntryFunction(entry_fun) => {
-                Self::from(entry_fun.module())
-            },
+            TransactionPayload::Automation(auto_payload) => Self::from(auto_payload.module_id()),
+            TransactionPayload::EntryFunction(entry_fun) => Self::from(entry_fun.module()),
             TransactionPayload::Multisig(..)
             | TransactionPayload::Script(_)
             | TransactionPayload::ModuleBundle(_) => Self::AnyScriptOrMultiSig,

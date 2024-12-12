@@ -2,7 +2,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use aptos_api_types::transaction::AutomationTransactionPayload;
+use aptos_api_types::transaction::AutomationRegistrationParams;
 use aptos_api_types::{
     transaction::ValidatorTransaction as ApiValidatorTransactionEnum, AccountSignature,
     DeleteModule, DeleteResource, Ed25519Signature, EntryFunctionId, EntryFunctionPayload, Event,
@@ -502,10 +502,10 @@ pub fn convert_multisig_payload(
 }
 
 pub fn convert_automation_payload(
-    auto_payload: &AutomationTransactionPayload,
+    auto_payload: &AutomationRegistrationParams,
 ) -> transaction::AutomationPayload {
     transaction::AutomationPayload {
-        entry_function_payload: Some(convert_entry_function_payload(&auto_payload.inner_payload)),
+        automated_function: Some(convert_entry_function_payload(&auto_payload.automated_function)),
         expiration_timestamp_secs: auto_payload.expiration_timestamp_secs,
         max_gas_amount: auto_payload.max_gas_amount,
         gas_price_cap: auto_payload.gas_price_cap,

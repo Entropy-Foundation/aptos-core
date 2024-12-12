@@ -59,7 +59,7 @@ pub use self::block_epilogue::{BlockEndInfo, BlockEpiloguePayload};
 #[cfg(any(test, feature = "fuzzing"))]
 use crate::state_store::create_empty_sharded_state_updates;
 use crate::transaction::automated_transaction::AutomatedTransaction;
-use crate::transaction::automation::AutomationTransactionPayload;
+use crate::transaction::automation::RegistrationParams;
 use crate::{
     block_metadata_ext::BlockMetadataExt, contract_event::TransactionEvent, executable::ModulePath,
     fee_statement::FeeStatement, proof::accumulator::InMemoryEventAccumulator,
@@ -211,7 +211,7 @@ impl RawTransaction {
     pub fn new_automation(
         sender: AccountAddress,
         sequence_number: u64,
-        entry_function: AutomationTransactionPayload,
+        entry_function: RegistrationParams,
         max_gas_amount: u64,
         gas_unit_price: u64,
         expiration_timestamp_secs: u64,
@@ -447,7 +447,7 @@ pub enum TransactionPayload {
     Multisig(Multisig),
     /// An automation transaction to register an automation task.
     /// Expected EntryFunction
-    Automation(AutomationTransactionPayload),
+    Automation(RegistrationParams),
 }
 
 impl TransactionPayload {

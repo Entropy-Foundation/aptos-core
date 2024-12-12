@@ -30,7 +30,6 @@ use aptos_api_types::{
     MAX_RECURSIVE_TYPES_ALLOWED, U64,
 };
 use aptos_crypto::{hash::CryptoHash, signing_message};
-use aptos_types::transaction::automation::AutomationTransactionPayload;
 use aptos_types::{
     account_address::AccountAddress,
     mempool_status::MempoolStatusCode,
@@ -1033,19 +1032,11 @@ impl TransactionsApi {
                         })?;
                 // Verify the signed transaction
                 match signed_transaction.payload() {
-                    TransactionPayload::Automation(auto_payload) => match auto_payload {
-                        AutomationTransactionPayload::EntryFunction(e) => {
-                            TransactionsApi::validate_entry_function_payload_format(
-                                ledger_info,
-                                e,
-                            )?;
-                        },
-                        AutomationTransactionPayload::EntryFunctionArguments(args) => {
-                            TransactionsApi::validate_entry_function_payload_format(
-                                ledger_info,
-                                args.inner_payload(),
-                            )?;
-                        },
+                    TransactionPayload::Automation(params) => {
+                        TransactionsApi::validate_entry_function_payload_format(
+                            ledger_info,
+                            params.automated_function(),
+                        )?;
                     },
                     TransactionPayload::EntryFunction(entry_function) => {
                         TransactionsApi::validate_entry_function_payload_format(

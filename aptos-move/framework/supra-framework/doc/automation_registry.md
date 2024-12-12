@@ -14,11 +14,14 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `initialize`](#0x1_automation_registry_initialize)
 -  [Function `withdraw`](#0x1_automation_registry_withdraw)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
+-  [Function `update_automation_gas_limit`](#0x1_automation_registry_update_automation_gas_limit)
+-  [Function `update_duration_upper_limit`](#0x1_automation_registry_update_duration_upper_limit)
 -  [Function `collect_from_owner`](#0x1_automation_registry_collect_from_owner)
 -  [Function `register`](#0x1_automation_registry_register)
 -  [Function `get_next_task_index`](#0x1_automation_registry_get_next_task_index)
 -  [Function `get_active_task_ids`](#0x1_automation_registry_get_active_task_ids)
 -  [Function `get_task_details`](#0x1_automation_registry_get_task_details)
+-  [Function `get_registry_fee_address`](#0x1_automation_registry_get_registry_fee_address)
 
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
@@ -27,6 +30,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
 <b>use</b> <a href="reconfiguration.md#0x1_reconfiguration">0x1::reconfiguration</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
+<b>use</b> <a href="supra_account.md#0x1_supra_account">0x1::supra_account</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="timestamp.md#0x1_timestamp">0x1::timestamp</a>;
 <b>use</b> <a href="transaction_context.md#0x1_transaction_context">0x1::transaction_context</a>;
@@ -62,13 +66,13 @@ It tracks entries both pending and completed, organized by unique indices.
 <code>automation_gas_limit: u64</code>
 </dt>
 <dd>
- Automation task gas limit. todo : updatable
+ Automation task gas limit.
 </dd>
 <dt>
 <code>duration_upper_limit: u64</code>
 </dt>
 <dd>
- Automation task duration upper limit. todo : updatable
+ Automation task duration upper limit.
 </dd>
 <dt>
 <code>gas_committed_for_next_epoch: u64</code>
@@ -247,19 +251,29 @@ Invalid expiry time: it cannot be earlier than the current time
 
 
 
+<a id="0x1_automation_registry_EINVALID_GAS_PRICE"></a>
+
+Invalid gas price: it cannot be zero
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_GAS_PRICE">EINVALID_GAS_PRICE</a>: u64 = 6;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_ENOT_AUTOMATION_TXN_CONTEXT"></a>
 
 Entry function is called not from automation transaction context.
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ENOT_AUTOMATION_TXN_CONTEXT">ENOT_AUTOMATION_TXN_CONTEXT</a>: u64 = 6;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ENOT_AUTOMATION_TXN_CONTEXT">ENOT_AUTOMATION_TXN_CONTEXT</a>: u64 = 7;
 </code></pre>
 
 
 
 <a id="0x1_automation_registry_EREGITRY_NOT_FOUND"></a>
 
-Registry Id not found.
+Registry Id not found
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EREGITRY_NOT_FOUND">EREGITRY_NOT_FOUND</a>: u64 = 1;
@@ -293,7 +307,7 @@ Registry resource creation seed
 
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
 </code></pre>
 
 
@@ -302,7 +316,7 @@ Registry resource creation seed
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
     <b>let</b> (registry_fee_resource_signer, registry_fee_address_signer_cap) = <a href="account.md#0x1_account_create_resource_account">account::create_resource_account</a>(
@@ -363,9 +377,85 @@ Registry resource creation seed
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() {
-    // todo : should perform clean up and updation of state
-    // sumup gas_committed_for_next_epoch whatever is add or remove
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <b>let</b> ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
+
+    <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
+
+    // Perform clean up and updation of state
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(ids, |id| {
+        <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_mut">enumerable_map::get_value_mut</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, id);
+        <b>if</b> (task.expiry_time &lt; current_time) {
+            <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, id);
+        } <b>else</b> <b>if</b> (!task.is_active && task.expiry_time &gt; current_time) {
+            task.is_active = <b>true</b>;
+        }
+    });
+
+    // todo : sumup gas_committed_for_next_epoch whatever is add or remove
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_update_automation_gas_limit"></a>
+
+## Function `update_automation_gas_limit`
+
+Update Automation gas limit
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_automation_gas_limit">update_automation_gas_limit</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, automation_gas_limit: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_automation_gas_limit">update_automation_gas_limit</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    automation_gas_limit: u64
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
+
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.automation_gas_limit = automation_gas_limit;
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_update_duration_upper_limit"></a>
+
+## Function `update_duration_upper_limit`
+
+Update duration upper limit
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_duration_upper_limit">update_duration_upper_limit</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, duration_upper_limit: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_duration_upper_limit">update_duration_upper_limit</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    duration_upper_limit: u64
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
+
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.duration_upper_limit = duration_upper_limit;
 }
 </code></pre>
 
@@ -380,7 +470,7 @@ Registry resource creation seed
 Calculate and collect registry charge from user
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_collect_from_owner">collect_from_owner</a>(_owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, _expiry_time: u64, _max_gas_amount: u64)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_collect_from_owner">collect_from_owner</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, _expiry_time: u64, _max_gas_amount: u64)
 </code></pre>
 
 
@@ -389,8 +479,11 @@ Calculate and collect registry charge from user
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_collect_from_owner">collect_from_owner</a>(_owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, _expiry_time: u64, _max_gas_amount: u64) {
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_collect_from_owner">collect_from_owner</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, _expiry_time: u64, _max_gas_amount: u64) {
     // todo : calculate and collect pre-paid amount from the user
+    <b>let</b> static_amount = 100000000; // 1 Aptos
+    <b>let</b> registry_fee_address = <a href="automation_registry.md#0x1_automation_registry_get_registry_fee_address">get_registry_fee_address</a>();
+    <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(owner, registry_fee_address, static_amount);
 }
 </code></pre>
 
@@ -438,7 +531,7 @@ Registers a new automation task entry.
     registry_data.gas_committed_for_next_epoch = registry_data.gas_committed_for_next_epoch + max_gas_amount;
     <b>assert</b>!(registry_data.gas_committed_for_next_epoch &lt; registry_data.automation_gas_limit, <a href="automation_registry.md#0x1_automation_registry_EGAS_AMOUNT_UPPER">EGAS_AMOUNT_UPPER</a>);
 
-    // todo : gas_price_cap should not below chain minimum
+    <b>assert</b>!(gas_price_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EINVALID_GAS_PRICE">EINVALID_GAS_PRICE</a>);
 
     <a href="automation_registry.md#0x1_automation_registry_collect_from_owner">collect_from_owner</a>(owner, expiry_time, max_gas_amount);
 
@@ -454,7 +547,7 @@ Registers a new automation task entry.
         is_active: <b>false</b>,
         registration_epoch: <a href="reconfiguration.md#0x1_reconfiguration_current_epoch">reconfiguration::current_epoch</a>(),
         registration_time: <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>(),
-        tx_hash: <a href="transaction_context.md#0x1_transaction_context_get_transaction_hash">transaction_context::get_transaction_hash</a>() // todo : need <b>to</b> double check is that work or not
+        tx_hash: <a href="transaction_context.md#0x1_transaction_context_txn_app_hash">transaction_context::txn_app_hash</a>()
     };
 
     <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_add_value">enumerable_map::add_value</a>(&<b>mut</b> registry_data.tasks, registry_data.current_index, automation_task_metadata);
@@ -554,6 +647,31 @@ and the second element contains the <code><a href="automation_registry.md#0x1_au
     <b>let</b> automation_task_metadata = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <b>assert</b>!(<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&automation_task_metadata.tasks, id), <a href="automation_registry.md#0x1_automation_registry_EREGITRY_NOT_FOUND">EREGITRY_NOT_FOUND</a>);
     <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&automation_task_metadata.tasks, id)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_get_registry_fee_address"></a>
+
+## Function `get_registry_fee_address`
+
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_registry_fee_address">get_registry_fee_address</a>(): <b>address</b>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_registry_fee_address">get_registry_fee_address</a>(): <b>address</b> {
+    <a href="account.md#0x1_account_create_resource_address">account::create_resource_address</a>(&@supra_framework, <a href="automation_registry.md#0x1_automation_registry_REGISTRY_RESOURCE_SEED">REGISTRY_RESOURCE_SEED</a>)
 }
 </code></pre>
 

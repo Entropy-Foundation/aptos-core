@@ -730,10 +730,8 @@ pub enum StatusCode {
     RESERVED_VERIFICATION_ERROR_4 = 1130,
     RESERVED_VERIFICATION_ERROR_5 = 1131,
     // Verification errors related to automation transaction
-    // Automation Transaction payload validation failed.
-    INVALID_AUTOMATION_PAYLOAD = 1132,
-    INVALID_AUTOMATION_PAYLOAD_ARGUMENTS = 1133,
-    INVALID_AUTOMATION_INNER_PAYLOAD = 1134,
+    // Validation of the entry function to be automated failed.
+    INVALID_AUTOMATION_INNER_PAYLOAD = 1132,
 
 
     // These are errors that the VM might raise if a violation of internal

@@ -946,7 +946,7 @@ pub enum TransactionPayload {
     ModuleBundlePayload(DeprecatedModuleBundlePayload),
 
     MultisigPayload(MultisigPayload),
-    AutomationPayload(AutomationTransactionPayload),
+    AutomationPayload(AutomationRegistrationParams),
 }
 
 impl VerifyInput for TransactionPayload {
@@ -1064,17 +1064,17 @@ impl VerifyInput for MultisigPayload {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Object)]
-pub struct AutomationTransactionPayload {
-    pub inner_payload: EntryFunctionPayload,
+pub struct AutomationRegistrationParams {
+    pub automated_function: EntryFunctionPayload,
     pub expiration_timestamp_secs: u64,
     pub max_gas_amount: u64,
     pub gas_price_cap: u64,
 }
 
-impl VerifyInput for AutomationTransactionPayload {
+impl VerifyInput for AutomationRegistrationParams {
     fn verify(&self) -> anyhow::Result<()> {
-        self.inner_payload.function.verify()?;
-        for type_arg in self.inner_payload.type_arguments.iter() {
+        self.automated_function.function.verify()?;
+        for type_arg in self.automated_function.type_arguments.iter() {
             type_arg.verify(0)?;
         }
         Ok(())

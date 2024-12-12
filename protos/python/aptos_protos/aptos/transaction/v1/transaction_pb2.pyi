@@ -940,22 +940,22 @@ class MultisigTransactionPayload(_message.Message):
 
 class AutomationPayload(_message.Message):
     __slots__ = [
-        "entry_function_payload",
+        "automated_function",
         "expiration_timestamp_secs",
         "max_gas_amount",
         "gas_price_cap",
     ]
-    ENTRY_FUNCTION_PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    AUTOMATED_FUNCTION_FIELD_NUMBER: _ClassVar[int]
     EXPIRATION_TIMESTAMP_SECS_FIELD_NUMBER: _ClassVar[int]
     MAX_GAS_AMOUNT_FIELD_NUMBER: _ClassVar[int]
     GAS_PRICE_CAP_FIELD_NUMBER: _ClassVar[int]
-    entry_function_payload: EntryFunctionPayload
+    automated_function: EntryFunctionPayload
     expiration_timestamp_secs: int
     max_gas_amount: int
     gas_price_cap: int
     def __init__(
         self,
-        entry_function_payload: _Optional[_Union[EntryFunctionPayload, _Mapping]] = ...,
+        automated_function: _Optional[_Union[EntryFunctionPayload, _Mapping]] = ...,
         expiration_timestamp_secs: _Optional[int] = ...,
         max_gas_amount: _Optional[int] = ...,
         gas_price_cap: _Optional[int] = ...,

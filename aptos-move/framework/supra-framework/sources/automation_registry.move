@@ -6,7 +6,6 @@ module supra_framework::automation_registry {
     use std::signer;
     use std::vector;
 
-    friend supra_framework::genesis;
     use supra_std::enumerable_map::{Self, EnumerableMap};
 
     use supra_framework::account::{Self, SignerCapability};
@@ -133,7 +132,7 @@ module supra_framework::automation_registry {
     }
 
     // todo : this function should call during initialzation, but since we already done genesis in that case who can access the function
-    public(friend) fun initialize(supra_framework: &signer) {
+    public fun initialize(supra_framework: &signer) {
         system_addresses::assert_supra_framework(supra_framework);
 
         let (registry_fee_resource_signer, registry_fee_address_signer_cap) = account::create_resource_account(

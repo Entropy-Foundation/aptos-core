@@ -5,9 +5,10 @@
 
 use crate::{
     transaction::{
-        AutomationTransactionPayload as ApiAutomationTransactionPayload, BlockEpilogueTransaction, DecodedTableData, DeleteModule, DeleteResource, DeleteTableItem,
-        DeletedTableData, MultisigPayload, MultisigTransactionPayload, StateCheckpointTransaction,
-        UserTransactionRequestInner, WriteModule, WriteResource, WriteTableItem,
+        AutomationRegistrationParams, BlockEpilogueTransaction, DecodedTableData, DeleteModule,
+        DeleteResource, DeleteTableItem, DeletedTableData, MultisigPayload,
+        MultisigTransactionPayload, StateCheckpointTransaction, UserTransactionRequestInner,
+        WriteModule, WriteResource, WriteTableItem,
     },
     view::{ViewFunction, ViewRequest},
     Address, Bytecode, DirectWriteSet, EntryFunctionId, EntryFunctionPayload, Event,
@@ -22,9 +23,7 @@ use aptos_crypto::{hash::CryptoHash, HashValue};
 use aptos_logger::{sample, sample::SampleRate};
 use aptos_resource_viewer::AptosValueAnnotator;
 use aptos_storage_interface::DbReader;
-use aptos_types::transaction::automation::{
-    AutomationTransactionArguments, AutomationTransactionPayload,
-};
+use aptos_types::transaction::automation::RegistrationParams;
 use aptos_types::{
     access_path::{AccessPath, Path},
     chain_id::ChainId,
@@ -281,8 +280,8 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
         use aptos_types::transaction::TransactionPayload::*;
         let ret = match payload {
             Script(s) => TransactionPayload::ScriptPayload(s.try_into()?),
-            Automation(AutomationTransactionPayload::EntryFunction(fun)) | EntryFunction(fun) => {
-                let entry_function_payload = self.try_to_entry_function_payload(fun)?;
+            EntryFunction(fun) => {
+                let entry_function_payload = self.try_into_entry_function_payload(fun)?;
                 TransactionPayload::EntryFunctionPayload(entry_function_payload)
             },
             Multisig(multisig) => {
@@ -292,7 +291,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                             entry_function,
                         ) => {
                             let entry_function_payload =
-                                self.try_to_entry_function_payload(entry_function)?;
+                                self.try_into_entry_function_payload(entry_function)?;
                             Some(MultisigTransactionPayload::EntryFunctionPayload(
                                 entry_function_payload,
                             ))
@@ -309,15 +308,11 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
 
             // Deprecated.
             ModuleBundle(_) => bail!("Module bundle payload has been removed"),
-            Automation(AutomationTransactionPayload::EntryFunctionArguments(args)) => {
-                let (
-                    inner_payload,
-                    max_gas_amount,
-                    gas_price_cap,
-                    expiration_timestamp_secs,
-                ) = args.into_inner();
-                let auto_payload = ApiAutomationTransactionPayload {
-                    inner_payload: self.try_to_entry_function_payload(inner_payload)?,
+            Automation(params) => {
+                let (inner_payload, max_gas_amount, gas_price_cap, expiration_timestamp_secs) =
+                    params.into_inner();
+                let auto_payload = AutomationRegistrationParams {
+                    automated_function: self.try_into_entry_function_payload(inner_payload)?,
                     expiration_timestamp_secs,
                     max_gas_amount,
                     gas_price_cap,
@@ -629,7 +624,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
 
         let ret = match payload {
             TransactionPayload::EntryFunctionPayload(entry_func_payload) => {
-                let entry_function = self.try_to_aptos_core_entry_function(entry_func_payload)?;
+                let entry_function = self.try_into_supra_core_entry_function(entry_func_payload)?;
                 Target::EntryFunction(entry_function)
             },
             TransactionPayload::ScriptPayload(script) => {
@@ -662,7 +657,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                     match payload {
                         MultisigTransactionPayload::EntryFunctionPayload(entry_function) => {
                             let entry_function =
-                                self.try_to_aptos_core_entry_function(entry_function)?;
+                                self.try_into_supra_core_entry_function(entry_function)?;
                             Some(
                                 aptos_types::transaction::MultisigTransactionPayload::EntryFunction(
                                     entry_function,
@@ -684,20 +679,19 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                 bail!("Module bundle payload has been removed")
             },
             TransactionPayload::AutomationPayload(payload) => {
-                let ApiAutomationTransactionPayload {
-                    inner_payload,
+                let AutomationRegistrationParams {
+                    automated_function,
                     expiration_timestamp_secs,
                     max_gas_amount,
                     gas_price_cap,
                 } = payload;
-                let aptos_inner_payload = self.try_to_aptos_core_entry_function(inner_payload)?;
-                Target::Automation(AutomationTransactionPayload::EntryFunctionArguments(
-                    AutomationTransactionArguments::new(
-                        aptos_inner_payload,
-                        expiration_timestamp_secs,
-                        max_gas_amount,
-                        gas_price_cap,
-                    ),
+                let core_automated_function =
+                    self.try_into_supra_core_entry_function(automated_function)?;
+                Target::Automation(RegistrationParams::new(
+                    core_automated_function,
+                    expiration_timestamp_secs,
+                    max_gas_amount,
+                    gas_price_cap,
                 ))
             },
         };
@@ -1008,7 +1002,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
         Ok(id.to_string())
     }
 
-    fn try_to_entry_function_payload(&self, fun: EntryFunction) -> Result<EntryFunctionPayload> {
+    fn try_into_entry_function_payload(&self, fun: EntryFunction) -> Result<EntryFunctionPayload> {
         let (module, function, ty_args, args) = fun.into_inner();
         let func_args = self
             .inner
@@ -1035,7 +1029,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
         })
     }
 
-    fn try_to_aptos_core_entry_function(
+    fn try_into_supra_core_entry_function(
         &self,
         entry_function: EntryFunctionPayload,
     ) -> Result<EntryFunction> {

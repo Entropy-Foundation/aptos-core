@@ -155,6 +155,16 @@ pub enum EntryFunctionCall {
         gas_price_cap: u64,
     },
 
+    /// Update Automation gas limit
+    AutomationRegistryUpdateAutomationGasLimit {
+        automation_gas_limit: u64,
+    },
+
+    /// Update duration upper limit
+    AutomationRegistryUpdateDurationUpperLimit {
+        duration_upper_limit: u64,
+    },
+
     /// Same as `publish_package` but as an entry function which can be called as a transaction. Because
     /// of current restrictions for txn parameters, the metadata needs to be passed in serialized form.
     CodePublishPackageTxn {
@@ -1197,6 +1207,12 @@ impl EntryFunctionCall {
             } => {
                 automation_registry_register(payload_tx, expiry_time, max_gas_amount, gas_price_cap)
             },
+            AutomationRegistryUpdateAutomationGasLimit {
+                automation_gas_limit,
+            } => automation_registry_update_automation_gas_limit(automation_gas_limit),
+            AutomationRegistryUpdateDurationUpperLimit {
+                duration_upper_limit,
+            } => automation_registry_update_duration_upper_limit(duration_upper_limit),
             CodePublishPackageTxn {
                 metadata_serialized,
                 code,
@@ -2156,6 +2172,42 @@ pub fn automation_registry_register(
             bcs::to_bytes(&max_gas_amount).unwrap(),
             bcs::to_bytes(&gas_price_cap).unwrap(),
         ],
+    ))
+}
+
+/// Update Automation gas limit
+pub fn automation_registry_update_automation_gas_limit(
+    automation_gas_limit: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("automation_registry").to_owned(),
+        ),
+        ident_str!("update_automation_gas_limit").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&automation_gas_limit).unwrap()],
+    ))
+}
+
+/// Update duration upper limit
+pub fn automation_registry_update_duration_upper_limit(
+    duration_upper_limit: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("automation_registry").to_owned(),
+        ),
+        ident_str!("update_duration_upper_limit").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&duration_upper_limit).unwrap()],
     ))
 }
 
@@ -5332,6 +5384,34 @@ mod decoder {
         }
     }
 
+    pub fn automation_registry_update_automation_gas_limit(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(
+                EntryFunctionCall::AutomationRegistryUpdateAutomationGasLimit {
+                    automation_gas_limit: bcs::from_bytes(script.args().get(0)?).ok()?,
+                },
+            )
+        } else {
+            None
+        }
+    }
+
+    pub fn automation_registry_update_duration_upper_limit(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(
+                EntryFunctionCall::AutomationRegistryUpdateDurationUpperLimit {
+                    duration_upper_limit: bcs::from_bytes(script.args().get(0)?).ok()?,
+                },
+            )
+        } else {
+            None
+        }
+    }
+
     pub fn code_publish_package_txn(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(script) = payload {
             Some(EntryFunctionCall::CodePublishPackageTxn {
@@ -7188,6 +7268,14 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "automation_registry_register".to_string(),
             Box::new(decoder::automation_registry_register),
+        );
+        map.insert(
+            "automation_registry_update_automation_gas_limit".to_string(),
+            Box::new(decoder::automation_registry_update_automation_gas_limit),
+        );
+        map.insert(
+            "automation_registry_update_duration_upper_limit".to_string(),
+            Box::new(decoder::automation_registry_update_duration_upper_limit),
         );
         map.insert(
             "code_publish_package_txn".to_string(),

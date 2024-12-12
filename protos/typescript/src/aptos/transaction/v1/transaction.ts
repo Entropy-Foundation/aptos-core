@@ -754,7 +754,7 @@ export function multisigTransactionPayload_TypeToJSON(object: MultisigTransactio
 }
 
 export interface AutomationPayload {
-  entryFunctionPayload?: EntryFunctionPayload | undefined;
+  automatedFunction?: EntryFunctionPayload | undefined;
   expirationTimestampSecs?: bigint | undefined;
   maxGasAmount?: bigint | undefined;
   gasPriceCap?: bigint | undefined;
@@ -7190,7 +7190,7 @@ export const MultisigTransactionPayload = {
 
 function createBaseAutomationPayload(): AutomationPayload {
   return {
-    entryFunctionPayload: undefined,
+    automatedFunction: undefined,
     expirationTimestampSecs: BigInt("0"),
     maxGasAmount: BigInt("0"),
     gasPriceCap: BigInt("0"),
@@ -7199,8 +7199,8 @@ function createBaseAutomationPayload(): AutomationPayload {
 
 export const AutomationPayload = {
   encode(message: AutomationPayload, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.entryFunctionPayload !== undefined) {
-      EntryFunctionPayload.encode(message.entryFunctionPayload, writer.uint32(10).fork()).ldelim();
+    if (message.automatedFunction !== undefined) {
+      EntryFunctionPayload.encode(message.automatedFunction, writer.uint32(10).fork()).ldelim();
     }
     if (message.expirationTimestampSecs !== undefined && message.expirationTimestampSecs !== BigInt("0")) {
       if (BigInt.asUintN(64, message.expirationTimestampSecs) !== message.expirationTimestampSecs) {
@@ -7235,7 +7235,7 @@ export const AutomationPayload = {
             break;
           }
 
-          message.entryFunctionPayload = EntryFunctionPayload.decode(reader, reader.uint32());
+          message.automatedFunction = EntryFunctionPayload.decode(reader, reader.uint32());
           continue;
         case 2:
           if (tag !== 16) {
@@ -7301,8 +7301,8 @@ export const AutomationPayload = {
 
   fromJSON(object: any): AutomationPayload {
     return {
-      entryFunctionPayload: isSet(object.entryFunctionPayload)
-        ? EntryFunctionPayload.fromJSON(object.entryFunctionPayload)
+      automatedFunction: isSet(object.automatedFunction)
+        ? EntryFunctionPayload.fromJSON(object.automatedFunction)
         : undefined,
       expirationTimestampSecs: isSet(object.expirationTimestampSecs)
         ? BigInt(object.expirationTimestampSecs)
@@ -7314,8 +7314,8 @@ export const AutomationPayload = {
 
   toJSON(message: AutomationPayload): unknown {
     const obj: any = {};
-    if (message.entryFunctionPayload !== undefined) {
-      obj.entryFunctionPayload = EntryFunctionPayload.toJSON(message.entryFunctionPayload);
+    if (message.automatedFunction !== undefined) {
+      obj.automatedFunction = EntryFunctionPayload.toJSON(message.automatedFunction);
     }
     if (message.expirationTimestampSecs !== undefined && message.expirationTimestampSecs !== BigInt("0")) {
       obj.expirationTimestampSecs = message.expirationTimestampSecs.toString();
@@ -7334,8 +7334,8 @@ export const AutomationPayload = {
   },
   fromPartial(object: DeepPartial<AutomationPayload>): AutomationPayload {
     const message = createBaseAutomationPayload();
-    message.entryFunctionPayload = (object.entryFunctionPayload !== undefined && object.entryFunctionPayload !== null)
-      ? EntryFunctionPayload.fromPartial(object.entryFunctionPayload)
+    message.automatedFunction = (object.automatedFunction !== undefined && object.automatedFunction !== null)
+      ? EntryFunctionPayload.fromPartial(object.automatedFunction)
       : undefined;
     message.expirationTimestampSecs = object.expirationTimestampSecs ?? BigInt("0");
     message.maxGasAmount = object.maxGasAmount ?? BigInt("0");
