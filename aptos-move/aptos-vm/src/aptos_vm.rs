@@ -798,8 +798,6 @@ impl AptosVM {
         Ok(())
     }
 
-
-
     fn execute_script_or_entry_function<'a, 'r, 'l>(
         &'l self,
         resolver: &'r impl AptosMoveResolver,
@@ -915,14 +913,14 @@ impl AptosVM {
                 registration_params.automated_function(),
             )
         })?;
-        // let register_entry_function = EntryFunction::from(registration_params.clone());
+
         session.execute(|session| {
             self.execute_automation_registration(
                 session,
                 gas_meter,
                 traversal_context,
                 txn_data.sender(),
-                registration_params
+                registration_params,
             )
         })?;
 
@@ -976,13 +974,52 @@ impl AptosVM {
         }
         let args = registration_params.serialized_args_with_sender(sender);
 
-        session.execute_function_bypass_visibility(registration_params.module_id(),
-                                                   registration_params.function(),
-                                                   registration_params.ty_args(),
-                                                   args,
-                                                   gas_meter,
-                                                   traversal_context)?;
+        session.execute_function_bypass_visibility(
+            registration_params.module_id(),
+            registration_params.function(),
+            registration_params.ty_args(),
+            args,
+            gas_meter,
+            traversal_context,
+        )?;
         Ok(())
+    }
+
+    /// Checks inner payload/entry function of automation registration transaction to be valid.
+    fn validate_automated_function(
+        &self,
+        session: &mut SessionExt,
+        gas_meter: &mut impl AptosGasMeter,
+        senders: Vec<AccountAddress>,
+        inner_entry_function: &EntryFunction,
+    ) -> Result<(), VMStatus> {
+        let function = session.load_function(
+            inner_entry_function.module(),
+            inner_entry_function.function(),
+            inner_entry_function.ty_args(),
+        )?;
+        let struct_constructors_enabled =
+            self.features().is_enabled(FeatureFlag::STRUCT_CONSTRUCTORS);
+        let actual_args = inner_entry_function.args().to_vec();
+        // By constructing args we are making sure that function execution in scope of automated
+        // task will not fail due to invalid arguments passed
+        verifier::transaction_arg_validation::validate_combine_signer_and_txn_args(
+            session,
+            gas_meter,
+            senders,
+            actual_args,
+            &function,
+            struct_constructors_enabled,
+        )
+            .map_err(|e| {
+                VMStatus::error(
+                    StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD,
+                    Some(format!(
+                        "Invalid entry function to be automated in scope of automation registration transaction. Details: {e:?}"
+                    )),
+                )
+            })
+            .map(drop)
     }
 
     fn charge_change_set(
@@ -2378,12 +2415,14 @@ impl AptosVM {
         match payload {
             TransactionPayload::Script(_)
             | TransactionPayload::EntryFunction(_)
-            | TransactionPayload::AutomationRegistration(_) => transaction_validation::run_script_prologue(
-                session,
-                txn_data,
-                log_context,
-                traversal_context,
-            ),
+            | TransactionPayload::AutomationRegistration(_) => {
+                transaction_validation::run_script_prologue(
+                    session,
+                    txn_data,
+                    log_context,
+                    traversal_context,
+                )
+            },
             TransactionPayload::Multisig(multisig_payload) => {
                 // Still run script prologue for multisig transaction to ensure the same tx
                 // validations are still run for this multisig execution tx, which is submitted by
@@ -2558,43 +2597,6 @@ impl AptosVM {
                 unimplemented!("AutomatedTransaction execution is coming soon")
             },
         })
-    }
-
-    /// Checks inner payload/entry function of automation registration transaction to be valid.
-    fn validate_automated_function(
-        &self,
-        session: &mut SessionExt,
-        gas_meter: &mut impl AptosGasMeter,
-        senders: Vec<AccountAddress>,
-        inner_entry_function: &EntryFunction,
-    ) -> Result<(), VMStatus> {
-        let function = session.load_function(
-            inner_entry_function.module(),
-            inner_entry_function.function(),
-            inner_entry_function.ty_args(),
-        )?;
-        let struct_constructors_enabled =
-            self.features().is_enabled(FeatureFlag::STRUCT_CONSTRUCTORS);
-        let actual_args = inner_entry_function.args().to_vec();
-        // By constructing args we are making sure that function execution in scope of automated
-        // task will not fail due to invalid arguments passed
-        verifier::transaction_arg_validation::validate_combine_signer_and_txn_args(
-            session,
-            gas_meter,
-            senders,
-            actual_args,
-            &function,
-            struct_constructors_enabled,
-        )
-        .map_err(|e| {
-            VMStatus::error(
-                StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD,
-                Some(format!(
-                    "Invalid entry function to be automated in scope of automation registration transaction. Details: {e:?}"
-                )),
-            )
-        })
-        .map(drop)
     }
 }
 

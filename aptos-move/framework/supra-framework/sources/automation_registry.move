@@ -325,7 +325,7 @@ module supra_framework::automation_registry {
     }
 
     #[view]
-    /// List all the automation task ids
+    /// Returns next task index in registry
     public fun get_next_task_index(): u64 acquires AutomationRegistry {
         let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
         automation_registry.current_index + 1

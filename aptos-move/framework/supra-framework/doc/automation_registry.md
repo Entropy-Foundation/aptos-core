@@ -553,7 +553,7 @@ Registers a new automation task entry.
 
 ## Function `get_next_task_index`
 
-List all the automation task ids
+Returns next task index in registry
 
 
 <pre><code>#[view]
