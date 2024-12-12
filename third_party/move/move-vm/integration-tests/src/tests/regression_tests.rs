@@ -151,6 +151,13 @@ fn test_module_call_edge() {
         use 0x58::ModuleB;
         public fun function_a() {
             ModuleB::function_b();
+            ModuleB::function_b();
+            ModuleB::function_b();
+             ModuleB::function_b();
+             ModuleB::function_b();
+             ModuleB::function_b();
+             ModuleB::function_b();
+             ModuleB::function_b();
         }
     }
 

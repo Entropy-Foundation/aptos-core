@@ -16,6 +16,7 @@ use move_binary_format::{
         CompiledModule
     },
 };
+use move_binary_format::file_format::Bytecode;
 
 pub struct CallEdgeDetector<'a> {
     module: &'a CompiledModule,
@@ -46,15 +47,45 @@ impl<'a> CallEdgeDetector<'a> {
         }
     }
 
+    // Print the function calls and module address from and to in the module
     pub fn call_edges_print(module: &CompiledModule) {
-        for function_handle in module.function_handles() {
-            let source_module = module.self_id().address;
-            let target_module_index = function_handle.module;
-            let target_module = module.address_identifiers()[target_module_index.0 as usize];
-            println!(
-                "Method call from module: {:?} to module: {:?}",
-                source_module, target_module
-            );
+        // Iterate over all the functions in the module
+        for function_def in module.function_defs().iter() {
+            let function_handle = &module.function_handle_at(function_def.function);
+            let function_name = module.identifier_at(function_handle.name);
+            println!("Function: {}", function_name);
+            // Iterate over all the bytecodes that represent function calls in the function
+            if let Some(code) = &function_def.code {
+                for bytecode in &code.code {
+                    // Case 1: Call instruction; Case 2: CallGeneric instruction
+                    match bytecode {
+                        Bytecode::Call(handle_index) => {
+                            let called_function_handle = module.function_handle_at(*handle_index);
+                            let called_function_name = module.identifier_at(called_function_handle.name);
+                            let module_id = module.self_id();
+                            let source_module = module_id.address();
+                            let target_module = module.address_identifiers()[called_function_handle.module.0 as usize];
+                            println!(
+                                "  Calls: {} from module: {:x} to module: {:x}",
+                                called_function_name, source_module, target_module
+                            );
+                        }
+                        Bytecode::CallGeneric(inst_index) => {
+                            let inst = module.function_instantiation_at(*inst_index);
+                            let called_function_handle = module.function_handle_at(inst.handle);
+                            let called_function_name = module.identifier_at(called_function_handle.name);
+                            let module_id = module.self_id();
+                            let source_module = module_id.address();
+                            let target_module = module.address_identifiers()[called_function_handle.module.0 as usize];
+                            println!(
+                                "  Calls: {} from module: {:x} to module: {:x}",
+                                called_function_name, source_module, target_module
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
     }
 
