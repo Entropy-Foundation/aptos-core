@@ -281,7 +281,6 @@ crate::gas_schedule::macros::define_gas_parameters!(
         [transaction_context_gas_unit_price_base: InternalGas, {RELEASE_V1_12.. => "transaction_context.gas_unit_price.base"}, 735],
         [transaction_context_chain_id_base: InternalGas, {RELEASE_V1_12.. => "transaction_context.chain_id.base"}, 735],
         [transaction_context_entry_function_payload_base: InternalGas, {RELEASE_V1_12.. => "transaction_context.entry_function_payload.base"}, 735],
-        [transaction_context_automation_registration_base: InternalGas, {RELEASE_V1_12.. => "transaction_context.automation_registration.base"}, 735],
         [transaction_context_entry_function_payload_per_byte_in_str: InternalGasPerByte, {RELEASE_V1_12.. => "transaction_context.entry_function_payload.per_abstract_memory_unit"}, 18],
         [transaction_context_multisig_payload_base: InternalGas, {RELEASE_V1_12.. => "transaction_context.multisig_payload.base"}, 735],
         [transaction_context_multisig_payload_per_byte_in_str: InternalGasPerByte, {RELEASE_V1_12.. => "transaction_context.multisig_payload.per_abstract_memory_unit"}, 18],

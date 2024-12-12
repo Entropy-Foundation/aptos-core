@@ -798,6 +798,8 @@ impl AptosVM {
         Ok(())
     }
 
+
+
     fn execute_script_or_entry_function<'a, 'r, 'l>(
         &'l self,
         resolver: &'r impl AptosMoveResolver,
@@ -913,16 +915,14 @@ impl AptosVM {
                 registration_params.automated_function(),
             )
         })?;
-        let register_entry_function = EntryFunction::from(registration_params.clone());
+        // let register_entry_function = EntryFunction::from(registration_params.clone());
         session.execute(|session| {
-            self.validate_and_execute_entry_function(
-                resolver,
+            self.execute_automation_registration(
                 session,
                 gas_meter,
                 traversal_context,
-                txn_data.senders(),
-                &register_entry_function,
-                txn_data,
+                txn_data.sender(),
+                registration_params
             )
         })?;
 
@@ -951,6 +951,38 @@ impl AptosVM {
             change_set_configs,
             traversal_context,
         )
+    }
+
+    fn execute_automation_registration(
+        &self,
+        session: &mut SessionExt,
+        gas_meter: &mut impl AptosGasMeter,
+        traversal_context: &mut TraversalContext,
+        sender: AccountAddress,
+        registration_params: &RegistrationParams,
+    ) -> Result<(), VMStatus> {
+        // Note: Feature gating is needed here because the traversal of the dependencies could
+        //       result in shallow-loading of the modules and therefore subtle changes in
+        //       the error semantics.
+        if self.gas_feature_version >= 15 {
+            let module_id = traversal_context
+                .referenced_module_ids
+                .alloc(registration_params.module_id().clone());
+            session.check_dependencies_and_charge_gas(
+                gas_meter,
+                traversal_context,
+                [(module_id.address(), module_id.name())],
+            )?;
+        }
+        let args = registration_params.serialized_args_with_sender(sender);
+
+        session.execute_function_bypass_visibility(registration_params.module_id(),
+                                                   registration_params.function(),
+                                                   registration_params.ty_args(),
+                                                   args,
+                                                   gas_meter,
+                                                   traversal_context)?;
+        Ok(())
     }
 
     fn charge_change_set(

@@ -394,26 +394,6 @@ fn native_multisig_payload_internal(
     }
 }
 
-/// Checks whether user-transaction context is from on the automation registration transaction,
-/// i.e. original transaction has Automation registration payload.
-fn native_is_automation_registration_internal(
-    context: &mut SafeNativeContext,
-    mut _ty_args: Vec<Type>,
-    _args: VecDeque<Value>,
-) -> SafeNativeResult<SmallVec<[Value; 1]>> {
-    context.charge(TRANSACTION_CONTEXT_AUTOMATION_REGISTRATION_BASE)?;
-
-    let user_transaction_context_opt = get_user_transaction_context_opt_from_context(context);
-
-    if let Some(transaction_context) = user_transaction_context_opt {
-        Ok(smallvec![Value::bool(transaction_context.is_automation_registration())])
-    } else {
-        Err(SafeNativeError::Abort {
-            abort_code: error::invalid_state(abort_codes::ETRANSACTION_CONTEXT_NOT_AVAILABLE),
-        })
-    }
-}
-
 fn get_user_transaction_context_opt_from_context<'a>(
     context: &'a SafeNativeContext,
 ) -> &'a Option<UserTransactionContext> {
@@ -450,10 +430,6 @@ pub fn make_all(
         (
             "multisig_payload_internal",
             native_multisig_payload_internal,
-        ),
-        (
-            "is_automation_registration_internal",
-            native_is_automation_registration_internal,
         ),
         ("txn_app_hash_internal", native_txn_app_hash_internal),
     ];

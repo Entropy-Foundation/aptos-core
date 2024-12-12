@@ -134,41 +134,6 @@ fn check_successful_registration() {
 }
 
 #[test]
-fn check_registration_from_non_automation_context() {
-    let mut test_context = AutomationRegistrationTestContext::new();
-    // Prepare inner-entry-function to be automated.
-    let dest_account = test_context.new_account_data(0, 0);
-    let inner_entry_function =
-        aptos_framework_sdk_builder::supra_coin_mint(dest_account.address().clone(), 100)
-            .into_entry_function();
-    let inner_entry_function_bytes =
-        bcs::to_bytes(&inner_entry_function).expect("Can't serialize entry function");
-
-    let entry_with_register = aptos_framework_sdk_builder::automation_registry_register(
-        inner_entry_function_bytes,
-        3600,
-        100,
-        100,
-    );
-    let user_txn_with_register_entry = test_context
-        .txn_sender
-        .account()
-        .transaction()
-        .payload(entry_with_register)
-        .sequence_number(0)
-        .sign();
-
-    let output = test_context.execute_transaction(user_txn_with_register_entry);
-    match output.status() {
-        TransactionStatus::Keep(ExecutionStatus::MoveAbort { code, .. }) => {
-            //ENOT_AUTOMATION_TXN_CONTEXT
-            assert_eq!(*code, 7);
-        },
-        _ => panic!("Unexpected transaction status: {output:?}"),
-    }
-}
-
-#[test]
 fn check_invalid_automation_txn() {
     let mut test_context = AutomationRegistrationTestContext::new();
     // Create automation registration transaction with entry-function with invalid arguments.

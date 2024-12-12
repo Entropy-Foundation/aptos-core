@@ -132,14 +132,6 @@ module supra_framework::transaction_context {
     }
     native fun entry_function_payload_internal(): Option<EntryFunctionPayload>;
 
-    /// Returns true if current user transaction has automation registration payload type. Otherwise, return `false`.
-    /// This function aborts if called outside of the transaction prologue, execution, or epilogue phases.
-    public fun is_automation_registration(): bool {
-        assert!(features::transaction_context_extension_enabled(), error::invalid_state(ETRANSACTION_CONTEXT_EXTENSION_NOT_ENABLED));
-        is_automation_registration_internal()
-    }
-    native fun is_automation_registration_internal(): bool;
-
     /// Returns the original transaction hash calculated on the raw-bytes.
     /// This function aborts if called outside of the transaction prologue, execution, or epilogue phases.
     public fun txn_app_hash(): vector<u8> {
@@ -274,13 +266,6 @@ module supra_framework::transaction_context {
     fun test_call_multisig_payload() {
         // expected to fail with the error code of `invalid_state(E_TRANSACTION_CONTEXT_NOT_AVAILABLE)`
         let _multisig = multisig_payload();
-    }
-
-    #[test]
-    #[expected_failure(abort_code=196609, location = Self)]
-    fun test_call_automation_payload() {
-        // expected to fail with the error code of `invalid_state(E_TRANSACTION_CONTEXT_NOT_AVAILABLE)`
-        let _automation = is_automation_registration();
     }
 
     #[test]

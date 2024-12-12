@@ -5,6 +5,8 @@ use move_core_types::identifier::{IdentStr, Identifier};
 use move_core_types::language_storage::{ModuleId, TypeTag, CORE_CODE_ADDRESS};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use move_core_types::account_address::AccountAddress;
+use move_core_types::value::{serialize_values, MoveValue};
 
 struct AutomationTransactionEntryRef {
     module_id: ModuleId,
@@ -31,6 +33,18 @@ pub struct RegistrationParams {
     gas_price_cap: u64,
     /// Expiration time of the automated transaction in seconds since UTC Epoch start.
     expiration_timestamp_secs: u64,
+}
+
+impl RegistrationParams {
+    pub fn serialized_args_with_sender(&self, sender: AccountAddress) -> Vec<Vec<u8>> {
+        serialize_values(&[
+            MoveValue::Address(sender),
+            MoveValue::vector_u8(bcs::to_bytes(&self.automated_function).unwrap()),
+            MoveValue::U64(self.expiration_timestamp_secs),
+            MoveValue::U64(self.max_gas_amount),
+            MoveValue::U64(self.gas_price_cap)
+        ])
+    }
 }
 
 impl RegistrationParams {
@@ -66,29 +80,7 @@ impl RegistrationParams {
     }
 
     /// Type arguments required by registration function.
-    pub fn ty_args(&self) -> &[TypeTag] {
-        &[]
-    }
-}
-
-impl From<RegistrationParams> for EntryFunction {
-    fn from(value: RegistrationParams) -> EntryFunction {
-        let RegistrationParams {
-            automated_function,
-            max_gas_amount,
-            gas_price_cap,
-            expiration_timestamp_secs,
-        } = value;
-        EntryFunction::new(
-            AUTOMATION_REGISTRATION_ENTRY.module_id.clone(),
-            AUTOMATION_REGISTRATION_ENTRY.function.clone(),
-            vec![],
-            vec![
-                bcs::to_bytes(&bcs::to_bytes(&automated_function).unwrap()).unwrap(),
-                bcs::to_bytes(&expiration_timestamp_secs).unwrap(),
-                bcs::to_bytes(&max_gas_amount).unwrap(),
-                bcs::to_bytes(&gas_price_cap).unwrap(),
-            ],
-        )
+    pub fn ty_args(&self) -> Vec<TypeTag> {
+        vec![]
     }
 }

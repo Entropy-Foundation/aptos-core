@@ -104,7 +104,7 @@ impl AptosDebugger {
                         gas_meter,
                         auto_payload.module_id().clone(),
                         auto_payload.function().to_owned(),
-                        auto_payload.ty_args().to_vec(),
+                        auto_payload.ty_args(),
                     ),
                     TransactionPayload::EntryFunction(entry_func) => GasProfiler::new_function(
                         gas_meter,

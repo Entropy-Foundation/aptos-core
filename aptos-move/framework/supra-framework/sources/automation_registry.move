@@ -40,8 +40,6 @@ module supra_framework::automation_registry {
     const EAUTOMATION_TASK_NOT_EXIST: u64 = 7;
     /// Unauthorized access: the caller is not the owner of the task
     const EUNAUTHORIZED_TASK_OWNER: u64 = 8;
-    /// Entry function is called not from automation transaction context.
-    const ENOT_AUTOMATION_TXN_CONTEXT: u64 = 7;
 
     /// The default automation task gas limit
     const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 100000000;
@@ -242,14 +240,13 @@ module supra_framework::automation_registry {
     }
 
     /// Registers a new automation task entry.
-    public entry fun register(
+    public fun register(
         owner: &signer,
         payload_tx: vector<u8>,
         expiry_time: u64,
         max_gas_amount: u64,
         gas_price_cap: u64
     ) acquires AutomationRegistry {
-        assert!(transaction_context::is_automation_registration(), ENOT_AUTOMATION_TXN_CONTEXT);
         let registry_data = borrow_global_mut<AutomationRegistry>(@supra_framework);
 
         // todo : well formedness check of payload_tx
