@@ -45,6 +45,8 @@ module supra_framework::automation_registry {
     const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 100000000;
     /// The default upper limit duration for automation task, specified in seconds (30 days).
     const DEFAULT_DURATION_UPPER_LIMIT: u64 = 2592000;
+    /// The default Automation unit price for per second, in Quants
+    const DEFAULT_AUTOMATION_UNIT_PRICE: u64 = 1000;
     /// Conversion factor between microseconds and millisecond || millisecond and second
     const MILLISECOND_CONVERSION_FACTOR: u64 = 1000;
     /// Registry resource creation seed
@@ -60,6 +62,8 @@ module supra_framework::automation_registry {
         duration_upper_limit: u64,
         /// Gas committed for next epoch
         gas_committed_for_next_epoch: u64,
+        /// Automation task unit price per second
+        automation_unit_price: u64,
         /// It's resource address which is use to deposit user automation fee
         registry_fee_address: address,
         /// Resource account signature capability
@@ -132,6 +136,7 @@ module supra_framework::automation_registry {
             automation_gas_limit: DEFAULT_AUTOMATION_GAS_LIMIT,
             duration_upper_limit: DEFAULT_DURATION_UPPER_LIMIT,
             gas_committed_for_next_epoch: 0,
+            automation_unit_price: DEFAULT_AUTOMATION_UNIT_PRICE,
             registry_fee_address: signer::address_of(&registry_fee_resource_signer),
             registry_fee_address_signer_cap,
             tasks: enumerable_map::new_map(),
@@ -145,13 +150,19 @@ module supra_framework::automation_registry {
         let ids = enumerable_map::get_map_list(&automation_registry.tasks);
 
         let current_time = timestamp::now_seconds();
+        let epoch_interval = block::get_epoch_interval_secs();
         let expired_task_gas = 0;
 
         // Perform clean up and updation of state
         vector::for_each(ids, |id| {
             let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, id);
-            if (task.expiry_time < current_time) {
+
+            // Tasks that are active during this new epoch but will be already expired for the next epoch
+            if (task.expiry_time < (current_time + epoch_interval)) {
                 expired_task_gas = expired_task_gas + task.max_gas_amount;
+            };
+
+            if (task.expiry_time < current_time) {
                 enumerable_map::remove_value(&mut automation_registry.tasks, id);
             } else if (!task.is_active && task.expiry_time > current_time) {
                 task.is_active = true;
@@ -162,8 +173,12 @@ module supra_framework::automation_registry {
         automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - expired_task_gas;
     }
 
-    /// Withdraw user's deposited fee from the resource account
-    entry fun withdraw_fee(supra_framework: &signer, to: address, amount: u64) acquires AutomationRegistry {
+    /// Withdraw accumulated automation task fees from the resource account
+    entry fun withdraw_automation_task_fees(
+        supra_framework: &signer,
+        to: address,
+        amount: u64
+    ) acquires AutomationRegistry {
         system_addresses::assert_supra_framework(supra_framework);
 
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
@@ -202,12 +217,17 @@ module supra_framework::automation_registry {
         event::emit(UpdateDurationUpperLimit { duration_upper_limit });
     }
 
-    /// Calculate and collect registry charge from user
-    fun collect_from_owner(owner: &signer, _expiry_time: u64, _max_gas_amount: u64) {
-        // todo : calculate and collect pre-paid amount from the user
-        let static_amount = 100000000; // 1 Aptos
+    /// Deducts the automation fee from the user's account based on the selected expiry time.
+    fun charge_automation_fee_from_user(owner: &signer, fee: u64) {
+        // todo : dynamic price calculation is pending
         let registry_fee_address = get_registry_fee_address();
-        supra_account::transfer(owner, registry_fee_address, static_amount);
+        supra_account::transfer(owner, registry_fee_address, fee);
+    }
+
+    /// Get last epoch time in second
+    fun get_last_epoch_time_second(): u64 {
+        let last_epoch_time_ms = reconfiguration::last_reconfiguration_time() / MILLISECOND_CONVERSION_FACTOR;
+        last_epoch_time_ms / MILLISECOND_CONVERSION_FACTOR
     }
 
     /// Registers a new automation task entry.
@@ -227,8 +247,7 @@ module supra_framework::automation_registry {
         assert!((expiry_time - current_time) < registry_data.duration_upper_limit, EEXPIRY_TIME_UPPER);
 
         let epoch_interval = block::get_epoch_interval_secs();
-        let last_epoch_time_ms = reconfiguration::last_reconfiguration_time() / MILLISECOND_CONVERSION_FACTOR;
-        let last_epoch_time = last_epoch_time_ms / MILLISECOND_CONVERSION_FACTOR;
+        let last_epoch_time = get_last_epoch_time_second();
         assert!(expiry_time > (last_epoch_time + epoch_interval), EEXPIRY_BEFORE_NEXT_EPOCH);
 
         registry_data.gas_committed_for_next_epoch = registry_data.gas_committed_for_next_epoch + max_gas_amount;
@@ -236,7 +255,8 @@ module supra_framework::automation_registry {
 
         assert!(gas_price_cap > 0, EINVALID_GAS_PRICE);
 
-        collect_from_owner(owner, expiry_time, max_gas_amount);
+        let fee = expiry_time * registry_data.automation_unit_price;
+        charge_automation_fee_from_user(owner, fee);
 
         registry_data.current_index = registry_data.current_index + 1;
 
