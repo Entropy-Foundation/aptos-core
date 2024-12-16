@@ -27,3 +27,4 @@ mod scripts;
 mod transaction_fuzzer;
 mod verify_txn;
 mod automation_registration;
+mod automated_transactions;
