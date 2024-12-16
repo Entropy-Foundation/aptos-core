@@ -204,15 +204,19 @@ pub(crate) fn run_automated_transaction_prologue(
     log_context: &AdapterLogSchema,
     traversal_context: &mut TraversalContext,
 ) -> Result<(), VMStatus> {
+    let txn_task_id = txn_data.sequence_number();
     let txn_gas_price = txn_data.gas_unit_price();
     let txn_max_gas_units = txn_data.max_gas_amount();
     let txn_expiration_timestamp_secs = txn_data.expiration_timestamp_secs();
+    let chain_id = txn_data.chain_id();
     let mut gas_meter = UnmeteredGasMeter;
     let args = vec![
         MoveValue::Signer(txn_data.sender),
+        MoveValue::U64(txn_task_id),
         MoveValue::U64(txn_gas_price.into()),
         MoveValue::U64(txn_max_gas_units.into()),
         MoveValue::U64(txn_expiration_timestamp_secs),
+        MoveValue::U8(chain_id.id()),
     ];
     session
         .execute_function_bypass_visibility(

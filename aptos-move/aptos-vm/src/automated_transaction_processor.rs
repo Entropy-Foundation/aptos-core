@@ -1,4 +1,5 @@
 // Copyright (c) 2024 Supra.
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::aptos_vm::{get_or_vm_startup_failure, unwrap_or_discard};
 use crate::counters::TXN_GAS_USAGE;

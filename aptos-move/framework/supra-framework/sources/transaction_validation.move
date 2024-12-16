@@ -4,6 +4,7 @@ module supra_framework::transaction_validation {
     use std::features;
     use std::signer;
     use std::vector;
+    use supra_framework::automation_registry;
 
     use supra_framework::account;
     use supra_framework::supra_account;
@@ -47,6 +48,8 @@ module supra_framework::transaction_validation {
     const PROLOGUE_ESEQUENCE_NUMBER_TOO_BIG: u64 = 1008;
     const PROLOGUE_ESECONDARY_KEYS_ADDRESSES_COUNT_MISMATCH: u64 = 1009;
     const PROLOGUE_EFEE_PAYER_NOT_ENABLED: u64 = 1010;
+    // It seems 1011 is/was reserved.
+    const PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK: u64 = 1012;
 
     /// Only called during genesis to initialize system resources for this module.
     public(friend) fun initialize(
@@ -167,19 +170,22 @@ module supra_framework::transaction_validation {
         )
     }
 
-    fun automated_tranaction_prologue(
+    fun automated_transaction_prologue(
         sender: signer,
+        task_index: u64,
         txn_gas_price: u64,
         txn_max_gas_units: u64,
         txn_expiration_time: u64,
-        _script_hash: vector<u8>,
-    ) {
+        chain_id: u8,
+    )  {
         let gas_payer = signer::address_of(&sender);
+
+        assert!(chain_id::get() == chain_id, error::invalid_argument(PROLOGUE_EBAD_CHAIN_ID));
+
         assert!(
             timestamp::now_seconds() < txn_expiration_time,
             error::invalid_argument(PROLOGUE_ETRANSACTION_EXPIRED),
         );
-
 
         let max_transaction_fee = txn_gas_price * txn_max_gas_units;
 
@@ -193,7 +199,8 @@ module supra_framework::transaction_validation {
                 coin::is_balance_at_least<SupraCoin>(gas_payer, max_transaction_fee),
                 error::invalid_argument(PROLOGUE_ECANT_PAY_GAS_DEPOSIT)
             );
-        }
+        };
+        assert!(automation_registry::has_active_task_with_id(task_index), error::invalid_state(PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK))
     }
 
     fun multi_agent_script_prologue(

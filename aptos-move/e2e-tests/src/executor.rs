@@ -496,11 +496,28 @@ impl FakeExecutor {
     /// Executes the transaction as a singleton block and applies the resulting write set to the
     /// data store. Panics if execution fails
     pub fn execute_and_apply(&mut self, transaction: SignedTransaction) -> TransactionOutput {
-        let mut outputs = self.execute_block(vec![transaction]).unwrap();
-        assert!(outputs.len() == 1, "transaction outputs size mismatch");
+        self.execute_and_apply_transaction(Transaction::UserTransaction(transaction))
+    }
+
+    /// Executes the transaction as a singleton block and applies the resulting write set to the
+    /// data store. Panics if execution fails
+    pub fn execute_and_apply_transaction(&mut self, transaction: Transaction) -> TransactionOutput {
+        let mut outputs = self.execute_transaction_block(vec![transaction]).unwrap();
+        assert_eq!(outputs.len() , 1, "transaction outputs size mismatch");
         let output = outputs.pop().unwrap();
         match output.status() {
             TransactionStatus::Keep(status) => {
+                match status {
+                    ExecutionStatus::Success => {}
+                    ExecutionStatus::OutOfGas => {}
+                    ExecutionStatus::MoveAbort { code,.. } => {
+                        let reason = code & 0xFFFF;
+                        let category = ((code >> 16) & 0xFF) as u8;
+                        println!("{category}: {reason}");
+                    }
+                    ExecutionStatus::ExecutionFailure { .. } => {}
+                    ExecutionStatus::MiscellaneousError(_) => {}
+                }
                 self.apply_write_set(output.write_set());
                 assert_eq!(
                     status,
@@ -514,6 +531,7 @@ impl FakeExecutor {
             TransactionStatus::Retry => panic!("transaction status is retry"),
         }
     }
+
 
     fn execute_transaction_block_impl_with_state_view(
         &self,
@@ -656,6 +674,18 @@ impl FakeExecutor {
         let txn_block = vec![txn];
         let mut outputs = self
             .execute_block(txn_block)
+            .expect("The VM should not fail to startup");
+        let mut txn_output = outputs
+            .pop()
+            .expect("A block with one transaction should have one output");
+        txn_output.fill_error_status();
+        txn_output
+    }
+
+    pub fn execute_tagged_transaction(&self, txn: Transaction) -> TransactionOutput {
+        let txn_block = vec![txn];
+        let mut outputs = self
+            .execute_transaction_block(txn_block)
             .expect("The VM should not fail to startup");
         let mut txn_output = outputs
             .pop()
