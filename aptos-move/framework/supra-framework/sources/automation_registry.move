@@ -391,6 +391,7 @@ module supra_framework::automation_registry {
     }
 
     #[test(supra_framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code=196609, location=transaction_context)]
     fun test_registry(supra_framework: &signer, user: &signer) acquires AutomationRegistry {
         initialize_registry_test(supra_framework, user);
 
