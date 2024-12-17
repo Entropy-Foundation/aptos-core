@@ -12,7 +12,6 @@ module supra_framework::automation_registry_state {
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
 
-    friend supra_framework::genesis;
     friend supra_framework::automation_registry;
     friend supra_framework::block;
 
@@ -197,8 +196,7 @@ module supra_framework::automation_registry_state {
     }
 
     /// Retrieves the details of a automation task entry by its ID.
-    /// Returns a tuple where the first element indicates if the registry is completed/failed (`true`) or pending (`false`),
-    /// and the second element contains the `AutomationTaskMetaData` details.
+    /// Error will be returned if entry with specified ID does not exist.
     public (friend) fun get_task_details(id: u64): AutomationTaskMetaData acquires AutomationRegistryState {
         let automation_task_metadata = borrow_global<AutomationRegistryState>(@supra_framework);
         assert!(enumerable_map::contains(&automation_task_metadata.tasks, id), EREGITRY_NOT_FOUND);

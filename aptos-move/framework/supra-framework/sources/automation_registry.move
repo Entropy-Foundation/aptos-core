@@ -5,8 +5,7 @@ module supra_framework::automation_registry {
 
     use std::signer;
     use supra_framework::event;
-    use supra_framework::automation_registry_state::AutomationTaskMetaData;
-    use supra_framework::automation_registry_state;
+    use supra_framework::automation_registry_state::{Self, AutomationTaskMetaData};
 
     use supra_framework::account::{Self, SignerCapability};
     use supra_framework::block;
@@ -230,8 +229,7 @@ module supra_framework::automation_registry {
 
     #[view]
     /// Retrieves the details of a automation task entry by its ID.
-    /// Returns a tuple where the first element indicates if the registry is completed/failed (`true`) or pending (`false`),
-    /// and the second element contains the `AutomationTaskMetaData` details.
+    /// Error will be returned if entry with specified ID does not exist.
     public fun get_task_details(id: u64): AutomationTaskMetaData {
         automation_registry_state::get_task_details(id)
     }
