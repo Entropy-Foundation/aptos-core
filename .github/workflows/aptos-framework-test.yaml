@@ -37,14 +37,17 @@ jobs:
       id: changed-files
       uses: tj-actions/changed-files@v42
  
-    - name: Run tests
+    - name: Run supra-framework
       run: |
         ${{ env.CARGO_BIN }} test --release -p aptos-framework -- --skip prover
-        RUST_MIN_STACK=104857600 ${{ env.CARGO_BIN }} nextest run -p e2e-move-tests --no-fail-fast
 
     - name: Run e2e-testsuite
       run: |
         RUST_MIN_STACK=104857600 ${{ env.CARGO_BIN }} nextest run -p language-e2e-testsuite --no-fail-fast
+
+    - name: Run e2e-move-tests
+      run: |
+        RUST_MIN_STACK=104857600 ${{ env.CARGO_BIN }} nextest run -p e2e-move-tests --no-fail-fast
 
     - name: Slack Notification
       if: failure()
