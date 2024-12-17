@@ -57,7 +57,7 @@ impl<'a> CallEdgeDetector<'a> {
             // Iterate over all the bytecodes that represent function calls in the function
             if let Some(code) = &function_def.code {
                 for bytecode in &code.code {
-                    // Case 1: Call instruction; Case 2: CallGeneric instruction
+                    // Case 1: Call instruction; Case 2: CallGeneric instruction; Case 3: Ret instruction
                     match bytecode {
                         Bytecode::Call(handle_index) => {
                             let called_function_handle = module.function_handle_at(*handle_index);
@@ -82,13 +82,21 @@ impl<'a> CallEdgeDetector<'a> {
                                 called_function_name, source_module, target_module
                             );
                         }
+                        Bytecode::Ret => {
+                            let module_id = module.self_id();
+                            let source_module = module_id.address();
+                            println!(
+                                "  Returns to module: {:x}",
+                                source_module
+                            );
+                        }
                         _ => {}
                     }
                 }
             }
         }
     }
-
+    //TODO return edge, where is the after the function call finish
     //TODO how to add gas metering for distinguishing cross container and in container function call?
     //TODO how the gas should be calculated for cross container function call?
 }
