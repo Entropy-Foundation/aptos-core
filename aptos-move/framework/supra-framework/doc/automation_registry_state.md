@@ -536,8 +536,7 @@ List all the automation task ids
 ## Function `get_task_details`
 
 Retrieves the details of a automation task entry by its ID.
-Returns a tuple where the first element indicates if the registry is completed/failed (<code><b>true</b></code>) or pending (<code><b>false</b></code>),
-and the second element contains the <code><a href="automation_registry_state.md#0x1_automation_registry_state_AutomationTaskMetaData">AutomationTaskMetaData</a></code> details.
+Error will be returned if entry with specified ID does not exist.
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_get_task_details">get_task_details</a>(id: u64): <a href="automation_registry_state.md#0x1_automation_registry_state_AutomationTaskMetaData">automation_registry_state::AutomationTaskMetaData</a>

@@ -682,8 +682,7 @@ List all the automation task ids
 ## Function `get_task_details`
 
 Retrieves the details of a automation task entry by its ID.
-Returns a tuple where the first element indicates if the registry is completed/failed (<code><b>true</b></code>) or pending (<code><b>false</b></code>),
-and the second element contains the <code>AutomationTaskMetaData</code> details.
+Error will be returned if entry with specified ID does not exist.
 
 
 <pre><code>#[view]
