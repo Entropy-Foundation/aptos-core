@@ -99,8 +99,15 @@ module supra_framework::automation_registry {
 
     #[event]
     /// Withdraw user's registration fee event
-    struct FeeWithdrawn has drop, store {
+    struct FeeWithdrawnAdmin has drop, store {
         to: address,
+        amount: u64
+    }
+
+    #[event]
+    /// Withdraw user's registration fee event
+    struct RefundFeeUser has drop, store {
+        user: address,
         amount: u64
     }
 
@@ -162,7 +169,7 @@ module supra_framework::automation_registry {
                 expired_task_gas = expired_task_gas + task.max_gas_amount;
             };
 
-            if (task.expiry_time < current_time) {
+            if (task.expiry_time <= current_time) {
                 enumerable_map::remove_value(&mut automation_registry.tasks, id);
             } else if (!task.is_active && task.expiry_time > current_time) {
                 task.is_active = true;
@@ -173,22 +180,24 @@ module supra_framework::automation_registry {
         automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - expired_task_gas;
     }
 
-    /// Withdraw accumulated automation task fees from the resource account
+    /// Withdraw accumulated automation task fees from the resource account - access by admin
     entry fun withdraw_automation_task_fees(
         supra_framework: &signer,
         to: address,
         amount: u64
     ) acquires AutomationRegistry {
         system_addresses::assert_supra_framework(supra_framework);
+        transfer_fee_to_account_internal(to, amount);
+        event::emit(FeeWithdrawnAdmin { to, amount });
+    }
 
+    /// Transfers the specified fee amount from the resource account to the target account.
+    fun transfer_fee_to_account_internal(to: address, amount: u64) acquires AutomationRegistry {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let resource_signer = account::create_signer_with_capability(
             &automation_registry.registry_fee_address_signer_cap
         );
-
         supra_account::transfer(&resource_signer, to, amount);
-
-        event::emit(FeeWithdrawn { to, amount });
     }
 
     /// Update Automation gas limit
@@ -244,7 +253,9 @@ module supra_framework::automation_registry {
 
         let current_time = timestamp::now_seconds();
         assert!(expiry_time > current_time, EINVALID_EXPIRY_TIME);
-        assert!((expiry_time - current_time) < registry_data.duration_upper_limit, EEXPIRY_TIME_UPPER);
+
+        let expiry_time_duration = expiry_time - current_time;
+        assert!(expiry_time_duration < registry_data.duration_upper_limit, EEXPIRY_TIME_UPPER);
 
         let epoch_interval = block::get_epoch_interval_secs();
         let last_epoch_time = get_last_epoch_time_second();
@@ -255,7 +266,7 @@ module supra_framework::automation_registry {
 
         assert!(gas_price_cap > 0, EINVALID_GAS_PRICE);
 
-        let fee = expiry_time * registry_data.automation_unit_price;
+        let fee = expiry_time_duration * registry_data.automation_unit_price;
         charge_automation_fee_from_user(owner, fee);
 
         registry_data.current_index = registry_data.current_index + 1;
@@ -280,19 +291,37 @@ module supra_framework::automation_registry {
 
     /// Remove Automatioon task entry.
     public entry fun remove_task(owner: &signer, registry_id: u64) acquires AutomationRegistry {
+        let user_addr = signer::address_of(owner);
+
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         assert!(enumerable_map::contains(&automation_registry.tasks, registry_id), EAUTOMATION_TASK_NOT_EXIST);
 
         let automation_task_metadata = enumerable_map::get_value(&automation_registry.tasks, registry_id);
-        assert!(automation_task_metadata.owner == signer::address_of(owner), EUNAUTHORIZED_TASK_OWNER);
+        assert!(automation_task_metadata.owner == user_addr, EUNAUTHORIZED_TASK_OWNER);
 
         enumerable_map::remove_value(&mut automation_registry.tasks, registry_id);
 
         // Adjust the gas committed for the next epoch by subtracting the gas amount of the expired task
         automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
 
-        // todo : refund to user
+        // Calculate refund fee and transfer it to user
+        refund_automation_task_fee(user_addr, automation_task_metadata, automation_registry.automation_unit_price);
+
         event::emit(RemoveAutomationTask { id: automation_task_metadata.id });
+    }
+
+    /// Refunds the automation task fee to the user who has removed their task registration from the list.
+    fun refund_automation_task_fee(
+        user: address,
+        automation_task_metadata: AutomationTaskMetaData,
+        automation_unit_price: u64,
+    ) acquires AutomationRegistry {
+        let current_time = timestamp::now_seconds();
+        let expiry_time_duration = automation_task_metadata.expiry_time - current_time;
+
+        let refund_amount = expiry_time_duration * automation_unit_price;
+        transfer_fee_to_account_internal(user, refund_amount);
+        event::emit(RefundFeeUser { user, amount: refund_amount });
     }
 
     #[view]
