@@ -115,7 +115,7 @@ fn check_automated_transaction_successful_execution() {
     );
 
     // For now no active transaction available, so this task execution will fail on prologue.
-    let sequence_number = 1;
+    let sequence_number = 0;
     let raw_transaction = test_context
         .sender_account_data()
         .account()
@@ -149,7 +149,6 @@ fn check_automated_transaction_successful_execution() {
         &TransactionStatus::Keep(ExecutionStatus::Success),
         "{output:?}"
     );
-    println!("{output:?}");
     let dest_account_balance = test_context.account_balance(dest_account.address().clone());
     assert_eq!(dest_account_balance, 100);
     // check that sequence number is not updated.
