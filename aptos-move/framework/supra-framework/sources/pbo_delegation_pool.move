@@ -133,8 +133,6 @@ module supra_framework::pbo_delegation_pool {
     use supra_framework::staking_config;
     use supra_framework::timestamp;
     use supra_framework::multisig_account;
-    #[test_only]
-    use aptos_std::debug;
 
     const MODULE_SALT: vector<u8> = b"supra_framework::pbo_delegation_pool";
 
@@ -1782,9 +1780,19 @@ module supra_framework::pbo_delegation_pool {
                 } else {
                     *vector::borrow(&unlock_schedule.schedule, last_unlocked_period)
                 };
-            cfraction = fixed_point64::add(cfraction, next_fraction);
+            let next_fraction_unchanged = next_fraction == *vector::borrow(&unlock_schedule.schedule, schedule_length - 1);
+            // If next fraction is same as last unlocked period, then no need to fetch from schedule
+            if (next_fraction_unchanged) {
+                while (last_unlocked_period < unlock_periods_passed
+                    && fixed_point64::less(cfraction, one)) {
+                    cfraction = fixed_point64::add(cfraction, next_fraction);
+                    last_unlocked_period = last_unlocked_period + 1;
+                };
+            } else {
+                cfraction = fixed_point64::add(cfraction, next_fraction);
 
-            last_unlocked_period = last_unlocked_period + 1;
+                last_unlocked_period = last_unlocked_period + 1;
+            };
         };
 
         unlock_schedule.cumulative_unlocked_fraction = cfraction;

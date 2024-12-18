@@ -503,17 +503,32 @@ module supra_framework::vesting_without_staking {
                 // Last vesting schedule fraction will repeat until the grant runs out.
                 *vector::borrow(schedule, vector::length(schedule) - 1)
             };
-            vest_transfer(vesting_record, signer_cap, beneficiary, vesting_fraction);
-
-            emit_event(&mut vesting_contract.vest_events,
-                VestEvent {
-                    admin: vesting_contract.admin,
-                    shareholder_address: shareholder_address,
-                    vesting_contract_address: contract_address,
-                    period_vested: next_period_to_vest,
-                },
-            );
-            next_period_to_vest = next_period_to_vest + 1;
+            let vesting_fraction_unchange = vesting_fraction == *vector::borrow(schedule, vector::length(schedule) - 1);
+            if (vesting_fraction_unchange) {
+                while (last_completed_period >= next_period_to_vest && vesting_record.left_amount > 0) {
+                    vest_transfer(vesting_record, signer_cap, beneficiary, vesting_fraction);
+                    emit_event(&mut vesting_contract.vest_events,
+                        VestEvent {
+                            admin: vesting_contract.admin,
+                            shareholder_address: shareholder_address,
+                            vesting_contract_address: contract_address,
+                            period_vested: next_period_to_vest,
+                        },
+                    );
+                    next_period_to_vest = next_period_to_vest + 1;
+                }
+            } else {
+                vest_transfer(vesting_record, signer_cap, beneficiary, vesting_fraction);
+                emit_event(&mut vesting_contract.vest_events,
+                    VestEvent {
+                        admin: vesting_contract.admin,
+                        shareholder_address: shareholder_address,
+                        vesting_contract_address: contract_address,
+                        period_vested: next_period_to_vest,
+                    },
+                );
+                next_period_to_vest = next_period_to_vest + 1;
+            };
         };
 
         //update last_vested_period for the shareholder
