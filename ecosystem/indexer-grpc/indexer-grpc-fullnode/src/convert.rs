@@ -2,6 +2,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+use aptos_api_types::transaction::AutomationRegistrationParams;
 use aptos_api_types::{
     transaction::ValidatorTransaction as ApiValidatorTransactionEnum, AccountSignature,
     DeleteModule, DeleteResource, Ed25519Signature, EntryFunctionId, EntryFunctionPayload, Event,
@@ -181,6 +182,14 @@ pub fn convert_transaction_payload(
         // Deprecated.
         TransactionPayload::ModuleBundlePayload(_) => {
             unreachable!("Module bundle payload has been removed")
+        },
+        TransactionPayload::AutomationRegistrationPayload(ap) => transaction::TransactionPayload {
+            r#type: transaction::transaction_payload::Type::AutomationPayload as i32,
+            payload: Some(
+                transaction::transaction_payload::Payload::AutomationPayload(
+                    convert_automation_payload(ap),
+                ),
+            ),
         },
     }
 }
@@ -489,6 +498,17 @@ pub fn convert_multisig_payload(
     transaction::MultisigPayload {
         multisig_address: multisig_payload.multisig_address.to_string(),
         transaction_payload,
+    }
+}
+
+pub fn convert_automation_payload(
+    auto_payload: &AutomationRegistrationParams,
+) -> transaction::AutomationPayload {
+    transaction::AutomationPayload {
+        automated_function: Some(convert_entry_function_payload(&auto_payload.automated_function)),
+        expiration_timestamp_secs: auto_payload.expiration_timestamp_secs,
+        max_gas_amount: auto_payload.max_gas_amount,
+        gas_price_cap: auto_payload.gas_price_cap,
     }
 }
 

@@ -1,3 +1,4 @@
+// Copyright (c) 2024 Supra.
 // Copyright (c) The Diem Core Contributors
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
@@ -728,6 +729,9 @@ pub enum StatusCode {
     RESERVED_VERIFICATION_ERROR_3 = 1129,
     RESERVED_VERIFICATION_ERROR_4 = 1130,
     RESERVED_VERIFICATION_ERROR_5 = 1131,
+    // Verification errors related to automation registration transaction
+    // Validation of the entry function to be automated failed.
+    INVALID_AUTOMATION_INNER_PAYLOAD = 1132,
 
 
     // These are errors that the VM might raise if a violation of internal

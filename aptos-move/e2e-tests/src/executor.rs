@@ -1,3 +1,4 @@
+// Copyright (c) 2024 Supra.
 // Copyright © Aptos Foundation
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -684,6 +685,12 @@ impl FakeExecutor {
             |gas_meter| {
                 let gas_profiler = match txn.payload() {
                     TransactionPayload::Script(_) => GasProfiler::new_script(gas_meter),
+                    TransactionPayload::AutomationRegistration(auto_payload) => GasProfiler::new_function(
+                        gas_meter,
+                        auto_payload.module_id().clone(),
+                        auto_payload.function().to_owned(),
+                        auto_payload.ty_args(),
+                    ),
                     TransactionPayload::EntryFunction(entry_func) => GasProfiler::new_function(
                         gas_meter,
                         entry_func.module().clone(),
@@ -1125,6 +1132,7 @@ impl FakeExecutor {
             session.load_function(entry_fn.module(), entry_fn.function(), entry_fn.ty_args())?;
         let args = verifier::transaction_arg_validation::validate_combine_signer_and_txn_args(
             &mut session,
+            &mut UnmeteredGasMeter,
             senders,
             entry_fn.args().to_vec(),
             &func,

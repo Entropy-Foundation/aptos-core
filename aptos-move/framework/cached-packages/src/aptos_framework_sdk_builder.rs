@@ -147,6 +147,27 @@ pub enum EntryFunctionCall {
         cap_update_table: Vec<u8>,
     },
 
+    /// Remove Automatioon task entry.
+    AutomationRegistryRemoveTask {
+        registry_id: u64,
+    },
+
+    /// Update Automation gas limit
+    AutomationRegistryUpdateAutomationGasLimit {
+        automation_gas_limit: u64,
+    },
+
+    /// Update duration upper limit
+    AutomationRegistryUpdateDurationUpperLimit {
+        duration_upper_limit: u64,
+    },
+
+    /// Withdraw accumulated automation task fees from the resource account - access by admin
+    AutomationRegistryWithdrawAutomationTaskFees {
+        to: AccountAddress,
+        amount: u64,
+    },
+
     /// Same as `publish_package` but as an entry function which can be called as a transaction. Because
     /// of current restrictions for txn parameters, the metadata needs to be passed in serialized form.
     CodePublishPackageTxn {
@@ -1181,6 +1202,18 @@ impl EntryFunctionCall {
                 new_public_key_bytes,
                 cap_update_table,
             ),
+            AutomationRegistryRemoveTask { registry_id } => {
+                automation_registry_remove_task(registry_id)
+            },
+            AutomationRegistryUpdateAutomationGasLimit {
+                automation_gas_limit,
+            } => automation_registry_update_automation_gas_limit(automation_gas_limit),
+            AutomationRegistryUpdateDurationUpperLimit {
+                duration_upper_limit,
+            } => automation_registry_update_duration_upper_limit(duration_upper_limit),
+            AutomationRegistryWithdrawAutomationTaskFees { to, amount } => {
+                automation_registry_withdraw_automation_task_fees(to, amount)
+            },
             CodePublishPackageTxn {
                 metadata_serialized,
                 code,
@@ -2114,6 +2147,77 @@ pub fn account_rotate_authentication_key_with_rotation_capability(
             bcs::to_bytes(&new_public_key_bytes).unwrap(),
             bcs::to_bytes(&cap_update_table).unwrap(),
         ],
+    ))
+}
+
+/// Remove Automatioon task entry.
+pub fn automation_registry_remove_task(registry_id: u64) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("automation_registry").to_owned(),
+        ),
+        ident_str!("remove_task").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&registry_id).unwrap()],
+    ))
+}
+
+/// Update Automation gas limit
+pub fn automation_registry_update_automation_gas_limit(
+    automation_gas_limit: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("automation_registry").to_owned(),
+        ),
+        ident_str!("update_automation_gas_limit").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&automation_gas_limit).unwrap()],
+    ))
+}
+
+/// Update duration upper limit
+pub fn automation_registry_update_duration_upper_limit(
+    duration_upper_limit: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("automation_registry").to_owned(),
+        ),
+        ident_str!("update_duration_upper_limit").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&duration_upper_limit).unwrap()],
+    ))
+}
+
+/// Withdraw accumulated automation task fees from the resource account - access by admin
+pub fn automation_registry_withdraw_automation_task_fees(
+    to: AccountAddress,
+    amount: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("automation_registry").to_owned(),
+        ),
+        ident_str!("withdraw_automation_task_fees").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&to).unwrap(), bcs::to_bytes(&amount).unwrap()],
     ))
 }
 
@@ -5277,6 +5381,61 @@ mod decoder {
         }
     }
 
+    pub fn automation_registry_remove_task(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::AutomationRegistryRemoveTask {
+                registry_id: bcs::from_bytes(script.args().get(0)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn automation_registry_update_automation_gas_limit(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(
+                EntryFunctionCall::AutomationRegistryUpdateAutomationGasLimit {
+                    automation_gas_limit: bcs::from_bytes(script.args().get(0)?).ok()?,
+                },
+            )
+        } else {
+            None
+        }
+    }
+
+    pub fn automation_registry_update_duration_upper_limit(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(
+                EntryFunctionCall::AutomationRegistryUpdateDurationUpperLimit {
+                    duration_upper_limit: bcs::from_bytes(script.args().get(0)?).ok()?,
+                },
+            )
+        } else {
+            None
+        }
+    }
+
+    pub fn automation_registry_withdraw_automation_task_fees(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(
+                EntryFunctionCall::AutomationRegistryWithdrawAutomationTaskFees {
+                    to: bcs::from_bytes(script.args().get(0)?).ok()?,
+                    amount: bcs::from_bytes(script.args().get(1)?).ok()?,
+                },
+            )
+        } else {
+            None
+        }
+    }
+
     pub fn code_publish_package_txn(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(script) = payload {
             Some(EntryFunctionCall::CodePublishPackageTxn {
@@ -7129,6 +7288,22 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "account_rotate_authentication_key_with_rotation_capability".to_string(),
             Box::new(decoder::account_rotate_authentication_key_with_rotation_capability),
+        );
+        map.insert(
+            "automation_registry_remove_task".to_string(),
+            Box::new(decoder::automation_registry_remove_task),
+        );
+        map.insert(
+            "automation_registry_update_automation_gas_limit".to_string(),
+            Box::new(decoder::automation_registry_update_automation_gas_limit),
+        );
+        map.insert(
+            "automation_registry_update_duration_upper_limit".to_string(),
+            Box::new(decoder::automation_registry_update_duration_upper_limit),
+        );
+        map.insert(
+            "automation_registry_withdraw_automation_task_fees".to_string(),
+            Box::new(decoder::automation_registry_withdraw_automation_task_fees),
         );
         map.insert(
             "code_publish_package_txn".to_string(),
