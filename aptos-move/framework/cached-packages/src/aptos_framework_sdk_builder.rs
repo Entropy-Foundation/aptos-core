@@ -149,7 +149,7 @@ pub enum EntryFunctionCall {
 
     /// Remove Automatioon task entry.
     AutomationRegistryRemoveTask {
-        registry_id: u64,
+        id: u64,
     },
 
     /// Update Automation gas limit
@@ -1202,9 +1202,7 @@ impl EntryFunctionCall {
                 new_public_key_bytes,
                 cap_update_table,
             ),
-            AutomationRegistryRemoveTask { registry_id } => {
-                automation_registry_remove_task(registry_id)
-            },
+            AutomationRegistryRemoveTask { id } => automation_registry_remove_task(id),
             AutomationRegistryUpdateAutomationGasLimit {
                 automation_gas_limit,
             } => automation_registry_update_automation_gas_limit(automation_gas_limit),
@@ -2151,7 +2149,7 @@ pub fn account_rotate_authentication_key_with_rotation_capability(
 }
 
 /// Remove Automatioon task entry.
-pub fn automation_registry_remove_task(registry_id: u64) -> TransactionPayload {
+pub fn automation_registry_remove_task(id: u64) -> TransactionPayload {
     TransactionPayload::EntryFunction(EntryFunction::new(
         ModuleId::new(
             AccountAddress::new([
@@ -2162,7 +2160,7 @@ pub fn automation_registry_remove_task(registry_id: u64) -> TransactionPayload {
         ),
         ident_str!("remove_task").to_owned(),
         vec![],
-        vec![bcs::to_bytes(&registry_id).unwrap()],
+        vec![bcs::to_bytes(&id).unwrap()],
     ))
 }
 
@@ -5386,7 +5384,7 @@ mod decoder {
     ) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(script) = payload {
             Some(EntryFunctionCall::AutomationRegistryRemoveTask {
-                registry_id: bcs::from_bytes(script.args().get(0)?).ok()?,
+                id: bcs::from_bytes(script.args().get(0)?).ok()?,
             })
         } else {
             None
