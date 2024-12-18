@@ -247,6 +247,17 @@ Gas amount does not go beyond upper cap limit
 
 
 
+<a id="0x1_automation_registry_state_EINVALID_COMMITTED_GAS_CALCULATION"></a>
+
+Upon new epoch entry failed to propertly calculated committed gas for the next epoch.
+It is greater than current epoch committed gas.
+
+
+<pre><code><b>const</b> <a href="automation_registry_state.md#0x1_automation_registry_state_EINVALID_COMMITTED_GAS_CALCULATION">EINVALID_COMMITTED_GAS_CALCULATION</a>: u64 = 5;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_state_EREGITRY_NOT_FOUND"></a>
 
 Registry Id not found
@@ -263,6 +274,16 @@ Unauthorized access: the caller is not the owner of the task
 
 
 <pre><code><b>const</b> <a href="automation_registry_state.md#0x1_automation_registry_state_EUNAUTHORIZED_TASK_OWNER">EUNAUTHORIZED_TASK_OWNER</a>: u64 = 4;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_state_MICROSECS_CONVERSION_FACTOR"></a>
+
+Conversion factor between microseconds and second
+
+
+<pre><code><b>const</b> <a href="automation_registry_state.md#0x1_automation_registry_state_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>: u64 = 1000000;
 </code></pre>
 
 
@@ -328,7 +349,7 @@ Unauthorized access: the caller is not the owner of the task
 
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_on_new_epoch">on_new_epoch</a>(epoch_interval: u64)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_on_new_epoch">on_new_epoch</a>(epoch_interval_micro: u64)
 </code></pre>
 
 
@@ -337,10 +358,11 @@ Unauthorized access: the caller is not the owner of the task
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_on_new_epoch">on_new_epoch</a>(epoch_interval: u64) <b>acquires</b> <a href="automation_registry_state.md#0x1_automation_registry_state_AutomationRegistryState">AutomationRegistryState</a> {
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_on_new_epoch">on_new_epoch</a>(epoch_interval_micro: u64) <b>acquires</b> <a href="automation_registry_state.md#0x1_automation_registry_state_AutomationRegistryState">AutomationRegistryState</a> {
     <b>let</b> state = <b>borrow_global_mut</b>&lt;<a href="automation_registry_state.md#0x1_automation_registry_state_AutomationRegistryState">AutomationRegistryState</a>&gt;(@supra_framework);
     <b>let</b> ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&state.tasks);
 
+    <b>let</b> epoch_interval_secs = epoch_interval_micro / <a href="automation_registry_state.md#0x1_automation_registry_state_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>;
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
     <b>let</b> expired_task_gas = 0;
 
@@ -349,7 +371,7 @@ Unauthorized access: the caller is not the owner of the task
         <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_mut">enumerable_map::get_value_mut</a>(&<b>mut</b> state.tasks, id);
 
         // Tasks that are active during this new epoch but will be already expired for the next epoch
-        <b>if</b> (task.expiry_time &lt;= (current_time + epoch_interval)) {
+        <b>if</b> (task.expiry_time &lt;= (current_time + epoch_interval_secs)) {
             expired_task_gas = expired_task_gas + task.max_gas_amount;
         };
 
@@ -359,6 +381,7 @@ Unauthorized access: the caller is not the owner of the task
             task.is_active = <b>true</b>;
         }
     });
+    <b>assert</b>!(expired_task_gas &lt;= state.gas_committed_for_next_epoch, <a href="automation_registry_state.md#0x1_automation_registry_state_EINVALID_COMMITTED_GAS_CALCULATION">EINVALID_COMMITTED_GAS_CALCULATION</a>);
 
     // Adjust the gas committed for the next epoch by subtracting the gas amount of the expired task
     state.gas_committed_for_next_epoch = state.gas_committed_for_next_epoch - expired_task_gas;

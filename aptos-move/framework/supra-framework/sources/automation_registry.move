@@ -248,9 +248,8 @@ module supra_framework::automation_registry {
 
     #[view]
     /// Ge gas committed for next epoch
-    public fun get_gas_committed_for_next_epoch(): u64 acquires AutomationRegistry {
-        let automation_task_metadata = borrow_global<AutomationRegistry>(@supra_framework);
-        automation_task_metadata.gas_committed_for_next_epoch
+    public fun get_gas_committed_for_next_epoch(): u64 {
+        automation_registry_state::get_gas_committed_for_next_epoch()
     }
 
     #[test_only]
