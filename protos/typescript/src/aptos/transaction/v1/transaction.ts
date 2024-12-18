@@ -632,6 +632,7 @@ export interface TransactionPayload {
   scriptPayload?: ScriptPayload | undefined;
   writeSetPayload?: WriteSetPayload | undefined;
   multisigPayload?: MultisigPayload | undefined;
+  automationPayload?: AutomationPayload | undefined;
 }
 
 export enum TransactionPayload_Type {
@@ -640,6 +641,7 @@ export enum TransactionPayload_Type {
   TYPE_SCRIPT_PAYLOAD = 2,
   TYPE_WRITE_SET_PAYLOAD = 4,
   TYPE_MULTISIG_PAYLOAD = 5,
+  TYPE_AUTOMATION_PAYLOAD = 6,
   UNRECOGNIZED = -1,
 }
 
@@ -660,6 +662,9 @@ export function transactionPayload_TypeFromJSON(object: any): TransactionPayload
     case 5:
     case "TYPE_MULTISIG_PAYLOAD":
       return TransactionPayload_Type.TYPE_MULTISIG_PAYLOAD;
+    case 6:
+    case "TYPE_AUTOMATION_PAYLOAD":
+      return TransactionPayload_Type.TYPE_AUTOMATION_PAYLOAD;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -679,6 +684,8 @@ export function transactionPayload_TypeToJSON(object: TransactionPayload_Type): 
       return "TYPE_WRITE_SET_PAYLOAD";
     case TransactionPayload_Type.TYPE_MULTISIG_PAYLOAD:
       return "TYPE_MULTISIG_PAYLOAD";
+    case TransactionPayload_Type.TYPE_AUTOMATION_PAYLOAD:
+      return "TYPE_AUTOMATION_PAYLOAD";
     case TransactionPayload_Type.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
@@ -744,6 +751,13 @@ export function multisigTransactionPayload_TypeToJSON(object: MultisigTransactio
     default:
       return "UNRECOGNIZED";
   }
+}
+
+export interface AutomationPayload {
+  automatedFunction?: EntryFunctionPayload | undefined;
+  expirationTimestampSecs?: bigint | undefined;
+  maxGasAmount?: bigint | undefined;
+  gasPriceCap?: bigint | undefined;
 }
 
 export interface MoveModuleBytecode {
@@ -6383,6 +6397,7 @@ function createBaseTransactionPayload(): TransactionPayload {
     scriptPayload: undefined,
     writeSetPayload: undefined,
     multisigPayload: undefined,
+    automationPayload: undefined,
   };
 }
 
@@ -6402,6 +6417,9 @@ export const TransactionPayload = {
     }
     if (message.multisigPayload !== undefined) {
       MultisigPayload.encode(message.multisigPayload, writer.uint32(50).fork()).ldelim();
+    }
+    if (message.automationPayload !== undefined) {
+      AutomationPayload.encode(message.automationPayload, writer.uint32(58).fork()).ldelim();
     }
     return writer;
   },
@@ -6447,6 +6465,13 @@ export const TransactionPayload = {
           }
 
           message.multisigPayload = MultisigPayload.decode(reader, reader.uint32());
+          continue;
+        case 7:
+          if (tag !== 58) {
+            break;
+          }
+
+          message.automationPayload = AutomationPayload.decode(reader, reader.uint32());
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -6500,6 +6525,9 @@ export const TransactionPayload = {
       scriptPayload: isSet(object.scriptPayload) ? ScriptPayload.fromJSON(object.scriptPayload) : undefined,
       writeSetPayload: isSet(object.writeSetPayload) ? WriteSetPayload.fromJSON(object.writeSetPayload) : undefined,
       multisigPayload: isSet(object.multisigPayload) ? MultisigPayload.fromJSON(object.multisigPayload) : undefined,
+      automationPayload: isSet(object.automationPayload)
+        ? AutomationPayload.fromJSON(object.automationPayload)
+        : undefined,
     };
   },
 
@@ -6519,6 +6547,9 @@ export const TransactionPayload = {
     }
     if (message.multisigPayload !== undefined) {
       obj.multisigPayload = MultisigPayload.toJSON(message.multisigPayload);
+    }
+    if (message.automationPayload !== undefined) {
+      obj.automationPayload = AutomationPayload.toJSON(message.automationPayload);
     }
     return obj;
   },
@@ -6540,6 +6571,9 @@ export const TransactionPayload = {
       : undefined;
     message.multisigPayload = (object.multisigPayload !== undefined && object.multisigPayload !== null)
       ? MultisigPayload.fromPartial(object.multisigPayload)
+      : undefined;
+    message.automationPayload = (object.automationPayload !== undefined && object.automationPayload !== null)
+      ? AutomationPayload.fromPartial(object.automationPayload)
       : undefined;
     return message;
   },
@@ -7150,6 +7184,162 @@ export const MultisigTransactionPayload = {
     message.entryFunctionPayload = (object.entryFunctionPayload !== undefined && object.entryFunctionPayload !== null)
       ? EntryFunctionPayload.fromPartial(object.entryFunctionPayload)
       : undefined;
+    return message;
+  },
+};
+
+function createBaseAutomationPayload(): AutomationPayload {
+  return {
+    automatedFunction: undefined,
+    expirationTimestampSecs: BigInt("0"),
+    maxGasAmount: BigInt("0"),
+    gasPriceCap: BigInt("0"),
+  };
+}
+
+export const AutomationPayload = {
+  encode(message: AutomationPayload, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.automatedFunction !== undefined) {
+      EntryFunctionPayload.encode(message.automatedFunction, writer.uint32(10).fork()).ldelim();
+    }
+    if (message.expirationTimestampSecs !== undefined && message.expirationTimestampSecs !== BigInt("0")) {
+      if (BigInt.asUintN(64, message.expirationTimestampSecs) !== message.expirationTimestampSecs) {
+        throw new globalThis.Error("value provided for field message.expirationTimestampSecs of type uint64 too large");
+      }
+      writer.uint32(16).uint64(message.expirationTimestampSecs.toString());
+    }
+    if (message.maxGasAmount !== undefined && message.maxGasAmount !== BigInt("0")) {
+      if (BigInt.asUintN(64, message.maxGasAmount) !== message.maxGasAmount) {
+        throw new globalThis.Error("value provided for field message.maxGasAmount of type uint64 too large");
+      }
+      writer.uint32(24).uint64(message.maxGasAmount.toString());
+    }
+    if (message.gasPriceCap !== undefined && message.gasPriceCap !== BigInt("0")) {
+      if (BigInt.asUintN(64, message.gasPriceCap) !== message.gasPriceCap) {
+        throw new globalThis.Error("value provided for field message.gasPriceCap of type uint64 too large");
+      }
+      writer.uint32(32).uint64(message.gasPriceCap.toString());
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): AutomationPayload {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseAutomationPayload();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.automatedFunction = EntryFunctionPayload.decode(reader, reader.uint32());
+          continue;
+        case 2:
+          if (tag !== 16) {
+            break;
+          }
+
+          message.expirationTimestampSecs = longToBigint(reader.uint64() as Long);
+          continue;
+        case 3:
+          if (tag !== 24) {
+            break;
+          }
+
+          message.maxGasAmount = longToBigint(reader.uint64() as Long);
+          continue;
+        case 4:
+          if (tag !== 32) {
+            break;
+          }
+
+          message.gasPriceCap = longToBigint(reader.uint64() as Long);
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  // encodeTransform encodes a source of message objects.
+  // Transform<AutomationPayload, Uint8Array>
+  async *encodeTransform(
+    source: AsyncIterable<AutomationPayload | AutomationPayload[]> | Iterable<AutomationPayload | AutomationPayload[]>,
+  ): AsyncIterable<Uint8Array> {
+    for await (const pkt of source) {
+      if (globalThis.Array.isArray(pkt)) {
+        for (const p of (pkt as any)) {
+          yield* [AutomationPayload.encode(p).finish()];
+        }
+      } else {
+        yield* [AutomationPayload.encode(pkt as any).finish()];
+      }
+    }
+  },
+
+  // decodeTransform decodes a source of encoded messages.
+  // Transform<Uint8Array, AutomationPayload>
+  async *decodeTransform(
+    source: AsyncIterable<Uint8Array | Uint8Array[]> | Iterable<Uint8Array | Uint8Array[]>,
+  ): AsyncIterable<AutomationPayload> {
+    for await (const pkt of source) {
+      if (globalThis.Array.isArray(pkt)) {
+        for (const p of (pkt as any)) {
+          yield* [AutomationPayload.decode(p)];
+        }
+      } else {
+        yield* [AutomationPayload.decode(pkt as any)];
+      }
+    }
+  },
+
+  fromJSON(object: any): AutomationPayload {
+    return {
+      automatedFunction: isSet(object.automatedFunction)
+        ? EntryFunctionPayload.fromJSON(object.automatedFunction)
+        : undefined,
+      expirationTimestampSecs: isSet(object.expirationTimestampSecs)
+        ? BigInt(object.expirationTimestampSecs)
+        : BigInt("0"),
+      maxGasAmount: isSet(object.maxGasAmount) ? BigInt(object.maxGasAmount) : BigInt("0"),
+      gasPriceCap: isSet(object.gasPriceCap) ? BigInt(object.gasPriceCap) : BigInt("0"),
+    };
+  },
+
+  toJSON(message: AutomationPayload): unknown {
+    const obj: any = {};
+    if (message.automatedFunction !== undefined) {
+      obj.automatedFunction = EntryFunctionPayload.toJSON(message.automatedFunction);
+    }
+    if (message.expirationTimestampSecs !== undefined && message.expirationTimestampSecs !== BigInt("0")) {
+      obj.expirationTimestampSecs = message.expirationTimestampSecs.toString();
+    }
+    if (message.maxGasAmount !== undefined && message.maxGasAmount !== BigInt("0")) {
+      obj.maxGasAmount = message.maxGasAmount.toString();
+    }
+    if (message.gasPriceCap !== undefined && message.gasPriceCap !== BigInt("0")) {
+      obj.gasPriceCap = message.gasPriceCap.toString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AutomationPayload>): AutomationPayload {
+    return AutomationPayload.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AutomationPayload>): AutomationPayload {
+    const message = createBaseAutomationPayload();
+    message.automatedFunction = (object.automatedFunction !== undefined && object.automatedFunction !== null)
+      ? EntryFunctionPayload.fromPartial(object.automatedFunction)
+      : undefined;
+    message.expirationTimestampSecs = object.expirationTimestampSecs ?? BigInt("0");
+    message.maxGasAmount = object.maxGasAmount ?? BigInt("0");
+    message.gasPriceCap = object.gasPriceCap ?? BigInt("0");
     return message;
   },
 };

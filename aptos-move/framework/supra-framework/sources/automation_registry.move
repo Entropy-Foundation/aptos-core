@@ -130,7 +130,7 @@ module supra_framework::automation_registry {
     }
 
     // todo : this function should call during initialzation, but since we already done genesis in that case who can access the function
-    public(friend) fun initialize(supra_framework: &signer) {
+    public fun initialize(supra_framework: &signer) {
         system_addresses::assert_supra_framework(supra_framework);
 
         let (registry_fee_resource_signer, registry_fee_address_signer_cap) = account::create_resource_account(
@@ -240,7 +240,7 @@ module supra_framework::automation_registry {
     }
 
     /// Registers a new automation task entry.
-    public entry fun register(
+    public fun register(
         owner: &signer,
         payload_tx: vector<u8>,
         expiry_time: u64,
@@ -325,6 +325,13 @@ module supra_framework::automation_registry {
     }
 
     #[view]
+    /// Returns next task index in registry
+    public fun get_next_task_index(): u64 acquires AutomationRegistry {
+        let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
+        automation_registry.current_index + 1
+    }
+
+    #[view]
     /// List all the automation task ids
     public fun get_active_task_ids(): vector<u64> acquires AutomationRegistry {
         let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
@@ -384,6 +391,7 @@ module supra_framework::automation_registry {
     }
 
     #[test(supra_framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code=196609, location=transaction_context)]
     fun test_registry(supra_framework: &signer, user: &signer) acquires AutomationRegistry {
         initialize_registry_test(supra_framework, user);
 

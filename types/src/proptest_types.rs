@@ -5,6 +5,7 @@
 
 #![allow(clippy::arc_with_non_send_sync)]
 
+use crate::transaction::automated_transaction::AutomatedTransaction;
 use crate::{
     account_address::{self, AccountAddress},
     account_config::{AccountResource, CoinStoreResource},
@@ -34,6 +35,7 @@ use crate::{
     vm_status::VMStatus,
     write_set::{WriteOp, WriteSet, WriteSetMut},
 };
+use aptos_crypto::hash::CryptoHash;
 use aptos_crypto::{
     ed25519::{self, Ed25519PrivateKey, Ed25519PublicKey},
     test_utils::KeyPair,
@@ -55,8 +57,6 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     iter::Iterator,
 };
-use aptos_crypto::hash::CryptoHash;
-use crate::transaction::automated_transaction::AutomatedTransaction;
 
 impl WriteOp {
     pub fn value_strategy() -> impl Strategy<Value = Self> {
@@ -386,6 +386,15 @@ fn new_raw_transaction(
             sender,
             sequence_number,
             multisig,
+            max_gas_amount,
+            gas_unit_price,
+            expiration_time_secs,
+            chain_id,
+        ),
+        TransactionPayload::AutomationRegistration(automation) => RawTransaction::new_automation(
+            sender,
+            sequence_number,
+            automation,
             max_gas_amount,
             gas_unit_price,
             expiration_time_secs,
