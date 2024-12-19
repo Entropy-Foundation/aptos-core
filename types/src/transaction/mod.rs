@@ -81,6 +81,10 @@ pub use script::{
 };
 use serde::de::DeserializeOwned;
 use std::{collections::BTreeSet, hash::Hash, ops::Deref, sync::atomic::AtomicU64};
+use move_core_types::identifier::{IdentStr, Identifier};
+use move_core_types::language_storage::{ModuleId, TypeTag};
+use crate::move_utils::MemberId;
+use crate::serde_helper::vec_bytes;
 
 pub type Version = u64; // Height - also used for MVCC in StateDB
 pub type AtomicVersion = AtomicU64;
@@ -2122,6 +2126,66 @@ pub trait BlockExecutableTransaction: Sync + Send + Clone + 'static {
     fn user_txn_bytes_len(&self) -> usize;
 }
 
+/// Call a Move view function.
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ViewFunction {
+    module: ModuleId,
+    function: Identifier,
+    ty_args: Vec<TypeTag>,
+    #[serde(with = "vec_bytes")]
+    args: Vec<Vec<u8>>,
+}
+
+impl ViewFunction {
+
+    pub fn from_function_name_and_args(function_ref: &'static str, ty_args: Vec<TypeTag>, args: Vec<Vec<u8>>) -> Result<Self> {
+        let MemberId {
+            module_id, member_id
+        } = str::parse(function_ref)?;
+        Ok(
+            Self {
+                module: module_id,
+                function: member_id,
+                ty_args,
+                args,
+            }
+        )
+    }
+
+    pub fn new(
+        module: ModuleId,
+        function: Identifier,
+        ty_args: Vec<TypeTag>,
+        args: Vec<Vec<u8>>,
+    ) -> Self {
+        Self {
+            module,
+            function,
+            ty_args,
+            args,
+        }
+    }
+
+    pub fn module(&self) -> &ModuleId {
+        &self.module
+    }
+
+    pub fn function(&self) -> &IdentStr {
+        &self.function
+    }
+
+    pub fn ty_args(&self) -> &[TypeTag] {
+        &self.ty_args
+    }
+
+    pub fn args(&self) -> &[Vec<u8>] {
+        &self.args
+    }
+
+    pub fn into_inner(self) -> (ModuleId, Identifier, Vec<TypeTag>, Vec<Vec<u8>>) {
+        (self.module, self.function, self.ty_args, self.args)
+    }
+}
 pub struct ViewFunctionOutput {
     pub values: Result<Vec<Vec<u8>>>,
     pub gas_used: u64,
