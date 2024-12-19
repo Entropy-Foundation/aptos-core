@@ -2354,14 +2354,14 @@ impl AptosVM {
         }
     }
 
-    fn gas_used(max_gas_amount: Gas, gas_meter: &impl AptosGasMeter) -> u64 {
+    pub(crate) fn gas_used(max_gas_amount: Gas, gas_meter: &impl AptosGasMeter) -> u64 {
         max_gas_amount
             .checked_sub(gas_meter.balance())
             .expect("Balance should always be less than or equal to max gas amount")
             .into()
     }
 
-    fn execute_view_function_in_vm(
+    pub(crate) fn execute_view_function_in_vm(
         session: &mut SessionExt,
         vm: &AptosVM,
         module_id: ModuleId,
