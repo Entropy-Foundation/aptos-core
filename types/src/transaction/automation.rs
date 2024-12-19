@@ -36,13 +36,14 @@ pub struct RegistrationParams {
 }
 
 impl RegistrationParams {
-    pub fn serialized_args_with_sender(&self, sender: AccountAddress) -> Vec<Vec<u8>> {
+    pub fn serialized_args_with_sender_and_parent_hash(&self, sender: AccountAddress, parent_hash: Vec<u8>) -> Vec<Vec<u8>> {
         serialize_values(&[
             MoveValue::Address(sender),
             MoveValue::vector_u8(bcs::to_bytes(&self.automated_function).unwrap()),
             MoveValue::U64(self.expiration_timestamp_secs),
             MoveValue::U64(self.max_gas_amount),
-            MoveValue::U64(self.gas_price_cap)
+            MoveValue::U64(self.gas_price_cap),
+            MoveValue::vector_u8(parent_hash),
         ])
     }
 }

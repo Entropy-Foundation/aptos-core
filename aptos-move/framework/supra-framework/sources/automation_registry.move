@@ -14,6 +14,8 @@ module supra_framework::automation_registry {
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
     use supra_framework::transaction_context;
+    #[test_only]
+    use std::vector;
 
     #[test_only]
     use supra_framework::coin;
@@ -22,14 +24,10 @@ module supra_framework::automation_registry {
 
     friend supra_framework::genesis;
 
-    /// Invalid expiry time: it cannot be earlier than the current time
-    const EINVALID_EXPIRY_TIME: u64 = 1;
     /// Expiry time does not go beyond upper cap duration
-    const EEXPIRY_TIME_UPPER: u64 = 2;
+    const EEXPIRY_TIME_UPPER: u64 = 1;
     /// Expiry time must be after the start of the next epoch
-    const EEXPIRY_BEFORE_NEXT_EPOCH: u64 = 3;
-    /// Invalid gas price: it cannot be zero
-    const EINVALID_GAS_PRICE: u64 = 4;
+    const EEXPIRY_BEFORE_NEXT_EPOCH: u64 = 2;
 
     /// The default automation task gas limit
     const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 100000000;
@@ -142,10 +140,10 @@ module supra_framework::automation_registry {
     }
 
     /// Deducts the automation fee from the user's account based on the selected expiry time.
-    fun charge_automation_fee_from_user(owner: &signer, fee: u64) {
+    fun charge_automation_fee_from_user(owner: &signer, automation_unit_price: u64, task_duration: u64, registry_fee_address: address) {
+        let automation_base_fee = task_duration * automation_unit_price;
         // todo : dynamic price calculation is pending
-        let registry_fee_address = get_registry_fee_address();
-        supra_account::transfer(owner, registry_fee_address, fee);
+        supra_account::transfer(owner, registry_fee_address, automation_base_fee);
     }
 
     /// Get last epoch time in second
@@ -160,30 +158,22 @@ module supra_framework::automation_registry {
         payload_tx: vector<u8>,
         expiry_time: u64,
         max_gas_amount: u64,
-        gas_price_cap: u64
+        gas_price_cap: u64,
+        parent_hash: vector<u8>
     ) acquires AutomationRegistry {
         let registry_data = borrow_global_mut<AutomationRegistry>(@supra_framework);
 
         //Well formedness check of payload_tx is done in native layer beforehand.
 
         let current_time = timestamp::now_seconds();
-        assert!(expiry_time > current_time, EINVALID_EXPIRY_TIME);
-
-        let expiry_time_duration = expiry_time - current_time;
-        assert!(expiry_time_duration < registry_data.duration_upper_limit, EEXPIRY_TIME_UPPER);
+        let task_duration = expiry_time - current_time;
+        assert!(task_duration < registry_data.duration_upper_limit, EEXPIRY_TIME_UPPER);
 
         let epoch_interval = block::get_epoch_interval_secs();
         let last_epoch_time = get_last_epoch_time_second();
         assert!(expiry_time > (last_epoch_time + epoch_interval), EEXPIRY_BEFORE_NEXT_EPOCH);
 
-
-        assert!(gas_price_cap > 0, EINVALID_GAS_PRICE);
-
-        let fee = expiry_time_duration * registry_data.automation_unit_price;
-        charge_automation_fee_from_user(owner, fee);
-
         let epoch = reconfiguration::current_epoch();
-        let parent_hash = transaction_context::txn_app_hash();
         automation_registry_state::register(
             owner,
             payload_tx,
@@ -192,12 +182,18 @@ module supra_framework::automation_registry {
             gas_price_cap,
             epoch,
             parent_hash);
+
+        charge_automation_fee_from_user(
+            owner,
+            registry_data.automation_unit_price,
+            task_duration,
+            registry_data.registry_fee_address);
     }
 
     /// Remove Automatioon task entry.
     public entry fun remove_task(owner: &signer, id: u64) acquires AutomationRegistry {
-        let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let automation_task_metadata = automation_registry_state::remove_task(owner, id);
+        let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         refund_automation_task_fee(signer::address_of(owner), automation_task_metadata, automation_registry.automation_unit_price);
     }
 
@@ -272,11 +268,11 @@ module supra_framework::automation_registry {
     }
 
     #[test(supra_framework = @supra_framework, user = @0x1cafe)]
-    #[expected_failure(abort_code=196609, location=transaction_context)]
     fun test_registry(supra_framework: &signer, user: &signer) acquires AutomationRegistry {
         initialize_registry_test(supra_framework, user);
 
         let payload = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f4041424344";
-        register(user, payload, 86400, 1000, 100000);
+        let parent_hash = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
+        register(user, payload, 86400, 1000, 100000, parent_hash);
     }
 }

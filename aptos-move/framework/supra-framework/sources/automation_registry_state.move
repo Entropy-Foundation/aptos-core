@@ -17,20 +17,36 @@ module supra_framework::automation_registry_state {
     friend supra_framework::automation_registry;
     friend supra_framework::block;
 
-    /// Registry Id not found
-    const EREGITRY_NOT_FOUND: u64 = 1;
+    /// Invalid expiry time: it cannot be earlier than the current time
+    const EINVALID_EXPIRY_TIME: u64 = 1;
+    /// Invalid gas price: it cannot be zero
+    const EINVALID_GAS_PRICE: u64 = 2;
+    /// Invalid max gas amount for automated task: it cannot be zero
+    const EINVALID_MAX_GAS_AMOUNT: u64 = 3;
+    /// Task with provided Id not found
+    const ETASK_NOT_FOUND: u64 = 4;
     /// Gas amount does not go beyond upper cap limit
-    const EGAS_AMOUNT_UPPER: u64 = 2;
+    const EGAS_AMOUNT_UPPER: u64 = 5;
     /// Automation task not found
-    const EAUTOMATION_TASK_NOT_EXIST: u64 = 3;
+    const EAUTOMATION_TASK_NOT_EXIST: u64 = 6;
     /// Unauthorized access: the caller is not the owner of the task
-    const EUNAUTHORIZED_TASK_OWNER: u64 = 4;
+    const EUNAUTHORIZED_TASK_OWNER: u64 = 7;
     /// Upon new epoch entry failed to propertly calculated committed gas for the next epoch.
     /// It is greater than current epoch committed gas.
-    const EINVALID_COMMITTED_GAS_CALCULATION: u64 = 5;
+    const EINVALID_COMMITTED_GAS_CALCULATION: u64 = 8;
+    /// Transactoin hash that registring current task is invalid. Lenght should be 32.
+    /// It is greater than current epoch committed gas.
+    const EINVALID_TXN_HASH: u64 = 9;
+    /// Transactoin hash that registring current task is invalid. Lenght should be 32.
+    /// It is greater than current epoch committed gas.
+    const EINVALID_PAYLOAD: u64 = 10;
+
+    /// The lenght of the transaction hash.
+    const TXN_HASH_LENGTH: u64 = 32;
 
     /// Conversion factor between microseconds and second
     const MICROSECS_CONVERSION_FACTOR: u64 = 1_000_000;
+
     /// It tracks entries both pending and completed, organized by unique indices.
     struct AutomationRegistryState has key, store {
         /// A collection of automation task entries that are active state.
@@ -121,7 +137,6 @@ module supra_framework::automation_registry_state {
         state.gas_committed_for_next_epoch = state.gas_committed_for_next_epoch - expired_task_gas;
     }
 
-
     /// Registers a new automation task entry.
     public(friend) fun register(
         owner: &signer,
@@ -133,6 +148,13 @@ module supra_framework::automation_registry_state {
         tx_hash: vector<u8>,
     ) acquires AutomationRegistryState {
         let registry_data = borrow_global_mut<AutomationRegistryState>(@supra_framework);
+        let registration_time = timestamp::now_seconds();
+
+        assert!(expiry_time > registration_time, EINVALID_EXPIRY_TIME);
+        assert!(gas_price_cap > 0, EINVALID_GAS_PRICE);
+        assert!(max_gas_amount > 0, EINVALID_MAX_GAS_AMOUNT);
+        assert!(vector::length(&tx_hash) == TXN_HASH_LENGTH, EINVALID_TXN_HASH);
+        assert!(!vector::is_empty(&payload_tx), EINVALID_PAYLOAD);
 
         let committed_gas = registry_data.gas_committed_for_next_epoch + max_gas_amount;
         assert!(committed_gas < registry_data.automation_gas_limit, EGAS_AMOUNT_UPPER);
@@ -148,7 +170,7 @@ module supra_framework::automation_registry_state {
             gas_price_cap,
             is_active: false,
             registration_epoch,
-            registration_time: timestamp::now_seconds(),
+            registration_time,
             tx_hash,
         };
 
@@ -208,7 +230,7 @@ module supra_framework::automation_registry_state {
     /// Error will be returned if entry with specified ID does not exist.
     public (friend) fun get_task_details(id: u64): AutomationTaskMetaData acquires AutomationRegistryState {
         let automation_task_metadata = borrow_global<AutomationRegistryState>(@supra_framework);
-        assert!(enumerable_map::contains(&automation_task_metadata.tasks, id), EREGITRY_NOT_FOUND);
+        assert!(enumerable_map::contains(&automation_task_metadata.tasks, id), ETASK_NOT_FOUND);
         enumerable_map::get_value(&automation_task_metadata.tasks, id)
     }
 
@@ -237,6 +259,11 @@ module supra_framework::automation_registry_state {
     }
 
     #[test_only]
+    const PARENT_HASH: vector<u8> = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
+    #[test_only]
+    const PAYLOAD: vector<u8> = x"0102030405060708090a0b0c0d0e0f0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20101112131415161718191a1b1c1d1e1f20";
+
+    #[test_only]
     fun initialize_registry_state_test(framework: &signer) {
         timestamp::set_time_has_started_for_testing(framework);
         initialize(framework, 100);
@@ -248,83 +275,163 @@ module supra_framework::automation_registry_state {
 
         let account = account::create_account_for_test(@0x123456);
         register(&account,
-            vector[0, 1, 2, 3, 4],
+            PAYLOAD,
         100,
         10,
         20,
         1,
-        vector[0, 1, 2 ,3],
+        PARENT_HASH,
         );
         assert!(1 == get_next_task_index(), 1);
         assert!(10 == get_gas_committed_for_next_epoch(), 1)
     }
 
     #[test(framework = @supra_framework)]
-    #[expected_failure(abort_code = 2)]
+    #[expected_failure(abort_code = EINVALID_EXPIRY_TIME, location = Self)]
+    fun check_registration_invalid_expiry_time(framework: signer) acquires AutomationRegistryState {
+        initialize_registry_state_test(&framework);
+
+        timestamp::update_global_time_for_test_secs(50);
+        let account = account::create_account_for_test(@0x123456);
+        register(&account,
+            PAYLOAD,
+            25,
+            70,
+            20,
+            1,
+            PARENT_HASH,
+        );
+    }
+
+    #[test(framework = @supra_framework)]
+    #[expected_failure(abort_code = EINVALID_GAS_PRICE, location = Self)]
+    fun check_registration_invalid_gas_price_cap(framework: signer) acquires AutomationRegistryState {
+        initialize_registry_state_test(&framework);
+
+        let account = account::create_account_for_test(@0x123456);
+        register(&account,
+            PAYLOAD,
+            25,
+            70,
+            0,
+            1,
+            PARENT_HASH,
+        );
+    }
+
+    #[test(framework = @supra_framework)]
+    #[expected_failure(abort_code = EINVALID_MAX_GAS_AMOUNT, location = Self)]
+    fun check_registration_invalid_max_gas_amount(framework: signer) acquires AutomationRegistryState {
+        initialize_registry_state_test(&framework);
+
+        let account = account::create_account_for_test(@0x123456);
+        register(&account,
+            PAYLOAD,
+            25,
+            0,
+            70,
+            1,
+            PARENT_HASH,
+        );
+    }
+
+    #[test(framework = @supra_framework)]
+    #[expected_failure(abort_code = EINVALID_PAYLOAD, location = Self)]
+    fun check_registration_invalid_payload(framework: signer) acquires AutomationRegistryState {
+        initialize_registry_state_test(&framework);
+
+        let account = account::create_account_for_test(@0x123456);
+        register(&account,
+            vector[],
+            25,
+            10,
+            70,
+            1,
+            PARENT_HASH,
+        );
+    }
+
+    #[test(framework = @supra_framework)]
+    #[expected_failure(abort_code = EINVALID_TXN_HASH, location = Self)]
+    fun check_registration_invalid_parent_hash(framework: signer) acquires AutomationRegistryState {
+        initialize_registry_state_test(&framework);
+
+        let account = account::create_account_for_test(@0x123456);
+        register(&account,
+            PAYLOAD,
+            25,
+            10,
+            70,
+            1,
+            vector<u8>[0, 1, 2, 3],
+        );
+    }
+
+
+    #[test(framework = @supra_framework)]
+    #[expected_failure(abort_code = EGAS_AMOUNT_UPPER, location = Self)]
     fun check_registration_with_overflow_gas_limit(framework: signer) acquires AutomationRegistryState {
         initialize_registry_state_test(&framework);
 
         let account = account::create_account_for_test(@0x123456);
         register(&account,
-            vector[0, 1, 2, 3, 4],
+            PAYLOAD,
             100,
             70,
             20,
             1,
-            vector[0, 1, 2 ,3],
+            PARENT_HASH
         );
         assert!(1 == get_next_task_index(), 1);
         assert!(70 == get_gas_committed_for_next_epoch(), 1);
         register(&account,
-            vector[0, 1, 2, 3, 4],
+            PAYLOAD,
             100,
             70,
             20,
             1,
-            vector[0, 1, 2 ,3],
+            PARENT_HASH
         );
     }
 
     #[test(framework = @supra_framework)]
     fun check_task_activation_on_new_epoch(framework: signer) acquires AutomationRegistryState {
         initialize_registry_state_test(&framework);
-        let payload_tx = vector<u8>[0, 1, 2, 3, 4];
-        let txn_hash = vector<u8>[1, 2, 3, 4, 5];
 
         let account = account::create_account_for_test(@0x123456);
         register(&account,
-            payload_tx,
+            PAYLOAD,
             100,
             10,
             20,
             1,
-            txn_hash,
+            PARENT_HASH
         );
         // When moving to next epoch this task will be considered as expired
         register(&account,
-            payload_tx,
+            PAYLOAD,
             25,
             10,
             20,
             1,
-            txn_hash,
+            PARENT_HASH
         );
         register(&account,
-            payload_tx,
+            PAYLOAD,
             150,
             10,
             20,
             1,
-            txn_hash,
+            PARENT_HASH
         );
         // When moving to next epoch this task will be considered as expired for the updcoming new epoch
         register(&account,
-            payload_tx,
+            PAYLOAD,
             75,
             10,
             20,
             1,
-            txn_hash,
+            PARENT_HASH
         );
         // No active task and committed gas for the next epoch is total of the all registered tasks
         assert!(40 == get_gas_committed_for_next_epoch(), 1);

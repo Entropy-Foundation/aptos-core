@@ -921,6 +921,7 @@ impl AptosVM {
                 traversal_context,
                 txn_data.sender(),
                 registration_params,
+                txn_data
             )
         })?;
 
@@ -958,6 +959,7 @@ impl AptosVM {
         traversal_context: &mut TraversalContext,
         sender: AccountAddress,
         registration_params: &RegistrationParams,
+        txn_metadata: &TransactionMetadata,
     ) -> Result<(), VMStatus> {
         // Note: Feature gating is needed here because the traversal of the dependencies could
         //       result in shallow-loading of the modules and therefore subtle changes in
@@ -972,7 +974,8 @@ impl AptosVM {
                 [(module_id.address(), module_id.name())],
             )?;
         }
-        let args = registration_params.serialized_args_with_sender(sender);
+        let args = registration_params
+            .serialized_args_with_sender_and_parent_hash(sender, txn_metadata.txn_app_hash.clone());
 
         session.execute_function_bypass_visibility(
             registration_params.module_id(),
