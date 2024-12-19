@@ -122,6 +122,7 @@ module supra_framework::pbo_delegation_pool {
     use aptos_std::table::{Self, Table};
     use aptos_std::smart_table::{Self, SmartTable};
     use aptos_std::fixed_point64::{Self, FixedPoint64};
+    use aptos_std::math64::min;
 
     use supra_framework::coin::Coin;
     use supra_framework::account;
@@ -1778,12 +1779,15 @@ module supra_framework::pbo_delegation_pool {
             cfraction = fixed_point64::add(cfraction, next_fraction);
             last_unlocked_period = last_unlocked_period + 1;
         };
-
-        let final_fraction= *vector::borrow(&unlock_schedule.schedule, schedule_length - 1);
-        // Fast foward calculation to current period and don't update last_unlocked_period since it is not used anymore
-        cfraction = fixed_point64::add(cfraction, fixed_point64::multiply_u128_return_fixpoint64((unlock_periods_passed - last_unlocked_period as u128), final_fraction));
-        cfraction = fixed_point64::min(cfraction, one);
-
+        if (last_unlocked_period < unlock_periods_passed && fixed_point64::less(cfraction, one)) {
+            let final_fraction= *vector::borrow(&unlock_schedule.schedule, schedule_length - 1);
+            // Determine how many periods is needed
+            let periods_needed = min(unlock_periods_passed - last_unlocked_period,
+                ((fixed_point64::get_raw_value(fixed_point64::divide(fixed_point64::sub(one, cfraction), final_fraction)) as u64) )
+            );
+            // Acclerate calculation to current period and don't update last_unlocked_period since it is not used anymore
+            cfraction = fixed_point64::add(cfraction, fixed_point64::multiply_u128_return_fixpoint64((periods_needed as u128), final_fraction));
+        };
         unlock_schedule.cumulative_unlocked_fraction = cfraction;
         unlock_schedule.last_unlock_period = unlock_periods_passed;
         let unlockable_amount = cached_unlockable_balance(delegator_addr, pool_address);

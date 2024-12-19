@@ -496,8 +496,8 @@ module supra_framework::vesting_without_staking {
 
         // Index is 0-based while period is 1-based so we need to subtract 1.
         while (last_completed_period >= next_period_to_vest && vesting_record.left_amount > 0 && next_period_to_vest <= vector::length(schedule)) {
-            // let schedule_index = next_period_to_vest - 1;
-            let vesting_fraction = *vector::borrow(schedule, vector::length(schedule) - 1);
+            let schedule_index = next_period_to_vest - 1;
+            let vesting_fraction = *vector::borrow(schedule, schedule_index);
             vest_transfer(vesting_record, signer_cap, beneficiary, vesting_fraction);
             emit_event(&mut vesting_contract.vest_events,
                 VestEvent {
@@ -510,19 +510,29 @@ module supra_framework::vesting_without_staking {
             next_period_to_vest = next_period_to_vest + 1;
         };
 
-        let final_fraction = *vector::borrow(schedule, vector::length(schedule) - 1);
-        let total_fraction = fixed_point32::multiply_u64_return_fixpoint32((last_completed_period - next_period_to_vest ), final_fraction);
-        // We don't need to check vesting_record.left_amount > 0 because vest_transfer will handle that.
-        vest_transfer(vesting_record, signer_cap, beneficiary, total_fraction);
-        next_period_to_vest = last_completed_period + 1;
-        emit_event(&mut vesting_contract.vest_events,
-            VestEvent {
-                admin: vesting_contract.admin,
-                shareholder_address: shareholder_address,
-                vesting_contract_address: contract_address,
-                period_vested: next_period_to_vest,
-            },
-        );
+        if(last_completed_period >= next_period_to_vest && vesting_record.left_amount > 0) {
+            let final_fraction = *vector::borrow(schedule, vector::length(schedule) - 1);
+            // Determine how many periods is needed based on the left_amount
+            let periods_need_used_up_amount = if (vesting_record.left_amount % fixed_point32::multiply_u64(vesting_record.init_amount, final_fraction) == 0) {
+                vesting_record.left_amount / fixed_point32::multiply_u64(vesting_record.init_amount, final_fraction)
+            } else {
+                vesting_record.left_amount / fixed_point32::multiply_u64(vesting_record.init_amount, final_fraction) + 1
+            };
+            let periods_needed =
+                min(periods_need_used_up_amount, last_completed_period - next_period_to_vest + 1);
+            let total_fraction = fixed_point32::multiply_u64_return_fixpoint32(periods_needed, final_fraction);
+            // We don't need to check vesting_record.left_amount > 0 because vest_transfer will handle that.
+            vest_transfer(vesting_record, signer_cap, beneficiary, total_fraction);
+            next_period_to_vest = next_period_to_vest + periods_needed;
+            emit_event(&mut vesting_contract.vest_events,
+                VestEvent {
+                    admin: vesting_contract.admin,
+                    shareholder_address: shareholder_address,
+                    vesting_contract_address: contract_address,
+                    period_vested: next_period_to_vest,
+                },
+            );
+        };
 
         //update last_vested_period for the shareholder
         vesting_record.last_vested_period = next_period_to_vest - 1;

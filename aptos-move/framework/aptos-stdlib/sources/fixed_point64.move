@@ -56,6 +56,19 @@ module aptos_std::fixed_point64 {
         ensures result.value == x.value + y.value;
     }
 
+    /// Returns x / y. The result cannot be greater than MAX_U128.
+    public fun divide(x: FixedPoint64, y: FixedPoint64): FixedPoint64 {
+        let x_raw = get_raw_value(x);
+        let y_raw = get_raw_value(y);
+        // If it is divisable, return the result. If not, return the result + 1.
+        let result = (x_raw as u256) / (y_raw as u256);
+        if ((x_raw as u256) % (y_raw as u256) != 0) {
+            result = result + 1;
+        };
+        assert!(result <= MAX_U128, ERATIO_OUT_OF_RANGE);
+        create_from_raw_value((result as u128))
+    }
+
     /// Multiply a u128 integer by a fixed-point number, truncating any
     /// fractional part of the product. This will abort if the product
     /// overflows.
@@ -94,6 +107,7 @@ module aptos_std::fixed_point64 {
         assert!(unscaled_product <= MAX_U128, EMULTIPLICATION);
         create_from_raw_value((unscaled_product as u128))
     }
+
 
     /// Divide a u128 integer by a fixed-point number, truncating any
     /// fractional part of the quotient. This will abort if the divisor
