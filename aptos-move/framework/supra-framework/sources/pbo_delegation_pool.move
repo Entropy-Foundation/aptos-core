@@ -123,18 +123,15 @@ module supra_framework::pbo_delegation_pool {
     use aptos_std::smart_table::{Self, SmartTable};
     use aptos_std::fixed_point64::{Self, FixedPoint64};
 
-    use supra_framework::coin::{Coin, balance};
+    use supra_framework::coin::{Self, Coin};
     use supra_framework::account;
     use supra_framework::supra_account;
     use supra_framework::supra_coin::SupraCoin;
-    use supra_framework::coin;
     use supra_framework::event::{Self, EventHandle, emit};
     use supra_framework::stake::{Self, get_operator};
     use supra_framework::staking_config;
     use supra_framework::timestamp;
     use supra_framework::multisig_account;
-    #[test_only]
-    use aptos_std::debug;
 
     const MODULE_SALT: vector<u8> = b"supra_framework::pbo_delegation_pool";
 
@@ -760,7 +757,7 @@ module supra_framework::pbo_delegation_pool {
         unlock_duration: u64
     ) acquires DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         assert!(
-            balance<SupraCoin>(signer::address_of(owner)) >= amount,
+            coin::balance<SupraCoin>(signer::address_of(owner)) >= amount,
             error::invalid_argument(EBALANCE_NOT_SUFFICIENT)
         );
         let coin = coin::withdraw<SupraCoin>(owner, amount);
