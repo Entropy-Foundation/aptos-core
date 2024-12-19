@@ -1772,34 +1772,22 @@ module supra_framework::pbo_delegation_pool {
         let last_unlocked_period = unlock_schedule.last_unlock_period;
         let schedule_length = vector::length(&unlock_schedule.schedule);
         let cfraction = unlock_schedule.cumulative_unlocked_fraction;
-        while (last_unlocked_period < unlock_periods_passed
-            && fixed_point64::less(cfraction, one)) {
-            let next_fraction =
-                if (schedule_length <= last_unlocked_period) {
-                    *vector::borrow(&unlock_schedule.schedule, schedule_length - 1)
-                } else {
-                    *vector::borrow(&unlock_schedule.schedule, last_unlocked_period)
-                };
-            let next_fraction_unchanged = next_fraction == *vector::borrow(&unlock_schedule.schedule, schedule_length - 1);
-            // If next fraction is same as last unlocked period, then no need to fetch from schedule
-            if (next_fraction_unchanged) {
-                while (last_unlocked_period < unlock_periods_passed
-                    && fixed_point64::less(cfraction, one)) {
-                    cfraction = fixed_point64::add(cfraction, next_fraction);
-                    last_unlocked_period = last_unlocked_period + 1;
-                };
-            } else {
-                cfraction = fixed_point64::add(cfraction, next_fraction);
-
-                last_unlocked_period = last_unlocked_period + 1;
-            };
+        while (last_unlocked_period < unlock_periods_passed && fixed_point64::less(cfraction, one)
+                && last_unlocked_period < schedule_length) {
+            let next_fraction = *vector::borrow(&unlock_schedule.schedule, last_unlocked_period);
+            cfraction = fixed_point64::add(cfraction, next_fraction);
+            last_unlocked_period = last_unlocked_period + 1;
         };
+
+        let final_fraction= *vector::borrow(&unlock_schedule.schedule, schedule_length - 1);
+        // Fast foward calculation to current period and don't update last_unlocked_period since it is not used anymore
+        cfraction = fixed_point64::add(cfraction, fixed_point64::multiply_u128_return_fixpoint64((unlock_periods_passed - last_unlocked_period as u128), final_fraction));
+        cfraction = fixed_point64::min(cfraction, one);
 
         unlock_schedule.cumulative_unlocked_fraction = cfraction;
         unlock_schedule.last_unlock_period = unlock_periods_passed;
         let unlockable_amount = cached_unlockable_balance(delegator_addr, pool_address);
         amount <= unlockable_amount
-
     }
 
     /// Unlock `amount` from the active + pending_active stake of `delegator` or
