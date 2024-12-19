@@ -63,7 +63,7 @@ module std::fixed_point32 {
         let unscaled_product = (val as u128) * (multiplier.value as u128);
         // Check whether the value is too large.
         assert!(unscaled_product <= MAX_U64, EMULTIPLICATION);
-        create_from_raw_value((product as u64));
+        create_from_raw_value((unscaled_product as u64))
     }
 
     /// Divide a u64 integer by a fixed-point number, truncating any
