@@ -1,13 +1,16 @@
 // Copyright (c) 2024 Supra.
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::chain_id::ChainId;
-use crate::transaction::{RawTransaction, Transaction, TransactionPayload};
+use crate::transaction::automation::AutomationTaskMetaData;
+use crate::transaction::{EntryFunction, RawTransaction, Transaction, TransactionPayload};
 use aptos_crypto::HashValue;
 use move_core_types::account_address::AccountAddress;
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::Debug;
+use anyhow::anyhow;
 
 /// A transaction that has been created based on the automation-task in automation registry.
 ///
@@ -112,6 +115,10 @@ impl AutomatedTransaction {
         self.raw_txn.expiration_timestamp_secs
     }
 
+    pub fn block_height(&self) -> u64 {
+        self.block_height
+    }
+
     pub fn raw_txn_bytes_len(&self) -> usize {
         *self.raw_txn_size.get_or_init(|| {
             bcs::serialized_size(&self.raw_txn).expect("Unable to serialize RawTransaction")
@@ -131,10 +138,213 @@ impl AutomatedTransaction {
             )
         })
     }
+
+    /// Returns transaction TTL since base_timestamp if the transaction expiry time is in the future,
+    /// otherwise None.
+    pub fn duration_since(&self, base_timestamp: u64) -> Option<u64> {
+        self.expiration_timestamp_secs().checked_sub(base_timestamp)
+
+    }
 }
 
 impl From<AutomatedTransaction> for Transaction {
     fn from(value: AutomatedTransaction) -> Self {
         Transaction::AutomatedTransaction(value)
+    }
+}
+
+macro_rules! value_or_missing {
+    ($value: ident , $message: literal) => {
+        match $value {
+            Some(v) => v,
+            None => return BuilderResult::missing_value($message),
+        }
+    };
+}
+#[derive(Clone, Debug)]
+pub enum BuilderResult {
+    Success(AutomatedTransaction),
+    GasPriceThresholdExceeded { threshold: u64, value: u64 },
+    MissingValue(&'static str),
+}
+
+impl BuilderResult {
+    pub fn success(txn: AutomatedTransaction) -> BuilderResult {
+        Self::Success(txn)
+    }
+
+    pub fn gas_price_threshold_exceeded(threshold: u64, value: u64) -> BuilderResult {
+        Self::GasPriceThresholdExceeded { threshold, value }
+    }
+    pub fn missing_value(missing: &'static str) -> BuilderResult {
+        Self::MissingValue(missing)
+    }
+}
+
+/// Builder interface for [AutomatedTransaction]
+#[derive(Clone, Debug, Default)]
+pub struct AutomatedTransactionBuilder {
+    /// Gas unit price threshold. Default to 0.
+    pub(crate) gas_price_cap: u64,
+
+    /// Sender's address.
+    pub(crate) sender: Option<AccountAddress>,
+
+    /// Sequence number of this transaction. This must match the sequence number
+    /// stored in the sender's account at the time the transaction executes.
+    pub(crate) sequence_number: Option<u64>,
+
+    /// The transaction payload, e.g., a script to execute.
+    pub(crate) payload: Option<TransactionPayload>,
+
+    /// Maximal total gas to spend for this transaction.
+    pub(crate) max_gas_amount: Option<u64>,
+
+    /// Price to be paid per gas unit.
+    pub(crate) gas_unit_price: Option<u64>,
+
+    /// Expiration timestamp for this transaction, represented
+    /// as seconds from the Unix Epoch. If the current blockchain timestamp
+    /// is greater than or equal to this time, then the transaction has
+    /// expired and will be discarded. This can be set to a large value far
+    /// in the future to indicate that a transaction does not expire.
+    pub(crate) expiration_timestamp_secs: Option<u64>,
+
+    /// Chain ID of the Supra network this transaction is intended for.
+    pub(crate) chain_id: Option<ChainId>,
+
+    /// Hash of the transaction which registered this automated transaction.
+    pub(crate) authenticator: Option<HashValue>,
+
+    /// Height of the block for which this transaction has should be scheduled for execution.
+    pub(crate) block_height: Option<u64>,
+}
+
+impl AutomatedTransactionBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn with_gas_price_cap(mut self, cap: u64) -> Self {
+        self.gas_price_cap = cap;
+        self
+    }
+
+    pub fn with_sender(mut self, sender: AccountAddress) -> Self {
+        self.sender = Some(sender);
+        self
+    }
+    pub fn with_sequence_number(mut self, seq: u64) -> Self {
+        self.sequence_number = Some(seq);
+        self
+    }
+    pub fn with_payload(mut self, payload: TransactionPayload) -> Self {
+        self.payload = Some(payload);
+        self
+    }
+
+    pub fn with_entry_function(mut self, entry_fn: EntryFunction) -> Self {
+        self.payload = Some(TransactionPayload::EntryFunction(entry_fn));
+        self
+    }
+    pub fn with_max_gas_amount(mut self, max_gas_amount: u64) -> Self {
+        self.max_gas_amount = Some(max_gas_amount);
+        self
+    }
+    pub fn with_gas_unit_price(mut self, gas_unit_price: u64) -> Self {
+        self.gas_unit_price = Some(gas_unit_price);
+        self
+    }
+    pub fn with_expiration_timestamp_secs(mut self, secs: u64) -> Self {
+        self.expiration_timestamp_secs = Some(secs);
+        self
+    }
+    pub fn with_chain_id(mut self, chain_id: ChainId) -> Self {
+        self.chain_id = Some(chain_id);
+        self
+    }
+    pub fn with_authenticator(mut self, authenticator: HashValue) -> Self {
+        self.authenticator = Some(authenticator);
+        self
+    }
+    pub fn with_block_height(mut self, block_height: u64) -> Self {
+        self.block_height = Some(block_height);
+        self
+    }
+
+    /// Build an [AutomatedTransaction] instance.
+    /// Fails if
+    ///    - any of the mandatory fields is missing
+    ///    - if specified gas price threshold is crossed by gas unit price value
+    pub fn build(self) -> BuilderResult {
+        let AutomatedTransactionBuilder {
+            gas_price_cap,
+            sender,
+            sequence_number,
+            payload,
+            max_gas_amount,
+            gas_unit_price,
+            expiration_timestamp_secs,
+            chain_id,
+            authenticator,
+            block_height,
+        } = self;
+        let sender = value_or_missing!(sender, "sender");
+        let sequence_number = value_or_missing!(sequence_number, "sequence_number");
+        let payload = value_or_missing!(payload, "payload");
+        let max_gas_amount = value_or_missing!(max_gas_amount, "max_gas_amount");
+        let gas_unit_price = value_or_missing!(gas_unit_price, "gas_unit_price");
+        let chain_id = value_or_missing!(chain_id, "chain_id");
+        let authenticator = value_or_missing!(authenticator, "authenticator");
+        let block_height = value_or_missing!(block_height, "block_height");
+        let expiration_timestamp_secs =
+            value_or_missing!(expiration_timestamp_secs, "expiration_timestamp_secs");
+        if gas_price_cap < gas_unit_price {
+            return BuilderResult::gas_price_threshold_exceeded(gas_price_cap, gas_unit_price);
+        }
+        let raw_transaction = RawTransaction::new(
+            sender,
+            sequence_number,
+            payload,
+            max_gas_amount,
+            gas_unit_price,
+            expiration_timestamp_secs,
+            chain_id,
+        );
+        BuilderResult::Success(AutomatedTransaction::new(raw_transaction, authenticator, block_height))
+    }
+}
+
+/// Creates [AutomatedTransaction] builder from [AutomationTaskMetaData]
+/// Fails if:
+///   - payload is not successfully converted to entry function
+///   - txn_hash can not be converted to [HashValue]
+impl TryFrom<AutomationTaskMetaData> for AutomatedTransactionBuilder {
+    type Error = anyhow::Error;
+
+    fn try_from(value: AutomationTaskMetaData) -> Result<Self, Self::Error> {
+        let AutomationTaskMetaData {
+            id,
+            owner,
+            payload_tx,
+            expiry_time,
+            tx_hash,
+            max_gas_amount,
+            gas_price_cap,
+            ..
+        } = value;
+        let entry_function =
+            bcs::from_bytes::<EntryFunction>(payload_tx.as_slice()).map_err(|err| {
+                anyhow!("Failed to extract entry function from Automation meta data{err:?}",)
+            })?;
+        let authenticator = HashValue::from_slice(&tx_hash)
+            .map_err(|err| anyhow!("Invalid authenticator value {err:?}"))?;
+        Ok(AutomatedTransactionBuilder::default()
+            .with_sender(owner)
+            .with_sequence_number(id)
+            .with_max_gas_amount(max_gas_amount)
+            .with_gas_price_cap(gas_price_cap)
+            .with_expiration_timestamp_secs(expiry_time)
+            .with_entry_function(entry_function)
+            .with_authenticator(authenticator))
     }
 }
