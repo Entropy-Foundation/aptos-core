@@ -9439,7 +9439,7 @@ module supra_framework::pbo_delegation_pool {
         timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
         end_aptos_epoch();
 
-        // It's acceptable to round off 9 because this coin will remain locked and won't be transferred anywhere.
+        // After three mounth cliff and one extra mouth, 2/10 of the principle stake (113) = 22.6 can be unlocked. minus 9 for rounding off.
         let unlock_coin =
             can_principle_unlock(
                 delegator_address,
@@ -9448,7 +9448,7 @@ module supra_framework::pbo_delegation_pool {
             );
         assert!(unlock_coin, 11);
 
-        // after 5 months
+        // after 5 months, 5/10 of the principle stake (113) = 56.5 can be unlocked. minus 9 for rounding off.
         timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
         end_aptos_epoch();
         let unlock_coin =
