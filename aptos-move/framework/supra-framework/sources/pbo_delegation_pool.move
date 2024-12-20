@@ -122,7 +122,6 @@ module supra_framework::pbo_delegation_pool {
     use aptos_std::table::{Self, Table};
     use aptos_std::smart_table::{Self, SmartTable};
     use aptos_std::fixed_point64::{Self, FixedPoint64};
-    use aptos_std::math64::min;
 
     use supra_framework::coin::Coin;
     use supra_framework::account;

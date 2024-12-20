@@ -9,7 +9,6 @@ module supra_framework::vesting_without_staking {
     use std::signer;
     use std::string::{utf8, String};
     use std::vector;
-    use aptos_std::debug;
     use aptos_std::simple_map::{Self, SimpleMap};
     use aptos_std::math64::min;
 
