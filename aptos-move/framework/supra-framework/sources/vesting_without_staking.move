@@ -9,6 +9,7 @@ module supra_framework::vesting_without_staking {
     use std::signer;
     use std::string::{utf8, String};
     use std::vector;
+    use aptos_std::debug;
     use aptos_std::simple_map::{Self, SimpleMap};
     use aptos_std::math64::min;
 
@@ -502,7 +503,7 @@ module supra_framework::vesting_without_staking {
             emit_event(&mut vesting_contract.vest_events,
                 VestEvent {
                     admin: vesting_contract.admin,
-                    shareholder_address: shareholder_address,
+                    shareholder_address,
                     vesting_contract_address: contract_address,
                     period_vested: next_period_to_vest,
                 },
@@ -527,7 +528,7 @@ module supra_framework::vesting_without_staking {
             emit_event(&mut vesting_contract.vest_events,
                 VestEvent {
                     admin: vesting_contract.admin,
-                    shareholder_address: shareholder_address,
+                    shareholder_address,
                     vesting_contract_address: contract_address,
                     period_vested: next_period_to_vest,
                 },
@@ -1621,5 +1622,140 @@ module supra_framework::vesting_without_staking {
     fun fraction(total: u64, numerator: u64, denominator: u64): u64 {
         fixed_point32::multiply_u64(total,
             fixed_point32::create_from_rational(numerator, denominator))
+    }
+
+    #[test(supra_framework = @0x1, admin = @0x123, shareholder = @0x234, withdrawal = @111)]
+    public entry fun test_end_to_end_can_fast_forward_divisable(
+        supra_framework: &signer,
+        admin: &signer,
+        shareholder: &signer,
+        withdrawal: &signer,
+    ) acquires AdminStore, VestingContract {
+        let admin_address = signer::address_of(admin);
+        let withdrawal_address = signer::address_of(withdrawal);
+        let shareholder_address = signer::address_of(shareholder);
+        let shareholders = &vector[shareholder_address];
+        let shareholder_share = GRANT_AMOUNT;
+        let shares = &vector[shareholder_share];
+        // Create the vesting contract.
+        setup(supra_framework,
+            vector[
+                admin_address,
+                withdrawal_address,
+                shareholder_address]);
+        let contract_address = setup_vesting_contract(admin, shareholders, shares,
+            withdrawal_address);
+        assert!(vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
+            1, 0);
+        let vested_amount = 0;
+        // Because the time is behind the start time, vest will do nothing.
+        vest(contract_address);
+        assert!(coin::balance<SupraCoin>(contract_address) == GRANT_AMOUNT, 0);
+        assert!(coin::balance<SupraCoin>(shareholder_address) == vested_amount, 0);
+
+        // Time is now at the start time, vest will unlock the first period, which is 2/10.
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address) + period_duration_secs(
+            contract_address));
+        vest(contract_address);
+        vested_amount = vested_amount + fraction(shareholder_share, 2, 10);
+        assert!(coin::balance<SupraCoin>(shareholder_address) == vested_amount, 0);
+
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address) + period_duration_secs(
+            contract_address) * 9);
+        vest(contract_address);
+        vested_amount = shareholder_share;
+        assert!(coin::balance<SupraCoin>(shareholder_address) == vested_amount, 0);
+    }
+
+    #[test(supra_framework = @0x1, admin = @0x123, shareholder = @0x234, withdrawal = @111)]
+    public entry fun test_end_to_end_can_fast_forward_nondivisable(
+        supra_framework: &signer,
+        admin: &signer,
+        shareholder: &signer,
+        withdrawal: &signer,
+    ) acquires AdminStore, VestingContract {
+        let admin_address = signer::address_of(admin);
+        let withdrawal_address = signer::address_of(withdrawal);
+        let shareholder_address = signer::address_of(shareholder);
+        let shareholders = &vector[shareholder_address];
+        let shareholder_share = 3334;
+        let shares = &vector[shareholder_share];
+        // Create the vesting contract.
+        setup(supra_framework,
+            vector[
+                admin_address,
+                withdrawal_address,
+                shareholder_address]);
+        let contract_address = setup_vesting_contract(admin, shareholders, shares,
+            withdrawal_address);
+        assert!(vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
+            1, 0);
+        let vested_amount = 0;
+        // Because the time is behind the start time, vest will do nothing.
+        vest(contract_address);
+        assert!(coin::balance<SupraCoin>(contract_address) == 3334, 0);
+        assert!(coin::balance<SupraCoin>(shareholder_address) == vested_amount, 0);
+
+        // Time is now at the start time, vest will unlock the first period, which is 2/10.
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address) + period_duration_secs(
+            contract_address));
+        vest(contract_address);
+        vested_amount = vested_amount + fraction(shareholder_share, 2, 10);
+        assert!(coin::balance<SupraCoin>(shareholder_address) == vested_amount, 0);
+
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address) + period_duration_secs(
+            contract_address) * 9);
+        vest(contract_address);
+        vested_amount = shareholder_share;
+        assert!(coin::balance<SupraCoin>(shareholder_address) == vested_amount, 0);
+    }
+
+    #[test(supra_framework = @0x1, admin = @0x123, shareholder = @0x234, withdrawal = @111)]
+    public entry fun test_end_to_end_can_fast_forward_time_unchanged(
+        supra_framework: &signer,
+        admin: &signer,
+        shareholder: &signer,
+        withdrawal: &signer,
+    ) acquires AdminStore, VestingContract {
+        let admin_address = signer::address_of(admin);
+        let withdrawal_address = signer::address_of(withdrawal);
+        let shareholder_address = signer::address_of(shareholder);
+        let shareholders = &vector[shareholder_address];
+        let shareholder_share = 1000;
+        let shares = &vector[shareholder_share];
+        // Create the vesting contract.
+        setup(supra_framework,
+            vector[
+                admin_address,
+                withdrawal_address,
+                shareholder_address]);
+        let contract_address = setup_vesting_contract(admin, shareholders, shares,
+            withdrawal_address);
+        assert!(vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
+            1, 0);
+        let vested_amount = 0;
+        // Because the time is behind the start time, vest will do nothing.
+        vest(contract_address);
+        assert!(coin::balance<SupraCoin>(contract_address) == 1000, 0);
+        assert!(coin::balance<SupraCoin>(shareholder_address) == vested_amount, 0);
+        // Time is now at the start time, vest will unlock the first period, which is 2/10.
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address) + period_duration_secs(
+            contract_address));
+        vest(contract_address);
+        vested_amount = vested_amount + fraction(shareholder_share, 2, 10);
+        assert!(coin::balance<SupraCoin>(shareholder_address) == vested_amount, 0);
+        // The time is unchanged, vest will do nothing.
+        vest(contract_address);
+        vested_amount = vested_amount + fraction(shareholder_share, 2, 10);
+        assert!(coin::balance<SupraCoin>(shareholder_address) == vested_amount, 0);
+        vest(contract_address);
+        vested_amount = vested_amount + fraction(shareholder_share, 2, 10);
+        assert!(coin::balance<SupraCoin>(shareholder_address) == vested_amount, 0);
+
+        timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address) + period_duration_secs(
+            contract_address) * 9);
+        vest(contract_address);
+        vested_amount = shareholder_share;
+        assert!(coin::balance<SupraCoin>(shareholder_address) == vested_amount, 0);
     }
 }
