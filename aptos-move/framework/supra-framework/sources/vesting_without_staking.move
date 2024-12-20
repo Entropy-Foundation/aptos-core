@@ -1746,10 +1746,8 @@ module supra_framework::vesting_without_staking {
         assert!(coin::balance<SupraCoin>(shareholder_address) == vested_amount, 0);
         // The time is unchanged, vest will do nothing.
         vest(contract_address);
-        vested_amount = vested_amount + fraction(shareholder_share, 2, 10);
         assert!(coin::balance<SupraCoin>(shareholder_address) == vested_amount, 0);
         vest(contract_address);
-        vested_amount = vested_amount + fraction(shareholder_share, 2, 10);
         assert!(coin::balance<SupraCoin>(shareholder_address) == vested_amount, 0);
 
         timestamp::update_global_time_for_test_secs(vesting_start_secs(contract_address) + period_duration_secs(
