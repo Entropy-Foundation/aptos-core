@@ -1781,12 +1781,9 @@ module supra_framework::pbo_delegation_pool {
         };
         if (last_unlocked_period < unlock_periods_passed && fixed_point64::less(cfraction, one)) {
             let final_fraction= *vector::borrow(&unlock_schedule.schedule, schedule_length - 1);
-            // Determine how many periods is needed
-            let periods_needed = min(unlock_periods_passed - last_unlocked_period,
-                ((fixed_point64::get_raw_value(fixed_point64::divide(fixed_point64::sub(one, cfraction), final_fraction)) as u64) )
-            );
             // Acclerate calculation to current period and don't update last_unlocked_period since it is not used anymore
-            cfraction = fixed_point64::add(cfraction, fixed_point64::multiply_u128_return_fixpoint64((periods_needed as u128), final_fraction));
+            cfraction = fixed_point64::add(cfraction, fixed_point64::multiply_u128_return_fixpoint64((unlock_periods_passed - last_unlocked_period as u128), final_fraction));
+            cfraction = fixed_point64::min(cfraction, one);
         };
         unlock_schedule.cumulative_unlocked_fraction = cfraction;
         unlock_schedule.last_unlock_period = unlock_periods_passed;
