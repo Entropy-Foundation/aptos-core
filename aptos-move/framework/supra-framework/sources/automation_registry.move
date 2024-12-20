@@ -13,9 +13,6 @@ module supra_framework::automation_registry {
     use supra_framework::supra_account;
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
-    use supra_framework::transaction_context;
-    #[test_only]
-    use std::vector;
 
     #[test_only]
     use supra_framework::coin;
