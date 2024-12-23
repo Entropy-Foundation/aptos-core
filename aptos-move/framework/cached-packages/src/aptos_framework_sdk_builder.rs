@@ -147,8 +147,9 @@ pub enum EntryFunctionCall {
         cap_update_table: Vec<u8>,
     },
 
-    /// Remove Automatioon task entry.
-    AutomationRegistryRemoveTask {
+    /// Cancel Automation task with specified id.
+    /// Only existing task can be cancled and only by task onwer.
+    AutomationRegistryCancelTask {
         id: u64,
     },
 
@@ -1202,7 +1203,7 @@ impl EntryFunctionCall {
                 new_public_key_bytes,
                 cap_update_table,
             ),
-            AutomationRegistryRemoveTask { id } => automation_registry_remove_task(id),
+            AutomationRegistryCancelTask { id } => automation_registry_cancel_task(id),
             AutomationRegistryUpdateAutomationGasLimit {
                 automation_gas_limit,
             } => automation_registry_update_automation_gas_limit(automation_gas_limit),
@@ -2148,8 +2149,9 @@ pub fn account_rotate_authentication_key_with_rotation_capability(
     ))
 }
 
-/// Remove Automatioon task entry.
-pub fn automation_registry_remove_task(id: u64) -> TransactionPayload {
+/// Cancel Automation task with specified id.
+/// Only existing task can be cancled and only by task onwer.
+pub fn automation_registry_cancel_task(id: u64) -> TransactionPayload {
     TransactionPayload::EntryFunction(EntryFunction::new(
         ModuleId::new(
             AccountAddress::new([
@@ -2158,7 +2160,7 @@ pub fn automation_registry_remove_task(id: u64) -> TransactionPayload {
             ]),
             ident_str!("automation_registry").to_owned(),
         ),
-        ident_str!("remove_task").to_owned(),
+        ident_str!("cancel_task").to_owned(),
         vec![],
         vec![bcs::to_bytes(&id).unwrap()],
     ))
@@ -5379,11 +5381,11 @@ mod decoder {
         }
     }
 
-    pub fn automation_registry_remove_task(
+    pub fn automation_registry_cancel_task(
         payload: &TransactionPayload,
     ) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AutomationRegistryRemoveTask {
+            Some(EntryFunctionCall::AutomationRegistryCancelTask {
                 id: bcs::from_bytes(script.args().get(0)?).ok()?,
             })
         } else {
@@ -7288,8 +7290,8 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
             Box::new(decoder::account_rotate_authentication_key_with_rotation_capability),
         );
         map.insert(
-            "automation_registry_remove_task".to_string(),
-            Box::new(decoder::automation_registry_remove_task),
+            "automation_registry_cancel_task".to_string(),
+            Box::new(decoder::automation_registry_cancel_task),
         );
         map.insert(
             "automation_registry_update_automation_gas_limit".to_string(),

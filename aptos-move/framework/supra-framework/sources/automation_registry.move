@@ -21,10 +21,12 @@ module supra_framework::automation_registry {
 
     friend supra_framework::genesis;
 
+    /// Invalid expiry time: it cannot be earlier than the current time
+    const EINVALID_EXPIRY_TIME: u64 = 1;
     /// Expiry time does not go beyond upper cap duration
-    const EEXPIRY_TIME_UPPER: u64 = 1;
+    const EEXPIRY_TIME_UPPER: u64 = 2;
     /// Expiry time must be after the start of the next epoch
-    const EEXPIRY_BEFORE_NEXT_EPOCH: u64 = 2;
+    const EEXPIRY_BEFORE_NEXT_EPOCH: u64 = 3;
 
     /// The default automation task gas limit
     const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 100000000;
@@ -163,9 +165,11 @@ module supra_framework::automation_registry {
         //Well formedness check of payload_tx is done in native layer beforehand.
 
         let current_time = timestamp::now_seconds();
+        assert!(expiry_time > current_time, EINVALID_EXPIRY_TIME);
         let task_duration = expiry_time - current_time;
         assert!(task_duration < registry_data.duration_upper_limit, EEXPIRY_TIME_UPPER);
 
+        // Check that task is valid at least in the next epoch
         let epoch_interval = block::get_epoch_interval_secs();
         let last_epoch_time = get_last_epoch_time_second();
         assert!(expiry_time > (last_epoch_time + epoch_interval), EEXPIRY_BEFORE_NEXT_EPOCH);
@@ -187,9 +191,10 @@ module supra_framework::automation_registry {
             registry_data.registry_fee_address);
     }
 
-    /// Remove Automatioon task entry.
-    public entry fun remove_task(owner: &signer, id: u64) acquires AutomationRegistry {
-        let automation_task_metadata = automation_registry_state::remove_task(owner, id);
+    /// Cancel Automation task with specified id.
+    /// Only existing task can be cancled and only by task onwer.
+    public entry fun cancel_task(owner: &signer, id: u64) acquires AutomationRegistry {
+        let automation_task_metadata = automation_registry_state::cancel_task(owner, id);
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         refund_automation_task_fee(signer::address_of(owner), automation_task_metadata, automation_registry.automation_unit_price);
     }
@@ -240,7 +245,7 @@ module supra_framework::automation_registry {
     }
 
     #[view]
-    /// Ge gas committed for next epoch
+    /// Get gas committed for next epoch
     public fun get_gas_committed_for_next_epoch(): u64 {
         automation_registry_state::get_gas_committed_for_next_epoch()
     }

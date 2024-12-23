@@ -157,6 +157,7 @@ transferred to A
 -  [Function `calculate_and_update_delegator_voter`](#0x1_pbo_delegation_pool_calculate_and_update_delegator_voter)
 -  [Function `get_expected_stake_pool_address`](#0x1_pbo_delegation_pool_get_expected_stake_pool_address)
 -  [Function `min_remaining_secs_for_commission_change`](#0x1_pbo_delegation_pool_min_remaining_secs_for_commission_change)
+-  [Function `initialize_delegation_pool_with_amount`](#0x1_pbo_delegation_pool_initialize_delegation_pool_with_amount)
 -  [Function `initialize_delegation_pool`](#0x1_pbo_delegation_pool_initialize_delegation_pool)
 -  [Function `fund_delegators_with_locked_stake`](#0x1_pbo_delegation_pool_fund_delegators_with_locked_stake)
 -  [Function `fund_delegators_with_stake`](#0x1_pbo_delegation_pool_fund_delegators_with_stake)
@@ -1367,6 +1368,16 @@ Requested amount too high, the balance would fall below principle stake after un
 
 
 
+<a id="0x1_pbo_delegation_pool_EBALANCE_NOT_SUFFICIENT"></a>
+
+Balance is not enough.
+
+
+<pre><code><b>const</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EBALANCE_NOT_SUFFICIENT">EBALANCE_NOT_SUFFICIENT</a>: u64 = 38;
+</code></pre>
+
+
+
 <a id="0x1_pbo_delegation_pool_ECOIN_VALUE_NOT_SAME_AS_PRINCIPAL_STAKE"></a>
 
 Coin value is not the same with principle stake.
@@ -2289,6 +2300,61 @@ Return the minimum remaining time in seconds for commission change, which is one
 <pre><code><b>public</b> <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_min_remaining_secs_for_commission_change">min_remaining_secs_for_commission_change</a>(): u64 {
     <b>let</b> config = <a href="staking_config.md#0x1_staking_config_get">staking_config::get</a>();
     <a href="staking_config.md#0x1_staking_config_get_recurring_lockup_duration">staking_config::get_recurring_lockup_duration</a>(&config) / 4
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_pbo_delegation_pool_initialize_delegation_pool_with_amount"></a>
+
+## Function `initialize_delegation_pool_with_amount`
+
+Initialize a delegation pool without actual coin but withdraw from the owner's account.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_initialize_delegation_pool_with_amount">initialize_delegation_pool_with_amount</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, multisig_admin: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<b>address</b>&gt;, amount: u64, operator_commission_percentage: u64, delegation_pool_creation_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, delegator_address: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, principle_stake: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, unlock_numerators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, unlock_denominator: u64, unlock_start_time: u64, unlock_duration: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_initialize_delegation_pool_with_amount">initialize_delegation_pool_with_amount</a>(
+    owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    multisig_admin: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<b>address</b>&gt;,
+    amount: u64,
+    operator_commission_percentage: u64,
+    delegation_pool_creation_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    delegator_address: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
+    principle_stake: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
+    unlock_numerators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
+    unlock_denominator: u64,
+    unlock_start_time: u64,
+    unlock_duration: u64
+) <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_GovernanceRecords">GovernanceRecords</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_BeneficiaryForOperator">BeneficiaryForOperator</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_NextCommissionPercentage">NextCommissionPercentage</a> {
+    <b>assert</b>!(
+        <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner)) &gt;= amount,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EBALANCE_NOT_SUFFICIENT">EBALANCE_NOT_SUFFICIENT</a>)
+    );
+    <b>let</b> <a href="coin.md#0x1_coin">coin</a> = <a href="coin.md#0x1_coin_withdraw">coin::withdraw</a>&lt;SupraCoin&gt;(owner, amount);
+
+    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_initialize_delegation_pool">initialize_delegation_pool</a>(
+        owner,
+        multisig_admin,
+        operator_commission_percentage,
+        delegation_pool_creation_seed,
+        delegator_address,
+        principle_stake,
+        <a href="coin.md#0x1_coin">coin</a>,
+        unlock_numerators,
+        unlock_denominator,
+        unlock_start_time,
+        unlock_duration
+    )
 }
 </code></pre>
 

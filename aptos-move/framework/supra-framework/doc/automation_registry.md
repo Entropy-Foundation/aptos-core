@@ -21,7 +21,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `charge_automation_fee_from_user`](#0x1_automation_registry_charge_automation_fee_from_user)
 -  [Function `get_last_epoch_time_second`](#0x1_automation_registry_get_last_epoch_time_second)
 -  [Function `register`](#0x1_automation_registry_register)
--  [Function `remove_task`](#0x1_automation_registry_remove_task)
+-  [Function `cancel_task`](#0x1_automation_registry_cancel_task)
 -  [Function `refund_automation_task_fee`](#0x1_automation_registry_refund_automation_task_fee)
 -  [Function `get_next_task_index`](#0x1_automation_registry_get_next_task_index)
 -  [Function `get_active_task_ids`](#0x1_automation_registry_get_active_task_ids)
@@ -200,6 +200,16 @@ Update duration upper limit event
 ## Constants
 
 
+<a id="0x1_automation_registry_EINVALID_EXPIRY_TIME"></a>
+
+Invalid expiry time: it cannot be earlier than the current time
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_EXPIRY_TIME">EINVALID_EXPIRY_TIME</a>: u64 = 1;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_DEFAULT_AUTOMATION_GAS_LIMIT"></a>
 
 The default automation task gas limit
@@ -235,7 +245,7 @@ The default upper limit duration for automation task, specified in seconds (30 d
 Expiry time must be after the start of the next epoch
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_BEFORE_NEXT_EPOCH">EEXPIRY_BEFORE_NEXT_EPOCH</a>: u64 = 2;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_BEFORE_NEXT_EPOCH">EEXPIRY_BEFORE_NEXT_EPOCH</a>: u64 = 3;
 </code></pre>
 
 
@@ -245,7 +255,7 @@ Expiry time must be after the start of the next epoch
 Expiry time does not go beyond upper cap duration
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_TIME_UPPER">EEXPIRY_TIME_UPPER</a>: u64 = 1;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_TIME_UPPER">EEXPIRY_TIME_UPPER</a>: u64 = 2;
 </code></pre>
 
 
@@ -512,9 +522,11 @@ Registers a new automation task entry.
     //Well formedness check of payload_tx is done in <b>native</b> layer beforehand.
 
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
+    <b>assert</b>!(expiry_time &gt; current_time, <a href="automation_registry.md#0x1_automation_registry_EINVALID_EXPIRY_TIME">EINVALID_EXPIRY_TIME</a>);
     <b>let</b> task_duration = expiry_time - current_time;
     <b>assert</b>!(task_duration &lt; registry_data.duration_upper_limit, <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_TIME_UPPER">EEXPIRY_TIME_UPPER</a>);
 
+    // Check that task is valid at least in the next epoch
     <b>let</b> epoch_interval = <a href="block.md#0x1_block_get_epoch_interval_secs">block::get_epoch_interval_secs</a>();
     <b>let</b> last_epoch_time = <a href="automation_registry.md#0x1_automation_registry_get_last_epoch_time_second">get_last_epoch_time_second</a>();
     <b>assert</b>!(expiry_time &gt; (last_epoch_time + epoch_interval), <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_BEFORE_NEXT_EPOCH">EEXPIRY_BEFORE_NEXT_EPOCH</a>);
@@ -541,14 +553,15 @@ Registers a new automation task entry.
 
 </details>
 
-<a id="0x1_automation_registry_remove_task"></a>
+<a id="0x1_automation_registry_cancel_task"></a>
 
-## Function `remove_task`
+## Function `cancel_task`
 
-Remove Automatioon task entry.
+Cancel Automation task with specified id.
+Only existing task can be cancled and only by task onwer.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_remove_task">remove_task</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, id: u64)
+<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_cancel_task">cancel_task</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, id: u64)
 </code></pre>
 
 
@@ -557,8 +570,8 @@ Remove Automatioon task entry.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_remove_task">remove_task</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, id: u64) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
-    <b>let</b> automation_task_metadata = <a href="automation_registry_state.md#0x1_automation_registry_state_remove_task">automation_registry_state::remove_task</a>(owner, id);
+<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_cancel_task">cancel_task</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, id: u64) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+    <b>let</b> automation_task_metadata = <a href="automation_registry_state.md#0x1_automation_registry_state_cancel_task">automation_registry_state::cancel_task</a>(owner, id);
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <a href="automation_registry.md#0x1_automation_registry_refund_automation_task_fee">refund_automation_task_fee</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner), automation_task_metadata, <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.automation_unit_price);
 }
@@ -737,7 +750,7 @@ Get registry fee resource account address
 
 ## Function `get_gas_committed_for_next_epoch`
 
-Ge gas committed for next epoch
+Get gas committed for next epoch
 
 
 <pre><code>#[view]

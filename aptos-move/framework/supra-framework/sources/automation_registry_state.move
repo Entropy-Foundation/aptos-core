@@ -24,28 +24,31 @@ module supra_framework::automation_registry_state {
     /// Invalid max gas amount for automated task: it cannot be zero
     const EINVALID_MAX_GAS_AMOUNT: u64 = 3;
     /// Task with provided Id not found
-    const ETASK_NOT_FOUND: u64 = 4;
+    const EAUTOMATION_TASK_NOT_FOUND: u64 = 4;
     /// Gas amount does not go beyond upper cap limit
     const EGAS_AMOUNT_UPPER: u64 = 5;
-    /// Automation task not found
-    const EAUTOMATION_TASK_NOT_EXIST: u64 = 6;
     /// Unauthorized access: the caller is not the owner of the task
-    const EUNAUTHORIZED_TASK_OWNER: u64 = 7;
+    const EUNAUTHORIZED_TASK_OWNER: u64 = 6;
     /// Upon new epoch entry failed to propertly calculated committed gas for the next epoch.
     /// It is greater than current epoch committed gas.
-    const EINVALID_COMMITTED_GAS_CALCULATION: u64 = 8;
+    const EINVALID_COMMITTED_GAS_CALCULATION: u64 = 7;
     /// Transactoin hash that registring current task is invalid. Lenght should be 32.
-    /// It is greater than current epoch committed gas.
-    const EINVALID_TXN_HASH: u64 = 9;
-    /// Transactoin hash that registring current task is invalid. Lenght should be 32.
-    /// It is greater than current epoch committed gas.
-    const EINVALID_PAYLOAD: u64 = 10;
+    const EINVALID_TXN_HASH: u64 = 8;
+    /// Current committed gas amount is greater than the automation gas limit.
+    const EUNACCEPTABLE_AUTOMATION_GAS_LIMIT: u64 = 9;
+    /// Trying to cancel a task which is already cancelled.
+    const EINVALID_CANCELLATION: u64 = 10;
 
     /// The lenght of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
 
     /// Conversion factor between microseconds and second
     const MICROSECS_CONVERSION_FACTOR: u64 = 1_000_000;
+
+    /// Constants describing task state.
+    const PENDING: u8 = 0;
+    const ACTIVE: u8 = 1;
+    const CANCELLED: u8 = 2;
 
     /// It tracks entries both pending and completed, organized by unique indices.
     struct AutomationRegistryState has key, store {
@@ -77,8 +80,8 @@ module supra_framework::automation_registry_state {
         registration_epoch: u64,
         /// Registration epoch time
         registration_time: u64,
-        /// Flag indicating whether the task is active.
-        is_active: bool
+        /// Flag indicating whether the task is active, canclled or pending.
+        state: u8
     }
 
     #[event]
@@ -89,7 +92,7 @@ module supra_framework::automation_registry_state {
 
     #[event]
     /// Remove automation task registry event
-    struct RemoveAutomationTask has drop, store {
+    struct CanclledAutomationTask has drop, store {
         id: u64
     }
 
@@ -114,27 +117,26 @@ module supra_framework::automation_registry_state {
 
         let epoch_interval_secs = epoch_interval_micro / MICROSECS_CONVERSION_FACTOR;
         let current_time = timestamp::now_seconds();
-        let expired_task_gas = 0;
+        let gas_committed_for_next_epoch = 0;
 
         // Perform clean up and updation of state
         vector::for_each(ids, |id| {
             let task = enumerable_map::get_value_mut(&mut state.tasks, id);
 
-            // Tasks that are active during this new epoch but will be already expired for the next epoch
-            if (task.expiry_time <= (current_time + epoch_interval_secs)) {
-                expired_task_gas = expired_task_gas + task.max_gas_amount;
+            // Tasks that are active during next epoch and are not cancled
+            if (task.state != CANCELLED && task.expiry_time > (current_time + epoch_interval_secs) ) {
+                gas_committed_for_next_epoch = gas_committed_for_next_epoch + task.max_gas_amount;
             };
 
-            if (task.expiry_time <= current_time) {
+            // Drop or activate task
+            if (task.expiry_time <= current_time || task.state == CANCELLED) {
                 enumerable_map::remove_value(&mut state.tasks, id);
             } else {
-                task.is_active = true;
+                task.state = ACTIVE;
             }
         });
-        assert!(expired_task_gas <= state.gas_committed_for_next_epoch, EINVALID_COMMITTED_GAS_CALCULATION);
 
-        // Adjust the gas committed for the next epoch by subtracting the gas amount of the expired task
-        state.gas_committed_for_next_epoch = state.gas_committed_for_next_epoch - expired_task_gas;
+        state.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
     }
 
     /// Registers a new automation task entry.
@@ -154,7 +156,6 @@ module supra_framework::automation_registry_state {
         assert!(gas_price_cap > 0, EINVALID_GAS_PRICE);
         assert!(max_gas_amount > 0, EINVALID_MAX_GAS_AMOUNT);
         assert!(vector::length(&tx_hash) == TXN_HASH_LENGTH, EINVALID_TXN_HASH);
-        assert!(!vector::is_empty(&payload_tx), EINVALID_PAYLOAD);
 
         let committed_gas = registry_data.gas_committed_for_next_epoch + max_gas_amount;
         assert!(committed_gas < registry_data.automation_gas_limit, EGAS_AMOUNT_UPPER);
@@ -168,7 +169,7 @@ module supra_framework::automation_registry_state {
             expiry_time,
             max_gas_amount,
             gas_price_cap,
-            is_active: false,
+            state: PENDING,
             registration_epoch,
             registration_time,
             tx_hash,
@@ -179,21 +180,28 @@ module supra_framework::automation_registry_state {
         event::emit(automation_task_metadata);
     }
 
-    /// Remove Automatioon task entry.
-    public (friend) fun remove_task(owner: &signer, id: u64): AutomationTaskMetaData acquires AutomationRegistryState {
+    /// Cancel Automation task with specified id.
+    /// If the task was active its state is updated to be CANCELLED. Otherwise task is removed form the list.
+    /// Committed gas-limit is updated accordingly.
+    /// Only existing task can be cancled and only by task onwer.
+    public (friend) fun cancel_task(owner: &signer, id: u64): AutomationTaskMetaData acquires AutomationRegistryState {
         let state = borrow_global_mut<AutomationRegistryState>(@supra_framework);
-        assert!(enumerable_map::contains(&state.tasks, id), EAUTOMATION_TASK_NOT_EXIST);
+        assert!(enumerable_map::contains(&state.tasks, id), EAUTOMATION_TASK_NOT_FOUND);
 
         let automation_task_metadata = enumerable_map::get_value(&state.tasks, id);
         assert!(automation_task_metadata.owner == signer::address_of(owner), EUNAUTHORIZED_TASK_OWNER);
+        assert!(automation_task_metadata.state != CANCELLED, EINVALID_CANCELLATION);
+        if (automation_task_metadata.state == PENDING) {
+            enumerable_map::remove_value(&mut state.tasks, id);
+        } else if (automation_task_metadata.state == ACTIVE) {
+            automation_task_metadata.state = CANCELLED;
+            enumerable_map::update_value(&mut state.tasks, id, automation_task_metadata);
+        };
 
-        enumerable_map::remove_value(&mut state.tasks, id);
-
-        // Adjust the gas committed for the next epoch by subtracting the gas amount of the expired task
+        // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
         state.gas_committed_for_next_epoch = state.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
 
-        event::emit(RemoveAutomationTask { id: automation_task_metadata.id });
-        // todo : return refund amount to user
+        event::emit(CanclledAutomationTask { id: automation_task_metadata.id });
         automation_task_metadata
     }
 
@@ -205,6 +213,8 @@ module supra_framework::automation_registry_state {
         system_addresses::assert_supra_framework(supra_framework);
 
         let state = borrow_global_mut<AutomationRegistryState>(@supra_framework);
+        assert!(state.gas_committed_for_next_epoch < automation_gas_limit, EUNACCEPTABLE_AUTOMATION_GAS_LIMIT);
+
         state.automation_gas_limit = automation_gas_limit;
 
         event::emit(UpdateAutomationGasLimit { automation_gas_limit });
@@ -219,7 +229,7 @@ module supra_framework::automation_registry_state {
 
         vector::for_each(ids, |id| {
             let task = enumerable_map::get_value(&state.tasks, id);
-            if (task.is_active) {
+            if (task.state != PENDING) {
                 vector::push_back(&mut active_task_ids, id);
             };
         });
@@ -230,20 +240,24 @@ module supra_framework::automation_registry_state {
     /// Error will be returned if entry with specified ID does not exist.
     public (friend) fun get_task_details(id: u64): AutomationTaskMetaData acquires AutomationRegistryState {
         let automation_task_metadata = borrow_global<AutomationRegistryState>(@supra_framework);
-        assert!(enumerable_map::contains(&automation_task_metadata.tasks, id), ETASK_NOT_FOUND);
+        assert!(enumerable_map::contains(&automation_task_metadata.tasks, id), EAUTOMATION_TASK_NOT_FOUND);
         enumerable_map::get_value(&automation_task_metadata.tasks, id)
     }
 
     /// Checks whether there is an active task in registry with specified input task id.
-    public fun has_active_task_with_id(id: u64): bool acquires AutomationRegistryState {
+    public(friend) fun has_active_task_with_id(id: u64): bool acquires AutomationRegistryState {
         let automation_task_metadata = borrow_global<AutomationRegistryState>(@supra_framework);
         if (enumerable_map::contains(&automation_task_metadata.tasks, id)) {
-            // TODO: uncomment when activation of the tasks on new epoch is enabled.
             let value = enumerable_map::get_value(&automation_task_metadata.tasks, id);
-            value.is_active
+            value.state != PENDING
         } else  {
             false
         }
+    }
+    #[test_only]
+    fun has_task_with_id(id: u64): bool acquires AutomationRegistryState {
+        let automation_task_metadata = borrow_global<AutomationRegistryState>(@supra_framework);
+        enumerable_map::contains(&automation_task_metadata.tasks, id)
     }
 
     /// Returns next task index in registry
@@ -267,6 +281,43 @@ module supra_framework::automation_registry_state {
     fun initialize_registry_state_test(framework: &signer) {
         timestamp::set_time_has_started_for_testing(framework);
         initialize(framework, 100);
+    }
+
+    #[test(framework = @supra_framework)]
+    fun check_automation_gas_limit_success_update(framework: signer) acquires AutomationRegistryState {
+        initialize_registry_state_test(&framework);
+        let account = account::create_account_for_test(@0x123456);
+        register(&account,
+            PAYLOAD,
+            100,
+            50,
+            20,
+            1,
+            PARENT_HASH,
+        );
+
+        // Next epoch gas committed gas is less than the new limit value.
+        update_automation_gas_limit(&framework, 75);
+        let state = borrow_global<AutomationRegistryState>(@supra_framework);
+        assert!(state.automation_gas_limit == 75, 1);
+    }
+
+    #[test(framework = @supra_framework)]
+    #[expected_failure(abort_code = EUNACCEPTABLE_AUTOMATION_GAS_LIMIT, location = Self)]
+    fun check_automation_gas_limit_failed_update(framework: signer) acquires AutomationRegistryState {
+        initialize_registry_state_test(&framework);
+        let account = account::create_account_for_test(@0x123456);
+        register(&account,
+            PAYLOAD,
+            100,
+            50,
+            20,
+            1,
+            PARENT_HASH,
+        );
+
+        // Next epoch gas committed gas is greater than the new limit value.
+        update_automation_gas_limit(&framework, 45);
     }
 
     #[test(framework = @supra_framework)]
@@ -329,22 +380,6 @@ module supra_framework::automation_registry_state {
             PAYLOAD,
             25,
             0,
-            70,
-            1,
-            PARENT_HASH,
-        );
-    }
-
-    #[test(framework = @supra_framework)]
-    #[expected_failure(abort_code = EINVALID_PAYLOAD, location = Self)]
-    fun check_registration_invalid_payload(framework: signer) acquires AutomationRegistryState {
-        initialize_registry_state_test(&framework);
-
-        let account = account::create_account_for_test(@0x123456);
-        register(&account,
-            vector[],
-            25,
-            10,
             70,
             1,
             PARENT_HASH,
@@ -433,6 +468,7 @@ module supra_framework::automation_registry_state {
             1,
             PARENT_HASH
         );
+
         // No active task and committed gas for the next epoch is total of the all registered tasks
         assert!(40 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
@@ -447,6 +483,141 @@ module supra_framework::automation_registry_state {
         let expected_ids = vector<u64>[0, 2, 3];
         vector::for_each(active_task_ids, |id| {
             assert!(vector::contains(&expected_ids, &id), 1);
-        })
+        });
+    }
+
+    #[test(framework = @supra_framework)]
+    fun check_task_successful_cancellation(framework: signer) acquires AutomationRegistryState {
+        initialize_registry_state_test(&framework);
+
+        let account = account::create_account_for_test(@0x123456);
+        register(&account,
+            PAYLOAD,
+            100,
+            10,
+            20,
+            1,
+            PARENT_HASH
+        );
+        // When moving to next epoch this task will be considered as expired
+        register(&account,
+            PAYLOAD,
+            25,
+            10,
+            20,
+            1,
+            PARENT_HASH
+        );
+        register(&account,
+            PAYLOAD,
+            150,
+            10,
+            20,
+            1,
+            PARENT_HASH
+        );
+        // When moving to next epoch this task will be considered as expired for the updcoming new epoch
+        register(&account,
+            PAYLOAD,
+            75,
+            10,
+            20,
+            1,
+            PARENT_HASH
+        );
+
+        timestamp::update_global_time_for_test_secs(50);
+        on_new_epoch(30 * MICROSECS_CONVERSION_FACTOR);
+        // Committed gas for the next epoch only for 2 tasks 0 and 2, the task 3 will not be active during upcoming epoch
+        assert!(20 == get_gas_committed_for_next_epoch(), 1);
+        let active_task_ids = get_active_task_ids();
+        // But here task 3 is in the active list as it is still active in this new epoch.
+        let expected_ids = vector<u64>[0, 2, 3];
+        vector::for_each(active_task_ids, |id| {
+            assert!(vector::contains(&expected_ids, &id), 1);
+        });
+
+        // Cancle task 2. The committed gas for the next epoch will be updated,
+        // but when requested active task it will be still available in the list
+        cancel_task(&account, 2);
+        // Task will be still available in the registry but with cancled state
+        let task_2_details = get_task_details(2);
+        assert!(task_2_details.state == CANCELLED, 1);
+
+        assert!(10 == get_gas_committed_for_next_epoch(), 1);
+        let active_task_ids = get_active_task_ids();
+        let expected_ids = vector<u64>[0, 2, 3];
+        vector::for_each(active_task_ids, |id| {
+            assert!(vector::contains(&expected_ids, &id), 1);
+        });
+
+        // Add and cancel the task in the same epoch. Task index will be 4
+        assert!(get_next_task_index() == 4, 1);
+        register(&account,
+            PAYLOAD,
+            75,
+            10,
+            20,
+            1,
+            PARENT_HASH
+        );
+        cancel_task(&account, 4);
+        assert!(10 == get_gas_committed_for_next_epoch(), 1);
+        let active_task_ids = get_active_task_ids();
+        let expected_ids = vector<u64>[0, 2, 3];
+        vector::for_each(active_task_ids, |id| {
+            assert!(vector::contains(&expected_ids, &id), 1);
+        });
+        // there is no task with index 4 and the next task index will be 5.
+        assert!(!has_task_with_id(4), 1);
+        assert!(get_next_task_index() == 5, 1)
+    }
+
+    #[test(framework = @supra_framework)]
+    #[expected_failure(abort_code = EAUTOMATION_TASK_NOT_FOUND, location = Self)]
+    fun check_cancellation_of_non_existing_task(framework: signer) acquires AutomationRegistryState {
+        initialize_registry_state_test(&framework);
+
+        let account = account::create_account_for_test(@0x123456);
+        cancel_task(&account, 1);
+    }
+
+    #[test(framework = @supra_framework)]
+    #[expected_failure(abort_code = EUNAUTHORIZED_TASK_OWNER, location = Self)]
+    fun check_unauthorized_cancellation_(framework: signer) acquires AutomationRegistryState {
+        initialize_registry_state_test(&framework);
+
+        let account1 = account::create_account_for_test(@0x123456);
+        let account2 = account::create_account_for_test(@0x654321);
+        register(&account1,
+            PAYLOAD,
+            75,
+            10,
+            20,
+            1,
+            PARENT_HASH
+        );
+        cancel_task(&account2, 0);
+    }
+
+    #[test(framework = @supra_framework)]
+    #[expected_failure(abort_code = EINVALID_CANCELLATION, location = Self)]
+    fun check_cacellation_of_cancelled_task(framework: signer) acquires AutomationRegistryState {
+        initialize_registry_state_test(&framework);
+
+        let account = account::create_account_for_test(@0x123456);
+        register(&account,
+            PAYLOAD,
+            100,
+            10,
+            20,
+            1,
+            PARENT_HASH
+        );
+        timestamp::update_global_time_for_test_secs(50);
+        on_new_epoch(30 * MICROSECS_CONVERSION_FACTOR);
+        // Cancel the same task 2 times
+        cancel_task(&account, 0);
+        cancel_task(&account, 0);
     }
 }
