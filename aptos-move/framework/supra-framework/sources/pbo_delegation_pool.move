@@ -783,11 +783,6 @@ module supra_framework::pbo_delegation_pool {
             features::delegation_pools_enabled(),
             error::invalid_state(EDELEGATION_POOLS_DISABLED)
         );
-        //Unlock start time can not be in the past
-        assert!(
-            unlock_start_time >= timestamp::now_seconds(),
-            error::invalid_argument(ESTARTUP_TIME_IN_PAST)
-        );
         //Unlock duration can not be zero
         assert!(unlock_duration > 0, error::invalid_argument(EPERIOD_DURATION_IS_ZERO));
         //Fraction denominator can not be zero
