@@ -36,8 +36,8 @@ module supra_framework::automation_registry_state {
     const EINVALID_TXN_HASH: u64 = 8;
     /// Current committed gas amount is greater than the automation gas limit.
     const EUNACCEPTABLE_AUTOMATION_GAS_LIMIT: u64 = 9;
-    /// Trying to cancel a task which is already cancelled.
-    const EINVALID_CANCELLATION: u64 = 10;
+    /// Task is already cancelled.
+    const EALREADY_CANCELLED: u64 = 10;
 
     /// The lenght of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -124,11 +124,12 @@ module supra_framework::automation_registry_state {
             let task = enumerable_map::get_value_mut(&mut state.tasks, id);
 
             // Tasks that are active during next epoch and are not cancled
+            // current_time shows the start time of the current new epoch.
             if (task.state != CANCELLED && task.expiry_time > (current_time + epoch_interval_secs) ) {
                 gas_committed_for_next_epoch = gas_committed_for_next_epoch + task.max_gas_amount;
             };
 
-            // Drop or activate task
+            // Drop or activate task for this current epoch.
             if (task.expiry_time <= current_time || task.state == CANCELLED) {
                 enumerable_map::remove_value(&mut state.tasks, id);
             } else {
@@ -181,16 +182,19 @@ module supra_framework::automation_registry_state {
     }
 
     /// Cancel Automation task with specified id.
-    /// If the task was active its state is updated to be CANCELLED. Otherwise task is removed form the list.
-    /// Committed gas-limit is updated accordingly.
-    /// Only existing task can be cancled and only by task onwer.
+    /// Only existing task, which is PENDING or ACTIVE, can be cancled and only by task onwer.
+    /// If the task is
+    ///   - active, its state is updated to be CANCELLED.
+    ///   - pending, it is removed form the list.
+    ///   - cancelled, an error is reported
+    /// Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
     public (friend) fun cancel_task(owner: &signer, id: u64): AutomationTaskMetaData acquires AutomationRegistryState {
         let state = borrow_global_mut<AutomationRegistryState>(@supra_framework);
         assert!(enumerable_map::contains(&state.tasks, id), EAUTOMATION_TASK_NOT_FOUND);
 
         let automation_task_metadata = enumerable_map::get_value(&state.tasks, id);
         assert!(automation_task_metadata.owner == signer::address_of(owner), EUNAUTHORIZED_TASK_OWNER);
-        assert!(automation_task_metadata.state != CANCELLED, EINVALID_CANCELLATION);
+        assert!(automation_task_metadata.state != CANCELLED, EALREADY_CANCELLED);
         if (automation_task_metadata.state == PENDING) {
             enumerable_map::remove_value(&mut state.tasks, id);
         } else if (automation_task_metadata.state == ACTIVE) {
@@ -205,7 +209,8 @@ module supra_framework::automation_registry_state {
         automation_task_metadata
     }
 
-    /// Update Automation gas limit
+    /// Update Automation gas limit.
+    /// If the committed gas amount for the next epoch is greater then the new gas limit, then error is reported.
     public (friend) fun update_automation_gas_limit(
         supra_framework: &signer,
         automation_gas_limit: u64
@@ -220,7 +225,9 @@ module supra_framework::automation_registry_state {
         event::emit(UpdateAutomationGasLimit { automation_gas_limit });
     }
 
-    /// List all the automation task ids
+    /// List all active automation task ids for the current epoch.
+    /// Note that the tasks with CANCELLED state are still considered active for the current epoch,
+    /// as cancellation takes effect in the next epoch only.
     public(friend) fun get_active_task_ids(): vector<u64> acquires AutomationRegistryState {
         let state = borrow_global<AutomationRegistryState>(@supra_framework);
 
@@ -228,7 +235,7 @@ module supra_framework::automation_registry_state {
         let ids = enumerable_map::get_map_list(&state.tasks);
 
         vector::for_each(ids, |id| {
-            let task = enumerable_map::get_value(&state.tasks, id);
+            let task = enumerable_map::get_value_ref(&state.tasks, id);
             if (task.state != PENDING) {
                 vector::push_back(&mut active_task_ids, id);
             };
@@ -601,7 +608,7 @@ module supra_framework::automation_registry_state {
     }
 
     #[test(framework = @supra_framework)]
-    #[expected_failure(abort_code = EINVALID_CANCELLATION, location = Self)]
+    #[expected_failure(abort_code = EALREADY_CANCELLED, location = Self)]
     fun check_cacellation_of_cancelled_task(framework: signer) acquires AutomationRegistryState {
         initialize_registry_state_test(&framework);
 

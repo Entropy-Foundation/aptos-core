@@ -325,7 +325,7 @@ Registry resource creation seed
 Withdraw accumulated automation task fees from the resource account - access by admin
 
 
-<pre><code>entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_withdraw_automation_task_fees">withdraw_automation_task_fees</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <b>to</b>: <b>address</b>, amount: u64)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_withdraw_automation_task_fees">withdraw_automation_task_fees</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <b>to</b>: <b>address</b>, amount: u64)
 </code></pre>
 
 
@@ -334,7 +334,7 @@ Withdraw accumulated automation task fees from the resource account - access by 
 <summary>Implementation</summary>
 
 
-<pre><code>entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_withdraw_automation_task_fees">withdraw_automation_task_fees</a>(
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_withdraw_automation_task_fees">withdraw_automation_task_fees</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     <b>to</b>: <b>address</b>,
     amount: u64
@@ -382,7 +382,8 @@ Transfers the specified fee amount from the resource account to the target accou
 
 ## Function `update_automation_gas_limit`
 
-Update Automation gas limit
+Update Automation gas limit.
+If the committed gas amount for the next epoch is greater then the new gas limit, then error is reported.
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_automation_gas_limit">update_automation_gas_limit</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, automation_gas_limit: u64)
@@ -519,7 +520,7 @@ Registers a new automation task entry.
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> registry_data = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
 
-    //Well formedness check of payload_tx is done in <b>native</b> layer beforehand.
+    //Well-formedness check of payload_tx is done in <b>native</b> layer beforehand.
 
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
     <b>assert</b>!(expiry_time &gt; current_time, <a href="automation_registry.md#0x1_automation_registry_EINVALID_EXPIRY_TIME">EINVALID_EXPIRY_TIME</a>);
@@ -558,7 +559,12 @@ Registers a new automation task entry.
 ## Function `cancel_task`
 
 Cancel Automation task with specified id.
-Only existing task can be cancled and only by task onwer.
+Only existing task, which is PENDING or ACTIVE, can be cancled and only by task onwer.
+If the task is
+- active, its state is updated to be CANCELLED.
+- pending, it is removed form the list.
+- cancelled, an error is reported
+Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_cancel_task">cancel_task</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, id: u64)
@@ -645,7 +651,9 @@ Returns next task index in registry
 
 ## Function `get_active_task_ids`
 
-List all the automation task ids
+List all active automation task ids for the current epoch.
+Note that the tasks with CANCELLED state are still considered active for the current epoch,
+as cancellation takes effect in the next epoch only.
 
 
 <pre><code>#[view]

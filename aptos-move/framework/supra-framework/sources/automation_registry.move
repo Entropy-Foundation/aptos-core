@@ -97,7 +97,7 @@ module supra_framework::automation_registry {
 
 
     /// Withdraw accumulated automation task fees from the resource account - access by admin
-    entry fun withdraw_automation_task_fees(
+    public fun withdraw_automation_task_fees(
         supra_framework: &signer,
         to: address,
         amount: u64
@@ -116,7 +116,8 @@ module supra_framework::automation_registry {
         supra_account::transfer(&resource_signer, to, amount);
     }
 
-    /// Update Automation gas limit
+    /// Update Automation gas limit.
+    /// If the committed gas amount for the next epoch is greater then the new gas limit, then error is reported.
     public entry fun update_automation_gas_limit(
         supra_framework: &signer,
         automation_gas_limit: u64
@@ -162,7 +163,7 @@ module supra_framework::automation_registry {
     ) acquires AutomationRegistry {
         let registry_data = borrow_global_mut<AutomationRegistry>(@supra_framework);
 
-        //Well formedness check of payload_tx is done in native layer beforehand.
+        //Well-formedness check of payload_tx is done in native layer beforehand.
 
         let current_time = timestamp::now_seconds();
         assert!(expiry_time > current_time, EINVALID_EXPIRY_TIME);
@@ -192,7 +193,12 @@ module supra_framework::automation_registry {
     }
 
     /// Cancel Automation task with specified id.
-    /// Only existing task can be cancled and only by task onwer.
+    /// Only existing task, which is PENDING or ACTIVE, can be cancled and only by task onwer.
+    /// If the task is
+    ///   - active, its state is updated to be CANCELLED.
+    ///   - pending, it is removed form the list.
+    ///   - cancelled, an error is reported
+    /// Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
     public entry fun cancel_task(owner: &signer, id: u64) acquires AutomationRegistry {
         let automation_task_metadata = automation_registry_state::cancel_task(owner, id);
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
@@ -220,7 +226,9 @@ module supra_framework::automation_registry {
     }
 
     #[view]
-    /// List all the automation task ids
+    /// List all active automation task ids for the current epoch.
+    /// Note that the tasks with CANCELLED state are still considered active for the current epoch,
+    /// as cancellation takes effect in the next epoch only.
     public fun get_active_task_ids(): vector<u64> {
         automation_registry_state::get_active_task_ids()
     }

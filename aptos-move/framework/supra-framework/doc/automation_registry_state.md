@@ -246,6 +246,16 @@ Remove automation task registry event
 
 
 
+<a id="0x1_automation_registry_state_EALREADY_CANCELLED"></a>
+
+Task is already cancelled.
+
+
+<pre><code><b>const</b> <a href="automation_registry_state.md#0x1_automation_registry_state_EALREADY_CANCELLED">EALREADY_CANCELLED</a>: u64 = 10;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_state_EAUTOMATION_TASK_NOT_FOUND"></a>
 
 Task with provided Id not found
@@ -262,16 +272,6 @@ Gas amount does not go beyond upper cap limit
 
 
 <pre><code><b>const</b> <a href="automation_registry_state.md#0x1_automation_registry_state_EGAS_AMOUNT_UPPER">EGAS_AMOUNT_UPPER</a>: u64 = 5;
-</code></pre>
-
-
-
-<a id="0x1_automation_registry_state_EINVALID_CANCELLATION"></a>
-
-Trying to cancel a task which is already cancelled.
-
-
-<pre><code><b>const</b> <a href="automation_registry_state.md#0x1_automation_registry_state_EINVALID_CANCELLATION">EINVALID_CANCELLATION</a>: u64 = 10;
 </code></pre>
 
 
@@ -460,11 +460,12 @@ The lenght of the transaction hash.
         <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_mut">enumerable_map::get_value_mut</a>(&<b>mut</b> state.tasks, id);
 
         // Tasks that are active during next epoch and are not cancled
+        // current_time shows the start time of the current new epoch.
         <b>if</b> (task.state != <a href="automation_registry_state.md#0x1_automation_registry_state_CANCELLED">CANCELLED</a> && task.expiry_time &gt; (current_time + epoch_interval_secs) ) {
             gas_committed_for_next_epoch = gas_committed_for_next_epoch + task.max_gas_amount;
         };
 
-        // Drop or activate task
+        // Drop or activate task for this current epoch.
         <b>if</b> (task.expiry_time &lt;= current_time || task.state == <a href="automation_registry_state.md#0x1_automation_registry_state_CANCELLED">CANCELLED</a>) {
             <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> state.tasks, id);
         } <b>else</b> {
@@ -546,9 +547,12 @@ Registers a new automation task entry.
 ## Function `cancel_task`
 
 Cancel Automation task with specified id.
-If the task was active its state is updated to be CANCELLED. Otherwise task is removed form the list.
-Committed gas-limit is updated accordingly.
-Only existing task can be cancled and only by task onwer.
+Only existing task, which is PENDING or ACTIVE, can be cancled and only by task onwer.
+If the task is
+- active, its state is updated to be CANCELLED.
+- pending, it is removed form the list.
+- cancelled, an error is reported
+Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_cancel_task">cancel_task</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, id: u64): <a href="automation_registry_state.md#0x1_automation_registry_state_AutomationTaskMetaData">automation_registry_state::AutomationTaskMetaData</a>
@@ -566,7 +570,7 @@ Only existing task can be cancled and only by task onwer.
 
     <b>let</b> automation_task_metadata = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&state.tasks, id);
     <b>assert</b>!(automation_task_metadata.owner == <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner), <a href="automation_registry_state.md#0x1_automation_registry_state_EUNAUTHORIZED_TASK_OWNER">EUNAUTHORIZED_TASK_OWNER</a>);
-    <b>assert</b>!(automation_task_metadata.state != <a href="automation_registry_state.md#0x1_automation_registry_state_CANCELLED">CANCELLED</a>, <a href="automation_registry_state.md#0x1_automation_registry_state_EINVALID_CANCELLATION">EINVALID_CANCELLATION</a>);
+    <b>assert</b>!(automation_task_metadata.state != <a href="automation_registry_state.md#0x1_automation_registry_state_CANCELLED">CANCELLED</a>, <a href="automation_registry_state.md#0x1_automation_registry_state_EALREADY_CANCELLED">EALREADY_CANCELLED</a>);
     <b>if</b> (automation_task_metadata.state == <a href="automation_registry_state.md#0x1_automation_registry_state_PENDING">PENDING</a>) {
         <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> state.tasks, id);
     } <b>else</b> <b>if</b> (automation_task_metadata.state == <a href="automation_registry_state.md#0x1_automation_registry_state_ACTIVE">ACTIVE</a>) {
@@ -590,7 +594,8 @@ Only existing task can be cancled and only by task onwer.
 
 ## Function `update_automation_gas_limit`
 
-Update Automation gas limit
+Update Automation gas limit.
+If the committed gas amount for the next epoch is greater then the new gas limit, then error is reported.
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_update_automation_gas_limit">update_automation_gas_limit</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, automation_gas_limit: u64)
@@ -625,7 +630,9 @@ Update Automation gas limit
 
 ## Function `get_active_task_ids`
 
-List all the automation task ids
+List all active automation task ids for the current epoch.
+Note that the tasks with CANCELLED state are still considered active for the current epoch,
+as cancellation takes effect in the next epoch only.
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_get_active_task_ids">get_active_task_ids</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;
@@ -644,7 +651,7 @@ List all the automation task ids
     <b>let</b> ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&state.tasks);
 
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(ids, |id| {
-        <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&state.tasks, id);
+        <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_ref">enumerable_map::get_value_ref</a>(&state.tasks, id);
         <b>if</b> (task.state != <a href="automation_registry_state.md#0x1_automation_registry_state_PENDING">PENDING</a>) {
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> active_task_ids, id);
         };
