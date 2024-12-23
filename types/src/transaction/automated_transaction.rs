@@ -194,7 +194,7 @@ pub struct AutomatedTransactionBuilder {
     /// stored in the sender's account at the time the transaction executes.
     pub(crate) sequence_number: Option<u64>,
 
-    /// The transaction payload, e.g., a script to execute.
+    /// The transaction payload to execute.
     pub(crate) payload: Option<TransactionPayload>,
 
     /// Maximal total gas to spend for this transaction.
