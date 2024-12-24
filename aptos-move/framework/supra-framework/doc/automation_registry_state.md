@@ -11,7 +11,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Resource `AutomationRegistryState`](#0x1_automation_registry_state_AutomationRegistryState)
 -  [Struct `AutomationTaskMetaData`](#0x1_automation_registry_state_AutomationTaskMetaData)
 -  [Struct `UpdateAutomationGasLimit`](#0x1_automation_registry_state_UpdateAutomationGasLimit)
--  [Struct `CanclledAutomationTask`](#0x1_automation_registry_state_CanclledAutomationTask)
+-  [Struct `CancelledAutomationTask`](#0x1_automation_registry_state_CancelledAutomationTask)
 -  [Constants](#@Constants_0)
 -  [Function `task_expiry_time`](#0x1_automation_registry_state_task_expiry_time)
 -  [Function `initialize`](#0x1_automation_registry_state_initialize)
@@ -194,15 +194,15 @@ Update automation gas limit event
 
 </details>
 
-<a id="0x1_automation_registry_state_CanclledAutomationTask"></a>
+<a id="0x1_automation_registry_state_CancelledAutomationTask"></a>
 
-## Struct `CanclledAutomationTask`
+## Struct `CancelledAutomationTask`
 
-Remove automation task registry event
+Cancelled automation task registry event
 
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]
-<b>struct</b> <a href="automation_registry_state.md#0x1_automation_registry_state_CanclledAutomationTask">CanclledAutomationTask</a> <b>has</b> drop, store
+<b>struct</b> <a href="automation_registry_state.md#0x1_automation_registry_state_CancelledAutomationTask">CancelledAutomationTask</a> <b>has</b> drop, store
 </code></pre>
 
 
@@ -581,7 +581,7 @@ Committed gas-limit is updated by reducing it with the max-gas-amount of the can
     // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
     state.gas_committed_for_next_epoch = state.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
 
-    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry_state.md#0x1_automation_registry_state_CanclledAutomationTask">CanclledAutomationTask</a> { id: automation_task_metadata.id });
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry_state.md#0x1_automation_registry_state_CancelledAutomationTask">CancelledAutomationTask</a> { id: automation_task_metadata.id });
     automation_task_metadata
 }
 </code></pre>

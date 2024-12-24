@@ -91,8 +91,8 @@ module supra_framework::automation_registry_state {
     }
 
     #[event]
-    /// Remove automation task registry event
-    struct CanclledAutomationTask has drop, store {
+    /// Cancelled automation task registry event
+    struct CancelledAutomationTask has drop, store {
         id: u64
     }
 
@@ -205,7 +205,7 @@ module supra_framework::automation_registry_state {
         // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
         state.gas_committed_for_next_epoch = state.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
 
-        event::emit(CanclledAutomationTask { id: automation_task_metadata.id });
+        event::emit(CancelledAutomationTask { id: automation_task_metadata.id });
         automation_task_metadata
     }
 
