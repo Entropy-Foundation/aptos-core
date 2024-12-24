@@ -21,6 +21,7 @@ The module includes error handling and a suite of test functions for validation.
 -  [Function `remove_value_bulk`](#0x1_enumerable_map_remove_value_bulk)
 -  [Function `clear`](#0x1_enumerable_map_clear)
 -  [Function `get_value`](#0x1_enumerable_map_get_value)
+-  [Function `get_value_ref`](#0x1_enumerable_map_get_value_ref)
 -  [Function `get_value_mut`](#0x1_enumerable_map_get_value_mut)
 -  [Function `get_map_list`](#0x1_enumerable_map_get_map_list)
 -  [Function `contains`](#0x1_enumerable_map_contains)
@@ -422,6 +423,31 @@ Returns the value of a key that is present in Enumerable Map
 
 <pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_get_value">get_value</a>&lt;K : <b>copy</b>+drop, V : store+drop+<b>copy</b>&gt;(map: & <a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">EnumerableMap</a>&lt;K, V&gt;, key: K): V {
     <a href="../../aptos-stdlib/doc/table.md#0x1_table_borrow">table::borrow</a>(&map.map, key).value
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_enumerable_map_get_value_ref"></a>
+
+## Function `get_value_ref`
+
+Returns reference to the value of a key that is present in Enumerable Map
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_get_value_ref">get_value_ref</a>&lt;K: <b>copy</b>, drop, V: <b>copy</b>, drop, store&gt;(map: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">enumerable_map::EnumerableMap</a>&lt;K, V&gt;, key: K): &V
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_get_value_ref">get_value_ref</a>&lt;K : <b>copy</b>+drop, V : store+drop+<b>copy</b>&gt;(map: & <a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">EnumerableMap</a>&lt;K, V&gt;, key: K): &V {
+    &<a href="../../aptos-stdlib/doc/table.md#0x1_table_borrow">table::borrow</a>(&map.map, key).value
 }
 </code></pre>
 
