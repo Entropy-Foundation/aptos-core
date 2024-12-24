@@ -6,6 +6,7 @@ module supra_framework::block {
     use std::option;
     use aptos_std::table_with_length::{Self, TableWithLength};
     use std::option::Option;
+    use supra_framework::automation_registry_state;
     use supra_framework::randomness;
 
     use supra_framework::account;
@@ -235,6 +236,7 @@ module supra_framework::block {
         randomness::on_new_block(&vm, epoch, round, option::none());
         if (timestamp - reconfiguration::last_reconfiguration_time() >= epoch_interval) {
             reconfiguration::reconfigure();
+            automation_registry_state::on_new_epoch(epoch_interval);
         };
     }
 
@@ -264,6 +266,7 @@ module supra_framework::block {
 
         if (timestamp - reconfiguration::last_reconfiguration_time() >= epoch_interval) {
             reconfiguration_with_dkg::try_start();
+            automation_registry_state::on_new_epoch(epoch_interval);
         };
     }
 

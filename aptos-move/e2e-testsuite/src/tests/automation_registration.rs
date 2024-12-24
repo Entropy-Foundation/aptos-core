@@ -130,7 +130,7 @@ fn check_successful_registration() {
     let result = view_output.values.expect("Valid result");
     assert_eq!(result.len(), 1);
     let next_task_id = bcs::from_bytes::<u64>(&result[0]).unwrap();
-    assert_eq!(next_task_id, 2);
+    assert_eq!(next_task_id, 1);
 }
 
 #[test]

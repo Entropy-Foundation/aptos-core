@@ -173,7 +173,6 @@ impl TransactionMetadata {
             self.gas_unit_price.into(),
             self.chain_id.id(),
             payload_type_reference,
-            self.txn_app_hash.clone(),
         )
     }
 }
