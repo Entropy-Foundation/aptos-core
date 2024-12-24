@@ -30,8 +30,6 @@
 -  [Function `chain_id_internal`](#0x1_transaction_context_chain_id_internal)
 -  [Function `entry_function_payload`](#0x1_transaction_context_entry_function_payload)
 -  [Function `entry_function_payload_internal`](#0x1_transaction_context_entry_function_payload_internal)
--  [Function `txn_app_hash`](#0x1_transaction_context_txn_app_hash)
--  [Function `txn_app_hash_internal`](#0x1_transaction_context_txn_app_hash_internal)
 -  [Function `account_address`](#0x1_transaction_context_account_address)
 -  [Function `module_name`](#0x1_transaction_context_module_name)
 -  [Function `function_name`](#0x1_transaction_context_function_name)
@@ -730,55 +728,6 @@ This function aborts if called outside of the transaction prologue, execution, o
 
 
 <pre><code><b>native</b> <b>fun</b> <a href="transaction_context.md#0x1_transaction_context_entry_function_payload_internal">entry_function_payload_internal</a>(): Option&lt;<a href="transaction_context.md#0x1_transaction_context_EntryFunctionPayload">EntryFunctionPayload</a>&gt;;
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_transaction_context_txn_app_hash"></a>
-
-## Function `txn_app_hash`
-
-Returns the original transaction hash calculated on the raw-bytes.
-This function aborts if called outside of the transaction prologue, execution, or epilogue phases.
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="transaction_context.md#0x1_transaction_context_txn_app_hash">txn_app_hash</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="transaction_context.md#0x1_transaction_context_txn_app_hash">txn_app_hash</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
-    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_transaction_context_extension_enabled">features::transaction_context_extension_enabled</a>(), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="transaction_context.md#0x1_transaction_context_ETRANSACTION_CONTEXT_EXTENSION_NOT_ENABLED">ETRANSACTION_CONTEXT_EXTENSION_NOT_ENABLED</a>));
-    <a href="transaction_context.md#0x1_transaction_context_txn_app_hash_internal">txn_app_hash_internal</a>()
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_transaction_context_txn_app_hash_internal"></a>
-
-## Function `txn_app_hash_internal`
-
-
-
-<pre><code><b>fun</b> <a href="transaction_context.md#0x1_transaction_context_txn_app_hash_internal">txn_app_hash_internal</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>native</b> <b>fun</b> <a href="transaction_context.md#0x1_transaction_context_txn_app_hash_internal">txn_app_hash_internal</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;;
 </code></pre>
 
 
