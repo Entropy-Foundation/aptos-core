@@ -96,7 +96,7 @@ module supra_framework::automation_registry_state {
         id: u64
     }
 
-    public fun task_expiry_time(task: &AutomationTaskMetaData): u64 {
+    public(friend) fun task_expiry_time(task: &AutomationTaskMetaData): u64 {
         task.expiry_time
     }
 
@@ -111,6 +111,7 @@ module supra_framework::automation_registry_state {
             automation_gas_limit
         })
     }
+
     public(friend) fun on_new_epoch(epoch_interval_micro: u64) acquires AutomationRegistryState {
         let state = borrow_global_mut<AutomationRegistryState>(@supra_framework);
         let ids = enumerable_map::get_map_list(&state.tasks);
@@ -255,7 +256,7 @@ module supra_framework::automation_registry_state {
     public(friend) fun has_active_task_with_id(id: u64): bool acquires AutomationRegistryState {
         let automation_task_metadata = borrow_global<AutomationRegistryState>(@supra_framework);
         if (enumerable_map::contains(&automation_task_metadata.tasks, id)) {
-            let value = enumerable_map::get_value(&automation_task_metadata.tasks, id);
+            let value = enumerable_map::get_value_ref(&automation_task_metadata.tasks, id);
             value.state != PENDING
         } else  {
             false

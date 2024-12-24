@@ -383,7 +383,7 @@ The lenght of the transaction hash.
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_task_expiry_time">task_expiry_time</a>(task: &<a href="automation_registry_state.md#0x1_automation_registry_state_AutomationTaskMetaData">automation_registry_state::AutomationTaskMetaData</a>): u64
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_task_expiry_time">task_expiry_time</a>(task: &<a href="automation_registry_state.md#0x1_automation_registry_state_AutomationTaskMetaData">automation_registry_state::AutomationTaskMetaData</a>): u64
 </code></pre>
 
 
@@ -392,7 +392,7 @@ The lenght of the transaction hash.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_task_expiry_time">task_expiry_time</a>(task: &<a href="automation_registry_state.md#0x1_automation_registry_state_AutomationTaskMetaData">AutomationTaskMetaData</a>): u64 {
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_task_expiry_time">task_expiry_time</a>(task: &<a href="automation_registry_state.md#0x1_automation_registry_state_AutomationTaskMetaData">AutomationTaskMetaData</a>): u64 {
     task.expiry_time
 }
 </code></pre>
@@ -711,7 +711,7 @@ Checks whether there is an active task in registry with specified input task id.
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_has_active_task_with_id">has_active_task_with_id</a>(id: u64): bool <b>acquires</b> <a href="automation_registry_state.md#0x1_automation_registry_state_AutomationRegistryState">AutomationRegistryState</a> {
     <b>let</b> automation_task_metadata = <b>borrow_global</b>&lt;<a href="automation_registry_state.md#0x1_automation_registry_state_AutomationRegistryState">AutomationRegistryState</a>&gt;(@supra_framework);
     <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&automation_task_metadata.tasks, id)) {
-        <b>let</b> value = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&automation_task_metadata.tasks, id);
+        <b>let</b> value = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_ref">enumerable_map::get_value_ref</a>(&automation_task_metadata.tasks, id);
         value.state != <a href="automation_registry_state.md#0x1_automation_registry_state_PENDING">PENDING</a>
     } <b>else</b>  {
         <b>false</b>
