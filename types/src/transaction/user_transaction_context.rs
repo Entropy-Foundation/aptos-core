@@ -56,7 +56,6 @@ pub struct UserTransactionContext {
     gas_unit_price: u64,
     chain_id: u8,
     payload_type_reference: PayloadTypeReferenceContext,
-    txn_app_hash: Vec<u8>,
 }
 
 impl UserTransactionContext {
@@ -68,7 +67,6 @@ impl UserTransactionContext {
         gas_unit_price: u64,
         chain_id: u8,
         payload_type_reference: PayloadTypeReferenceContext,
-        txn_app_hash: Vec<u8>,
     ) -> Self {
         Self {
             sender,
@@ -78,7 +76,6 @@ impl UserTransactionContext {
             gas_unit_price,
             chain_id,
             payload_type_reference,
-            txn_app_hash,
         }
     }
 
@@ -116,9 +113,6 @@ impl UserTransactionContext {
 
     pub fn is_automation_registration(&self) -> bool {
         self.payload_type_reference.is_automation_registration()
-    }
-    pub fn txn_app_hash(&self) -> Vec<u8> {
-        self.txn_app_hash.clone()
     }
 }
 
