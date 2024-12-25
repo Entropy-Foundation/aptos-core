@@ -252,12 +252,12 @@ module supra_framework::automation_registry_state {
         enumerable_map::get_value(&automation_task_metadata.tasks, id)
     }
 
-    /// Checks whether there is an active task in registry with specified input task id.
-    public(friend) fun has_active_task_with_id(id: u64): bool acquires AutomationRegistryState {
+    /// Checks whether there is an active task in registry with specified input task id for the sender exists.
+    public(friend) fun has_sender_active_task_with_id(sender: address, id: u64): bool acquires AutomationRegistryState {
         let automation_task_metadata = borrow_global<AutomationRegistryState>(@supra_framework);
         if (enumerable_map::contains(&automation_task_metadata.tasks, id)) {
             let value = enumerable_map::get_value_ref(&automation_task_metadata.tasks, id);
-            value.state != PENDING
+            value.state != PENDING && value.owner == sender
         } else  {
             false
         }

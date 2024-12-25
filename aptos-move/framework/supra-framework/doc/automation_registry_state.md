@@ -21,7 +21,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `update_automation_gas_limit`](#0x1_automation_registry_state_update_automation_gas_limit)
 -  [Function `get_active_task_ids`](#0x1_automation_registry_state_get_active_task_ids)
 -  [Function `get_task_details`](#0x1_automation_registry_state_get_task_details)
--  [Function `has_active_task_with_id`](#0x1_automation_registry_state_has_active_task_with_id)
+-  [Function `has_sender_active_task_with_id`](#0x1_automation_registry_state_has_sender_active_task_with_id)
 -  [Function `get_next_task_index`](#0x1_automation_registry_state_get_next_task_index)
 -  [Function `get_gas_committed_for_next_epoch`](#0x1_automation_registry_state_get_gas_committed_for_next_epoch)
 
@@ -692,14 +692,14 @@ Error will be returned if entry with specified ID does not exist.
 
 </details>
 
-<a id="0x1_automation_registry_state_has_active_task_with_id"></a>
+<a id="0x1_automation_registry_state_has_sender_active_task_with_id"></a>
 
-## Function `has_active_task_with_id`
+## Function `has_sender_active_task_with_id`
 
-Checks whether there is an active task in registry with specified input task id.
+Checks whether there is an active task in registry with specified input task id for the sender exists.
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_has_active_task_with_id">has_active_task_with_id</a>(id: u64): bool
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_has_sender_active_task_with_id">has_sender_active_task_with_id</a>(sender: <b>address</b>, id: u64): bool
 </code></pre>
 
 
@@ -708,11 +708,11 @@ Checks whether there is an active task in registry with specified input task id.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_has_active_task_with_id">has_active_task_with_id</a>(id: u64): bool <b>acquires</b> <a href="automation_registry_state.md#0x1_automation_registry_state_AutomationRegistryState">AutomationRegistryState</a> {
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry_state.md#0x1_automation_registry_state_has_sender_active_task_with_id">has_sender_active_task_with_id</a>(sender: <b>address</b>, id: u64): bool <b>acquires</b> <a href="automation_registry_state.md#0x1_automation_registry_state_AutomationRegistryState">AutomationRegistryState</a> {
     <b>let</b> automation_task_metadata = <b>borrow_global</b>&lt;<a href="automation_registry_state.md#0x1_automation_registry_state_AutomationRegistryState">AutomationRegistryState</a>&gt;(@supra_framework);
     <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&automation_task_metadata.tasks, id)) {
         <b>let</b> value = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_ref">enumerable_map::get_value_ref</a>(&automation_task_metadata.tasks, id);
-        value.state != <a href="automation_registry_state.md#0x1_automation_registry_state_PENDING">PENDING</a>
+        value.state != <a href="automation_registry_state.md#0x1_automation_registry_state_PENDING">PENDING</a> && value.owner == sender
     } <b>else</b>  {
         <b>false</b>
     }

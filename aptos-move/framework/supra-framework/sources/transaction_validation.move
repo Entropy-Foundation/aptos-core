@@ -3,6 +3,7 @@ module supra_framework::transaction_validation {
     use std::error;
     use std::features;
     use std::signer;
+    use std::signer::address_of;
     use std::vector;
     use supra_framework::automation_registry;
 
@@ -200,7 +201,8 @@ module supra_framework::transaction_validation {
                 error::invalid_argument(PROLOGUE_ECANT_PAY_GAS_DEPOSIT)
             );
         };
-        assert!(automation_registry::has_active_task_with_id(task_index), error::invalid_state(PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK))
+        assert!(automation_registry::has_sender_active_task_with_id(address_of(&sender), task_index),
+            error::invalid_state(PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK))
     }
 
     fun multi_agent_script_prologue(

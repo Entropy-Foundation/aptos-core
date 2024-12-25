@@ -458,7 +458,8 @@ Only called during genesis to initialize system resources for this module.
             <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ECANT_PAY_GAS_DEPOSIT">PROLOGUE_ECANT_PAY_GAS_DEPOSIT</a>)
         );
     };
-    <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_has_active_task_with_id">automation_registry::has_active_task_with_id</a>(task_index), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK">PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK</a>))
+    <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id">automation_registry::has_sender_active_task_with_id</a>(address_of(&sender), task_index),
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK">PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK</a>))
 }
 </code></pre>
 
