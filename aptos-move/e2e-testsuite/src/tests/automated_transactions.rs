@@ -6,6 +6,7 @@ use aptos_cached_packages::{aptos_framework_sdk_builder};
 use aptos_crypto::HashValue;
 use aptos_types::transaction::automated_transaction::AutomatedTransaction;
 use aptos_types::transaction::{ExecutionStatus, Transaction, TransactionStatus};
+use aptos_vm::transaction_metadata::TransactionMetadata;
 use move_core_types::vm_status::StatusCode;
 
 #[test]
@@ -91,7 +92,7 @@ fn check_automated_transaction_with_insufficient_balance() {
 #[test]
 fn check_automated_transaction_successful_execution() {
     let mut test_context = AutomationRegistrationTestContext::new();
-    let dest_account = test_context.new_account_data(0, 0);
+    let dest_account = test_context.new_account_data(1_000_000, 0);
     let payload = aptos_framework_sdk_builder::supra_account_transfer(dest_account.address().clone(), 100);
     let gas_price = 100;
     let max_gas_amount = 100;
@@ -120,7 +121,7 @@ fn check_automated_transaction_successful_execution() {
         .sender_account_data()
         .account()
         .transaction()
-        .payload(payload)
+        .payload(payload.clone())
         .sequence_number(sequence_number)
         .gas_unit_price(gas_price)
         .max_gas_amount(max_gas_amount)
@@ -150,7 +151,27 @@ fn check_automated_transaction_successful_execution() {
         "{output:?}"
     );
     let dest_account_balance = test_context.account_balance(dest_account.address().clone());
-    assert_eq!(dest_account_balance, 100);
+    assert_eq!(dest_account_balance, 1_000_100);
     // check that sequence number is not updated.
     assert_eq!(sender_seq_num, test_context.account_sequence_number(sender_address));
+
+    // try to submit automated transaction with incorrect sender
+    let raw_transaction = dest_account
+        .account()
+        .transaction()
+        .payload(payload)
+        .sequence_number(sequence_number)
+        .gas_unit_price(gas_price)
+        .max_gas_amount(max_gas_amount)
+        .ttl(expiration_time)
+        .raw();
+
+    let parent_hash = HashValue::new([42; HashValue::LENGTH]);
+    let automated_txn = AutomatedTransaction::new(raw_transaction, parent_hash, 1);
+    let result =
+        test_context.execute_tagged_transaction(Transaction::AutomatedTransaction(automated_txn.clone()));
+    AutomationRegistrationTestContext::check_discarded_output(
+        result,
+        StatusCode::NO_ACTIVE_AUTOMATED_TASK,
+    );
 }
