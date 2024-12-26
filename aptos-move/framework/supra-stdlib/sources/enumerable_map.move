@@ -181,21 +181,35 @@ module supra_std::enumerable_map {
         }
     }
 
+    /// Filter the enumerableMap using the boolean function, removing all elements for which `p(e)` is not true.
+    public inline fun filter<K: copy+drop, V: store+drop+copy>(set: &EnumerableMap<K, V>, p: |&V|bool): vector<V> {
+        let result = vector<V>[];
+        for_each_value(set, |v| {
+            if (p(&v)) vector::push_back(&mut result, v);
+        });
+        result
+    }
+
     #[test_only]
     struct EnumerableMapTest<K: copy + drop, V: store+drop+copy> has key {
         e: EnumerableMap<K, V>
     }
 
-    #[test(owner= @0x1111)]
-    public fun test_add_value(owner: &signer) {
+    #[test_only]
+    fun get_enum_map(): EnumerableMap<u256, u256> {
         let enum_map = new_map<u256, u256>();
-
         add_value(&mut enum_map, 1, 1);
         add_value(&mut enum_map, 2, 2);
         add_value(&mut enum_map, 3, 3);
         add_value(&mut enum_map, 4, 4);
         add_value(&mut enum_map, 5, 5);
         add_value(&mut enum_map, 6, 6);
+        enum_map
+    }
+
+    #[test(owner= @0x1111)]
+    public fun test_add_value(owner: &signer) {
+        let enum_map = get_enum_map();
 
         assert!(contains(&enum_map, 3), 1);
         assert!(length(&enum_map) == 6, 2);
@@ -205,14 +219,7 @@ module supra_std::enumerable_map {
 
     #[test(owner= @0x1111)]
     public fun test_add_value_bulk(owner: &signer) {
-        let enum_map = new_map<u256, u256>();
-
-        add_value(&mut enum_map, 1, 1);
-        add_value(&mut enum_map, 2, 2);
-        add_value(&mut enum_map, 3, 3);
-        add_value(&mut enum_map, 4, 4);
-        add_value(&mut enum_map, 5, 5);
-        add_value(&mut enum_map, 6, 6);
+        let enum_map = get_enum_map();
 
         add_value_bulk(&mut enum_map, vector[7, 8, 9], vector[7, 8, 9]);
 
@@ -225,14 +232,7 @@ module supra_std::enumerable_map {
     #[test(owner= @0x1111)]
     #[expected_failure(abort_code = 1, location = Self)]
     public fun test_remove_value(owner: &signer) {
-        let enum_map = new_map<u256, u256>();
-
-        add_value(&mut enum_map, 1, 1);
-        add_value(&mut enum_map, 2, 2);
-        add_value(&mut enum_map, 3, 3);
-        add_value(&mut enum_map, 4, 4);
-        add_value(&mut enum_map, 5, 5);
-        add_value(&mut enum_map, 6, 6);
+        let enum_map = get_enum_map();
 
         remove_value(&mut enum_map, 1);
         remove_value(&mut enum_map, 2);
@@ -247,14 +247,7 @@ module supra_std::enumerable_map {
     #[test(owner= @0x1111)]
     #[expected_failure(abort_code = 2, location = Self)]
     public fun test_remove_bulk_value(owner: &signer) {
-        let enum_map = new_map<u256, u256>();
-
-        add_value(&mut enum_map, 1, 1);
-        add_value(&mut enum_map, 2, 2);
-        add_value(&mut enum_map, 3, 3);
-        add_value(&mut enum_map, 4, 4);
-        add_value(&mut enum_map, 5, 5);
-        add_value(&mut enum_map, 6, 6);
+        let enum_map = get_enum_map();
 
         remove_value_bulk(&mut enum_map, vector[1, 2, 3]);
 
@@ -267,14 +260,7 @@ module supra_std::enumerable_map {
     #[test(owner= @0x1111)]
     #[expected_failure(abort_code = 3, location = Self)]
     public fun test_update_value(owner: &signer) {
-        let enum_map = new_map<u256, u256>();
-
-        add_value(&mut enum_map, 1, 1);
-        add_value(&mut enum_map, 2, 2);
-        add_value(&mut enum_map, 3, 3);
-        add_value(&mut enum_map, 4, 4);
-        add_value(&mut enum_map, 5, 5);
-        add_value(&mut enum_map, 6, 6);
+        let enum_map = get_enum_map();
 
         update_value(&mut enum_map, 1, 7);
 
@@ -287,14 +273,7 @@ module supra_std::enumerable_map {
 
     #[test(owner= @0x1111)]
     public fun test_clear(owner: &signer) {
-        let enum_map = new_map<u256, u256>();
-
-        add_value(&mut enum_map, 1, 1);
-        add_value(&mut enum_map, 2, 2);
-        add_value(&mut enum_map, 3, 3);
-        add_value(&mut enum_map, 4, 4);
-        add_value(&mut enum_map, 5, 5);
-        add_value(&mut enum_map, 6, 6);
+        let enum_map = get_enum_map();
 
         clear(&mut enum_map);
 
@@ -305,13 +284,7 @@ module supra_std::enumerable_map {
 
     #[test(owner= @0x1111)]
     public fun test_for_each_value_and_ref(owner: &signer) {
-        let enum_map = new_map<u256, u256>();
-        add_value(&mut enum_map, 1, 1);
-        add_value(&mut enum_map, 2, 2);
-        add_value(&mut enum_map, 3, 3);
-        add_value(&mut enum_map, 4, 4);
-        add_value(&mut enum_map, 5, 5);
-        add_value(&mut enum_map, 6, 6);
+        let enum_map = get_enum_map();
 
         let i = 1;
         for_each_value(&enum_map, |v| {
@@ -324,6 +297,17 @@ module supra_std::enumerable_map {
             assert!(&j == v, 200);
             j = j + 1;
         });
+        move_to(owner, EnumerableMapTest { e: enum_map })
+    }
+
+    #[test(owner= @0x1111)]
+    public fun test_filter(owner: &signer) {
+        let enum_map = get_enum_map();
+
+        let result = filter(&enum_map, |v| *v > 3);
+
+        assert!(result == vector[4, 5, 6], 300);
+
         move_to(owner, EnumerableMapTest { e: enum_map })
     }
 }
