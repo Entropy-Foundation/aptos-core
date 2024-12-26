@@ -133,7 +133,7 @@ impl AutomatedTransaction {
     /// Returns the hash of the transaction.
     pub fn hash(&self) -> HashValue {
         *self.hash.get_or_init(|| {
-            HashValue::sha3_256_of(
+            HashValue::keccak_256_of(
                 &bcs::to_bytes(&self).expect("Unable to serialize AutomatedTransaction"),
             )
         })
