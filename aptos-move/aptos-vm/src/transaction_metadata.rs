@@ -85,7 +85,7 @@ impl TransactionMetadata {
                 .map(|res| !res.is_empty())
                 .unwrap_or(false),
             payload_type_reference,
-            txn_app_hash: HashValue::sha3_256_of(
+            txn_app_hash: HashValue::keccak_256_of(
                 &bcs::to_bytes(&txn).expect("Unable to serialize SignedTransaction"),
             )
             .to_vec(),
