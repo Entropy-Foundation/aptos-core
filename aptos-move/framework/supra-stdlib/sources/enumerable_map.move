@@ -82,7 +82,7 @@ module supra_std::enumerable_map {
     }
 
     /// Remove single Key from the Enumerable Map
-    public fun remove_value<K: copy+drop, V: store+drop+copy>(map: &mut EnumerableMap<K, V>, key: K) {
+    public fun remove_value<K: copy+drop, V: store+drop+copy>(map: &mut EnumerableMap<K, V>, key: K): V {
         assert!(contains(map, key), error::not_found(EKEY_ABSENT));
 
         let map_last_index = vector::length(&map.list) - 1;
@@ -92,7 +92,7 @@ module supra_std::enumerable_map {
         vector::swap(&mut map.list, index_of_element, map_last_index);
         tuple_to_modify.position = index_of_element;
         vector::pop_back(&mut map.list);
-        table::remove(&mut map.map, key);
+        table::remove(&mut map.map, key).value
     }
 
     /// Remove Multiple Keys from the Enumerable Map
@@ -181,11 +181,33 @@ module supra_std::enumerable_map {
         }
     }
 
+    /// Apply the function to a mutable reference in the EnumerableMap.
+    public inline fun for_each_value_mut<K: copy+drop, V: store+drop+copy>(set: &mut EnumerableMap<K, V>, f: |&mut V|) {
+        let i = 0;
+        let len = length(set);
+        while (i < len) {
+            let key = *vector::borrow(&set.list, i);
+            f(&mut table::borrow_mut(&mut set.map, key).value);
+            i = i + 1
+        }
+    }
+
+    /// Iterates over each key-value pair in an EnumerableMap and applies the provided function
+    public inline fun for_each_keyval<K: copy+drop, V: store+drop+copy>(set: &EnumerableMap<K, V>, f: |K, V|) {
+        let i = 0;
+        let len = length(set);
+        while (i < len) {
+            let key = *vector::borrow(&set.list, i);
+            f(key, table::borrow(&set.map, key).value);
+            i = i + 1
+        }
+    }
+
     /// Filter the enumerableMap using the boolean function, removing all elements for which `p(e)` is not true.
     public inline fun filter<K: copy+drop, V: store+drop+copy>(set: &EnumerableMap<K, V>, p: |&V|bool): vector<V> {
         let result = vector<V>[];
-        for_each_value(set, |v| {
-            if (p(&v)) vector::push_back(&mut result, v);
+        for_each_value_ref(set, |v| {
+            if (p(v)) vector::push_back(&mut result, *v);
         });
         result
     }
@@ -287,16 +309,23 @@ module supra_std::enumerable_map {
         let enum_map = get_enum_map();
 
         let i = 1;
-        for_each_value(&enum_map, |v| {
-            assert!(i == v, 100);
+        for_each_value_ref(&enum_map, |v| {
+            assert!(v == &i, 100);
             i = i + 1;
         });
 
         let j = 1;
-        for_each_value_ref(&enum_map, |v| {
-            assert!(&j == v, 200);
+        for_each_value_mut<u256, u256>(&mut enum_map, |v| {
+            *v = j + 1; // update value with 1 increament
             j = j + 1;
         });
+
+        let k = 1;
+        for_each_value(&enum_map, |v| {
+            assert!(v == k + 1, 300);
+            k = k + 1;
+        });
+
         move_to(owner, EnumerableMapTest { e: enum_map })
     }
 
