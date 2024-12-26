@@ -15,7 +15,7 @@ module supra_std::enumerable_map {
     const EVECTOR_EMPTY: u64 = 3;
 
     /// Enumerable Map to store the key value pairs
-    struct EnumerableMap<K : copy + drop, V : store+drop+copy> has store {
+    struct EnumerableMap<K: copy + drop, V: store+drop+copy> has store {
         /// List of all keys
         list: vector<K>,
         /// Key mapped to a tuple containing the (position of key in list and value corresponding to the key)
@@ -23,31 +23,31 @@ module supra_std::enumerable_map {
     }
 
     /// Tuple to store the position of key in list and value corresponding to the key
-    struct Tuple<V : store+drop+copy> has store, copy, drop {
+    struct Tuple<V: store+drop+copy> has store, copy, drop {
         position: u64,
         value: V,
     }
 
     /// Return type
-    struct KeyValue<K : copy + drop, V : store+drop+copy> has store, copy, drop {
+    struct KeyValue<K: copy + drop, V: store+drop+copy> has store, copy, drop {
         key: K,
         value: V,
     }
 
     /// To create an empty enum map
-    public fun new_map<K : copy + drop, V : store+drop+copy>(): EnumerableMap<K, V> {
+    public fun new_map<K: copy + drop, V: store+drop+copy>(): EnumerableMap<K, V> {
         return EnumerableMap<K, V> { list: vector::empty<K>(), map: table::new<K, Tuple<V>>() }
     }
 
     /// Add Single Key in the Enumerable Map
-    public fun add_value<K : copy+drop, V : store+drop+copy>(map: &mut EnumerableMap<K, V>, key: K, value: V) {
+    public fun add_value<K: copy+drop, V: store+drop+copy>(map: &mut EnumerableMap<K, V>, key: K, value: V) {
         assert!(!contains(map, key), error::already_exists(EKEY_ALREADY_ADDED));
         table::add(&mut map.map, key, Tuple<V> { position: vector::length(&map.list), value });
         vector::push_back(&mut map.list, key);
     }
 
     /// Add Multiple Keys in the Enumerable Map
-    public fun add_value_bulk<K: copy+drop, V : store+drop+copy>(
+    public fun add_value_bulk<K: copy+drop, V: store+drop+copy>(
         map: &mut EnumerableMap<K, V>,
         keys: vector<K>,
         values: vector<V>
@@ -82,7 +82,7 @@ module supra_std::enumerable_map {
     }
 
     /// Remove single Key from the Enumerable Map
-    public fun remove_value<K : copy+drop, V : store+drop+copy>(map: &mut EnumerableMap<K, V>, key: K) {
+    public fun remove_value<K: copy+drop, V: store+drop+copy>(map: &mut EnumerableMap<K, V>, key: K) {
         assert!(contains(map, key), error::not_found(EKEY_ABSENT));
 
         let map_last_index = vector::length(&map.list) - 1;
@@ -96,7 +96,7 @@ module supra_std::enumerable_map {
     }
 
     /// Remove Multiple Keys from the Enumerable Map
-    public fun remove_value_bulk<K : copy+drop, V : store+drop+copy>(
+    public fun remove_value_bulk<K: copy+drop, V: store+drop+copy>(
         map: &mut EnumerableMap<K, V>,
         keys: vector<K>
     ): vector<K> {
@@ -123,44 +123,66 @@ module supra_std::enumerable_map {
     }
 
     /// Will clear the entire data from the Enumerable Map
-    public fun clear<K : copy+drop, V : store+drop+copy>(map: &mut EnumerableMap<K, V>) {
+    public fun clear<K: copy+drop, V: store+drop+copy>(map: &mut EnumerableMap<K, V>) {
         let list = get_map_list(map);
         remove_value_bulk(map, list);
     }
 
     /// Returns the value of a key that is present in Enumerable Map
-    public fun get_value<K : copy+drop, V : store+drop+copy>(map: & EnumerableMap<K, V>, key: K): V {
+    public fun get_value<K: copy+drop, V: store+drop+copy>(map: & EnumerableMap<K, V>, key: K): V {
         table::borrow(&map.map, key).value
     }
 
     /// Returns reference to the value of a key that is present in Enumerable Map
-    public fun get_value_ref<K : copy+drop, V : store+drop+copy>(map: & EnumerableMap<K, V>, key: K): &V {
+    public fun get_value_ref<K: copy+drop, V: store+drop+copy>(map: & EnumerableMap<K, V>, key: K): &V {
         &table::borrow(&map.map, key).value
     }
 
 
     /// Returns the value of a key that is present in Enumerable Map
-    public fun get_value_mut<K : copy+drop, V : store+drop+copy>(map: &mut EnumerableMap<K, V>, key: K): &mut V {
+    public fun get_value_mut<K: copy+drop, V: store+drop+copy>(map: &mut EnumerableMap<K, V>, key: K): &mut V {
         &mut table::borrow_mut(&mut map.map, key).value
     }
 
     /// Returns the list of keys that the Enumerable Map contains
-    public fun get_map_list<K : copy+drop, V : store+drop+copy>(map: &EnumerableMap<K, V>): vector<K> {
+    public fun get_map_list<K: copy+drop, V: store+drop+copy>(map: &EnumerableMap<K, V>): vector<K> {
         return map.list
     }
 
     /// Check whether Key is present into the Enumerable map or not
-    public fun contains<K: copy+drop, V : store+drop+copy>(map: &EnumerableMap<K, V>, key: K): bool {
+    public fun contains<K: copy+drop, V: store+drop+copy>(map: &EnumerableMap<K, V>, key: K): bool {
         table::contains(&map.map, key)
     }
 
     /// Return current length of the EnumerableSetRing
-    public fun length<K : copy+drop, V : store+drop+copy>(set: &EnumerableMap<K, V>): u64 {
+    public fun length<K: copy+drop, V: store+drop+copy>(set: &EnumerableMap<K, V>): u64 {
         return vector::length(&set.list)
     }
 
+    /// Apply the function to each element in the EnumerableMap.
+    public inline fun for_each_value<K: copy+drop, V: store+drop+copy>(set: &EnumerableMap<K, V>, f: |V|) {
+        let i = 0;
+        let len = length(set);
+        while (i < len) {
+            let key = *vector::borrow(&set.list, i);
+            f(table::borrow(&set.map, key).value);
+            i = i + 1
+        }
+    }
+
+    /// Apply the function to a reference of each element in the EnumerableMap.
+    public inline fun for_each_value_ref<K: copy+drop, V: store+drop+copy>(set: &EnumerableMap<K, V>, f: |&V|) {
+        let i = 0;
+        let len = length(set);
+        while (i < len) {
+            let key = *vector::borrow(&set.list, i);
+            f(&table::borrow(&set.map, key).value);
+            i = i + 1
+        }
+    }
+
     #[test_only]
-    struct EnumerableMapTest<K: copy + drop, V : store+drop+copy> has key {
+    struct EnumerableMapTest<K: copy + drop, V: store+drop+copy> has key {
         e: EnumerableMap<K, V>
     }
 
@@ -278,6 +300,30 @@ module supra_std::enumerable_map {
 
         assert!(length(&enum_map) == 0, 2);
 
+        move_to(owner, EnumerableMapTest { e: enum_map })
+    }
+
+    #[test(owner= @0x1111)]
+    public fun test_for_each_value_and_ref(owner: &signer) {
+        let enum_map = new_map<u256, u256>();
+        add_value(&mut enum_map, 1, 1);
+        add_value(&mut enum_map, 2, 2);
+        add_value(&mut enum_map, 3, 3);
+        add_value(&mut enum_map, 4, 4);
+        add_value(&mut enum_map, 5, 5);
+        add_value(&mut enum_map, 6, 6);
+
+        let i = 1;
+        for_each_value(&enum_map, |v| {
+            assert!(i == v, 100);
+            i = i + 1;
+        });
+
+        let j = 1;
+        for_each_value_ref(&enum_map, |v| {
+            assert!(&j == v, 200);
+            j = j + 1;
+        });
         move_to(owner, EnumerableMapTest { e: enum_map })
     }
 }
