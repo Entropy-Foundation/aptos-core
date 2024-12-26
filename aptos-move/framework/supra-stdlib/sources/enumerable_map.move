@@ -69,15 +69,16 @@ module supra_std::enumerable_map {
         return updated_keys
     }
 
-    /// Update the value of a key thats already present in the Enumerable Map
-    public fun update_value<K: copy+drop, V : store+drop+copy>(
+    /// Update the value of a key thats already present in the Enumerable Map and return old value
+    public fun update_value<K: copy+drop, V: store+drop+copy>(
         map: &mut EnumerableMap<K, V>,
         key: K,
         new_value: V
-    ): KeyValue<K, V> {
+    ): V {
         assert!(contains(map, key), error::not_found(EKEY_ABSENT));
+        let old_value = table::borrow(&mut map.map, key).value;
         table::borrow_mut(&mut map.map, key).value = new_value;
-        KeyValue { key, value: new_value }
+        old_value
     }
 
     /// Remove single Key from the Enumerable Map
