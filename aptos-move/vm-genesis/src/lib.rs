@@ -1049,6 +1049,7 @@ pub struct Validator {
     pub consensus_pubkey: Vec<u8>,
 
     //need to add new feild for bls publickey 
+    pub consensus_bls_pubkey: Vec<u8>,
     
     /// `NetworkAddress` for the validator.
     pub network_addresses: Vec<u8>,
@@ -1059,7 +1060,7 @@ pub struct Validator {
 pub struct TestValidator {
     pub key: Ed25519PrivateKey,
     pub consensus_key: ed25519::PrivateKey,
-    // pub consensus_bls_key: blsttc::BlsPrivateKey,
+    pub consensus_bls_key: blsttc::BlsPrivateKey,
     pub data: Validator,
 }
 
@@ -1092,6 +1093,7 @@ impl TestValidator {
         let data = Validator {
             owner_address,
             consensus_pubkey,
+            consensus_bls_pubkey,
             operator_address: owner_address,
             voter_address: owner_address,
             network_addresses: network_address,
@@ -1101,6 +1103,7 @@ impl TestValidator {
         Self {
             key,
             consensus_key,
+            consensus_bls_key,
             data,
         }
     }

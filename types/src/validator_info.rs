@@ -65,7 +65,7 @@ impl ValidatorInfo {
         let addr = NetworkAddress::mock();
         let config = ValidatorConfig::new(
             consensus_public_key,
-            None,//consensus_bls_public_key,
+            consensus_bls_public_key,
             bcs::to_bytes(&vec![addr.clone()]).unwrap(),
             bcs::to_bytes(&vec![addr]).unwrap(),
             validator_index,
@@ -89,13 +89,13 @@ impl ValidatorInfo {
         &self.config.consensus_public_key
     }
 
-    // pub fn consensus_bls_public_key(&self) -> Result<&blsttc::BlsPublicKey, String> {
-    //     if let Some(key) = &self.config.consensus_bls_public_key {
-    //         Ok(key)
-    //     }else{
-    //         Err(String::from("Failed key fetching"))
-    //     }
-    // }
+    pub fn consensus_bls_public_key(&self) -> Result<&blsttc::BlsPublicKey, String> {
+        if let Some(key) = &self.config.consensus_bls_public_key {
+            Ok(key)
+        }else{
+            Err(String::from("Failed key fetching"))
+        }
+    }
 
     /// Returns the voting power for this validator
     pub fn consensus_voting_power(&self) -> u64 {

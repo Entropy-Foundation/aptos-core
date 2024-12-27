@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use aptos_config::config::HANDSHAKE_VERSION;
-use aptos_crypto::{ed25519, ed25519::Ed25519PublicKey, x25519};
+use aptos_crypto::{blsttc, ed25519::{self, Ed25519PublicKey}, x25519};
 use aptos_types::{
     account_address::{AccountAddress, AccountAddressWithChecks},
     chain_id::ChainId,
@@ -245,11 +245,13 @@ impl TryFrom<ValidatorConfiguration> for Validator {
             vec![]
         };
 
+        //used empty vector here, cause i think we are not using this code here, because we have our own ValidatorNodeIndentity stucts
         Ok(Validator {
             owner_address,
             operator_address,
             voter_address,
             consensus_pubkey,
+            consensus_bls_pubkey : Vec::new(),
             network_addresses: bcs::to_bytes(&validator_addresses).unwrap(),
             full_node_network_addresses: bcs::to_bytes(&full_node_addresses).unwrap(),
             stake_amount: config.stake_amount,
