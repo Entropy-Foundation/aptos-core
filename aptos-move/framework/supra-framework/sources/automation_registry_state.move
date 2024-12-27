@@ -5,12 +5,13 @@ module supra_framework::automation_registry_state {
 
     use std::signer;
     use std::vector;
-    use supra_framework::event;
 
     use supra_std::enumerable_map::{Self, EnumerableMap};
 
+    use supra_framework::event;
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
+
     #[test_only]
     use supra_framework::account;
 
@@ -126,7 +127,7 @@ module supra_framework::automation_registry_state {
 
             // Tasks that are active during next epoch and are not cancled
             // current_time shows the start time of the current new epoch.
-            if (task.state != CANCELLED && task.expiry_time > (current_time + epoch_interval_secs) ) {
+            if (task.state != CANCELLED && task.expiry_time > (current_time + epoch_interval_secs)) {
                 gas_committed_for_next_epoch = gas_committed_for_next_epoch + task.max_gas_amount;
             };
 
@@ -189,7 +190,7 @@ module supra_framework::automation_registry_state {
     ///   - pending, it is removed form the list.
     ///   - cancelled, an error is reported
     /// Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
-    public (friend) fun cancel_task(owner: &signer, id: u64): AutomationTaskMetaData acquires AutomationRegistryState {
+    public(friend) fun cancel_task(owner: &signer, id: u64): AutomationTaskMetaData acquires AutomationRegistryState {
         let state = borrow_global_mut<AutomationRegistryState>(@supra_framework);
         assert!(enumerable_map::contains(&state.tasks, id), EAUTOMATION_TASK_NOT_FOUND);
 
@@ -212,7 +213,7 @@ module supra_framework::automation_registry_state {
 
     /// Update Automation gas limit.
     /// If the committed gas amount for the next epoch is greater then the new gas limit, then error is reported.
-    public (friend) fun update_automation_gas_limit(
+    public(friend) fun update_automation_gas_limit(
         supra_framework: &signer,
         automation_gas_limit: u64
     ) acquires AutomationRegistryState {
@@ -232,21 +233,16 @@ module supra_framework::automation_registry_state {
     public(friend) fun get_active_task_ids(): vector<u64> acquires AutomationRegistryState {
         let state = borrow_global<AutomationRegistryState>(@supra_framework);
 
-        let active_task_ids = vector[];
-        let ids = enumerable_map::get_map_list(&state.tasks);
-
-        vector::for_each(ids, |id| {
-            let task = enumerable_map::get_value_ref(&state.tasks, id);
-            if (task.state != PENDING) {
-                vector::push_back(&mut active_task_ids, id);
-            };
-        });
-        return active_task_ids
+        enumerable_map::filter_map(&state.tasks, |task| {
+            let task: AutomationTaskMetaData = task; // we need to define task type here to avoid compiler error
+            if (task.state != PENDING) (true, task.id)
+            else (false, task.id)
+        })
     }
 
     /// Retrieves the details of a automation task entry by its ID.
     /// Error will be returned if entry with specified ID does not exist.
-    public (friend) fun get_task_details(id: u64): AutomationTaskMetaData acquires AutomationRegistryState {
+    public(friend) fun get_task_details(id: u64): AutomationTaskMetaData acquires AutomationRegistryState {
         let automation_task_metadata = borrow_global<AutomationRegistryState>(@supra_framework);
         assert!(enumerable_map::contains(&automation_task_metadata.tasks, id), EAUTOMATION_TASK_NOT_FOUND);
         enumerable_map::get_value(&automation_task_metadata.tasks, id)
@@ -258,10 +254,11 @@ module supra_framework::automation_registry_state {
         if (enumerable_map::contains(&automation_task_metadata.tasks, id)) {
             let value = enumerable_map::get_value_ref(&automation_task_metadata.tasks, id);
             value.state != PENDING
-        } else  {
+        } else {
             false
         }
     }
+
     #[test_only]
     fun has_task_with_id(id: u64): bool acquires AutomationRegistryState {
         let automation_task_metadata = borrow_global<AutomationRegistryState>(@supra_framework);
@@ -269,7 +266,7 @@ module supra_framework::automation_registry_state {
     }
 
     /// Returns next task index in registry
-    public (friend) fun get_next_task_index(): u64 acquires AutomationRegistryState {
+    public(friend) fun get_next_task_index(): u64 acquires AutomationRegistryState {
         let state = borrow_global<AutomationRegistryState>(@supra_framework);
         state.current_index
     }
@@ -335,11 +332,11 @@ module supra_framework::automation_registry_state {
         let account = account::create_account_for_test(@0x123456);
         register(&account,
             PAYLOAD,
-        100,
-        10,
-        20,
-        1,
-        PARENT_HASH,
+            100,
+            10,
+            20,
+            1,
+            PARENT_HASH,
         );
         assert!(1 == get_next_task_index(), 1);
         assert!(10 == get_gas_committed_for_next_epoch(), 1)
