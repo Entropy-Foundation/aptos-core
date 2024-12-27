@@ -232,6 +232,7 @@ impl SMRNode {
                     ValidatorInfo::new_with_test_network_keys(
                         sr_test_config.author,
                         sr_test_config.consensus_key.as_ref().unwrap().public_key(),
+                        None,
                         1,
                         index as u64,
                     )

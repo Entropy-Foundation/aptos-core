@@ -504,6 +504,7 @@ impl From<&ValidatorVerifier> for ValidatorSet {
                     crate::validator_info::ValidatorInfo::new_with_test_network_keys(
                         addr,
                         verifier.get_public_key(&addr).unwrap(),
+                        None,
                         verifier.get_voting_power(&addr).unwrap(),
                         index as u64,
                     )

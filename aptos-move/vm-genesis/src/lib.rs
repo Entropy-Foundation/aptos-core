@@ -9,9 +9,7 @@ mod genesis_context;
 use std::hash::{Hash, Hasher};
 use crate::genesis_context::GenesisStateView;
 use aptos_crypto::{
-    ed25519,
-    ed25519::{Ed25519PrivateKey, Ed25519PublicKey},
-    HashValue, PrivateKey, Uniform,
+    blsttc, ed25519::{self, Ed25519PrivateKey, Ed25519PublicKey}, HashValue, PrivateKey, Uniform
 };
 use aptos_framework::{ReleaseBundle, ReleasePackage};
 use aptos_gas_schedule::{
@@ -1049,6 +1047,9 @@ pub struct Validator {
 
     /// ed25519 public key used to sign consensus messages.
     pub consensus_pubkey: Vec<u8>,
+
+    //need to add new feild for bls publickey 
+    
     /// `NetworkAddress` for the validator.
     pub network_addresses: Vec<u8>,
     /// `NetworkAddress` for the validator's full node.
@@ -1058,6 +1059,7 @@ pub struct Validator {
 pub struct TestValidator {
     pub key: Ed25519PrivateKey,
     pub consensus_key: ed25519::PrivateKey,
+    // pub consensus_bls_key: blsttc::BlsPrivateKey,
     pub data: Validator,
 }
 
@@ -1075,6 +1077,9 @@ impl TestValidator {
         let owner_address = auth_key.account_address();
         let consensus_key = ed25519::PrivateKey::generate(rng);
         let consensus_pubkey = consensus_key.public_key().to_bytes().to_vec();
+
+        let consensus_bls_key = blsttc::BlsPrivateKey::generate_random();
+        let consensus_bls_pubkey = consensus_bls_key.public_key().to_bytes().to_vec();
         let network_address = [0u8; 0].to_vec();
         let full_node_network_address = [0u8; 0].to_vec();
 
@@ -1083,6 +1088,7 @@ impl TestValidator {
         } else {
             0
         };
+        
         let data = Validator {
             owner_address,
             consensus_pubkey,

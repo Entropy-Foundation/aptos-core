@@ -462,6 +462,7 @@ aptos-cargo-cli = { path = "devtools/aptos-cargo-cli" }
 
 # External crate dependencies.
 # Please do not add any test features here: they should be declared by the individual crate.
+blsttc = {package = "blsttc", git = "ssh://git@github.com/naitik-supraoracles/blsttc-supra-for-moonshot.git", rev = "4ca8a9d97893e2dfd74eee427400ac119e3e9dd9"}
 aes-gcm = "0.10.3"
 ahash = "0.8.11"
 atty = "0.2.14"
@@ -692,7 +693,7 @@ quote = "1.0.18"
 rand = "0.7.3"
 rand_core = "0.5.1"
 random_word = "0.3.0"
-rayon = "1.5.2"
+rayon = "1.10.0"
 redis = { version = "0.22.3", features = [
     "tokio-comp",
     "script",

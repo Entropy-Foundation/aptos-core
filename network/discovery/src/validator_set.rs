@@ -254,6 +254,7 @@ mod tests {
             0,
             ValidatorConfig::new(
                 consensus_pubkey,
+                None,
                 validator_encoded_addresses,
                 fullnode_encoded_addresses,
                 0,

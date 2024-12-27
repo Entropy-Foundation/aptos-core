@@ -5,12 +5,12 @@
 #[cfg(any(test, feature = "fuzzing"))]
 use crate::network_address::NetworkAddress;
 use crate::{account_address::AccountAddress, validator_config::ValidatorConfig};
-use aptos_crypto::ed25519;
+use aptos_crypto::{ed25519, PrivateKey};
 #[cfg(any(test, feature = "fuzzing"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-
+use aptos_crypto::blsttc;
 /// After executing a special transaction indicates a change to the next epoch, consensus
 /// and networking get the new list of validators, their keys, and their voting power.  Consensus
 /// has a public key to validate signed messages and networking will has public identity
@@ -56,12 +56,16 @@ impl ValidatorInfo {
     pub fn new_with_test_network_keys(
         account_address: AccountAddress,
         consensus_public_key: ed25519::PublicKey,
+        consensus_bls_public_key: Option<blsttc::BlsPublicKey>,
         consensus_voting_power: u64,
         validator_index: u64,
     ) -> Self {
+        use aptos_crypto::PrivateKey;
+
         let addr = NetworkAddress::mock();
         let config = ValidatorConfig::new(
             consensus_public_key,
+            None,//consensus_bls_public_key,
             bcs::to_bytes(&vec![addr.clone()]).unwrap(),
             bcs::to_bytes(&vec![addr]).unwrap(),
             validator_index,
@@ -84,6 +88,14 @@ impl ValidatorInfo {
     pub fn consensus_public_key(&self) -> &ed25519::PublicKey {
         &self.config.consensus_public_key
     }
+
+    // pub fn consensus_bls_public_key(&self) -> Result<&blsttc::BlsPublicKey, String> {
+    //     if let Some(key) = &self.config.consensus_bls_public_key {
+    //         Ok(key)
+    //     }else{
+    //         Err(String::from("Failed key fetching"))
+    //     }
+    // }
 
     /// Returns the voting power for this validator
     pub fn consensus_voting_power(&self) -> u64 {

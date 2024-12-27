@@ -1051,6 +1051,7 @@ impl BlockInfoGen {
                     ValidatorInfo::new_with_test_network_keys(
                         signer.author(),
                         signer.public_key(),
+                        None,
                         1, /* consensus_voting_power */
                         index as u64,
                     )

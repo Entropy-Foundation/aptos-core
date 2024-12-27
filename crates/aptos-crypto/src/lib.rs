@@ -3,10 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![forbid(unsafe_code)]
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 
 //! A library supplying various cryptographic primitives
 pub mod asymmetric_encryption;
+pub mod blsttc;
 pub mod bls12381;
 pub mod bulletproofs;
 pub mod compat;
@@ -28,6 +29,7 @@ pub mod x25519;
 pub mod poseidon_bn254;
 #[cfg(test)]
 mod unit_tests;
+
 
 pub use self::traits::*;
 pub use hash::HashValue;

@@ -99,7 +99,7 @@ fn build_empty_store(
 // helpers for safety rule initialization
 fn make_initial_epoch_change_proof(signer: &ValidatorSigner) -> EpochChangeProof {
     let validator_info =
-        ValidatorInfo::new_with_test_network_keys(signer.author(), signer.public_key(), 1, 0);
+        ValidatorInfo::new_with_test_network_keys(signer.author(), signer.public_key(), None, 1, 0);
     let validator_set = ValidatorSet::new(vec![validator_info]);
     let li = LedgerInfo::mock_genesis(Some(validator_set));
     let lis = LedgerInfoWithSignatures::new(li, AggregateSignature::empty());

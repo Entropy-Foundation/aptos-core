@@ -41,7 +41,7 @@ pub fn empty_proof() -> Proof {
 
 pub fn make_genesis(signer: &ValidatorSigner) -> (EpochChangeProof, QuorumCert) {
     let validator_info =
-        ValidatorInfo::new_with_test_network_keys(signer.author(), signer.public_key(), 1, 0);
+        ValidatorInfo::new_with_test_network_keys(signer.author(), signer.public_key(), None, 1, 0);
     let validator_set = ValidatorSet::new(vec![validator_info]);
     let li = LedgerInfo::mock_genesis(Some(validator_set));
     let block = Block::make_genesis_block_from_ledger_info(&li);
@@ -219,7 +219,7 @@ pub fn make_timeout_cert(
 
 pub fn validator_signers_to_ledger_info(signers: &[&ValidatorSigner]) -> LedgerInfo {
     let infos = signers.iter().enumerate().map(|(index, v)| {
-        ValidatorInfo::new_with_test_network_keys(v.author(), v.public_key(), 1, index as u64)
+        ValidatorInfo::new_with_test_network_keys(v.author(), v.public_key(), None, 1, index as u64)
     });
     let validator_set = ValidatorSet::new(infos.collect());
     LedgerInfo::mock_genesis(Some(validator_set))
