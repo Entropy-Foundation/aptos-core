@@ -203,11 +203,40 @@ module supra_std::enumerable_map {
         }
     }
 
-    /// Filter the enumerableMap using the boolean function, removing all elements for which `p(e)` is not true.
+    /// Filter the enumerableMap using the boolean function, removing all elements for which `p(v)` is not true.
     public inline fun filter<K: copy+drop, V: store+drop+copy>(set: &EnumerableMap<K, V>, p: |&V|bool): vector<V> {
         let result = vector<V>[];
         for_each_value_ref(set, |v| {
             if (p(v)) vector::push_back(&mut result, *v);
+        });
+        result
+    }
+
+    /// Transforms values in an EnumerableMap using the provided function and returns a vector of results.
+    public inline fun map<K: copy+drop, V: store+drop+copy, T>(set: &EnumerableMap<K, V>, f: |V|T): vector<T> {
+        let result = vector<T>[];
+        for_each_value(set, |elem| vector::push_back(&mut result, f(elem)));
+        result
+    }
+
+    /// Transforms values in an EnumerableMap by reference using the provided function and returns a vector of results.
+    public inline fun map_ref<K: copy+drop, V: store+drop+copy, T>(set: &EnumerableMap<K, V>, f: |&V|T): vector<T> {
+        let result = vector<T>[];
+        for_each_value_ref(set, |elem| vector::push_back(&mut result, f(elem)));
+        result
+    }
+
+    /// Applies a filter and transformation function to values in an EnumerableMap, returning a vector of results.
+    public inline fun filter_map<K: copy+drop, V: store+drop+copy, T>(
+        set: &EnumerableMap<K, V>,
+        f: |V| (bool, T)
+    ): vector<T> {
+        let result = vector<T>[];
+        for_each_value(set, |v| {
+            let (should_include, transformed_value) = f(v);
+            if (should_include) {
+                vector::push_back(&mut result, transformed_value);
+            }
         });
         result
     }
@@ -336,6 +365,35 @@ module supra_std::enumerable_map {
         let result = filter(&enum_map, |v| *v > 3);
 
         assert!(result == vector[4, 5, 6], 300);
+
+        move_to(owner, EnumerableMapTest { e: enum_map })
+    }
+
+    #[test(owner= @0x1111)]
+    public fun test_map_and_ref(owner: &signer) {
+        let enum_map = get_enum_map();
+
+        let result = map(&enum_map, |v| v * 3);
+
+        assert!(result == vector[3, 6, 9, 12, 15, 18], 400);
+
+        let result = map_ref(&enum_map, |v| *v * 2);
+
+        assert!(result == vector[2, 4, 6, 8, 10, 12], 500);
+
+        move_to(owner, EnumerableMapTest { e: enum_map })
+    }
+
+    #[test(owner= @0x1111)]
+    public fun test_filter_map_and_ref(owner: &signer) {
+        let enum_map = get_enum_map();
+
+        let result = filter_map(&enum_map, |v|
+            if (v % 2 == 0) (true, v)
+            else (false, 0)
+        );
+
+        assert!(result == vector[2, 4, 6], 600);
 
         move_to(owner, EnumerableMapTest { e: enum_map })
     }
