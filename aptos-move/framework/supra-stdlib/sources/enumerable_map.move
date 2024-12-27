@@ -138,6 +138,10 @@ module supra_std::enumerable_map {
         &table::borrow(&map.map, key).value
     }
 
+    /// Retrieves the key at the specified index from the EnumerableMap's key list.
+    public fun get_key_by_index<K: copy+drop, V: store+drop+copy>(set: &EnumerableMap<K, V>, index: u64): K {
+        *vector::borrow(&set.list, index)
+    }
 
     /// Returns the value of a key that is present in Enumerable Map
     public fun get_value_mut<K: copy+drop, V: store+drop+copy>(map: &mut EnumerableMap<K, V>, key: K): &mut V {
@@ -164,8 +168,8 @@ module supra_std::enumerable_map {
         let i = 0;
         let len = length(set);
         while (i < len) {
-            let key = *vector::borrow(&set.list, i);
-            f(table::borrow(&set.map, key).value);
+            let key = get_key_by_index(set, i);
+            f(*get_value_ref(set, key));
             i = i + 1
         }
     }
@@ -175,8 +179,8 @@ module supra_std::enumerable_map {
         let i = 0;
         let len = length(set);
         while (i < len) {
-            let key = *vector::borrow(&set.list, i);
-            f(&table::borrow(&set.map, key).value);
+            let key = get_key_by_index(set, i);
+            f(get_value_ref(set, key));
             i = i + 1
         }
     }
@@ -186,8 +190,8 @@ module supra_std::enumerable_map {
         let i = 0;
         let len = length(set);
         while (i < len) {
-            let key = *vector::borrow(&set.list, i);
-            f(&mut table::borrow_mut(&mut set.map, key).value);
+            let key = get_key_by_index(set, i);
+            f(get_value_mut(set, key));
             i = i + 1
         }
     }
@@ -197,8 +201,8 @@ module supra_std::enumerable_map {
         let i = 0;
         let len = length(set);
         while (i < len) {
-            let key = *vector::borrow(&set.list, i);
-            f(key, table::borrow(&set.map, key).value);
+            let key = get_key_by_index(set, i);
+            f(key, *get_value_ref(set, key));
             i = i + 1
         }
     }

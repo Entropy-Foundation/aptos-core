@@ -22,13 +22,19 @@ The module includes error handling and a suite of test functions for validation.
 -  [Function `clear`](#0x1_enumerable_map_clear)
 -  [Function `get_value`](#0x1_enumerable_map_get_value)
 -  [Function `get_value_ref`](#0x1_enumerable_map_get_value_ref)
+-  [Function `get_key_by_index`](#0x1_enumerable_map_get_key_by_index)
 -  [Function `get_value_mut`](#0x1_enumerable_map_get_value_mut)
 -  [Function `get_map_list`](#0x1_enumerable_map_get_map_list)
 -  [Function `contains`](#0x1_enumerable_map_contains)
 -  [Function `length`](#0x1_enumerable_map_length)
 -  [Function `for_each_value`](#0x1_enumerable_map_for_each_value)
 -  [Function `for_each_value_ref`](#0x1_enumerable_map_for_each_value_ref)
+-  [Function `for_each_value_mut`](#0x1_enumerable_map_for_each_value_mut)
+-  [Function `for_each_keyval`](#0x1_enumerable_map_for_each_keyval)
 -  [Function `filter`](#0x1_enumerable_map_filter)
+-  [Function `map`](#0x1_enumerable_map_map)
+-  [Function `map_ref`](#0x1_enumerable_map_map_ref)
+-  [Function `filter_map`](#0x1_enumerable_map_filter_map)
 
 
 <pre><code><b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
@@ -309,7 +315,7 @@ Update the value of a key thats already present in the Enumerable Map and return
 Remove single Key from the Enumerable Map
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_remove_value">remove_value</a>&lt;K: <b>copy</b>, drop, V: <b>copy</b>, drop, store&gt;(map: &<b>mut</b> <a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">enumerable_map::EnumerableMap</a>&lt;K, V&gt;, key: K)
+<pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_remove_value">remove_value</a>&lt;K: <b>copy</b>, drop, V: <b>copy</b>, drop, store&gt;(map: &<b>mut</b> <a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">enumerable_map::EnumerableMap</a>&lt;K, V&gt;, key: K): V
 </code></pre>
 
 
@@ -318,7 +324,7 @@ Remove single Key from the Enumerable Map
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_remove_value">remove_value</a>&lt;K: <b>copy</b>+drop, V: store+drop+<b>copy</b>&gt;(map: &<b>mut</b> <a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">EnumerableMap</a>&lt;K, V&gt;, key: K) {
+<pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_remove_value">remove_value</a>&lt;K: <b>copy</b>+drop, V: store+drop+<b>copy</b>&gt;(map: &<b>mut</b> <a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">EnumerableMap</a>&lt;K, V&gt;, key: K): V {
     <b>assert</b>!(<a href="enumerable_map.md#0x1_enumerable_map_contains">contains</a>(map, key), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="enumerable_map.md#0x1_enumerable_map_EKEY_ABSENT">EKEY_ABSENT</a>));
 
     <b>let</b> map_last_index = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&map.list) - 1;
@@ -328,7 +334,7 @@ Remove single Key from the Enumerable Map
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_swap">vector::swap</a>(&<b>mut</b> map.list, index_of_element, map_last_index);
     tuple_to_modify.position = index_of_element;
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> map.list);
-    <a href="../../aptos-stdlib/doc/table.md#0x1_table_remove">table::remove</a>(&<b>mut</b> map.map, key);
+    <a href="../../aptos-stdlib/doc/table.md#0x1_table_remove">table::remove</a>(&<b>mut</b> map.map, key).value
 }
 </code></pre>
 
@@ -459,6 +465,31 @@ Returns reference to the value of a key that is present in Enumerable Map
 
 </details>
 
+<a id="0x1_enumerable_map_get_key_by_index"></a>
+
+## Function `get_key_by_index`
+
+Retrieves the key at the specified index from the EnumerableMap's key list.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_get_key_by_index">get_key_by_index</a>&lt;K: <b>copy</b>, drop, V: <b>copy</b>, drop, store&gt;(set: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">enumerable_map::EnumerableMap</a>&lt;K, V&gt;, index: u64): K
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_get_key_by_index">get_key_by_index</a>&lt;K: <b>copy</b>+drop, V: store+drop+<b>copy</b>&gt;(set: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">EnumerableMap</a>&lt;K, V&gt;, index: u64): K {
+    *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&set.list, index)
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_enumerable_map_get_value_mut"></a>
 
 ## Function `get_value_mut`
@@ -579,8 +610,8 @@ Apply the function to each element in the EnumerableMap.
     <b>let</b> i = 0;
     <b>let</b> len = <a href="enumerable_map.md#0x1_enumerable_map_length">length</a>(set);
     <b>while</b> (i &lt; len) {
-        <b>let</b> key = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&set.list, i);
-        f(<a href="../../aptos-stdlib/doc/table.md#0x1_table_borrow">table::borrow</a>(&set.map, key).value);
+        <b>let</b> key = <a href="enumerable_map.md#0x1_enumerable_map_get_key_by_index">get_key_by_index</a>(set, i);
+        f(*<a href="enumerable_map.md#0x1_enumerable_map_get_value_ref">get_value_ref</a>(set, key));
         i = i + 1
     }
 }
@@ -610,8 +641,70 @@ Apply the function to a reference of each element in the EnumerableMap.
     <b>let</b> i = 0;
     <b>let</b> len = <a href="enumerable_map.md#0x1_enumerable_map_length">length</a>(set);
     <b>while</b> (i &lt; len) {
-        <b>let</b> key = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&set.list, i);
-        f(&<a href="../../aptos-stdlib/doc/table.md#0x1_table_borrow">table::borrow</a>(&set.map, key).value);
+        <b>let</b> key = <a href="enumerable_map.md#0x1_enumerable_map_get_key_by_index">get_key_by_index</a>(set, i);
+        f(<a href="enumerable_map.md#0x1_enumerable_map_get_value_ref">get_value_ref</a>(set, key));
+        i = i + 1
+    }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_enumerable_map_for_each_value_mut"></a>
+
+## Function `for_each_value_mut`
+
+Apply the function to a mutable reference in the EnumerableMap.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_for_each_value_mut">for_each_value_mut</a>&lt;K: <b>copy</b>, drop, V: <b>copy</b>, drop, store&gt;(set: &<b>mut</b> <a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">enumerable_map::EnumerableMap</a>&lt;K, V&gt;, f: |&<b>mut</b> V|)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> inline <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_for_each_value_mut">for_each_value_mut</a>&lt;K: <b>copy</b>+drop, V: store+drop+<b>copy</b>&gt;(set: &<b>mut</b> <a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">EnumerableMap</a>&lt;K, V&gt;, f: |&<b>mut</b> V|) {
+    <b>let</b> i = 0;
+    <b>let</b> len = <a href="enumerable_map.md#0x1_enumerable_map_length">length</a>(set);
+    <b>while</b> (i &lt; len) {
+        <b>let</b> key = <a href="enumerable_map.md#0x1_enumerable_map_get_key_by_index">get_key_by_index</a>(set, i);
+        f(<a href="enumerable_map.md#0x1_enumerable_map_get_value_mut">get_value_mut</a>(set, key));
+        i = i + 1
+    }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_enumerable_map_for_each_keyval"></a>
+
+## Function `for_each_keyval`
+
+Iterates over each key-value pair in an EnumerableMap and applies the provided function
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_for_each_keyval">for_each_keyval</a>&lt;K: <b>copy</b>, drop, V: <b>copy</b>, drop, store&gt;(set: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">enumerable_map::EnumerableMap</a>&lt;K, V&gt;, f: |(K, V)|)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> inline <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_for_each_keyval">for_each_keyval</a>&lt;K: <b>copy</b>+drop, V: store+drop+<b>copy</b>&gt;(set: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">EnumerableMap</a>&lt;K, V&gt;, f: |K, V|) {
+    <b>let</b> i = 0;
+    <b>let</b> len = <a href="enumerable_map.md#0x1_enumerable_map_length">length</a>(set);
+    <b>while</b> (i &lt; len) {
+        <b>let</b> key = <a href="enumerable_map.md#0x1_enumerable_map_get_key_by_index">get_key_by_index</a>(set, i);
+        f(key, *<a href="enumerable_map.md#0x1_enumerable_map_get_value_ref">get_value_ref</a>(set, key));
         i = i + 1
     }
 }
@@ -625,7 +718,7 @@ Apply the function to a reference of each element in the EnumerableMap.
 
 ## Function `filter`
 
-Filter the enumerableMap using the boolean function, removing all elements for which <code>p(e)</code> is not true.
+Filter the enumerableMap using the boolean function, removing all elements for which <code>p(v)</code> is not true.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_filter">filter</a>&lt;K: <b>copy</b>, drop, V: <b>copy</b>, drop, store&gt;(set: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">enumerable_map::EnumerableMap</a>&lt;K, V&gt;, p: |&V|bool): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;V&gt;
@@ -639,8 +732,97 @@ Filter the enumerableMap using the boolean function, removing all elements for w
 
 <pre><code><b>public</b> inline <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_filter">filter</a>&lt;K: <b>copy</b>+drop, V: store+drop+<b>copy</b>&gt;(set: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">EnumerableMap</a>&lt;K, V&gt;, p: |&V|bool): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;V&gt; {
     <b>let</b> result = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;V&gt;[];
+    <a href="enumerable_map.md#0x1_enumerable_map_for_each_value_ref">for_each_value_ref</a>(set, |v| {
+        <b>if</b> (p(v)) <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> result, *v);
+    });
+    result
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_enumerable_map_map"></a>
+
+## Function `map`
+
+Transforms values in an EnumerableMap using the provided function and returns a vector of results.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_map">map</a>&lt;K: <b>copy</b>, drop, V: <b>copy</b>, drop, store, T&gt;(set: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">enumerable_map::EnumerableMap</a>&lt;K, V&gt;, f: |V|T): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;T&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> inline <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_map">map</a>&lt;K: <b>copy</b>+drop, V: store+drop+<b>copy</b>, T&gt;(set: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">EnumerableMap</a>&lt;K, V&gt;, f: |V|T): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;T&gt; {
+    <b>let</b> result = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;T&gt;[];
+    <a href="enumerable_map.md#0x1_enumerable_map_for_each_value">for_each_value</a>(set, |elem| <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> result, f(elem)));
+    result
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_enumerable_map_map_ref"></a>
+
+## Function `map_ref`
+
+Transforms values in an EnumerableMap by reference using the provided function and returns a vector of results.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_map_ref">map_ref</a>&lt;K: <b>copy</b>, drop, V: <b>copy</b>, drop, store, T&gt;(set: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">enumerable_map::EnumerableMap</a>&lt;K, V&gt;, f: |&V|T): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;T&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> inline <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_map_ref">map_ref</a>&lt;K: <b>copy</b>+drop, V: store+drop+<b>copy</b>, T&gt;(set: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">EnumerableMap</a>&lt;K, V&gt;, f: |&V|T): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;T&gt; {
+    <b>let</b> result = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;T&gt;[];
+    <a href="enumerable_map.md#0x1_enumerable_map_for_each_value_ref">for_each_value_ref</a>(set, |elem| <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> result, f(elem)));
+    result
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_enumerable_map_filter_map"></a>
+
+## Function `filter_map`
+
+Applies a filter and transformation function to values in an EnumerableMap, returning a vector of results.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_filter_map">filter_map</a>&lt;K: <b>copy</b>, drop, V: <b>copy</b>, drop, store, T&gt;(set: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">enumerable_map::EnumerableMap</a>&lt;K, V&gt;, f: |V|(bool, T)): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;T&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> inline <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_filter_map">filter_map</a>&lt;K: <b>copy</b>+drop, V: store+drop+<b>copy</b>, T&gt;(
+    set: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">EnumerableMap</a>&lt;K, V&gt;,
+    f: |V| (bool, T)
+): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;T&gt; {
+    <b>let</b> result = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;T&gt;[];
     <a href="enumerable_map.md#0x1_enumerable_map_for_each_value">for_each_value</a>(set, |v| {
-        <b>if</b> (p(&v)) <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> result, v);
+        <b>let</b> (should_include, transformed_value) = f(v);
+        <b>if</b> (should_include) {
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> result, transformed_value);
+        }
     });
     result
 }
