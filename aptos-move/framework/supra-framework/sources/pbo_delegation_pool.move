@@ -133,8 +133,6 @@ module supra_framework::pbo_delegation_pool {
     use supra_framework::staking_config;
     use supra_framework::timestamp;
     use supra_framework::multisig_account;
-    #[test_only]
-    use aptos_std::debug;
 
     const MODULE_SALT: vector<u8> = b"supra_framework::pbo_delegation_pool";
 
@@ -1539,7 +1537,7 @@ module supra_framework::pbo_delegation_pool {
         }
     }
 
-    /// Reactivates the `pending_inactive` and `inactive` stakes of `delegator`. 
+    /// Reactivates the `pending_inactive` stake of `delegator`.
     /// 
     /// This function must remain private because it must only be called by an authorized entity and it is the
     /// callers responsibility to ensure that this is true. Authorized entities currently include the delegator
@@ -1626,6 +1624,32 @@ module supra_framework::pbo_delegation_pool {
         );
     }
 
+    /// Withdraws the specified `amount` from the `inactive` stake belonging to the given `delegator_address`
+    /// to the address of the `DelegationPool`'s `multisig_admin`, if available.
+    /// 
+    /// Note that this function is only temporarily intended to work as specified above and exists to enable The
+    /// Supra Foundation to ensure that the allocations of all investors are subject to the terms specified in the
+    /// corresponding legal contracts. It will be deactivated before the validator set it opened up to external 
+    /// validator-owners to prevent it from being abused.
+    fun admin_withdraw(
+        multisig_admin: &signer, pool_address: address, delegator_address: address, amount: u64
+    ) acquires DelegationPool, GovernanceRecords {
+        // Ensure that the caller is the admin of the delegation pool.
+        {
+            assert!(
+                is_admin(signer::address_of(multisig_admin), pool_address),
+                error::permission_denied(ENOT_AUTHORIZED)
+            );
+        };
+        assert!(amount > 0, error::invalid_argument(EWITHDRAW_ZERO_STAKE));
+        withdraw_internal(
+            borrow_global_mut<DelegationPool>(pool_address),
+            delegator_address,
+            amount,
+            signer::address_of(multisig_admin),
+        );
+    }
+
     /// For each `delegator` in `delegators`, locks the amount of stake specified in the same index of `stakes_to_lock`.
     /// The locked amount is subject to the vesting schedule specified when the delegation pool corresponding
     /// to `pool_address` was created. Terminates with an error if any `stake_to_lock` exceeds the stake allocated to
@@ -1649,6 +1673,9 @@ module supra_framework::pbo_delegation_pool {
             );
         };
 
+        // Synchronize the delegation and stake pools before any user operation.
+        synchronize_delegation_pool(pool_address);
+
         // Ensure that each `delegator` has enough active stake to cover the corresponding `stake_to_lock`.
         vector::zip_reverse(
             delegators,
@@ -1656,18 +1683,36 @@ module supra_framework::pbo_delegation_pool {
             |delegator, stake_to_lock| {
                 let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
 
-                // Ensure that the amount to lock is greater than the stake owned by `delegator`.
-                assert!(
-                    active + inactive + pending_inactive >= stake_to_lock,
-                    error::invalid_state(EINSUFFICIENT_STAKE_TO_LOCK)
-                );
-                
-                // Either the amount to lock can be covered by the `active` stake, in which case
-                // `authorized_reactivate_stake` will short-circuit, or the amount to lock can be covered
-                // by reactivating some previously unlocked stake. Only reactivate the required
-                // amount to avoid unnecessarily interfering with in-progress withdrawals.
-                let amount_to_reactivate = stake_to_lock - active;
-                authorized_reactivate_stake(delegator, pool_address, amount_to_reactivate);
+                if (active < stake_to_lock) {
+                    // Ensure that the amount to lock is greater than the stake owned by `delegator`.
+                    assert!(
+                        active + inactive + pending_inactive >= stake_to_lock,
+                        error::invalid_state(EINSUFFICIENT_STAKE_TO_LOCK)
+                    );
+
+                    // The amount to lock can be covered by reactivating some previously unlocked stake.
+                    // Only reactivate the required amount to avoid unnecessarily interfering with 
+                    // in-progress withdrawals.
+                    let amount_to_reactivate = stake_to_lock - active;
+                    // Reactivate the required amount of `pending_inactive` stake first, if there is any.
+                    authorized_reactivate_stake(delegator, pool_address, amount_to_reactivate);
+                    let active_and_pending_inactive = active + pending_inactive;
+                    
+                    if (active_and_pending_inactive < stake_to_lock) {
+                        // Also need to reactivate some of the `inactive` stake.
+                        let amount_to_withdraw = stake_to_lock - active_and_pending_inactive;
+                        // Withdraw the minimum required amount to the admin's address.
+                        admin_withdraw(
+                            multisig_admin,
+                            pool_address,
+                            delegator,
+                            amount_to_withdraw
+                        );
+                        // Then allocate it to the delegator again.
+                        fund_delegator_stake(multisig_admin, pool_address, delegator, amount_to_withdraw);
+                    }                    
+                }
+                // else: The amount to lock can be covered by the currently `active` stake.
             }
         );
 
@@ -1974,17 +2019,21 @@ module supra_framework::pbo_delegation_pool {
         delegator: &signer, pool_address: address, amount: u64
     ) acquires DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         assert!(amount > 0, error::invalid_argument(EWITHDRAW_ZERO_STAKE));
-        // synchronize delegation and stake pools before any user operation
+        // Synchronize the delegation and stake pools before any user operation.
         synchronize_delegation_pool(pool_address);
+        let delegator_address = signer::address_of(delegator);
         withdraw_internal(
             borrow_global_mut<DelegationPool>(pool_address),
-            signer::address_of(delegator),
-            amount
+            delegator_address,
+            amount,
+            delegator_address,
         );
     }
 
+    // TODO: `recipient_address` must be removed and replaced with `delegator_address` before the
+    // validator set is opened to non-Foundation validator-owners.
     fun withdraw_internal(
-        pool: &mut DelegationPool, delegator_address: address, amount: u64
+        pool: &mut DelegationPool, delegator_address: address, amount: u64, recipient_address: address
     ) acquires GovernanceRecords {
         // TODO: recycle storage when a delegator fully exits the delegation pool.
         // short-circuit if amount to withdraw is 0 so no event is emitted
@@ -2036,7 +2085,7 @@ module supra_framework::pbo_delegation_pool {
             // no excess stake if `stake::withdraw` does not inactivate at all
             stake::withdraw(stake_pool_owner, amount);
         };
-        supra_account::transfer(stake_pool_owner, delegator_address, amount);
+        supra_account::transfer(stake_pool_owner, recipient_address, amount);
 
         // commit withdrawal of possibly inactive stake to the `total_coins_inactive`
         // known by the delegation pool in order to not mistake it for slashing at next synchronization
@@ -2084,7 +2133,7 @@ module supra_framework::pbo_delegation_pool {
             pending_withdrawal_exists(pool, delegator_address);
         if (withdrawal_exists
             && withdrawal_olc.index < pool.observed_lockup_cycle.index) {
-            withdraw_internal(pool, delegator_address, MAX_U64);
+            withdraw_internal(pool, delegator_address, MAX_U64, delegator_address);
         }
     }
 
@@ -9397,5 +9446,202 @@ module supra_framework::pbo_delegation_pool {
                 (100 * ONE_SUPRA) + 1
             );
         assert!(unlock_coin, 20);
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
+    public entry fun test_lock_delegator_stake_after_allocation(
+        supra_framework: &signer, validator: &signer, delegator: &signer
+    ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
+        initialize_for_test(supra_framework);
+        account::create_account_for_test(signer::address_of(validator));
+        let delegator_address = signer::address_of(delegator);
+        let delegator_address_vec = vector[delegator_address, @0x020];
+        let principle_stake = vector[300 * ONE_SUPRA, 200 * ONE_SUPRA];
+        let coin = stake::mint_coins(500 * ONE_SUPRA);
+        let principle_lockup_time = 7776000;
+        let multisig = generate_multisig_account(validator, vector[@0x12134], 2);
+
+        initialize_test_validator(
+            validator,
+            0,
+            true,
+            true,
+            0,
+            delegator_address_vec,
+            principle_stake,
+            coin,
+            option::some(multisig),
+            vector[2, 2, 3],
+            10,
+            principle_lockup_time,
+            LOCKUP_CYCLE_SECONDS
+        );
+
+        let validator_address = signer::address_of(validator);
+        let pool_address = get_owned_pool_address(validator_address);
+
+        let new_delegator_address = @0x0215;
+        let new_delegator_address_signer =
+            account::create_account_for_test(new_delegator_address);
+        let funder_signer = account::create_signer_for_test(multisig);
+        let funder = signer::address_of(&funder_signer);
+        stake::mint(&funder_signer, 100 * ONE_SUPRA);
+        stake::mint(&new_delegator_address_signer, 100 * ONE_SUPRA);
+        assert!(
+            coin::balance<SupraCoin>(funder) == (100 * ONE_SUPRA),
+            0
+        );
+
+        assert!(
+            coin::balance<SupraCoin>(new_delegator_address) == (100 * ONE_SUPRA),
+            0
+        );
+
+        add_stake(&new_delegator_address_signer, pool_address, 100 * ONE_SUPRA);
+
+        //
+        // Ensure that `lock_delegators_stakes` can lock newly-allocated stakes.
+        //
+
+        // Fund a new delegator.
+        fund_delegators_with_stake(
+            &funder_signer,
+            pool_address,
+            vector[new_delegator_address],
+            vector[1 * ONE_SUPRA]
+        );
+        // Ensure that its stake is not subject to the pool vesting schedule.
+        assert!(!is_principle_stakeholder(new_delegator_address, pool_address), 1);
+
+        // Lock its stake.
+        lock_delegators_stakes(
+            &funder_signer,
+            pool_address,
+            vector[new_delegator_address],
+            vector[1 * ONE_SUPRA]
+        );
+        // Ensure that its stake is now subject to the pool vesting schedule.
+        assert!(is_principle_stakeholder(new_delegator_address, pool_address), 0);
+
+        //
+        // Ensure that `lock_delegators_stakes` reactivates `pending_inactive` stake.
+        //
+
+        let delegator = @0x0216;
+        let delegator_signer = account::create_signer_for_test(delegator);
+        let delegator_allocation = 2 * ONE_SUPRA;
+        let half_delegator_allocation = delegator_allocation / 2;
+        // A rounding error of 1 Quant is introduced by `unlock`.
+        let half_delegator_allocation_with_rounding_error = half_delegator_allocation - 1;
+        let delegator_allocation_after_rounding_error = half_delegator_allocation + half_delegator_allocation_with_rounding_error;
+
+        // Fund another delegator.
+        fund_delegators_with_stake(
+            &funder_signer,
+            pool_address,
+            vector[delegator],
+            vector[delegator_allocation]
+        );
+
+        // End the current lockup cycle to ensure that the stake fee that is deducted when the stake
+        // is first added has been returned.
+        fast_forward_to_unlock(pool_address);
+
+        // Ensure that the entire allocation is marked as active.
+        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+        assert!(active == delegator_allocation, active);
+        assert!(inactive == 0, inactive);
+        assert!(pending_inactive == 0, pending_inactive);
+
+        // Unlock half of the initial allocation (i.e. move it to `pending_inactive`).
+        unlock(&delegator_signer, pool_address, half_delegator_allocation);
+
+        // Ensure that half of the allocation is marked as `active` and the other half as `pending_inactive`.
+        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+        assert!(active == half_delegator_allocation_with_rounding_error, active);
+        assert!(inactive == 0, inactive);
+        assert!(pending_inactive == half_delegator_allocation, pending_inactive);
+
+        // Attempt to lock the full allocation, which should cause the `pending_inactive` allocation
+        // to become `active` again.
+        lock_delegators_stakes(
+            &funder_signer,
+            pool_address,
+            vector[delegator],
+            vector[delegator_allocation_after_rounding_error]
+        );
+
+        // Ensure that the entire allocation is marked as active again.
+        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+        assert!(active == delegator_allocation_after_rounding_error, active);
+        assert!(inactive == 0, inactive);
+        assert!(pending_inactive == 0, pending_inactive);
+
+        // Ensure that the delegators stake is now subject to the pool vesting schedule.
+        assert!(is_principle_stakeholder(delegator, pool_address), 0);
+
+        //
+        // Ensure that `lock_delegators_stakes` reactivates `inactive` stake.
+        //
+
+        delegator = @0x0217;
+        delegator_signer = account::create_signer_for_test(delegator);
+        // The amount of staking rewards earned each epoch. See `initialize_for_test_custom`.
+        let epoch_reward = delegator_allocation / 100;
+        let half_epoch_reward = epoch_reward / 2;
+        let delegator_stake = delegator_allocation_after_rounding_error + epoch_reward;
+        // The amount of stake withheld due to the withdrawal and restaking process used to
+        // recover `inactive` stake.
+        let add_stake_fee = get_add_stake_fee(pool_address, half_delegator_allocation + half_epoch_reward);
+
+        // Fund another delegator.
+        fund_delegators_with_stake(
+            &funder_signer,
+            pool_address,
+            vector[delegator],
+            vector[delegator_allocation]
+        );
+
+        // End the current lockup cycle to ensure that the stake fee that is deducted when the stake
+        // is first added has been returned.
+        fast_forward_to_unlock(pool_address);
+
+        // Ensure that the entire allocation is marked as active.
+        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+        assert!(active == delegator_allocation, active);
+        assert!(inactive == 0, inactive);
+        assert!(pending_inactive == 0, pending_inactive);
+
+        // Unlock half of the initial allocation (i.e. move it to `pending_inactive`).
+        unlock(&delegator_signer, pool_address, half_delegator_allocation);
+
+        // End the current lockup cycle to move the `pending_inactive` stake to `inactive`.
+        // This will also distribute staking rewards for the epoch.
+        fast_forward_to_unlock(pool_address);
+
+        // Ensure that half of the allocation is marked as `active` and the other half as `inactive`.
+        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+        assert!(active == half_delegator_allocation_with_rounding_error + half_epoch_reward, active);
+        assert!(inactive == half_delegator_allocation + half_epoch_reward, inactive);
+        assert!(pending_inactive == 0, pending_inactive);
+
+        // Attempt to lock the full allocation, which should cause the `inactive` allocation
+        // to become `active` again.
+        lock_delegators_stakes(
+            &funder_signer,
+            pool_address,
+            vector[delegator],
+            vector[delegator_stake]
+        );
+
+        // Ensure that the entire allocation is marked as active again. The fee for adding stake
+        // needs to be subtracted from the `active` amount because we've not entered the next epoch yet.
+        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+        assert!(active == delegator_stake - add_stake_fee, active);
+        assert!(inactive == 0, inactive);
+        assert!(pending_inactive == 0, pending_inactive);
+
+        // Ensure that the delegators stake is now subject to the pool vesting schedule.
+        assert!(is_principle_stakeholder(delegator, pool_address), 0);
     }
 }
