@@ -123,11 +123,10 @@ module supra_framework::pbo_delegation_pool {
     use aptos_std::smart_table::{Self, SmartTable};
     use aptos_std::fixed_point64::{Self, FixedPoint64};
 
-    use supra_framework::coin::Coin;
+    use supra_framework::coin::{Self, Coin};
     use supra_framework::account;
     use supra_framework::supra_account;
     use supra_framework::supra_coin::SupraCoin;
-    use supra_framework::coin;
     use supra_framework::event::{Self, EventHandle, emit};
     use supra_framework::stake::{Self, get_operator};
     use supra_framework::staking_config;
@@ -247,9 +246,15 @@ module supra_framework::pbo_delegation_pool {
 
     const ENEW_IS_SAME_AS_OLD_DELEGATOR: u64 = 37;
 
+    /// Minimum amount of coins to be unlocked.
+    const EMINIMUM_UNLOCK_AMOUNT: u64 = 38;
+    
+    /// Balance is not enough.
+    const EBALANCE_NOT_SUFFICIENT: u64 = 39;
+
     /// Thrown by `lock_delegators_stakes` when a given delegator has less than the specified
     /// amount of stake available in the specified stake pool.
-    const EINSUFFICIENT_STAKE_TO_LOCK: u64 = 38;
+    const EINSUFFICIENT_STAKE_TO_LOCK: u64 = 40;
 
     const MAX_U64: u64 = 18446744073709551615;
 
@@ -741,6 +746,41 @@ module supra_framework::pbo_delegation_pool {
     public fun min_remaining_secs_for_commission_change(): u64 {
         let config = staking_config::get();
         staking_config::get_recurring_lockup_duration(&config) / 4
+    }
+
+    /// Initialize a delegation pool without actual coin but withdraw from the owner's account.
+    public fun initialize_delegation_pool_with_amount(
+        owner: &signer,
+        multisig_admin: option::Option<address>,
+        amount: u64,
+        operator_commission_percentage: u64,
+        delegation_pool_creation_seed: vector<u8>,
+        delegator_address: vector<address>,
+        principle_stake: vector<u64>,
+        unlock_numerators: vector<u64>,
+        unlock_denominator: u64,
+        unlock_start_time: u64,
+        unlock_duration: u64
+    ) acquires DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
+        assert!(
+            coin::balance<SupraCoin>(signer::address_of(owner)) >= amount,
+            error::invalid_argument(EBALANCE_NOT_SUFFICIENT)
+        );
+        let coin = coin::withdraw<SupraCoin>(owner, amount);
+
+        initialize_delegation_pool(
+            owner,
+            multisig_admin,
+            operator_commission_percentage,
+            delegation_pool_creation_seed,
+            delegator_address,
+            principle_stake,
+            coin,
+            unlock_numerators,
+            unlock_denominator,
+            unlock_start_time,
+            unlock_duration
+        )
     }
 
     /// Initialize a delegation pool of custom fixed `operator_commission_percentage`.
@@ -1480,6 +1520,8 @@ module supra_framework::pbo_delegation_pool {
     ) acquires DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         // short-circuit if amount to add is 0 so no event is emitted
         if (amount == 0) { return };
+        // fail unlock of less than `MIN_COINS_ON_SHARES_POOL`
+        assert!(amount >= MIN_COINS_ON_SHARES_POOL, error::invalid_argument(EMINIMUM_UNLOCK_AMOUNT));
         // synchronize delegation and stake pools before any user operation
         synchronize_delegation_pool(pool_address);
 
@@ -1553,6 +1595,8 @@ module supra_framework::pbo_delegation_pool {
     ) acquires DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         // short-circuit if amount to reactivate is 0 so no event is emitted
         if (amount == 0) { return };
+        // fail unlock of less than `MIN_COINS_ON_SHARES_POOL`
+        assert!(amount >= MIN_COINS_ON_SHARES_POOL, error::invalid_argument(EMINIMUM_UNLOCK_AMOUNT));
         // synchronize delegation and stake pools before any user operation
         synchronize_delegation_pool(pool_address);
 
@@ -1964,6 +2008,8 @@ module supra_framework::pbo_delegation_pool {
     ) acquires DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         // short-circuit if amount to unlock is 0 so no event is emitted
         if (amount == 0) { return };
+        // fail unlock of less than `MIN_COINS_ON_SHARES_POOL`
+        assert!(amount >= MIN_COINS_ON_SHARES_POOL, error::invalid_argument(EMINIMUM_UNLOCK_AMOUNT));
         // fail unlock of more stake than `active` on the stake pool
         let (active, _, _, _) = stake::get_stake(pool_address);
         assert!(
@@ -3302,7 +3348,7 @@ module supra_framework::pbo_delegation_pool {
         );
 
         // successfully delete the pending withdrawal (redeem all owned shares even worth 0 coins)
-        reactivate_stake(delegator, pool_address, 1);
+        reactivate_stake(delegator, pool_address, MIN_COINS_ON_SHARES_POOL);
         assert_delegation(
             delegator_address,
             pool_address,
@@ -3342,7 +3388,7 @@ module supra_framework::pbo_delegation_pool {
             1
         );
 
-        reactivate_stake(delegator, pool_address, 1);
+        reactivate_stake(delegator, pool_address, MIN_COINS_ON_SHARES_POOL);
         // redeem 1 coins >= delegator balance -> all shares are redeemed and pending withdrawal is deleted
         assert_delegation(
             delegator_address,
@@ -3362,8 +3408,9 @@ module supra_framework::pbo_delegation_pool {
         );
     }
 
+    // The test case abort because the amount of stake is less than the minimum amount of stake
     #[test(supra_framework = @supra_framework, validator = @0x123)]
-    #[expected_failure(abort_code = 0x10008, location = Self)]
+    #[expected_failure(abort_code = 65574, location = Self)]
     public entry fun test_add_stake_min_amount(
         supra_framework: &signer, validator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
@@ -6474,17 +6521,7 @@ module supra_framework::pbo_delegation_pool {
             0
         );
         // pending_inactive balance would be under threshold => move MIN_COINS_ON_SHARES_POOL coins
-        unlock(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL - 1);
-        assert_delegation(
-            delegator1_address,
-            pool_address,
-            4899999999,
-            0,
-            100000001
-        );
-
-        // pending_inactive balance is over threshold
-        reactivate_stake(delegator1, pool_address, 1);
+        unlock(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL);
         assert_delegation(
             delegator1_address,
             pool_address,
@@ -6493,8 +6530,18 @@ module supra_framework::pbo_delegation_pool {
             100000000
         );
 
+        // pending_inactive balance is over threshold
+        reactivate_stake(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL);
+        assert_delegation(
+            delegator1_address,
+            pool_address,
+            5000000000,
+            0,
+            0
+        );
+
         // pending_inactive balance would be under threshold => move entire balance
-        reactivate_stake(delegator1, pool_address, 1);
+        reactivate_stake(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL);
         assert_delegation(
             delegator1_address,
             pool_address,
@@ -6518,23 +6565,23 @@ module supra_framework::pbo_delegation_pool {
         );
 
         // active balance would be under threshold => move MIN_COINS_ON_SHARES_POOL coins
-        reactivate_stake(delegator1, pool_address, 1);
-        assert_delegation(
-            delegator1_address,
-            pool_address,
-            100000001,
-            0,
-            4899999999
-        );
-
-        // active balance is over threshold
-        unlock(delegator1, pool_address, 1);
+        reactivate_stake(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL);
         assert_delegation(
             delegator1_address,
             pool_address,
             100000000,
             0,
             4900000000
+        );
+
+        // active balance is over threshold
+        unlock(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL);
+        assert_delegation(
+            delegator1_address,
+            pool_address,
+            0,
+            0,
+            5000000000
         );
 
         // pending_inactive balance would be under threshold => move entire balance
@@ -6546,9 +6593,9 @@ module supra_framework::pbo_delegation_pool {
         assert_delegation(
             delegator1_address,
             pool_address,
-            4000000001,
+            3900000001,
             0,
-            999999999
+            1099999999
         );
 
         // active + pending_inactive balance < 2 * MIN_COINS_ON_SHARES_POOL
@@ -6560,15 +6607,7 @@ module supra_framework::pbo_delegation_pool {
             0,
             0
         );
-        unlock(delegator2, pool_address, 1);
-        assert_delegation(
-            delegator2_address,
-            pool_address,
-            1499999999,
-            0,
-            100000001
-        );
-        reactivate_stake(delegator2, pool_address, 1);
+        unlock(delegator2, pool_address, MIN_COINS_ON_SHARES_POOL);
         assert_delegation(
             delegator2_address,
             pool_address,
@@ -6576,14 +6615,22 @@ module supra_framework::pbo_delegation_pool {
             0,
             100000000
         );
+        reactivate_stake(delegator2, pool_address, MIN_COINS_ON_SHARES_POOL);
+        assert_delegation(
+            delegator2_address,
+            pool_address,
+            1600000000,
+            0,
+            0
+        );
 
         unlock(delegator2, pool_address, ONE_SUPRA);
         assert_delegation(
             delegator2_address,
             pool_address,
-            1400000000,
+            1500000000,
             0,
-            200000000
+            100000000
         );
         reactivate_stake(delegator2, pool_address, 2 * ONE_SUPRA);
         assert_delegation(
@@ -6595,92 +6642,92 @@ module supra_framework::pbo_delegation_pool {
         );
 
         // share price becomes 1.01 on both pools
-        unlock(delegator1, pool_address, 1);
+        unlock(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL);
         assert_delegation(
             delegator1_address,
             pool_address,
-            4000000000,
+            3800000001,
             0,
-            1000000000
+            1199999999
         );
         end_aptos_epoch();
         assert_delegation(
             delegator1_address,
             pool_address,
-            4040000000,
+            3838000001,
             0,
-            1010000000
+            1211999998
         );
 
         // pending_inactive balance is over threshold
-        reactivate_stake(delegator1, pool_address, 10000001);
+        reactivate_stake(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL);
         assert_delegation(
             delegator1_address,
             pool_address,
-            4049999999,
+            3938000000,
             0,
-            1000000000
+            1111999999
         );
 
         // 1 coin < 1.01 so no shares are redeemed
-        reactivate_stake(delegator1, pool_address, 1);
+        reactivate_stake(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL);
         assert_delegation(
             delegator1_address,
             pool_address,
-            4049999999,
+            4037999999,
             0,
-            1000000000
+            1012000000
         );
 
         // pending_inactive balance is over threshold
         // requesting 2 coins actually redeems 1 coin from pending_inactive pool
-        reactivate_stake(delegator1, pool_address, 2);
+        reactivate_stake(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL);
         assert_delegation(
             delegator1_address,
             pool_address,
-            4050000000,
+            4137999998,
             0,
-            999999999
+            912000001
         );
 
         // 1 coin < 1.01 so no shares are redeemed
-        reactivate_stake(delegator1, pool_address, 1);
+        reactivate_stake(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL);
         assert_delegation(
             delegator1_address,
             pool_address,
-            4050000000,
+            4237999997,
             0,
-            999999999
+            812000002
         );
 
         // pending_inactive balance would be under threshold => move entire balance
-        reactivate_stake(delegator1, pool_address, 2);
+        reactivate_stake(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL);
         assert_delegation(
             delegator1_address,
             pool_address,
-            4050000001,
+            4337999996,
             0,
-            999999998
+            712000003
         );
 
         // pending_inactive balance would be under threshold => move MIN_COINS_ON_SHARES_POOL coins
-        unlock(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL - 1);
+        unlock(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL);
         assert_delegation(
             delegator1_address,
             pool_address,
-            3950000003,
+            4237999996,
             0,
-            1099999996
+            812000002
         );
 
         // pending_inactive balance would be under threshold => move entire balance
-        reactivate_stake(delegator1, pool_address, 1);
+        reactivate_stake(delegator1, pool_address, MIN_COINS_ON_SHARES_POOL);
         assert_delegation(
             delegator1_address,
             pool_address,
-            3950000003,
+            4337999995,
             0,
-            1099999996
+            712000003
         );
     }
 

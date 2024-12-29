@@ -550,6 +550,21 @@ pub enum EntryFunctionCall {
         stakes: Vec<u64>,
     },
 
+    /// For each `delegator` in `delegators`, locks the amount of stake specified in the same index of `stakes_to_lock`.
+    /// The locked amount is subject to the vesting schedule specified when the delegation pool corresponding
+    /// to `pool_address` was created. Terminates with an error if any `stake_to_lock` exceeds the stake allocated to
+    /// the corresponding `delegator` in the `DelegationPool` located at `pool_address`.
+    ///
+    /// Note that this function is only temporarily intended to work as specified above and exists to enable The
+    /// Supra Foundation to ensure that the allocations of all investors are subject to the terms specified in the
+    /// corresponding legal contracts. It will be deactivated before the validator set it opened up to external
+    /// validator-owners to prevent it from being abused.
+    PboDelegationPoolLockDelegatorsStakes {
+        pool_address: AccountAddress,
+        delegators: Vec<AccountAddress>,
+        stakes_to_lock: Vec<u64>,
+    },
+
     /// Move `amount` of coins from pending_inactive to active.
     PboDelegationPoolReactivateStake {
         pool_address: AccountAddress,
@@ -560,6 +575,11 @@ pub enum EntryFunctionCall {
     /// rightful owner of `old_delegator` but has lost access and the delegator is also the rightful
     /// owner of `new_delegator` , Only for those stakeholders which were added at the time of creation
     /// This does not apply to anyone who added stake later or operator
+    ///
+    /// Note that this function is only temporarily intended to work as specified above and exists to enable The
+    /// Supra Foundation to ensure that the allocations of all investors are subject to the terms specified in the
+    /// corresponding legal contracts. It will be deactivated before the validator set it opened up to external
+    /// validator-owners to prevent it from being abused.
     PboDelegationPoolReplaceDelegator {
         pool_address: AccountAddress,
         old_delegator: AccountAddress,
@@ -1510,6 +1530,13 @@ impl EntryFunctionCall {
                 delegators,
                 stakes,
             } => pbo_delegation_pool_fund_delegators_with_stake(pool_address, delegators, stakes),
+            PboDelegationPoolLockDelegatorsStakes {
+                pool_address,
+                delegators,
+                stakes_to_lock,
+            } => {
+                pbo_delegation_pool_lock_delegators_stakes(pool_address, delegators, stakes_to_lock)
+            },
             PboDelegationPoolReactivateStake {
                 pool_address,
                 amount,
@@ -3307,6 +3334,38 @@ pub fn pbo_delegation_pool_fund_delegators_with_stake(
     ))
 }
 
+/// For each `delegator` in `delegators`, locks the amount of stake specified in the same index of `stakes_to_lock`.
+/// The locked amount is subject to the vesting schedule specified when the delegation pool corresponding
+/// to `pool_address` was created. Terminates with an error if any `stake_to_lock` exceeds the stake allocated to
+/// the corresponding `delegator` in the `DelegationPool` located at `pool_address`.
+///
+/// Note that this function is only temporarily intended to work as specified above and exists to enable The
+/// Supra Foundation to ensure that the allocations of all investors are subject to the terms specified in the
+/// corresponding legal contracts. It will be deactivated before the validator set it opened up to external
+/// validator-owners to prevent it from being abused.
+pub fn pbo_delegation_pool_lock_delegators_stakes(
+    pool_address: AccountAddress,
+    delegators: Vec<AccountAddress>,
+    stakes_to_lock: Vec<u64>,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("pbo_delegation_pool").to_owned(),
+        ),
+        ident_str!("lock_delegators_stakes").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&pool_address).unwrap(),
+            bcs::to_bytes(&delegators).unwrap(),
+            bcs::to_bytes(&stakes_to_lock).unwrap(),
+        ],
+    ))
+}
+
 /// Move `amount` of coins from pending_inactive to active.
 pub fn pbo_delegation_pool_reactivate_stake(
     pool_address: AccountAddress,
@@ -3333,6 +3392,11 @@ pub fn pbo_delegation_pool_reactivate_stake(
 /// rightful owner of `old_delegator` but has lost access and the delegator is also the rightful
 /// owner of `new_delegator` , Only for those stakeholders which were added at the time of creation
 /// This does not apply to anyone who added stake later or operator
+///
+/// Note that this function is only temporarily intended to work as specified above and exists to enable The
+/// Supra Foundation to ensure that the allocations of all investors are subject to the terms specified in the
+/// corresponding legal contracts. It will be deactivated before the validator set it opened up to external
+/// validator-owners to prevent it from being abused.
 pub fn pbo_delegation_pool_replace_delegator(
     pool_address: AccountAddress,
     old_delegator: AccountAddress,
@@ -5974,6 +6038,20 @@ mod decoder {
         }
     }
 
+    pub fn pbo_delegation_pool_lock_delegators_stakes(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::PboDelegationPoolLockDelegatorsStakes {
+                pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
+                delegators: bcs::from_bytes(script.args().get(1)?).ok()?,
+                stakes_to_lock: bcs::from_bytes(script.args().get(2)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn pbo_delegation_pool_reactivate_stake(
         payload: &TransactionPayload,
     ) -> Option<EntryFunctionCall> {
@@ -7329,6 +7407,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "pbo_delegation_pool_fund_delegators_with_stake".to_string(),
             Box::new(decoder::pbo_delegation_pool_fund_delegators_with_stake),
+        );
+        map.insert(
+            "pbo_delegation_pool_lock_delegators_stakes".to_string(),
+            Box::new(decoder::pbo_delegation_pool_lock_delegators_stakes),
         );
         map.insert(
             "pbo_delegation_pool_reactivate_stake".to_string(),
