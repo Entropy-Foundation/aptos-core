@@ -9577,7 +9577,7 @@ module supra_framework::pbo_delegation_pool {
         assert!(inactive == 0, inactive);
         assert!(pending_inactive == 0, pending_inactive);
 
-        // Ensure that the delegators stake is now subject to the pool vesting schedule.
+        // Ensure that the delegator's stake is now subject to the pool vesting schedule.
         assert!(is_principle_stakeholder(delegator, pool_address), 0);
 
         //
@@ -9641,7 +9641,9 @@ module supra_framework::pbo_delegation_pool {
         assert!(inactive == 0, inactive);
         assert!(pending_inactive == 0, pending_inactive);
 
-        // Ensure that the delegators stake is now subject to the pool vesting schedule.
-        assert!(is_principle_stakeholder(delegator, pool_address), 0);
+        // Ensure that the delegator's stake is now subject to the pool vesting schedule.
+        let pool: &mut DelegationPool = borrow_global_mut<DelegationPool>(pool_address);
+        let delegator_principle_stake = *table::borrow(&pool.principle_stake, delegator);
+        assert!(delegator_principle_stake == delegator_stake, delegator_principle_stake);
     }
 }
