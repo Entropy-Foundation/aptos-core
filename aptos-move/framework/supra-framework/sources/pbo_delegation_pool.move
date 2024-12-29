@@ -249,6 +249,10 @@ module supra_framework::pbo_delegation_pool {
 
     const ENEW_IS_SAME_AS_OLD_DELEGATOR: u64 = 37;
 
+    /// Thrown by `lock_delegators_stakes` when a given delegator has less than the specified
+    /// amount of stake available in the specified stake pool.
+    const EINSUFFICIENT_STAKE_TO_LOCK: u64 = 38;
+
     const MAX_U64: u64 = 18446744073709551615;
 
     /// Maximum operator percentage fee(of double digit precision): 22.85% is represented as 2285
@@ -607,7 +611,6 @@ module supra_framework::pbo_delegation_pool {
         assert_delegation_pool_exists(pool_address);
         let pool = borrow_global<DelegationPool>(pool_address);
         let (lockup_cycle_ended, active, _, commission_active, commission_pending_inactive) =
-
             calculate_stake_pool_drift(pool);
 
         let total_active_shares = pool_u64::total_shares(&pool.active_shares);
@@ -943,35 +946,16 @@ module supra_framework::pbo_delegation_pool {
         delegators: vector<address>,
         stakes: vector<u64>
     ) acquires DelegationPool, BeneficiaryForOperator, GovernanceRecords, NextCommissionPercentage {
+        // Ensure that the caller is the admin of the delegation pool.
         {
             assert!(
                 is_admin(signer::address_of(funder), pool_address),
                 error::permission_denied(ENOT_AUTHORIZED)
             );
         };
-        let principle_stake_table =
-            &mut (borrow_global_mut<DelegationPool>(pool_address).principle_stake);
-
-        vector::zip_reverse(
-            delegators,
-            stakes,
-            |delegator, stake| {
-                //Ignore if stake to be added is `0`
-                if (stake > 0) {
-                    //Compute the actual stake that would be added, `principle_stake` has to be
-                    //populated in the table accordingly
-                    if (table::contains(principle_stake_table, delegator)) {
-                        let stake_amount =
-                            table::borrow_mut(principle_stake_table, delegator);
-                        *stake_amount = *stake_amount + stake;
-                    } else {
-                        table::add(principle_stake_table, delegator, stake);
-                    }
-                }
-            }
-        );
 
         fund_delegators_with_stake(funder, pool_address, delegators, stakes);
+        lock_existing_delegators_stakes(funder, pool_address, delegators, stakes);
     }
 
     public entry fun fund_delegators_with_stake(
@@ -988,7 +972,6 @@ module supra_framework::pbo_delegation_pool {
                 fund_delegator_stake(funder, pool_address, delegator, stake);
             }
         );
-
     }
 
     #[view]
@@ -1561,10 +1544,101 @@ module supra_framework::pbo_delegation_pool {
         }
     }
 
+    /// For each delegator in `delegators`, locks the amount of stake specified in the same index of `stakes`.
+    /// The locked amount is subject to the vesting schedule specified when the delegation pool corresponding
+    /// to `pool_address` was created.
+    /// 
+    /// This function does not actually add the `stakes` to the stake pool, so must remain private and must
+    /// only be called either after ensuring that all `stakes` already exist in the `active` stake pool, or
+    /// will do so before the end of the transaction.
+    /// 
+    /// This function also assumes that `multisig_admin` is the admin of the `DelegationPool` at `pool_address`.
+    /// The caller must ensure that this is true.
+    fun lock_existing_delegators_stakes(
+        multisig_admin: &signer,
+        pool_address: address,
+        delegators: vector<address>,
+        stakes: vector<u64>
+    ) acquires DelegationPool {
+        let principle_stake_table =
+            &mut (borrow_global_mut<DelegationPool>(pool_address).principle_stake);
+
+        vector::zip_reverse(
+            delegators,
+            stakes,
+            |delegator, stake| {
+                if (stake > 0) {
+                    // Compute the stake to be added. `principle_stake` must be added to the table accordingly.
+                    if (table::contains(principle_stake_table, delegator)) {
+                        let stake_amount =
+                            table::borrow_mut(principle_stake_table, delegator);
+                        *stake_amount = *stake_amount + stake;
+                    } else {
+                        table::add(principle_stake_table, delegator, stake);
+                    }
+                }
+                // else: The stake to be added is `0`. Do nothing.
+            }
+        );
+    }
+
+    /// For each `delegator` in `delegators`, locks the amount of stake specified in the same index of `stakes_to_lock`.
+    /// The locked amount is subject to the vesting schedule specified when the delegation pool corresponding
+    /// to `pool_address` was created. Terminates with an error if any `stake_to_lock` exceeds the stake allocated to
+    /// the corresponding `delegator` in the `DelegationPool` located at `pool_address`.
+    /// 
+    /// Note that this function is only temporarily intended to work as specified above and exists to enable The
+    /// Supra Foundation to ensure that the allocations of all investors are subject to the terms specified in the
+    /// corresponding legal contracts. It will be deactivated before the validator set it opened up to external 
+    /// validator-owners to prevent it from being abused.
+    public entry fun lock_delegators_stakes(
+        multisig_admin: &signer,
+        pool_address: address,
+        delegators: vector<address>,
+        stakes_to_lock: vector<u64>
+    ) acquires DelegationPool {
+        // Ensure that the caller is the admin of the delegation pool.
+        {
+            assert!(
+                is_admin(signer::address_of(multisig_admin), pool_address),
+                error::permission_denied(ENOT_AUTHORIZED)
+            );
+        };
+
+        // Ensure that each `delegator` has enough active stake to cover the corresponding `stake_to_lock`.
+        vector::zip_reverse(
+            delegators,
+            stakes_to_lock,
+            |delegator, stake_to_lock| {
+                (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+
+                // Ensure that the amount to lock is greater than the stake owned by `delegator`.
+                assert!(
+                    active + inactive + pending_inactive >= stake_to_lock,
+                    error::invalid_state(EINSUFFICIENT_STAKE_TO_LOCK)
+                );
+                
+                // Either the amount to lock can be covered by the `active` stake, in which case
+                // `reactivate_stake` will short-circuit, or the amount to lock can be covered
+                // by reactivating some previously unlocked stake. Only reactivate the required
+                // amount to avoid unnecessarily interfering with in-progress withdrawals.
+                amount_to_reactivate = stake_to_lock - active;
+                reactivate_stake(delegator, pool_address, amount_to_reactivate);
+            }
+        );
+
+        lock_existing_delegators_stakes(funder, pool_address, delegators, stakes_to_lock);
+    }
+
     ///CAUTION: This is to be used only in the rare circumstances where multisig_admin is convinced that a delegator was the
     /// rightful owner of `old_delegator` but has lost access and the delegator is also the rightful
     /// owner of `new_delegator` , Only for those stakeholders which were added at the time of creation
     /// This does not apply to anyone who added stake later or operator
+    /// 
+    /// Note that this function is only temporarily intended to work as specified above and exists to enable The
+    /// Supra Foundation to ensure that the allocations of all investors are subject to the terms specified in the
+    /// corresponding legal contracts. It will be deactivated before the validator set it opened up to external 
+    /// validator-owners to prevent it from being abused.
     public entry fun replace_delegator(
         multisig_admin: &signer,
         pool_address: address,
