@@ -955,7 +955,7 @@ module supra_framework::pbo_delegation_pool {
         };
 
         fund_delegators_with_stake(funder, pool_address, delegators, stakes);
-        lock_existing_delegators_stakes(funder, pool_address, delegators, stakes);
+        lock_existing_delegators_stakes(pool_address, delegators, stakes);
     }
 
     public entry fun fund_delegators_with_stake(
@@ -1544,6 +1544,56 @@ module supra_framework::pbo_delegation_pool {
         }
     }
 
+    /// Reactivates the `pending_inactive` and `inactive` stakes of `delegator`. 
+    /// 
+    /// This function must remain private because it must only be called by an authorized entity and it is the
+    /// callers responsibility to ensure that this is true. Authorized entities currently include the delegator
+    /// itself and the multisig admin of the delegation pool, which must be controlled by The Supra Foundation.
+    /// 
+    /// Note that this function is only temporarily intended to work as specified above and exists to enable The
+    /// Supra Foundation to ensure that the allocations of all investors are subject to the terms specified in the
+    /// corresponding legal contracts. It will be deactivated before the validator set it opened up to external 
+    /// validator-owners to prevent it from being abused, from which time forward only the delegator will be
+    /// authorized to reactivate their own stake. 
+    fun authorized_reactivate_stake(
+        delegator: address, pool_address: address, amount: u64
+    ) acquires DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
+        // short-circuit if amount to reactivate is 0 so no event is emitted
+        if (amount == 0) { return };
+        // synchronize delegation and stake pools before any user operation
+        synchronize_delegation_pool(pool_address);
+
+        let pool = borrow_global_mut<DelegationPool>(pool_address);
+
+        amount = coins_to_transfer_to_ensure_min_stake(
+            pending_inactive_shares_pool(pool),
+            &pool.active_shares,
+            delegator,
+            amount
+        );
+        let observed_lockup_cycle = pool.observed_lockup_cycle;
+        amount = redeem_inactive_shares(
+            pool,
+            delegator,
+            amount,
+            observed_lockup_cycle
+        );
+
+        stake::reactivate_stake(&retrieve_stake_pool_owner(pool), amount);
+
+        buy_in_active_shares(pool, delegator, amount);
+        assert_min_active_balance(pool, delegator);
+
+        event::emit_event(
+            &mut pool.reactivate_stake_events,
+            ReactivateStakeEvent {
+                pool_address,
+                delegator_address: delegator,
+                amount_reactivated: amount
+            }
+        );
+    }
+
     /// For each delegator in `delegators`, locks the amount of stake specified in the same index of `stakes`.
     /// The locked amount is subject to the vesting schedule specified when the delegation pool corresponding
     /// to `pool_address` was created.
@@ -1555,7 +1605,6 @@ module supra_framework::pbo_delegation_pool {
     /// This function also assumes that `multisig_admin` is the admin of the `DelegationPool` at `pool_address`.
     /// The caller must ensure that this is true.
     fun lock_existing_delegators_stakes(
-        multisig_admin: &signer,
         pool_address: address,
         delegators: vector<address>,
         stakes: vector<u64>
@@ -1596,7 +1645,7 @@ module supra_framework::pbo_delegation_pool {
         pool_address: address,
         delegators: vector<address>,
         stakes_to_lock: vector<u64>
-    ) acquires DelegationPool {
+    ) acquires DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         // Ensure that the caller is the admin of the delegation pool.
         {
             assert!(
@@ -1610,7 +1659,7 @@ module supra_framework::pbo_delegation_pool {
             delegators,
             stakes_to_lock,
             |delegator, stake_to_lock| {
-                (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+                let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
 
                 // Ensure that the amount to lock is greater than the stake owned by `delegator`.
                 assert!(
@@ -1619,15 +1668,15 @@ module supra_framework::pbo_delegation_pool {
                 );
                 
                 // Either the amount to lock can be covered by the `active` stake, in which case
-                // `reactivate_stake` will short-circuit, or the amount to lock can be covered
+                // `authorized_reactivate_stake` will short-circuit, or the amount to lock can be covered
                 // by reactivating some previously unlocked stake. Only reactivate the required
                 // amount to avoid unnecessarily interfering with in-progress withdrawals.
-                amount_to_reactivate = stake_to_lock - active;
-                reactivate_stake(delegator, pool_address, amount_to_reactivate);
+                let amount_to_reactivate = stake_to_lock - active;
+                authorized_reactivate_stake(delegator, pool_address, amount_to_reactivate);
             }
         );
 
-        lock_existing_delegators_stakes(funder, pool_address, delegators, stakes_to_lock);
+        lock_existing_delegators_stakes(pool_address, delegators, stakes_to_lock);
     }
 
     ///CAUTION: This is to be used only in the rare circumstances where multisig_admin is convinced that a delegator was the
@@ -1921,41 +1970,8 @@ module supra_framework::pbo_delegation_pool {
     public entry fun reactivate_stake(
         delegator: &signer, pool_address: address, amount: u64
     ) acquires DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
-        // short-circuit if amount to reactivate is 0 so no event is emitted
-        if (amount == 0) { return };
-        // synchronize delegation and stake pools before any user operation
-        synchronize_delegation_pool(pool_address);
-
-        let pool = borrow_global_mut<DelegationPool>(pool_address);
         let delegator_address = signer::address_of(delegator);
-
-        amount = coins_to_transfer_to_ensure_min_stake(
-            pending_inactive_shares_pool(pool),
-            &pool.active_shares,
-            delegator_address,
-            amount
-        );
-        let observed_lockup_cycle = pool.observed_lockup_cycle;
-        amount = redeem_inactive_shares(
-            pool,
-            delegator_address,
-            amount,
-            observed_lockup_cycle
-        );
-
-        stake::reactivate_stake(&retrieve_stake_pool_owner(pool), amount);
-
-        buy_in_active_shares(pool, delegator_address, amount);
-        assert_min_active_balance(pool, delegator_address);
-
-        event::emit_event(
-            &mut pool.reactivate_stake_events,
-            ReactivateStakeEvent {
-                pool_address,
-                delegator_address,
-                amount_reactivated: amount
-            }
-        );
+        authorized_reactivate_stake(delegator_address, pool_address, amount)
     }
 
     /// Withdraw `amount` of owned inactive stake from the delegation pool at `pool_address`.
