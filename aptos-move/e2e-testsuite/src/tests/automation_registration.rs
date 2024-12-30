@@ -1,4 +1,5 @@
 // Copyright (c) 2024 Supra.
+// SPDX-License-Identifier: Apache-2.0
 
 use aptos_cached_packages::aptos_framework_sdk_builder;
 use aptos_language_e2e_tests::account::{Account, AccountData};
@@ -10,24 +11,37 @@ use aptos_types::transaction::{
 };
 use move_core_types::vm_status::StatusCode;
 use std::ops::{Deref, DerefMut};
+use move_core_types::account_address::AccountAddress;
 
 const TIMESTAMP_NOW_SECONDS: &str = "0x1::timestamp::now_seconds";
+const ACCOUNT_BALANCE: &str = "0x1::coin::balance";
+const SUPRA_COIN: &str = "0x1::supra_coin::SupraCoin";
+const ACCOUNT_SEQ_NUM: &str = "0x1::account::get_sequence_number";
 const AUTOMATION_NEXT_TASK_ID: &str = "0x1::automation_registry::get_next_task_index";
 
-struct AutomationRegistrationTestContext {
+pub(crate) struct AutomationRegistrationTestContext {
     executor: FakeExecutor,
     txn_sender: AccountData,
 }
 
 impl AutomationRegistrationTestContext {
-    fn new() -> Self {
+    pub(crate) fn sender_account_data(&self) -> &AccountData {
+        &self.txn_sender
+    }
+    pub(crate) fn sender_account_address(&self) -> AccountAddress {
+        *self.txn_sender.address()
+    }
+}
+
+impl AutomationRegistrationTestContext {
+    pub(crate) fn new() -> Self {
         let mut executor = FakeExecutor::from_head_genesis();
         let mut root = Account::new_aptos_root();
         let (private_key, public_key) = aptos_vm_genesis::GENESIS_KEYPAIR.clone();
         root.rotate_key(private_key, public_key);
 
         // Prepare automation registration transaction sender
-        let txn_sender = executor.create_raw_account_data(100_000_000, 0);
+        let txn_sender = executor.create_raw_account_data(100_000_000_000, 0);
         executor.add_account_data(&txn_sender);
         Self {
             executor,
@@ -35,13 +49,13 @@ impl AutomationRegistrationTestContext {
         }
     }
 
-    fn new_account_data(&mut self, amount: u64, seq_num: u64) -> AccountData {
+    pub(crate) fn new_account_data(&mut self, amount: u64, seq_num: u64) -> AccountData {
         let new_account_data = self.create_raw_account_data(amount, seq_num);
         self.add_account_data(&new_account_data);
         new_account_data
     }
 
-    fn create_automation_txn(
+    pub(crate) fn create_automation_txn(
         &self,
         seq_num: u64,
         inner_payload: EntryFunction,
@@ -57,10 +71,11 @@ impl AutomationRegistrationTestContext {
             .transaction()
             .payload(automation_txn)
             .sequence_number(seq_num)
+            .gas_unit_price(1)
             .sign()
     }
 
-    fn check_miscellaneous_output(output: TransactionOutput, expected_status_code: StatusCode) {
+    pub(crate) fn check_miscellaneous_output(output: TransactionOutput, expected_status_code: StatusCode) {
         match output.status() {
             TransactionStatus::Keep(ExecutionStatus::MiscellaneousError(maybe_status_code)) => {
                 assert_eq!(
@@ -71,6 +86,57 @@ impl AutomationRegistrationTestContext {
             },
             _ => panic!("Unexpected transaction status: {output:?}"),
         }
+    }
+    pub(crate) fn check_discarded_output(output: TransactionOutput, expected_status_code: StatusCode) {
+        match output.status() {
+            TransactionStatus::Discard(status_code    ) => {
+                assert_eq!(
+                    status_code,
+                    &expected_status_code,
+                    "{output:?}"
+                );
+            },
+            _ => panic!("Unexpected transaction status: {output:?}"),
+        }
+    }
+
+    pub (crate) fn chain_time_now(&mut self) -> u64 {
+        let view_output = self.execute_view_function(
+            str::parse(TIMESTAMP_NOW_SECONDS).unwrap(),
+            vec![],
+            vec![],
+        );
+        let result = view_output.values.expect("Valid result");
+        assert_eq!(result.len(), 1);
+        bcs::from_bytes::<u64>(&result[0]).unwrap()
+    }
+
+    pub(crate) fn advance_chain_time_in_secs(&mut self,  secs: u64) {
+        self.set_block_time(secs * 1_000_000);
+        self.new_block()
+    }
+
+    pub(crate) fn account_balance(&mut self, account_address: AccountAddress) -> u64 {
+        let view_output = self.execute_view_function(
+            str::parse(ACCOUNT_BALANCE).unwrap(),
+            vec![str::parse(SUPRA_COIN).unwrap()],
+            vec![account_address.to_vec()],
+        );
+        let result = view_output.values.expect("Valid result");
+        assert_eq!(result.len(), 1);
+        bcs::from_bytes::<u64>(&result[0]).unwrap()
+
+    }
+    pub(crate) fn account_sequence_number(&mut self, account_address: AccountAddress) -> u64 {
+        let view_output = self.execute_view_function(
+            str::parse(ACCOUNT_SEQ_NUM).unwrap(),
+            vec![],
+            vec![account_address.to_vec()],
+        );
+        let result = view_output.values.expect("Valid result");
+        assert_eq!(result.len(), 1);
+        bcs::from_bytes::<u64>(&result[0]).unwrap()
+
     }
 }
 
@@ -97,15 +163,7 @@ fn check_successful_registration() {
         aptos_framework_sdk_builder::supra_coin_mint(dest_account.address().clone(), 100)
             .into_entry_function();
 
-    let view_output = test_context.execute_view_function(
-        str::parse(TIMESTAMP_NOW_SECONDS).unwrap(),
-        vec![],
-        vec![],
-    );
-    let result = view_output.values.expect("Valid result");
-    assert_eq!(result.len(), 1);
-    let now = bcs::from_bytes::<u64>(&result[0]).unwrap();
-    let expiration_time = now + 4000;
+    let expiration_time = test_context.chain_time_now() + 4000;
     let automation_txn = test_context.create_automation_txn(
         0,
         inner_entry_function.clone(),
@@ -114,6 +172,8 @@ fn check_successful_registration() {
         100,
     );
 
+    let sender_address = test_context.sender_account_address();
+    let sender_seq_num_old = test_context.account_sequence_number(sender_address);
     let output = test_context.execute_and_apply(automation_txn);
     assert_eq!(
         output.status(),
@@ -131,6 +191,8 @@ fn check_successful_registration() {
     assert_eq!(result.len(), 1);
     let next_task_id = bcs::from_bytes::<u64>(&result[0]).unwrap();
     assert_eq!(next_task_id, 1);
+    let sender_seq_num = test_context.account_sequence_number(sender_address);
+    assert_eq!(sender_seq_num, sender_seq_num_old + 1);
 }
 
 #[test]
