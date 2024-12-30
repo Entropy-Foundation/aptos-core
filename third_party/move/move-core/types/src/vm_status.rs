@@ -593,6 +593,8 @@ pub enum StatusCode {
     RESERVED_VALIDATION_ERROR_7 = 42,
     RESERVED_VALIDATION_ERROR_8 = 43,
     RESERVED_VALIDATION_ERROR_9 = 44,
+    // Failed to identify active automated task by provided index/sequence-number
+    NO_ACTIVE_AUTOMATED_TASK = 45,
 
     // When a code module/script is published it is verified. These are the
     // possible errors that can arise from the verification process.
@@ -732,6 +734,8 @@ pub enum StatusCode {
     // Verification errors related to automation registration transaction
     // Validation of the entry function to be automated failed.
     INVALID_AUTOMATION_INNER_PAYLOAD = 1132,
+    // Automated transaction validation failures
+    INVALID_AUTOMATED_PAYLOAD = 1133,
 
 
     // These are errors that the VM might raise if a violation of internal
