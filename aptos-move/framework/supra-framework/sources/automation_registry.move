@@ -242,8 +242,8 @@ module supra_framework::automation_registry {
 
     #[view]
     /// Checks whether there is an active task in registry with specified input task id.
-    public fun has_active_task_with_id(id: u64): bool {
-        automation_registry_state::has_active_task_with_id(id)
+    public fun has_sender_active_task_with_id(sender:address, id: u64): bool {
+        automation_registry_state::has_sender_active_task_with_id(sender, id)
     }
 
     #[view]
