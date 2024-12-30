@@ -26,7 +26,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `get_next_task_index`](#0x1_automation_registry_get_next_task_index)
 -  [Function `get_active_task_ids`](#0x1_automation_registry_get_active_task_ids)
 -  [Function `get_task_details`](#0x1_automation_registry_get_task_details)
--  [Function `has_active_task_with_id`](#0x1_automation_registry_has_active_task_with_id)
+-  [Function `has_sender_active_task_with_id`](#0x1_automation_registry_has_sender_active_task_with_id)
 -  [Function `get_registry_fee_address`](#0x1_automation_registry_get_registry_fee_address)
 -  [Function `get_gas_committed_for_next_epoch`](#0x1_automation_registry_get_gas_committed_for_next_epoch)
 
@@ -702,15 +702,15 @@ Error will be returned if entry with specified ID does not exist.
 
 </details>
 
-<a id="0x1_automation_registry_has_active_task_with_id"></a>
+<a id="0x1_automation_registry_has_sender_active_task_with_id"></a>
 
-## Function `has_active_task_with_id`
+## Function `has_sender_active_task_with_id`
 
 Checks whether there is an active task in registry with specified input task id.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_has_active_task_with_id">has_active_task_with_id</a>(id: u64): bool
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id">has_sender_active_task_with_id</a>(sender: <b>address</b>, id: u64): bool
 </code></pre>
 
 
@@ -719,8 +719,8 @@ Checks whether there is an active task in registry with specified input task id.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_has_active_task_with_id">has_active_task_with_id</a>(id: u64): bool {
-    <a href="automation_registry_state.md#0x1_automation_registry_state_has_active_task_with_id">automation_registry_state::has_active_task_with_id</a>(id)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id">has_sender_active_task_with_id</a>(sender:<b>address</b>, id: u64): bool {
+    <a href="automation_registry_state.md#0x1_automation_registry_state_has_sender_active_task_with_id">automation_registry_state::has_sender_active_task_with_id</a>(sender, id)
 }
 </code></pre>
 
