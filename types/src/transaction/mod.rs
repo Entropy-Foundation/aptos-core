@@ -2043,6 +2043,14 @@ impl Transaction {
         }
     }
 
+    pub fn try_as_automated_txn(&self) -> Option<&AutomatedTransaction> {
+        match self {
+            Transaction::AutomatedTransaction(txn) => Some(txn),
+            _ => None,
+        }
+    }
+
+
     pub fn type_name(&self) -> &'static str {
         match self {
             Transaction::UserTransaction(_) => "user_transaction",

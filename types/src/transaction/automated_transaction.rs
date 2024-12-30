@@ -133,7 +133,7 @@ impl AutomatedTransaction {
     /// Returns the hash of the transaction.
     pub fn hash(&self) -> HashValue {
         *self.hash.get_or_init(|| {
-            HashValue::sha3_256_of(
+            HashValue::keccak_256_of(
                 &bcs::to_bytes(&self).expect("Unable to serialize AutomatedTransaction"),
             )
         })
@@ -164,7 +164,7 @@ macro_rules! value_or_missing {
 #[derive(Clone, Debug)]
 pub enum BuilderResult {
     Success(AutomatedTransaction),
-    GasPriceThresholdExceeded { threshold: u64, value: u64 },
+    GasPriceThresholdExceeded { task_index: u64, threshold: u64, value: u64 },
     MissingValue(&'static str),
 }
 
@@ -173,8 +173,8 @@ impl BuilderResult {
         Self::Success(txn)
     }
 
-    pub fn gas_price_threshold_exceeded(threshold: u64, value: u64) -> BuilderResult {
-        Self::GasPriceThresholdExceeded { threshold, value }
+    pub fn gas_price_threshold_exceeded(task_index: u64, threshold: u64, value: u64) -> BuilderResult {
+        Self::GasPriceThresholdExceeded { task_index, threshold, value }
     }
     pub fn missing_value(missing: &'static str) -> BuilderResult {
         Self::MissingValue(missing)
@@ -271,6 +271,10 @@ impl AutomatedTransactionBuilder {
         self
     }
 
+    pub fn expiration_timestamp_secs(&self) -> u64 {
+        self.expiration_timestamp_secs.unwrap_or(0)
+    }
+
     /// Build an [AutomatedTransaction] instance.
     /// Fails if
     ///    - any of the mandatory fields is missing
@@ -299,7 +303,7 @@ impl AutomatedTransactionBuilder {
         let expiration_timestamp_secs =
             value_or_missing!(expiration_timestamp_secs, "expiration_timestamp_secs");
         if gas_price_cap < gas_unit_price {
-            return BuilderResult::gas_price_threshold_exceeded(gas_price_cap, gas_unit_price);
+            return BuilderResult::gas_price_threshold_exceeded(sequence_number, gas_price_cap, gas_unit_price);
         }
         let raw_transaction = RawTransaction::new(
             sender,
