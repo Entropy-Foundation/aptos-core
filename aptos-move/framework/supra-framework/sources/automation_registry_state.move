@@ -77,8 +77,6 @@ module supra_framework::automation_registry_state {
         max_gas_amount: u64,
         /// Maximum gas price cap for the task
         gas_price_cap: u64,
-        /// Registration epoch number
-        registration_epoch: u64,
         /// Registration epoch time
         registration_time: u64,
         /// Flag indicating whether the task is active, canclled or pending.
@@ -149,7 +147,6 @@ module supra_framework::automation_registry_state {
         expiry_time: u64,
         max_gas_amount: u64,
         gas_price_cap: u64,
-        registration_epoch: u64,
         tx_hash: vector<u8>,
     ) acquires AutomationRegistryState {
         let registry_data = borrow_global_mut<AutomationRegistryState>(@supra_framework);
@@ -173,7 +170,6 @@ module supra_framework::automation_registry_state {
             max_gas_amount,
             gas_price_cap,
             state: PENDING,
-            registration_epoch,
             registration_time,
             tx_hash,
         };
@@ -254,7 +250,7 @@ module supra_framework::automation_registry_state {
         if (enumerable_map::contains(&automation_task_metadata.tasks, id)) {
             let value = enumerable_map::get_value_ref(&automation_task_metadata.tasks, id);
             value.state != PENDING && value.owner == sender
-        } else  {
+        } else {
             false
         }
     }
@@ -297,7 +293,6 @@ module supra_framework::automation_registry_state {
             100,
             50,
             20,
-            1,
             PARENT_HASH,
         );
 
@@ -317,7 +312,6 @@ module supra_framework::automation_registry_state {
             100,
             50,
             20,
-            1,
             PARENT_HASH,
         );
 
@@ -335,7 +329,6 @@ module supra_framework::automation_registry_state {
             100,
             10,
             20,
-            1,
             PARENT_HASH,
         );
         assert!(1 == get_next_task_index(), 1);
@@ -354,7 +347,6 @@ module supra_framework::automation_registry_state {
             25,
             70,
             20,
-            1,
             PARENT_HASH,
         );
     }
@@ -370,7 +362,6 @@ module supra_framework::automation_registry_state {
             25,
             70,
             0,
-            1,
             PARENT_HASH,
         );
     }
@@ -386,7 +377,6 @@ module supra_framework::automation_registry_state {
             25,
             0,
             70,
-            1,
             PARENT_HASH,
         );
     }
@@ -402,7 +392,6 @@ module supra_framework::automation_registry_state {
             25,
             10,
             70,
-            1,
             vector<u8>[0, 1, 2, 3],
         );
     }
@@ -419,7 +408,6 @@ module supra_framework::automation_registry_state {
             100,
             70,
             20,
-            1,
             PARENT_HASH
         );
         assert!(1 == get_next_task_index(), 1);
@@ -429,7 +417,6 @@ module supra_framework::automation_registry_state {
             100,
             70,
             20,
-            1,
             PARENT_HASH
         );
     }
@@ -444,7 +431,6 @@ module supra_framework::automation_registry_state {
             100,
             10,
             20,
-            1,
             PARENT_HASH
         );
         // When moving to next epoch this task will be considered as expired
@@ -453,7 +439,6 @@ module supra_framework::automation_registry_state {
             25,
             10,
             20,
-            1,
             PARENT_HASH
         );
         register(&account,
@@ -461,7 +446,6 @@ module supra_framework::automation_registry_state {
             150,
             10,
             20,
-            1,
             PARENT_HASH
         );
         // When moving to next epoch this task will be considered as expired for the updcoming new epoch
@@ -470,7 +454,6 @@ module supra_framework::automation_registry_state {
             75,
             10,
             20,
-            1,
             PARENT_HASH
         );
 
@@ -501,7 +484,6 @@ module supra_framework::automation_registry_state {
             100,
             10,
             20,
-            1,
             PARENT_HASH
         );
         // When moving to next epoch this task will be considered as expired
@@ -510,7 +492,6 @@ module supra_framework::automation_registry_state {
             25,
             10,
             20,
-            1,
             PARENT_HASH
         );
         register(&account,
@@ -518,7 +499,6 @@ module supra_framework::automation_registry_state {
             150,
             10,
             20,
-            1,
             PARENT_HASH
         );
         // When moving to next epoch this task will be considered as expired for the updcoming new epoch
@@ -527,7 +507,6 @@ module supra_framework::automation_registry_state {
             75,
             10,
             20,
-            1,
             PARENT_HASH
         );
 
@@ -563,7 +542,6 @@ module supra_framework::automation_registry_state {
             75,
             10,
             20,
-            1,
             PARENT_HASH
         );
         cancel_task(&account, 4);
@@ -599,7 +577,6 @@ module supra_framework::automation_registry_state {
             75,
             10,
             20,
-            1,
             PARENT_HASH
         );
         cancel_task(&account2, 0);
@@ -616,7 +593,6 @@ module supra_framework::automation_registry_state {
             100,
             10,
             20,
-            1,
             PARENT_HASH
         );
         timestamp::update_global_time_for_test_secs(50);
