@@ -36,6 +36,8 @@ module supra_framework::automation_registry {
     const DEFAULT_AUTOMATION_UNIT_PRICE: u64 = 1000;
     /// Conversion factor between microseconds and millisecond || millisecond and second
     const MILLISECOND_CONVERSION_FACTOR: u64 = 1000;
+    /// The default epoch interval in second
+    const DEFAULT_EPOCH_INTERVAL: u64 = 7200;
     /// Registry resource creation seed
     const REGISTRY_RESOURCE_SEED: vector<u8> = b"supra_framework::automation_registry";
 
@@ -51,6 +53,10 @@ module supra_framework::automation_registry {
         registry_fee_address: address,
         /// Resource account signature capability
         registry_fee_address_signer_cap: SignerCapability,
+        /// Time period between epochs.
+        epoch_interval: u64,
+        /// Time of last reconfiguration. Only changes on reconfiguration events.
+        last_reconfiguration_time: u64,
     }
 
 
@@ -92,6 +98,8 @@ module supra_framework::automation_registry {
             automation_unit_price: DEFAULT_AUTOMATION_UNIT_PRICE,
             registry_fee_address: signer::address_of(&registry_fee_resource_signer),
             registry_fee_address_signer_cap,
+            epoch_interval: DEFAULT_EPOCH_INTERVAL,
+            last_reconfiguration_time: 0,
         })
     }
 
@@ -147,8 +155,8 @@ module supra_framework::automation_registry {
     }
 
     /// Get last epoch time in second
-    fun get_last_epoch_time_second(): u64 {
-        let last_epoch_time_ms = reconfiguration::last_reconfiguration_time() / MILLISECOND_CONVERSION_FACTOR;
+    fun get_last_epoch_time_second(last_reconfiguration_time: u64): u64 {
+        let last_epoch_time_ms = last_reconfiguration_time / MILLISECOND_CONVERSION_FACTOR;
         last_epoch_time_ms / MILLISECOND_CONVERSION_FACTOR
     }
 
@@ -217,6 +225,24 @@ module supra_framework::automation_registry {
         let refund_amount = expiry_time_duration * automation_unit_price;
         transfer_fee_to_account_internal(user, refund_amount);
         event::emit(RefundFeeUser { user, amount: refund_amount });
+    }
+
+    /// Update epoch interval in registry while actually update happens in block module
+    public(friend) fun update_epoch_interval_in_registry(epoch_interval: u64) acquires AutomationRegistry {
+        if (exists<AutomationRegistry>(@supra_framework)) {
+            let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
+            automation_registry.epoch_interval = epoch_interval;
+        };
+    }
+
+    /// Update epoch interval in registry while actually update happens in block module
+    public(friend) fun update_last_reconfiguration_time_in_registry(
+        last_reconfiguration_time: u64
+    ) acquires AutomationRegistry {
+        if (exists<AutomationRegistry>(@supra_framework)) {
+            let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
+            automation_registry.last_reconfiguration_time = last_reconfiguration_time;
+        };
     }
 
     #[view]
