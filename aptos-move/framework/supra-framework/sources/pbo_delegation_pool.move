@@ -746,7 +746,7 @@ module supra_framework::pbo_delegation_pool {
     }
 
     /// Initialize a delegation pool without actual coin but withdraw from the owner's account.
-    public fun initialize_delegation_pool_with_amount(
+    public entry fun initialize_delegation_pool_with_amount(
         owner: &signer,
         multisig_admin: option::Option<address>,
         amount: u64,
