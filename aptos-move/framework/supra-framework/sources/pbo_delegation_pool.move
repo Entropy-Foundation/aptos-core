@@ -2005,24 +2005,22 @@ module supra_framework::pbo_delegation_pool {
         let last_unlocked_period = unlock_schedule.last_unlock_period;
         let schedule_length = vector::length(&unlock_schedule.schedule);
         let cfraction = unlock_schedule.cumulative_unlocked_fraction;
-        while (last_unlocked_period < unlock_periods_passed
-            && fixed_point64::less(cfraction, one)) {
-            let next_fraction =
-                if (schedule_length <= last_unlocked_period) {
-                    *vector::borrow(&unlock_schedule.schedule, schedule_length - 1)
-                } else {
-                    *vector::borrow(&unlock_schedule.schedule, last_unlocked_period)
-                };
+        while (last_unlocked_period < unlock_periods_passed && fixed_point64::less(cfraction, one)
+                && last_unlocked_period < schedule_length) {
+            let next_fraction = *vector::borrow(&unlock_schedule.schedule, last_unlocked_period);
             cfraction = fixed_point64::add(cfraction, next_fraction);
-
             last_unlocked_period = last_unlocked_period + 1;
         };
-
+        if (last_unlocked_period < unlock_periods_passed && fixed_point64::less(cfraction, one)) {
+            let final_fraction= *vector::borrow(&unlock_schedule.schedule, schedule_length - 1);
+            // Acclerate calculation to current period and don't update last_unlocked_period since it is not used anymore
+            cfraction = fixed_point64::add(cfraction, fixed_point64::multiply_u128_return_fixpoint64((unlock_periods_passed - last_unlocked_period as u128), final_fraction));
+            cfraction = fixed_point64::min(cfraction, one);
+        };
         unlock_schedule.cumulative_unlocked_fraction = cfraction;
         unlock_schedule.last_unlock_period = unlock_periods_passed;
         let unlockable_amount = cached_unlockable_balance(delegator_addr, pool_address);
         amount <= unlockable_amount
-
     }
 
     /// Unlock `amount` from the active + pending_active stake of `delegator` or
@@ -9520,16 +9518,17 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
-    public entry fun test_lock_delegator_stake_after_allocation(
+    // Testing whether fast forward is working as expected
+    public entry fun test_unlocking_principle_stake_success_can_fastforward(
         supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
         initialize_for_test(supra_framework);
         account::create_account_for_test(signer::address_of(validator));
         let delegator_address = signer::address_of(delegator);
-        let delegator_address_vec = vector[delegator_address, @0x020];
-        let principle_stake = vector[300 * ONE_SUPRA, 200 * ONE_SUPRA];
-        let coin = stake::mint_coins(500 * ONE_SUPRA);
-        let principle_lockup_time = 7776000;
+        let delegator_address_vec = vector[delegator_address];
+        let principle_stake = vector[100 * ONE_SUPRA];
+        let coin = stake::mint_coins(100 * ONE_SUPRA);
+        let principle_lockup_time = 7776000; // 3 month cliff
         let multisig = generate_multisig_account(validator, vector[@0x12134], 2);
 
         initialize_test_validator(
@@ -9542,221 +9541,281 @@ module supra_framework::pbo_delegation_pool {
             principle_stake,
             coin,
             option::some(multisig),
-            vector[2, 2, 3],
+            vector[2, 3, 1],
             10,
             principle_lockup_time,
-            LOCKUP_CYCLE_SECONDS
+            LOCKUP_CYCLE_SECONDS // monthly unlocking
         );
-
         let validator_address = signer::address_of(validator);
         let pool_address = get_owned_pool_address(validator_address);
 
-        let new_delegator_address = @0x0215;
-        let new_delegator_address_signer =
-            account::create_account_for_test(new_delegator_address);
-        let funder_signer = account::create_signer_for_test(multisig);
-        let funder = signer::address_of(&funder_signer);
-        stake::mint(&funder_signer, 100 * ONE_SUPRA);
-        stake::mint(&new_delegator_address_signer, 100 * ONE_SUPRA);
-        assert!(
-            coin::balance<SupraCoin>(funder) == (100 * ONE_SUPRA),
-            0
+        // after 2 month unlock reward
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+
+        // 3 month
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+
+        // after 4 months
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+
+        // It's acceptable to round off 9 because this coin will remain locked and won't be transferred anywhere.
+        let unlock_coin =
+            can_principle_unlock(
+                delegator_address,
+                pool_address,
+                (20 * ONE_SUPRA) - 9
+            );
+        assert!(unlock_coin, 11);
+
+        // after 5 months
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+        let unlock_coin =
+            can_principle_unlock(
+                delegator_address,
+                pool_address,
+                (50 * ONE_SUPRA) - 9
+            );
+        assert!(unlock_coin, 12);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+
+        // after 11 months
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+        let unlock_coin =
+            can_principle_unlock(delegator_address, pool_address, 100 * ONE_SUPRA);
+        assert!(unlock_coin, 18);
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
+    // Testing whether fast forward is working as expected
+    public entry fun test_unlocking_principle_stake_success_can_fastforward_nondivisable(
+        supra_framework: &signer, validator: &signer, delegator: &signer
+    ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
+        initialize_for_test(supra_framework);
+        account::create_account_for_test(signer::address_of(validator));
+        let delegator_address = signer::address_of(delegator);
+        let delegator_address_vec = vector[delegator_address];
+        let principle_stake = vector[113 * ONE_SUPRA];
+        let coin = stake::mint_coins(113 * ONE_SUPRA);
+        let principle_lockup_time = 7776000; // 3 month cliff
+        let multisig = generate_multisig_account(validator, vector[@0x12134], 2);
+
+        initialize_test_validator(
+            validator,
+            0,
+            true,
+            true,
+            0,
+            delegator_address_vec,
+            principle_stake,
+            coin,
+            option::some(multisig),
+            vector[2, 3, 1],
+            10,
+            principle_lockup_time,
+            LOCKUP_CYCLE_SECONDS // monthly unlocking
         );
+        let validator_address = signer::address_of(validator);
+        let pool_address = get_owned_pool_address(validator_address);
 
-        assert!(
-            coin::balance<SupraCoin>(new_delegator_address) == (100 * ONE_SUPRA),
-            0
+        // after 2 month unlock reward
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+
+        // 3 month
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+
+        // after 4 months
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+
+        // After three mounth cliff and one extra mouth, 2/10 of the principle stake (113) = 22.6 can be unlocked. minus 9 for rounding off.
+        let unlock_coin =
+            can_principle_unlock(
+                delegator_address,
+                pool_address,
+                (22 * ONE_SUPRA) - 9
+            );
+        assert!(unlock_coin, 11);
+
+        // after 5 months, 5/10 of the principle stake (113) = 56.5 can be unlocked. minus 9 for rounding off.
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+        let unlock_coin =
+            can_principle_unlock(
+                delegator_address,
+                pool_address,
+                (55 * ONE_SUPRA) - 9
+            );
+        assert!(unlock_coin, 12);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+
+        // after 11 months
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        end_aptos_epoch();
+        let unlock_coin =
+            can_principle_unlock(delegator_address, pool_address, 113 * ONE_SUPRA);
+        assert!(unlock_coin, 18);
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
+    // Testing whether fast forward is working as expected
+    public entry fun test_unlocking_principle_stake_success_can_fastforward_5_out_of_10(
+        supra_framework: &signer, validator: &signer, delegator: &signer
+    ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
+        initialize_for_test(supra_framework);
+        account::create_account_for_test(signer::address_of(validator));
+        let delegator_address = signer::address_of(delegator);
+        let delegator_address_vec = vector[delegator_address];
+        let principle_stake = vector[1000 * ONE_SUPRA];
+        let coin = stake::mint_coins(1000 * ONE_SUPRA);
+        let principle_lockup_time = 7776000; // 3 month cliff
+        let multisig = generate_multisig_account(validator, vector[@0x12134], 2);
+
+        initialize_test_validator(
+            validator,
+            0,
+            true,
+            true,
+            0,
+            delegator_address_vec,
+            principle_stake,
+            coin,
+            option::some(multisig),
+            vector[2, 3, 1],
+            10,
+            principle_lockup_time,
+            LOCKUP_CYCLE_SECONDS // monthly unlocking
         );
+        let validator_address = signer::address_of(validator);
+        let pool_address = get_owned_pool_address(validator_address);
 
-        add_stake(&new_delegator_address_signer, pool_address, 100 * ONE_SUPRA);
+        // 3 month
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        // After cliff, 5/10 of the principle stake (1000) = 500 can be unlocked.
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS * 2);
 
-        //
-        // Ensure that `lock_delegators_stakes` can lock newly-allocated stakes.
-        //
+        let unlock_coin =
+            can_principle_unlock(
+                delegator_address,
+                pool_address,
+                (500 * ONE_SUPRA)-1
+            );
+        assert!(unlock_coin, 11);
+    }
 
-        // Fund a new delegator.
-        fund_delegators_with_stake(
-            &funder_signer,
-            pool_address,
-            vector[new_delegator_address],
-            vector[1 * ONE_SUPRA]
+    #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
+    // Testing whether fast forward is working as expected
+    public entry fun test_unlocking_principle_stake_success_can_fastforward_7_out_of_10(
+        supra_framework: &signer, validator: &signer, delegator: &signer
+    ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
+        initialize_for_test(supra_framework);
+        account::create_account_for_test(signer::address_of(validator));
+        let delegator_address = signer::address_of(delegator);
+        let delegator_address_vec = vector[delegator_address];
+        let principle_stake = vector[1000 * ONE_SUPRA];
+        let coin = stake::mint_coins(1000 * ONE_SUPRA);
+        let principle_lockup_time = 7776000; // 3 month cliff
+        let multisig = generate_multisig_account(validator, vector[@0x12134], 2);
+
+        initialize_test_validator(
+            validator,
+            0,
+            true,
+            true,
+            0,
+            delegator_address_vec,
+            principle_stake,
+            coin,
+            option::some(multisig),
+            vector[2, 3, 1],
+            10,
+            principle_lockup_time,
+            LOCKUP_CYCLE_SECONDS // monthly unlocking
         );
-        // Ensure that its stake is not subject to the pool vesting schedule.
-        assert!(!is_principle_stakeholder(new_delegator_address, pool_address), 1);
+        let validator_address = signer::address_of(validator);
+        let pool_address = get_owned_pool_address(validator_address);
 
-        // Lock its stake.
-        lock_delegators_stakes(
-            &funder_signer,
-            pool_address,
-            vector[new_delegator_address],
-            vector[1 * ONE_SUPRA]
+        // 3 month
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        // After cliff, 7/10 of the principle stake (1000) = 700 can be unlocked.
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS * 4);
+
+        let unlock_coin =
+            can_principle_unlock(
+                delegator_address,
+                pool_address,
+                (700 * ONE_SUPRA) - 1
+            );
+        assert!(unlock_coin, 11);
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
+    // Testing whether fast forward is working as expected
+    public entry fun test_unlocking_principle_stake_success_can_fastforward_10_out_of_10(
+        supra_framework: &signer, validator: &signer, delegator: &signer
+    ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
+        initialize_for_test(supra_framework);
+        account::create_account_for_test(signer::address_of(validator));
+        let delegator_address = signer::address_of(delegator);
+        let delegator_address_vec = vector[delegator_address];
+        let principle_stake = vector[1000 * ONE_SUPRA];
+        let coin = stake::mint_coins(1000 * ONE_SUPRA);
+        let principle_lockup_time = 7776000; // 3 month cliff
+        let multisig = generate_multisig_account(validator, vector[@0x12134], 2);
+
+        initialize_test_validator(
+            validator,
+            0,
+            true,
+            true,
+            0,
+            delegator_address_vec,
+            principle_stake,
+            coin,
+            option::some(multisig),
+            vector[2, 3, 1],
+            10,
+            principle_lockup_time,
+            LOCKUP_CYCLE_SECONDS // monthly unlocking
         );
-        // Ensure that its stake is now subject to the pool vesting schedule.
-        assert!(is_principle_stakeholder(new_delegator_address, pool_address), 0);
+        let validator_address = signer::address_of(validator);
+        let pool_address = get_owned_pool_address(validator_address);
 
-        //
-        // Ensure that `lock_delegators_stakes` reactivates `pending_inactive` stake.
-        //
+        // 3 month
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        // After cliff, all of the principle stake (1000) can be unlocked.
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS * 8);
 
-        let delegator = @0x0216;
-        let delegator_signer = account::create_signer_for_test(delegator);
-        let delegator_allocation = 10 * ONE_SUPRA;
-        let half_delegator_allocation = delegator_allocation / 2;
-        // A rounding error of 1 Quant is introduced by `unlock`.
-        let half_delegator_allocation_with_rounding_error = half_delegator_allocation - 1;
-        let delegator_allocation_after_rounding_error = half_delegator_allocation + half_delegator_allocation_with_rounding_error;
-
-        // Fund another delegator.
-        fund_delegators_with_stake(
-            &funder_signer,
-            pool_address,
-            vector[delegator],
-            vector[delegator_allocation]
-        );
-
-        // End the current lockup cycle to ensure that the stake fee that is deducted when the stake
-        // is first added has been returned.
-        fast_forward_to_unlock(pool_address);
-
-        // Ensure that the entire allocation is marked as active.
-        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
-        assert!(active == delegator_allocation, active);
-        assert!(inactive == 0, inactive);
-        assert!(pending_inactive == 0, pending_inactive);
-
-        // Unlock half of the initial allocation (i.e. move it to `pending_inactive`).
-        unlock(&delegator_signer, pool_address, half_delegator_allocation);
-
-        // Ensure that half of the allocation is marked as `active` and the other half as `pending_inactive`.
-        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
-        assert!(active == half_delegator_allocation, active);
-        assert!(inactive == 0, inactive);
-        assert!(pending_inactive == half_delegator_allocation_with_rounding_error, pending_inactive);
-
-        // Attempt to lock the full allocation, which should cause the `pending_inactive` allocation
-        // to become `active` again.
-        lock_delegators_stakes(
-            &funder_signer,
-            pool_address,
-            vector[delegator],
-            vector[delegator_allocation_after_rounding_error]
-        );
-
-        // Ensure that the entire allocation is marked as active again.
-        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
-        assert!(active == delegator_allocation_after_rounding_error, active);
-        assert!(inactive == 0, inactive);
-        assert!(pending_inactive == 0, pending_inactive);
-
-        // Ensure that the delegator's stake is now subject to the pool vesting schedule.
-        assert!(is_principle_stakeholder(delegator, pool_address), 0);
-
-        //
-        // Ensure that `lock_delegators_stakes` reactivates `inactive` stake.
-        //
-
-        delegator = @0x0217;
-        delegator_signer = account::create_signer_for_test(delegator);
-        // The amount of staking rewards earned each epoch. See `initialize_for_test_custom`.
-        let epoch_reward = delegator_allocation / 100;
-        let half_epoch_reward = epoch_reward / 2;
-        let delegator_stake = delegator_allocation_after_rounding_error + epoch_reward;
-        // The amount of stake withheld due to the withdrawal and restaking process used to
-        // recover `inactive` stake.
-        let add_stake_fee = get_add_stake_fee(pool_address, half_delegator_allocation + half_epoch_reward);
-
-        // Fund another delegator.
-        fund_delegators_with_stake(
-            &funder_signer,
-            pool_address,
-            vector[delegator],
-            vector[delegator_allocation]
-        );
-
-        // End the current lockup cycle to ensure that the stake fee that is deducted when the stake
-        // is first added has been returned.
-        fast_forward_to_unlock(pool_address);
-
-        // Ensure that the entire allocation is marked as active.
-        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
-        assert!(active == delegator_allocation, active);
-        assert!(inactive == 0, inactive);
-        assert!(pending_inactive == 0, pending_inactive);
-
-        // Unlock half of the initial allocation (i.e. move it to `pending_inactive`).
-        unlock(&delegator_signer, pool_address, half_delegator_allocation);
-
-        // End the current lockup cycle to move the `pending_inactive` stake to `inactive`.
-        // This will also distribute staking rewards for the epoch.
-        fast_forward_to_unlock(pool_address);
-
-        // Ensure that half of the allocation is marked as `active` and the other half as `inactive`.
-        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
-        assert!(active == half_delegator_allocation + half_epoch_reward, active);
-        // Another rounding error is introduced by the second `unlock`.
-        assert!(inactive == half_delegator_allocation_with_rounding_error + half_epoch_reward - 1, inactive);
-        assert!(pending_inactive == 0, pending_inactive);
-
-        // Attempt to lock the full allocation, which should cause the `inactive` allocation
-        // to become `active` again.
-        lock_delegators_stakes(
-            &funder_signer,
-            pool_address,
-            vector[delegator],
-            vector[delegator_stake]
-        );
-
-        // Ensure that the entire allocation is marked as active again. The fee for adding stake
-        // needs to be subtracted from the `active` amount because we've not entered the next epoch yet.
-        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
-        let expected_active_stake = delegator_stake - add_stake_fee;
-        assert!(active == expected_active_stake, active);
-        assert!(inactive == 0, inactive);
-        assert!(pending_inactive == 0, pending_inactive);
-
-        // Ensure that the delegator's stake is now subject to the pool vesting schedule.
-        let pool: &mut DelegationPool = borrow_global_mut<DelegationPool>(pool_address);
-        let delegator_principle_stake = *table::borrow(&pool.principle_stake, delegator);
-        assert!(delegator_principle_stake == delegator_stake, delegator_principle_stake);
-
-
-        //
-        // Ensure that `lock_delegators_stakes` locks the maximum available stake when the amount
-        // requested to be locked exceeds the available stake. Also ensure that the same delegator
-        // can be funded and its new allocation locked, multiple times, and that the principle stake
-        // specified in the most recent call to `lock_delegators_stakes` is applied correctly.
-        //
-
-        // Fund the same delegator to ensure that we can lock additional amounts.
-        fund_delegators_with_stake(
-            &funder_signer,
-            pool_address,
-            vector[delegator],
-            vector[delegator_allocation]
-        );
-
-        // Calculate the fee for the newly added amount.
-        let add_stake_fee = get_add_stake_fee(pool_address, delegator_allocation);
-        let expected_total_stake = expected_active_stake + delegator_allocation - add_stake_fee;
-
-        // Ensure that the entire allocation is marked as active.
-        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
-        assert!(active == expected_total_stake, active);
-        assert!(inactive == 0, inactive);
-        assert!(pending_inactive == 0, pending_inactive);
-
-        // Attempt to lock more than the full allocation.
-        let more_than_allocated_stake = delegator_allocation * 2;
-        lock_delegators_stakes(
-            &funder_signer,
-            pool_address,
-            vector[delegator],
-            vector[more_than_allocated_stake]
-        );
-
-        // Ensure that the delegator's `principle_stake` has been updated.
-        let pool: &mut DelegationPool = borrow_global_mut<DelegationPool>(pool_address);
-        let delegator_principle_stake = *table::borrow(&pool.principle_stake, delegator);
-        assert!(delegator_principle_stake == more_than_allocated_stake, delegator_principle_stake);
+        let unlock_coin =
+            can_principle_unlock(
+                delegator_address,
+                pool_address,
+                (1000 * ONE_SUPRA)
+            );
+        assert!(unlock_coin, 11);
     }
 }
