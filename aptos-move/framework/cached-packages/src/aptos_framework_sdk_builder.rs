@@ -550,10 +550,10 @@ pub enum EntryFunctionCall {
         stakes: Vec<u64>,
     },
 
-    /// For each `delegator` in `delegators`, locks the amount of stake specified in the same index of `stakes_to_lock`.
-    /// The locked amount is subject to the vesting schedule specified when the delegation pool corresponding
-    /// to `pool_address` was created. Terminates with an error if any `stake_to_lock` exceeds the stake allocated to
-    /// the corresponding `delegator` in the `DelegationPool` located at `pool_address`.
+    /// Updates the `principle_stake` of each `delegator` in `delegators` according to the amount specified
+    /// at the corresponding index of `new_principle_stakes`. Also ensures that the `delegator`'s `active` stake
+    /// is as close to the specified amount as possible. The locked amount is subject to the vesting schedule
+    /// specified when the delegation pool corresponding to `pool_address` was created.
     ///
     /// Note that this function is only temporarily intended to work as specified above and exists to enable The
     /// Supra Foundation to ensure that the allocations of all investors are subject to the terms specified in the
@@ -562,7 +562,7 @@ pub enum EntryFunctionCall {
     PboDelegationPoolLockDelegatorsStakes {
         pool_address: AccountAddress,
         delegators: Vec<AccountAddress>,
-        stakes_to_lock: Vec<u64>,
+        new_principle_stakes: Vec<u64>,
     },
 
     /// Move `amount` of coins from pending_inactive to active.
@@ -1533,10 +1533,12 @@ impl EntryFunctionCall {
             PboDelegationPoolLockDelegatorsStakes {
                 pool_address,
                 delegators,
-                stakes_to_lock,
-            } => {
-                pbo_delegation_pool_lock_delegators_stakes(pool_address, delegators, stakes_to_lock)
-            },
+                new_principle_stakes,
+            } => pbo_delegation_pool_lock_delegators_stakes(
+                pool_address,
+                delegators,
+                new_principle_stakes,
+            ),
             PboDelegationPoolReactivateStake {
                 pool_address,
                 amount,
@@ -3334,10 +3336,10 @@ pub fn pbo_delegation_pool_fund_delegators_with_stake(
     ))
 }
 
-/// For each `delegator` in `delegators`, locks the amount of stake specified in the same index of `stakes_to_lock`.
-/// The locked amount is subject to the vesting schedule specified when the delegation pool corresponding
-/// to `pool_address` was created. Terminates with an error if any `stake_to_lock` exceeds the stake allocated to
-/// the corresponding `delegator` in the `DelegationPool` located at `pool_address`.
+/// Updates the `principle_stake` of each `delegator` in `delegators` according to the amount specified
+/// at the corresponding index of `new_principle_stakes`. Also ensures that the `delegator`'s `active` stake
+/// is as close to the specified amount as possible. The locked amount is subject to the vesting schedule
+/// specified when the delegation pool corresponding to `pool_address` was created.
 ///
 /// Note that this function is only temporarily intended to work as specified above and exists to enable The
 /// Supra Foundation to ensure that the allocations of all investors are subject to the terms specified in the
@@ -3346,7 +3348,7 @@ pub fn pbo_delegation_pool_fund_delegators_with_stake(
 pub fn pbo_delegation_pool_lock_delegators_stakes(
     pool_address: AccountAddress,
     delegators: Vec<AccountAddress>,
-    stakes_to_lock: Vec<u64>,
+    new_principle_stakes: Vec<u64>,
 ) -> TransactionPayload {
     TransactionPayload::EntryFunction(EntryFunction::new(
         ModuleId::new(
@@ -3361,7 +3363,7 @@ pub fn pbo_delegation_pool_lock_delegators_stakes(
         vec![
             bcs::to_bytes(&pool_address).unwrap(),
             bcs::to_bytes(&delegators).unwrap(),
-            bcs::to_bytes(&stakes_to_lock).unwrap(),
+            bcs::to_bytes(&new_principle_stakes).unwrap(),
         ],
     ))
 }
@@ -6045,7 +6047,7 @@ mod decoder {
             Some(EntryFunctionCall::PboDelegationPoolLockDelegatorsStakes {
                 pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
                 delegators: bcs::from_bytes(script.args().get(1)?).ok()?,
-                stakes_to_lock: bcs::from_bytes(script.args().get(2)?).ok()?,
+                new_principle_stakes: bcs::from_bytes(script.args().get(2)?).ok()?,
             })
         } else {
             None
