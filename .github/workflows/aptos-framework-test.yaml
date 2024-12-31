@@ -36,7 +36,11 @@ jobs:
     - name: Get changed files
       id: changed-files
       uses: tj-actions/changed-files@v42
- 
+
+    - name: Run aptos-types-unit-tests
+      run: |
+        ${{ env.CARGO_BIN }} test --release -p aptos-types --lib unit_tests --no-fail-fast
+
     - name: Run supra-framework
       run: |
         ${{ env.CARGO_BIN }} test --release -p aptos-framework -- --skip prover
