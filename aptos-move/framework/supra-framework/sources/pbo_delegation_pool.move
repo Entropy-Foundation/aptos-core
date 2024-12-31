@@ -9514,4 +9514,148 @@ module supra_framework::pbo_delegation_pool {
             can_principle_unlock(delegator_address, pool_address, 113 * ONE_SUPRA);
         assert!(unlock_coin, 18);
     }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
+    // Testing whether fast forward is working as expected
+    public entry fun test_unlocking_principle_stake_success_can_fastforward_5_out_of_10(
+        supra_framework: &signer, validator: &signer, delegator: &signer
+    ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
+        initialize_for_test(supra_framework);
+        account::create_account_for_test(signer::address_of(validator));
+        let delegator_address = signer::address_of(delegator);
+        let delegator_address_vec = vector[delegator_address];
+        let principle_stake = vector[1000 * ONE_SUPRA];
+        let coin = stake::mint_coins(1000 * ONE_SUPRA);
+        let principle_lockup_time = 7776000; // 3 month cliff
+        let multisig = generate_multisig_account(validator, vector[@0x12134], 2);
+
+        initialize_test_validator(
+            validator,
+            0,
+            true,
+            true,
+            0,
+            delegator_address_vec,
+            principle_stake,
+            coin,
+            option::some(multisig),
+            vector[2, 3, 1],
+            10,
+            principle_lockup_time,
+            LOCKUP_CYCLE_SECONDS // monthly unlocking
+        );
+        let validator_address = signer::address_of(validator);
+        let pool_address = get_owned_pool_address(validator_address);
+
+        // 3 month
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        // After cliff, 5/10 of the principle stake (1000) = 500 can be unlocked.
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS * 2);
+
+        let unlock_coin =
+            can_principle_unlock(
+                delegator_address,
+                pool_address,
+                (500 * ONE_SUPRA)-1
+            );
+        assert!(unlock_coin, 11);
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
+    // Testing whether fast forward is working as expected
+    public entry fun test_unlocking_principle_stake_success_can_fastforward_7_out_of_10(
+        supra_framework: &signer, validator: &signer, delegator: &signer
+    ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
+        initialize_for_test(supra_framework);
+        account::create_account_for_test(signer::address_of(validator));
+        let delegator_address = signer::address_of(delegator);
+        let delegator_address_vec = vector[delegator_address];
+        let principle_stake = vector[1000 * ONE_SUPRA];
+        let coin = stake::mint_coins(1000 * ONE_SUPRA);
+        let principle_lockup_time = 7776000; // 3 month cliff
+        let multisig = generate_multisig_account(validator, vector[@0x12134], 2);
+
+        initialize_test_validator(
+            validator,
+            0,
+            true,
+            true,
+            0,
+            delegator_address_vec,
+            principle_stake,
+            coin,
+            option::some(multisig),
+            vector[2, 3, 1],
+            10,
+            principle_lockup_time,
+            LOCKUP_CYCLE_SECONDS // monthly unlocking
+        );
+        let validator_address = signer::address_of(validator);
+        let pool_address = get_owned_pool_address(validator_address);
+
+        // 3 month
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        // After cliff, 7/10 of the principle stake (1000) = 700 can be unlocked.
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS * 4);
+
+        let unlock_coin =
+            can_principle_unlock(
+                delegator_address,
+                pool_address,
+                (700 * ONE_SUPRA) - 1
+            );
+        assert!(unlock_coin, 11);
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
+    // Testing whether fast forward is working as expected
+    public entry fun test_unlocking_principle_stake_success_can_fastforward_10_out_of_10(
+        supra_framework: &signer, validator: &signer, delegator: &signer
+    ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
+        initialize_for_test(supra_framework);
+        account::create_account_for_test(signer::address_of(validator));
+        let delegator_address = signer::address_of(delegator);
+        let delegator_address_vec = vector[delegator_address];
+        let principle_stake = vector[1000 * ONE_SUPRA];
+        let coin = stake::mint_coins(1000 * ONE_SUPRA);
+        let principle_lockup_time = 7776000; // 3 month cliff
+        let multisig = generate_multisig_account(validator, vector[@0x12134], 2);
+
+        initialize_test_validator(
+            validator,
+            0,
+            true,
+            true,
+            0,
+            delegator_address_vec,
+            principle_stake,
+            coin,
+            option::some(multisig),
+            vector[2, 3, 1],
+            10,
+            principle_lockup_time,
+            LOCKUP_CYCLE_SECONDS // monthly unlocking
+        );
+        let validator_address = signer::address_of(validator);
+        let pool_address = get_owned_pool_address(validator_address);
+
+        // 3 month
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS);
+        // After cliff, all of the principle stake (1000) can be unlocked.
+        timestamp::fast_forward_seconds(LOCKUP_CYCLE_SECONDS * 8);
+
+        let unlock_coin =
+            can_principle_unlock(
+                delegator_address,
+                pool_address,
+                (1000 * ONE_SUPRA)
+            );
+        assert!(unlock_coin, 11);
+    }
 }
