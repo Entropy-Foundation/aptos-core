@@ -1741,8 +1741,11 @@ module supra_framework::pbo_delegation_pool {
                         amount_to_reactivate = pending_inactive;
                     };
 
-                    // Reactivate the required amount of `pending_inactive` stake first, if there is any.
-                    authorized_reactivate_stake(delegator, pool_address, amount_to_reactivate);
+                    if (amount_to_reactivate > MIN_COINS_ON_SHARES_POOL) {
+                        // Reactivate the required amount of `pending_inactive` stake first.
+                        authorized_reactivate_stake(delegator, pool_address, amount_to_reactivate);
+                    };
+
                     let active_and_pending_inactive = active + pending_inactive;
                     
                     if (active_and_pending_inactive < principle_stake) {
@@ -1754,7 +1757,7 @@ module supra_framework::pbo_delegation_pool {
                             amount_to_withdraw = inactive;
                         };
 
-                        if (amount_to_withdraw > 0) {
+                        if (amount_to_withdraw > MIN_COINS_ON_SHARES_POOL) {
                             // Withdraw the minimum required amount to the admin's address.
                             admin_withdraw(
                                 multisig_admin,
@@ -9597,7 +9600,7 @@ module supra_framework::pbo_delegation_pool {
 
         let delegator = @0x0216;
         let delegator_signer = account::create_signer_for_test(delegator);
-        let delegator_allocation = 2 * ONE_SUPRA;
+        let delegator_allocation = 10 * ONE_SUPRA;
         let half_delegator_allocation = delegator_allocation / 2;
         // A rounding error of 1 Quant is introduced by `unlock`.
         let half_delegator_allocation_with_rounding_error = half_delegator_allocation - 1;
@@ -9626,9 +9629,9 @@ module supra_framework::pbo_delegation_pool {
 
         // Ensure that half of the allocation is marked as `active` and the other half as `pending_inactive`.
         let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
-        assert!(active == half_delegator_allocation_with_rounding_error, active);
+        assert!(active == half_delegator_allocation, active);
         assert!(inactive == 0, inactive);
-        assert!(pending_inactive == half_delegator_allocation, pending_inactive);
+        assert!(pending_inactive == half_delegator_allocation_with_rounding_error, pending_inactive);
 
         // Attempt to lock the full allocation, which should cause the `pending_inactive` allocation
         // to become `active` again.
@@ -9689,8 +9692,9 @@ module supra_framework::pbo_delegation_pool {
 
         // Ensure that half of the allocation is marked as `active` and the other half as `inactive`.
         let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
-        assert!(active == half_delegator_allocation_with_rounding_error + half_epoch_reward, active);
-        assert!(inactive == half_delegator_allocation + half_epoch_reward, inactive);
+        assert!(active == half_delegator_allocation + half_epoch_reward, active);
+        // Another rounding error is introduced by the second `unlock`.
+        assert!(inactive == half_delegator_allocation_with_rounding_error + half_epoch_reward - 1, inactive);
         assert!(pending_inactive == 0, pending_inactive);
 
         // Attempt to lock the full allocation, which should cause the `inactive` allocation
@@ -9742,7 +9746,7 @@ module supra_framework::pbo_delegation_pool {
         assert!(pending_inactive == 0, pending_inactive);
 
         // Attempt to lock more than the full allocation.
-        let more_than_allocated_stake = delegator_allocation * 10;
+        let more_than_allocated_stake = delegator_allocation * 2;
         lock_delegators_stakes(
             &funder_signer,
             pool_address,
