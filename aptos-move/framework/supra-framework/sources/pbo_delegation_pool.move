@@ -9818,4 +9818,245 @@ module supra_framework::pbo_delegation_pool {
             );
         assert!(unlock_coin, 11);
     }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
+    public entry fun test_lock_delegator_stake_after_allocation(
+        supra_framework: &signer, validator: &signer, delegator: &signer
+    ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
+        initialize_for_test(supra_framework);
+        account::create_account_for_test(signer::address_of(validator));
+        let delegator_address = signer::address_of(delegator);
+        let delegator_address_vec = vector[delegator_address, @0x020];
+        let principle_stake = vector[300 * ONE_SUPRA, 200 * ONE_SUPRA];
+        let coin = stake::mint_coins(500 * ONE_SUPRA);
+        let principle_lockup_time = 7776000;
+        let multisig = generate_multisig_account(validator, vector[@0x12134], 2);
+
+        initialize_test_validator(
+            validator,
+            0,
+            true,
+            true,
+            0,
+            delegator_address_vec,
+            principle_stake,
+            coin,
+            option::some(multisig),
+            vector[2, 2, 3],
+            10,
+            principle_lockup_time,
+            LOCKUP_CYCLE_SECONDS
+        );
+
+        let validator_address = signer::address_of(validator);
+        let pool_address = get_owned_pool_address(validator_address);
+
+        let new_delegator_address = @0x0215;
+        let new_delegator_address_signer =
+            account::create_account_for_test(new_delegator_address);
+        let funder_signer = account::create_signer_for_test(multisig);
+        let funder = signer::address_of(&funder_signer);
+        stake::mint(&funder_signer, 100 * ONE_SUPRA);
+        stake::mint(&new_delegator_address_signer, 100 * ONE_SUPRA);
+        assert!(
+            coin::balance<SupraCoin>(funder) == (100 * ONE_SUPRA),
+            0
+        );
+
+        assert!(
+            coin::balance<SupraCoin>(new_delegator_address) == (100 * ONE_SUPRA),
+            0
+        );
+
+        add_stake(&new_delegator_address_signer, pool_address, 100 * ONE_SUPRA);
+
+        //
+        // Ensure that `lock_delegators_stakes` can lock newly-allocated stakes.
+        //
+
+        // Fund a new delegator.
+        fund_delegators_with_stake(
+            &funder_signer,
+            pool_address,
+            vector[new_delegator_address],
+            vector[1 * ONE_SUPRA]
+        );
+        // Ensure that its stake is not subject to the pool vesting schedule.
+        assert!(!is_principle_stakeholder(new_delegator_address, pool_address), 1);
+
+        // Lock its stake.
+        lock_delegators_stakes(
+            &funder_signer,
+            pool_address,
+            vector[new_delegator_address],
+            vector[1 * ONE_SUPRA]
+        );
+        // Ensure that its stake is now subject to the pool vesting schedule.
+        assert!(is_principle_stakeholder(new_delegator_address, pool_address), 0);
+
+        //
+        // Ensure that `lock_delegators_stakes` reactivates `pending_inactive` stake.
+        //
+
+        let delegator = @0x0216;
+        let delegator_signer = account::create_signer_for_test(delegator);
+        let delegator_allocation = 10 * ONE_SUPRA;
+        let half_delegator_allocation = delegator_allocation / 2;
+        // A rounding error of 1 Quant is introduced by `unlock`.
+        let half_delegator_allocation_with_rounding_error = half_delegator_allocation - 1;
+        let delegator_allocation_after_rounding_error = half_delegator_allocation + half_delegator_allocation_with_rounding_error;
+
+        // Fund another delegator.
+        fund_delegators_with_stake(
+            &funder_signer,
+            pool_address,
+            vector[delegator],
+            vector[delegator_allocation]
+        );
+
+        // End the current lockup cycle to ensure that the stake fee that is deducted when the stake
+        // is first added has been returned.
+        fast_forward_to_unlock(pool_address);
+
+        // Ensure that the entire allocation is marked as active.
+        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+        assert!(active == delegator_allocation, active);
+        assert!(inactive == 0, inactive);
+        assert!(pending_inactive == 0, pending_inactive);
+
+        // Unlock half of the initial allocation (i.e. move it to `pending_inactive`).
+        unlock(&delegator_signer, pool_address, half_delegator_allocation);
+
+        // Ensure that half of the allocation is marked as `active` and the other half as `pending_inactive`.
+        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+        assert!(active == half_delegator_allocation, active);
+        assert!(inactive == 0, inactive);
+        assert!(pending_inactive == half_delegator_allocation_with_rounding_error, pending_inactive);
+
+        // Attempt to lock the full allocation, which should cause the `pending_inactive` allocation
+        // to become `active` again.
+        lock_delegators_stakes(
+            &funder_signer,
+            pool_address,
+            vector[delegator],
+            vector[delegator_allocation_after_rounding_error]
+        );
+
+        // Ensure that the entire allocation is marked as active again.
+        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+        assert!(active == delegator_allocation_after_rounding_error, active);
+        assert!(inactive == 0, inactive);
+        assert!(pending_inactive == 0, pending_inactive);
+
+        // Ensure that the delegator's stake is now subject to the pool vesting schedule.
+        assert!(is_principle_stakeholder(delegator, pool_address), 0);
+
+        //
+        // Ensure that `lock_delegators_stakes` reactivates `inactive` stake.
+        //
+
+        delegator = @0x0217;
+        delegator_signer = account::create_signer_for_test(delegator);
+        // The amount of staking rewards earned each epoch. See `initialize_for_test_custom`.
+        let epoch_reward = delegator_allocation / 100;
+        let half_epoch_reward = epoch_reward / 2;
+        let delegator_stake = delegator_allocation_after_rounding_error + epoch_reward;
+        // The amount of stake withheld due to the withdrawal and restaking process used to
+        // recover `inactive` stake.
+        let add_stake_fee = get_add_stake_fee(pool_address, half_delegator_allocation + half_epoch_reward);
+
+        // Fund another delegator.
+        fund_delegators_with_stake(
+            &funder_signer,
+            pool_address,
+            vector[delegator],
+            vector[delegator_allocation]
+        );
+
+        // End the current lockup cycle to ensure that the stake fee that is deducted when the stake
+        // is first added has been returned.
+        fast_forward_to_unlock(pool_address);
+
+        // Ensure that the entire allocation is marked as active.
+        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+        assert!(active == delegator_allocation, active);
+        assert!(inactive == 0, inactive);
+        assert!(pending_inactive == 0, pending_inactive);
+
+        // Unlock half of the initial allocation (i.e. move it to `pending_inactive`).
+        unlock(&delegator_signer, pool_address, half_delegator_allocation);
+
+        // End the current lockup cycle to move the `pending_inactive` stake to `inactive`.
+        // This will also distribute staking rewards for the epoch.
+        fast_forward_to_unlock(pool_address);
+
+        // Ensure that half of the allocation is marked as `active` and the other half as `inactive`.
+        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+        assert!(active == half_delegator_allocation + half_epoch_reward, active);
+        // Another rounding error is introduced by the second `unlock`.
+        assert!(inactive == half_delegator_allocation_with_rounding_error + half_epoch_reward - 1, inactive);
+        assert!(pending_inactive == 0, pending_inactive);
+
+        // Attempt to lock the full allocation, which should cause the `inactive` allocation
+        // to become `active` again.
+        lock_delegators_stakes(
+            &funder_signer,
+            pool_address,
+            vector[delegator],
+            vector[delegator_stake]
+        );
+
+        // Ensure that the entire allocation is marked as active again. The fee for adding stake
+        // needs to be subtracted from the `active` amount because we've not entered the next epoch yet.
+        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+        let expected_active_stake = delegator_stake - add_stake_fee;
+        assert!(active == expected_active_stake, active);
+        assert!(inactive == 0, inactive);
+        assert!(pending_inactive == 0, pending_inactive);
+
+        // Ensure that the delegator's stake is now subject to the pool vesting schedule.
+        let pool: &mut DelegationPool = borrow_global_mut<DelegationPool>(pool_address);
+        let delegator_principle_stake = *table::borrow(&pool.principle_stake, delegator);
+        assert!(delegator_principle_stake == delegator_stake, delegator_principle_stake);
+
+
+        //
+        // Ensure that `lock_delegators_stakes` locks the maximum available stake when the amount
+        // requested to be locked exceeds the available stake. Also ensure that the same delegator
+        // can be funded and its new allocation locked, multiple times, and that the principle stake
+        // specified in the most recent call to `lock_delegators_stakes` is applied correctly.
+        //
+
+        // Fund the same delegator to ensure that we can lock additional amounts.
+        fund_delegators_with_stake(
+            &funder_signer,
+            pool_address,
+            vector[delegator],
+            vector[delegator_allocation]
+        );
+
+        // Calculate the fee for the newly added amount.
+        let add_stake_fee = get_add_stake_fee(pool_address, delegator_allocation);
+        let expected_total_stake = expected_active_stake + delegator_allocation - add_stake_fee;
+
+        // Ensure that the entire allocation is marked as active.
+        let (active, inactive, pending_inactive) = get_stake(pool_address, delegator);
+        assert!(active == expected_total_stake, active);
+        assert!(inactive == 0, inactive);
+        assert!(pending_inactive == 0, pending_inactive);
+
+        // Attempt to lock more than the full allocation.
+        let more_than_allocated_stake = delegator_allocation * 2;
+        lock_delegators_stakes(
+            &funder_signer,
+            pool_address,
+            vector[delegator],
+            vector[more_than_allocated_stake]
+        );
+
+        // Ensure that the delegator's `principle_stake` has been updated.
+        let pool: &mut DelegationPool = borrow_global_mut<DelegationPool>(pool_address);
+        let delegator_principle_stake = *table::borrow(&pool.principle_stake, delegator);
+        assert!(delegator_principle_stake == more_than_allocated_stake, delegator_principle_stake);
+    }
 }
