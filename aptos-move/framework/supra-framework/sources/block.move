@@ -239,7 +239,7 @@ module supra_framework::block {
         randomness::on_new_block(&vm, epoch, round, option::none());
         if (timestamp - reconfiguration::last_reconfiguration_time() >= epoch_interval) {
             reconfiguration::reconfigure();
-            automation_registry_state::on_new_epoch(epoch_interval);
+            automation_registry::on_new_epoch(epoch_interval);
         };
     }
 
