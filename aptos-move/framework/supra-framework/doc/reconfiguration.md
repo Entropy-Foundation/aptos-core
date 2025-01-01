@@ -34,6 +34,7 @@ to synchronize configuration changes for the validators.
 
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
+<b>use</b> <a href="automation_registry.md#0x1_automation_registry">0x1::automation_registry</a>;
 <b>use</b> <a href="chain_status.md#0x1_chain_status">0x1::chain_status</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
@@ -419,6 +420,8 @@ Signal validators to start using new configuration. Must be called from friend c
     <b>spec</b> {
         <b>assume</b> config_ref.epoch + 1 &lt;= MAX_U64;
     };
+    // <b>update</b> last <a href="reconfiguration.md#0x1_reconfiguration">reconfiguration</a> time in registry contract
+    <a href="automation_registry.md#0x1_automation_registry_update_last_reconfiguration_time_in_registry">automation_registry::update_last_reconfiguration_time_in_registry</a>(current_time);
     config_ref.epoch = config_ref.epoch + 1;
 
     <b>if</b> (std::features::module_event_migration_enabled()) {
@@ -513,6 +516,9 @@ reconfiguration event.
     <b>assert</b>!(config_ref.epoch == 0 && config_ref.last_reconfiguration_time == 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="reconfiguration.md#0x1_reconfiguration_ECONFIGURATION">ECONFIGURATION</a>));
     config_ref.epoch = 1;
     config_ref.last_reconfiguration_time = <a href="timestamp.md#0x1_timestamp_now_microseconds">timestamp::now_microseconds</a>();
+
+    // <b>update</b> last <a href="reconfiguration.md#0x1_reconfiguration">reconfiguration</a> time in registry contract
+    <a href="automation_registry.md#0x1_automation_registry_update_last_reconfiguration_time_in_registry">automation_registry::update_last_reconfiguration_time_in_registry</a>(config_ref.last_reconfiguration_time);
 
     <b>if</b> (std::features::module_event_migration_enabled()) {
         <a href="event.md#0x1_event_emit">event::emit</a>(
