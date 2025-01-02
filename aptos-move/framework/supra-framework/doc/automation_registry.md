@@ -567,16 +567,6 @@ Unauthorized access: the caller is not the owner of the task
 
 
 
-<a id="0x1_automation_registry_MICROSECS_CONVERSION_FACTOR"></a>
-
-Conversion factor between microseconds and second
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>: u64 = 1000000;
-</code></pre>
-
-
-
 <a id="0x1_automation_registry_MILLISECOND_CONVERSION_FACTOR"></a>
 
 Conversion factor between microseconds and millisecond || millisecond and second
@@ -669,7 +659,7 @@ The lenght of the transaction hash.
 
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>(epoch_interval_micro: u64)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>()
 </code></pre>
 
 
@@ -678,11 +668,11 @@ The lenght of the transaction hash.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>(epoch_interval_micro: u64) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryState">AutomationRegistryState</a> {
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryState">AutomationRegistryState</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <b>let</b> state = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryState">AutomationRegistryState</a>&gt;(@supra_framework);
     <b>let</b> ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&state.tasks);
 
-    <b>let</b> epoch_interval_secs = epoch_interval_micro / <a href="automation_registry.md#0x1_automation_registry_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>;
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
     <b>let</b> gas_committed_for_next_epoch = 0;
 
@@ -690,9 +680,9 @@ The lenght of the transaction hash.
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(ids, |id| {
         <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_mut">enumerable_map::get_value_mut</a>(&<b>mut</b> state.tasks, id);
 
-        // Tasks that are active during next epoch and are not cancled
+        // Tasks that are active during next epoch and are not canceled
         // current_time shows the start time of the current new epoch.
-        <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a> && task.expiry_time &gt; (current_time + epoch_interval_secs)) {
+        <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a> && task.expiry_time &gt; (current_time + <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_interval)) {
             gas_committed_for_next_epoch = gas_committed_for_next_epoch + task.max_gas_amount;
         };
 
