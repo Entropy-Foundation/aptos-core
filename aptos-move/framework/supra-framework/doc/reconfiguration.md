@@ -422,6 +422,7 @@ Signal validators to start using new configuration. Must be called from friend c
     };
     // <b>update</b> last <a href="reconfiguration.md#0x1_reconfiguration">reconfiguration</a> time in registry contract
     <a href="automation_registry.md#0x1_automation_registry_update_last_reconfiguration_time_in_registry">automation_registry::update_last_reconfiguration_time_in_registry</a>(current_time);
+    <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">automation_registry::on_new_epoch</a>();
     config_ref.epoch = config_ref.epoch + 1;
 
     <b>if</b> (std::features::module_event_migration_enabled()) {

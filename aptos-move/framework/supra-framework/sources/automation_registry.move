@@ -53,8 +53,6 @@ module supra_framework::automation_registry {
     const DEFAULT_EPOCH_INTERVAL: u64 = 7200;
     /// The lenght of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
-    /// Conversion factor between microseconds and second
-    const MICROSECS_CONVERSION_FACTOR: u64 = 1_000_000;
     /// Registry resource creation seed
     const REGISTRY_RESOURCE_SEED: vector<u8> = b"supra_framework::automation_registry";
 
@@ -173,11 +171,11 @@ module supra_framework::automation_registry {
         })
     }
 
-    public(friend) fun on_new_epoch(epoch_interval_micro: u64) acquires AutomationRegistryState {
+    public(friend) fun on_new_epoch() acquires AutomationRegistryState, AutomationRegistry {
+        let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
         let state = borrow_global_mut<AutomationRegistryState>(@supra_framework);
         let ids = enumerable_map::get_map_list(&state.tasks);
 
-        let epoch_interval_secs = epoch_interval_micro / MICROSECS_CONVERSION_FACTOR;
         let current_time = timestamp::now_seconds();
         let gas_committed_for_next_epoch = 0;
 
@@ -185,9 +183,9 @@ module supra_framework::automation_registry {
         vector::for_each(ids, |id| {
             let task = enumerable_map::get_value_mut(&mut state.tasks, id);
 
-            // Tasks that are active during next epoch and are not cancled
+            // Tasks that are active during next epoch and are not canceled
             // current_time shows the start time of the current new epoch.
-            if (task.state != CANCELLED && task.expiry_time > (current_time + epoch_interval_secs)) {
+            if (task.state != CANCELLED && task.expiry_time > (current_time + automation_registry.epoch_interval)) {
                 gas_committed_for_next_epoch = gas_committed_for_next_epoch + task.max_gas_amount;
             };
 
@@ -701,7 +699,7 @@ module supra_framework::automation_registry {
         assert!(active_task_ids == vector[], 1);
 
         timestamp::update_global_time_for_test_secs(DEFAULT_EPOCH_INTERVAL);
-        on_new_epoch(30 * MICROSECS_CONVERSION_FACTOR);
+        on_new_epoch();
         assert!(40 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
         // But here task 3 is in the active list as it is still active in this new epoch.
@@ -748,7 +746,7 @@ module supra_framework::automation_registry {
         );
 
         timestamp::update_global_time_for_test_secs(DEFAULT_EPOCH_INTERVAL);
-        on_new_epoch(30 * MICROSECS_CONVERSION_FACTOR);
+        on_new_epoch();
         assert!(40 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
         let expected_ids = vector<u64>[0, 1, 2, 3];
@@ -837,7 +835,7 @@ module supra_framework::automation_registry {
             PARENT_HASH
         );
         timestamp::update_global_time_for_test_secs(50);
-        on_new_epoch(30 * MICROSECS_CONVERSION_FACTOR);
+        on_new_epoch();
         // Cancel the same task 2 times
         cancel_task(user, 0);
         cancel_task(user, 0);

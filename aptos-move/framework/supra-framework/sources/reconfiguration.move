@@ -158,6 +158,7 @@ module supra_framework::reconfiguration {
         };
         // update last reconfiguration time in registry contract
         automation_registry::update_last_reconfiguration_time_in_registry(current_time);
+        automation_registry::on_new_epoch();
         config_ref.epoch = config_ref.epoch + 1;
 
         if (std::features::module_event_migration_enabled()) {
