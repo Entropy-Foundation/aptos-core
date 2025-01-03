@@ -29,7 +29,6 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `cancel_task`](#0x1_automation_registry_cancel_task)
 -  [Function `refund_automation_task_fee`](#0x1_automation_registry_refund_automation_task_fee)
 -  [Function `update_epoch_interval_in_registry`](#0x1_automation_registry_update_epoch_interval_in_registry)
--  [Function `update_last_reconfiguration_time_in_registry`](#0x1_automation_registry_update_last_reconfiguration_time_in_registry)
 -  [Function `get_next_task_index`](#0x1_automation_registry_get_next_task_index)
 -  [Function `get_active_task_ids`](#0x1_automation_registry_get_active_task_ids)
 -  [Function `get_task_details`](#0x1_automation_registry_get_task_details)
@@ -447,16 +446,6 @@ The default upper limit duration for automation task, specified in seconds (30 d
 
 
 
-<a id="0x1_automation_registry_DEFAULT_EPOCH_INTERVAL"></a>
-
-The default epoch interval in second
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_DEFAULT_EPOCH_INTERVAL">DEFAULT_EPOCH_INTERVAL</a>: u64 = 7200;
-</code></pre>
-
-
-
 <a id="0x1_automation_registry_EALREADY_CANCELLED"></a>
 
 Task is already cancelled.
@@ -567,6 +556,16 @@ Unauthorized access: the caller is not the owner of the task
 
 
 
+<a id="0x1_automation_registry_MICROSECS_CONVERSION_FACTOR"></a>
+
+Conversion factor between microseconds and second
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>: u64 = 1000000;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_MILLISECOND_CONVERSION_FACTOR"></a>
 
 Conversion factor between microseconds and millisecond || millisecond and second
@@ -613,7 +612,7 @@ The lenght of the transaction hash.
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64)
 </code></pre>
 
 
@@ -622,7 +621,7 @@ The lenght of the transaction hash.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
     <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryState">AutomationRegistryState</a> {
@@ -643,7 +642,7 @@ The lenght of the transaction hash.
         automation_unit_price: <a href="automation_registry.md#0x1_automation_registry_DEFAULT_AUTOMATION_UNIT_PRICE">DEFAULT_AUTOMATION_UNIT_PRICE</a>,
         registry_fee_address: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&registry_fee_resource_signer),
         registry_fee_address_signer_cap,
-        epoch_interval: <a href="automation_registry.md#0x1_automation_registry_DEFAULT_EPOCH_INTERVAL">DEFAULT_EPOCH_INTERVAL</a>,
+        epoch_interval: epoch_interval_microsecs / <a href="automation_registry.md#0x1_automation_registry_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>,
         last_reconfiguration_time: 0,
     })
 }
@@ -659,7 +658,7 @@ The lenght of the transaction hash.
 
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>()
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>(last_reconfiguration_time: u64)
 </code></pre>
 
 
@@ -668,10 +667,14 @@ The lenght of the transaction hash.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryState">AutomationRegistryState</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
-    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>(
+    last_reconfiguration_time: u64
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryState">AutomationRegistryState</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <b>let</b> state = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryState">AutomationRegistryState</a>&gt;(@supra_framework);
     <b>let</b> ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&state.tasks);
+
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.last_reconfiguration_time = last_reconfiguration_time;
 
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
     <b>let</b> gas_committed_for_next_epoch = 0;
@@ -1064,7 +1067,7 @@ Refunds the automation task fee to the user who has removed their task registrat
 Update epoch interval in registry while actually update happens in block module
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_epoch_interval_in_registry">update_epoch_interval_in_registry</a>(epoch_interval: u64)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_epoch_interval_in_registry">update_epoch_interval_in_registry</a>(epoch_interval_microsecs: u64)
 </code></pre>
 
 
@@ -1073,40 +1076,10 @@ Update epoch interval in registry while actually update happens in block module
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_epoch_interval_in_registry">update_epoch_interval_in_registry</a>(epoch_interval: u64) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_epoch_interval_in_registry">update_epoch_interval_in_registry</a>(epoch_interval_microsecs: u64) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>if</b> (<b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework)) {
         <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
-        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_interval = epoch_interval;
-    };
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_update_last_reconfiguration_time_in_registry"></a>
-
-## Function `update_last_reconfiguration_time_in_registry`
-
-Update epoch interval in registry while actually update happens in block module
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_last_reconfiguration_time_in_registry">update_last_reconfiguration_time_in_registry</a>(last_reconfiguration_time: u64)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_last_reconfiguration_time_in_registry">update_last_reconfiguration_time_in_registry</a>(
-    last_reconfiguration_time: u64
-) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
-    <b>if</b> (<b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework)) {
-        <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
-        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.last_reconfiguration_time = last_reconfiguration_time;
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_interval = epoch_interval_microsecs / <a href="automation_registry.md#0x1_automation_registry_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>;
     };
 }
 </code></pre>

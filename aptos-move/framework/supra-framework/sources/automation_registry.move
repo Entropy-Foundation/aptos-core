@@ -49,10 +49,10 @@ module supra_framework::automation_registry {
     const DEFAULT_AUTOMATION_UNIT_PRICE: u64 = 1000;
     /// Conversion factor between microseconds and millisecond || millisecond and second
     const MILLISECOND_CONVERSION_FACTOR: u64 = 1000;
-    /// The default epoch interval in second
-    const DEFAULT_EPOCH_INTERVAL: u64 = 7200;
     /// The lenght of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
+    /// Conversion factor between microseconds and second
+    const MICROSECS_CONVERSION_FACTOR: u64 = 1_000_000;
     /// Registry resource creation seed
     const REGISTRY_RESOURCE_SEED: vector<u8> = b"supra_framework::automation_registry";
 
@@ -145,7 +145,7 @@ module supra_framework::automation_registry {
     }
 
     // todo : this function should call during initialzation, but since we already done genesis in that case who can access the function
-    public fun initialize(supra_framework: &signer) {
+    public fun initialize(supra_framework: &signer, epoch_interval_microsecs: u64) {
         system_addresses::assert_supra_framework(supra_framework);
 
         move_to(supra_framework, AutomationRegistryState {
@@ -166,15 +166,19 @@ module supra_framework::automation_registry {
             automation_unit_price: DEFAULT_AUTOMATION_UNIT_PRICE,
             registry_fee_address: signer::address_of(&registry_fee_resource_signer),
             registry_fee_address_signer_cap,
-            epoch_interval: DEFAULT_EPOCH_INTERVAL,
+            epoch_interval: epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR,
             last_reconfiguration_time: 0,
         })
     }
 
-    public(friend) fun on_new_epoch() acquires AutomationRegistryState, AutomationRegistry {
-        let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
+    public(friend) fun on_new_epoch(
+        last_reconfiguration_time: u64
+    ) acquires AutomationRegistryState, AutomationRegistry {
+        let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let state = borrow_global_mut<AutomationRegistryState>(@supra_framework);
         let ids = enumerable_map::get_map_list(&state.tasks);
+
+        automation_registry.last_reconfiguration_time = last_reconfiguration_time;
 
         let current_time = timestamp::now_seconds();
         let gas_committed_for_next_epoch = 0;
@@ -376,20 +380,10 @@ module supra_framework::automation_registry {
     }
 
     /// Update epoch interval in registry while actually update happens in block module
-    public(friend) fun update_epoch_interval_in_registry(epoch_interval: u64) acquires AutomationRegistry {
+    public(friend) fun update_epoch_interval_in_registry(epoch_interval_microsecs: u64) acquires AutomationRegistry {
         if (exists<AutomationRegistry>(@supra_framework)) {
             let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
-            automation_registry.epoch_interval = epoch_interval;
-        };
-    }
-
-    /// Update epoch interval in registry while actually update happens in block module
-    public(friend) fun update_last_reconfiguration_time_in_registry(
-        last_reconfiguration_time: u64
-    ) acquires AutomationRegistry {
-        if (exists<AutomationRegistry>(@supra_framework)) {
-            let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
-            automation_registry.last_reconfiguration_time = last_reconfiguration_time;
+            automation_registry.epoch_interval = epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR;
         };
     }
 
@@ -449,6 +443,9 @@ module supra_framework::automation_registry {
     }
 
     #[test_only]
+    const EPOCH_INTERVAL_FOR_TEST: u64 = 7200000000; // in microsecond
+
+    #[test_only]
     fun initialize_registry_test(supra_framework: &signer, user: &signer) {
         use supra_framework::coin;
         use supra_framework::supra_coin::{Self, SupraCoin};
@@ -465,7 +462,7 @@ module supra_framework::automation_registry {
 
         timestamp::set_time_has_started_for_testing(supra_framework);
 
-        initialize(supra_framework);
+        initialize(supra_framework, EPOCH_INTERVAL_FOR_TEST);
     }
 
     #[test(supra_framework = @supra_framework, user = @0x1cafe)]
@@ -491,7 +488,7 @@ module supra_framework::automation_registry {
     #[test_only]
     fun initialize_registry_state_test(framework: &signer) {
         timestamp::set_time_has_started_for_testing(framework);
-        initialize(framework);
+        initialize(framework, EPOCH_INTERVAL_FOR_TEST);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
@@ -576,7 +573,7 @@ module supra_framework::automation_registry {
 
         register(user,
             PAYLOAD,
-            DEFAULT_EPOCH_INTERVAL / 2,
+            EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR / 2,
             70,
             20,
             PARENT_HASH,
@@ -698,8 +695,9 @@ module supra_framework::automation_registry {
         let active_task_ids = get_active_task_ids();
         assert!(active_task_ids == vector[], 1);
 
-        timestamp::update_global_time_for_test_secs(DEFAULT_EPOCH_INTERVAL);
-        on_new_epoch();
+        let current_time = EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR;
+        timestamp::update_global_time_for_test_secs(current_time);
+        on_new_epoch(current_time);
         assert!(40 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
         // But here task 3 is in the active list as it is still active in this new epoch.
@@ -745,8 +743,9 @@ module supra_framework::automation_registry {
             PARENT_HASH
         );
 
-        timestamp::update_global_time_for_test_secs(DEFAULT_EPOCH_INTERVAL);
-        on_new_epoch();
+        let current_time = EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR;
+        timestamp::update_global_time_for_test_secs(current_time);
+        on_new_epoch(current_time);
         assert!(40 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
         let expected_ids = vector<u64>[0, 1, 2, 3];
@@ -834,8 +833,9 @@ module supra_framework::automation_registry {
             20,
             PARENT_HASH
         );
-        timestamp::update_global_time_for_test_secs(50);
-        on_new_epoch();
+        let current_time = 50;
+        timestamp::update_global_time_for_test_secs(current_time);
+        on_new_epoch(current_time);
         // Cancel the same task 2 times
         cancel_task(user, 0);
         cancel_task(user, 0);

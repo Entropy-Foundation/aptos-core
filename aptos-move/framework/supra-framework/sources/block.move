@@ -136,7 +136,7 @@ module supra_framework::block {
         block_resource.epoch_interval = new_epoch_interval;
 
         // update epoch interval in registry contract
-        automation_registry::update_epoch_interval_in_registry(new_epoch_interval / 1000000);
+        automation_registry::update_epoch_interval_in_registry(new_epoch_interval);
 
         if (std::features::module_event_migration_enabled()) {
             event::emit(
@@ -235,7 +235,16 @@ module supra_framework::block {
         previous_block_votes_bitvec: vector<u8>,
         timestamp: u64
     ) acquires BlockResource, CommitHistory {
-        let epoch_interval = block_prologue_common(&vm, hash, epoch, round, proposer, failed_proposer_indices, previous_block_votes_bitvec, timestamp);
+        let epoch_interval = block_prologue_common(
+            &vm,
+            hash,
+            epoch,
+            round,
+            proposer,
+            failed_proposer_indices,
+            previous_block_votes_bitvec,
+            timestamp
+        );
         randomness::on_new_block(&vm, epoch, round, option::none());
         if (timestamp - reconfiguration::last_reconfiguration_time() >= epoch_interval) {
             reconfiguration::reconfigure();
@@ -340,7 +349,10 @@ module supra_framework::block {
 
     ///  Emit a `NewBlockEvent` event. This function will be invoked by write set script directly to generate the
     ///  new block event for WriteSetPayload.
-    public fun emit_writeset_block_event(vm_signer: &signer, fake_block_hash: address) acquires BlockResource, CommitHistory {
+    public fun emit_writeset_block_event(
+        vm_signer: &signer,
+        fake_block_hash: address
+    ) acquires BlockResource, CommitHistory {
         system_addresses::assert_vm(vm_signer);
         let block_metadata_ref = borrow_global_mut<BlockResource>(@supra_framework);
         block_metadata_ref.height = event::counter(&block_metadata_ref.new_block_events);
