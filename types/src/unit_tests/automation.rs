@@ -125,11 +125,12 @@ fn automated_txn_build() {
     let address = AccountAddress::random();
     let parent_hash = HashValue::random();
     let chain_id = ChainId::new(1);
+    let expiry_time = 7200;
     let task_meta = AutomationTaskMetaData {
         id: 0,
         owner: address,
         payload_tx: bcs::to_bytes(&entry_function).unwrap(),
-        expiry_time: 7200,
+        expiry_time,
         tx_hash: parent_hash.to_vec(),
         max_gas_amount: 10,
         gas_price_cap: 20,
@@ -180,14 +181,21 @@ fn automated_txn_build() {
     }
 
     // Gas unit price cap is greater than gas-price-cap
-    let builder_with_higher_gas_unit_price = builder_valid.with_gas_unit_price(30);
+    let builder_with_higher_gas_unit_price = builder_valid.clone().with_gas_unit_price(30);
     assert!(matches!(
         builder_with_higher_gas_unit_price.clone().build(),
         BuilderResult::GasPriceThresholdExceeded { .. }
     ));
 
+    // Expired transaction
+    let builder_with_expired_timestamp = builder_valid.clone().with_expiry_threshold_secs(2 * expiry_time);
+    assert!(matches!(
+        builder_with_expired_timestamp.clone().build(),
+        BuilderResult::ExpiryThresholdExceeded { .. }
+    ));
+
     // Any other field if missing build will fail
-    let mut builder_with_no_expiry_time = builder_with_higher_gas_unit_price.clone();
+    let mut builder_with_no_expiry_time = builder_valid.clone();
     builder_with_no_expiry_time.expiration_timestamp_secs = None;
     assert!(matches!(
         builder_with_no_expiry_time.clone().build(),
