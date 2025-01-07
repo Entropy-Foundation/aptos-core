@@ -25,7 +25,7 @@ use aptos_backup_cli::{
     utils::GlobalRestoreOpt,
 };
 use aptos_cached_packages::aptos_stdlib;
-use aptos_crypto::{blsttc::BlsPrivateKey, ed25519::{self, PublicKey}, x25519, PrivateKey, ValidCryptoMaterialStringExt};
+use aptos_crypto::{blsttc::{self, BlsPrivateKey}, ed25519::{self, PublicKey}, x25519, PrivateKey, ValidCryptoMaterialStringExt};
 use aptos_genesis::config::{HostAndPort, OperatorConfiguration};
 use aptos_logger::Level;
 use aptos_network_checker::args::{
@@ -924,7 +924,7 @@ impl From<&ValidatorInfoSummary> for ValidatorInfo {
             summary.consensus_voting_power,
             aptos_types::validator_config::ValidatorConfig::new(
                 PublicKey::from_encoded_string(&config.consensus_public_key).unwrap(),
-                None,
+                blsttc::BlsPrivateKey::generate_random().public_key(),
                 bcs::to_bytes(&config.validator_network_addresses).unwrap(),
                 bcs::to_bytes(&config.fullnode_network_addresses).unwrap(),
                 config.validator_index,

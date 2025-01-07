@@ -34,10 +34,7 @@ use crate::{
     write_set::{WriteOp, WriteSet, WriteSetMut},
 };
 use aptos_crypto::{
-    ed25519::{self, Ed25519PrivateKey, Ed25519PublicKey},
-    test_utils::KeyPair,
-    traits::*,
-    HashValue,
+    blsttc, ed25519::{self, Ed25519PrivateKey, Ed25519PublicKey}, test_utils::KeyPair, traits::*, HashValue
 };
 use arr_macro::arr;
 use bytes::Bytes;
@@ -1051,7 +1048,7 @@ impl BlockInfoGen {
                     ValidatorInfo::new_with_test_network_keys(
                         signer.author(),
                         signer.public_key(),
-                        None,
+                        blsttc::BlsPrivateKey::generate_random().public_key(),
                         1, /* consensus_voting_power */
                         index as u64,
                     )

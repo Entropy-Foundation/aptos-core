@@ -36,7 +36,7 @@ impl MoveResource for ValidatorOperatorConfigResource {}
 #[cfg_attr(any(test, feature = "fuzzing"), derive(Arbitrary))]
 pub struct ValidatorConfig {
     pub consensus_public_key: ed25519::PublicKey,
-    pub consensus_bls_public_key: Option<blsttc::BlsPublicKey>,
+    pub consensus_bls_public_key: blsttc::BlsPublicKey,
     /// This is an bcs serialized `Vec<NetworkAddress>`
     pub validator_network_addresses: Vec<u8>,
     /// This is an bcs serialized `Vec<NetworkAddress>`
@@ -47,7 +47,7 @@ pub struct ValidatorConfig {
 impl ValidatorConfig {
     pub fn new(
         consensus_public_key: ed25519::PublicKey,
-        consensus_bls_public_key: Option<blsttc::BlsPublicKey>,
+        consensus_bls_public_key: blsttc::BlsPublicKey,
         validator_network_addresses: Vec<u8>,
         fullnode_network_addresses: Vec<u8>,
         validator_index: u64,

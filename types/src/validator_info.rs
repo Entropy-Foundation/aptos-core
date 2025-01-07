@@ -56,11 +56,10 @@ impl ValidatorInfo {
     pub fn new_with_test_network_keys(
         account_address: AccountAddress,
         consensus_public_key: ed25519::PublicKey,
-        consensus_bls_public_key: Option<blsttc::BlsPublicKey>,
+        consensus_bls_public_key: blsttc::BlsPublicKey,
         consensus_voting_power: u64,
         validator_index: u64,
     ) -> Self {
-        use aptos_crypto::PrivateKey;
 
         let addr = NetworkAddress::mock();
         let config = ValidatorConfig::new(
@@ -89,12 +88,8 @@ impl ValidatorInfo {
         &self.config.consensus_public_key
     }
 
-    pub fn consensus_bls_public_key(&self) -> Result<&blsttc::BlsPublicKey, String> {
-        if let Some(key) = &self.config.consensus_bls_public_key {
-            Ok(key)
-        }else{
-            Err(String::from("Failed key fetching"))
-        }
+    pub fn consensus_bls_public_key(&self) -> &blsttc::BlsPublicKey {
+        &self.config.consensus_bls_public_key
     }
 
     /// Returns the voting power for this validator

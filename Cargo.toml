@@ -462,7 +462,7 @@ aptos-cargo-cli = { path = "devtools/aptos-cargo-cli" }
 
 # External crate dependencies.
 # Please do not add any test features here: they should be declared by the individual crate.
-blsttc = {package = "blsttc", git = "ssh://git@github.com/naitik-supraoracles/blsttc-supra-for-moonshot.git", rev = "4ca8a9d97893e2dfd74eee427400ac119e3e9dd9"}
+blsttc = {package = "blsttc", git = "https://github.com/Entropy-Foundation/blsttc-supra.git", rev = "431f403dfd0d625515363711ee58dac84d0c1ebc"}
 aes-gcm = "0.10.3"
 ahash = "0.8.11"
 atty = "0.2.14"

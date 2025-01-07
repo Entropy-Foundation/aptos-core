@@ -11,7 +11,7 @@ use crate::{
 };
 use anyhow::{ensure, Result};
 use aptos_bitvec::BitVec;
-use aptos_crypto::{ed25519, ed25519::PublicKey, hash::CryptoHash, Signature, VerifyingKey};
+use aptos_crypto::{blsttc, ed25519::{self, PublicKey}, hash::CryptoHash, PrivateKey as _, Signature, VerifyingKey};
 use itertools::Itertools;
 #[cfg(any(test, feature = "fuzzing"))]
 use proptest_derive::Arbitrary;
@@ -504,7 +504,7 @@ impl From<&ValidatorVerifier> for ValidatorSet {
                     crate::validator_info::ValidatorInfo::new_with_test_network_keys(
                         addr,
                         verifier.get_public_key(&addr).unwrap(),
-                        None,
+                        blsttc::BlsPrivateKey::generate_random().public_key(),
                         verifier.get_voting_power(&addr).unwrap(),
                         index as u64,
                     )

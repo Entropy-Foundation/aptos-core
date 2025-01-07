@@ -156,7 +156,7 @@ mod tests {
     use crate::DiscoveryChangeListener;
     use aptos_channels::{aptos_channel, message_queues::QueueStyle};
     use aptos_config::config::HANDSHAKE_VERSION;
-    use aptos_crypto::{ed25519, x25519::PrivateKey, PrivateKey as PK, Uniform};
+    use aptos_crypto::{blsttc, ed25519, x25519::PrivateKey, PrivateKey as PK, Uniform};
     use aptos_event_notifications::ReconfigNotification;
     use aptos_types::{
         network_address::NetworkAddress,
@@ -254,7 +254,7 @@ mod tests {
             0,
             ValidatorConfig::new(
                 consensus_pubkey,
-                None,
+                blsttc::BlsPrivateKey::generate_random().public_key(),
                 validator_encoded_addresses,
                 fullnode_encoded_addresses,
                 0,
