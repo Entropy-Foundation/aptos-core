@@ -153,6 +153,7 @@ module supra_framework::stake {
     /// Validator info stored in validator address.
     struct ValidatorConfig has key, copy, store, drop {
         consensus_pubkey: vector<u8>,
+        consensus_bls_pubkey: vector<u8>,
         network_addresses: vector<u8>,
         // to make it compatible with previous definition, remove later
         fullnode_addresses: vector<u8>,
@@ -561,6 +562,7 @@ module supra_framework::stake {
         initialize_owner(owner);
         move_to(owner, ValidatorConfig {
             consensus_pubkey: vector::empty(),
+            consensus_bls_pubkey: vector::empty(),
             network_addresses: vector::empty(),
             fullnode_addresses: vector::empty(),
             validator_index: 0,
@@ -583,16 +585,18 @@ module supra_framework::stake {
     public entry fun initialize_validator(
         account: &signer,
         consensus_pubkey: vector<u8>,
+        consensus_bls_pubkey: vector<u8>,
         network_addresses: vector<u8>,
         fullnode_addresses: vector<u8>,
     ) acquires AllowedValidators {
         // Checks the public key is valid to prevent rogue-key attacks.
         let valid_public_key = ed25519::new_validated_public_key_from_bytes(consensus_pubkey);
         assert!(option::is_some(&valid_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
-
+        //DO WE HAVE TO ADD CHECK FOR BLS KEY TOO? I AM NOT SURE.
         initialize_owner(account);
         move_to(account, ValidatorConfig {
             consensus_pubkey,
+            consensus_bls_pubkey,
             network_addresses,
             fullnode_addresses,
             validator_index: 0,
@@ -1900,8 +1904,10 @@ module supra_framework::stake {
             account::create_account_for_test(validator_address);
         };
 
+        let bls_pk_bytes = vector[];
+
         let pk_bytes = ed25519::unvalidated_public_key_to_bytes(public_key);
-        initialize_validator(validator, pk_bytes, vector::empty(), vector::empty());
+        initialize_validator(validator, pk_bytes, bls_pk_bytes,vector::empty(), vector::empty());
 
         if (amount > 0) {
             mint_and_add_stake(validator, amount);
@@ -1931,6 +1937,7 @@ module supra_framework::stake {
                 voting_power: 0,
                 config: ValidatorConfig {
                     consensus_pubkey: ed25519::unvalidated_public_key_to_bytes(pk),
+                    consensus_bls_pubkey: vector[],
                     network_addresses: b"",
                     fullnode_addresses: b"",
                     validator_index: 0,

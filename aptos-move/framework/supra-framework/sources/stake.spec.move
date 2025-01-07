@@ -128,6 +128,7 @@ spec supra_framework::stake {
     spec initialize_validator(
         account: &signer,
         consensus_pubkey: vector<u8>,
+        consensus_bls_pubkey: vector<u8>,
         network_addresses: vector<u8>,
         fullnode_addresses: vector<u8>,
     ){
@@ -149,6 +150,7 @@ spec supra_framework::stake {
         ensures global<OwnerCapability>(post_addr) == OwnerCapability { pool_address: post_addr };
         ensures global<ValidatorConfig>(post_addr) == ValidatorConfig {
             consensus_pubkey,
+            consensus_bls_pubkey,
             network_addresses,
             fullnode_addresses,
             validator_index: 0,
@@ -717,6 +719,7 @@ spec supra_framework::stake {
         let addr = signer::address_of(owner);
         ensures global<ValidatorConfig>(addr) == ValidatorConfig {
             consensus_pubkey: vector::empty(),
+            consensus_bls_pubkey: vector::empty(),
             network_addresses: vector::empty(),
             fullnode_addresses: vector::empty(),
             validator_index: 0,

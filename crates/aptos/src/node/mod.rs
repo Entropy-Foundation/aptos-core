@@ -617,6 +617,7 @@ impl CliCommand<TransactionSummary> for InitializeValidator {
         self.txn_options
             .submit_transaction(aptos_stdlib::stake_initialize_validator(
                 consensus_public_key.to_bytes().to_vec(),
+                vec![],
                 // BCS encode, so that we can hide the original type
                 bcs::to_bytes(&validator_network_addresses)?,
                 bcs::to_bytes(&full_node_network_addresses)?,
