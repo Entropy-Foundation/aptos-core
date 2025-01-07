@@ -24,7 +24,6 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `update_automation_gas_limit`](#0x1_automation_registry_update_automation_gas_limit)
 -  [Function `update_duration_upper_limit`](#0x1_automation_registry_update_duration_upper_limit)
 -  [Function `charge_automation_fee_from_user`](#0x1_automation_registry_charge_automation_fee_from_user)
--  [Function `get_last_epoch_time_second`](#0x1_automation_registry_get_last_epoch_time_second)
 -  [Function `register`](#0x1_automation_registry_register)
 -  [Function `cancel_task`](#0x1_automation_registry_cancel_task)
 -  [Function `refund_automation_task_fee`](#0x1_automation_registry_refund_automation_task_fee)
@@ -82,7 +81,7 @@ It tracks entries both pending and completed, organized by unique indices.
 <code>gas_committed_for_next_epoch: u64</code>
 </dt>
 <dd>
-
+ Gas committed for next epoch
 </dd>
 <dt>
 <code>automation_gas_limit: u64</code>
@@ -117,12 +116,6 @@ It tracks entries both pending and completed, organized by unique indices.
 </dt>
 <dd>
  Automation task duration upper limit.
-</dd>
-<dt>
-<code>gas_committed_for_next_epoch: u64</code>
-</dt>
-<dd>
- Gas committed for next epoch
 </dd>
 <dt>
 <code>automation_unit_price: u64</code>
@@ -566,16 +559,6 @@ Conversion factor between microseconds and second
 
 
 
-<a id="0x1_automation_registry_MILLISECOND_CONVERSION_FACTOR"></a>
-
-Conversion factor between microseconds and millisecond || millisecond and second
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_MILLISECOND_CONVERSION_FACTOR">MILLISECOND_CONVERSION_FACTOR</a>: u64 = 1000;
-</code></pre>
-
-
-
 <a id="0x1_automation_registry_PENDING"></a>
 
 Constants describing task state.
@@ -638,7 +621,6 @@ The lenght of the transaction hash.
 
     <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
         duration_upper_limit: <a href="automation_registry.md#0x1_automation_registry_DEFAULT_DURATION_UPPER_LIMIT">DEFAULT_DURATION_UPPER_LIMIT</a>,
-        gas_committed_for_next_epoch: 0,
         automation_unit_price: <a href="automation_registry.md#0x1_automation_registry_DEFAULT_AUTOMATION_UNIT_PRICE">DEFAULT_AUTOMATION_UNIT_PRICE</a>,
         registry_fee_address: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&registry_fee_resource_signer),
         registry_fee_address_signer_cap,
@@ -658,7 +640,7 @@ The lenght of the transaction hash.
 
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>(last_reconfiguration_time: u64)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>()
 </code></pre>
 
 
@@ -667,14 +649,10 @@ The lenght of the transaction hash.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>(
-    last_reconfiguration_time: u64
-) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryState">AutomationRegistryState</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryState">AutomationRegistryState</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <b>let</b> state = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryState">AutomationRegistryState</a>&gt;(@supra_framework);
     <b>let</b> ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&state.tasks);
-
-    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.last_reconfiguration_time = last_reconfiguration_time;
 
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
     <b>let</b> gas_committed_for_next_epoch = 0;
@@ -698,6 +676,7 @@ The lenght of the transaction hash.
     });
 
     state.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.last_reconfiguration_time = current_time;
 }
 </code></pre>
 
@@ -866,32 +845,6 @@ Deducts the automation fee from the user's account based on the selected expiry 
 
 </details>
 
-<a id="0x1_automation_registry_get_last_epoch_time_second"></a>
-
-## Function `get_last_epoch_time_second`
-
-Get last epoch time in second
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_last_epoch_time_second">get_last_epoch_time_second</a>(last_reconfiguration_time: u64): u64
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_last_epoch_time_second">get_last_epoch_time_second</a>(last_reconfiguration_time: u64): u64 {
-    <b>let</b> last_epoch_time_ms = last_reconfiguration_time / <a href="automation_registry.md#0x1_automation_registry_MILLISECOND_CONVERSION_FACTOR">MILLISECOND_CONVERSION_FACTOR</a>;
-    last_epoch_time_ms / <a href="automation_registry.md#0x1_automation_registry_MILLISECOND_CONVERSION_FACTOR">MILLISECOND_CONVERSION_FACTOR</a>
-}
-</code></pre>
-
-
-
-</details>
-
 <a id="0x1_automation_registry_register"></a>
 
 ## Function `register`
@@ -920,9 +873,9 @@ Registers a new automation task entry.
 
     //Well-formedness check of payload_tx is done in <b>native</b> layer beforehand.
 
-    <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
-    <b>assert</b>!(expiry_time &gt; current_time, <a href="automation_registry.md#0x1_automation_registry_EINVALID_EXPIRY_TIME">EINVALID_EXPIRY_TIME</a>);
-    <b>let</b> task_duration = expiry_time - current_time;
+    <b>let</b> registration_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
+    <b>assert</b>!(expiry_time &gt; registration_time, <a href="automation_registry.md#0x1_automation_registry_EINVALID_EXPIRY_TIME">EINVALID_EXPIRY_TIME</a>);
+    <b>let</b> task_duration = expiry_time - registration_time;
     <b>assert</b>!(task_duration &lt; registry_data.duration_upper_limit, <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_TIME_UPPER">EEXPIRY_TIME_UPPER</a>);
 
     // Check that task is valid at least in the next epoch
@@ -932,9 +885,7 @@ Registers a new automation task entry.
     );
 
     <b>let</b> registry_state_data = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryState">AutomationRegistryState</a>&gt;(@supra_framework);
-    <b>let</b> registration_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
 
-    <b>assert</b>!(expiry_time &gt; registration_time, <a href="automation_registry.md#0x1_automation_registry_EINVALID_EXPIRY_TIME">EINVALID_EXPIRY_TIME</a>);
     <b>assert</b>!(gas_price_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EINVALID_GAS_PRICE">EINVALID_GAS_PRICE</a>);
     <b>assert</b>!(max_gas_amount &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EINVALID_MAX_GAS_AMOUNT">EINVALID_MAX_GAS_AMOUNT</a>);
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&tx_hash) == <a href="automation_registry.md#0x1_automation_registry_TXN_HASH_LENGTH">TXN_HASH_LENGTH</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_TXN_HASH">EINVALID_TXN_HASH</a>);
