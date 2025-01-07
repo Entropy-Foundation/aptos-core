@@ -42,13 +42,11 @@ module supra_framework::automation_registry {
     const EALREADY_CANCELLED: u64 = 11;
 
     /// The default automation task gas limit
-    const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 100000000;
+    const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 10_00_00_000;
     /// The default upper limit duration for automation task, specified in seconds (30 days).
     const DEFAULT_DURATION_UPPER_LIMIT: u64 = 2592000;
     /// The default Automation unit price for per second, in Quants
     const DEFAULT_AUTOMATION_UNIT_PRICE: u64 = 1000;
-    /// Conversion factor between microseconds and millisecond || millisecond and second
-    const MILLISECOND_CONVERSION_FACTOR: u64 = 1000;
     /// The lenght of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
     /// Conversion factor between microseconds and second
@@ -66,6 +64,7 @@ module supra_framework::automation_registry {
         /// A collection of automation task entries that are active state.
         tasks: EnumerableMap<u64, AutomationTaskMetaData>,
         current_index: u64,
+        /// Gas committed for next epoch
         gas_committed_for_next_epoch: u64,
         automation_gas_limit: u64,
     }
@@ -74,8 +73,6 @@ module supra_framework::automation_registry {
     struct AutomationRegistry has key, store {
         /// Automation task duration upper limit.
         duration_upper_limit: u64,
-        /// Gas committed for next epoch
-        gas_committed_for_next_epoch: u64,
         /// Automation task unit price per second
         automation_unit_price: u64,
         /// It's resource address which is use to deposit user automation fee
@@ -162,7 +159,6 @@ module supra_framework::automation_registry {
 
         move_to(supra_framework, AutomationRegistry {
             duration_upper_limit: DEFAULT_DURATION_UPPER_LIMIT,
-            gas_committed_for_next_epoch: 0,
             automation_unit_price: DEFAULT_AUTOMATION_UNIT_PRICE,
             registry_fee_address: signer::address_of(&registry_fee_resource_signer),
             registry_fee_address_signer_cap,
@@ -171,14 +167,10 @@ module supra_framework::automation_registry {
         })
     }
 
-    public(friend) fun on_new_epoch(
-        last_reconfiguration_time: u64
-    ) acquires AutomationRegistryState, AutomationRegistry {
+    public(friend) fun on_new_epoch() acquires AutomationRegistryState, AutomationRegistry {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let state = borrow_global_mut<AutomationRegistryState>(@supra_framework);
         let ids = enumerable_map::get_map_list(&state.tasks);
-
-        automation_registry.last_reconfiguration_time = last_reconfiguration_time;
 
         let current_time = timestamp::now_seconds();
         let gas_committed_for_next_epoch = 0;
@@ -202,6 +194,7 @@ module supra_framework::automation_registry {
         });
 
         state.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
+        automation_registry.last_reconfiguration_time = current_time;
     }
 
     /// Withdraw accumulated automation task fees from the resource account - access by admin
@@ -265,12 +258,6 @@ module supra_framework::automation_registry {
         supra_account::transfer(owner, registry_fee_address, automation_base_fee);
     }
 
-    /// Get last epoch time in second
-    fun get_last_epoch_time_second(last_reconfiguration_time: u64): u64 {
-        let last_epoch_time_ms = last_reconfiguration_time / MILLISECOND_CONVERSION_FACTOR;
-        last_epoch_time_ms / MILLISECOND_CONVERSION_FACTOR
-    }
-
     /// Registers a new automation task entry.
     public fun register(
         owner: &signer,
@@ -284,9 +271,9 @@ module supra_framework::automation_registry {
 
         //Well-formedness check of payload_tx is done in native layer beforehand.
 
-        let current_time = timestamp::now_seconds();
-        assert!(expiry_time > current_time, EINVALID_EXPIRY_TIME);
-        let task_duration = expiry_time - current_time;
+        let registration_time = timestamp::now_seconds();
+        assert!(expiry_time > registration_time, EINVALID_EXPIRY_TIME);
+        let task_duration = expiry_time - registration_time;
         assert!(task_duration < registry_data.duration_upper_limit, EEXPIRY_TIME_UPPER);
 
         // Check that task is valid at least in the next epoch
@@ -296,9 +283,7 @@ module supra_framework::automation_registry {
         );
 
         let registry_state_data = borrow_global_mut<AutomationRegistryState>(@supra_framework);
-        let registration_time = timestamp::now_seconds();
 
-        assert!(expiry_time > registration_time, EINVALID_EXPIRY_TIME);
         assert!(gas_price_cap > 0, EINVALID_GAS_PRICE);
         assert!(max_gas_amount > 0, EINVALID_MAX_GAS_AMOUNT);
         assert!(vector::length(&tx_hash) == TXN_HASH_LENGTH, EINVALID_TXN_HASH);
@@ -695,9 +680,8 @@ module supra_framework::automation_registry {
         let active_task_ids = get_active_task_ids();
         assert!(active_task_ids == vector[], 1);
 
-        let current_time = EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR;
-        timestamp::update_global_time_for_test_secs(current_time);
-        on_new_epoch(current_time);
+        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR);
+        on_new_epoch();
         assert!(40 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
         // But here task 3 is in the active list as it is still active in this new epoch.
@@ -743,9 +727,8 @@ module supra_framework::automation_registry {
             PARENT_HASH
         );
 
-        let current_time = EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR;
-        timestamp::update_global_time_for_test_secs(current_time);
-        on_new_epoch(current_time);
+        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR);
+        on_new_epoch();
         assert!(40 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
         let expected_ids = vector<u64>[0, 1, 2, 3];
@@ -833,9 +816,8 @@ module supra_framework::automation_registry {
             20,
             PARENT_HASH
         );
-        let current_time = 50;
-        timestamp::update_global_time_for_test_secs(current_time);
-        on_new_epoch(current_time);
+        timestamp::update_global_time_for_test_secs(50);
+        on_new_epoch();
         // Cancel the same task 2 times
         cancel_task(user, 0);
         cancel_task(user, 0);

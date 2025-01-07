@@ -159,7 +159,7 @@ module supra_framework::reconfiguration {
         spec {
             assume config_ref.epoch + 1 <= MAX_U64;
         };
-        automation_registry::on_new_epoch(config_ref.last_reconfiguration_time);
+        automation_registry::on_new_epoch();
         config_ref.epoch = config_ref.epoch + 1;
 
         if (std::features::module_event_migration_enabled()) {
@@ -198,7 +198,7 @@ module supra_framework::reconfiguration {
         config_ref.epoch = 1;
         config_ref.last_reconfiguration_time = timestamp::now_microseconds();
 
-        automation_registry::on_new_epoch(config_ref.last_reconfiguration_time);
+        automation_registry::on_new_epoch();
 
         if (std::features::module_event_migration_enabled()) {
             event::emit(
