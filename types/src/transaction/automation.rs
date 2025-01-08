@@ -155,4 +155,33 @@ impl AutomationTaskMetaData {
     pub fn gas_price_cap(&self) -> u64 {
         self.gas_price_cap
     }
+
+    pub fn payload_tx(&self) -> &[u8] {
+        &self.payload_tx
+    }
+    pub fn expiry_time(&self) -> u64 {
+        self.expiry_time
+    }
+    pub fn tx_hash(&self) -> &[u8] {
+        &self.tx_hash
+    }
+
+    pub fn max_gas_amount(&self) -> u64 {
+        self.max_gas_amount
+    }
+
+    pub fn registration_epoch(&self) -> u64 {
+        self.registration_epoch
+    }
+    pub fn registration_time(&self) -> u64 {
+        self.registration_time
+    }
+
+    pub fn owner(&self) -> AccountAddress {
+        self.owner
+    }
+
+    pub fn id(&self) -> u64 {
+        self.id
+    }
 }
