@@ -634,9 +634,10 @@ Initialization of Automation Registry
         registry_fee_address_signer_cap,
     });
 
+    <b>let</b> epoch_interval = epoch_interval_microsecs / <a href="automation_registry.md#0x1_automation_registry_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>;
     <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_EpochState">EpochState</a> {
-        expected_epoch_duration: 0,
-        epoch_interval: epoch_interval_microsecs / <a href="automation_registry.md#0x1_automation_registry_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>,
+        expected_epoch_duration: epoch_interval,
+        epoch_interval,
         start_time: 0,
     });
 }
@@ -691,6 +692,7 @@ On new epoch this function will be triggered and update the automation registry 
 
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
     epoch_state.start_time = current_time;
+    epoch_state.expected_epoch_duration = epoch_state.epoch_interval;
 }
 </code></pre>
 

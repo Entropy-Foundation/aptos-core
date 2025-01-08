@@ -168,9 +168,10 @@ module supra_framework::automation_registry {
             registry_fee_address_signer_cap,
         });
 
+        let epoch_interval = epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR;
         move_to(supra_framework, EpochState {
-            expected_epoch_duration: 0,
-            epoch_interval: epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR,
+            expected_epoch_duration: epoch_interval,
+            epoch_interval,
             start_time: 0,
         });
     }
@@ -205,6 +206,7 @@ module supra_framework::automation_registry {
 
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
         epoch_state.start_time = current_time;
+        epoch_state.expected_epoch_duration = epoch_state.epoch_interval;
     }
 
     /// Withdraw accumulated automation task fees from the resource account - access by admin
