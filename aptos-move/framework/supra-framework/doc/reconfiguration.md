@@ -524,8 +524,6 @@ reconfiguration event.
     config_ref.epoch = 1;
     config_ref.last_reconfiguration_time = <a href="timestamp.md#0x1_timestamp_now_microseconds">timestamp::now_microseconds</a>();
 
-    <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">automation_registry::on_new_epoch</a>();
-
     <b>if</b> (std::features::module_event_migration_enabled()) {
         <a href="event.md#0x1_event_emit">event::emit</a>(
             <a href="reconfiguration.md#0x1_reconfiguration_NewEpoch">NewEpoch</a> {

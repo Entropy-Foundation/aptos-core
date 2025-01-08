@@ -200,8 +200,6 @@ module supra_framework::reconfiguration {
         config_ref.epoch = 1;
         config_ref.last_reconfiguration_time = timestamp::now_microseconds();
 
-        automation_registry::on_new_epoch();
-
         if (std::features::module_event_migration_enabled()) {
             event::emit(
                 NewEpoch {

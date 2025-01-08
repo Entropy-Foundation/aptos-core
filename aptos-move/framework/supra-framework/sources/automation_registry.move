@@ -30,7 +30,7 @@ module supra_framework::automation_registry {
     const EINVALID_MAX_GAS_AMOUNT: u64 = 5;
     /// Task with provided Id not found
     const EAUTOMATION_TASK_NOT_FOUND: u64 = 6;
-    /// Gas amount does not go beyond upper cap limit
+    /// Gas amount must not go beyond upper cap limit
     const EGAS_AMOUNT_UPPER: u64 = 7;
     /// Unauthorized access: the caller is not the owner of the task
     const EUNAUTHORIZED_TASK_OWNER: u64 = 8;
@@ -40,11 +40,13 @@ module supra_framework::automation_registry {
     const EUNACCEPTABLE_AUTOMATION_GAS_LIMIT: u64 = 10;
     /// Task is already cancelled.
     const EALREADY_CANCELLED: u64 = 11;
+    /// The gas committed for next epoch value is overflow after adding new max gas
+    const EGAS_COMMITTEED_VALUE_OVERFLOW: u64 = 12;
 
     /// The default automation task gas limit
-    const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 10_00_00_000;
+    const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 100_000_000;
     /// The default upper limit duration for automation task, specified in seconds (30 days).
-    const DEFAULT_DURATION_UPPER_LIMIT: u64 = 2592000;
+    const DEFAULT_DURATION_UPPER_LIMIT: u64 = 2_592_000;
     /// The default Automation unit price for per second, in Quants
     const DEFAULT_AUTOMATION_UNIT_PRICE: u64 = 1000;
     /// The lenght of the transaction hash.
@@ -53,6 +55,8 @@ module supra_framework::automation_registry {
     const MICROSECS_CONVERSION_FACTOR: u64 = 1_000_000;
     /// Registry resource creation seed
     const REGISTRY_RESOURCE_SEED: vector<u8> = b"supra_framework::automation_registry";
+    /// Max U64 value
+    const MAX_U64: u128 = 18446744073709551615;
 
     /// Constants describing task state.
     const PENDING: u8 = 0;
@@ -80,7 +84,7 @@ module supra_framework::automation_registry {
     }
 
     /// Epoch state
-    struct EpochState has key {
+    struct AutomationEpochInfo has key {
         /// Epoch expected duration at the beginning of the new epoch, Based on this and actual
         /// epoch_duration which will be (current_time - last_reconfiguration_time) automation tasks
         /// refunds will be calculated.
@@ -169,7 +173,7 @@ module supra_framework::automation_registry {
         });
 
         let epoch_interval = epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR;
-        move_to(supra_framework, EpochState {
+        move_to(supra_framework, AutomationEpochInfo {
             expected_epoch_duration: epoch_interval,
             epoch_interval,
             start_time: 0,
@@ -177,11 +181,11 @@ module supra_framework::automation_registry {
     }
 
     /// On new epoch this function will be triggered and update the automation registry state
-    public(friend) fun on_new_epoch() acquires AutomationRegistry, EpochState {
+    public(friend) fun on_new_epoch() acquires AutomationRegistry, AutomationEpochInfo {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let ids = enumerable_map::get_map_list(&automation_registry.tasks);
 
-        let epoch_state = borrow_global_mut<EpochState>(@supra_framework);
+        let automation_epoch_info = borrow_global_mut<AutomationEpochInfo>(@supra_framework);
 
         let current_time = timestamp::now_seconds();
         let gas_committed_for_next_epoch = 0;
@@ -192,7 +196,7 @@ module supra_framework::automation_registry {
 
             // Tasks that are active during next epoch and are not canceled
             // current_time shows the start time of the current new epoch.
-            if (task.state != CANCELLED && task.expiry_time > (current_time + epoch_state.epoch_interval)) {
+            if (task.state != CANCELLED && task.expiry_time > (current_time + automation_epoch_info.epoch_interval)) {
                 gas_committed_for_next_epoch = gas_committed_for_next_epoch + task.max_gas_amount;
             };
 
@@ -205,8 +209,8 @@ module supra_framework::automation_registry {
         });
 
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
-        epoch_state.start_time = current_time;
-        epoch_state.expected_epoch_duration = epoch_state.epoch_interval;
+        automation_epoch_info.start_time = current_time;
+        automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
     }
 
     /// Withdraw accumulated automation task fees from the resource account - access by admin
@@ -274,16 +278,16 @@ module supra_framework::automation_registry {
     }
 
     /// Registers a new automation task entry.
-    public fun register(
+    fun register(
         owner: &signer,
         payload_tx: vector<u8>,
         expiry_time: u64,
         max_gas_amount: u64,
         gas_price_cap: u64,
         tx_hash: vector<u8>
-    ) acquires AutomationRegistry, EpochState {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
-        let epoch_state = borrow_global<EpochState>(@supra_framework);
+        let automation_epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
         //Well-formedness check of payload_tx is done in native layer beforehand.
 
         let registration_time = timestamp::now_seconds();
@@ -293,7 +297,7 @@ module supra_framework::automation_registry {
 
         // Check that task is valid at least in the next epoch
         assert!(
-            expiry_time > (epoch_state.start_time + epoch_state.epoch_interval),
+            expiry_time > (automation_epoch_info.start_time + automation_epoch_info.epoch_interval),
             EEXPIRY_BEFORE_NEXT_EPOCH
         );
 
@@ -301,7 +305,10 @@ module supra_framework::automation_registry {
         assert!(max_gas_amount > 0, EINVALID_MAX_GAS_AMOUNT);
         assert!(vector::length(&tx_hash) == TXN_HASH_LENGTH, EINVALID_TXN_HASH);
 
-        let committed_gas = automation_registry.gas_committed_for_next_epoch + max_gas_amount;
+        let committed_gas = (automation_registry.gas_committed_for_next_epoch as u128) + (max_gas_amount as u128);
+        assert!(committed_gas <= MAX_U64, EGAS_COMMITTEED_VALUE_OVERFLOW);
+
+        let committed_gas = (committed_gas as u64);
         assert!(committed_gas < automation_registry.automation_gas_limit, EGAS_AMOUNT_UPPER);
         automation_registry.gas_committed_for_next_epoch = committed_gas;
         let task_index = automation_registry.current_index;
@@ -346,8 +353,8 @@ module supra_framework::automation_registry {
         if (automation_task_metadata.state == PENDING) {
             enumerable_map::remove_value(&mut automation_registry.tasks, id);
         } else if (automation_task_metadata.state == ACTIVE) {
-            automation_task_metadata.state = CANCELLED;
-            enumerable_map::update_value(&mut automation_registry.tasks, id, automation_task_metadata);
+            let automation_task_metadata_mut = enumerable_map::get_value_mut(&mut automation_registry.tasks, id);
+            automation_task_metadata_mut.state = CANCELLED;
         };
 
         // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
@@ -357,7 +364,7 @@ module supra_framework::automation_registry {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         refund_automation_task_fee(
             signer::address_of(owner),
-            automation_task_metadata,
+            &automation_task_metadata,
             automation_registry.automation_unit_price
         );
     }
@@ -365,7 +372,7 @@ module supra_framework::automation_registry {
     /// Refunds the automation task fee to the user who has removed their task registration from the list.
     fun refund_automation_task_fee(
         user: address,
-        automation_task_metadata: AutomationTaskMetaData,
+        automation_task_metadata: &AutomationTaskMetaData,
         automation_unit_price: u64,
     ) acquires AutomationRegistry {
         let current_time = timestamp::now_seconds();
@@ -377,10 +384,10 @@ module supra_framework::automation_registry {
     }
 
     /// Update epoch interval in registry while actually update happens in block module
-    public(friend) fun update_epoch_interval_in_registry(epoch_interval_microsecs: u64) acquires EpochState {
+    public(friend) fun update_epoch_interval_in_registry(epoch_interval_microsecs: u64) acquires AutomationEpochInfo {
         if (exists<AutomationRegistry>(@supra_framework)) {
-            let epoch_state = borrow_global_mut<EpochState>(@supra_framework);
-            epoch_state.epoch_interval = epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR;
+            let automation_epoch_info = borrow_global_mut<AutomationEpochInfo>(@supra_framework);
+            automation_epoch_info.epoch_interval = epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR;
         };
     }
 
@@ -474,7 +481,7 @@ module supra_framework::automation_registry {
     }
 
     #[test(supra_framework = @supra_framework, user = @0x1cafe)]
-    fun test_registry(supra_framework: &signer, user: &signer) acquires AutomationRegistry, EpochState {
+    fun test_registry(supra_framework: &signer, user: &signer) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(supra_framework, user);
 
         let payload = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f4041424344";
@@ -485,7 +492,7 @@ module supra_framework::automation_registry {
     #[test(framework = @supra_framework, user = @0x1cafe)]
     fun check_automation_gas_limit_success_update(
         framework: &signer, user: &signer
-    ) acquires AutomationRegistry, EpochState {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
         register(user,
             PAYLOAD,
@@ -505,7 +512,7 @@ module supra_framework::automation_registry {
     #[expected_failure(abort_code = EUNACCEPTABLE_AUTOMATION_GAS_LIMIT, location = Self)]
     fun check_automation_gas_limit_failed_update(
         framework: &signer, user: &signer
-    ) acquires AutomationRegistry, EpochState {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
         register(user,
             PAYLOAD,
@@ -523,7 +530,7 @@ module supra_framework::automation_registry {
     fun check_task_registration(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, EpochState {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
         register(user,
             PAYLOAD,
@@ -541,7 +548,7 @@ module supra_framework::automation_registry {
     fun check_registration_invalid_expiry_time(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, EpochState {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
 
         timestamp::update_global_time_for_test_secs(50);
@@ -559,7 +566,7 @@ module supra_framework::automation_registry {
     fun check_registration_invalid_expiry_time_before_next_epoch(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, EpochState {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
 
         register(user,
@@ -576,7 +583,7 @@ module supra_framework::automation_registry {
     fun check_registration_invalid_gas_price_cap(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, EpochState {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
 
         register(user,
@@ -593,7 +600,7 @@ module supra_framework::automation_registry {
     fun check_registration_invalid_max_gas_amount(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, EpochState {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
         register(user,
             PAYLOAD,
@@ -609,7 +616,7 @@ module supra_framework::automation_registry {
     fun check_registration_invalid_parent_hash(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, EpochState {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
         register(user,
             PAYLOAD,
@@ -626,7 +633,7 @@ module supra_framework::automation_registry {
     fun check_registration_with_overflow_gas_limit(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, EpochState {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
         register(user,
             PAYLOAD,
@@ -650,7 +657,7 @@ module supra_framework::automation_registry {
     fun check_task_activation_on_new_epoch(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, EpochState {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
         register(user,
             PAYLOAD,
@@ -701,7 +708,7 @@ module supra_framework::automation_registry {
     fun check_task_successful_cancellation(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, EpochState {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
 
         register(user,
@@ -794,7 +801,7 @@ module supra_framework::automation_registry {
         framework: &signer,
         user: &signer,
         user2: &signer
-    ) acquires AutomationRegistry, EpochState {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
 
         register(user,
@@ -812,7 +819,7 @@ module supra_framework::automation_registry {
     fun check_cacellation_of_cancelled_task(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, EpochState {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
 
         register(user,
