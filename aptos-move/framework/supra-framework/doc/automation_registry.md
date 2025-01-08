@@ -9,7 +9,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 
 
 -  [Resource `AutomationRegistry`](#0x1_automation_registry_AutomationRegistry)
--  [Resource `EpochState`](#0x1_automation_registry_EpochState)
+-  [Resource `AutomationEpochInfo`](#0x1_automation_registry_AutomationEpochInfo)
 -  [Struct `AutomationTaskMetaData`](#0x1_automation_registry_AutomationTaskMetaData)
 -  [Struct `FeeWithdrawnAdmin`](#0x1_automation_registry_FeeWithdrawnAdmin)
 -  [Struct `RefundFeeUser`](#0x1_automation_registry_RefundFeeUser)
@@ -118,14 +118,14 @@ It tracks entries both pending and completed, organized by unique indices.
 
 </details>
 
-<a id="0x1_automation_registry_EpochState"></a>
+<a id="0x1_automation_registry_AutomationEpochInfo"></a>
 
-## Resource `EpochState`
+## Resource `AutomationEpochInfo`
 
 Epoch state
 
 
-<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_EpochState">EpochState</a> <b>has</b> key
+<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> <b>has</b> key
 </code></pre>
 
 
@@ -401,6 +401,16 @@ Cancelled automation task registry event
 ## Constants
 
 
+<a id="0x1_automation_registry_MAX_U64"></a>
+
+Max U64 value
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_MAX_U64">MAX_U64</a>: u128 = 18446744073709551615;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_CANCELLED"></a>
 
 
@@ -491,10 +501,20 @@ Expiry time does not go beyond upper cap duration
 
 <a id="0x1_automation_registry_EGAS_AMOUNT_UPPER"></a>
 
-Gas amount does not go beyond upper cap limit
+Gas amount must not go beyond upper cap limit
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EGAS_AMOUNT_UPPER">EGAS_AMOUNT_UPPER</a>: u64 = 7;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_EGAS_COMMITTEED_VALUE_OVERFLOW"></a>
+
+The gas committed for next epoch value is overflow after adding new max gas
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EGAS_COMMITTEED_VALUE_OVERFLOW">EGAS_COMMITTEED_VALUE_OVERFLOW</a>: u64 = 12;
 </code></pre>
 
 
@@ -635,7 +655,7 @@ Initialization of Automation Registry
     });
 
     <b>let</b> epoch_interval = epoch_interval_microsecs / <a href="automation_registry.md#0x1_automation_registry_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>;
-    <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_EpochState">EpochState</a> {
+    <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> {
         expected_epoch_duration: epoch_interval,
         epoch_interval,
         start_time: 0,
@@ -663,11 +683,11 @@ On new epoch this function will be triggered and update the automation registry 
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_EpochState">EpochState</a> {
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> {
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <b>let</b> ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
 
-    <b>let</b> epoch_state = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_EpochState">EpochState</a>&gt;(@supra_framework);
+    <b>let</b> automation_epoch_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
 
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
     <b>let</b> gas_committed_for_next_epoch = 0;
@@ -678,7 +698,7 @@ On new epoch this function will be triggered and update the automation registry 
 
         // Tasks that are active during next epoch and are not canceled
         // current_time shows the start time of the current new epoch.
-        <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a> && task.expiry_time &gt; (current_time + epoch_state.epoch_interval)) {
+        <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a> && task.expiry_time &gt; (current_time + automation_epoch_info.epoch_interval)) {
             gas_committed_for_next_epoch = gas_committed_for_next_epoch + task.max_gas_amount;
         };
 
@@ -691,8 +711,8 @@ On new epoch this function will be triggered and update the automation registry 
     });
 
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
-    epoch_state.start_time = current_time;
-    epoch_state.expected_epoch_duration = epoch_state.epoch_interval;
+    automation_epoch_info.start_time = current_time;
+    automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
 }
 </code></pre>
 
@@ -871,7 +891,7 @@ Deducts the automation fee from the user's account based on the selected expiry 
 Registers a new automation task entry.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register">register</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, expiry_time: u64, max_gas_amount: u64, gas_price_cap: u64, tx_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register">register</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, expiry_time: u64, max_gas_amount: u64, gas_price_cap: u64, tx_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
 </code></pre>
 
 
@@ -880,16 +900,16 @@ Registers a new automation task entry.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register">register</a>(
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register">register</a>(
     owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
     expiry_time: u64,
     max_gas_amount: u64,
     gas_price_cap: u64,
     tx_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
-) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_EpochState">EpochState</a> {
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> {
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
-    <b>let</b> epoch_state = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_EpochState">EpochState</a>&gt;(@supra_framework);
+    <b>let</b> automation_epoch_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
     //Well-formedness check of payload_tx is done in <b>native</b> layer beforehand.
 
     <b>let</b> registration_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
@@ -899,7 +919,7 @@ Registers a new automation task entry.
 
     // Check that task is valid at least in the next epoch
     <b>assert</b>!(
-        expiry_time &gt; (epoch_state.start_time + epoch_state.epoch_interval),
+        expiry_time &gt; (automation_epoch_info.start_time + automation_epoch_info.epoch_interval),
         <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_BEFORE_NEXT_EPOCH">EEXPIRY_BEFORE_NEXT_EPOCH</a>
     );
 
@@ -907,7 +927,10 @@ Registers a new automation task entry.
     <b>assert</b>!(max_gas_amount &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EINVALID_MAX_GAS_AMOUNT">EINVALID_MAX_GAS_AMOUNT</a>);
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&tx_hash) == <a href="automation_registry.md#0x1_automation_registry_TXN_HASH_LENGTH">TXN_HASH_LENGTH</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_TXN_HASH">EINVALID_TXN_HASH</a>);
 
-    <b>let</b> committed_gas = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch + max_gas_amount;
+    <b>let</b> committed_gas = (<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch <b>as</b> u128) + (max_gas_amount <b>as</b> u128);
+    <b>assert</b>!(committed_gas &lt;= <a href="automation_registry.md#0x1_automation_registry_MAX_U64">MAX_U64</a>, <a href="automation_registry.md#0x1_automation_registry_EGAS_COMMITTEED_VALUE_OVERFLOW">EGAS_COMMITTEED_VALUE_OVERFLOW</a>);
+
+    <b>let</b> committed_gas = (committed_gas <b>as</b> u64);
     <b>assert</b>!(committed_gas &lt; <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.automation_gas_limit, <a href="automation_registry.md#0x1_automation_registry_EGAS_AMOUNT_UPPER">EGAS_AMOUNT_UPPER</a>);
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = committed_gas;
     <b>let</b> task_index = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index;
@@ -972,8 +995,8 @@ Committed gas-limit is updated by reducing it with the max-gas-amount of the can
     <b>if</b> (automation_task_metadata.state == <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
         <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, id);
     } <b>else</b> <b>if</b> (automation_task_metadata.state == <a href="automation_registry.md#0x1_automation_registry_ACTIVE">ACTIVE</a>) {
-        automation_task_metadata.state = <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a>;
-        <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_update_value">enumerable_map::update_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, id, automation_task_metadata);
+        <b>let</b> automation_task_metadata_mut = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_mut">enumerable_map::get_value_mut</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, id);
+        automation_task_metadata_mut.state = <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a>;
     };
 
     // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
@@ -983,7 +1006,7 @@ Committed gas-limit is updated by reducing it with the max-gas-amount of the can
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <a href="automation_registry.md#0x1_automation_registry_refund_automation_task_fee">refund_automation_task_fee</a>(
         <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner),
-        automation_task_metadata,
+        &automation_task_metadata,
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.automation_unit_price
     );
 }
@@ -1000,7 +1023,7 @@ Committed gas-limit is updated by reducing it with the max-gas-amount of the can
 Refunds the automation task fee to the user who has removed their task registration from the list.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_automation_task_fee">refund_automation_task_fee</a>(user: <b>address</b>, automation_task_metadata: <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, automation_unit_price: u64)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_automation_task_fee">refund_automation_task_fee</a>(user: <b>address</b>, automation_task_metadata: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, automation_unit_price: u64)
 </code></pre>
 
 
@@ -1011,7 +1034,7 @@ Refunds the automation task fee to the user who has removed their task registrat
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_automation_task_fee">refund_automation_task_fee</a>(
     user: <b>address</b>,
-    automation_task_metadata: <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a>,
+    automation_task_metadata: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a>,
     automation_unit_price: u64,
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
@@ -1043,10 +1066,10 @@ Update epoch interval in registry while actually update happens in block module
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_epoch_interval_in_registry">update_epoch_interval_in_registry</a>(epoch_interval_microsecs: u64) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_EpochState">EpochState</a> {
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_epoch_interval_in_registry">update_epoch_interval_in_registry</a>(epoch_interval_microsecs: u64) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> {
     <b>if</b> (<b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework)) {
-        <b>let</b> epoch_state = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_EpochState">EpochState</a>&gt;(@supra_framework);
-        epoch_state.epoch_interval = epoch_interval_microsecs / <a href="automation_registry.md#0x1_automation_registry_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>;
+        <b>let</b> automation_epoch_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
+        automation_epoch_info.epoch_interval = epoch_interval_microsecs / <a href="automation_registry.md#0x1_automation_registry_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>;
     };
 }
 </code></pre>
