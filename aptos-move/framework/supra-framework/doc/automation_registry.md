@@ -451,10 +451,10 @@ The default Automation unit price for per second, in Quants
 
 <a id="0x1_automation_registry_DEFAULT_DURATION_UPPER_LIMIT"></a>
 
-The default upper limit duration for automation task, specified in seconds (30 days).
+The default upper limit duration for automation task, specified in seconds (30.4 days).
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_DEFAULT_DURATION_UPPER_LIMIT">DEFAULT_DURATION_UPPER_LIMIT</a>: u64 = 2592000;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_DEFAULT_DURATION_UPPER_LIMIT">DEFAULT_DURATION_UPPER_LIMIT</a>: u64 = 2626560;
 </code></pre>
 
 
