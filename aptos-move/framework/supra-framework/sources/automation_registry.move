@@ -45,8 +45,8 @@ module supra_framework::automation_registry {
 
     /// The default automation task gas limit
     const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 100_000_000;
-    /// The default upper limit duration for automation task, specified in seconds (30 days).
-    const DEFAULT_DURATION_UPPER_LIMIT: u64 = 2_592_000;
+    /// The default upper limit duration for automation task, specified in seconds (30.4 days).
+    const DEFAULT_DURATION_UPPER_LIMIT: u64 = 2_626_560;
     /// The default Automation unit price for per second, in Quants
     const DEFAULT_AUTOMATION_UNIT_PRICE: u64 = 1000;
     /// The lenght of the transaction hash.
