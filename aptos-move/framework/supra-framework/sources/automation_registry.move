@@ -361,7 +361,6 @@ module supra_framework::automation_registry {
         automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
 
         event::emit(CancelledAutomationTask { id: automation_task_metadata.id });
-        let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         refund_automation_task_fee(
             signer::address_of(owner),
             &automation_task_metadata,
