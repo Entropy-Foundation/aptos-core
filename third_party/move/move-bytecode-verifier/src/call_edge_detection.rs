@@ -64,7 +64,9 @@ impl<'a> CallEdgeDetector<'a> {
                             let called_function_name = module.identifier_at(called_function_handle.name);
                             let module_id = module.self_id();
                             let source_module = module_id.address();
-                            let target_module = module.address_identifiers()[called_function_handle.module.0 as usize];
+                            let self_address = module.self_id().address().clone();
+                            let target_module = module.address_identifiers().get(called_function_handle.module.0 as usize)
+                                .unwrap_or_else(|| &self_address);
                             println!(
                                 "  Calls: {} from module: {:x} to module: {:x}",
                                 called_function_name, source_module, target_module
@@ -76,7 +78,9 @@ impl<'a> CallEdgeDetector<'a> {
                             let called_function_name = module.identifier_at(called_function_handle.name);
                             let module_id = module.self_id();
                             let source_module = module_id.address();
-                            let target_module = module.address_identifiers()[called_function_handle.module.0 as usize];
+                            let self_address = module.self_id().address().clone();
+                            let target_module = module.address_identifiers().get(called_function_handle.module.0 as usize)
+                                .unwrap_or_else(|| &self_address);
                             println!(
                                 "  Calls: {} from module: {:x} to module: {:x}",
                                 called_function_name, source_module, target_module
@@ -96,7 +100,6 @@ impl<'a> CallEdgeDetector<'a> {
             }
         }
     }
-    //TODO return edge, where is the after the function call finish
     //TODO how to add gas metering for distinguishing cross container and in container function call?
     //TODO how the gas should be calculated for cross container function call?
 }
