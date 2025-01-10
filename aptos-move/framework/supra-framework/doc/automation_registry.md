@@ -14,7 +14,6 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `AutomationTaskMetaData`](#0x1_automation_registry_AutomationTaskMetaData)
 -  [Struct `FeeWithdrawnAdmin`](#0x1_automation_registry_FeeWithdrawnAdmin)
 -  [Struct `RefundFeeUser`](#0x1_automation_registry_RefundFeeUser)
--  [Struct `AutomationRegistryConfigUpdate`](#0x1_automation_registry_AutomationRegistryConfigUpdate)
 -  [Struct `CancelledAutomationTask`](#0x1_automation_registry_CancelledAutomationTask)
 -  [Constants](#@Constants_0)
 -  [Function `initialize`](#0x1_automation_registry_initialize)
@@ -36,6 +35,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
+<b>use</b> <a href="config_buffer.md#0x1_config_buffer">0x1::config_buffer</a>;
 <b>use</b> <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map">0x1::enumerable_map</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
@@ -54,7 +54,8 @@ This contract is part of the Supra Framework and is designed to manage automated
 Automation registry config
 
 
-<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> <b>has</b> store, key
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> <b>has</b> <b>copy</b>, drop, store, key
 </code></pre>
 
 
@@ -321,47 +322,6 @@ Withdraw user's registration fee event
 </dd>
 <dt>
 <code>amount: u64</code>
-</dt>
-<dd>
-
-</dd>
-</dl>
-
-
-</details>
-
-<a id="0x1_automation_registry_AutomationRegistryConfigUpdate"></a>
-
-## Struct `AutomationRegistryConfigUpdate`
-
-Update Automation Registry Config event
-
-
-<pre><code>#[<a href="event.md#0x1_event">event</a>]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfigUpdate">AutomationRegistryConfigUpdate</a> <b>has</b> drop, store
-</code></pre>
-
-
-
-<details>
-<summary>Fields</summary>
-
-
-<dl>
-<dt>
-<code>automation_gas_limit: u64</code>
-</dt>
-<dd>
-
-</dd>
-<dt>
-<code>duration_upper_limit: u64</code>
-</dt>
-<dd>
-
-</dd>
-<dt>
-<code>automation_unit_price: u64</code>
 </dt>
 <dd>
 
@@ -700,7 +660,7 @@ On new epoch this function will be triggered and update the automation registry 
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> {
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <b>let</b> ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
 
@@ -726,6 +686,14 @@ On new epoch this function will be triggered and update the automation registry 
             task.state = <a href="automation_registry.md#0x1_automation_registry_ACTIVE">ACTIVE</a>;
         }
     });
+
+    <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;()) {
+        <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;();
+        <b>let</b> automation_registry_config = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;(@supra_framework);
+        automation_registry_config.automation_unit_price = buffer.automation_unit_price;
+        automation_registry_config.duration_upper_limit = buffer.duration_upper_limit;
+        automation_registry_config.automation_gas_limit = buffer.automation_gas_limit;
+    };
 
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
     automation_epoch_info.start_time = current_time;
@@ -818,24 +786,21 @@ Update Automation Registry Config
     automation_gas_limit: u64,
     duration_upper_limit: u64,
     automation_unit_price: u64,
-) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
-    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
-    <b>let</b> automation_registry_config = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;(@supra_framework);
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
 
     <b>assert</b>!(
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &lt; automation_gas_limit,
         <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_AUTOMATION_GAS_LIMIT">EUNACCEPTABLE_AUTOMATION_GAS_LIMIT</a>
     );
 
-    automation_registry_config.automation_gas_limit = automation_gas_limit;
-    automation_registry_config.duration_upper_limit = duration_upper_limit;
-    automation_registry_config.automation_unit_price = automation_unit_price;
-
-    <a href="event.md#0x1_event_emit">event::emit</a>(
-        <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfigUpdate">AutomationRegistryConfigUpdate</a> { automation_gas_limit, duration_upper_limit, automation_unit_price }
-    );
+    <b>let</b> automation_registry_config = <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
+        automation_gas_limit, duration_upper_limit, automation_unit_price
+    };
+    <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(<b>copy</b> automation_registry_config);
+    <a href="event.md#0x1_event_emit">event::emit</a>(automation_registry_config);
 }
 </code></pre>
 
