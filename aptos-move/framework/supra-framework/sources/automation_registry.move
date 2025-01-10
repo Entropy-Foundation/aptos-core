@@ -42,6 +42,8 @@ module supra_framework::automation_registry {
     const EALREADY_CANCELLED: u64 = 11;
     /// The gas committed for next epoch value is overflow after adding new max gas
     const EGAS_COMMITTEED_VALUE_OVERFLOW: u64 = 12;
+    /// The gas committed for next epoch value is underflow after remove old max gas
+    const EGAS_COMMITTEED_VALUE_UNDERFLOW: u64 = 13;
 
     /// The default automation task gas limit
     const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 100_000_000;
@@ -347,7 +349,7 @@ module supra_framework::automation_registry {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         assert!(enumerable_map::contains(&automation_registry.tasks, id), EAUTOMATION_TASK_NOT_FOUND);
 
-        let automation_task_metadata = enumerable_map::get_value(&automation_registry.tasks, id);
+        let automation_task_metadata = enumerable_map::get_value(&mut automation_registry.tasks, id);
         assert!(automation_task_metadata.owner == signer::address_of(owner), EUNAUTHORIZED_TASK_OWNER);
         assert!(automation_task_metadata.state != CANCELLED, EALREADY_CANCELLED);
         if (automation_task_metadata.state == PENDING) {
@@ -357,6 +359,10 @@ module supra_framework::automation_registry {
             automation_task_metadata_mut.state = CANCELLED;
         };
 
+        assert!(
+            automation_registry.gas_committed_for_next_epoch >= automation_task_metadata.max_gas_amount,
+            EGAS_COMMITTEED_VALUE_UNDERFLOW
+        );
         // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
         automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
 
