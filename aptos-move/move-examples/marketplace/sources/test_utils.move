@@ -12,7 +12,7 @@ module marketplace::test_utils {
 
     use aptos_token::token as tokenv1;
     use aptos_token_objects::token::Token;
-    use aptos_token_objects::aptos_token;
+    use aptos_token_objects::supra_token;
     use aptos_token_objects::collection::Collection;
 
     use marketplace::fee_schedule::{Self, FeeSchedule};
@@ -67,7 +67,7 @@ module marketplace::test_utils {
     public fun mint_tokenv2_with_collection(seller: &signer): (Object<Collection>, Object<Token>) {
         let collection_name = string::utf8(b"collection_name");
 
-        let collection_object = aptos_token::create_collection_object(
+        let collection_object = supra_token::create_collection_object(
             seller,
             string::utf8(b"collection description"),
             2,
@@ -86,7 +86,7 @@ module marketplace::test_utils {
             100,
         );
 
-        let aptos_token = aptos_token::mint_token_object(
+        let supra_token = supra_token::mint_token_object(
             seller,
             collection_name,
             string::utf8(b"description"),
@@ -96,7 +96,7 @@ module marketplace::test_utils {
             vector::empty(),
             vector::empty(),
         );
-        (object::convert(collection_object), object::convert(aptos_token))
+        (object::convert(collection_object), object::convert(supra_token))
     }
 
     public fun mint_tokenv2_with_collection_royalty(
@@ -106,7 +106,7 @@ module marketplace::test_utils {
     ): (Object<Collection>, Object<Token>) {
         let collection_name = string::utf8(b"collection_name");
 
-        let collection_object = aptos_token::create_collection_object(
+        let collection_object = supra_token::create_collection_object(
             seller,
             string::utf8(b"collection description"),
             2,
@@ -125,7 +125,7 @@ module marketplace::test_utils {
             royalty_denominator,
         );
 
-        let aptos_token = aptos_token::mint_token_object(
+        let supra_token = supra_token::mint_token_object(
             seller,
             collection_name,
             string::utf8(b"description"),
@@ -135,7 +135,7 @@ module marketplace::test_utils {
             vector::empty(),
             vector::empty(),
         );
-        (object::convert(collection_object), object::convert(aptos_token))
+        (object::convert(collection_object), object::convert(supra_token))
     }
 
     public fun mint_tokenv2(seller: &signer): Object<Token> {
@@ -146,7 +146,7 @@ module marketplace::test_utils {
     public fun mint_tokenv2_additional(seller: &signer): Object<Token> {
         let collection_name = string::utf8(b"collection_name");
 
-        let aptos_token = aptos_token::mint_token_object(
+        let supra_token = supra_token::mint_token_object(
             seller,
             collection_name,
             string::utf8(b"description"),
@@ -156,7 +156,7 @@ module marketplace::test_utils {
             vector::empty(),
             vector::empty(),
         );
-        object::convert(aptos_token)
+        object::convert(supra_token)
     }
 
     public fun mint_tokenv1(seller: &signer): tokenv1::TokenId {
