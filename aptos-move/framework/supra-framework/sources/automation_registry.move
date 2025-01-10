@@ -9,6 +9,7 @@ module supra_framework::automation_registry {
     use supra_std::enumerable_map::{Self, EnumerableMap};
 
     use supra_framework::account::{Self, SignerCapability};
+    use supra_framework::config_buffer;
     use supra_framework::event;
     use supra_framework::supra_account;
     use supra_framework::system_addresses;
@@ -65,8 +66,9 @@ module supra_framework::automation_registry {
     const ACTIVE: u8 = 1;
     const CANCELLED: u8 = 2;
 
+    #[event]
     /// Automation registry config
-    struct AutomationRegistryConfig has key, store {
+    struct AutomationRegistryConfig has key, store, drop, copy {
         /// Automation task max gas limit
         automation_gas_limit: u64,
         /// Automation task duration upper limit.
@@ -141,14 +143,6 @@ module supra_framework::automation_registry {
     }
 
     #[event]
-    /// Update Automation Registry Config event
-    struct AutomationRegistryConfigUpdate has drop, store {
-        automation_gas_limit: u64,
-        duration_upper_limit: u64,
-        automation_unit_price: u64,
-    }
-
-    #[event]
     /// Cancelled automation task registry event
     struct CancelledAutomationTask has drop, store {
         id: u64
@@ -186,7 +180,7 @@ module supra_framework::automation_registry {
     }
 
     /// On new epoch this function will be triggered and update the automation registry state
-    public(friend) fun on_new_epoch() acquires AutomationRegistry, AutomationEpochInfo {
+    public(friend) fun on_new_epoch() acquires AutomationRegistry, AutomationEpochInfo, AutomationRegistryConfig {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let ids = enumerable_map::get_map_list(&automation_registry.tasks);
 
@@ -212,6 +206,14 @@ module supra_framework::automation_registry {
                 task.state = ACTIVE;
             }
         });
+
+        if (config_buffer::does_exist<AutomationRegistryConfig>()) {
+            let buffer = config_buffer::extract<AutomationRegistryConfig>();
+            let automation_registry_config = borrow_global_mut<AutomationRegistryConfig>(@supra_framework);
+            automation_registry_config.automation_unit_price = buffer.automation_unit_price;
+            automation_registry_config.duration_upper_limit = buffer.duration_upper_limit;
+            automation_registry_config.automation_gas_limit = buffer.automation_gas_limit;
+        };
 
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
         automation_epoch_info.start_time = current_time;
@@ -244,24 +246,21 @@ module supra_framework::automation_registry {
         automation_gas_limit: u64,
         duration_upper_limit: u64,
         automation_unit_price: u64,
-    ) acquires AutomationRegistryConfig, AutomationRegistry {
+    ) acquires AutomationRegistry {
         system_addresses::assert_supra_framework(supra_framework);
 
-        let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
-        let automation_registry_config = borrow_global_mut<AutomationRegistryConfig>(@supra_framework);
+        let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
 
         assert!(
             automation_registry.gas_committed_for_next_epoch < automation_gas_limit,
             EUNACCEPTABLE_AUTOMATION_GAS_LIMIT
         );
 
-        automation_registry_config.automation_gas_limit = automation_gas_limit;
-        automation_registry_config.duration_upper_limit = duration_upper_limit;
-        automation_registry_config.automation_unit_price = automation_unit_price;
-
-        event::emit(
-            AutomationRegistryConfigUpdate { automation_gas_limit, duration_upper_limit, automation_unit_price }
-        );
+        let automation_registry_config = AutomationRegistryConfig {
+            automation_gas_limit, duration_upper_limit, automation_unit_price
+        };
+        config_buffer::upsert(copy automation_registry_config);
+        event::emit(automation_registry_config);
     }
 
     /// Deducts the automation fee from the user's account based on the selected expiry time.
@@ -509,9 +508,11 @@ module supra_framework::automation_registry {
             20,
             PARENT_HASH,
         );
-
+        config_buffer::initialize(framework);
         // Next epoch gas committed gas is less than the new limit value.
         update_config(framework, 75, DEFAULT_DURATION_UPPER_LIMIT, DEFAULT_AUTOMATION_UNIT_PRICE);
+
+        on_new_epoch();
         let state = borrow_global<AutomationRegistryConfig>(@supra_framework);
         assert!(state.automation_gas_limit == 75, 1);
     }
