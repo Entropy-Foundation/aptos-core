@@ -42,7 +42,7 @@ This module defines a struct storing the metadata of the block and new block eve
 
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
-<b>use</b> <a href="automation_registry_state.md#0x1_automation_registry_state">0x1::automation_registry_state</a>;
+<b>use</b> <a href="automation_registry.md#0x1_automation_registry">0x1::automation_registry</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
@@ -510,6 +510,9 @@ Can only be called as part of the Supra governance proposal process established 
     <b>let</b> old_epoch_interval = block_resource.epoch_interval;
     block_resource.epoch_interval = new_epoch_interval;
 
+    // <b>update</b> epoch interval in registry contract
+    <a href="automation_registry.md#0x1_automation_registry_update_epoch_interval_in_registry">automation_registry::update_epoch_interval_in_registry</a>(new_epoch_interval);
+
     <b>if</b> (std::features::module_event_migration_enabled()) {
         <a href="event.md#0x1_event_emit">event::emit</a>(
             <a href="block.md#0x1_block_UpdateEpochInterval">UpdateEpochInterval</a> { old_epoch_interval, new_epoch_interval },
@@ -666,11 +669,19 @@ The runtime always runs this before executing the transactions in a block.
     previous_block_votes_bitvec: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
     <a href="timestamp.md#0x1_timestamp">timestamp</a>: u64
 ) <b>acquires</b> <a href="block.md#0x1_block_BlockResource">BlockResource</a>, <a href="block.md#0x1_block_CommitHistory">CommitHistory</a> {
-    <b>let</b> epoch_interval = <a href="block.md#0x1_block_block_prologue_common">block_prologue_common</a>(&vm, <a href="../../aptos-stdlib/../move-stdlib/doc/hash.md#0x1_hash">hash</a>, epoch, round, proposer, failed_proposer_indices, previous_block_votes_bitvec, <a href="timestamp.md#0x1_timestamp">timestamp</a>);
+    <b>let</b> epoch_interval = <a href="block.md#0x1_block_block_prologue_common">block_prologue_common</a>(
+        &vm,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/hash.md#0x1_hash">hash</a>,
+        epoch,
+        round,
+        proposer,
+        failed_proposer_indices,
+        previous_block_votes_bitvec,
+        <a href="timestamp.md#0x1_timestamp">timestamp</a>
+    );
     <a href="randomness.md#0x1_randomness_on_new_block">randomness::on_new_block</a>(&vm, epoch, round, <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>());
     <b>if</b> (<a href="timestamp.md#0x1_timestamp">timestamp</a> - <a href="reconfiguration.md#0x1_reconfiguration_last_reconfiguration_time">reconfiguration::last_reconfiguration_time</a>() &gt;= epoch_interval) {
         <a href="reconfiguration.md#0x1_reconfiguration_reconfigure">reconfiguration::reconfigure</a>();
-        <a href="automation_registry_state.md#0x1_automation_registry_state_on_new_epoch">automation_registry_state::on_new_epoch</a>(epoch_interval);
     };
 }
 </code></pre>
@@ -720,7 +731,6 @@ The runtime always runs this before executing the transactions in a block.
 
     <b>if</b> (<a href="timestamp.md#0x1_timestamp">timestamp</a> - <a href="reconfiguration.md#0x1_reconfiguration_last_reconfiguration_time">reconfiguration::last_reconfiguration_time</a>() &gt;= epoch_interval) {
         <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_try_start">reconfiguration_with_dkg::try_start</a>();
-        <a href="automation_registry_state.md#0x1_automation_registry_state_on_new_epoch">automation_registry_state::on_new_epoch</a>(epoch_interval);
     };
 }
 </code></pre>
@@ -873,7 +883,10 @@ new block event for WriteSetPayload.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="block.md#0x1_block_emit_writeset_block_event">emit_writeset_block_event</a>(vm_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, fake_block_hash: <b>address</b>) <b>acquires</b> <a href="block.md#0x1_block_BlockResource">BlockResource</a>, <a href="block.md#0x1_block_CommitHistory">CommitHistory</a> {
+<pre><code><b>public</b> <b>fun</b> <a href="block.md#0x1_block_emit_writeset_block_event">emit_writeset_block_event</a>(
+    vm_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    fake_block_hash: <b>address</b>
+) <b>acquires</b> <a href="block.md#0x1_block_BlockResource">BlockResource</a>, <a href="block.md#0x1_block_CommitHistory">CommitHistory</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_vm">system_addresses::assert_vm</a>(vm_signer);
     <b>let</b> block_metadata_ref = <b>borrow_global_mut</b>&lt;<a href="block.md#0x1_block_BlockResource">BlockResource</a>&gt;(@supra_framework);
     block_metadata_ref.height = <a href="event.md#0x1_event_counter">event::counter</a>(&block_metadata_ref.new_block_events);
