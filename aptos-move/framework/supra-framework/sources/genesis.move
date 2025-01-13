@@ -8,7 +8,6 @@ module supra_framework::genesis {
 
     use supra_framework::account;
     use supra_framework::aggregator_factory;
-    use supra_framework::automation_registry;
     use supra_framework::block;
     use supra_framework::chain_id;
     use supra_framework::chain_status;
@@ -195,7 +194,6 @@ module supra_framework::genesis {
         reconfiguration::initialize(&supra_framework_account);
         block::initialize(&supra_framework_account, epoch_interval_microsecs);
         state_storage::initialize(&supra_framework_account);
-        automation_registry::initialize(&supra_framework_account, epoch_interval_microsecs);
         timestamp::set_time_has_started(&supra_framework_account, genesis_timestamp_in_microseconds);
     }
 

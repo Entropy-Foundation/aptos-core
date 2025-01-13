@@ -15,7 +15,6 @@ module supra_framework::automation_registry {
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
 
-    friend supra_framework::genesis;
     friend supra_framework::block;
     friend supra_framework::reconfiguration;
 
@@ -46,12 +45,6 @@ module supra_framework::automation_registry {
     /// The gas committed for next epoch value is underflow after remove old max gas
     const EGAS_COMMITTEED_VALUE_UNDERFLOW: u64 = 13;
 
-    /// The default automation task gas limit
-    const DEFAULT_AUTOMATION_GAS_LIMIT: u64 = 100_000_000;
-    /// The default upper limit duration for automation task, specified in seconds (30.4 days).
-    const DEFAULT_DURATION_UPPER_LIMIT: u64 = 2_626_560;
-    /// The default Automation unit price for per second, in Quants
-    const DEFAULT_AUTOMATION_UNIT_PRICE: u64 = 1000;
     /// The lenght of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
     /// Conversion factor between microseconds and second
@@ -149,7 +142,13 @@ module supra_framework::automation_registry {
     }
 
     /// Initialization of Automation Registry
-    public fun initialize(supra_framework: &signer, epoch_interval_microsecs: u64) {
+    public fun initialize(
+        supra_framework: &signer,
+        epoch_interval_microsecs: u64,
+        automation_gas_limit: u64,
+        duration_upper_limit: u64,
+        automation_unit_price: u64,
+    ) {
         system_addresses::assert_supra_framework(supra_framework);
 
         let (registry_fee_resource_signer, registry_fee_address_signer_cap) = account::create_resource_account(
@@ -166,9 +165,9 @@ module supra_framework::automation_registry {
         });
 
         move_to(supra_framework, AutomationRegistryConfig {
-            automation_gas_limit: DEFAULT_AUTOMATION_GAS_LIMIT,
-            duration_upper_limit: DEFAULT_DURATION_UPPER_LIMIT,
-            automation_unit_price: DEFAULT_AUTOMATION_UNIT_PRICE,
+            automation_gas_limit,
+            duration_upper_limit,
+            automation_unit_price,
         });
 
         let epoch_interval = epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR;
@@ -207,6 +206,7 @@ module supra_framework::automation_registry {
             }
         });
 
+        // Apply the latest configuration if any parameter has been updated.
         if (config_buffer::does_exist<AutomationRegistryConfig>()) {
             let buffer = config_buffer::extract<AutomationRegistryConfig>();
             let automation_registry_config = borrow_global_mut<AutomationRegistryConfig>(@supra_framework);
@@ -451,6 +451,15 @@ module supra_framework::automation_registry {
     }
 
     #[test_only]
+    /// The default automation task gas limit
+    const AUTOMATION_GAS_LIMIT_TEST: u64 = 100_000_000;
+    #[test_only]
+    /// The default upper limit duration for automation task, specified in seconds (30.4 days).
+    const DURATION_UPPER_LIMIT_TEST: u64 = 2_626_560;
+    #[test_only]
+    /// The default Automation unit price for per second, in Quants
+    const AUTOMATION_UNIT_PRICE_TEST: u64 = 1000;
+    #[test_only]
     /// Value defined in microsecond
     const EPOCH_INTERVAL_FOR_TEST: u64 = 7200000000;
     #[test_only]
@@ -475,7 +484,13 @@ module supra_framework::automation_registry {
 
         timestamp::set_time_has_started_for_testing(supra_framework);
 
-        initialize(supra_framework, EPOCH_INTERVAL_FOR_TEST);
+        initialize(
+            supra_framework,
+            EPOCH_INTERVAL_FOR_TEST,
+            AUTOMATION_GAS_LIMIT_TEST,
+            DURATION_UPPER_LIMIT_TEST,
+            AUTOMATION_UNIT_PRICE_TEST
+        );
     }
 
     #[test_only]
@@ -491,13 +506,13 @@ module supra_framework::automation_registry {
     ) acquires AutomationRegistry, AutomationEpochInfo, AutomationRegistryConfig {
         initialize_registry_test(supra_framework, user);
 
-        let payload = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f4041424344";
+        let payload = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132";
         let parent_hash = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
         register(user, payload, 86400, 1000, 100000, parent_hash);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
-    fun check_automation_gas_limit_success_update(
+    fun check_update_config_success_update(
         framework: &signer, user: &signer
     ) acquires AutomationRegistry, AutomationEpochInfo, AutomationRegistryConfig {
         initialize_registry_test(framework, user);
@@ -510,11 +525,18 @@ module supra_framework::automation_registry {
         );
         config_buffer::initialize(framework);
         // Next epoch gas committed gas is less than the new limit value.
-        update_config(framework, 75, DEFAULT_DURATION_UPPER_LIMIT, DEFAULT_AUTOMATION_UNIT_PRICE);
+        // Configration parameter will update after on new epoch
+        update_config(framework, 75, 1_626_560, 1005);
 
+        let state = borrow_global<AutomationRegistryConfig>(@supra_framework);
+        assert!(state.automation_gas_limit == AUTOMATION_GAS_LIMIT_TEST, 1);
+
+        // Automation gas limit
         on_new_epoch();
         let state = borrow_global<AutomationRegistryConfig>(@supra_framework);
-        assert!(state.automation_gas_limit == 75, 1);
+        assert!(state.automation_gas_limit == 75, 2);
+        assert!(state.duration_upper_limit == 1_626_560, 3);
+        assert!(state.automation_unit_price == 1005, 4);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
@@ -532,7 +554,7 @@ module supra_framework::automation_registry {
         );
 
         // Next epoch gas committed gas is greater than the new limit value.
-        update_config(framework, 45, DEFAULT_DURATION_UPPER_LIMIT, DEFAULT_AUTOMATION_UNIT_PRICE);
+        update_config(framework, 45, DURATION_UPPER_LIMIT_TEST, AUTOMATION_UNIT_PRICE_TEST);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]

@@ -393,36 +393,6 @@ Max U64 value
 
 
 
-<a id="0x1_automation_registry_DEFAULT_AUTOMATION_GAS_LIMIT"></a>
-
-The default automation task gas limit
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_DEFAULT_AUTOMATION_GAS_LIMIT">DEFAULT_AUTOMATION_GAS_LIMIT</a>: u64 = 100000000;
-</code></pre>
-
-
-
-<a id="0x1_automation_registry_DEFAULT_AUTOMATION_UNIT_PRICE"></a>
-
-The default Automation unit price for per second, in Quants
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_DEFAULT_AUTOMATION_UNIT_PRICE">DEFAULT_AUTOMATION_UNIT_PRICE</a>: u64 = 1000;
-</code></pre>
-
-
-
-<a id="0x1_automation_registry_DEFAULT_DURATION_UPPER_LIMIT"></a>
-
-The default upper limit duration for automation task, specified in seconds (30.4 days).
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_DEFAULT_DURATION_UPPER_LIMIT">DEFAULT_DURATION_UPPER_LIMIT</a>: u64 = 2626560;
-</code></pre>
-
-
-
 <a id="0x1_automation_registry_EALREADY_CANCELLED"></a>
 
 Task is already cancelled.
@@ -600,7 +570,7 @@ The lenght of the transaction hash.
 Initialization of Automation Registry
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64, automation_gas_limit: u64, duration_upper_limit: u64, automation_unit_price: u64)
 </code></pre>
 
 
@@ -609,7 +579,13 @@ Initialization of Automation Registry
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64) {
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    epoch_interval_microsecs: u64,
+    automation_gas_limit: u64,
+    duration_upper_limit: u64,
+    automation_unit_price: u64,
+) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
     <b>let</b> (registry_fee_resource_signer, registry_fee_address_signer_cap) = <a href="account.md#0x1_account_create_resource_account">account::create_resource_account</a>(
@@ -626,9 +602,9 @@ Initialization of Automation Registry
     });
 
     <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
-        automation_gas_limit: <a href="automation_registry.md#0x1_automation_registry_DEFAULT_AUTOMATION_GAS_LIMIT">DEFAULT_AUTOMATION_GAS_LIMIT</a>,
-        duration_upper_limit: <a href="automation_registry.md#0x1_automation_registry_DEFAULT_DURATION_UPPER_LIMIT">DEFAULT_DURATION_UPPER_LIMIT</a>,
-        automation_unit_price: <a href="automation_registry.md#0x1_automation_registry_DEFAULT_AUTOMATION_UNIT_PRICE">DEFAULT_AUTOMATION_UNIT_PRICE</a>,
+        automation_gas_limit,
+        duration_upper_limit,
+        automation_unit_price,
     });
 
     <b>let</b> epoch_interval = epoch_interval_microsecs / <a href="automation_registry.md#0x1_automation_registry_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>;
@@ -687,6 +663,7 @@ On new epoch this function will be triggered and update the automation registry 
         }
     });
 
+    // Apply the latest configuration <b>if</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> parameter <b>has</b> been updated.
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;()) {
         <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;();
         <b>let</b> automation_registry_config = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;(@supra_framework);
