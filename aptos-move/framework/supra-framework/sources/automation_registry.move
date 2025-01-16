@@ -59,6 +59,7 @@ module supra_framework::automation_registry {
     const ACTIVE: u8 = 1;
     const CANCELLED: u8 = 2;
 
+    #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     #[event]
     /// Automation registry config
     struct AutomationRegistryConfig has key, store, drop, copy {
@@ -70,6 +71,7 @@ module supra_framework::automation_registry {
         automation_unit_price: u64,
     }
 
+    #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     /// It tracks entries both pending and completed, organized by unique indices.
     struct AutomationRegistry has key, store {
         /// A collection of automation task entries that are active state.
@@ -84,6 +86,7 @@ module supra_framework::automation_registry {
         registry_fee_address_signer_cap: SignerCapability,
     }
 
+    #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     /// Epoch state
     struct AutomationEpochInfo has key {
         /// Epoch expected duration at the beginning of the new epoch, Based on this and actual
@@ -98,9 +101,10 @@ module supra_framework::automation_registry {
         start_time: u64,
     }
 
+    #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     #[event]
     /// `AutomationTaskMetaData` represents a single automation task item, containing metadata.
-    struct AutomationTaskMetaData has copy, store, drop {
+    struct AutomationTaskMetaData has key, copy, store, drop {
         /// Automation task index in registry
         id: u64,
         /// The address of the task owner.
