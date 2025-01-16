@@ -241,7 +241,7 @@ module supra_framework::automation_registry {
     }
 
     /// Update Automation Registry Config
-    public entry fun update_config(
+    public fun update_config(
         supra_framework: &signer,
         automation_gas_limit: u64,
         duration_upper_limit: u64,
@@ -266,11 +266,11 @@ module supra_framework::automation_registry {
     /// Deducts the automation fee from the user's account based on the selected expiry time.
     fun charge_automation_fee_from_user(
         owner: &signer,
-        automation_unit_price: u64,
+        automation_registry_config: &AutomationRegistryConfig,
         task_duration: u64,
         registry_fee_address: address
     ) {
-        let automation_base_fee = task_duration * automation_unit_price;
+        let automation_base_fee = task_duration * automation_registry_config.automation_unit_price;
         // todo : dynamic price calculation is pending
         supra_account::transfer(owner, registry_fee_address, automation_base_fee);
     }
@@ -291,14 +291,11 @@ module supra_framework::automation_registry {
         //Well-formedness check of payload_tx is done in native layer beforehand.
 
         let registration_time = timestamp::now_seconds();
-        assert!(expiry_time > registration_time, EINVALID_EXPIRY_TIME);
-        let task_duration = expiry_time - registration_time;
-        assert!(task_duration < automation_registry_config.duration_upper_limit, EEXPIRY_TIME_UPPER);
-
-        // Check that task is valid at least in the next epoch
-        assert!(
-            expiry_time > (automation_epoch_info.start_time + automation_epoch_info.epoch_interval),
-            EEXPIRY_BEFORE_NEXT_EPOCH
+        let task_duration = check_registration_task_duration(
+            expiry_time,
+            registration_time,
+            automation_registry_config,
+            automation_epoch_info
         );
 
         assert!(gas_price_cap > 0, EINVALID_GAS_PRICE);
@@ -331,9 +328,27 @@ module supra_framework::automation_registry {
 
         charge_automation_fee_from_user(
             owner,
-            automation_registry_config.automation_unit_price,
+            automation_registry_config,
             task_duration,
             automation_registry.registry_fee_address);
+    }
+
+    fun check_registration_task_duration(
+        expiry_time: u64,
+        registration_time: u64,
+        automation_registry_config: &AutomationRegistryConfig,
+        automation_epoch_info: &AutomationEpochInfo
+    ): u64 {
+        assert!(expiry_time > registration_time, EINVALID_EXPIRY_TIME);
+        let task_duration = expiry_time - registration_time;
+        assert!(task_duration < automation_registry_config.duration_upper_limit, EEXPIRY_TIME_UPPER);
+
+        // Check that task is valid at least in the next epoch
+        assert!(
+            expiry_time > (automation_epoch_info.start_time + automation_epoch_info.epoch_interval),
+            EEXPIRY_BEFORE_NEXT_EPOCH
+        );
+        task_duration
     }
 
     /// Cancel Automation task with specified id.
@@ -369,7 +384,7 @@ module supra_framework::automation_registry {
         refund_automation_task_fee(
             signer::address_of(owner),
             &automation_task_metadata,
-            automation_registry_config.automation_unit_price
+            automation_registry_config
         );
     }
 
@@ -377,12 +392,12 @@ module supra_framework::automation_registry {
     fun refund_automation_task_fee(
         user: address,
         automation_task_metadata: &AutomationTaskMetaData,
-        automation_unit_price: u64,
+        automation_registry_config: &AutomationRegistryConfig,
     ) acquires AutomationRegistry {
         let current_time = timestamp::now_seconds();
         let expiry_time_duration = automation_task_metadata.expiry_time - current_time;
 
-        let refund_amount = expiry_time_duration * automation_unit_price;
+        let refund_amount = expiry_time_duration * automation_registry_config.automation_unit_price;
         transfer_fee_to_account_internal(user, refund_amount);
         event::emit(RefundFeeUser { user, amount: refund_amount });
     }
