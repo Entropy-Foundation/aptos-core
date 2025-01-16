@@ -65,7 +65,6 @@ fn automated_txn_builder_from_task_meta() {
         tx_hash: vec![42; 32],
         max_gas_amount: 10,
         gas_price_cap: 20,
-        registration_epoch: 1,
         registration_time: 3600,
         is_active: false,
     };
@@ -134,7 +133,6 @@ fn automated_txn_build() {
         tx_hash: parent_hash.to_vec(),
         max_gas_amount: 10,
         gas_price_cap: 20,
-        registration_epoch: 1,
         registration_time: 3600,
         is_active: false,
     };
