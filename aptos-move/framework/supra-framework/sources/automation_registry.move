@@ -141,6 +141,20 @@ module supra_framework::automation_registry {
         id: u64
     }
 
+    /// This is temporary function : until we have initialization flow properly implemented
+    public fun initializate_by_default(supra_framework: &signer, epoch_interval_microsecs: u64) {
+        let default_automation_gas_limit: u64 = 100_000_000;
+        let default_duration_upper_limit: u64 = 2_626_560;
+        let default_automation_unit_price: u64 = 1000;
+        initialize(
+            supra_framework,
+            epoch_interval_microsecs,
+            default_automation_gas_limit,
+            default_duration_upper_limit,
+            default_automation_unit_price
+        );
+    }
+
     /// Initialization of Automation Registry
     public fun initialize(
         supra_framework: &signer,
