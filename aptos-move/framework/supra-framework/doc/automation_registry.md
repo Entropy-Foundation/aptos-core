@@ -16,6 +16,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `RefundFeeUser`](#0x1_automation_registry_RefundFeeUser)
 -  [Struct `CancelledAutomationTask`](#0x1_automation_registry_CancelledAutomationTask)
 -  [Constants](#@Constants_0)
+-  [Function `initializate_by_default`](#0x1_automation_registry_initializate_by_default)
 -  [Function `initialize`](#0x1_automation_registry_initialize)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
 -  [Function `withdraw_automation_task_fees`](#0x1_automation_registry_withdraw_automation_task_fees)
@@ -23,6 +24,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `update_config`](#0x1_automation_registry_update_config)
 -  [Function `charge_automation_fee_from_user`](#0x1_automation_registry_charge_automation_fee_from_user)
 -  [Function `register`](#0x1_automation_registry_register)
+-  [Function `check_registration_task_duration`](#0x1_automation_registry_check_registration_task_duration)
 -  [Function `cancel_task`](#0x1_automation_registry_cancel_task)
 -  [Function `refund_automation_task_fee`](#0x1_automation_registry_refund_automation_task_fee)
 -  [Function `update_epoch_interval_in_registry`](#0x1_automation_registry_update_epoch_interval_in_registry)
@@ -563,6 +565,40 @@ The lenght of the transaction hash.
 
 
 
+<a id="0x1_automation_registry_initializate_by_default"></a>
+
+## Function `initializate_by_default`
+
+This is temporary function : until we have initialization flow properly implemented
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initializate_by_default">initializate_by_default</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initializate_by_default">initializate_by_default</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64) {
+    <b>let</b> default_automation_gas_limit: u64 = 100_000_000;
+    <b>let</b> default_duration_upper_limit: u64 = 2_626_560;
+    <b>let</b> default_automation_unit_price: u64 = 1000;
+    <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(
+        supra_framework,
+        epoch_interval_microsecs,
+        default_automation_gas_limit,
+        default_duration_upper_limit,
+        default_automation_unit_price
+    );
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_automation_registry_initialize"></a>
 
 ## Function `initialize`
@@ -749,7 +785,7 @@ Transfers the specified fee amount from the resource account to the target accou
 Update Automation Registry Config
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, automation_gas_limit: u64, duration_upper_limit: u64, automation_unit_price: u64)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, automation_gas_limit: u64, duration_upper_limit: u64, automation_unit_price: u64)
 </code></pre>
 
 
@@ -758,7 +794,7 @@ Update Automation Registry Config
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     automation_gas_limit: u64,
     duration_upper_limit: u64,
@@ -792,7 +828,7 @@ Update Automation Registry Config
 Deducts the automation fee from the user's account based on the selected expiry time.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_charge_automation_fee_from_user">charge_automation_fee_from_user</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, automation_unit_price: u64, task_duration: u64, registry_fee_address: <b>address</b>)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_charge_automation_fee_from_user">charge_automation_fee_from_user</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, automation_registry_config: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, task_duration: u64, registry_fee_address: <b>address</b>)
 </code></pre>
 
 
@@ -803,11 +839,11 @@ Deducts the automation fee from the user's account based on the selected expiry 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_charge_automation_fee_from_user">charge_automation_fee_from_user</a>(
     owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    automation_unit_price: u64,
+    automation_registry_config: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
     task_duration: u64,
     registry_fee_address: <b>address</b>
 ) {
-    <b>let</b> automation_base_fee = task_duration * automation_unit_price;
+    <b>let</b> automation_base_fee = task_duration * automation_registry_config.automation_unit_price;
     // todo : dynamic price calculation is pending
     <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(owner, registry_fee_address, automation_base_fee);
 }
@@ -848,14 +884,11 @@ Registers a new automation task entry.
     //Well-formedness check of payload_tx is done in <b>native</b> layer beforehand.
 
     <b>let</b> registration_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
-    <b>assert</b>!(expiry_time &gt; registration_time, <a href="automation_registry.md#0x1_automation_registry_EINVALID_EXPIRY_TIME">EINVALID_EXPIRY_TIME</a>);
-    <b>let</b> task_duration = expiry_time - registration_time;
-    <b>assert</b>!(task_duration &lt; automation_registry_config.duration_upper_limit, <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_TIME_UPPER">EEXPIRY_TIME_UPPER</a>);
-
-    // Check that task is valid at least in the next epoch
-    <b>assert</b>!(
-        expiry_time &gt; (automation_epoch_info.start_time + automation_epoch_info.epoch_interval),
-        <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_BEFORE_NEXT_EPOCH">EEXPIRY_BEFORE_NEXT_EPOCH</a>
+    <b>let</b> task_duration = <a href="automation_registry.md#0x1_automation_registry_check_registration_task_duration">check_registration_task_duration</a>(
+        expiry_time,
+        registration_time,
+        automation_registry_config,
+        automation_epoch_info
     );
 
     <b>assert</b>!(gas_price_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EINVALID_GAS_PRICE">EINVALID_GAS_PRICE</a>);
@@ -888,9 +921,47 @@ Registers a new automation task entry.
 
     <a href="automation_registry.md#0x1_automation_registry_charge_automation_fee_from_user">charge_automation_fee_from_user</a>(
         owner,
-        automation_registry_config.automation_unit_price,
+        automation_registry_config,
         task_duration,
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_check_registration_task_duration"></a>
+
+## Function `check_registration_task_duration`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_check_registration_task_duration">check_registration_task_duration</a>(expiry_time: u64, registration_time: u64, automation_registry_config: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, automation_epoch_info: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">automation_registry::AutomationEpochInfo</a>): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_check_registration_task_duration">check_registration_task_duration</a>(
+    expiry_time: u64,
+    registration_time: u64,
+    automation_registry_config: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
+    automation_epoch_info: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>
+): u64 {
+    <b>assert</b>!(expiry_time &gt; registration_time, <a href="automation_registry.md#0x1_automation_registry_EINVALID_EXPIRY_TIME">EINVALID_EXPIRY_TIME</a>);
+    <b>let</b> task_duration = expiry_time - registration_time;
+    <b>assert</b>!(task_duration &lt; automation_registry_config.duration_upper_limit, <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_TIME_UPPER">EEXPIRY_TIME_UPPER</a>);
+
+    // Check that task is valid at least in the next epoch
+    <b>assert</b>!(
+        expiry_time &gt; (automation_epoch_info.start_time + automation_epoch_info.epoch_interval),
+        <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_BEFORE_NEXT_EPOCH">EEXPIRY_BEFORE_NEXT_EPOCH</a>
+    );
+    task_duration
 }
 </code></pre>
 
@@ -946,7 +1017,7 @@ Committed gas-limit is updated by reducing it with the max-gas-amount of the can
     <a href="automation_registry.md#0x1_automation_registry_refund_automation_task_fee">refund_automation_task_fee</a>(
         <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner),
         &automation_task_metadata,
-        automation_registry_config.automation_unit_price
+        automation_registry_config
     );
 }
 </code></pre>
@@ -962,7 +1033,7 @@ Committed gas-limit is updated by reducing it with the max-gas-amount of the can
 Refunds the automation task fee to the user who has removed their task registration from the list.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_automation_task_fee">refund_automation_task_fee</a>(user: <b>address</b>, automation_task_metadata: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, automation_unit_price: u64)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_automation_task_fee">refund_automation_task_fee</a>(user: <b>address</b>, automation_task_metadata: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, automation_registry_config: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>)
 </code></pre>
 
 
@@ -974,12 +1045,12 @@ Refunds the automation task fee to the user who has removed their task registrat
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_automation_task_fee">refund_automation_task_fee</a>(
     user: <b>address</b>,
     automation_task_metadata: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a>,
-    automation_unit_price: u64,
+    automation_registry_config: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
     <b>let</b> expiry_time_duration = automation_task_metadata.expiry_time - current_time;
 
-    <b>let</b> refund_amount = expiry_time_duration * automation_unit_price;
+    <b>let</b> refund_amount = expiry_time_duration * automation_registry_config.automation_unit_price;
     <a href="automation_registry.md#0x1_automation_registry_transfer_fee_to_account_internal">transfer_fee_to_account_internal</a>(user, refund_amount);
     <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_RefundFeeUser">RefundFeeUser</a> { user, amount: refund_amount });
 }
