@@ -1,4 +1,5 @@
-// Copyright (c) 2024 Supra.
+// Copyright (c) 2025 Supra.
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::transaction::EntryFunction;
 use move_core_types::account_address::AccountAddress;
@@ -112,8 +113,6 @@ pub struct AutomationTaskMetaData {
     pub(crate) max_gas_amount: u64,
     /// Maximum gas price cap for the task
     pub(crate) gas_price_cap: u64,
-    /// Registration epoch number
-    pub(crate) registration_epoch: u64,
     /// Registration epoch time
     pub(crate) registration_time: u64,
     /// Flag indicating whether the task is active.
@@ -130,7 +129,6 @@ impl AutomationTaskMetaData {
         tx_hash: Vec<u8>,
         max_gas_amount: u64,
         gas_price_cap: u64,
-        registration_epoch: u64,
         registration_time: u64,
         is_active: bool,
     ) -> Self {
@@ -142,7 +140,6 @@ impl AutomationTaskMetaData {
             tx_hash,
             max_gas_amount,
             gas_price_cap,
-            registration_epoch,
             registration_time,
             is_active,
         }
@@ -159,9 +156,11 @@ impl AutomationTaskMetaData {
     pub fn payload_tx(&self) -> &[u8] {
         &self.payload_tx
     }
+
     pub fn expiry_time(&self) -> u64 {
         self.expiry_time
     }
+
     pub fn tx_hash(&self) -> &[u8] {
         &self.tx_hash
     }
@@ -170,9 +169,6 @@ impl AutomationTaskMetaData {
         self.max_gas_amount
     }
 
-    pub fn registration_epoch(&self) -> u64 {
-        self.registration_epoch
-    }
     pub fn registration_time(&self) -> u64 {
         self.registration_time
     }

@@ -246,6 +246,51 @@ pub struct AutomatedTransactionBuilder {
     pub(crate) block_height: Option<u64>,
 }
 
+/// Getter interfaces of the builder
+impl AutomatedTransactionBuilder {
+    pub fn gas_price_cap(&self) -> &u64 {
+        &self.gas_price_cap
+    }
+
+    pub fn sender(&self) -> &Option<AccountAddress> {
+        &self.sender
+    }
+
+    pub fn sequence_number(&self) -> &Option<u64> {
+        &self.sequence_number
+    }
+
+    pub fn payload(&self) -> &Option<TransactionPayload> {
+        &self.payload
+    }
+
+    pub fn max_gas_amount(&self) -> &Option<u64> {
+        &self.max_gas_amount
+    }
+
+    pub fn gas_unit_price(&self) -> &Option<u64> {
+        &self.gas_unit_price
+    }
+    pub fn expiration_timestamp_secs(&self) -> &Option<u64> {
+        &self.expiration_timestamp_secs
+    }
+
+    pub fn chain_id(&self) -> &Option<ChainId> {
+        &self.chain_id
+    }
+    pub fn authenticator(&self) -> &Option<HashValue> {
+        &self.authenticator
+    }
+
+    pub fn block_height(&self) -> &Option<u64> {
+        &self.block_height
+    }
+
+    pub fn expiry_threshold(&self) -> &u64 {
+        &self.expiry_threshold_secs
+    }
+}
+
 impl AutomatedTransactionBuilder {
     pub fn new() -> Self {
         Self::default()
