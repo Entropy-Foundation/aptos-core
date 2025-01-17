@@ -63,12 +63,24 @@ module supra_framework::automation_registry {
     #[event]
     /// Automation registry config
     struct AutomationRegistryConfig has key, store, drop, copy {
-        /// Automation task max gas limit
-        automation_gas_limit: u64,
-        /// Automation task duration upper limit.
-        duration_upper_limit: u64,
-        /// Automation task unit price per second
-        automation_unit_price: u64,
+        /// Maximum allowable duration (in seconds) from the registration time that an automation task can run.
+        /// If the expiration time exceeds this duration, the task registration will fail.
+        task_duration_cap_in_secs: u64,
+        /// Maximum gas allocation for automation tasks per epoch
+        /// Exceeding this limit during task registration will cause failure and is used in fee calculation.
+        registry_max_gas_cap: u64,
+        /// Base fee per second for the full capacity of the automation registry, measured in quants/sec.
+        /// The capacity is considered full if the total committed gas of all registered tasks equals registry_max_gas_cap.
+        automation_base_fee_in_quants_per_sec: u64,
+        /// Flat registration fee charged by default for each task.
+        flat_registration_fee_in_quants: u64,
+        /// Ratio (in the range [0;100]) representing the acceptable upper limit of committed gas amount
+        /// relative to registry_max_gas_cap. Beyond this threshold, congestion fees apply.
+        congestion_threshold_percentage: u8,
+        /// Base fee per second for the full capacity of the automation registry when the congestion threshold is exceeded.
+        congestion_base_fee_in_quants_per_sec: u64,
+        /// System-configured penalty charged for task cancellations.
+        cancellation_fee_in_qunats: u64,
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -147,15 +159,16 @@ module supra_framework::automation_registry {
 
     /// This is temporary function : until we have initialization flow properly implemented
     public fun initializate_by_default(supra_framework: &signer, epoch_interval_microsecs: u64) {
-        let default_automation_gas_limit: u64 = 100_000_000;
-        let default_duration_upper_limit: u64 = 2_626_560;
-        let default_automation_unit_price: u64 = 1000;
         initialize(
             supra_framework,
             epoch_interval_microsecs,
-            default_automation_gas_limit,
-            default_duration_upper_limit,
-            default_automation_unit_price
+            2_626_560,
+            100_000_000,
+            1000,
+            500000000, // 5 supra
+            80,
+            100,
+            300000000, // 3 supra
         );
     }
 
@@ -163,9 +176,13 @@ module supra_framework::automation_registry {
     public fun initialize(
         supra_framework: &signer,
         epoch_interval_microsecs: u64,
-        automation_gas_limit: u64,
-        duration_upper_limit: u64,
-        automation_unit_price: u64,
+        task_duration_cap_in_secs: u64,
+        registry_max_gas_cap: u64,
+        automation_base_fee_in_quants_per_sec: u64,
+        flat_registration_fee_in_quants: u64,
+        congestion_threshold_percentage: u8,
+        congestion_base_fee_in_quants_per_sec: u64,
+        cancellation_fee_in_qunats: u64,
     ) {
         system_addresses::assert_supra_framework(supra_framework);
 
@@ -183,9 +200,13 @@ module supra_framework::automation_registry {
         });
 
         move_to(supra_framework, AutomationRegistryConfig {
-            automation_gas_limit,
-            duration_upper_limit,
-            automation_unit_price,
+            task_duration_cap_in_secs,
+            registry_max_gas_cap,
+            automation_base_fee_in_quants_per_sec,
+            flat_registration_fee_in_quants,
+            congestion_threshold_percentage,
+            cancellation_fee_in_qunats,
+            congestion_base_fee_in_quants_per_sec,
         });
 
         let epoch_interval = epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR;
@@ -228,9 +249,13 @@ module supra_framework::automation_registry {
         if (config_buffer::does_exist<AutomationRegistryConfig>()) {
             let buffer = config_buffer::extract<AutomationRegistryConfig>();
             let automation_registry_config = borrow_global_mut<AutomationRegistryConfig>(@supra_framework);
-            automation_registry_config.automation_unit_price = buffer.automation_unit_price;
-            automation_registry_config.duration_upper_limit = buffer.duration_upper_limit;
-            automation_registry_config.automation_gas_limit = buffer.automation_gas_limit;
+            automation_registry_config.task_duration_cap_in_secs = buffer.task_duration_cap_in_secs;
+            automation_registry_config.registry_max_gas_cap = buffer.registry_max_gas_cap;
+            automation_registry_config.automation_base_fee_in_quants_per_sec = buffer.automation_base_fee_in_quants_per_sec;
+            automation_registry_config.flat_registration_fee_in_quants = buffer.flat_registration_fee_in_quants;
+            automation_registry_config.congestion_threshold_percentage = buffer.congestion_threshold_percentage;
+            automation_registry_config.congestion_base_fee_in_quants_per_sec = buffer.congestion_base_fee_in_quants_per_sec;
+            automation_registry_config.cancellation_fee_in_qunats = buffer.cancellation_fee_in_qunats;
         };
 
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
@@ -261,21 +286,31 @@ module supra_framework::automation_registry {
     /// Update Automation Registry Config
     public fun update_config(
         supra_framework: &signer,
-        automation_gas_limit: u64,
-        duration_upper_limit: u64,
-        automation_unit_price: u64,
+        task_duration_cap_in_secs: u64,
+        registry_max_gas_cap: u64,
+        automation_base_fee_in_quants_per_sec: u64,
+        flat_registration_fee_in_quants: u64,
+        congestion_threshold_percentage: u8,
+        congestion_base_fee_in_quants_per_sec: u64,
+        cancellation_fee_in_qunats: u64,
     ) acquires AutomationRegistry {
         system_addresses::assert_supra_framework(supra_framework);
 
         let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
 
         assert!(
-            automation_registry.gas_committed_for_next_epoch < automation_gas_limit,
+            automation_registry.gas_committed_for_next_epoch < registry_max_gas_cap,
             EUNACCEPTABLE_AUTOMATION_GAS_LIMIT
         );
 
         let automation_registry_config = AutomationRegistryConfig {
-            automation_gas_limit, duration_upper_limit, automation_unit_price
+            task_duration_cap_in_secs,
+            registry_max_gas_cap,
+            automation_base_fee_in_quants_per_sec,
+            flat_registration_fee_in_quants,
+            congestion_threshold_percentage,
+            congestion_base_fee_in_quants_per_sec,
+            cancellation_fee_in_qunats
         };
         config_buffer::upsert(copy automation_registry_config);
         event::emit(automation_registry_config);
@@ -288,9 +323,9 @@ module supra_framework::automation_registry {
         task_duration: u64,
         registry_fee_address: address
     ) {
-        let automation_base_fee = task_duration * automation_registry_config.automation_unit_price;
+        let automation_base_fee_in_quants_per_sec = task_duration * automation_registry_config.automation_base_fee_in_quants_per_sec;
         // todo : dynamic price calculation is pending
-        supra_account::transfer(owner, registry_fee_address, automation_base_fee);
+        supra_account::transfer(owner, registry_fee_address, automation_base_fee_in_quants_per_sec);
     }
 
     /// Registers a new automation task entry.
@@ -324,7 +359,7 @@ module supra_framework::automation_registry {
         assert!(committed_gas <= MAX_U64, EGAS_COMMITTEED_VALUE_OVERFLOW);
 
         let committed_gas = (committed_gas as u64);
-        assert!(committed_gas < automation_registry_config.automation_gas_limit, EGAS_AMOUNT_UPPER);
+        assert!(committed_gas < automation_registry_config.registry_max_gas_cap, EGAS_AMOUNT_UPPER);
         automation_registry.gas_committed_for_next_epoch = committed_gas;
         let task_index = automation_registry.current_index;
 
@@ -359,7 +394,7 @@ module supra_framework::automation_registry {
     ): u64 {
         assert!(expiry_time > registration_time, EINVALID_EXPIRY_TIME);
         let task_duration = expiry_time - registration_time;
-        assert!(task_duration < automation_registry_config.duration_upper_limit, EEXPIRY_TIME_UPPER);
+        assert!(task_duration < automation_registry_config.task_duration_cap_in_secs, EEXPIRY_TIME_UPPER);
 
         // Check that task is valid at least in the next epoch
         assert!(
@@ -415,7 +450,7 @@ module supra_framework::automation_registry {
         let current_time = timestamp::now_seconds();
         let expiry_time_duration = automation_task_metadata.expiry_time - current_time;
 
-        let refund_amount = expiry_time_duration * automation_registry_config.automation_unit_price;
+        let refund_amount = expiry_time_duration * automation_registry_config.automation_base_fee_in_quants_per_sec;
         transfer_fee_to_account_internal(user, refund_amount);
         event::emit(RefundFeeUser { user, amount: refund_amount });
     }
@@ -483,15 +518,26 @@ module supra_framework::automation_registry {
         automation_registry.gas_committed_for_next_epoch
     }
 
+    #[view]
+    /// Get automation registry configration
+    public fun get_automation_registry_config(): AutomationRegistryConfig acquires AutomationRegistryConfig {
+        *borrow_global<AutomationRegistryConfig>(@supra_framework)
+    }
+
     #[test_only]
-    /// The default automation task gas limit
-    const AUTOMATION_GAS_LIMIT_TEST: u64 = 100_000_000;
+    const AUTOMATION_MAX_GAS_TEST: u64 = 100_000_000;
     #[test_only]
-    /// The default upper limit duration for automation task, specified in seconds (30.4 days).
-    const DURATION_UPPER_LIMIT_TEST: u64 = 2_626_560;
+    const TTL_UPPER_BOUND_TEST: u64 = 2_626_560;
     #[test_only]
-    /// The default Automation unit price for per second, in Quants
-    const AUTOMATION_UNIT_PRICE_TEST: u64 = 1000;
+    const AUTOMATION_BASE_FEE_TEST: u64 = 1000;
+    #[test_only]
+    const FLATE_REGISTRATION_FEE_TEST: u64 = 500000000;
+    #[test_only]
+    const CONGESTION_THRESHOLD_TEST: u8 = 80;
+    #[test_only]
+    const CONGESTION_BASE_FEE_TEST: u64 = 100;
+    #[test_only]
+    const CANCELLATION_FEE_TEST: u64 = 300000000;
     #[test_only]
     /// Value defined in microsecond
     const EPOCH_INTERVAL_FOR_TEST: u64 = 7200000000;
@@ -520,9 +566,13 @@ module supra_framework::automation_registry {
         initialize(
             supra_framework,
             EPOCH_INTERVAL_FOR_TEST,
-            AUTOMATION_GAS_LIMIT_TEST,
-            DURATION_UPPER_LIMIT_TEST,
-            AUTOMATION_UNIT_PRICE_TEST
+            TTL_UPPER_BOUND_TEST,
+            AUTOMATION_MAX_GAS_TEST,
+            AUTOMATION_BASE_FEE_TEST,
+            FLATE_REGISTRATION_FEE_TEST,
+            CONGESTION_THRESHOLD_TEST,
+            CONGESTION_BASE_FEE_TEST,
+            CANCELLATION_FEE_TEST,
         );
     }
 
@@ -559,17 +609,21 @@ module supra_framework::automation_registry {
         config_buffer::initialize(framework);
         // Next epoch gas committed gas is less than the new limit value.
         // Configration parameter will update after on new epoch
-        update_config(framework, 75, 1_626_560, 1005);
+        update_config(framework, 1_626_560, 75, 1005, 700000000, 70, 2000, 400000000);
 
         let state = borrow_global<AutomationRegistryConfig>(@supra_framework);
-        assert!(state.automation_gas_limit == AUTOMATION_GAS_LIMIT_TEST, 1);
+        assert!(state.registry_max_gas_cap == AUTOMATION_MAX_GAS_TEST, 1);
 
         // Automation gas limit
         on_new_epoch();
         let state = borrow_global<AutomationRegistryConfig>(@supra_framework);
-        assert!(state.automation_gas_limit == 75, 2);
-        assert!(state.duration_upper_limit == 1_626_560, 3);
-        assert!(state.automation_unit_price == 1005, 4);
+        assert!(state.registry_max_gas_cap == 75, 2);
+        assert!(state.task_duration_cap_in_secs == 1_626_560, 3);
+        assert!(state.automation_base_fee_in_quants_per_sec == 1005, 4);
+        assert!(state.flat_registration_fee_in_quants == 700000000, 5);
+        assert!(state.congestion_threshold_percentage == 70, 6);
+        assert!(state.congestion_base_fee_in_quants_per_sec == 2000, 7);
+        assert!(state.cancellation_fee_in_qunats == 400000000, 8);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
@@ -587,7 +641,16 @@ module supra_framework::automation_registry {
         );
 
         // Next epoch gas committed gas is greater than the new limit value.
-        update_config(framework, 45, DURATION_UPPER_LIMIT_TEST, AUTOMATION_UNIT_PRICE_TEST);
+        update_config(
+            framework,
+            TTL_UPPER_BOUND_TEST,
+            45,
+            AUTOMATION_BASE_FEE_TEST,
+            FLATE_REGISTRATION_FEE_TEST,
+            CONGESTION_THRESHOLD_TEST,
+            CONGESTION_BASE_FEE_TEST,
+            CANCELLATION_FEE_TEST
+        );
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
