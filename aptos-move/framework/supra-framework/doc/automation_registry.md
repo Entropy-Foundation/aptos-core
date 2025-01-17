@@ -34,6 +34,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `has_sender_active_task_with_id`](#0x1_automation_registry_has_sender_active_task_with_id)
 -  [Function `get_registry_fee_address`](#0x1_automation_registry_get_registry_fee_address)
 -  [Function `get_gas_committed_for_next_epoch`](#0x1_automation_registry_get_gas_committed_for_next_epoch)
+-  [Function `get_automation_registry_config`](#0x1_automation_registry_get_automation_registry_config)
 
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
@@ -69,22 +70,50 @@ Automation registry config
 
 <dl>
 <dt>
-<code>automation_gas_limit: u64</code>
+<code>task_duration_cap_in_secs: u64</code>
 </dt>
 <dd>
- Automation task max gas limit
+ Maximum allowable duration (in seconds) from the registration time that an automation task can run.
+ If the expiration time exceeds this duration, the task registration will fail.
 </dd>
 <dt>
-<code>duration_upper_limit: u64</code>
+<code>registry_max_gas_cap: u64</code>
 </dt>
 <dd>
- Automation task duration upper limit.
+ Maximum gas allocation for automation tasks per epoch
+ Exceeding this limit during task registration will cause failure and is used in fee calculation.
 </dd>
 <dt>
-<code>automation_unit_price: u64</code>
+<code>automation_base_fee_in_quants_per_sec: u64</code>
 </dt>
 <dd>
- Automation task unit price per second
+ Base fee per second for the full capacity of the automation registry, measured in quants/sec.
+ The capacity is considered full if the total committed gas of all registered tasks equals registry_max_gas_cap.
+</dd>
+<dt>
+<code>flat_registration_fee_in_quants: u64</code>
+</dt>
+<dd>
+ Flat registration fee charged by default for each task.
+</dd>
+<dt>
+<code>congestion_threshold_percentage: u8</code>
+</dt>
+<dd>
+ Ratio (in the range [0;100]) representing the acceptable upper limit of committed gas amount
+ relative to registry_max_gas_cap. Beyond this threshold, congestion fees apply.
+</dd>
+<dt>
+<code>congestion_base_fee_in_quants_per_sec: u64</code>
+</dt>
+<dd>
+ Base fee per second for the full capacity of the automation registry when the congestion threshold is exceeded.
+</dd>
+<dt>
+<code>cancellation_fee_in_qunats: u64</code>
+</dt>
+<dd>
+ System-configured penalty charged for task cancellations.
 </dd>
 </dl>
 
@@ -586,15 +615,16 @@ This is temporary function : until we have initialization flow properly implemen
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initializate_by_default">initializate_by_default</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64) {
-    <b>let</b> default_automation_gas_limit: u64 = 100_000_000;
-    <b>let</b> default_duration_upper_limit: u64 = 2_626_560;
-    <b>let</b> default_automation_unit_price: u64 = 1000;
     <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(
         supra_framework,
         epoch_interval_microsecs,
-        default_automation_gas_limit,
-        default_duration_upper_limit,
-        default_automation_unit_price
+        2_626_560,
+        100_000_000,
+        1000,
+        500000000, // 5 supra
+        80,
+        100,
+        300000000, // 3 supra
     );
 }
 </code></pre>
@@ -610,7 +640,7 @@ This is temporary function : until we have initialization flow properly implemen
 Initialization of Automation Registry
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64, automation_gas_limit: u64, duration_upper_limit: u64, automation_unit_price: u64)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, cancellation_fee_in_qunats: u64)
 </code></pre>
 
 
@@ -622,9 +652,13 @@ Initialization of Automation Registry
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     epoch_interval_microsecs: u64,
-    automation_gas_limit: u64,
-    duration_upper_limit: u64,
-    automation_unit_price: u64,
+    task_duration_cap_in_secs: u64,
+    registry_max_gas_cap: u64,
+    automation_base_fee_in_quants_per_sec: u64,
+    flat_registration_fee_in_quants: u64,
+    congestion_threshold_percentage: u8,
+    congestion_base_fee_in_quants_per_sec: u64,
+    cancellation_fee_in_qunats: u64,
 ) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
@@ -642,9 +676,13 @@ Initialization of Automation Registry
     });
 
     <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
-        automation_gas_limit,
-        duration_upper_limit,
-        automation_unit_price,
+        task_duration_cap_in_secs,
+        registry_max_gas_cap,
+        automation_base_fee_in_quants_per_sec,
+        flat_registration_fee_in_quants,
+        congestion_threshold_percentage,
+        cancellation_fee_in_qunats,
+        congestion_base_fee_in_quants_per_sec,
     });
 
     <b>let</b> epoch_interval = epoch_interval_microsecs / <a href="automation_registry.md#0x1_automation_registry_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>;
@@ -707,9 +745,13 @@ On new epoch this function will be triggered and update the automation registry 
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;()) {
         <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;();
         <b>let</b> automation_registry_config = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;(@supra_framework);
-        automation_registry_config.automation_unit_price = buffer.automation_unit_price;
-        automation_registry_config.duration_upper_limit = buffer.duration_upper_limit;
-        automation_registry_config.automation_gas_limit = buffer.automation_gas_limit;
+        automation_registry_config.task_duration_cap_in_secs = buffer.task_duration_cap_in_secs;
+        automation_registry_config.registry_max_gas_cap = buffer.registry_max_gas_cap;
+        automation_registry_config.automation_base_fee_in_quants_per_sec = buffer.automation_base_fee_in_quants_per_sec;
+        automation_registry_config.flat_registration_fee_in_quants = buffer.flat_registration_fee_in_quants;
+        automation_registry_config.congestion_threshold_percentage = buffer.congestion_threshold_percentage;
+        automation_registry_config.congestion_base_fee_in_quants_per_sec = buffer.congestion_base_fee_in_quants_per_sec;
+        automation_registry_config.cancellation_fee_in_qunats = buffer.cancellation_fee_in_qunats;
     };
 
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
@@ -789,7 +831,7 @@ Transfers the specified fee amount from the resource account to the target accou
 Update Automation Registry Config
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, automation_gas_limit: u64, duration_upper_limit: u64, automation_unit_price: u64)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, cancellation_fee_in_qunats: u64)
 </code></pre>
 
 
@@ -800,21 +842,31 @@ Update Automation Registry Config
 
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    automation_gas_limit: u64,
-    duration_upper_limit: u64,
-    automation_unit_price: u64,
+    task_duration_cap_in_secs: u64,
+    registry_max_gas_cap: u64,
+    automation_base_fee_in_quants_per_sec: u64,
+    flat_registration_fee_in_quants: u64,
+    congestion_threshold_percentage: u8,
+    congestion_base_fee_in_quants_per_sec: u64,
+    cancellation_fee_in_qunats: u64,
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
 
     <b>assert</b>!(
-        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &lt; automation_gas_limit,
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &lt; registry_max_gas_cap,
         <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_AUTOMATION_GAS_LIMIT">EUNACCEPTABLE_AUTOMATION_GAS_LIMIT</a>
     );
 
     <b>let</b> automation_registry_config = <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
-        automation_gas_limit, duration_upper_limit, automation_unit_price
+        task_duration_cap_in_secs,
+        registry_max_gas_cap,
+        automation_base_fee_in_quants_per_sec,
+        flat_registration_fee_in_quants,
+        congestion_threshold_percentage,
+        congestion_base_fee_in_quants_per_sec,
+        cancellation_fee_in_qunats
     };
     <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(<b>copy</b> automation_registry_config);
     <a href="event.md#0x1_event_emit">event::emit</a>(automation_registry_config);
@@ -847,9 +899,9 @@ Deducts the automation fee from the user's account based on the selected expiry 
     task_duration: u64,
     registry_fee_address: <b>address</b>
 ) {
-    <b>let</b> automation_base_fee = task_duration * automation_registry_config.automation_unit_price;
+    <b>let</b> automation_base_fee_in_quants_per_sec = task_duration * automation_registry_config.automation_base_fee_in_quants_per_sec;
     // todo : dynamic price calculation is pending
-    <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(owner, registry_fee_address, automation_base_fee);
+    <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(owner, registry_fee_address, automation_base_fee_in_quants_per_sec);
 }
 </code></pre>
 
@@ -903,7 +955,7 @@ Registers a new automation task entry.
     <b>assert</b>!(committed_gas &lt;= <a href="automation_registry.md#0x1_automation_registry_MAX_U64">MAX_U64</a>, <a href="automation_registry.md#0x1_automation_registry_EGAS_COMMITTEED_VALUE_OVERFLOW">EGAS_COMMITTEED_VALUE_OVERFLOW</a>);
 
     <b>let</b> committed_gas = (committed_gas <b>as</b> u64);
-    <b>assert</b>!(committed_gas &lt; automation_registry_config.automation_gas_limit, <a href="automation_registry.md#0x1_automation_registry_EGAS_AMOUNT_UPPER">EGAS_AMOUNT_UPPER</a>);
+    <b>assert</b>!(committed_gas &lt; automation_registry_config.registry_max_gas_cap, <a href="automation_registry.md#0x1_automation_registry_EGAS_AMOUNT_UPPER">EGAS_AMOUNT_UPPER</a>);
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = committed_gas;
     <b>let</b> task_index = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index;
 
@@ -958,7 +1010,7 @@ Registers a new automation task entry.
 ): u64 {
     <b>assert</b>!(expiry_time &gt; registration_time, <a href="automation_registry.md#0x1_automation_registry_EINVALID_EXPIRY_TIME">EINVALID_EXPIRY_TIME</a>);
     <b>let</b> task_duration = expiry_time - registration_time;
-    <b>assert</b>!(task_duration &lt; automation_registry_config.duration_upper_limit, <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_TIME_UPPER">EEXPIRY_TIME_UPPER</a>);
+    <b>assert</b>!(task_duration &lt; automation_registry_config.task_duration_cap_in_secs, <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_TIME_UPPER">EEXPIRY_TIME_UPPER</a>);
 
     // Check that task is valid at least in the next epoch
     <b>assert</b>!(
@@ -1054,7 +1106,7 @@ Refunds the automation task fee to the user who has removed their task registrat
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
     <b>let</b> expiry_time_duration = automation_task_metadata.expiry_time - current_time;
 
-    <b>let</b> refund_amount = expiry_time_duration * automation_registry_config.automation_unit_price;
+    <b>let</b> refund_amount = expiry_time_duration * automation_registry_config.automation_base_fee_in_quants_per_sec;
     <a href="automation_registry.md#0x1_automation_registry_transfer_fee_to_account_internal">transfer_fee_to_account_internal</a>(user, refund_amount);
     <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_RefundFeeUser">RefundFeeUser</a> { user, amount: refund_amount });
 }
@@ -1260,6 +1312,32 @@ Get gas committed for next epoch
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_gas_committed_for_next_epoch">get_gas_committed_for_next_epoch</a>(): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_get_automation_registry_config"></a>
+
+## Function `get_automation_registry_config`
+
+Get automation registry configration
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_automation_registry_config">get_automation_registry_config</a>(): <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_automation_registry_config">get_automation_registry_config</a>(): <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
+    *<b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;(@supra_framework)
 }
 </code></pre>
 
