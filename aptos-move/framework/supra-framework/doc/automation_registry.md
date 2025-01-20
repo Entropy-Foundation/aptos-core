@@ -109,12 +109,6 @@ Automation registry config
 <dd>
  Base fee per second for the full capacity of the automation registry when the congestion threshold is exceeded.
 </dd>
-<dt>
-<code>cancellation_fee_in_qunats: u64</code>
-</dt>
-<dd>
- System-configured penalty charged for task cancellations.
-</dd>
 </dl>
 
 
@@ -624,7 +618,6 @@ This is temporary function : until we have initialization flow properly implemen
         500000000, // 5 supra
         80,
         100,
-        300000000, // 3 supra
     );
 }
 </code></pre>
@@ -640,7 +633,7 @@ This is temporary function : until we have initialization flow properly implemen
 Initialization of Automation Registry
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, cancellation_fee_in_qunats: u64)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64)
 </code></pre>
 
 
@@ -658,7 +651,6 @@ Initialization of Automation Registry
     flat_registration_fee_in_quants: u64,
     congestion_threshold_percentage: u8,
     congestion_base_fee_in_quants_per_sec: u64,
-    cancellation_fee_in_qunats: u64,
 ) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
@@ -681,7 +673,6 @@ Initialization of Automation Registry
         automation_base_fee_in_quants_per_sec,
         flat_registration_fee_in_quants,
         congestion_threshold_percentage,
-        cancellation_fee_in_qunats,
         congestion_base_fee_in_quants_per_sec,
     });
 
@@ -751,7 +742,6 @@ On new epoch this function will be triggered and update the automation registry 
         automation_registry_config.flat_registration_fee_in_quants = buffer.flat_registration_fee_in_quants;
         automation_registry_config.congestion_threshold_percentage = buffer.congestion_threshold_percentage;
         automation_registry_config.congestion_base_fee_in_quants_per_sec = buffer.congestion_base_fee_in_quants_per_sec;
-        automation_registry_config.cancellation_fee_in_qunats = buffer.cancellation_fee_in_qunats;
     };
 
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
@@ -831,7 +821,7 @@ Transfers the specified fee amount from the resource account to the target accou
 Update Automation Registry Config
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, cancellation_fee_in_qunats: u64)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64)
 </code></pre>
 
 
@@ -848,7 +838,6 @@ Update Automation Registry Config
     flat_registration_fee_in_quants: u64,
     congestion_threshold_percentage: u8,
     congestion_base_fee_in_quants_per_sec: u64,
-    cancellation_fee_in_qunats: u64,
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
@@ -866,7 +855,6 @@ Update Automation Registry Config
         flat_registration_fee_in_quants,
         congestion_threshold_percentage,
         congestion_base_fee_in_quants_per_sec,
-        cancellation_fee_in_qunats
     };
     <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(<b>copy</b> automation_registry_config);
     <a href="event.md#0x1_event_emit">event::emit</a>(automation_registry_config);

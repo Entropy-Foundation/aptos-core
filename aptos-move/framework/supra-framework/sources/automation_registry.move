@@ -79,8 +79,6 @@ module supra_framework::automation_registry {
         congestion_threshold_percentage: u8,
         /// Base fee per second for the full capacity of the automation registry when the congestion threshold is exceeded.
         congestion_base_fee_in_quants_per_sec: u64,
-        /// System-configured penalty charged for task cancellations.
-        cancellation_fee_in_qunats: u64,
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -168,7 +166,6 @@ module supra_framework::automation_registry {
             500000000, // 5 supra
             80,
             100,
-            300000000, // 3 supra
         );
     }
 
@@ -182,7 +179,6 @@ module supra_framework::automation_registry {
         flat_registration_fee_in_quants: u64,
         congestion_threshold_percentage: u8,
         congestion_base_fee_in_quants_per_sec: u64,
-        cancellation_fee_in_qunats: u64,
     ) {
         system_addresses::assert_supra_framework(supra_framework);
 
@@ -205,7 +201,6 @@ module supra_framework::automation_registry {
             automation_base_fee_in_quants_per_sec,
             flat_registration_fee_in_quants,
             congestion_threshold_percentage,
-            cancellation_fee_in_qunats,
             congestion_base_fee_in_quants_per_sec,
         });
 
@@ -255,7 +250,6 @@ module supra_framework::automation_registry {
             automation_registry_config.flat_registration_fee_in_quants = buffer.flat_registration_fee_in_quants;
             automation_registry_config.congestion_threshold_percentage = buffer.congestion_threshold_percentage;
             automation_registry_config.congestion_base_fee_in_quants_per_sec = buffer.congestion_base_fee_in_quants_per_sec;
-            automation_registry_config.cancellation_fee_in_qunats = buffer.cancellation_fee_in_qunats;
         };
 
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
@@ -292,7 +286,6 @@ module supra_framework::automation_registry {
         flat_registration_fee_in_quants: u64,
         congestion_threshold_percentage: u8,
         congestion_base_fee_in_quants_per_sec: u64,
-        cancellation_fee_in_qunats: u64,
     ) acquires AutomationRegistry {
         system_addresses::assert_supra_framework(supra_framework);
 
@@ -310,7 +303,6 @@ module supra_framework::automation_registry {
             flat_registration_fee_in_quants,
             congestion_threshold_percentage,
             congestion_base_fee_in_quants_per_sec,
-            cancellation_fee_in_qunats
         };
         config_buffer::upsert(copy automation_registry_config);
         event::emit(automation_registry_config);
@@ -537,8 +529,6 @@ module supra_framework::automation_registry {
     #[test_only]
     const CONGESTION_BASE_FEE_TEST: u64 = 100;
     #[test_only]
-    const CANCELLATION_FEE_TEST: u64 = 300000000;
-    #[test_only]
     /// Value defined in microsecond
     const EPOCH_INTERVAL_FOR_TEST: u64 = 7200000000;
     #[test_only]
@@ -572,7 +562,6 @@ module supra_framework::automation_registry {
             FLATE_REGISTRATION_FEE_TEST,
             CONGESTION_THRESHOLD_TEST,
             CONGESTION_BASE_FEE_TEST,
-            CANCELLATION_FEE_TEST,
         );
     }
 
@@ -609,7 +598,7 @@ module supra_framework::automation_registry {
         config_buffer::initialize(framework);
         // Next epoch gas committed gas is less than the new limit value.
         // Configration parameter will update after on new epoch
-        update_config(framework, 1_626_560, 75, 1005, 700000000, 70, 2000, 400000000);
+        update_config(framework, 1_626_560, 75, 1005, 700000000, 70, 2000);
 
         let state = borrow_global<AutomationRegistryConfig>(@supra_framework);
         assert!(state.registry_max_gas_cap == AUTOMATION_MAX_GAS_TEST, 1);
@@ -623,7 +612,6 @@ module supra_framework::automation_registry {
         assert!(state.flat_registration_fee_in_quants == 700000000, 5);
         assert!(state.congestion_threshold_percentage == 70, 6);
         assert!(state.congestion_base_fee_in_quants_per_sec == 2000, 7);
-        assert!(state.cancellation_fee_in_qunats == 400000000, 8);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
@@ -649,7 +637,6 @@ module supra_framework::automation_registry {
             FLATE_REGISTRATION_FEE_TEST,
             CONGESTION_THRESHOLD_TEST,
             CONGESTION_BASE_FEE_TEST,
-            CANCELLATION_FEE_TEST
         );
     }
 
