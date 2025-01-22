@@ -254,7 +254,7 @@ module supra_framework::automation_registry {
         });
 
         // Apply the latest configuration if any parameter has been updated.
-        config_update_from_buffer();
+        update_config_from_buffer();
 
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
         automation_epoch_info.start_time = current_time;
@@ -262,7 +262,7 @@ module supra_framework::automation_registry {
     }
 
     /// The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
-    fun config_update_from_buffer() acquires ActiveAutomationRegistryConfig {
+    fun update_config_from_buffer() acquires ActiveAutomationRegistryConfig {
         if (config_buffer::does_exist<AutomationRegistryConfig>()) {
             let buffer = config_buffer::extract<AutomationRegistryConfig>();
             let automation_registry_config = &mut borrow_global_mut<ActiveAutomationRegistryConfig>(
@@ -465,7 +465,7 @@ module supra_framework::automation_registry {
         automation_registry_config: &AutomationRegistryConfig,
     ) acquires AutomationRegistry {
         let current_time = timestamp::now_seconds();
-        assert!(automation_task_metadata.expiry_time < current_time, ETASK_IS_ALREADY_EXPIRED);
+        assert!(automation_task_metadata.expiry_time > current_time, ETASK_IS_ALREADY_EXPIRED);
         let residual_ttl = automation_task_metadata.expiry_time - current_time;
 
         let refund_amount = residual_ttl * automation_registry_config.automation_base_fee_in_quants_per_sec;

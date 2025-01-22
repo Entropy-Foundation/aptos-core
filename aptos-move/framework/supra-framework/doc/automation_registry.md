@@ -20,7 +20,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `initializate_by_default`](#0x1_automation_registry_initializate_by_default)
 -  [Function `initialize`](#0x1_automation_registry_initialize)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
--  [Function `config_update_from_buffer`](#0x1_automation_registry_config_update_from_buffer)
+-  [Function `update_config_from_buffer`](#0x1_automation_registry_update_config_from_buffer)
 -  [Function `withdraw_automation_task_fees`](#0x1_automation_registry_withdraw_automation_task_fees)
 -  [Function `transfer_fee_to_account_internal`](#0x1_automation_registry_transfer_fee_to_account_internal)
 -  [Function `update_config`](#0x1_automation_registry_update_config)
@@ -789,7 +789,7 @@ On new epoch this function will be triggered and update the automation registry 
     });
 
     // Apply the latest configuration <b>if</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> parameter <b>has</b> been updated.
-    <a href="automation_registry.md#0x1_automation_registry_config_update_from_buffer">config_update_from_buffer</a>();
+    <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>();
 
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
     automation_epoch_info.start_time = current_time;
@@ -801,14 +801,14 @@ On new epoch this function will be triggered and update the automation registry 
 
 </details>
 
-<a id="0x1_automation_registry_config_update_from_buffer"></a>
+<a id="0x1_automation_registry_update_config_from_buffer"></a>
 
-## Function `config_update_from_buffer`
+## Function `update_config_from_buffer`
 
 The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_config_update_from_buffer">config_update_from_buffer</a>()
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>()
 </code></pre>
 
 
@@ -817,7 +817,7 @@ The function updates the ActiveAutomationRegistryConfig structure with values ex
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_config_update_from_buffer">config_update_from_buffer</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;()) {
         <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;();
         <b>let</b> automation_registry_config = &<b>mut</b> <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(
@@ -1180,7 +1180,7 @@ Refunds the automation task fee to the user who has removed their task registrat
     automation_registry_config: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
-    <b>assert</b>!(automation_task_metadata.expiry_time &lt; current_time, <a href="automation_registry.md#0x1_automation_registry_ETASK_IS_ALREADY_EXPIRED">ETASK_IS_ALREADY_EXPIRED</a>);
+    <b>assert</b>!(automation_task_metadata.expiry_time &gt; current_time, <a href="automation_registry.md#0x1_automation_registry_ETASK_IS_ALREADY_EXPIRED">ETASK_IS_ALREADY_EXPIRED</a>);
     <b>let</b> residual_ttl = automation_task_metadata.expiry_time - current_time;
 
     <b>let</b> refund_amount = residual_ttl * automation_registry_config.automation_base_fee_in_quants_per_sec;
