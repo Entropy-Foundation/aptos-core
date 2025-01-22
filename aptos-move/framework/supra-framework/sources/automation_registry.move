@@ -44,6 +44,8 @@ module supra_framework::automation_registry {
     const EGAS_COMMITTEED_VALUE_OVERFLOW: u64 = 12;
     /// The gas committed for next epoch value is underflow after remove old max gas
     const EGAS_COMMITTEED_VALUE_UNDERFLOW: u64 = 13;
+    /// The task is already expired
+    const ETASK_IS_ALREADY_EXPIRED: u64 = 14;
 
     /// The lenght of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -151,8 +153,9 @@ module supra_framework::automation_registry {
 
     #[event]
     /// Withdraw user's registration fee event
-    struct RefundFeeUser has drop, store {
+    struct AutomationCancellationRefund has drop, store {
         user: address,
+        task_index: u64,
         amount: u64
     }
 
@@ -251,6 +254,15 @@ module supra_framework::automation_registry {
         });
 
         // Apply the latest configuration if any parameter has been updated.
+        config_update_from_buffer();
+
+        automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
+        automation_epoch_info.start_time = current_time;
+        automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
+    }
+
+    /// The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
+    fun config_update_from_buffer() acquires ActiveAutomationRegistryConfig {
         if (config_buffer::does_exist<AutomationRegistryConfig>()) {
             let buffer = config_buffer::extract<AutomationRegistryConfig>();
             let automation_registry_config = &mut borrow_global_mut<ActiveAutomationRegistryConfig>(
@@ -263,10 +275,6 @@ module supra_framework::automation_registry {
             automation_registry_config.congestion_threshold_percentage = buffer.congestion_threshold_percentage;
             automation_registry_config.congestion_base_fee_in_quants_per_sec = buffer.congestion_base_fee_in_quants_per_sec;
         };
-
-        automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
-        automation_epoch_info.start_time = current_time;
-        automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
     }
 
     /// Withdraw accumulated automation task fees from the resource account - access by admin
@@ -457,11 +465,14 @@ module supra_framework::automation_registry {
         automation_registry_config: &AutomationRegistryConfig,
     ) acquires AutomationRegistry {
         let current_time = timestamp::now_seconds();
-        let expiry_time_duration = automation_task_metadata.expiry_time - current_time;
+        assert!(automation_task_metadata.expiry_time < current_time, ETASK_IS_ALREADY_EXPIRED);
+        let residual_ttl = automation_task_metadata.expiry_time - current_time;
 
-        let refund_amount = expiry_time_duration * automation_registry_config.automation_base_fee_in_quants_per_sec;
+        let refund_amount = residual_ttl * automation_registry_config.automation_base_fee_in_quants_per_sec;
         transfer_fee_to_account_internal(user, refund_amount);
-        event::emit(RefundFeeUser { user, amount: refund_amount });
+        event::emit(
+            AutomationCancellationRefund { user, task_index: automation_task_metadata.id, amount: refund_amount }
+        );
     }
 
     /// Update epoch interval in registry while actually update happens in block module

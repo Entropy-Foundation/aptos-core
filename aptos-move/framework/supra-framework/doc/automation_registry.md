@@ -14,12 +14,13 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Resource `AutomationEpochInfo`](#0x1_automation_registry_AutomationEpochInfo)
 -  [Resource `AutomationTaskMetaData`](#0x1_automation_registry_AutomationTaskMetaData)
 -  [Struct `FeeWithdrawnAdmin`](#0x1_automation_registry_FeeWithdrawnAdmin)
--  [Struct `RefundFeeUser`](#0x1_automation_registry_RefundFeeUser)
+-  [Struct `AutomationCancellationRefund`](#0x1_automation_registry_AutomationCancellationRefund)
 -  [Struct `CancelledAutomationTask`](#0x1_automation_registry_CancelledAutomationTask)
 -  [Constants](#@Constants_0)
 -  [Function `initializate_by_default`](#0x1_automation_registry_initializate_by_default)
 -  [Function `initialize`](#0x1_automation_registry_initialize)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
+-  [Function `config_update_from_buffer`](#0x1_automation_registry_config_update_from_buffer)
 -  [Function `withdraw_automation_task_fees`](#0x1_automation_registry_withdraw_automation_task_fees)
 -  [Function `transfer_fee_to_account_internal`](#0x1_automation_registry_transfer_fee_to_account_internal)
 -  [Function `update_config`](#0x1_automation_registry_update_config)
@@ -361,15 +362,15 @@ Withdraw user's registration fee event
 
 </details>
 
-<a id="0x1_automation_registry_RefundFeeUser"></a>
+<a id="0x1_automation_registry_AutomationCancellationRefund"></a>
 
-## Struct `RefundFeeUser`
+## Struct `AutomationCancellationRefund`
 
 Withdraw user's registration fee event
 
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_RefundFeeUser">RefundFeeUser</a> <b>has</b> drop, store
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCancellationRefund">AutomationCancellationRefund</a> <b>has</b> drop, store
 </code></pre>
 
 
@@ -381,6 +382,12 @@ Withdraw user's registration fee event
 <dl>
 <dt>
 <code>user: <b>address</b></code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>task_index: u64</code>
 </dt>
 <dd>
 
@@ -564,6 +571,16 @@ Transactoin hash that registring current task is invalid. Lenght should be 32.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_TXN_HASH">EINVALID_TXN_HASH</a>: u64 = 9;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_ETASK_IS_ALREADY_EXPIRED"></a>
+
+The task is already expired
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ETASK_IS_ALREADY_EXPIRED">ETASK_IS_ALREADY_EXPIRED</a>: u64 = 14;
 </code></pre>
 
 
@@ -772,6 +789,35 @@ On new epoch this function will be triggered and update the automation registry 
     });
 
     // Apply the latest configuration <b>if</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> parameter <b>has</b> been updated.
+    <a href="automation_registry.md#0x1_automation_registry_config_update_from_buffer">config_update_from_buffer</a>();
+
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
+    automation_epoch_info.start_time = current_time;
+    automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_config_update_from_buffer"></a>
+
+## Function `config_update_from_buffer`
+
+The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_config_update_from_buffer">config_update_from_buffer</a>()
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_config_update_from_buffer">config_update_from_buffer</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;()) {
         <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;();
         <b>let</b> automation_registry_config = &<b>mut</b> <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(
@@ -784,10 +830,6 @@ On new epoch this function will be triggered and update the automation registry 
         automation_registry_config.congestion_threshold_percentage = buffer.congestion_threshold_percentage;
         automation_registry_config.congestion_base_fee_in_quants_per_sec = buffer.congestion_base_fee_in_quants_per_sec;
     };
-
-    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
-    automation_epoch_info.start_time = current_time;
-    automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
 }
 </code></pre>
 
@@ -1138,11 +1180,14 @@ Refunds the automation task fee to the user who has removed their task registrat
     automation_registry_config: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
-    <b>let</b> expiry_time_duration = automation_task_metadata.expiry_time - current_time;
+    <b>assert</b>!(automation_task_metadata.expiry_time &lt; current_time, <a href="automation_registry.md#0x1_automation_registry_ETASK_IS_ALREADY_EXPIRED">ETASK_IS_ALREADY_EXPIRED</a>);
+    <b>let</b> residual_ttl = automation_task_metadata.expiry_time - current_time;
 
-    <b>let</b> refund_amount = expiry_time_duration * automation_registry_config.automation_base_fee_in_quants_per_sec;
+    <b>let</b> refund_amount = residual_ttl * automation_registry_config.automation_base_fee_in_quants_per_sec;
     <a href="automation_registry.md#0x1_automation_registry_transfer_fee_to_account_internal">transfer_fee_to_account_internal</a>(user, refund_amount);
-    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_RefundFeeUser">RefundFeeUser</a> { user, amount: refund_amount });
+    <a href="event.md#0x1_event_emit">event::emit</a>(
+        <a href="automation_registry.md#0x1_automation_registry_AutomationCancellationRefund">AutomationCancellationRefund</a> { user, task_index: automation_task_metadata.id, amount: refund_amount }
+    );
 }
 </code></pre>
 
