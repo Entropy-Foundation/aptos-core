@@ -575,16 +575,6 @@ Transactoin hash that registring current task is invalid. Lenght should be 32.
 
 
 
-<a id="0x1_automation_registry_ETASK_IS_ALREADY_EXPIRED"></a>
-
-The task is already expired
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ETASK_IS_ALREADY_EXPIRED">ETASK_IS_ALREADY_EXPIRED</a>: u64 = 14;
-</code></pre>
-
-
-
 <a id="0x1_automation_registry_EUNACCEPTABLE_AUTOMATION_GAS_LIMIT"></a>
 
 Current committed gas amount is greater than the automation gas limit.
@@ -668,7 +658,7 @@ This is temporary function : until we have initialization flow properly implemen
         2_626_560,
         100_000_000,
         1000,
-        500000000, // 5 supra
+        100_000_000, // 1 supra
         80,
         100,
     );
@@ -1180,14 +1170,15 @@ Refunds the automation task fee to the user who has removed their task registrat
     automation_registry_config: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
-    <b>assert</b>!(automation_task_metadata.expiry_time &gt; current_time, <a href="automation_registry.md#0x1_automation_registry_ETASK_IS_ALREADY_EXPIRED">ETASK_IS_ALREADY_EXPIRED</a>);
-    <b>let</b> residual_ttl = automation_task_metadata.expiry_time - current_time;
+    <b>if</b> (automation_task_metadata.expiry_time &gt; current_time) {
+        <b>let</b> residual_ttl = automation_task_metadata.expiry_time - current_time;
 
-    <b>let</b> refund_amount = residual_ttl * automation_registry_config.automation_base_fee_in_quants_per_sec;
-    <a href="automation_registry.md#0x1_automation_registry_transfer_fee_to_account_internal">transfer_fee_to_account_internal</a>(user, refund_amount);
-    <a href="event.md#0x1_event_emit">event::emit</a>(
-        <a href="automation_registry.md#0x1_automation_registry_AutomationCancellationRefund">AutomationCancellationRefund</a> { user, task_index: automation_task_metadata.id, amount: refund_amount }
-    );
+        <b>let</b> refund_amount = residual_ttl * automation_registry_config.automation_base_fee_in_quants_per_sec;
+        <a href="automation_registry.md#0x1_automation_registry_transfer_fee_to_account_internal">transfer_fee_to_account_internal</a>(user, refund_amount);
+        <a href="event.md#0x1_event_emit">event::emit</a>(
+            <a href="automation_registry.md#0x1_automation_registry_AutomationCancellationRefund">AutomationCancellationRefund</a> { user, task_index: automation_task_metadata.id, amount: refund_amount }
+        );
+    }
 }
 </code></pre>
 
