@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::tests::automation_registration::AutomationRegistrationTestContext;
-use aptos_cached_packages::{aptos_framework_sdk_builder};
+use aptos_cached_packages::aptos_framework_sdk_builder;
 use aptos_crypto::HashValue;
-use aptos_types::transaction::automated_transaction::AutomatedTransaction;
+use aptos_types::chain_id::ChainId;
+use aptos_types::transaction::automated_transaction::{
+    AutomatedTransaction, AutomatedTransactionBuilder, BuilderResult,
+};
 use aptos_types::transaction::{ExecutionStatus, Transaction, TransactionStatus};
-use aptos_vm::transaction_metadata::TransactionMetadata;
 use move_core_types::vm_status::StatusCode;
 
 #[test]
@@ -65,7 +67,8 @@ fn check_expired_automated_transaction() {
 fn check_automated_transaction_with_insufficient_balance() {
     let mut test_context = AutomationRegistrationTestContext::new();
     let dest_account = test_context.new_account_data(0, 0);
-    let payload = aptos_framework_sdk_builder::supra_account_transfer(dest_account.address().clone(), 100);
+    let payload =
+        aptos_framework_sdk_builder::supra_account_transfer(dest_account.address().clone(), 100);
     let sequence_number = 0;
 
     let raw_transaction = test_context
@@ -93,7 +96,8 @@ fn check_automated_transaction_with_insufficient_balance() {
 fn check_automated_transaction_successful_execution() {
     let mut test_context = AutomationRegistrationTestContext::new();
     let dest_account = test_context.new_account_data(1_000_000, 0);
-    let payload = aptos_framework_sdk_builder::supra_account_transfer(dest_account.address().clone(), 100);
+    let payload =
+        aptos_framework_sdk_builder::supra_account_transfer(dest_account.address().clone(), 100);
     let gas_price = 100;
     let max_gas_amount = 100;
 
@@ -114,24 +118,23 @@ fn check_automated_transaction_successful_execution() {
         &TransactionStatus::Keep(ExecutionStatus::Success),
         "{output:?}"
     );
+    let next_task_index = test_context.get_next_task_index_from_registry();
+    assert_eq!(next_task_index, 1);
+    let automated_task_details = test_context.get_task_details(next_task_index - 1);
+    let automated_txn_builder = AutomatedTransactionBuilder::try_from(automated_task_details)
+        .expect("Successful builder creation");
+    let maybe_automated_txn = automated_txn_builder
+        .clone()
+        .with_chain_id(ChainId::test())
+        .with_block_height(1)
+        .with_gas_unit_price(gas_price)
+        .build();
+    let BuilderResult::Success(automated_txn) = maybe_automated_txn else {
+        panic!("Automated transaction should successfully build")
+    };
 
-    // For now no active transaction available, so this task execution will fail on prologue.
-    let sequence_number = 0;
-    let raw_transaction = test_context
-        .sender_account_data()
-        .account()
-        .transaction()
-        .payload(payload.clone())
-        .sequence_number(sequence_number)
-        .gas_unit_price(gas_price)
-        .max_gas_amount(max_gas_amount)
-        .ttl(expiration_time)
-        .raw();
-
-    let parent_hash = HashValue::new([42; HashValue::LENGTH]);
-    let automated_txn = AutomatedTransaction::new(raw_transaction.clone(), parent_hash, 1);
-    let result =
-        test_context.execute_tagged_transaction(Transaction::AutomatedTransaction(automated_txn.clone()));
+    let result = test_context
+        .execute_tagged_transaction(Transaction::AutomatedTransaction(automated_txn.clone()));
     AutomationRegistrationTestContext::check_discarded_output(
         result,
         StatusCode::NO_ACTIVE_AUTOMATED_TASK,
@@ -143,8 +146,8 @@ fn check_automated_transaction_successful_execution() {
     // Execute automated transaction one more time which should be success, as task is already become active after epoch change
     let sender_address = test_context.sender_account_address();
     let sender_seq_num = test_context.account_sequence_number(sender_address);
-    let output =
-        test_context.execute_and_apply_transaction(Transaction::AutomatedTransaction(automated_txn.clone()));
+    let output = test_context
+        .execute_and_apply_transaction(Transaction::AutomatedTransaction(automated_txn.clone()));
     assert_eq!(
         output.status(),
         &TransactionStatus::Keep(ExecutionStatus::Success),
@@ -153,23 +156,23 @@ fn check_automated_transaction_successful_execution() {
     let dest_account_balance = test_context.account_balance(dest_account.address().clone());
     assert_eq!(dest_account_balance, 1_000_100);
     // check that sequence number is not updated.
-    assert_eq!(sender_seq_num, test_context.account_sequence_number(sender_address));
+    assert_eq!(
+        sender_seq_num,
+        test_context.account_sequence_number(sender_address)
+    );
 
     // try to submit automated transaction with incorrect sender
-    let raw_transaction = dest_account
-        .account()
-        .transaction()
-        .payload(payload)
-        .sequence_number(sequence_number)
-        .gas_unit_price(gas_price)
-        .max_gas_amount(max_gas_amount)
-        .ttl(expiration_time)
-        .raw();
-
-    let parent_hash = HashValue::new([42; HashValue::LENGTH]);
-    let automated_txn = AutomatedTransaction::new(raw_transaction, parent_hash, 1);
-    let result =
-        test_context.execute_tagged_transaction(Transaction::AutomatedTransaction(automated_txn.clone()));
+    let maybe_automated_txn = automated_txn_builder
+        .with_sender(*dest_account.address())
+        .with_chain_id(ChainId::test())
+        .with_block_height(1)
+        .with_gas_unit_price(gas_price)
+        .build();
+    let BuilderResult::Success(automated_txn) = maybe_automated_txn else {
+        panic!("Automated transaction should successfully build")
+    };
+    let result = test_context
+        .execute_tagged_transaction(Transaction::AutomatedTransaction(automated_txn.clone()));
     AutomationRegistrationTestContext::check_discarded_output(
         result,
         StatusCode::NO_ACTIVE_AUTOMATED_TASK,
