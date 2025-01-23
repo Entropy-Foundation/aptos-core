@@ -4,20 +4,22 @@
 use aptos_cached_packages::aptos_framework_sdk_builder;
 use aptos_language_e2e_tests::account::{Account, AccountData};
 use aptos_language_e2e_tests::executor::FakeExecutor;
-use aptos_types::transaction::automation::RegistrationParams;
+use aptos_types::transaction::automation::{AutomationTaskMetaData, RegistrationParams};
 use aptos_types::transaction::{
     EntryFunction, ExecutionStatus, SignedTransaction, TransactionOutput, TransactionPayload,
     TransactionStatus,
 };
+use move_core_types::account_address::AccountAddress;
+use move_core_types::value::MoveValue;
 use move_core_types::vm_status::StatusCode;
 use std::ops::{Deref, DerefMut};
-use move_core_types::account_address::AccountAddress;
 
 const TIMESTAMP_NOW_SECONDS: &str = "0x1::timestamp::now_seconds";
 const ACCOUNT_BALANCE: &str = "0x1::coin::balance";
 const SUPRA_COIN: &str = "0x1::supra_coin::SupraCoin";
 const ACCOUNT_SEQ_NUM: &str = "0x1::account::get_sequence_number";
 const AUTOMATION_NEXT_TASK_ID: &str = "0x1::automation_registry::get_next_task_index";
+const AUTOMATION_TASK_DETAILS: &str = "0x1::automation_registry::get_task_details";
 
 pub(crate) struct AutomationRegistrationTestContext {
     executor: FakeExecutor,
@@ -75,7 +77,10 @@ impl AutomationRegistrationTestContext {
             .sign()
     }
 
-    pub(crate) fn check_miscellaneous_output(output: TransactionOutput, expected_status_code: StatusCode) {
+    pub(crate) fn check_miscellaneous_output(
+        output: TransactionOutput,
+        expected_status_code: StatusCode,
+    ) {
         match output.status() {
             TransactionStatus::Keep(ExecutionStatus::MiscellaneousError(maybe_status_code)) => {
                 assert_eq!(
@@ -87,31 +92,27 @@ impl AutomationRegistrationTestContext {
             _ => panic!("Unexpected transaction status: {output:?}"),
         }
     }
-    pub(crate) fn check_discarded_output(output: TransactionOutput, expected_status_code: StatusCode) {
+    pub(crate) fn check_discarded_output(
+        output: TransactionOutput,
+        expected_status_code: StatusCode,
+    ) {
         match output.status() {
-            TransactionStatus::Discard(status_code    ) => {
-                assert_eq!(
-                    status_code,
-                    &expected_status_code,
-                    "{output:?}"
-                );
+            TransactionStatus::Discard(status_code) => {
+                assert_eq!(status_code, &expected_status_code, "{output:?}");
             },
             _ => panic!("Unexpected transaction status: {output:?}"),
         }
     }
 
-    pub (crate) fn chain_time_now(&mut self) -> u64 {
-        let view_output = self.execute_view_function(
-            str::parse(TIMESTAMP_NOW_SECONDS).unwrap(),
-            vec![],
-            vec![],
-        );
+    pub(crate) fn chain_time_now(&mut self) -> u64 {
+        let view_output =
+            self.execute_view_function(str::parse(TIMESTAMP_NOW_SECONDS).unwrap(), vec![], vec![]);
         let result = view_output.values.expect("Valid result");
         assert_eq!(result.len(), 1);
         bcs::from_bytes::<u64>(&result[0]).unwrap()
     }
 
-    pub(crate) fn advance_chain_time_in_secs(&mut self,  secs: u64) {
+    pub(crate) fn advance_chain_time_in_secs(&mut self, secs: u64) {
         self.set_block_time(secs * 1_000_000);
         self.new_block()
     }
@@ -125,8 +126,8 @@ impl AutomationRegistrationTestContext {
         let result = view_output.values.expect("Valid result");
         assert_eq!(result.len(), 1);
         bcs::from_bytes::<u64>(&result[0]).unwrap()
-
     }
+
     pub(crate) fn account_sequence_number(&mut self, account_address: AccountAddress) -> u64 {
         let view_output = self.execute_view_function(
             str::parse(ACCOUNT_SEQ_NUM).unwrap(),
@@ -136,7 +137,31 @@ impl AutomationRegistrationTestContext {
         let result = view_output.values.expect("Valid result");
         assert_eq!(result.len(), 1);
         bcs::from_bytes::<u64>(&result[0]).unwrap()
+    }
 
+    pub(crate) fn get_next_task_index_from_registry(&mut self) -> u64 {
+        let view_output = self.execute_view_function(
+            str::parse(AUTOMATION_NEXT_TASK_ID).unwrap(),
+            vec![],
+            vec![],
+        );
+        let result = view_output.values.expect("Valid result");
+        assert_eq!(result.len(), 1);
+        bcs::from_bytes::<u64>(&result[0]).unwrap()
+    }
+
+    pub(crate) fn get_task_details(&mut self, index: u64) -> AutomationTaskMetaData {
+        let view_output = self.execute_view_function(
+            str::parse(AUTOMATION_TASK_DETAILS).unwrap(),
+            vec![],
+            vec![MoveValue::U64(index)
+                .simple_serialize()
+                .expect("Successful serialization")],
+        );
+        let result = view_output.values.expect("Valid result");
+        assert!(!result.is_empty());
+        bcs::from_bytes::<AutomationTaskMetaData>(&result[0])
+            .expect("Successful deserialization of AutomationTaskMetaData")
     }
 }
 
@@ -182,14 +207,7 @@ fn check_successful_registration() {
     );
 
     // Check automation registry state.
-    let view_output = test_context.execute_view_function(
-        str::parse(AUTOMATION_NEXT_TASK_ID).unwrap(),
-        vec![],
-        vec![],
-    );
-    let result = view_output.values.expect("Valid result");
-    assert_eq!(result.len(), 1);
-    let next_task_id = bcs::from_bytes::<u64>(&result[0]).unwrap();
+    let next_task_id = test_context.get_next_task_index_from_registry();
     assert_eq!(next_task_id, 1);
     let sender_seq_num = test_context.account_sequence_number(sender_address);
     assert_eq!(sender_seq_num, sender_seq_num_old + 1);

@@ -4,13 +4,13 @@
 use crate::chain_id::ChainId;
 use crate::transaction::automation::AutomationTaskMetaData;
 use crate::transaction::{EntryFunction, RawTransaction, Transaction, TransactionPayload};
+use anyhow::anyhow;
 use aptos_crypto::HashValue;
 use move_core_types::account_address::AccountAddress;
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::Debug;
-use anyhow::anyhow;
 
 /// A transaction that has been created based on the automation-task in automation registry.
 ///
@@ -143,7 +143,6 @@ impl AutomatedTransaction {
     /// otherwise None.
     pub fn duration_since(&self, base_timestamp: u64) -> Option<u64> {
         self.expiration_timestamp_secs().checked_sub(base_timestamp)
-
     }
 }
 
@@ -164,7 +163,16 @@ macro_rules! value_or_missing {
 #[derive(Clone, Debug)]
 pub enum BuilderResult {
     Success(AutomatedTransaction),
-    GasPriceThresholdExceeded { task_index: u64, threshold: u64, value: u64 },
+    GasPriceThresholdExceeded {
+        task_index: u64,
+        threshold: u64,
+        value: u64,
+    },
+    ExpiryThresholdExceeded {
+        task_index: u64,
+        threshold: u64,
+        value: u64,
+    },
     MissingValue(&'static str),
 }
 
@@ -173,8 +181,23 @@ impl BuilderResult {
         Self::Success(txn)
     }
 
-    pub fn gas_price_threshold_exceeded(task_index: u64, threshold: u64, value: u64) -> BuilderResult {
-        Self::GasPriceThresholdExceeded { task_index, threshold, value }
+    pub fn gas_price_threshold_exceeded(
+        task_index: u64,
+        threshold: u64,
+        value: u64,
+    ) -> BuilderResult {
+        Self::GasPriceThresholdExceeded {
+            task_index,
+            threshold,
+            value,
+        }
+    }
+    pub fn expiry_threshold_exceeded(task_index: u64, threshold: u64, value: u64) -> BuilderResult {
+        Self::ExpiryThresholdExceeded {
+            task_index,
+            threshold,
+            value,
+        }
     }
     pub fn missing_value(missing: &'static str) -> BuilderResult {
         Self::MissingValue(missing)
@@ -186,6 +209,9 @@ impl BuilderResult {
 pub struct AutomatedTransactionBuilder {
     /// Gas unit price threshold. Default to 0.
     pub(crate) gas_price_cap: u64,
+
+    /// Expiration time threshold. Default to 0.
+    pub(crate) expiry_threshold_secs: u64,
 
     /// Sender's address.
     pub(crate) sender: Option<AccountAddress>,
@@ -218,6 +244,51 @@ pub struct AutomatedTransactionBuilder {
 
     /// Height of the block for which this transaction has should be scheduled for execution.
     pub(crate) block_height: Option<u64>,
+}
+
+/// Getter interfaces of the builder
+impl AutomatedTransactionBuilder {
+    pub fn gas_price_cap(&self) -> &u64 {
+        &self.gas_price_cap
+    }
+
+    pub fn sender(&self) -> &Option<AccountAddress> {
+        &self.sender
+    }
+
+    pub fn sequence_number(&self) -> &Option<u64> {
+        &self.sequence_number
+    }
+
+    pub fn payload(&self) -> &Option<TransactionPayload> {
+        &self.payload
+    }
+
+    pub fn max_gas_amount(&self) -> &Option<u64> {
+        &self.max_gas_amount
+    }
+
+    pub fn gas_unit_price(&self) -> &Option<u64> {
+        &self.gas_unit_price
+    }
+    pub fn expiration_timestamp_secs(&self) -> &Option<u64> {
+        &self.expiration_timestamp_secs
+    }
+
+    pub fn chain_id(&self) -> &Option<ChainId> {
+        &self.chain_id
+    }
+    pub fn authenticator(&self) -> &Option<HashValue> {
+        &self.authenticator
+    }
+
+    pub fn block_height(&self) -> &Option<u64> {
+        &self.block_height
+    }
+
+    pub fn expiry_threshold(&self) -> &u64 {
+        &self.expiry_threshold_secs
+    }
 }
 
 impl AutomatedTransactionBuilder {
@@ -271,8 +342,9 @@ impl AutomatedTransactionBuilder {
         self
     }
 
-    pub fn expiration_timestamp_secs(&self) -> u64 {
-        self.expiration_timestamp_secs.unwrap_or(0)
+    pub fn with_expiry_threshold_secs(mut self, secs: u64) -> Self {
+        self.expiry_threshold_secs = secs;
+        self
     }
 
     /// Build an [AutomatedTransaction] instance.
@@ -282,6 +354,7 @@ impl AutomatedTransactionBuilder {
     pub fn build(self) -> BuilderResult {
         let AutomatedTransactionBuilder {
             gas_price_cap,
+            expiry_threshold_secs,
             sender,
             sequence_number,
             payload,
@@ -303,7 +376,18 @@ impl AutomatedTransactionBuilder {
         let expiration_timestamp_secs =
             value_or_missing!(expiration_timestamp_secs, "expiration_timestamp_secs");
         if gas_price_cap < gas_unit_price {
-            return BuilderResult::gas_price_threshold_exceeded(sequence_number, gas_price_cap, gas_unit_price);
+            return BuilderResult::gas_price_threshold_exceeded(
+                sequence_number,
+                gas_price_cap,
+                gas_unit_price,
+            );
+        }
+        if expiry_threshold_secs > expiration_timestamp_secs {
+            return BuilderResult::expiry_threshold_exceeded(
+                sequence_number,
+                expiry_threshold_secs,
+                expiration_timestamp_secs,
+            );
         }
         let raw_transaction = RawTransaction::new(
             sender,
@@ -314,7 +398,11 @@ impl AutomatedTransactionBuilder {
             expiration_timestamp_secs,
             chain_id,
         );
-        BuilderResult::Success(AutomatedTransaction::new(raw_transaction, authenticator, block_height))
+        BuilderResult::Success(AutomatedTransaction::new(
+            raw_transaction,
+            authenticator,
+            block_height,
+        ))
     }
 }
 
