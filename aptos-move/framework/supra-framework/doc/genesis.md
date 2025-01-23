@@ -632,7 +632,7 @@ Genesis step 1: Initialize aptos framework account and core modules on chain.
     <a href="reconfiguration.md#0x1_reconfiguration_initialize">reconfiguration::initialize</a>(&supra_framework_account);
     <a href="block.md#0x1_block_initialize">block::initialize</a>(&supra_framework_account, epoch_interval_microsecs);
     <a href="state_storage.md#0x1_state_storage_initialize">state_storage::initialize</a>(&supra_framework_account);
-    <a href="automation_registry.md#0x1_automation_registry_initialize">automation_registry::initialize</a>(&supra_framework_account, epoch_interval_microsecs);
+    <a href="automation_registry.md#0x1_automation_registry_initializate_by_default">automation_registry::initializate_by_default</a>(&supra_framework_account, epoch_interval_microsecs);
     <a href="timestamp.md#0x1_timestamp_set_time_has_started">timestamp::set_time_has_started</a>(&supra_framework_account, genesis_timestamp_in_microseconds);
 }
 </code></pre>
