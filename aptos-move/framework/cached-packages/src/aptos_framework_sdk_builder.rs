@@ -158,13 +158,6 @@ pub enum EntryFunctionCall {
         id: u64,
     },
 
-    /// Update Automation Registry Config
-    AutomationRegistryUpdateConfig {
-        automation_gas_limit: u64,
-        duration_upper_limit: u64,
-        automation_unit_price: u64,
-    },
-
     /// Same as `publish_package` but as an entry function which can be called as a transaction. Because
     /// of current restrictions for txn parameters, the metadata needs to be passed in serialized form.
     CodePublishPackageTxn {
@@ -1261,15 +1254,6 @@ impl EntryFunctionCall {
                 cap_update_table,
             ),
             AutomationRegistryCancelTask { id } => automation_registry_cancel_task(id),
-            AutomationRegistryUpdateConfig {
-                automation_gas_limit,
-                duration_upper_limit,
-                automation_unit_price,
-            } => automation_registry_update_config(
-                automation_gas_limit,
-                duration_upper_limit,
-                automation_unit_price,
-            ),
             CodePublishPackageTxn {
                 metadata_serialized,
                 code,
@@ -2291,30 +2275,6 @@ pub fn automation_registry_cancel_task(id: u64) -> TransactionPayload {
         ident_str!("cancel_task").to_owned(),
         vec![],
         vec![bcs::to_bytes(&id).unwrap()],
-    ))
-}
-
-/// Update Automation Registry Config
-pub fn automation_registry_update_config(
-    automation_gas_limit: u64,
-    duration_upper_limit: u64,
-    automation_unit_price: u64,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("automation_registry").to_owned(),
-        ),
-        ident_str!("update_config").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&automation_gas_limit).unwrap(),
-            bcs::to_bytes(&duration_upper_limit).unwrap(),
-            bcs::to_bytes(&automation_unit_price).unwrap(),
-        ],
     ))
 }
 
@@ -5634,20 +5594,6 @@ mod decoder {
         }
     }
 
-    pub fn automation_registry_update_config(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::AutomationRegistryUpdateConfig {
-                automation_gas_limit: bcs::from_bytes(script.args().get(0)?).ok()?,
-                duration_upper_limit: bcs::from_bytes(script.args().get(1)?).ok()?,
-                automation_unit_price: bcs::from_bytes(script.args().get(2)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
     pub fn code_publish_package_txn(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(script) = payload {
             Some(EntryFunctionCall::CodePublishPackageTxn {
@@ -7579,10 +7525,6 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "automation_registry_cancel_task".to_string(),
             Box::new(decoder::automation_registry_cancel_task),
-        );
-        map.insert(
-            "automation_registry_update_config".to_string(),
-            Box::new(decoder::automation_registry_update_config),
         );
         map.insert(
             "code_publish_package_txn".to_string(),
