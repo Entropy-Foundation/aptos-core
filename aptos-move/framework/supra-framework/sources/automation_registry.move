@@ -44,8 +44,6 @@ module supra_framework::automation_registry {
     const EGAS_COMMITTEED_VALUE_OVERFLOW: u64 = 12;
     /// The gas committed for next epoch value is underflow after remove old max gas
     const EGAS_COMMITTEED_VALUE_UNDERFLOW: u64 = 13;
-    /// The task is already expired
-    const ETASK_IS_ALREADY_EXPIRED: u64 = 14;
 
     /// The lenght of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -173,7 +171,7 @@ module supra_framework::automation_registry {
             2_626_560,
             100_000_000,
             1000,
-            500000000, // 5 supra
+            100_000_000, // 1 supra
             80,
             100,
         );
@@ -465,14 +463,15 @@ module supra_framework::automation_registry {
         automation_registry_config: &AutomationRegistryConfig,
     ) acquires AutomationRegistry {
         let current_time = timestamp::now_seconds();
-        assert!(automation_task_metadata.expiry_time > current_time, ETASK_IS_ALREADY_EXPIRED);
-        let residual_ttl = automation_task_metadata.expiry_time - current_time;
+        if (automation_task_metadata.expiry_time > current_time) {
+            let residual_ttl = automation_task_metadata.expiry_time - current_time;
 
-        let refund_amount = residual_ttl * automation_registry_config.automation_base_fee_in_quants_per_sec;
-        transfer_fee_to_account_internal(user, refund_amount);
-        event::emit(
-            AutomationCancellationRefund { user, task_index: automation_task_metadata.id, amount: refund_amount }
-        );
+            let refund_amount = residual_ttl * automation_registry_config.automation_base_fee_in_quants_per_sec;
+            transfer_fee_to_account_internal(user, refund_amount);
+            event::emit(
+                AutomationCancellationRefund { user, task_index: automation_task_metadata.id, amount: refund_amount }
+            );
+        }
     }
 
     /// Update epoch interval in registry while actually update happens in block module
