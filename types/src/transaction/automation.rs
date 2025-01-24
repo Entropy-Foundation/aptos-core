@@ -23,48 +23,108 @@ static AUTOMATION_REGISTRATION_ENTRY: Lazy<AutomationTransactionEntryRef> =
         function: Identifier::new("register").unwrap(),
     });
 
+
 /// Represents set of parameters required to register automation task.
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RegistrationParams {
+pub enum RegistrationParams {
+    V1(RegistrationParamsV1)
+}
+impl RegistrationParams {
+    pub fn new_v1(
+        automated_function: EntryFunction,
+        expiration_timestamp_secs: u64,
+        max_gas_amount: u64,
+        gas_price_cap: u64,
+        automation_fee_cap_for_epoch: u64,
+        aux_data: Vec<Vec<u8>>,
+    ) -> RegistrationParams {
+        RegistrationParams::V1(RegistrationParamsV1::new (
+            automated_function,
+            expiration_timestamp_secs,
+            max_gas_amount,
+            gas_price_cap,
+            automation_fee_cap_for_epoch,
+            aux_data,
+        ))
+    }
+
+    pub fn automated_function(&self) -> &EntryFunction {
+        let RegistrationParams::V1(v1_self) = self;
+        v1_self.automated_function()
+    }
+
+    pub fn into_v1(self) -> Option<RegistrationParamsV1> {
+        let RegistrationParams::V1(v1_self) = self;
+        Some(v1_self)
+    }
+
+    /// Module id containing registration function.
+    pub fn module_id(&self) -> &ModuleId {
+        let RegistrationParams::V1(v1_self) = self;
+        v1_self.module_id()
+    }
+
+    /// Registration function name accepting enclosed parameters.
+    pub fn function(&self) -> &IdentStr {
+        let RegistrationParams::V1(v1_self) = self;
+        v1_self.function()
+    }
+
+    /// Type arguments required by registration function.
+    pub fn ty_args(&self) -> Vec<TypeTag> {
+        vec![]
+    }
+
+    pub fn serialized_args_with_sender_and_parent_hash(
+        &self,
+        sender: AccountAddress,
+        parent_hash: Vec<u8>,
+    ) -> Vec<Vec<u8>> {
+        let RegistrationParams::V1(v1_self) = self;
+        v1_self.serialized_args_with_sender_and_parent_hash(sender, parent_hash)
+    }
+}
+
+/// Initial set of parameters required to register automation task.
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RegistrationParamsV1 {
     /// Entry function to be automated.
     automated_function: EntryFunction,
     /// Max gas amount for automated transaction.
     max_gas_amount: u64,
     /// Gas Uint price upper limit that user is willing to pay.
     gas_price_cap: u64,
+    /// Maximum automation fee that user is willing to pay for epoch.
+    automation_fee_cap_for_epoch: u64,
     /// Expiration time of the automated transaction in seconds since UTC Epoch start.
     expiration_timestamp_secs: u64,
+    /// Reserved for future extensions of registration parameters.
+    /// Will be helpful if the new registration parameters will affect only registration but not
+    /// task execution layer in native layer.
+    /// If a newly added parameter affects automation-task execution flow, that means
+    /// the entire flow of the automation task execution is going to be affected in native layer,
+    /// which will require all components upgrade( not only supra-framework/state but also node)
+    /// then it is advised to add a new version of registration parameters and have the new parameter properly
+    /// integrated in the automation-task/automated-transaction execution flow.
+    aux_data: Vec<Vec<u8>>
 }
 
-impl RegistrationParams {
-    pub fn serialized_args_with_sender_and_parent_hash(
-        &self,
-        sender: AccountAddress,
-        parent_hash: Vec<u8>,
-    ) -> Vec<Vec<u8>> {
-        serialize_values(&[
-            MoveValue::Address(sender),
-            MoveValue::vector_u8(bcs::to_bytes(&self.automated_function).unwrap()),
-            MoveValue::U64(self.expiration_timestamp_secs),
-            MoveValue::U64(self.max_gas_amount),
-            MoveValue::U64(self.gas_price_cap),
-            MoveValue::vector_u8(parent_hash),
-        ])
-    }
-}
-
-impl RegistrationParams {
+impl RegistrationParamsV1 {
     pub fn new(
         automated_function: EntryFunction,
         expiration_timestamp_secs: u64,
         max_gas_amount: u64,
         gas_price_cap: u64,
-    ) -> RegistrationParams {
+        automation_fee_cap_for_epoch: u64,
+        aux_data: Vec<Vec<u8>>,
+    ) -> RegistrationParamsV1 {
         Self {
             automated_function,
             max_gas_amount,
             gas_price_cap,
+            automation_fee_cap_for_epoch,
             expiration_timestamp_secs,
+            aux_data,
         }
     }
 
@@ -72,12 +132,14 @@ impl RegistrationParams {
         &self.automated_function
     }
 
-    pub fn into_inner(self) -> (EntryFunction, u64, u64, u64) {
+    pub fn into_inner(self) -> (EntryFunction, u64, u64, u64, u64, Vec<Vec<u8>>) {
         (
             self.automated_function,
             self.max_gas_amount,
             self.gas_price_cap,
             self.expiration_timestamp_secs,
+            self.automation_fee_cap_for_epoch,
+            self.aux_data,
         )
     }
     /// Module id containing registration function.
@@ -93,6 +155,24 @@ impl RegistrationParams {
     /// Type arguments required by registration function.
     pub fn ty_args(&self) -> Vec<TypeTag> {
         vec![]
+    }
+
+    pub fn serialized_args_with_sender_and_parent_hash(
+        &self,
+        sender: AccountAddress,
+        parent_hash: Vec<u8>,
+    ) -> Vec<Vec<u8>> {
+        let aux_move_args = self.aux_data.iter().map(|item| MoveValue::vector_u8(item.clone())).collect();
+        serialize_values(&[
+            MoveValue::Address(sender),
+            MoveValue::vector_u8(bcs::to_bytes(&self.automated_function).unwrap()),
+            MoveValue::U64(self.expiration_timestamp_secs),
+            MoveValue::U64(self.max_gas_amount),
+            MoveValue::U64(self.gas_price_cap),
+            MoveValue::U64(self.automation_fee_cap_for_epoch),
+            MoveValue::vector_u8(parent_hash),
+            MoveValue::Vector(aux_move_args),
+        ])
     }
 }
 
@@ -111,9 +191,14 @@ pub struct AutomationTaskMetaData {
     pub(crate) tx_hash: Vec<u8>,
     /// Max gas amount of automation task
     pub(crate) max_gas_amount: u64,
-    /// Maximum gas price cap for the task
+    /// Maximum gas price for the task to be paid ever.
     pub(crate) gas_price_cap: u64,
-    /// Registration epoch time
+    /// Maximum automation fee for epoch to be paid ever.
+    pub(crate) automation_fee_cap_for_epoch: u64,
+    /// Auxiliary data specified for the task to aid registration.
+    /// Not used currently. Reserved for future extentions.
+    pub(crate) aux_data: Vec<Vec<u8>>,
+    /// Registration epoch timestamp
     pub(crate) registration_time: u64,
     /// Flag indicating whether the task is active.
     pub(crate) is_active: bool,
@@ -129,6 +214,8 @@ impl AutomationTaskMetaData {
         tx_hash: Vec<u8>,
         max_gas_amount: u64,
         gas_price_cap: u64,
+        automation_fee_cap_for_epoch: u64,
+        aux_data: Vec<Vec<u8>>,
         registration_time: u64,
         is_active: bool,
     ) -> Self {
@@ -140,6 +227,8 @@ impl AutomationTaskMetaData {
             tx_hash,
             max_gas_amount,
             gas_price_cap,
+            automation_fee_cap_for_epoch,
+            aux_data,
             registration_time,
             is_active,
         }

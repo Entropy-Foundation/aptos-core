@@ -44,6 +44,8 @@ module supra_framework::automation_registry {
     const EGAS_COMMITTEED_VALUE_OVERFLOW: u64 = 12;
     /// The gas committed for next epoch value is underflow after remove old max gas
     const EGAS_COMMITTEED_VALUE_UNDERFLOW: u64 = 13;
+    /// Auxalary data during registration is not suppoerted
+    const ENO_AUX_DATA_SUPPORTED: u64 = 14;
 
     /// The lenght of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -136,6 +138,11 @@ module supra_framework::automation_registry {
         max_gas_amount: u64,
         /// Maximum gas price cap for the task
         gas_price_cap: u64,
+        /// Maximum automation fee for epoch to be paid ever.
+        automation_fee_cap_for_epoch: u64,
+        /// Auxiliary data specified for the task to aid registration.
+        /// Not used currently. Reserved for future extentions.
+        aux_data: vector<vector<u8>>,
         /// Registration epoch time
         registration_time: u64,
         /// Flag indicating whether the task is active, canclled or pending.
@@ -350,8 +357,11 @@ module supra_framework::automation_registry {
         expiry_time: u64,
         max_gas_amount: u64,
         gas_price_cap: u64,
-        tx_hash: vector<u8>
+        automation_fee_cap_for_epoch: u64,
+        tx_hash: vector<u8>,
+        aux_data: vector<vector<u8>>
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        assert!(vector::length(&aux_data) == 0, ENO_AUX_DATA_SUPPORTED);
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let automation_registry_config = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
         let automation_epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
@@ -385,6 +395,8 @@ module supra_framework::automation_registry {
             expiry_time,
             max_gas_amount,
             gas_price_cap,
+            automation_fee_cap_for_epoch,
+            aux_data,
             state: PENDING,
             registration_time,
             tx_hash,
@@ -568,6 +580,9 @@ module supra_framework::automation_registry {
     const PARENT_HASH: vector<u8> = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
     #[test_only]
     const PAYLOAD: vector<u8> = x"0102030405060708090a0b0c0d0e0f0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20101112131415161718191a1b1c1d1e1f20";
+    #[test_only]
+    const AUX_DATA: vector<vector<u8>> = vector[];
+
 
     #[test_only]
     fun initialize_registry_test(supra_framework: &signer, user: &signer) {
@@ -613,7 +628,7 @@ module supra_framework::automation_registry {
 
         let payload = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132";
         let parent_hash = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
-        register(user, payload, 86400, 1000, 100000, parent_hash);
+        register(user, payload, 86400, 1000, 100000,  100_000_00, parent_hash, AUX_DATA);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
@@ -626,7 +641,9 @@ module supra_framework::automation_registry {
             86400,
             50,
             20,
+            1000,
             PARENT_HASH,
+            AUX_DATA
         );
         config_buffer::initialize(framework);
         // Next epoch gas committed gas is less than the new limit value.
@@ -659,7 +676,9 @@ module supra_framework::automation_registry {
             86400,
             50,
             20,
+            1000,
             PARENT_HASH,
+            AUX_DATA
         );
 
         // Next epoch gas committed gas is greater than the new limit value.
@@ -685,7 +704,9 @@ module supra_framework::automation_registry {
             86400,
             10,
             20,
+            1000,
             PARENT_HASH,
+            AUX_DATA
         );
         assert!(1 == get_next_task_index(), 1);
         assert!(10 == get_gas_committed_for_next_epoch(), 1)
@@ -705,7 +726,9 @@ module supra_framework::automation_registry {
             25,
             70,
             20,
+            1000,
             PARENT_HASH,
+            AUX_DATA
         );
     }
 
@@ -722,7 +745,9 @@ module supra_framework::automation_registry {
             EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR / 2,
             70,
             20,
+            1000,
             PARENT_HASH,
+            AUX_DATA
         );
     }
 
@@ -739,7 +764,9 @@ module supra_framework::automation_registry {
             86400,
             70,
             0,
+            1000,
             PARENT_HASH,
+            AUX_DATA
         );
     }
 
@@ -755,7 +782,9 @@ module supra_framework::automation_registry {
             86400,
             0,
             70,
+            1000,
             PARENT_HASH,
+            AUX_DATA
         );
     }
 
@@ -771,7 +800,29 @@ module supra_framework::automation_registry {
             86400,
             10,
             70,
+            1000,
             vector<u8>[0, 1, 2, 3],
+            AUX_DATA
+        );
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = ENO_AUX_DATA_SUPPORTED, location = Self)]
+    fun check_registration_with_aux_data(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+        let new_param1 = vector[0u8, 1, 2];
+        let aux_data = vector[new_param1];
+        register(user,
+            PAYLOAD,
+            86400,
+            10,
+            70,
+            1000,
+            PARENT_HASH,
+            aux_data
         );
     }
 
@@ -788,7 +839,9 @@ module supra_framework::automation_registry {
             86400,
             60000000,
             20,
-            PARENT_HASH
+            1000,
+            PARENT_HASH,
+            AUX_DATA
         );
         assert!(1 == get_next_task_index(), 1);
         assert!(60000000 == get_gas_committed_for_next_epoch(), 1);
@@ -797,7 +850,9 @@ module supra_framework::automation_registry {
             86400,
             50000000,
             20,
-            PARENT_HASH
+            1000,
+            PARENT_HASH,
+            AUX_DATA
         );
     }
 
@@ -812,28 +867,36 @@ module supra_framework::automation_registry {
             86400,
             10,
             20,
-            PARENT_HASH
+            1000,
+            PARENT_HASH,
+            AUX_DATA
         );
         register(user,
             PAYLOAD,
             86400,
             10,
             20,
-            PARENT_HASH
+            1000,
+            PARENT_HASH,
+            AUX_DATA
         );
         register(user,
             PAYLOAD,
             86400,
             10,
             20,
-            PARENT_HASH
+            1000,
+            PARENT_HASH,
+            AUX_DATA
         );
         register(user,
             PAYLOAD,
             86400,
             10,
             20,
-            PARENT_HASH
+            1000,
+            PARENT_HASH,
+            AUX_DATA
         );
 
         // No active task and committed gas for the next epoch is total of the all registered tasks
@@ -864,28 +927,36 @@ module supra_framework::automation_registry {
             86400,
             10,
             20,
-            PARENT_HASH
+            1000,
+            PARENT_HASH,
+            AUX_DATA
         );
         register(user,
             PAYLOAD,
             86400,
             10,
             20,
-            PARENT_HASH
+            1000,
+            PARENT_HASH,
+            AUX_DATA
         );
         register(user,
             PAYLOAD,
             86400,
             10,
             20,
-            PARENT_HASH
+            1000,
+            PARENT_HASH,
+            AUX_DATA
         );
         register(user,
             PAYLOAD,
             86400,
             10,
             20,
-            PARENT_HASH
+            1000,
+            PARENT_HASH,
+            AUX_DATA
         );
 
         timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR);
@@ -918,7 +989,9 @@ module supra_framework::automation_registry {
             86400,
             10,
             20,
-            PARENT_HASH
+            1000,
+            PARENT_HASH,
+            AUX_DATA
         );
         cancel_task(user, 4);
         assert!(30 == get_gas_committed_for_next_epoch(), 1);
@@ -957,7 +1030,9 @@ module supra_framework::automation_registry {
             86400,
             10,
             20,
-            PARENT_HASH
+            1000,
+            PARENT_HASH,
+            AUX_DATA
         );
         cancel_task(user2, 0);
     }
@@ -975,7 +1050,9 @@ module supra_framework::automation_registry {
             86400,
             10,
             20,
-            PARENT_HASH
+            1000,
+            PARENT_HASH,
+            AUX_DATA
         );
         timestamp::update_global_time_for_test_secs(50);
         on_new_epoch();

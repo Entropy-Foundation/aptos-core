@@ -311,6 +311,19 @@ Epoch state
  Maximum gas price cap for the task
 </dd>
 <dt>
+<code>automation_fee_cap_for_epoch: u64</code>
+</dt>
+<dd>
+ Maximum automation fee for epoch to be paid ever.
+</dd>
+<dt>
+<code>aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;</code>
+</dt>
+<dd>
+ Auxiliary data specified for the task to aid registration.
+ Not used currently. Reserved for future extentions.
+</dd>
+<dt>
 <code>registration_time: u64</code>
 </dt>
 <dd>
@@ -571,6 +584,26 @@ Transactoin hash that registring current task is invalid. Lenght should be 32.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_TXN_HASH">EINVALID_TXN_HASH</a>: u64 = 9;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_ENO_AUX_DATA_SUPPORTED"></a>
+
+Auxalary data during registration is not suppoerted
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>: u64 = 15;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_ETASK_IS_ALREADY_EXPIRED"></a>
+
+The task is already expired
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ETASK_IS_ALREADY_EXPIRED">ETASK_IS_ALREADY_EXPIRED</a>: u64 = 14;
 </code></pre>
 
 
@@ -982,7 +1015,7 @@ Deducts the automation fee from the user's account based on the selected expiry 
 Registers a new automation task entry.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register">register</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, expiry_time: u64, max_gas_amount: u64, gas_price_cap: u64, tx_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register">register</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, expiry_time: u64, max_gas_amount: u64, gas_price_cap: u64, automation_fee_cap_for_epoch: u64, tx_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;)
 </code></pre>
 
 
@@ -997,8 +1030,11 @@ Registers a new automation task entry.
     expiry_time: u64,
     max_gas_amount: u64,
     gas_price_cap: u64,
-    tx_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+    automation_fee_cap_for_epoch: u64,
+    tx_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&aux_data) == 0, <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>);
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <b>let</b> automation_registry_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
     <b>let</b> automation_epoch_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
@@ -1032,6 +1068,8 @@ Registers a new automation task entry.
         expiry_time,
         max_gas_amount,
         gas_price_cap,
+        automation_fee_cap_for_epoch,
+        aux_data,
         state: <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>,
         registration_time,
         tx_hash,

@@ -1063,15 +1063,42 @@ impl VerifyInput for MultisigPayload {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Union)]
+pub enum  AutomationRegistrationParams {
+    V1(AutomationRegistrationParamsV1)
+}
+
+impl AutomationRegistrationParams {
+    pub fn into_v1(self) -> Option<AutomationRegistrationParamsV1> {
+        let AutomationRegistrationParams::V1(params_v1) = self;
+        Some(params_v1)
+    }
+}
+
+impl From<AutomationRegistrationParamsV1> for AutomationRegistrationParams {
+    fn from(value: AutomationRegistrationParamsV1) -> Self {
+        Self::V1(value)
+    }
+}
+
+impl VerifyInput for AutomationRegistrationParams {
+    fn verify(&self) -> anyhow::Result<()> {
+        let AutomationRegistrationParams::V1(params_v1) = self;
+        params_v1.verify()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Object)]
-pub struct AutomationRegistrationParams {
+pub struct AutomationRegistrationParamsV1 {
     pub automated_function: EntryFunctionPayload,
     pub expiration_timestamp_secs: u64,
     pub max_gas_amount: u64,
     pub gas_price_cap: u64,
+    pub automation_fee_cap: u64,
+    pub aux_data: Vec<Vec<u8>>,
 }
 
-impl VerifyInput for AutomationRegistrationParams {
+impl VerifyInput for AutomationRegistrationParamsV1 {
     fn verify(&self) -> anyhow::Result<()> {
         self.automated_function.function.verify()?;
         for type_arg in self.automated_function.type_arguments.iter() {
