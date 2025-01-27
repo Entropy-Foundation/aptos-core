@@ -488,7 +488,7 @@ module supra_framework::automation_registry {
 
     /// Update epoch interval in registry while actually update happens in block module
     public(friend) fun update_epoch_interval_in_registry(epoch_interval_microsecs: u64) acquires AutomationEpochInfo {
-        if (exists<AutomationRegistry>(@supra_framework)) {
+        if (exists<AutomationEpochInfo>(@supra_framework)) {
             let automation_epoch_info = borrow_global_mut<AutomationEpochInfo>(@supra_framework);
             automation_epoch_info.epoch_interval = epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR;
         };
