@@ -590,20 +590,10 @@ Transactoin hash that registring current task is invalid. Lenght should be 32.
 
 <a id="0x1_automation_registry_ENO_AUX_DATA_SUPPORTED"></a>
 
-Auxalary data during registration is not suppoerted
+Auxiliary data during registration is not suppoerted
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>: u64 = 15;
-</code></pre>
-
-
-
-<a id="0x1_automation_registry_ETASK_IS_ALREADY_EXPIRED"></a>
-
-The task is already expired
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ETASK_IS_ALREADY_EXPIRED">ETASK_IS_ALREADY_EXPIRED</a>: u64 = 14;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>: u64 = 14;
 </code></pre>
 
 

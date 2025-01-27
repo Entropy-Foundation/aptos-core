@@ -44,7 +44,7 @@ module supra_framework::automation_registry {
     const EGAS_COMMITTEED_VALUE_OVERFLOW: u64 = 12;
     /// The gas committed for next epoch value is underflow after remove old max gas
     const EGAS_COMMITTEED_VALUE_UNDERFLOW: u64 = 13;
-    /// Auxalary data during registration is not suppoerted
+    /// Auxiliary data during registration is not suppoerted
     const ENO_AUX_DATA_SUPPORTED: u64 = 14;
 
     /// The lenght of the transaction hash.
@@ -361,7 +361,7 @@ module supra_framework::automation_registry {
         tx_hash: vector<u8>,
         aux_data: vector<vector<u8>>
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
-        assert!(vector::length(&aux_data) == 0, ENO_AUX_DATA_SUPPORTED);
+        assert!(vector::is_empty(&aux_data), ENO_AUX_DATA_SUPPORTED);
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let automation_registry_config = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
         let automation_epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
