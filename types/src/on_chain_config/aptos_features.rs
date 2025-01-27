@@ -86,6 +86,9 @@ pub enum FeatureFlag {
     DEFAULT_TO_CONCURRENT_FUNGIBLE_BALANCE = 68,
     LIMIT_VM_TYPE_SIZE = 69,
     ABORT_IF_MULTISIG_PAYLOAD_MISMATCH = 70,
+    // Keeping 16 bit reserved to have graceful updated from aptos-mainstream in case of new flags have been added
+    // Ends up in 11th byte 1st bit
+    SUPRA_NATIVE_AUTOMATION = 89,
 }
 
 impl FeatureFlag {

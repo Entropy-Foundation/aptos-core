@@ -17,6 +17,7 @@ module supra_framework::automation_registry {
 
     friend supra_framework::block;
     friend supra_framework::reconfiguration;
+    friend supra_framework::genesis;
 
     /// Invalid expiry time: it cannot be earlier than the current time
     const EINVALID_EXPIRY_TIME: u64 = 1;
@@ -195,6 +196,30 @@ module supra_framework::automation_registry {
         congestion_threshold_percentage: u8,
         congestion_base_fee_in_quants_per_sec: u64,
     ) {
+        let epoch_interval = epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR;
+        initialize_internal(
+            supra_framework,
+            epoch_interval,
+            task_duration_cap_in_secs,
+            registry_max_gas_cap,
+            automation_base_fee_in_quants_per_sec,
+            flat_registration_fee_in_quants,
+            congestion_threshold_percentage,
+            congestion_base_fee_in_quants_per_sec
+        )
+    }
+
+    /// Initialization of Automation Registry with configuration parameters is expected metrics.
+    public(friend) fun initialize_internal(
+        supra_framework: &signer,
+        epoch_interval_secs: u64,
+        task_duration_cap_in_secs: u64,
+        registry_max_gas_cap: u64,
+        automation_base_fee_in_quants_per_sec: u64,
+        flat_registration_fee_in_quants: u64,
+        congestion_threshold_percentage: u8,
+        congestion_base_fee_in_quants_per_sec: u64,
+    ) {
         system_addresses::assert_supra_framework(supra_framework);
 
         let (registry_fee_resource_signer, registry_fee_address_signer_cap) = account::create_resource_account(
@@ -222,10 +247,9 @@ module supra_framework::automation_registry {
             next_epoch_registry_max_gas_cap: registry_max_gas_cap
         });
 
-        let epoch_interval = epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR;
         move_to(supra_framework, AutomationEpochInfo {
-            expected_epoch_duration: epoch_interval,
-            epoch_interval,
+            expected_epoch_duration: epoch_interval_secs,
+            epoch_interval: epoch_interval_secs,
             start_time: 0,
         });
     }
