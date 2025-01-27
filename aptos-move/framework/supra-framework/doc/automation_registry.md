@@ -24,7 +24,6 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `withdraw_automation_task_fees`](#0x1_automation_registry_withdraw_automation_task_fees)
 -  [Function `transfer_fee_to_account_internal`](#0x1_automation_registry_transfer_fee_to_account_internal)
 -  [Function `update_config`](#0x1_automation_registry_update_config)
--  [Function `charge_automation_fee_from_user`](#0x1_automation_registry_charge_automation_fee_from_user)
 -  [Function `register`](#0x1_automation_registry_register)
 -  [Function `check_registration_task_duration`](#0x1_automation_registry_check_registration_task_duration)
 -  [Function `cancel_task`](#0x1_automation_registry_cancel_task)
@@ -966,38 +965,6 @@ Update Automation Registry Config
 
 </details>
 
-<a id="0x1_automation_registry_charge_automation_fee_from_user"></a>
-
-## Function `charge_automation_fee_from_user`
-
-Deducts the automation fee from the user's account based on the selected expiry time.
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_charge_automation_fee_from_user">charge_automation_fee_from_user</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, automation_registry_config: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, task_duration: u64, registry_fee_address: <b>address</b>)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_charge_automation_fee_from_user">charge_automation_fee_from_user</a>(
-    owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    automation_registry_config: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
-    task_duration: u64,
-    registry_fee_address: <b>address</b>
-) {
-    <b>let</b> automation_base_fee_in_quants_per_sec = task_duration * automation_registry_config.automation_base_fee_in_quants_per_sec;
-    // todo : dynamic price calculation is pending
-    <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(owner, registry_fee_address, automation_base_fee_in_quants_per_sec);
-}
-</code></pre>
-
-
-
-</details>
-
 <a id="0x1_automation_registry_register"></a>
 
 ## Function `register`
@@ -1067,13 +1034,15 @@ Registers a new automation task entry.
 
     <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_add_value">enumerable_map::add_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index, automation_task_metadata);
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index + 1;
-    <a href="event.md#0x1_event_emit">event::emit</a>(automation_task_metadata);
 
-    <a href="automation_registry.md#0x1_automation_registry_charge_automation_fee_from_user">charge_automation_fee_from_user</a>(
+    // Charge flate registration fee from the user at the time of registration
+    <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(
         owner,
-        &automation_registry_config.main_config,
-        task_duration,
-        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address);
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address,
+        automation_registry_config.main_config.flat_registration_fee_in_quants
+    );
+
+    <a href="event.md#0x1_event_emit">event::emit</a>(automation_task_metadata);
 }
 </code></pre>
 

@@ -338,18 +338,6 @@ module supra_framework::automation_registry {
         event::emit(new_automation_registry_config);
     }
 
-    /// Deducts the automation fee from the user's account based on the selected expiry time.
-    fun charge_automation_fee_from_user(
-        owner: &signer,
-        automation_registry_config: &AutomationRegistryConfig,
-        task_duration: u64,
-        registry_fee_address: address
-    ) {
-        let automation_base_fee_in_quants_per_sec = task_duration * automation_registry_config.automation_base_fee_in_quants_per_sec;
-        // todo : dynamic price calculation is pending
-        supra_account::transfer(owner, registry_fee_address, automation_base_fee_in_quants_per_sec);
-    }
-
     /// Registers a new automation task entry.
     fun register(
         owner: &signer,
@@ -404,13 +392,15 @@ module supra_framework::automation_registry {
 
         enumerable_map::add_value(&mut automation_registry.tasks, task_index, automation_task_metadata);
         automation_registry.current_index = automation_registry.current_index + 1;
-        event::emit(automation_task_metadata);
 
-        charge_automation_fee_from_user(
+        // Charge flate registration fee from the user at the time of registration
+        supra_account::transfer(
             owner,
-            &automation_registry_config.main_config,
-            task_duration,
-            automation_registry.registry_fee_address);
+            automation_registry.registry_fee_address,
+            automation_registry_config.main_config.flat_registration_fee_in_quants
+        );
+
+        event::emit(automation_task_metadata);
     }
 
     fun check_registration_task_duration(
@@ -628,7 +618,7 @@ module supra_framework::automation_registry {
 
         let payload = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132";
         let parent_hash = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
-        register(user, payload, 86400, 1000, 100000,  100_000_00, parent_hash, AUX_DATA);
+        register(user, payload, 86400, 1000, 100000, 100_000_00, parent_hash, AUX_DATA);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
