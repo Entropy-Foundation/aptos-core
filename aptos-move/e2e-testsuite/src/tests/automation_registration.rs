@@ -64,9 +64,17 @@ impl AutomationRegistrationTestContext {
         expiry_time: u64,
         max_gas_amount: u64,
         gas_price_cap: u64,
+        automation_fee_cap: u64,
+        aux_data: Vec<Vec<u8>>,
     ) -> SignedTransaction {
-        let txn_arguments =
-            RegistrationParams::new(inner_payload, expiry_time, max_gas_amount, gas_price_cap);
+        let txn_arguments = RegistrationParams::new_v1(
+            inner_payload,
+            expiry_time,
+            max_gas_amount,
+            gas_price_cap,
+            automation_fee_cap,
+            aux_data,
+        );
         let automation_txn = TransactionPayload::AutomationRegistration(txn_arguments);
         self.txn_sender
             .account()
@@ -188,6 +196,8 @@ fn check_successful_registration() {
         aptos_framework_sdk_builder::supra_coin_mint(dest_account.address().clone(), 100)
             .into_entry_function();
 
+    let automation_fee_cap = 100_000;
+    let aux_data = Vec::new();
     let expiration_time = test_context.chain_time_now() + 4000;
     let automation_txn = test_context.create_automation_txn(
         0,
@@ -195,6 +205,8 @@ fn check_successful_registration() {
         expiration_time,
         100,
         100,
+        automation_fee_cap,
+        aux_data,
     );
 
     let sender_address = test_context.sender_account_address();
@@ -223,8 +235,17 @@ fn check_invalid_automation_txn() {
             .into_entry_function()
             .into_inner();
     let inner_entry_function = EntryFunction::new(m_id, f_id, vec![], vec![]);
-    let automation_txn =
-        test_context.create_automation_txn(0, inner_entry_function, 3600, 100, 100);
+    let automation_fee_cap = 100_000;
+    let aux_data = Vec::new();
+    let automation_txn = test_context.create_automation_txn(
+        0,
+        inner_entry_function,
+        3600,
+        100,
+        100,
+        automation_fee_cap,
+        aux_data,
+    );
 
     let output = test_context.execute_transaction(automation_txn);
     AutomationRegistrationTestContext::check_miscellaneous_output(

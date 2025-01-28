@@ -5,7 +5,7 @@
 
 use crate::{
     transaction::{
-        AutomationRegistrationParams, BlockEpilogueTransaction, DecodedTableData, DeleteModule,
+        BlockEpilogueTransaction, DecodedTableData, DeleteModule,
         DeleteResource, DeleteTableItem, DeletedTableData, MultisigPayload,
         MultisigTransactionPayload, StateCheckpointTransaction, UserTransactionRequestInner,
         WriteModule, WriteResource, WriteTableItem,
@@ -58,6 +58,7 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+use crate::transaction::AutomationRegistrationParamsV1;
 
 const OBJECT_MODULE: &IdentStr = ident_str!("object");
 const OBJECT_STRUCT: &IdentStr = ident_str!("Object");
@@ -309,15 +310,21 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
             // Deprecated.
             ModuleBundle(_) => bail!("Module bundle payload has been removed"),
             AutomationRegistration(params) => {
-                let (inner_payload, max_gas_amount, gas_price_cap, expiration_timestamp_secs) =
-                    params.into_inner();
-                let auto_payload = AutomationRegistrationParams {
+                let maybe_params_v1 = params.into_v1();
+                let Some(params_v1) = maybe_params_v1 else {
+                    bail!("Unsupported automation registration parameters.");
+                };
+                let (inner_payload, max_gas_amount, gas_price_cap, expiration_timestamp_secs, automation_fee_cap, aux_data) =
+                    params_v1.into_inner();
+                let auto_payload = AutomationRegistrationParamsV1 {
                     automated_function: self.try_into_entry_function_payload(inner_payload)?,
                     expiration_timestamp_secs,
                     max_gas_amount,
                     gas_price_cap,
+                    automation_fee_cap,
+                    aux_data,
                 };
-                TransactionPayload::AutomationRegistrationPayload(auto_payload)
+                TransactionPayload::AutomationRegistrationPayload(auto_payload.into())
             },
         };
         Ok(ret)
@@ -679,19 +686,24 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                 bail!("Module bundle payload has been removed")
             },
             TransactionPayload::AutomationRegistrationPayload(payload) => {
-                let AutomationRegistrationParams {
+                let Some(params_v1) = payload.into_v1() else {
+                    bail!("Unsupported/Unimplemented automation registration parameters");
+                };
+                let AutomationRegistrationParamsV1 {
                     automated_function,
                     expiration_timestamp_secs,
                     max_gas_amount,
-                    gas_price_cap,
-                } = payload;
+                    gas_price_cap, automation_fee_cap, aux_data,
+                } = params_v1;
                 let core_automated_function =
                     self.try_into_supra_core_entry_function(automated_function)?;
-                Target::AutomationRegistration(RegistrationParams::new(
+                Target::AutomationRegistration(RegistrationParams::new_v1(
                     core_automated_function,
                     expiration_timestamp_secs,
                     max_gas_amount,
                     gas_price_cap,
+                    automation_fee_cap,
+                    aux_data,
                 ))
             },
         };

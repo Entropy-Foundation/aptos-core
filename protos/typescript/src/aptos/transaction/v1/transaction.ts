@@ -758,6 +758,8 @@ export interface AutomationPayload {
   expirationTimestampSecs?: bigint | undefined;
   maxGasAmount?: bigint | undefined;
   gasPriceCap?: bigint | undefined;
+  automationFeeCap?: bigint | undefined;
+  auxData?: Uint8Array[] | undefined;
 }
 
 export interface MoveModuleBytecode {
@@ -7194,6 +7196,8 @@ function createBaseAutomationPayload(): AutomationPayload {
     expirationTimestampSecs: BigInt("0"),
     maxGasAmount: BigInt("0"),
     gasPriceCap: BigInt("0"),
+    automationFeeCap: BigInt("0"),
+    auxData: [],
   };
 }
 
@@ -7219,6 +7223,17 @@ export const AutomationPayload = {
         throw new globalThis.Error("value provided for field message.gasPriceCap of type uint64 too large");
       }
       writer.uint32(32).uint64(message.gasPriceCap.toString());
+    }
+    if (message.automationFeeCap !== undefined && message.automationFeeCap !== BigInt("0")) {
+      if (BigInt.asUintN(64, message.automationFeeCap) !== message.automationFeeCap) {
+        throw new globalThis.Error("value provided for field message.automationFeeCap of type uint64 too large");
+      }
+      writer.uint32(40).uint64(message.automationFeeCap.toString());
+    }
+    if (message.auxData !== undefined && message.auxData.length !== 0) {
+      for (const v of message.auxData) {
+        writer.uint32(50).bytes(v!);
+      }
     }
     return writer;
   },
@@ -7257,6 +7272,20 @@ export const AutomationPayload = {
           }
 
           message.gasPriceCap = longToBigint(reader.uint64() as Long);
+          continue;
+        case 5:
+          if (tag !== 40) {
+            break;
+          }
+
+          message.automationFeeCap = longToBigint(reader.uint64() as Long);
+          continue;
+        case 6:
+          if (tag !== 50) {
+            break;
+          }
+
+          message.auxData!.push(reader.bytes());
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -7309,6 +7338,8 @@ export const AutomationPayload = {
         : BigInt("0"),
       maxGasAmount: isSet(object.maxGasAmount) ? BigInt(object.maxGasAmount) : BigInt("0"),
       gasPriceCap: isSet(object.gasPriceCap) ? BigInt(object.gasPriceCap) : BigInt("0"),
+      automationFeeCap: isSet(object.automationFeeCap) ? BigInt(object.automationFeeCap) : BigInt("0"),
+      auxData: globalThis.Array.isArray(object?.auxData) ? object.auxData.map((e: any) => bytesFromBase64(e)) : [],
     };
   },
 
@@ -7326,6 +7357,12 @@ export const AutomationPayload = {
     if (message.gasPriceCap !== undefined && message.gasPriceCap !== BigInt("0")) {
       obj.gasPriceCap = message.gasPriceCap.toString();
     }
+    if (message.automationFeeCap !== undefined && message.automationFeeCap !== BigInt("0")) {
+      obj.automationFeeCap = message.automationFeeCap.toString();
+    }
+    if (message.auxData?.length) {
+      obj.auxData = message.auxData.map((e) => base64FromBytes(e));
+    }
     return obj;
   },
 
@@ -7340,6 +7377,8 @@ export const AutomationPayload = {
     message.expirationTimestampSecs = object.expirationTimestampSecs ?? BigInt("0");
     message.maxGasAmount = object.maxGasAmount ?? BigInt("0");
     message.gasPriceCap = object.gasPriceCap ?? BigInt("0");
+    message.automationFeeCap = object.automationFeeCap ?? BigInt("0");
+    message.auxData = object.auxData?.map((e) => e) || [];
     return message;
   },
 };
