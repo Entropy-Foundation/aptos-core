@@ -44,7 +44,7 @@ module supra_framework::automation_registry {
     const EGAS_COMMITTEED_VALUE_OVERFLOW: u64 = 12;
     /// The gas committed for next epoch value is underflow after remove old max gas
     const EGAS_COMMITTEED_VALUE_UNDERFLOW: u64 = 13;
-    /// Auxiliary data during registration is not suppoerted
+    /// Auxiliary data during registration is not supported
     const ENO_AUX_DATA_SUPPORTED: u64 = 14;
 
     /// The lenght of the transaction hash.
