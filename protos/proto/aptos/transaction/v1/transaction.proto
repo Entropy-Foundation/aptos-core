@@ -375,6 +375,8 @@ message AutomationPayload {
     uint64 expiration_timestamp_secs = 2;
     uint64 max_gas_amount = 3;
     uint64 gas_price_cap = 4;
+    uint64 automation_fee_cap = 5;
+    repeated bytes aux_data = 6;
 }
 
 message MoveModuleBytecode {

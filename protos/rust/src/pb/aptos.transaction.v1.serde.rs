@@ -1025,6 +1025,12 @@ impl serde::Serialize for AutomationPayload {
         if self.gas_price_cap != 0 {
             len += 1;
         }
+        if self.automation_fee_cap != 0 {
+            len += 1;
+        }
+        if !self.aux_data.is_empty() {
+            len += 1;
+        }
         let mut struct_ser = serializer.serialize_struct("aptos.transaction.v1.AutomationPayload", len)?;
         if let Some(v) = self.automated_function.as_ref() {
             struct_ser.serialize_field("automatedFunction", v)?;
@@ -1037,6 +1043,12 @@ impl serde::Serialize for AutomationPayload {
         }
         if self.gas_price_cap != 0 {
             struct_ser.serialize_field("gasPriceCap", ToString::to_string(&self.gas_price_cap).as_str())?;
+        }
+        if self.automation_fee_cap != 0 {
+            struct_ser.serialize_field("automationFeeCap", ToString::to_string(&self.automation_fee_cap).as_str())?;
+        }
+        if !self.aux_data.is_empty() {
+            struct_ser.serialize_field("auxData", &self.aux_data.iter().map(pbjson::private::base64::encode).collect::<Vec<_>>())?;
         }
         struct_ser.end()
     }
@@ -1056,6 +1068,10 @@ impl<'de> serde::Deserialize<'de> for AutomationPayload {
             "maxGasAmount",
             "gas_price_cap",
             "gasPriceCap",
+            "automation_fee_cap",
+            "automationFeeCap",
+            "aux_data",
+            "auxData",
         ];
 
         #[allow(clippy::enum_variant_names)]
@@ -1064,6 +1080,8 @@ impl<'de> serde::Deserialize<'de> for AutomationPayload {
             ExpirationTimestampSecs,
             MaxGasAmount,
             GasPriceCap,
+            AutomationFeeCap,
+            AuxData,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
             fn deserialize<D>(deserializer: D) -> std::result::Result<GeneratedField, D::Error>
@@ -1089,6 +1107,8 @@ impl<'de> serde::Deserialize<'de> for AutomationPayload {
                             "expirationTimestampSecs" | "expiration_timestamp_secs" => Ok(GeneratedField::ExpirationTimestampSecs),
                             "maxGasAmount" | "max_gas_amount" => Ok(GeneratedField::MaxGasAmount),
                             "gasPriceCap" | "gas_price_cap" => Ok(GeneratedField::GasPriceCap),
+                            "automationFeeCap" | "automation_fee_cap" => Ok(GeneratedField::AutomationFeeCap),
+                            "auxData" | "aux_data" => Ok(GeneratedField::AuxData),
                             _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
                         }
                     }
@@ -1112,6 +1132,8 @@ impl<'de> serde::Deserialize<'de> for AutomationPayload {
                 let mut expiration_timestamp_secs__ = None;
                 let mut max_gas_amount__ = None;
                 let mut gas_price_cap__ = None;
+                let mut automation_fee_cap__ = None;
+                let mut aux_data__ = None;
                 while let Some(k) = map.next_key()? {
                     match k {
                         GeneratedField::AutomatedFunction => {
@@ -1144,6 +1166,23 @@ impl<'de> serde::Deserialize<'de> for AutomationPayload {
                                 Some(map.next_value::<::pbjson::private::NumberDeserialize<_>>()?.0)
                             ;
                         }
+                        GeneratedField::AutomationFeeCap => {
+                            if automation_fee_cap__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("automationFeeCap"));
+                            }
+                            automation_fee_cap__ =
+                                Some(map.next_value::<::pbjson::private::NumberDeserialize<_>>()?.0)
+                            ;
+                        }
+                        GeneratedField::AuxData => {
+                            if aux_data__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("auxData"));
+                            }
+                            aux_data__ =
+                                Some(map.next_value::<Vec<::pbjson::private::BytesDeserialize<_>>>()?
+                                    .into_iter().map(|x| x.0).collect())
+                            ;
+                        }
                     }
                 }
                 Ok(AutomationPayload {
@@ -1151,6 +1190,8 @@ impl<'de> serde::Deserialize<'de> for AutomationPayload {
                     expiration_timestamp_secs: expiration_timestamp_secs__.unwrap_or_default(),
                     max_gas_amount: max_gas_amount__.unwrap_or_default(),
                     gas_price_cap: gas_price_cap__.unwrap_or_default(),
+                    automation_fee_cap: automation_fee_cap__.unwrap_or_default(),
+                    aux_data: aux_data__.unwrap_or_default(),
                 })
             }
         }
