@@ -19,19 +19,23 @@ fn test_registration_params_serde() {
     let expiry_time = 3600;
     let max_gas_amount = 10_000;
     let gas_price_cap = 500;
+    let automation_fee_cap_for_epoch = 50_000_000;
+    let aux_data = vec![vec![1u8, 2], vec![3, 4], vec![5, 6]];
     let entry_function = EntryFunction::new(module_id, member_id, vec![], vec![]);
-    let registration_params = RegistrationParams::new(
+    let registration_params = RegistrationParams::new_v1(
         entry_function.clone(),
         expiry_time,
         max_gas_amount,
         gas_price_cap,
+        automation_fee_cap_for_epoch,
+        aux_data.clone()
     );
     let address = AccountAddress::random();
     let parent_hash = HashValue::random();
     let serialized = registration_params
         .serialized_args_with_sender_and_parent_hash(address, parent_hash.to_vec());
     // 4 params + address and parent hash
-    assert_eq!(serialized.len(), 6);
+    assert_eq!(serialized.len(), 8);
     // Check the order fo serialized items
     // Address
     let v_address = bcs::from_bytes::<AccountAddress>(&serialized[0]).unwrap();
@@ -47,12 +51,18 @@ fn test_registration_params_serde() {
     let v_max_gas_amount = bcs::from_bytes::<u64>(&serialized[3]).unwrap();
     assert_eq!(max_gas_amount, v_max_gas_amount);
     // GasPriceCap
-    let v_gas_price_gap = bcs::from_bytes::<u64>(&serialized[4]).unwrap();
-    assert_eq!(gas_price_cap, v_gas_price_gap);
+    let v_gas_price_cap = bcs::from_bytes::<u64>(&serialized[4]).unwrap();
+    assert_eq!(gas_price_cap, v_gas_price_cap);
+    // AutomationFeeCap
+    let v_automation_fee_cap = bcs::from_bytes::<u64>(&serialized[5]).unwrap();
+    assert_eq!(automation_fee_cap_for_epoch, v_automation_fee_cap);
     // ParentHash
-    let v_parent_hash_bytes = bcs::from_bytes::<Vec<u8>>(&serialized[5]).unwrap();
+    let v_parent_hash_bytes = bcs::from_bytes::<Vec<u8>>(&serialized[6]).unwrap();
     let v_parent_hash = HashValue::from_slice(&v_parent_hash_bytes).unwrap();
     assert_eq!(parent_hash, v_parent_hash);
+    // AuxData
+    let v_aux_data = bcs::from_bytes::<Vec<Vec<u8>>>(&serialized[7]).unwrap();
+    assert_eq!(aux_data, v_aux_data);
 }
 
 #[test]
@@ -65,7 +75,9 @@ fn automated_txn_builder_from_task_meta() {
         tx_hash: vec![42; 32],
         max_gas_amount: 10,
         gas_price_cap: 20,
-        registration_time: 3600,
+        automation_fee_cap_for_epoch: 300,
+        aux_data: vec![],
+        registration_time: 1,
         is_active: false,
     };
     assert!(AutomatedTransactionBuilder::try_from(task_meta_invalid_payload.clone()).is_err());
@@ -133,7 +145,9 @@ fn automated_txn_build() {
         tx_hash: parent_hash.to_vec(),
         max_gas_amount: 10,
         gas_price_cap: 20,
-        registration_time: 3600,
+        automation_fee_cap_for_epoch: 500,
+        aux_data: vec![],
+        registration_time: 1,
         is_active: false,
     };
 

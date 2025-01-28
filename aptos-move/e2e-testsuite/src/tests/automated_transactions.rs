@@ -100,6 +100,8 @@ fn check_automated_transaction_successful_execution() {
         aptos_framework_sdk_builder::supra_account_transfer(dest_account.address().clone(), 100);
     let gas_price = 100;
     let max_gas_amount = 100;
+    let automation_fee_cap = 100_000;
+    let aux_data = Vec::new();
 
     // Register automation task
     let inner_entry_function = payload.clone().into_entry_function();
@@ -110,6 +112,8 @@ fn check_automated_transaction_successful_execution() {
         expiration_time,
         gas_price,
         max_gas_amount,
+        automation_fee_cap,
+        aux_data,
     );
 
     let output = test_context.execute_and_apply(automation_txn);

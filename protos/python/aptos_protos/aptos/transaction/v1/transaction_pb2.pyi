@@ -944,21 +944,29 @@ class AutomationPayload(_message.Message):
         "expiration_timestamp_secs",
         "max_gas_amount",
         "gas_price_cap",
+        "automation_fee_cap",
+        "aux_data",
     ]
     AUTOMATED_FUNCTION_FIELD_NUMBER: _ClassVar[int]
     EXPIRATION_TIMESTAMP_SECS_FIELD_NUMBER: _ClassVar[int]
     MAX_GAS_AMOUNT_FIELD_NUMBER: _ClassVar[int]
     GAS_PRICE_CAP_FIELD_NUMBER: _ClassVar[int]
+    AUTOMATION_FEE_CAP_FIELD_NUMBER: _ClassVar[int]
+    AUX_DATA_FIELD_NUMBER: _ClassVar[int]
     automated_function: EntryFunctionPayload
     expiration_timestamp_secs: int
     max_gas_amount: int
     gas_price_cap: int
+    automation_fee_cap: int
+    aux_data: _containers.RepeatedScalarFieldContainer[bytes]
     def __init__(
         self,
         automated_function: _Optional[_Union[EntryFunctionPayload, _Mapping]] = ...,
         expiration_timestamp_secs: _Optional[int] = ...,
         max_gas_amount: _Optional[int] = ...,
         gas_price_cap: _Optional[int] = ...,
+        automation_fee_cap: _Optional[int] = ...,
+        aux_data: _Optional[_Iterable[bytes]] = ...,
     ) -> None: ...
 
 class MoveModuleBytecode(_message.Message):

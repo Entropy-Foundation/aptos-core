@@ -504,11 +504,14 @@ pub fn convert_multisig_payload(
 pub fn convert_automation_payload(
     auto_payload: &AutomationRegistrationParams,
 ) -> transaction::AutomationPayload {
+    let AutomationRegistrationParams::V1(params_v1) = auto_payload;
     transaction::AutomationPayload {
-        automated_function: Some(convert_entry_function_payload(&auto_payload.automated_function)),
-        expiration_timestamp_secs: auto_payload.expiration_timestamp_secs,
-        max_gas_amount: auto_payload.max_gas_amount,
-        gas_price_cap: auto_payload.gas_price_cap,
+        automated_function: Some(convert_entry_function_payload(&params_v1.automated_function)),
+        expiration_timestamp_secs: params_v1.expiration_timestamp_secs,
+        max_gas_amount: params_v1.max_gas_amount,
+        gas_price_cap: params_v1.gas_price_cap,
+        automation_fee_cap: params_v1.automation_fee_cap,
+        aux_data: params_v1.aux_data.clone(),
     }
 }
 
