@@ -17,6 +17,9 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `AutomationCancellationRefund`](#0x1_automation_registry_AutomationCancellationRefund)
 -  [Struct `CancelledAutomationTask`](#0x1_automation_registry_CancelledAutomationTask)
 -  [Constants](#@Constants_0)
+-  [Function `is_initialized`](#0x1_automation_registry_is_initialized)
+-  [Function `is_feature_enabled`](#0x1_automation_registry_is_feature_enabled)
+-  [Function `assert_feature_enabled`](#0x1_automation_registry_assert_feature_enabled)
 -  [Function `initializate_by_default`](#0x1_automation_registry_initializate_by_default)
 -  [Function `initialize`](#0x1_automation_registry_initialize)
 -  [Function `initialize_internal`](#0x1_automation_registry_initialize_internal)
@@ -45,6 +48,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 <b>use</b> <a href="config_buffer.md#0x1_config_buffer">0x1::config_buffer</a>;
 <b>use</b> <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map">0x1::enumerable_map</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
 <b>use</b> <a href="supra_account.md#0x1_supra_account">0x1::supra_account</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
@@ -499,6 +503,16 @@ Task with provided Id not found
 
 
 
+<a id="0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE"></a>
+
+Supra native automation feature is not initialized or enabled
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>: u64 = 15;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_EEXPIRY_BEFORE_NEXT_EPOCH"></a>
 
 Expiry time must be after the start of the next epoch
@@ -658,6 +672,83 @@ The lenght of the transaction hash.
 </code></pre>
 
 
+
+<a id="0x1_automation_registry_is_initialized"></a>
+
+## Function `is_initialized`
+
+Checks whether all required resources are created.
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>(): bool {
+        <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework)
+        && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework)
+        && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_is_feature_enabled"></a>
+
+## Function `is_feature_enabled`
+
+Checks whether SUPRA_NATIVE_AUTOMATION feature flag is enabled.
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(): bool {
+    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>()
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_assert_feature_enabled"></a>
+
+## Function `assert_feature_enabled`
+
+Asserts that SUPRA_NATIVE_AUTOMATION feature flag is enabled.
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_assert_feature_enabled">assert_feature_enabled</a>()
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_assert_feature_enabled">assert_feature_enabled</a>() {
+    <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>)
+}
+</code></pre>
+
+
+
+</details>
 
 <a id="0x1_automation_registry_initializate_by_default"></a>
 
@@ -819,6 +910,15 @@ On new epoch this function will be triggered and update the automation registry 
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+    // Unless registry in initialized, registry will not be updated on new epoch.
+    // Here we need <b>to</b> be carefull <b>as</b> well. If the feature is disabled for the current epoch then
+    //  - refund for the previous epoch should be done,
+    //  - cleanup of the expired/cancelled task should be done
+    //  - but no charges for the current epoch should be collected.
+    // Note that <b>with</b> the current setup feature::on_new_epoch is called before <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">automation_registry::on_new_epoch</a>
+    <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>()) {
+        <b>return</b>
+    };
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <b>let</b> ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
 
@@ -1068,6 +1168,8 @@ Registers a new automation task entry.
     tx_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
     aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+    // Guarding registration <b>if</b> feature is not enabled.
+    <a href="automation_registry.md#0x1_automation_registry_assert_feature_enabled">assert_feature_enabled</a>();
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&aux_data), <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>);
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <b>let</b> automation_registry_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);

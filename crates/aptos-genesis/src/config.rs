@@ -82,7 +82,6 @@ pub struct Layout {
     /// An optional JWK consensus config to use, instead of `default_for_genesis()`.
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     /// An optional supra native automation config.
-    #[serde(default = "AutomationRegistryConfig::default")]
     pub automation_registry_config: Option<AutomationRegistryConfig>,
 }
 
