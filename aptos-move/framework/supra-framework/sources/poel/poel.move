@@ -3,22 +3,27 @@
 /// who hold iEth by making deposits of ETH to the intralayer vault. It handles the creation of the iETH and distribution to the
 /// corresponding addresses on supra
 ///
-/// Flow:
-/// 1. Users submit WETH to the Intralayer Vault on the Ethereum blockchain.
-/// 2. The Supra cross-chain communication protocol transfers the deposit information to the PoEL (Proof of Efficient Liquidity) contract on the Supra chain.
-/// 3. This process creates a new token, iETH (InterLayer ETH), which is distributed to the user's address on Supra. 
-/// 4. In the background, utilizing the PoEL protocol, assets deposited into the Intralayer Vault serve as collateral to 
-/// borrow $Supra and stake it in the Supra PoS system. The PoEL contract periodically lends $Supra tokens to users who have submitted WETH to the Intralayer 
-/// Vault and evenly distributes these tokens among various delegation pools participating in the system. 
-/// In this setup, the PoEL contract itself acts as the delegator of the $Supra tokens in the delegation pool on behalf of the users.
-/// Note:
-/// The total lended amount through the PoEL contract depends on the Oracle price submitted to the PoEL contract.
-/// If the price of the asset goes up compared with $Supra the system lends more delegating more assets 
-/// to the delegation pools and correspondingly if the price drops the system lends less, withdrawing some assets
-/// from the delegation pools. Therefore, the PoEL contract acting as the delegation agent for the users ensures the
-/// total delegated amount from the PoEL contract is equable with the total nominal value submitted to the IntraLayer vaults.
-/// When a user wants to retrieve the original ETH that was used as collateral, they can burn the iETH, which then enables
-/// them to receive the original ETH on the Ethereum blockchain.
+/// General Flow:
+///Although these steps refer to ETH, the Proof of Efficient Liquidity (PoEL) approach can be applied similarly to other assets:
+///1. Users deposit WETH into the Intralayer Vault on the Ethereum blockchain.
+///2. The Supra cross-chain communication protocol forwards the deposit information to the PoEL (Proof of Efficient Liquidity) contract on the Supra chain.
+///3. This step moves the borrowing request to the pre-processing stage, where the request to rent Supra using ETH is registered. Additionally, the mechanism
+///pre-mints a special token called iETH to the user’s address. This iETH serves as a “coupon” representing the user’s share of the original ETH deposited in the Intralayer Vault.
+///4. Periodically, the protocol processes borrow requests, taking into account:
+///    a. All available borrow requests
+///    b. Price fluctuations of the underlying asset (based on an oracle price submitted to the PoEL contract)
+///    c. Asset characteristics such as collateralization rates and desirability scores
+///The total amount lent through the PoEL contract depends on these factors. If the price of the asset (relative to $Supra) increases, the system rents and delegates more 
+///tokens to the delegation pools. Conversely, if the price falls, the system reduces the lent amount and withdraws tokens from the pools. During delegation, 
+///the rented tokens are evenly distributed across various delegation pools participating in the system.
+///5. After lending and delegation are finalized, users can convert their pre-minted iETH into actual assets that they can manage directly.
+///6. The delegated tokens earn staking rewards, which are distributed to iETH holders(for minted tokens) via the reward_distribution module.
+///7. Users can redeem iETH to reclaim ETH from the Intralayer Vault on the Ethereum blockchain. To do so, they submit a withdrawal request to the PoEL contract,
+///which burns their iETH and moves the request into the pre-processing stage.
+///8. Redemption requests are processed alongside new borrow requests. If the remeption requested amount > borrow requested amount, this process decreases the overall rented 
+///amount and unstakes the corresponding tokens from the delegation pools.
+///After redemption requests have been processed, users can withdraw their ETH from the system, receiving the assets on the Ethereum blockchain.
+
 
 module supra_framework::poel {
     use aptos_std::table;
@@ -129,12 +134,14 @@ module supra_framework::poel {
         admin_address: address,
         withdrawal_address: address,
     }
-
+    
     struct BorrowRequestTableItems has store {
+        /// Total amount of new collateral submitted by users for processing to borrow and delegate Supra, which has not yet been processed.
         total_borrow_requests: u64,
+        /// Total amount of requests submitted by users for processing to withdraw their tokens, which has not yet been processed
         total_withdraw_requests: u64,
     }
-
+    /// We store the borrow requests and withdraw request amounts per asset to based on those requets to peridically updat e
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct BorrowWithdrawRequest has key {
         /// Maps each AssetID to a BorrowRequestTableItems
