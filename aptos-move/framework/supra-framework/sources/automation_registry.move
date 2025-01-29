@@ -10,10 +10,16 @@ module supra_framework::automation_registry {
 
     use supra_framework::account::{Self, SignerCapability};
     use supra_framework::config_buffer;
+    use supra_framework::create_signer::create_signer;
     use supra_framework::event;
     use supra_framework::supra_account;
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
+
+    #[test_only]
+    use supra_framework::coin::balance;
+    #[test_only]
+    use supra_framework::supra_coin::SupraCoin;
 
     friend supra_framework::block;
     friend supra_framework::reconfiguration;
@@ -55,6 +61,8 @@ module supra_framework::automation_registry {
     const REGISTRY_RESOURCE_SEED: vector<u8> = b"supra_framework::automation_registry";
     /// Max U64 value
     const MAX_U64: u128 = 18446744073709551615;
+    /// Decimal place to make
+    const DECIMAL: u256 = 100000000; // 10^8 Power
 
     /// Constants describing task state.
     const PENDING: u8 = 0;
@@ -240,6 +248,15 @@ module supra_framework::automation_registry {
         let current_time = timestamp::now_seconds();
         let gas_committed_for_next_epoch = 0;
 
+        // Apply the latest configuration if any parameter has been updated.
+        update_config_from_buffer();
+        let automation_registry_config = borrow_global_mut<ActiveAutomationRegistryConfig>(
+            @supra_framework
+        ).main_config;
+
+        // Accumulated maximum gas amount of the registered tasks for the current epoch
+        let tcmg = 0;
+
         // Perform clean up and updation of state
         vector::for_each(ids, |id| {
             let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, id);
@@ -255,15 +272,84 @@ module supra_framework::automation_registry {
                 enumerable_map::remove_value(&mut automation_registry.tasks, id);
             } else {
                 task.state = ACTIVE;
+                tcmg = tcmg + (task.max_gas_amount as u256);
             }
         });
 
-        // Apply the latest configuration if any parameter has been updated.
-        update_config_from_buffer();
+        fee_charges_on_new_epoch(
+            automation_registry,
+            automation_epoch_info,
+            &automation_registry_config,
+            ids,
+            current_time,
+            tcmg
+        );
 
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
         automation_epoch_info.start_time = current_time;
         automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
+    }
+
+    /// Charges automation task fees for all active tasks at the beginning of a new epoch.
+    fun fee_charges_on_new_epoch(
+        ar: &AutomationRegistry,
+        aei: &AutomationEpochInfo,
+        arc: &AutomationRegistryConfig,
+        ids: vector<u64>,
+        current_time: u64,
+        tcmg: u256
+    ) {
+        let max_gas_cap = (arc.registry_max_gas_cap as u256);
+        let threshold_percentage = (arc.congestion_threshold_percentage as u256) * DECIMAL;
+
+        // Calculate congestion threshold surplus for the current epoch
+        let threshold_usage = (tcmg * DECIMAL / max_gas_cap) * 100;
+        let threshold_surplus = if (threshold_usage < threshold_percentage) 0
+        else threshold_usage - threshold_percentage;
+
+        // Compute the automation congestion fee (acf) for the epoch
+        let acf = if (threshold_surplus > 0) {
+            ((arc.congestion_base_fee_in_quants_per_sec as u256) * threshold_surplus / 100) / DECIMAL
+        } else 0;
+
+        // Process each active task and apply the fee charges for the new epoch
+        vector::for_each(ids, |id| {
+            let task = enumerable_map::get_value(&ar.tasks, id);
+            if (task.state == ACTIVE) {
+                fee_charges_on_new_epoch_for_single_task(ar.registry_fee_address, aei, arc, &task, current_time, acf);
+            }
+        });
+    }
+
+    /// Charges automation task fees for a single task at the beginning of a new epoch.
+    fun fee_charges_on_new_epoch_for_single_task(
+        registry_fee_address: address,
+        aei: &AutomationEpochInfo,
+        arc: &AutomationRegistryConfig,
+        task: &AutomationTaskMetaData,
+        current_time: u64,
+        acf: u256
+    ) {
+        let abf = (arc.automation_base_fee_in_quants_per_sec as u256);
+        let max_gas_cap = (arc.registry_max_gas_cap as u256);
+        let task_max_gas = (task.max_gas_amount as u256);
+
+        let epoch_interval = aei.epoch_interval;
+        let remaining_time = task.expiry_time - current_time;
+        let min_interval = if (remaining_time < epoch_interval) remaining_time else epoch_interval;
+
+        // Compute the base automation fee (taf)
+        let gas_proportion = (task_max_gas * DECIMAL / max_gas_cap);
+        let base_fee = (abf * gas_proportion) / DECIMAL;
+        let taf = base_fee * (min_interval as u256); // Total base fee for the interval
+
+        // Compute the congestion fee per task (tcf)
+        let tcf = if (acf > 0) {
+            (acf * gas_proportion * (min_interval as u256)) / DECIMAL
+        } else 0;
+
+        let transfer_fee_amount = (taf + tcf as u64);
+        supra_account::transfer(&create_signer(task.owner), registry_fee_address, transfer_fee_amount)
     }
 
     /// The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
@@ -1049,5 +1135,63 @@ module supra_framework::automation_registry {
         // Cancel the same task 2 times
         cancel_task(user, 0);
         cancel_task(user, 0);
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    fun check_normal_fee_charge_on_new_epoch(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+
+        register(user,
+            PAYLOAD,
+            86400,
+            1_000_000, // normal gas amount
+            20,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+
+        // check user balance after registred new task
+        let balance = balance<SupraCoin>(signer::address_of(user));
+        assert!(balance == 10000000000 - FLATE_REGISTRATION_FEE_TEST, 11);
+
+        timestamp::update_global_time_for_test_secs(50);
+        on_new_epoch();
+
+        // check user balance after on new epoch fee applied
+        let balance = balance<SupraCoin>(signer::address_of(user));
+        assert!(balance == 9499928000, 12);
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    fun check_congestion_fee_charge_on_new_epoch(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+
+        register(user,
+            PAYLOAD,
+            86400,
+            85_000_000, // congestion threashold reach
+            20,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+
+        // check user balance after registred new task
+        let balance = balance<SupraCoin>(signer::address_of(user));
+        assert!(balance == 10000000000 - FLATE_REGISTRATION_FEE_TEST, 11);
+
+        timestamp::update_global_time_for_test_secs(50);
+        on_new_epoch();
+
+        // check user balance after on new epoch fee applied
+        let balance = balance<SupraCoin>(signer::address_of(user));
+        assert!(balance == 9493849400, 12);
     }
 }
