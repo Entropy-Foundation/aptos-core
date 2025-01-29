@@ -51,6 +51,7 @@ module supra_framework::automation_registry {
     /// Supra native automation feature is not initialized or enabled
     const EDISABLED_AUTOMATION_FEATURE: u64 = 15;
 
+
     /// The lenght of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
     /// Conversion factor between microseconds and second
@@ -417,6 +418,7 @@ module supra_framework::automation_registry {
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
         // Guarding registration if feature is not enabled.
         assert_feature_enabled();
+
         assert!(vector::is_empty(&aux_data), ENO_AUX_DATA_SUPPORTED);
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let automation_registry_config = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
