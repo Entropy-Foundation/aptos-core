@@ -22,6 +22,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
 -  [Function `fee_charges_on_new_epoch`](#0x1_automation_registry_fee_charges_on_new_epoch)
 -  [Function `fee_charges_on_new_epoch_for_single_task`](#0x1_automation_registry_fee_charges_on_new_epoch_for_single_task)
+-  [Function `calculate_automation_congestion_fee`](#0x1_automation_registry_calculate_automation_congestion_fee)
 -  [Function `update_config_from_buffer`](#0x1_automation_registry_update_config_from_buffer)
 -  [Function `withdraw_automation_task_fees`](#0x1_automation_registry_withdraw_automation_task_fees)
 -  [Function `transfer_fee_to_account_internal`](#0x1_automation_registry_transfer_fee_to_account_internal)
@@ -42,12 +43,15 @@ This contract is part of the Supra Framework and is designed to manage automated
 
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
+<b>use</b> <a href="coin.md#0x1_coin">0x1::coin</a>;
 <b>use</b> <a href="config_buffer.md#0x1_config_buffer">0x1::config_buffer</a>;
 <b>use</b> <a href="create_signer.md#0x1_create_signer">0x1::create_signer</a>;
 <b>use</b> <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map">0x1::enumerable_map</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
+<b>use</b> <a href="../../aptos-stdlib/doc/math64.md#0x1_math64">0x1::math64</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
 <b>use</b> <a href="supra_account.md#0x1_supra_account">0x1::supra_account</a>;
+<b>use</b> <a href="supra_coin.md#0x1_supra_coin">0x1::supra_coin</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="timestamp.md#0x1_timestamp">0x1::timestamp</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
@@ -803,6 +807,7 @@ On new epoch this function will be triggered and update the automation registry 
 
     // Accumulated maximum gas amount of the registered tasks for the current epoch
     <b>let</b> tcmg = 0;
+    <b>let</b> active_task_ids = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
 
     // Perform clean up and updation of state
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(ids, |id| {
@@ -819,6 +824,7 @@ On new epoch this function will be triggered and update the automation registry 
             <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, id);
         } <b>else</b> {
             task.state = <a href="automation_registry.md#0x1_automation_registry_ACTIVE">ACTIVE</a>;
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> active_task_ids, task.id);
             tcmg = tcmg + (task.max_gas_amount <b>as</b> u256);
         }
     });
@@ -827,7 +833,7 @@ On new epoch this function will be triggered and update the automation registry 
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
         automation_epoch_info,
         &automation_registry_config,
-        ids,
+        active_task_ids,
         current_time,
         tcmg
     );
@@ -849,7 +855,7 @@ On new epoch this function will be triggered and update the automation registry 
 Charges automation task fees for all active tasks at the beginning of a new epoch.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_fee_charges_on_new_epoch">fee_charges_on_new_epoch</a>(ar: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, aei: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">automation_registry::AutomationEpochInfo</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, ids: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, current_time: u64, tcmg: u256)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_fee_charges_on_new_epoch">fee_charges_on_new_epoch</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, aei: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">automation_registry::AutomationEpochInfo</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, active_task_ids: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, current_time: u64, tcmg: u256)
 </code></pre>
 
 
@@ -859,31 +865,29 @@ Charges automation task fees for all active tasks at the beginning of a new epoc
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_fee_charges_on_new_epoch">fee_charges_on_new_epoch</a>(
-    ar: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>,
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>,
     aei: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>,
     arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
-    ids: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
+    active_task_ids: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
     current_time: u64,
     tcmg: u256
 ) {
-    <b>let</b> max_gas_cap = (arc.registry_max_gas_cap <b>as</b> u256);
-    <b>let</b> threshold_percentage = (arc.congestion_threshold_percentage <b>as</b> u256) * <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>;
-
-    // Calculate congestion threshold surplus for the current epoch
-    <b>let</b> threshold_usage = (tcmg * <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> / max_gas_cap) * 100;
-    <b>let</b> threshold_surplus = <b>if</b> (threshold_usage &lt; threshold_percentage) 0
-    <b>else</b> threshold_usage - threshold_percentage;
-
     // Compute the automation congestion fee (acf) for the epoch
-    <b>let</b> acf = <b>if</b> (threshold_surplus &gt; 0) {
-        ((arc.congestion_base_fee_in_quants_per_sec <b>as</b> u256) * threshold_surplus / 100) / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>
-    } <b>else</b> 0;
+    <b>let</b> acf = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_congestion_fee">calculate_automation_congestion_fee</a>(arc, tcmg);
 
     // Process each active task and <b>apply</b> the fee charges for the new epoch
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(ids, |id| {
-        <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&ar.tasks, id);
-        <b>if</b> (task.state == <a href="automation_registry.md#0x1_automation_registry_ACTIVE">ACTIVE</a>) {
-            <a href="automation_registry.md#0x1_automation_registry_fee_charges_on_new_epoch_for_single_task">fee_charges_on_new_epoch_for_single_task</a>(ar.registry_fee_address, aei, arc, &task, current_time, acf);
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(active_task_ids, |id| {
+        <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, id);
+        <b>let</b> status = <a href="automation_registry.md#0x1_automation_registry_fee_charges_on_new_epoch_for_single_task">fee_charges_on_new_epoch_for_single_task</a>(
+            <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address,
+            aei,
+            arc,
+            &task,
+            current_time,
+            acf
+        );
+        <b>if</b> (!status) {
+            <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, id);
         }
     });
 }
@@ -898,9 +902,12 @@ Charges automation task fees for all active tasks at the beginning of a new epoc
 ## Function `fee_charges_on_new_epoch_for_single_task`
 
 Charges automation task fees for a single task at the beginning of a new epoch.
+It's return boolean value
+true means balance fee charges successfully deducted,
+false means due to task expiry or
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_fee_charges_on_new_epoch_for_single_task">fee_charges_on_new_epoch_for_single_task</a>(registry_fee_address: <b>address</b>, aei: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">automation_registry::AutomationEpochInfo</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, current_time: u64, acf: u256)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_fee_charges_on_new_epoch_for_single_task">fee_charges_on_new_epoch_for_single_task</a>(registry_fee_address: <b>address</b>, aei: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">automation_registry::AutomationEpochInfo</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, current_time: u64, acf: u256): bool
 </code></pre>
 
 
@@ -916,27 +923,66 @@ Charges automation task fees for a single task at the beginning of a new epoch.
     task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a>,
     current_time: u64,
     acf: u256
-) {
+): bool {
     <b>let</b> abf = (arc.automation_base_fee_in_quants_per_sec <b>as</b> u256);
     <b>let</b> max_gas_cap = (arc.registry_max_gas_cap <b>as</b> u256);
     <b>let</b> task_max_gas = (task.max_gas_amount <b>as</b> u256);
 
     <b>let</b> epoch_interval = aei.epoch_interval;
-    <b>let</b> remaining_time = task.expiry_time - current_time;
-    <b>let</b> min_interval = <b>if</b> (remaining_time &lt; epoch_interval) remaining_time <b>else</b> epoch_interval;
 
-    // Compute the base automation fee (taf)
-    <b>let</b> gas_proportion = (task_max_gas * <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> / max_gas_cap);
-    <b>let</b> base_fee = (abf * gas_proportion) / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>;
-    <b>let</b> taf = base_fee * (min_interval <b>as</b> u256); // Total base fee for the interval
+    // Subtraction is safe here, <b>as</b> we already removed expiry tasks
+    <b>let</b> remaining_time = task.expiry_time - current_time;
+    <b>let</b> min_interval = (<a href="../../aptos-stdlib/doc/math64.md#0x1_math64_min">math64::min</a>(remaining_time, epoch_interval) <b>as</b> u256);
+
+    // Compute the base automation fee (taf). Total base fee for the interval
+    <b>let</b> taf = abf * task_max_gas * min_interval / max_gas_cap;
 
     // Compute the congestion fee per task (tcf)
-    <b>let</b> tcf = <b>if</b> (acf &gt; 0) {
-        (acf * gas_proportion * (min_interval <b>as</b> u256)) / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>
-    } <b>else</b> 0;
+    <b>let</b> tcf = acf * task_max_gas * min_interval / max_gas_cap;
 
     <b>let</b> transfer_fee_amount = (taf + tcf <b>as</b> u64);
-    <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(&<a href="create_signer.md#0x1_create_signer">create_signer</a>(task.owner), registry_fee_address, transfer_fee_amount)
+
+    <b>let</b> user_balance = balance&lt;SupraCoin&gt;(task.owner);
+    <b>if</b> (user_balance &gt;= transfer_fee_amount) {
+        <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(&<a href="create_signer.md#0x1_create_signer">create_signer</a>(task.owner), registry_fee_address, transfer_fee_amount);
+        <b>true</b>
+    } <b>else</b> {
+        <b>false</b>
+    }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_calculate_automation_congestion_fee"></a>
+
+## Function `calculate_automation_congestion_fee`
+
+Calculate automation congestion fee for the epoch
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_congestion_fee">calculate_automation_congestion_fee</a>(arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, tcmg: u256): u256
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_congestion_fee">calculate_automation_congestion_fee</a>(arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>, tcmg: u256): u256 {
+    <b>let</b> max_gas_cap = (arc.registry_max_gas_cap <b>as</b> u256);
+    <b>let</b> threshold_percentage = (arc.congestion_threshold_percentage <b>as</b> u256) * <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>;
+
+    // Calculate congestion threshold surplus for the current epoch
+    <b>let</b> threshold_usage = (tcmg * <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> / max_gas_cap) * 100;
+    <b>let</b> threshold_surplus = <b>if</b> (threshold_usage &lt; threshold_percentage) 0 <b>else</b> threshold_usage - threshold_percentage;
+
+    // Compute the automation congestion fee (acf) for the epoch
+    <b>let</b> acf = ((arc.congestion_base_fee_in_quants_per_sec <b>as</b> u256) * threshold_surplus / 100) / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>;
+    acf
 }
 </code></pre>
 
