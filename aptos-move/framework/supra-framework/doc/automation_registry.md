@@ -326,7 +326,7 @@ Epoch state
 </dt>
 <dd>
  Auxiliary data specified for the task to aid registration.
- Not used currently. Reserved for future extentions.
+ Not used currently. Reserved for future extensions.
 </dd>
 <dt>
 <code>registration_time: u64</code>
@@ -338,7 +338,7 @@ Epoch state
 <code>state: u8</code>
 </dt>
 <dd>
- Flag indicating whether the task is active, canclled or pending.
+ Flag indicating whether the task is active, cancelled or pending.
 </dd>
 </dl>
 
@@ -1567,7 +1567,7 @@ Get gas committed for next epoch
 
 ## Function `get_automation_registry_config`
 
-Get automation registry configration
+Get automation registry configuration
 
 
 <pre><code>#[view]
@@ -1593,7 +1593,7 @@ Get automation registry configration
 
 ## Function `get_next_epoch_registry_max_gas_cap`
 
-Get automation registry configration
+Get automation registry maximum gas capacity for the next epoch
 
 
 <pre><code>#[view]

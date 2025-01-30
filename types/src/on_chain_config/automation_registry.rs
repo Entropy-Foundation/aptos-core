@@ -14,7 +14,7 @@ const DEFAULT_CONGESTION_THRESHOLD_PERCENTAGE: u8 = 80;
 const DEFAULT_CONGESTION_BASE_FEE_IN_QUANTS_PER_SEC: u64 = 100;
 
 /// Initial version of configuration parameters for Supra native automation feature
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Eq)]
 pub struct AutomationRegistryConfigV1 {
     /// Maximum allowable duration (in seconds) from the registration time that an automation task can run.
     /// If the expiration time exceeds this duration, the task registration will fail.
@@ -75,7 +75,7 @@ impl AutomationRegistryConfigV1 {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Eq)]
 pub enum AutomationRegistryConfig {
     V1(AutomationRegistryConfigV1),
 }

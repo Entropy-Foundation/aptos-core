@@ -146,11 +146,11 @@ module supra_framework::automation_registry {
         /// Maximum automation fee for epoch to be paid ever.
         automation_fee_cap_for_epoch: u64,
         /// Auxiliary data specified for the task to aid registration.
-        /// Not used currently. Reserved for future extentions.
+        /// Not used currently. Reserved for future extensions.
         aux_data: vector<vector<u8>>,
         /// Registration epoch time
         registration_time: u64,
-        /// Flag indicating whether the task is active, canclled or pending.
+        /// Flag indicating whether the task is active, cancelled or pending.
         state: u8
     }
 
@@ -608,13 +608,13 @@ module supra_framework::automation_registry {
     }
 
     #[view]
-    /// Get automation registry configration
+    /// Get automation registry configuration
     public fun get_automation_registry_config(): AutomationRegistryConfig acquires ActiveAutomationRegistryConfig {
         borrow_global<ActiveAutomationRegistryConfig>(@supra_framework).main_config
     }
 
     #[view]
-    /// Get automation registry configration
+    /// Get automation registry maximum gas capacity for the next epoch
     public fun get_next_epoch_registry_max_gas_cap(): u64 acquires ActiveAutomationRegistryConfig {
         borrow_global<ActiveAutomationRegistryConfig>(@supra_framework).next_epoch_registry_max_gas_cap
     }
