@@ -15,20 +15,22 @@ module supra_framework::iAsset {
     use std::signer;
     use std::string;
     use aptos_std::error;
-    use aptos_std::object::{Self, Object, ExtendRef, ObjectCore};
+    use aptos_std::object::{Self, Object, ObjectCore};
     use aptos_std::math64;
-    use std::option;
+    use std::option::{Self, Option};
     use aptos_std::primary_fungible_store::Self;
     use aptos_std::fungible_asset::{Self, MintRef, TransferRef, BurnRef, Metadata};
-    use supra_framework::reward_distribution;//::update_rewards;
+    use supra_framework::reward_distribution::update_rewards;
+    use supra_oracle::supra_oracle_storage;
+    use supra_framework::system_addresses::is_reserved_address;
 
     friend supra_framework::poel;
 
-    /// The storage object name from object::create_named_object(address, OBJECT_NAME)
+     /// The storage object name from object::create_named_object(address, OBJECT_NAME)
     const IASSET_GLOBAL: vector<u8> = b"IASSET_GLOBAL";
 
     /// thrown when the calling address is not poel as expected
-    const ENOT_POEL_ADDRESS: u64 = 1;
+    const ENOT_FRAMEWORK_ADDRESS: u64 = 1;
 
     /// thrown when the the asset getting deployed is already deployed
     const EIASSET_ALREADY_DELOYED: u64 = 2;
@@ -64,6 +66,9 @@ module supra_framework::iAsset {
     const EWRONG_ASSET_COUNT: u64 = 12; 
 
 
+    const MAX_U64: u64 = 18446744073709551615;
+
+
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     /// AssetEntry struct that holds the iAsset's user's metrics
     struct AssetEntry has key, store, copy {
@@ -74,18 +79,21 @@ module supra_framework::iAsset {
         ///Redeem_Requested_iAssets: Number of iAssets for which redemption has been requested.
         redeem_requested_iAssets: u64,
         ///Preminiting_OLC_Index: Records the index of the last cycle during which a preminting request was submitted for an asset.
-        preminiting_OLC_index: u64
+        preminiting_OLC_index: u64,
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     /// tracks the liquidity of every asset.
     struct LiquidityTableItems has key, store {
+        pair_id: u32,
         ///asset_supply: Total amount of the asset that has been bridged to create the iAsset.
         asset_supply: u64,
         ///desired_weights: Weights reflecting the asset's strategic importance.
         desired_weight: u64,
         ///desirability_score: Attractiveness score of the asset.
         desirability_score: u64,
+        total_borrow_requests: u64,
+        total_withdraw_requests: u64,
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -103,7 +111,7 @@ module supra_framework::iAsset {
         ///Index of the last observable lockup cycle (OLC), crucial for the minting of preminted tokens and the withdrawal of unlocked tokens.
         current_olc_index: u64, //not update at any point??
         ///Represents the nominal value of all assets submitted to the system, indicating the total economic stake.
-        total_nominal_value: u64
+        total_nominal_liquidity: u64
     }
 
     #[resource_group_member(group = aptos_std::object::ObjectGroup)]
@@ -123,6 +131,7 @@ module supra_framework::iAsset {
     /// it can change to an asset id or an address depending on which is convenient
     struct AssetTracker has key {
         liquidity_provider_objects: SimpleMap<address, address>,
+        asset_entry_tracker: SimpleMap<address, address>,
         assets: SmartTable<vector<u8>, bool>,//maps asset symbol to a bool
     }
 
@@ -135,13 +144,14 @@ module supra_framework::iAsset {
             global_signer,
             AssetTracker {
                 liquidity_provider_objects: simple_map::create<address, address>(),
+                asset_entry_tracker: simple_map::create<address, address>(),
                 assets: smart_table::new()
             }
         );
 
         move_to(global_signer, TotalLiquidity {
             current_olc_index: 0,
-            total_nominal_value: 0,
+            total_nominal_liquidity: 0,
         });
     }
 
@@ -149,8 +159,8 @@ module supra_framework::iAsset {
     /// Description creates a new iAsset as a fungible asset and tracks it in the AssetTracker
     /// @param iAsset_name: the name of the iAsset
     /// @param iAsset_symbol: its corresponding symbol
-    public fun create_new_iAsset(account: &signer, iAsset_name: vector<u8>, iAsset_symbol: vector<u8>) acquires AssetTracker {
-        assert!(signer::address_of(account) == @supra_framework, error::permission_denied(ENOT_POEL_ADDRESS));
+    public fun create_new_iAsset(account: &signer, iAsset_name: vector<u8>, iAsset_symbol: vector<u8>, pair_id: u32) acquires AssetTracker {
+        assert!(is_reserved_address(signer::address_of(account)), error::permission_denied(ENOT_FRAMEWORK_ADDRESS));
         let tracker_address = object::create_object_address(&@supra_framework, IASSET_GLOBAL);
 
         //assert that the iAsset has not been deployed yet
@@ -187,9 +197,12 @@ module supra_framework::iAsset {
         );
 
         move_to(metadata_object_signer, LiquidityTableItems {
+                pair_id,
                 asset_supply: 0,
                 desired_weight: 0,
                 desirability_score: 0,
+                total_borrow_requests: 0,
+                total_withdraw_requests: 0,
             });
 
         // track the deployed asset in the AssetTracker assets table
@@ -228,31 +241,46 @@ module supra_framework::iAsset {
     /// Desctiption: Retrives the data in the liquidity table struct
     /// @param: symbol - vector<u8>
     /// returns: (asset_supply, iAsset_supply, desired_weight, desirability_score)
-    public fun get_liquidity_table_items(symbol: vector<u8>): (u64, u64, u64,) acquires LiquidityTableItems {        
+    public fun get_liquidity_table_items(symbol: vector<u8>): (u32, u64, u64, u64,) acquires LiquidityTableItems {        
         let items = borrow_global<LiquidityTableItems>(asset_address(symbol));
 
-        (items.asset_supply, items.desired_weight, items.desirability_score)
+        (items.pair_id, items.asset_supply, items.desired_weight, items.desirability_score)
     }
 
     #[view]
     /// Function get_total_liquidity
     /// Desctiption: Retrives the data in the total_liquidity
-    /// returns: (current_olc_index, total_nominal_value)
+    /// returns: (current_olc_index, total_nominal_liquidity)
     public fun get_total_liquidity(): (u64, u64) acquires TotalLiquidity {
         let obj_address = object::create_object_address(&@supra_framework, IASSET_GLOBAL);
 
         let total_obj = borrow_global<TotalLiquidity>(obj_address);
 
-        (total_obj.current_olc_index, total_obj.total_nominal_value)
+        (total_obj.current_olc_index, total_obj.total_nominal_liquidity)
     }
 
     #[view]
     /// Function: get_asset_price(asset_symbol)
     /// Description: Gets an asset's prce from the price oracle
     /// @param: asset_symbol - vector<u8>
-    public fun get_asset_price(asset_symbol: vector<u8>): u64 {
-        0
+    public fun get_asset_price(asset_symbol: vector<u8>): (u64, u16, u64, u64) acquires LiquidityTableItems {
+        let (pair_id, _, _, _) = get_liquidity_table_items(asset_symbol);
+
+        let (value, decimal, timestamp, round) = supra_oracle_storage::get_price(pair_id);
+        let value_u64 = safe_u128_to_u64(value);
+        assert!(option::is_some(&value_u64), 12);
+        (0, decimal, timestamp, round)
     }
+
+
+    fun safe_u128_to_u64(value: u128): Option<u64> {
+        if (value <= (MAX_U64 as u128)) {
+            option::some((value as u64))
+        } else {
+            option::none<u64>()
+        }
+    }
+
 
     #[view]
     /// Function: get_iAsset_supply(asset: Object<Metadata>)
@@ -263,6 +291,7 @@ module supra_framework::iAsset {
         (option::extract(&mut fungible_asset::supply(asset)) as u64)
 
     }
+
 
     #[view]
     /// Function: get_assets
@@ -285,6 +314,7 @@ module supra_framework::iAsset {
         return_value
     }
 
+
     #[view]
     /// Function: get_provider_address(account)
     /// Description: Gets Liquidity provider object address for the account
@@ -302,26 +332,36 @@ module supra_framework::iAsset {
     /// @param: account - address of the user
     /// @param: asset - the target asset
     public fun create_iAsset_entry(account: address, asset: Object<Metadata>) acquires AssetTracker {
+        //check if the liquidity provider object is initialized for the address 
         initialize_LiquidityProvider(account);
+        //get the primary store
         let primary_store = primary_fungible_store::ensure_primary_store_exists(account, asset);
-        let store_address = object::object_address(&primary_store); 
-        if (!object::object_exists<ObjectCore>(store_address)) {
-        // create and object 
+        let store_address = object::object_address(&primary_store);
+        let tracked_assets = borrow_global_mut<AssetTracker>(get_storage_address());
+        if (simple_map::borrow(&tracked_assets.asset_entry_tracker, &store_address) == &@0x0)
+        {
+        // create object 
             let constructor_ref = &object::create_object(store_address);
 
             let object_signer = &object::generate_signer(constructor_ref);
 
             move_to(
                 object_signer,
-                  AssetEntry {
-                      user_reward_index: 0,
-                      preminted_iAssets: 0,
-                      redeem_requested_iAssets: 0,
-                      preminiting_OLC_index: 0
-                  }
-            )
+                    AssetEntry {
+                        user_reward_index: 0,
+                        preminted_iAssets: 0,
+                        redeem_requested_iAssets: 0,
+                        preminiting_OLC_index: 0,
+
+                    }
+            );
+
+            let object_address = object::address_from_constructor_ref(constructor_ref);
+
+            simple_map::add(&mut tracked_assets.asset_entry_tracker, store_address, object_address);
         }
     }
+
 
     ///Function to set up initial LiquidityProvider structures for asset management.
     /// Desctription: Create an liquidityProvider for an addres if its not created
@@ -364,21 +404,15 @@ module supra_framework::iAsset {
     /// Function: premint_iAsset 
     /// Description: is applied to mint iAssets as soon as some amount of the original asset has been submitted to the interalayer vaults.
     /// @notice: premint function can be called only by PoEL contract 
-    /// @param: account has to be the poel contract
     /// @param: asset_amount asssets to be minted
     /// @param: asset: the asset getting minted
     /// @param: receiver the receiving address
     public(friend) fun premint_iAsset(
-        account: &signer,
         asset_amount: u64,
         asset_symbol: vector<u8>,
         receiver: address,
         asset_supply: u64,
     ) acquires AssetEntry, ManagingRefs, TotalLiquidity, AssetTracker {
-        // confirm the caller is the right address
-        assert!(signer::address_of(account) == @supra_framework, error::permission_denied(ENOT_POEL_ADDRESS));
-
-        //let table_obj = borrow_global_mut<LiquidityTableItems>(asset_address(asset_symbol));
 
         //ensure the reciver has a fungible store of the iAsset
         let primary_store = primary_fungible_store::ensure_primary_store_exists(receiver, asset_metadata(asset_symbol));
@@ -433,11 +467,11 @@ module supra_framework::iAsset {
             //Set PremintedAssetBalance = 0.
             asset_entry.preminted_iAssets = 0;
             //Call update_rewards(owner address, asset).
-            reward_distribution::update_rewards(user_address, asset_entry.user_reward_index, asset_metadata(asset_symbol));
+            update_rewards(user_address, asset_entry.user_reward_index, asset_metadata(asset_symbol));
         }
     }
 
-
+    #[view]
     /// previewMint(asset_amount, assetID):
     /// Purpose: Calculates the total amount of iAsset that needs to be minted based on the submitted original assets.
     /// @param: amount - the amount to mint
@@ -445,30 +479,24 @@ module supra_framework::iAsset {
     public fun previewMint(asset_supply: u64, asset_amount: u64, asset: Object<Metadata>): u64 {
 
         // get the iAsset total supply
-        //let i_asset = fungible_asset::supply(asset);
-        ////@phydy: confirm the best to use
-        //let _x = (option::extract(&mut i_asset) as u64);
-        //Retrieve Asset_supply from the iAsset_table using assetID.
         let iAsset_supply = get_iAsset_supply(asset);
 
-        //let (_, asset_supply, iAsset_supply, _, _) = get_liquidity_table_items(asset);
+        //Calculate iasset_amount based on the current iAsset_supply:
+        let iasset_amount: u64;
 
-        //Calculate asset_needed based on the current iAsset_supply:
-        let asset_needed: u64;
-
-        //If iAsset_supply equals 0, set asset_needed to asset_amount.
+        //If iAsset_supply equals 0, set iasset_amount to asset_amount.
         if (iAsset_supply == 0) {
-            asset_needed = asset_amount;
+            iasset_amount = asset_amount;
         } 
-        // If iAsset_supply is greater than 0, calculate asset_needed as the rounded up result of
+        // If iAsset_supply is greater than 0, calculate iasset_amount as the rounded up result of
         // (asset_amount * asset_supply / iAsset_supply) to account for division truncation.
         else {
 
             // rounding up when division truncation occurs 
-            asset_needed = (asset_amount * iAsset_supply + asset_supply - 1) / asset_supply + 1;
+            iasset_amount = (asset_amount * iAsset_supply + asset_supply - 1) / asset_supply + 1;
         };
-        //Return asset_needed
-        asset_needed
+        //Return iasset_amount
+        iasset_amount
     }
 
     /// Function: previewRedeem(iAsset_amount, asset): preview the amount of assets to receive by specifying the amount of iAssets to redeem
@@ -524,8 +552,6 @@ module supra_framework::iAsset {
 
         let primary_store = primary_fungible_store::ensure_primary_store_exists(account_address, asset);
 
-        create_iAsset_entry(account_address, asset);
-
         redeem_iAsset(account, asset, receiver_address, current_cycle_index, iAsset_amount);
 
         let asset_entry = borrow_global_mut<AssetEntry>(object::object_address(&primary_store));
@@ -535,19 +561,17 @@ module supra_framework::iAsset {
 
         primary_fungible_store::burn(burn_ref, account_address, iAsset_amount);
 
-        reduce_asset_supply(asset_symbol, iAsset_amount);
+        asset_entry.redeem_requested_iAssets = asset_entry.redeem_requested_iAssets + iAsset_amount;
 
-        asset_entry.redeem_requested_iAssets + iAsset_amount;
-
-        reward_distribution::update_rewards(account_address, asset_entry.user_reward_index, asset);
+        update_rewards(account_address, asset_entry.user_reward_index, asset);
 
         let current_cycle_index = current_cycle_index;
 
         let provider_ref = borrow_global_mut<LiquidityProvider>(get_provider_address(account_address));
 
         provider_ref.unlock_olc_index = current_cycle_index;
-        //preminting_olc_index = current_cycle_index;
-        asset_entry.preminiting_OLC_index = current_cycle_index;
+        reduce_asset_supply(asset_symbol, iAsset_amount);
+
     }
 
     /// Function: redeem_iAsset(account, asset, receiver_address)
@@ -566,7 +590,6 @@ module supra_framework::iAsset {
 
         let primary_store = primary_fungible_store::ensure_primary_store_exists(account_address, asset);
 
-        //assert!(exists<AssetEntry>(object::object_address(&primary_store)));
         create_iAsset_entry(account_address, asset);
         let provider_ref = borrow_global_mut<LiquidityProvider>(get_provider_address(account_address));
 
@@ -611,7 +634,7 @@ module supra_framework::iAsset {
         let owner_asset_entry = borrow_global_mut<AssetEntry>(object::object_address(&owner_primary_store));
 
         // Ensure the asset is initialized in the owner's LiquidityProvider struct
-        create_iAsset_entry(owner_address, asset);
+        //create_iAsset_entry(owner_address, asset);
 
         // Ensure the asset is initialized in the receiver's LiquidityProvider struct
         create_iAsset_entry(receiver_address, asset);
@@ -630,7 +653,7 @@ module supra_framework::iAsset {
         //let (receiver_iAsset_balance, _, _, _, _) = table::borrow_mut(&mut receiver_provider_ref.iAsset_table, asset_id);
         //*receiver_iAsset_balance += iAsset_amount;
 
-            reward_distribution::update_rewards(owner_address, owner_asset_entry.user_reward_index, asset);
+        update_rewards(owner_address, owner_asset_entry.user_reward_index, asset);
     }
 //
 //    public fun transfer_asset(
@@ -665,7 +688,6 @@ module supra_framework::iAsset {
     /// @param: asset - the asset metadata
     /// return u64 
     public fun convertToAssets(asset_supply: u64, shares: u64, asset: Object<Metadata>): u64 {
-        //let (_, asset_supply, iAsset_supply, _, _) = get_liquidity_table_items(asset);
 
         let iAsset_supply = get_iAsset_supply(asset);
 
@@ -680,36 +702,6 @@ module supra_framework::iAsset {
         asset_amount
     }
 
-//    /// Adds a new asset to the TotalLiquidityTable within the TotalLiquidity struct, initializing its financial metrics to default values.
-//    public fun add_new_iAsset(
-//        signer: &signer,
-//        asset_name: String,
-//        desirability_score: u64
-//    ) {
-//        // Ensure the function is called by an authorized signer (admin)
-//        assert!(signer::address_of(signer) == ADMIN_ADDRESS, 0);
-//
-//        // Borrow a mutable reference to the TotalLiquidity struct
-//        let total_liquidity_ref = borrow_global_mut<TotalLiquidity>(TOTAL_LIQUIDITY_ADDRESS);
-//
-//        let new_asset_id = total_liquidity_ref.last_asset_id + 1;
-//        total_liquidity_ref.last_asset_id = new_asset_id;
-//
-//        let initial_metrics = (0, 0, 0, 0); // (collaterisation_rate, asset_price, iAsset_supply, asset_supply)
-//
-//        table::add(
-//            &mut total_liquidity_ref.TotalLiquidityTable,
-//            new_asset_id,
-//            initial_metrics
-//        );
-//
-//        total_liquidity_ref.asset_metadata.insert(new_asset_id, (asset_name, desirability_score));
-//
-//        total_liquidity_ref.desirable_weights.insert(new_asset_id, 0);
-//
-//        // Inform the admin that they must call updateDesiredWeights to allocate the desired weight
-//        // This could be done through an event or a log, depending on your system design
-//    }
 
     fun reduce_asset_supply(asset: vector<u8>, amount: u64) acquires LiquidityTableItems {
         let obj_address = asset_address(asset);
@@ -717,6 +709,8 @@ module supra_framework::iAsset {
         let liquidity_ref = borrow_global_mut<LiquidityTableItems>(obj_address);
 
         liquidity_ref.asset_supply = liquidity_ref.asset_supply - amount;
+        liquidity_ref.total_withdraw_requests = liquidity_ref.total_withdraw_requests + amount; 
+
     }
 
     /// Function: update_desired_weight(desired_weight_vector, signer)
@@ -827,7 +821,7 @@ module supra_framework::iAsset {
     }
 
     /// updates asset prices and calculates new supply metrics for collateral management in the system.
-    public(friend) fun update_asset_price_supply() acquires TotalLiquidity, AssetTracker, LiquidityTableItems {
+    public(friend) fun calculate_nominal_liquidity() acquires TotalLiquidity, AssetTracker, LiquidityTableItems {
         let total_nominal_liquidity: u64 = 0;
         let total_liquidity_ref = borrow_global_mut<TotalLiquidity>(get_storage_address());
         let tracked_assets = borrow_global<AssetTracker>(get_storage_address());
@@ -840,21 +834,20 @@ module supra_framework::iAsset {
             //let is_there: &bool = value;
             let symbol = *key;
             let table_obj = borrow_global_mut<LiquidityTableItems>(asset_address(symbol));
-            let new_asset_price = 0; //get_asset_price_from_oracle(asset_id); // Assuming a function to get the asset price
             
             // Fetch asset details and calculate new supply
-            let borrow_request = 0;// get_borrow_request(asset_id); // Assuming a function to get borrow requests
-            let withdraw_request = 0;// get_withdraw_request(asset_id); // Assuming a function to get withdraw requests
+            let borrow_request = table_obj.total_borrow_requests;
+            let withdraw_request = table_obj.total_withdraw_requests;
             let new_supply = table_obj.asset_supply + borrow_request - withdraw_request;
+            table_obj.asset_supply = new_supply;
+
+            let (new_asset_price, _, _, _)= get_asset_price(symbol);
 
             let nominal_liquidity_of_asset = new_supply * new_asset_price;
 
-            table_obj.asset_supply = new_supply;
-            //table_obj.collateralisation_rate = nominal_liquidity_of_asset;
-
             total_nominal_liquidity = total_nominal_liquidity + nominal_liquidity_of_asset;
 
-            total_liquidity_ref.total_nominal_value = total_nominal_liquidity;
+            total_liquidity_ref.total_nominal_liquidity = total_nominal_liquidity;
 
         });
     }
@@ -872,56 +865,59 @@ module supra_framework::iAsset {
         coefficient_m: u64,
         //coefficient_rho: u64,
         min_collateralisation: u64,
-        max_collateralisation_first: u64
-
+        max_collateralisation_first: u64,
+        max_collateralisation_second: u64
     ): u64 acquires AssetTracker, LiquidityTableItems, TotalLiquidity {
         let tracked_assets = borrow_global<AssetTracker>(get_storage_address());
 
-        let asset_price = 1;//get_asset_price();
         let total_rentable_amount: u64 = 0;
 
-                smart_table::for_each_ref<vector<u8>, bool>(
+        smart_table::for_each_ref<vector<u8>, bool>(
             &tracked_assets.assets,
             | key, _value|
         {
             //let is_there: &bool = value;
             let symbol = *key;
+            let (asset_price, _, _, _)= get_asset_price(symbol);
             let collateralisation_rate = calculate_collaterisation_rate(
                 symbol,
                 coefficient_k,
                 coefficient_m,
                 //coefficient_rho,
                 min_collateralisation,
-                max_collateralisation_first
+                max_collateralisation_first,
+                max_collateralisation_second
 
             );
             let table_obj = borrow_global_mut<LiquidityTableItems>(asset_address(symbol));
 
-            total_rentable_amount = total_rentable_amount + (table_obj.asset_supply / collateralisation_rate) * asset_price;
+            total_rentable_amount = total_rentable_amount + (
+                ((table_obj.asset_supply + table_obj.total_borrow_requests) - table_obj.total_withdraw_requests) / collateralisation_rate
+            ) * asset_price;
         });
         total_rentable_amount
 
     }
 
 
-    //5. calculate_collaterisation_rate(asset_nominal_value, total_nominal_value, assetID)
+    //5. calculate_collaterisation_rate(asset_nominal_value, total_nominal_liquidity, assetID)
     //Purpose: Calculates and updates the collateralization rate for a specified asset based on dynamic market weights and predefined coefficients.
     public fun calculate_collaterisation_rate(
         symbol: vector<u8>,
         coefficient_k: u64,
         coefficient_m: u64,
-        //coefficient_rho: u64,
         min_collaterisation: u64,
-        max_collateralisation_first: u64
+        max_collateralisation_first: u64,
+        max_collateralisation_second: u64
     ): u64 acquires TotalLiquidity, LiquidityTableItems {
 
         let total_liquidity_ref = borrow_global_mut<TotalLiquidity>(get_storage_address());
 
-        let (asset_supply, desired_weight, _) = get_liquidity_table_items(symbol);
+        let (_, asset_supply, desired_weight, _) = get_liquidity_table_items(symbol);
 
-        let collaterisation_rate_for_asset = 0;
+        let (asset_price, _, _, _)= get_asset_price(symbol);
 
-        let asset_weight = asset_supply / total_liquidity_ref.total_nominal_value; //to convert to f64
+        let asset_weight = asset_supply * asset_price / total_liquidity_ref.total_nominal_liquidity; //to convert to f64
 
         if (asset_weight <= desired_weight) {
             let numerator = desired_weight - asset_weight;
@@ -929,19 +925,17 @@ module supra_framework::iAsset {
             let ratio = numerator / denominator;
             let ratio_exp = math64::pow(ratio, coefficient_k);
 
-            collaterisation_rate_for_asset = min_collaterisation + ( 
-                max_collateralisation_first - min_collaterisation) * ratio_exp;
+            (min_collaterisation + ( 
+                max_collateralisation_first - min_collaterisation) * ratio_exp)
         } else {
             let numerator = asset_weight - desired_weight;
             let denominator = 100 - desired_weight;
             let ratio = numerator / denominator;
             let ratio_exp = math64::pow(ratio, coefficient_m);
 
-            collaterisation_rate_for_asset = 
-                min_collaterisation +
-                (max_collateralisation_first - min_collaterisation) * ratio_exp;
-        };
-        collaterisation_rate_for_asset
+            (min_collaterisation +
+                (max_collateralisation_second - min_collaterisation) * ratio_exp)
+        }
     }
 
     public(friend) fun poel_update_olc_index() acquires TotalLiquidity {
@@ -951,4 +945,9 @@ module supra_framework::iAsset {
 
     }
 
+    public(friend) fun update_borrow_request(symbol: vector<u8>, value_to_add: u64) acquires LiquidityTableItems {
+        let obj_address = asset_address(symbol);
+        let liquidity_ref = borrow_global_mut<LiquidityTableItems>(obj_address);
+        liquidity_ref.total_borrow_requests = liquidity_ref.total_borrow_requests + value_to_add; 
+    }
 }
