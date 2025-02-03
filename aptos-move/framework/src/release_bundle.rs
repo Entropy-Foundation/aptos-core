@@ -166,7 +166,7 @@ impl ReleasePackage {
         out: PathBuf,
         function_name: String,
     ) -> anyhow::Result<()> {
-        self.generate_script_proposal_impl(for_address, out, false, false, Vec::new(), function_name)
+        self.generate_script_proposal_impl(for_address, out, false, false, String::new(), function_name)
     }
 
     pub fn generate_script_proposal_testnet(
@@ -175,14 +175,14 @@ impl ReleasePackage {
         out: PathBuf,
         function_name: String,
     ) -> anyhow::Result<()> {
-        self.generate_script_proposal_impl(for_address, out, true, false, Vec::new(), function_name)
+        self.generate_script_proposal_impl(for_address, out, true, false, String::new(), function_name)
     }
 
     pub fn generate_script_proposal_multi_step(
         &self,
         for_address: AccountAddress,
         out: PathBuf,
-        next_execution_hash: Vec<u8>,
+        next_execution_hash: String,
         function_name: String
     ) -> anyhow::Result<()> {
         self.generate_script_proposal_impl(for_address, out, true, true, next_execution_hash, function_name)
@@ -194,7 +194,7 @@ impl ReleasePackage {
         out: PathBuf,
         is_testnet: bool,
         is_multi_step: bool,
-        next_execution_hash: Vec<u8>,
+        next_execution_hash: String,
         function_name: String,
     ) -> anyhow::Result<()> {
         let writer = CodeWriter::new(Loc::default());
@@ -288,9 +288,9 @@ impl ReleasePackage {
     fn generate_next_execution_hash_blob(
         writer: &CodeWriter,
         for_address: AccountAddress,
-        next_execution_hash: Vec<u8>,
+        next_execution_hash: String,
     ) {
-        if next_execution_hash == "vector::empty<u8>()".as_bytes() {
+        if next_execution_hash.is_empty() {
             emitln!(
                 writer,
                 "let framework_signer = supra_governance::resolve_supra_multi_step_proposal(proposal_id, @{}, {});\n",
@@ -305,11 +305,12 @@ impl ReleasePackage {
             writer.indent();
             emitln!(writer, "proposal_id,");
             emitln!(writer, "@{},", for_address);
-            emit!(writer, "vector[");
-            for b in next_execution_hash.iter() {
-                emit!(writer, "{}u8,", b);
-            }
-            emitln!(writer, "],");
+            emitln!(writer, "x{}", next_execution_hash);
+            // emit!(writer, "vector[");
+            // for b in next_execution_hash.iter() {
+            //     emit!(writer, "{}u8,", b);
+            // }
+            // emitln!(writer, "],");
             writer.unindent();
             emitln!(writer, ");");
         }

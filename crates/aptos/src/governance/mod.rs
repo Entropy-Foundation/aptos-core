@@ -1118,11 +1118,11 @@ impl CliCommand<()> for GenerateUpgradeProposal {
             }
             // If we're generating a multi-step proposal
         } else {
-            let next_execution_hash_bytes = hex::decode(next_execution_hash)?;
+            // let next_execution_hash_bytes = hex::decode(next_execution_hash)?;
             release.generate_script_proposal_multi_step(
                 account,
                 output,
-                next_execution_hash_bytes,
+                next_execution_hash,
                 function_name
             )?;
         }
