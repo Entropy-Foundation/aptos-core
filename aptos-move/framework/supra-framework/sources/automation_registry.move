@@ -176,6 +176,33 @@ module supra_framework::automation_registry {
         id: u64
     }
 
+    #[event]
+    /// Event emitted when a transaction fee is charged for an automation task in an epoch.
+    struct AutomationEpochTransactionFeeCharged has drop, store {
+        task_index: u64,
+        owner: address,
+        fee: u64,
+    }
+
+    #[event]
+    /// Event emitted when an automation task is canceled due to insufficient balance.
+    struct AutomationTaskCanceledInsufficientBalance has drop, store {
+        task_index: u64,
+        owner: address,
+        fee: u64,
+    }
+
+    /// Represents the fee charged for an automation task execution and some additional information.
+    struct AutomationTaskFee has drop {
+        task_index: u64,
+        owner: address,
+        fee: u64,
+        // Need max gas amount to calculate "gas_committed_for_next_epoch"
+        max_gas_amount: u64,
+        // Need expiry time to calculate "gas_committed_for_next_epoch"
+        expiry_time: u64,
+    }
+
     /// This is temporary function : until we have initialization flow properly implemented
     public fun initializate_by_default(supra_framework: &signer, epoch_interval_microsecs: u64) {
         initialize(
@@ -243,9 +270,6 @@ module supra_framework::automation_registry {
 
         let automation_epoch_info = borrow_global_mut<AutomationEpochInfo>(@supra_framework);
 
-        let current_time = timestamp::now_seconds();
-        let gas_committed_for_next_epoch = 0;
-
         // Apply the latest configuration if any parameter has been updated.
         update_config_from_buffer();
         let automation_registry_config = borrow_global_mut<ActiveAutomationRegistryConfig>(
@@ -255,16 +279,11 @@ module supra_framework::automation_registry {
         // Accumulated maximum gas amount of the registered tasks for the current epoch
         let tcmg = 0;
         let active_task_ids = vector[];
+        let current_time = timestamp::now_seconds();
 
         // Perform clean up and updation of state
         vector::for_each(ids, |id| {
             let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, id);
-
-            // Tasks that are active during next epoch and are not canceled
-            // current_time shows the start time of the current new epoch.
-            if (task.state != CANCELLED && task.expiry_time > (current_time + automation_epoch_info.epoch_interval)) {
-                gas_committed_for_next_epoch = gas_committed_for_next_epoch + task.max_gas_amount;
-            };
 
             // Drop or activate task for this current epoch.
             if (task.expiry_time <= current_time || task.state == CANCELLED) {
@@ -276,7 +295,7 @@ module supra_framework::automation_registry {
             }
         });
 
-        fee_charges_on_new_epoch(
+        let list = calculate_epoch_fees(
             automation_registry,
             automation_epoch_info,
             &automation_registry_config,
@@ -285,52 +304,49 @@ module supra_framework::automation_registry {
             tcmg
         );
 
+        let gas_committed_for_next_epoch = process_automation_task_fees(
+            automation_registry,
+            list,
+            current_time,
+            automation_epoch_info.epoch_interval
+        );
+
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
         automation_epoch_info.start_time = current_time;
         automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
     }
 
     /// Charges automation task fees for all active tasks at the beginning of a new epoch.
-    fun fee_charges_on_new_epoch(
-        automation_registry: &mut AutomationRegistry,
+    fun calculate_epoch_fees(
+        automation_registry: &AutomationRegistry,
         aei: &AutomationEpochInfo,
         arc: &AutomationRegistryConfig,
         active_task_ids: vector<u64>,
         current_time: u64,
         tcmg: u256
-    ) {
+    ): vector<AutomationTaskFee> {
         // Compute the automation congestion fee (acf) for the epoch
         let acf = calculate_automation_congestion_fee(arc, tcmg);
 
         // Process each active task and apply the fee charges for the new epoch
-        vector::for_each(active_task_ids, |id| {
+        vector::map(active_task_ids, |id| {
             let task = enumerable_map::get_value(&automation_registry.tasks, id);
-            let status = fee_charges_on_new_epoch_for_single_task(
-                automation_registry.registry_fee_address,
-                aei,
-                arc,
-                &task,
-                current_time,
-                acf
-            );
-            if (!status) {
-                enumerable_map::remove_value(&mut automation_registry.tasks, id);
-            }
-        });
+            let task_fee = calculate_task_fee(aei, arc, &task, current_time, acf);
+            AutomationTaskFee { task_index: task.id, owner: task.owner, fee: task_fee, max_gas_amount: task.max_gas_amount, expiry_time: task.expiry_time }
+        })
     }
 
     /// Charges automation task fees for a single task at the beginning of a new epoch.
     /// It's return boolean value
     ///     true means balance fee charges successfully deducted,
     ///     false means due to task expiry or
-    fun fee_charges_on_new_epoch_for_single_task(
-        registry_fee_address: address,
+    fun calculate_task_fee(
         aei: &AutomationEpochInfo,
         arc: &AutomationRegistryConfig,
         task: &AutomationTaskMetaData,
         current_time: u64,
         acf: u256
-    ): bool {
+    ): u64 {
         let abf = (arc.automation_base_fee_in_quants_per_sec as u256);
         let max_gas_cap = (arc.registry_max_gas_cap as u256);
         let task_max_gas = (task.max_gas_amount as u256);
@@ -347,15 +363,7 @@ module supra_framework::automation_registry {
         // Compute the congestion fee per task (tcf)
         let tcf = acf * task_max_gas * min_interval / max_gas_cap;
 
-        let transfer_fee_amount = (taf + tcf as u64);
-
-        let user_balance = balance<SupraCoin>(task.owner);
-        if (user_balance >= transfer_fee_amount) {
-            supra_account::transfer(&create_signer(task.owner), registry_fee_address, transfer_fee_amount);
-            true
-        } else {
-            false
-        }
+        (taf + tcf as u64)
     }
 
     /// Calculate automation congestion fee for the epoch
@@ -370,6 +378,45 @@ module supra_framework::automation_registry {
         // Compute the automation congestion fee (acf) for the epoch
         let acf = ((arc.congestion_base_fee_in_quants_per_sec as u256) * threshold_surplus / 100) / DECIMAL;
         acf
+    }
+
+    /// Processes automation task fees by checking user balances.
+    /// - If the user has sufficient balance, deducts the fee and emits a success event.
+    /// - If the balance is insufficient, removes the task and emits a cancellation event.
+    fun process_automation_task_fees(
+        automation_registry: &mut AutomationRegistry,
+        task_list: vector<AutomationTaskFee>,
+        current_time: u64,
+        epoch_interval: u64,
+    ): u64 {
+        let gas_committed_for_next_epoch = 0;
+
+        vector::for_each(task_list, |task| {
+            let task: AutomationTaskFee = task;
+            let user_balance = balance<SupraCoin>(task.owner);
+
+            // If the user has enough balance, charge the fee and emit the success event
+            if (user_balance >= task.fee) {
+                supra_account::transfer(&create_signer(task.owner), automation_registry.registry_fee_address, task.fee);
+
+                event::emit(
+                    AutomationEpochTransactionFeeCharged { task_index: task.task_index, owner: task.owner, fee: task.fee }
+                );
+
+                // Tasks that are active during next epoch and are not canceled
+                // current_time shows the start time of the current new epoch.
+                if (task.expiry_time > (current_time + epoch_interval)) {
+                    gas_committed_for_next_epoch = gas_committed_for_next_epoch + task.max_gas_amount;
+                };
+            } else {
+                // Remove the automation task due to insufficient balance and emit the cancellation event
+                enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
+                event::emit(
+                    AutomationTaskCanceledInsufficientBalance { task_index: task.task_index, owner: task.owner, fee: task.fee }
+                );
+            }
+        });
+        gas_committed_for_next_epoch
     }
 
     /// The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
