@@ -34,7 +34,10 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `cancel_task`](#0x1_automation_registry_cancel_task)
 -  [Function `refund_automation_task_fee`](#0x1_automation_registry_refund_automation_task_fee)
 -  [Function `update_epoch_interval_in_registry`](#0x1_automation_registry_update_epoch_interval_in_registry)
+-  [Function `is_feature_enabled_and_initialized`](#0x1_automation_registry_is_feature_enabled_and_initialized)
 -  [Function `get_next_task_index`](#0x1_automation_registry_get_next_task_index)
+-  [Function `get_task_count`](#0x1_automation_registry_get_task_count)
+-  [Function `get_task_ids`](#0x1_automation_registry_get_task_ids)
 -  [Function `get_active_task_ids`](#0x1_automation_registry_get_active_task_ids)
 -  [Function `get_task_details`](#0x1_automation_registry_get_task_details)
 -  [Function `has_sender_active_task_with_id`](#0x1_automation_registry_has_sender_active_task_with_id)
@@ -677,10 +680,10 @@ The lenght of the transaction hash.
 
 ## Function `is_initialized`
 
-Checks whether all required resources are created.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>(): bool
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>(): bool
 </code></pre>
 
 
@@ -689,7 +692,7 @@ Checks whether all required resources are created.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>(): bool {
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>(): bool {
         <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework)
         && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework)
         && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework)
@@ -1170,6 +1173,7 @@ Registers a new automation task entry.
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     // Guarding registration <b>if</b> feature is not enabled.
     <a href="automation_registry.md#0x1_automation_registry_assert_feature_enabled">assert_feature_enabled</a>();
+
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&aux_data), <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>);
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <b>let</b> automation_registry_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
@@ -1388,6 +1392,32 @@ Update epoch interval in registry while actually update happens in block module
 
 </details>
 
+<a id="0x1_automation_registry_is_feature_enabled_and_initialized"></a>
+
+## Function `is_feature_enabled_and_initialized`
+
+Means to query by user whether the automation registry has been properly initialized and ready to be utilized.
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled_and_initialized">is_feature_enabled_and_initialized</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled_and_initialized">is_feature_enabled_and_initialized</a>(): bool {
+    <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>() && <a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>()
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_automation_registry_get_next_task_index"></a>
 
 ## Function `get_next_task_index`
@@ -1408,6 +1438,60 @@ Returns next task index in registry
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_next_task_index">get_next_task_index</a>(): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_get_task_count"></a>
+
+## Function `get_task_count`
+
+Returns number of available tasks.
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_task_count">get_task_count</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_task_count">get_task_count</a>(): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+    <b>let</b> state = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_length">enumerable_map::length</a>(&state.tasks)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_get_task_ids"></a>
+
+## Function `get_task_ids`
+
+List all automation task ids available in register.
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_task_ids">get_task_ids</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_task_ids">get_task_ids</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt; <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+    <b>let</b> state = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&state.tasks)
 }
 </code></pre>
 

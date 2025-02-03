@@ -176,14 +176,16 @@ module supra_framework::automation_registry {
     }
 
     /// Checks whether all required resources are created.
-    fun is_initialized(): bool {
+    #[view]
+    public fun is_initialized(): bool {
             exists<AutomationRegistry>(@supra_framework)
             && exists<AutomationEpochInfo>(@supra_framework)
             && exists<ActiveAutomationRegistryConfig>(@supra_framework)
     }
 
     /// Checks whether SUPRA_NATIVE_AUTOMATION feature flag is enabled.
-    fun is_feature_enabled(): bool {
+    #[view]
+    public fun is_feature_enabled(): bool {
         features::supra_native_automation_enabled()
     }
 
@@ -553,10 +555,30 @@ module supra_framework::automation_registry {
     }
 
     #[view]
+    /// Means to query by user whether the automation registry has been properly initialized and ready to be utilized.
+    public fun is_feature_enabled_and_initialized(): bool {
+        is_feature_enabled() && is_initialized()
+    }
+
+    #[view]
     /// Returns next task index in registry
     public fun get_next_task_index(): u64 acquires AutomationRegistry {
         let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
         automation_registry.current_index
+    }
+
+    #[view]
+    /// Returns number of available tasks.
+    public fun get_task_count(): u64 acquires AutomationRegistry {
+        let state = borrow_global<AutomationRegistry>(@supra_framework);
+        enumerable_map::length(&state.tasks)
+    }
+
+    #[view]
+    /// List all automation task ids available in register.
+    public fun get_task_ids(): vector<u64> acquires AutomationRegistry {
+        let state = borrow_global<AutomationRegistry>(@supra_framework);
+        enumerable_map::get_map_list(&state.tasks)
     }
 
     #[view]
