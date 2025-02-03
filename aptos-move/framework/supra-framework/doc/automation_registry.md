@@ -17,7 +17,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `AutomationCancellationRefund`](#0x1_automation_registry_AutomationCancellationRefund)
 -  [Struct `CancelledAutomationTask`](#0x1_automation_registry_CancelledAutomationTask)
 -  [Struct `AutomationEpochTransactionFeeCharged`](#0x1_automation_registry_AutomationEpochTransactionFeeCharged)
--  [Struct `AutomationTaskCanceledInsufficientBalance`](#0x1_automation_registry_AutomationTaskCanceledInsufficientBalance)
+-  [Struct `AutomationTaskAutoCanceled`](#0x1_automation_registry_AutomationTaskAutoCanceled)
 -  [Struct `AutomationTaskFee`](#0x1_automation_registry_AutomationTaskFee)
 -  [Constants](#@Constants_0)
 -  [Function `initializate_by_default`](#0x1_automation_registry_initializate_by_default)
@@ -54,6 +54,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/math64.md#0x1_math64">0x1::math64</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string">0x1::string</a>;
 <b>use</b> <a href="supra_account.md#0x1_supra_account">0x1::supra_account</a>;
 <b>use</b> <a href="supra_coin.md#0x1_supra_coin">0x1::supra_coin</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
@@ -496,15 +497,15 @@ Event emitted when a transaction fee is charged for an automation task in an epo
 
 </details>
 
-<a id="0x1_automation_registry_AutomationTaskCanceledInsufficientBalance"></a>
+<a id="0x1_automation_registry_AutomationTaskAutoCanceled"></a>
 
-## Struct `AutomationTaskCanceledInsufficientBalance`
+## Struct `AutomationTaskAutoCanceled`
 
 Event emitted when an automation task is canceled due to insufficient balance.
 
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationTaskCanceledInsufficientBalance">AutomationTaskCanceledInsufficientBalance</a> <b>has</b> drop, store
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationTaskAutoCanceled">AutomationTaskAutoCanceled</a> <b>has</b> drop, store
 </code></pre>
 
 
@@ -528,6 +529,12 @@ Event emitted when an automation task is canceled due to insufficient balance.
 </dd>
 <dt>
 <code>fee: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>reason: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a></code>
 </dt>
 <dd>
 
@@ -580,6 +587,12 @@ Represents the fee charged for an automation task execution and some additional 
 </dd>
 <dt>
 <code>expiry_time: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>automation_fee_cap_for_epoch: u64</code>
 </dt>
 <dd>
 
@@ -1016,7 +1029,14 @@ Charges automation task fees for all active tasks at the beginning of a new epoc
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_map">vector::map</a>(active_task_ids, |id| {
         <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, id);
         <b>let</b> task_fee = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(aei, arc, &task, current_time, acf);
-        <a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">AutomationTaskFee</a> { task_index: task.id, owner: task.owner, fee: task_fee, max_gas_amount: task.max_gas_amount, expiry_time: task.expiry_time }
+        <a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">AutomationTaskFee</a> {
+            task_index: task.id,
+            owner: task.owner,
+            fee: task_fee,
+            max_gas_amount: task.max_gas_amount,
+            expiry_time: task.expiry_time,
+            automation_fee_cap_for_epoch: task.automation_fee_cap_for_epoch,
+        }
     })
 }
 </code></pre>
@@ -1139,26 +1159,38 @@ Processes automation task fees by checking user balances.
         <b>let</b> task: <a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">AutomationTaskFee</a> = task;
         <b>let</b> user_balance = balance&lt;SupraCoin&gt;(task.owner);
 
-        // If the user <b>has</b> enough balance, charge the fee and emit the success <a href="event.md#0x1_event">event</a>
-        <b>if</b> (user_balance &gt;= task.fee) {
+        // Remove the automation task <b>if</b> the epoch fee cap is exceeded
+        <b>if</b> (task.fee &gt; task.automation_fee_cap_for_epoch) {
+            <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task.task_index);
+            <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_AutomationTaskAutoCanceled">AutomationTaskAutoCanceled</a> {
+                task_index: task.task_index,
+                owner: task.owner,
+                fee: task.fee,
+                reason: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"Epoch Fee Cap Reached"),
+            });
+        } <b>else</b> <b>if</b> (user_balance &lt; task.fee) {
+            // If the user does not have enough balance, remove the task and emit an <a href="event.md#0x1_event">event</a>
+            <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task.task_index);
+            <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_AutomationTaskAutoCanceled">AutomationTaskAutoCanceled</a> {
+                task_index: task.task_index,
+                owner: task.owner,
+                fee: task.fee,
+                reason: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"Insufficient Balance"),
+            });
+        } <b>else</b> {
+            // Charge the fee and emit a success <a href="event.md#0x1_event">event</a>
             <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(&<a href="create_signer.md#0x1_create_signer">create_signer</a>(task.owner), <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address, task.fee);
+            <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_AutomationEpochTransactionFeeCharged">AutomationEpochTransactionFeeCharged</a> {
+                task_index: task.task_index,
+                owner: task.owner,
+                fee: task.fee,
+            });
 
-            <a href="event.md#0x1_event_emit">event::emit</a>(
-                <a href="automation_registry.md#0x1_automation_registry_AutomationEpochTransactionFeeCharged">AutomationEpochTransactionFeeCharged</a> { task_index: task.task_index, owner: task.owner, fee: task.fee }
-            );
-
-            // Tasks that are active during next epoch and are not canceled
-            // current_time shows the start time of the current new epoch.
+            // Calculate gas commitment for the next epoch only for valid active tasks
             <b>if</b> (task.expiry_time &gt; (current_time + epoch_interval)) {
                 gas_committed_for_next_epoch = gas_committed_for_next_epoch + task.max_gas_amount;
             };
-        } <b>else</b> {
-            // Remove the automation task due <b>to</b> insufficient balance and emit the cancellation <a href="event.md#0x1_event">event</a>
-            <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task.task_index);
-            <a href="event.md#0x1_event_emit">event::emit</a>(
-                <a href="automation_registry.md#0x1_automation_registry_AutomationTaskCanceledInsufficientBalance">AutomationTaskCanceledInsufficientBalance</a> { task_index: task.task_index, owner: task.owner, fee: task.fee }
-            );
-        }
+        };
     });
     gas_committed_for_next_epoch
 }

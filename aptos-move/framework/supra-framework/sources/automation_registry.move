@@ -4,6 +4,7 @@
 module supra_framework::automation_registry {
 
     use std::signer;
+    use std::string::{Self, String};
     use std::vector;
     use aptos_std::math64;
 
@@ -186,10 +187,11 @@ module supra_framework::automation_registry {
 
     #[event]
     /// Event emitted when an automation task is canceled due to insufficient balance.
-    struct AutomationTaskCanceledInsufficientBalance has drop, store {
+    struct AutomationTaskAutoCanceled has drop, store {
         task_index: u64,
         owner: address,
         fee: u64,
+        reason: String,
     }
 
     /// Represents the fee charged for an automation task execution and some additional information.
@@ -201,6 +203,7 @@ module supra_framework::automation_registry {
         max_gas_amount: u64,
         // Need expiry time to calculate "gas_committed_for_next_epoch"
         expiry_time: u64,
+        automation_fee_cap_for_epoch: u64,
     }
 
     /// This is temporary function : until we have initialization flow properly implemented
@@ -332,7 +335,14 @@ module supra_framework::automation_registry {
         vector::map(active_task_ids, |id| {
             let task = enumerable_map::get_value(&automation_registry.tasks, id);
             let task_fee = calculate_task_fee(aei, arc, &task, current_time, acf);
-            AutomationTaskFee { task_index: task.id, owner: task.owner, fee: task_fee, max_gas_amount: task.max_gas_amount, expiry_time: task.expiry_time }
+            AutomationTaskFee {
+                task_index: task.id,
+                owner: task.owner,
+                fee: task_fee,
+                max_gas_amount: task.max_gas_amount,
+                expiry_time: task.expiry_time,
+                automation_fee_cap_for_epoch: task.automation_fee_cap_for_epoch,
+            }
         })
     }
 
@@ -395,26 +405,38 @@ module supra_framework::automation_registry {
             let task: AutomationTaskFee = task;
             let user_balance = balance<SupraCoin>(task.owner);
 
-            // If the user has enough balance, charge the fee and emit the success event
-            if (user_balance >= task.fee) {
+            // Remove the automation task if the epoch fee cap is exceeded
+            if (task.fee > task.automation_fee_cap_for_epoch) {
+                enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
+                event::emit(AutomationTaskAutoCanceled {
+                    task_index: task.task_index,
+                    owner: task.owner,
+                    fee: task.fee,
+                    reason: string::utf8(b"Epoch Fee Cap Reached"),
+                });
+            } else if (user_balance < task.fee) {
+                // If the user does not have enough balance, remove the task and emit an event
+                enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
+                event::emit(AutomationTaskAutoCanceled {
+                    task_index: task.task_index,
+                    owner: task.owner,
+                    fee: task.fee,
+                    reason: string::utf8(b"Insufficient Balance"),
+                });
+            } else {
+                // Charge the fee and emit a success event
                 supra_account::transfer(&create_signer(task.owner), automation_registry.registry_fee_address, task.fee);
+                event::emit(AutomationEpochTransactionFeeCharged {
+                    task_index: task.task_index,
+                    owner: task.owner,
+                    fee: task.fee,
+                });
 
-                event::emit(
-                    AutomationEpochTransactionFeeCharged { task_index: task.task_index, owner: task.owner, fee: task.fee }
-                );
-
-                // Tasks that are active during next epoch and are not canceled
-                // current_time shows the start time of the current new epoch.
+                // Calculate gas commitment for the next epoch only for valid active tasks
                 if (task.expiry_time > (current_time + epoch_interval)) {
                     gas_committed_for_next_epoch = gas_committed_for_next_epoch + task.max_gas_amount;
                 };
-            } else {
-                // Remove the automation task due to insufficient balance and emit the cancellation event
-                enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
-                event::emit(
-                    AutomationTaskCanceledInsufficientBalance { task_index: task.task_index, owner: task.owner, fee: task.fee }
-                );
-            }
+            };
         });
         gas_committed_for_next_epoch
     }
@@ -1216,7 +1238,7 @@ module supra_framework::automation_registry {
             86400,
             1_000_000, // normal gas amount
             20,
-            1000,
+            100000,
             PARENT_HASH,
             AUX_DATA
         );
@@ -1245,7 +1267,7 @@ module supra_framework::automation_registry {
             86400,
             85_000_000, // congestion threashold reach
             20,
-            1000,
+            10000000,
             PARENT_HASH,
             AUX_DATA
         );
