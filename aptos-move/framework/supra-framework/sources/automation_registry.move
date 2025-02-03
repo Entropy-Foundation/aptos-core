@@ -33,7 +33,7 @@ module supra_framework::automation_registry {
     const EINVALID_GAS_PRICE: u64 = 4;
     /// Invalid max gas amount for automated task: it cannot be zero
     const EINVALID_MAX_GAS_AMOUNT: u64 = 5;
-    /// Task with provided Id not found
+    /// Task with provided task index not found
     const EAUTOMATION_TASK_NOT_FOUND: u64 = 6;
     /// Gas amount must not go beyond upper cap limit
     const EGAS_AMOUNT_UPPER: u64 = 7;
@@ -102,7 +102,7 @@ module supra_framework::automation_registry {
     struct AutomationRegistry has key, store {
         /// A collection of automation task entries that are active state.
         tasks: EnumerableMap<u64, AutomationTaskMetaData>,
-        /// Automation task id which increase
+        /// Automation task index which increase
         current_index: u64,
         /// Gas committed for next epoch
         gas_committed_for_next_epoch: u64,
@@ -132,7 +132,7 @@ module supra_framework::automation_registry {
     /// `AutomationTaskMetaData` represents a single automation task item, containing metadata.
     struct AutomationTaskMetaData has key, copy, store, drop {
         /// Automation task index in registry
-        id: u64,
+        task_index: u64,
         /// The address of the task owner.
         owner: address,
         /// The function signature associated with the registry entry.
@@ -174,7 +174,7 @@ module supra_framework::automation_registry {
     #[event]
     /// Cancelled automation task registry event
     struct CancelledAutomationTask has drop, store {
-        id: u64
+        task_index: u64
     }
 
     #[event]
@@ -285,15 +285,15 @@ module supra_framework::automation_registry {
         let current_time = timestamp::now_seconds();
 
         // Perform clean up and updation of state
-        vector::for_each(ids, |id| {
-            let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, id);
+        vector::for_each(ids, |task_index| {
+            let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, task_index);
 
             // Drop or activate task for this current epoch.
             if (task.expiry_time <= current_time || task.state == CANCELLED) {
-                enumerable_map::remove_value(&mut automation_registry.tasks, id);
+                enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
             } else {
                 task.state = ACTIVE;
-                vector::push_back(&mut active_task_ids, task.id);
+                vector::push_back(&mut active_task_ids, task.task_index);
                 tcmg = tcmg + (task.max_gas_amount as u256);
             }
         });
@@ -332,11 +332,11 @@ module supra_framework::automation_registry {
         let acf = calculate_automation_congestion_fee(arc, tcmg);
 
         // Process each active task and apply the fee charges for the new epoch
-        vector::map(active_task_ids, |id| {
-            let task = enumerable_map::get_value(&automation_registry.tasks, id);
+        vector::map(active_task_ids, |task_index| {
+            let task = enumerable_map::get_value(&automation_registry.tasks, task_index);
             let task_fee = calculate_task_fee(aei, arc, &task, current_time, acf);
             AutomationTaskFee {
-                task_index: task.id,
+                task_index: task.task_index,
                 owner: task.owner,
                 fee: task_fee,
                 max_gas_amount: task.max_gas_amount,
@@ -552,7 +552,7 @@ module supra_framework::automation_registry {
         let task_index = automation_registry.current_index;
 
         let automation_task_metadata = AutomationTaskMetaData {
-            id: task_index,
+            task_index,
             owner: signer::address_of(owner),
             payload_tx,
             expiry_time,
@@ -596,25 +596,31 @@ module supra_framework::automation_registry {
         task_duration
     }
 
-    /// Cancel Automation task with specified id.
+    /// Cancel Automation task with specified task_index.
     /// Only existing task, which is PENDING or ACTIVE, can be cancled and only by task onwer.
     /// If the task is
     ///   - active, its state is updated to be CANCELLED.
     ///   - pending, it is removed form the list.
     ///   - cancelled, an error is reported
     /// Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
-    public entry fun cancel_task(owner: &signer, id: u64) acquires AutomationRegistry, ActiveAutomationRegistryConfig {
+    public entry fun cancel_task(
+        owner: &signer,
+        task_index: u64
+    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let automation_registry_config = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
-        assert!(enumerable_map::contains(&automation_registry.tasks, id), EAUTOMATION_TASK_NOT_FOUND);
+        assert!(enumerable_map::contains(&automation_registry.tasks, task_index), EAUTOMATION_TASK_NOT_FOUND);
 
-        let automation_task_metadata = enumerable_map::get_value(&mut automation_registry.tasks, id);
+        let automation_task_metadata = enumerable_map::get_value(&mut automation_registry.tasks, task_index);
         assert!(automation_task_metadata.owner == signer::address_of(owner), EUNAUTHORIZED_TASK_OWNER);
         assert!(automation_task_metadata.state != CANCELLED, EALREADY_CANCELLED);
         if (automation_task_metadata.state == PENDING) {
-            enumerable_map::remove_value(&mut automation_registry.tasks, id);
+            enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
         } else if (automation_task_metadata.state == ACTIVE) {
-            let automation_task_metadata_mut = enumerable_map::get_value_mut(&mut automation_registry.tasks, id);
+            let automation_task_metadata_mut = enumerable_map::get_value_mut(
+                &mut automation_registry.tasks,
+                task_index
+            );
             automation_task_metadata_mut.state = CANCELLED;
         };
 
@@ -625,7 +631,7 @@ module supra_framework::automation_registry {
         // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
         automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
 
-        event::emit(CancelledAutomationTask { id: automation_task_metadata.id });
+        event::emit(CancelledAutomationTask { task_index: automation_task_metadata.task_index });
         refund_automation_task_fee(
             signer::address_of(owner),
             &automation_task_metadata,
@@ -646,7 +652,7 @@ module supra_framework::automation_registry {
             let refund_amount = residual_ttl * automation_registry_config.automation_base_fee_in_quants_per_sec;
             transfer_fee_to_account_internal(user, refund_amount);
             event::emit(
-                AutomationCancellationRefund { user, task_index: automation_task_metadata.id, amount: refund_amount }
+                AutomationCancellationRefund { user, task_index: automation_task_metadata.task_index, amount: refund_amount }
             );
         }
     }
@@ -675,26 +681,26 @@ module supra_framework::automation_registry {
 
         enumerable_map::filter_map(&state.tasks, |task| {
             let task: AutomationTaskMetaData = task; // we need to define task type here to avoid compiler error
-            if (task.state != PENDING) (true, task.id)
-            else (false, task.id)
+            if (task.state != PENDING) (true, task.task_index)
+            else (false, task.task_index)
         })
     }
 
     #[view]
-    /// Retrieves the details of a automation task entry by its ID.
-    /// Error will be returned if entry with specified ID does not exist.
-    public fun get_task_details(id: u64): AutomationTaskMetaData acquires AutomationRegistry {
+    /// Retrieves the details of a automation task entry by its task index.
+    /// Error will be returned if entry with specified task index does not exist.
+    public fun get_task_details(task_index: u64): AutomationTaskMetaData acquires AutomationRegistry {
         let automation_task_metadata = borrow_global<AutomationRegistry>(@supra_framework);
-        assert!(enumerable_map::contains(&automation_task_metadata.tasks, id), EAUTOMATION_TASK_NOT_FOUND);
-        enumerable_map::get_value(&automation_task_metadata.tasks, id)
+        assert!(enumerable_map::contains(&automation_task_metadata.tasks, task_index), EAUTOMATION_TASK_NOT_FOUND);
+        enumerable_map::get_value(&automation_task_metadata.tasks, task_index)
     }
 
     #[view]
-    /// Checks whether there is an active task in registry with specified input task id.
-    public fun has_sender_active_task_with_id(sender: address, id: u64): bool acquires AutomationRegistry {
+    /// Checks whether there is an active task in registry with specified input task index.
+    public fun has_sender_active_task_with_id(sender: address, task_index: u64): bool acquires AutomationRegistry {
         let automation_task_metadata = borrow_global<AutomationRegistry>(@supra_framework);
-        if (enumerable_map::contains(&automation_task_metadata.tasks, id)) {
-            let value = enumerable_map::get_value_ref(&automation_task_metadata.tasks, id);
+        if (enumerable_map::contains(&automation_task_metadata.tasks, task_index)) {
+            let value = enumerable_map::get_value_ref(&automation_task_metadata.tasks, task_index);
             value.state != PENDING && value.owner == sender
         } else {
             false
@@ -779,9 +785,9 @@ module supra_framework::automation_registry {
     }
 
     #[test_only]
-    fun has_task_with_id(id: u64): bool acquires AutomationRegistry {
+    fun has_task_with_id(task_index: u64): bool acquires AutomationRegistry {
         let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
-        enumerable_map::contains(&automation_registry.tasks, id)
+        enumerable_map::contains(&automation_registry.tasks, task_index)
     }
 
     #[test(supra_framework = @supra_framework, user = @0x1cafe)]
@@ -1075,8 +1081,8 @@ module supra_framework::automation_registry {
         let active_task_ids = get_active_task_ids();
         // But here task 3 is in the active list as it is still active in this new epoch.
         let expected_ids = vector<u64>[0, 1, 2, 3];
-        vector::for_each(active_task_ids, |id| {
-            assert!(vector::contains(&expected_ids, &id), 1);
+        vector::for_each(active_task_ids, |task_index| {
+            assert!(vector::contains(&expected_ids, &task_index), 1);
         });
     }
 
@@ -1129,8 +1135,8 @@ module supra_framework::automation_registry {
         assert!(40 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
         let expected_ids = vector<u64>[0, 1, 2, 3];
-        vector::for_each(active_task_ids, |id| {
-            assert!(vector::contains(&expected_ids, &id), 1);
+        vector::for_each(active_task_ids, |task_index| {
+            assert!(vector::contains(&expected_ids, &task_index), 1);
         });
 
         // Cancle task 2. The committed gas for the next epoch will be updated,
@@ -1143,8 +1149,8 @@ module supra_framework::automation_registry {
         assert!(30 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
         let expected_ids = vector<u64>[0, 1, 2, 3];
-        vector::for_each(active_task_ids, |id| {
-            assert!(vector::contains(&expected_ids, &id), 1);
+        vector::for_each(active_task_ids, |task_index| {
+            assert!(vector::contains(&expected_ids, &task_index), 1);
         });
 
         // Add and cancel the task in the same epoch. Task index will be 4
@@ -1162,8 +1168,8 @@ module supra_framework::automation_registry {
         assert!(30 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
         let expected_ids = vector<u64>[0, 1, 2, 3];
-        vector::for_each(active_task_ids, |id| {
-            assert!(vector::contains(&expected_ids, &id), 1);
+        vector::for_each(active_task_ids, |task_index| {
+            assert!(vector::contains(&expected_ids, &task_index), 1);
         });
         // there is no task with index 4 and the next task index will be 5.
         assert!(!has_task_with_id(4), 1);
