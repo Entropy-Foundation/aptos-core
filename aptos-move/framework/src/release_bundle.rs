@@ -164,16 +164,18 @@ impl ReleasePackage {
         &self,
         for_address: AccountAddress,
         out: PathBuf,
+        function_name: String,
     ) -> anyhow::Result<()> {
-        self.generate_script_proposal_impl(for_address, out, false, false, Vec::new())
+        self.generate_script_proposal_impl(for_address, out, false, false, Vec::new(), function_name)
     }
 
     pub fn generate_script_proposal_testnet(
         &self,
         for_address: AccountAddress,
         out: PathBuf,
+        function_name: String,
     ) -> anyhow::Result<()> {
-        self.generate_script_proposal_impl(for_address, out, true, false, Vec::new())
+        self.generate_script_proposal_impl(for_address, out, true, false, Vec::new(), function_name)
     }
 
     pub fn generate_script_proposal_multi_step(
@@ -181,8 +183,9 @@ impl ReleasePackage {
         for_address: AccountAddress,
         out: PathBuf,
         next_execution_hash: Vec<u8>,
+        function_name: String
     ) -> anyhow::Result<()> {
-        self.generate_script_proposal_impl(for_address, out, true, true, next_execution_hash)
+        self.generate_script_proposal_impl(for_address, out, true, true, next_execution_hash, function_name)
     }
 
     fn generate_script_proposal_impl(
@@ -192,6 +195,7 @@ impl ReleasePackage {
         is_testnet: bool,
         is_multi_step: bool,
         next_execution_hash: Vec<u8>,
+        function_name: String,
     ) -> anyhow::Result<()> {
         let writer = CodeWriter::new(Loc::default());
         emitln!(
@@ -207,7 +211,7 @@ impl ReleasePackage {
         emitln!(writer, "use supra_framework::code;\n");
 
         if is_testnet && !is_multi_step {
-            emitln!(writer, "fun main(core_resources: &signer){");
+            emitln!(writer, "fun {}(core_resources: &signer){{", function_name);
             writer.indent();
             emitln!(
                 writer,
@@ -215,7 +219,7 @@ impl ReleasePackage {
                 for_address
             );
         } else if !is_multi_step {
-            emitln!(writer, "fun main(proposal_id: u64){");
+            emitln!(writer, "fun {}(proposal_id: u64){{", function_name);
             writer.indent();
             emitln!(
                 writer,
@@ -223,7 +227,7 @@ impl ReleasePackage {
                 for_address
             );
         } else {
-            emitln!(writer, "fun main(proposal_id: u64){");
+            emitln!(writer, "fun {}(proposal_id: u64){{", function_name);
             writer.indent();
             Self::generate_next_execution_hash_blob(&writer, for_address, next_execution_hash);
         }
@@ -289,14 +293,14 @@ impl ReleasePackage {
         if next_execution_hash == "vector::empty<u8>()".as_bytes() {
             emitln!(
                 writer,
-                "let framework_signer = supra_governance::resolve_multi_step_proposal(proposal_id, @{}, {});\n",
+                "let framework_signer = supra_governance::resolve_supra_multi_step_proposal(proposal_id, @{}, {});\n",
                 for_address,
                 "vector::empty<u8>()",
             );
         } else {
             emitln!(
                 writer,
-                "let framework_signer = supra_governance::resolve_multi_step_proposal("
+                "let framework_signer = supra_governance::resolve_supra_multi_step_proposal("
             );
             writer.indent();
             emitln!(writer, "proposal_id,");
