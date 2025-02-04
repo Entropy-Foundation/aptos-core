@@ -699,7 +699,7 @@ Genesis step 3: Initialize Supra Native Automation.
                                        congestion_base_fee_in_quants_per_sec: u64,
 ) {
     <b>let</b> epoch_interval_secs = <a href="block.md#0x1_block_get_epoch_interval_secs">block::get_epoch_interval_secs</a>();
-    <a href="automation_registry.md#0x1_automation_registry_initialize_internal">automation_registry::initialize_internal</a>(
+    <a href="automation_registry.md#0x1_automation_registry_initialize">automation_registry::initialize</a>(
         supra_framework,
         epoch_interval_secs,
         task_duration_cap_in_secs,

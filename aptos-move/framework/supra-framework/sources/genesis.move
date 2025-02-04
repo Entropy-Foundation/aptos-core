@@ -221,7 +221,7 @@ module supra_framework::genesis {
                                            congestion_base_fee_in_quants_per_sec: u64,
     ) {
         let epoch_interval_secs = block::get_epoch_interval_secs();
-        automation_registry::initialize_internal(
+        automation_registry::initialize(
             supra_framework,
             epoch_interval_secs,
             task_duration_cap_in_secs,

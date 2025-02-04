@@ -194,46 +194,9 @@ module supra_framework::automation_registry {
         assert!(is_feature_enabled(), EDISABLED_AUTOMATION_FEATURE)
     }
 
-    /// This is temporary function : until we have initialization flow properly implemented
-    public fun initializate_by_default(supra_framework: &signer, epoch_interval_microsecs: u64) {
-        initialize(
-            supra_framework,
-            epoch_interval_microsecs,
-            2_626_560,
-            100_000_000,
-            1000,
-            100_000_000, // 1 supra
-            80,
-            100,
-        );
-    }
-
-    /// Initialization of Automation Registry
-    public fun initialize(
-        supra_framework: &signer,
-        epoch_interval_microsecs: u64,
-        task_duration_cap_in_secs: u64,
-        registry_max_gas_cap: u64,
-        automation_base_fee_in_quants_per_sec: u64,
-        flat_registration_fee_in_quants: u64,
-        congestion_threshold_percentage: u8,
-        congestion_base_fee_in_quants_per_sec: u64,
-    ) {
-        let epoch_interval = epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR;
-        initialize_internal(
-            supra_framework,
-            epoch_interval,
-            task_duration_cap_in_secs,
-            registry_max_gas_cap,
-            automation_base_fee_in_quants_per_sec,
-            flat_registration_fee_in_quants,
-            congestion_threshold_percentage,
-            congestion_base_fee_in_quants_per_sec
-        )
-    }
 
     /// Initialization of Automation Registry with configuration parameters is expected metrics.
-    public(friend) fun initialize_internal(
+    public(friend) fun initialize(
         supra_framework: &signer,
         epoch_interval_secs: u64,
         task_duration_cap_in_secs: u64,
@@ -655,7 +618,7 @@ module supra_framework::automation_registry {
     const CONGESTION_BASE_FEE_TEST: u64 = 100;
     #[test_only]
     /// Value defined in microsecond
-    const EPOCH_INTERVAL_FOR_TEST: u64 = 7200000000;
+    const EPOCH_INTERVAL_FOR_TEST_IN_SECS: u64 = 7200;
     #[test_only]
     const PARENT_HASH: vector<u8> = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
     #[test_only]
@@ -684,7 +647,7 @@ module supra_framework::automation_registry {
 
         initialize(
             supra_framework,
-            EPOCH_INTERVAL_FOR_TEST,
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS,
             TTL_UPPER_BOUND_TEST,
             AUTOMATION_MAX_GAS_TEST,
             AUTOMATION_BASE_FEE_TEST,
@@ -853,7 +816,7 @@ module supra_framework::automation_registry {
 
         register(user,
             PAYLOAD,
-            EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR / 2,
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2,
             70,
             20,
             1000,
@@ -1015,7 +978,7 @@ module supra_framework::automation_registry {
         let active_task_ids = get_active_task_ids();
         assert!(active_task_ids == vector[], 1);
 
-        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR);
+        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
         on_new_epoch();
         assert!(40 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
@@ -1070,7 +1033,7 @@ module supra_framework::automation_registry {
             AUX_DATA
         );
 
-        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR);
+        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
         on_new_epoch();
         assert!(40 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();

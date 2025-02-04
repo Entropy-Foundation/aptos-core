@@ -20,9 +20,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `is_initialized`](#0x1_automation_registry_is_initialized)
 -  [Function `is_feature_enabled`](#0x1_automation_registry_is_feature_enabled)
 -  [Function `assert_feature_enabled`](#0x1_automation_registry_assert_feature_enabled)
--  [Function `initializate_by_default`](#0x1_automation_registry_initializate_by_default)
 -  [Function `initialize`](#0x1_automation_registry_initialize)
--  [Function `initialize_internal`](#0x1_automation_registry_initialize_internal)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
 -  [Function `update_config_from_buffer`](#0x1_automation_registry_update_config_from_buffer)
 -  [Function `withdraw_automation_task_fees`](#0x1_automation_registry_withdraw_automation_task_fees)
@@ -707,10 +705,10 @@ The lenght of the transaction hash.
 
 ## Function `is_feature_enabled`
 
-Checks whether SUPRA_NATIVE_AUTOMATION feature flag is enabled.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(): bool
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(): bool
 </code></pre>
 
 
@@ -719,7 +717,7 @@ Checks whether SUPRA_NATIVE_AUTOMATION feature flag is enabled.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(): bool {
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(): bool {
     <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>()
 }
 </code></pre>
@@ -753,92 +751,14 @@ Asserts that SUPRA_NATIVE_AUTOMATION feature flag is enabled.
 
 </details>
 
-<a id="0x1_automation_registry_initializate_by_default"></a>
-
-## Function `initializate_by_default`
-
-This is temporary function : until we have initialization flow properly implemented
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initializate_by_default">initializate_by_default</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initializate_by_default">initializate_by_default</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64) {
-    <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(
-        supra_framework,
-        epoch_interval_microsecs,
-        2_626_560,
-        100_000_000,
-        1000,
-        100_000_000, // 1 supra
-        80,
-        100,
-    );
-}
-</code></pre>
-
-
-
-</details>
-
 <a id="0x1_automation_registry_initialize"></a>
 
 ## Function `initialize`
 
-Initialization of Automation Registry
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(
-    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    epoch_interval_microsecs: u64,
-    task_duration_cap_in_secs: u64,
-    registry_max_gas_cap: u64,
-    automation_base_fee_in_quants_per_sec: u64,
-    flat_registration_fee_in_quants: u64,
-    congestion_threshold_percentage: u8,
-    congestion_base_fee_in_quants_per_sec: u64,
-) {
-    <b>let</b> epoch_interval = epoch_interval_microsecs / <a href="automation_registry.md#0x1_automation_registry_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>;
-    <a href="automation_registry.md#0x1_automation_registry_initialize_internal">initialize_internal</a>(
-        supra_framework,
-        epoch_interval,
-        task_duration_cap_in_secs,
-        registry_max_gas_cap,
-        automation_base_fee_in_quants_per_sec,
-        flat_registration_fee_in_quants,
-        congestion_threshold_percentage,
-        congestion_base_fee_in_quants_per_sec
-    )
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_initialize_internal"></a>
-
-## Function `initialize_internal`
-
 Initialization of Automation Registry with configuration parameters is expected metrics.
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize_internal">initialize_internal</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64)
 </code></pre>
 
 
@@ -847,7 +767,7 @@ Initialization of Automation Registry with configuration parameters is expected 
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize_internal">initialize_internal</a>(
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     epoch_interval_secs: u64,
     task_duration_cap_in_secs: u64,
