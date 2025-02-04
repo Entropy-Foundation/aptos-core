@@ -125,7 +125,10 @@ module supra_framework::poel {
         replaced_delegation_pool: address,
         /// Records the index of the last pool replacement request submitted by admin
         change_Delegation_pool_OLC_index: u64,
+       /// Records the address of the admin that can amend some of the mutable parameters to optimise the system such as total
+       /// rentable amount
         admin_address: address,
+       /// Stores the address where the extra Supra would be depositted after admin decreases the total rentable amount
         withdrawal_address: address,
         reward_allocation_OLC_index: u64,
     }
@@ -401,8 +404,20 @@ module supra_framework::poel {
     }
 
 
-    /// This function facilitates the replacement of an existing staking pool with a new pool address.
-    ///It performs several checks and updates to ensure the integrity and security of the staking process within the blockchain network.
+/// Allocate Rewards Function
+///Description: The function does the following:
+/// a. computes the total amount of rewards earned
+/// b. computes out of the total earned rewards which part is allocable for different assets,
+///    b.1 Calculate the loan granted for an asset: 
+///  L^a_e = \frac{S^a_e \cdot P^a_e}{\rho}
+///  where $S^a_e$ is the amount of asset $a$ submitted to the vault at the epoch $e$ and $P^a_e$ is 
+///the price of asset $a$ (in terms of \$Supra) at the epoch $e$ submitted by an Oracle, $\rho$ is collaterisation rate.  
+///    b.2 Calculate the reward distributed for an asset($DR^a_e$).
+///DR^a_e = \frac{L^a_e \cdot \mathcal{W}^a_e}{\sum^N_{j=0} L^j_e \cdot \mathcal{W}^j_e} \cdot R_e
+///where $R_e$ is total rewards earned from the staking rewards, $N$ is the length of the set of asset $\mathbf{A}$ 
+///supported by the system, $\mathcal{W}^a_e$ is the desirability parameter for asset $a$. 
+///c. updates reward index for the asset
+
     public fun allocate_rewards() acquires DelegatedAmount, MutableParameters, PoelControler {
         let total_reward_earned: u64 = 0;
 
