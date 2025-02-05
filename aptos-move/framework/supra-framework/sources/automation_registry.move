@@ -4,7 +4,6 @@
 module supra_framework::automation_registry {
 
     use std::signer;
-    use std::string::{Self, String};
     use std::vector;
     use aptos_std::math64;
 
@@ -157,8 +156,16 @@ module supra_framework::automation_registry {
     }
 
     #[event]
-    /// Withdraw user's registration fee event
-    struct FeeWithdrawnAdmin has drop, store {
+    /// Event on task registration fee withdrawal from owner account upon registration.
+    struct TaskRegistrationFeeWithdraw has drop, store {
+        task_index: u64,
+        owner: address,
+        fee: u64,
+    }
+
+    #[event]
+    /// Emitted on withdrawal of specified amount from automation registry fee address to the sepcified address.
+    struct RegistryFeeWithdraw has drop, store {
         to: address,
         amount: u64
     }
@@ -172,26 +179,43 @@ module supra_framework::automation_registry {
     }
 
     #[event]
-    /// Cancelled automation task registry event
-    struct CancelledAutomationTask has drop, store {
+    /// Event emitted when an automation fee is charged for an automation task for the epoch.
+    struct TaskEpochFeeWithdraw has drop, store {
+        task_index: u64,
+        owner: address,
+        fee: u64,
+    }
+
+    #[event]
+    /// Event emitted when an automation fee is refunded for an automation task at the end of the epoch for excessive
+    /// duration paid at the beginning of the epoch due to epoch-duration reduction by governance.
+    struct AutomationTaskFeeRefund has drop, store {
+        task_index: u64,
+        owner: address,
+        amount: u64,
+    }
+
+    #[event]
+    /// Event emitted on automation task cancellation by owner.
+    struct TaskCancelled has drop, store {
         task_index: u64
     }
 
     #[event]
-    /// Event emitted when a transaction fee is charged for an automation task in an epoch.
-    struct AutomationEpochTransactionFeeCharged has drop, store {
+    /// Event emitted when an automation task is canceled due to insufficient balance.
+    struct TaskCancelledInsufficentBalance has drop, store {
         task_index: u64,
         owner: address,
         fee: u64,
     }
 
     #[event]
-    /// Event emitted when an automation task is canceled due to insufficient balance.
-    struct AutomationTaskAutoCanceled has drop, store {
+    /// Event emitted when an automation task is canceled due to automation fee capacity surpass.
+    struct TaskCancelledCapacitySurpassed has drop, store {
         task_index: u64,
         owner: address,
         fee: u64,
-        reason: String,
+        automation_fee_cap: u64,
     }
 
     /// Represents the fee charged for an automation task execution and some additional information.
@@ -416,25 +440,24 @@ module supra_framework::automation_registry {
             // Remove the automation task if the epoch fee cap is exceeded
             if (task.fee > task.automation_fee_cap_for_epoch) {
                 enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
-                event::emit(AutomationTaskAutoCanceled {
+                event::emit(TaskCancelledCapacitySurpassed {
                     task_index: task.task_index,
                     owner: task.owner,
                     fee: task.fee,
-                    reason: string::utf8(b"Epoch Fee Cap Reached"),
+                    automation_fee_cap: task.automation_fee_cap_for_epoch,
                 });
             } else if (user_balance < task.fee) {
                 // If the user does not have enough balance, remove the task and emit an event
                 enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
-                event::emit(AutomationTaskAutoCanceled {
+                event::emit(TaskCancelledInsufficentBalance {
                     task_index: task.task_index,
                     owner: task.owner,
                     fee: task.fee,
-                    reason: string::utf8(b"Insufficient Balance"),
                 });
             } else {
                 // Charge the fee and emit a success event
                 supra_account::transfer(&create_signer(task.owner), automation_registry.registry_fee_address, task.fee);
-                event::emit(AutomationEpochTransactionFeeCharged {
+                event::emit(TaskEpochFeeWithdraw {
                     task_index: task.task_index,
                     owner: task.owner,
                     fee: task.fee,
@@ -473,7 +496,7 @@ module supra_framework::automation_registry {
     ) acquires AutomationRegistry {
         system_addresses::assert_supra_framework(supra_framework);
         transfer_fee_to_account_internal(to, amount);
-        event::emit(FeeWithdrawnAdmin { to, amount });
+        event::emit(RegistryFeeWithdraw { to, amount });
     }
 
     /// Transfers the specified fee amount from the resource account to the target account.
@@ -523,7 +546,7 @@ module supra_framework::automation_registry {
 
     /// Registers a new automation task entry.
     fun register(
-        owner: &signer,
+        owner_signer: &signer,
         payload_tx: vector<u8>,
         expiry_time: u64,
         max_gas_amount: u64,
@@ -533,6 +556,7 @@ module supra_framework::automation_registry {
         aux_data: vector<vector<u8>>
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
         assert!(vector::is_empty(&aux_data), ENO_AUX_DATA_SUPPORTED);
+        let owner = signer::address_of(owner_signer);
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let automation_registry_config = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
         let automation_epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
@@ -561,7 +585,7 @@ module supra_framework::automation_registry {
 
         let automation_task_metadata = AutomationTaskMetaData {
             task_index,
-            owner: signer::address_of(owner),
+            owner,
             payload_tx,
             expiry_time,
             max_gas_amount,
@@ -577,12 +601,10 @@ module supra_framework::automation_registry {
         automation_registry.current_index = automation_registry.current_index + 1;
 
         // Charge flate registration fee from the user at the time of registration
-        supra_account::transfer(
-            owner,
-            automation_registry.registry_fee_address,
-            automation_registry_config.main_config.flat_registration_fee_in_quants
-        );
+        let fee = automation_registry_config.main_config.flat_registration_fee_in_quants;
+        supra_account::transfer(owner_signer, automation_registry.registry_fee_address, fee);
 
+        event::emit(TaskRegistrationFeeWithdraw { task_index, owner, fee });
         event::emit(automation_task_metadata);
     }
 
@@ -635,7 +657,7 @@ module supra_framework::automation_registry {
         // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
         automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
 
-        event::emit(CancelledAutomationTask { task_index: automation_task_metadata.task_index });
+        event::emit(TaskCancelled { task_index: automation_task_metadata.task_index });
     }
 
     /// Update epoch interval in registry while actually update happens in block module
