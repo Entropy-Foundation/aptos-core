@@ -281,7 +281,7 @@ module supra_framework::automation_registry {
         let current_time = timestamp::now_seconds();
         let tcmg = cleanup_and_activate_tasks(automation_registry, current_time);
 
-        let list = calculate_epoch_fees(
+        let tasks_automation_fees = calculate_tasks_automation_fees(
             automation_registry,
             automation_epoch_info,
             &automation_registry_config,
@@ -289,9 +289,9 @@ module supra_framework::automation_registry {
             tcmg
         );
 
-        let gas_committed_for_next_epoch = process_automation_task_fees(
+        let gas_committed_for_next_epoch = try_withdraw_task_automation_fees(
             automation_registry,
-            list,
+            tasks_automation_fees,
             current_time,
             automation_epoch_info.epoch_interval
         );
@@ -322,7 +322,7 @@ module supra_framework::automation_registry {
     }
 
     /// Charges automation task fees for all active tasks at the beginning of a new epoch.
-    fun calculate_epoch_fees(
+    fun calculate_tasks_automation_fees(
         automation_registry: &AutomationRegistry,
         aei: &AutomationEpochInfo,
         arc: &AutomationRegistryConfig,
@@ -371,12 +371,13 @@ module supra_framework::automation_registry {
         // Subtraction is safe here, as we already removed expiry tasks
         let remaining_time = task.expiry_time - current_time;
         let min_interval = (math64::min(remaining_time, epoch_interval) as u256);
+        let task_occupancy_ratio_by_duration = min_interval * task_max_gas / max_gas_cap;
 
         // Compute the base automation fee (taf). Total base fee for the interval
-        let taf = abf * task_max_gas * min_interval / max_gas_cap;
+        let taf = abf * task_occupancy_ratio_by_duration;
 
         // Compute the congestion fee per task (tcf)
-        let tcf = acf * task_max_gas * min_interval / max_gas_cap;
+        let tcf = acf * task_occupancy_ratio_by_duration;
 
         (taf + tcf as u64)
     }
@@ -388,25 +389,27 @@ module supra_framework::automation_registry {
 
         // Calculate congestion threshold surplus for the current epoch
         let threshold_usage = (tcmg * DECIMAL / max_gas_cap) * 100;
-        let threshold_surplus = if (threshold_usage < threshold_percentage) 0 else threshold_usage - threshold_percentage;
-
-        // Compute the automation congestion fee (acf) for the epoch
-        let acf = ((arc.congestion_base_fee_in_quants_per_sec as u256) * threshold_surplus / 100) / DECIMAL;
-        acf
+        if (threshold_usage < threshold_percentage) 0
+        else {
+            let threshold_surplus = threshold_usage - threshold_percentage;
+            // Compute the automation congestion fee (acf) for the epoch
+            let acf = ((arc.congestion_base_fee_in_quants_per_sec as u256) * threshold_surplus / 100) / DECIMAL;
+            acf
+        }
     }
 
     /// Processes automation task fees by checking user balances.
     /// - If the user has sufficient balance, deducts the fee and emits a success event.
     /// - If the balance is insufficient, removes the task and emits a cancellation event.
-    fun process_automation_task_fees(
+    fun try_withdraw_task_automation_fees(
         automation_registry: &mut AutomationRegistry,
-        task_list: vector<AutomationTaskFee>,
+        tasks_automation_fees: vector<AutomationTaskFee>,
         current_time: u64,
         epoch_interval: u64,
     ): u64 {
         let gas_committed_for_next_epoch = 0;
 
-        vector::for_each(task_list, |task| {
+        vector::for_each(tasks_automation_fees, |task| {
             let task: AutomationTaskFee = task;
             let user_balance = balance<SupraCoin>(task.owner);
 
