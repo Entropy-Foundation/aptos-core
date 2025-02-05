@@ -40,7 +40,8 @@ module supra_framework::reward_distribution {
     }
 
     ///Update_reward_index(asseID, rewards): 
-    ///Purpose: Updates the reward index for an asset based on newly distributed rewards. The function will be applied for each asset after rewards are withdrawn from the delegation pools at the end of each OLC, updating the asset's global reward index
+    ///Purpose: Updates the reward index for an asset based on newly distributed rewards. The function is applied for each asset after rewards are withdrawn from 
+    ///the delegation pools at the end of each OLC, updating the asset's global reward index
     public(friend) fun update_reward_index(
         asset: Object<Metadata>,
         rewards: u64,
@@ -70,7 +71,20 @@ module supra_framework::reward_distribution {
     }
 
 
-    ///Purpose: Computes the rewards for a user based on assets held on their account for some period of time and asset specific global reward index(at the point of the function call) and user specific reward(updated for the user at the point of the last asset balance change).
+    ///Purpose: Computes the rewards for a user based on assets held on their account for some period of time and asset specific global reward index(at the point of the function call) and 
+    /// user specific reward(updated for the user at the point of the last asset balance change).
+    ///Calculation: To determine the total amount of rewards r_u allocated to user u for maintaining their iAsset a holdings from t_k to t_n, we use the following formula:
+    /// r_u = D_u^a \cdot \left(\sum_{i=0}^{e_n} \frac{R_i^a}{D_i^a} - \sum_{i=0}^{e_k} \frac{R_i^a}{D_i^a}\right)
+    ///Here, R_i^a represents the total rewards distributed to all holders of iAsset a at the i-th timestep, and D_i^a is the total supply 
+    ///of iAsset a at the same timestep. D_u^a represent the total holdings of the iAsset a owned by user u. Over the interval from t_k to t_n,
+    /// D_u^a remains constant in the user's wallet.Since block rewards are distributed at the end of each epoch, let e_n denote the final reward 
+    /// distribution timestep immediately before t_n, and let e_k denote the reward distribution timestep that occurred just before t_k.\\\\
+    /// We define the general reward index for asset a as  
+    /// \sum_{i=0}^{e_n} \frac{R_i^a}{D_i^a},
+    /// and the user's reward index for asset a  as  
+    /// \sum_{i=0}^{e_k} \frac{R_i^a}{D_i^a}.
+    /// Both indices are asset-specific and pertain to the given asset a.
+
     public fun calculate_rewards(
         user_address: address,
         user_reward_index: u64,
