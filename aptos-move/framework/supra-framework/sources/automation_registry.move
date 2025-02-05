@@ -269,8 +269,6 @@ module supra_framework::automation_registry {
     /// On new epoch this function will be triggered and update the automation registry state
     public(friend) fun on_new_epoch() acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
-        let ids = enumerable_map::get_map_list(&automation_registry.tasks);
-
         let automation_epoch_info = borrow_global_mut<AutomationEpochInfo>(@supra_framework);
 
         // Apply the latest configuration if any parameter has been updated.
@@ -280,23 +278,8 @@ module supra_framework::automation_registry {
         ).main_config;
 
         // Accumulated maximum gas amount of the registered tasks for the current epoch
-        let tcmg = 0;
-        let active_task_ids = vector[];
         let current_time = timestamp::now_seconds();
-
-        // Perform clean up and updation of state
-        vector::for_each(ids, |task_index| {
-            let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, task_index);
-
-            // Drop or activate task for this current epoch.
-            if (task.expiry_time <= current_time || task.state == CANCELLED) {
-                enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
-            } else {
-                task.state = ACTIVE;
-                vector::push_back(&mut active_task_ids, task.task_index);
-                tcmg = tcmg + (task.max_gas_amount as u256);
-            }
-        });
+        let (tcmg, active_task_ids) = cleanup_and_activate_tasks(automation_registry, current_time);
 
         let list = calculate_epoch_fees(
             automation_registry,
@@ -317,6 +300,31 @@ module supra_framework::automation_registry {
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
         automation_epoch_info.start_time = current_time;
         automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
+    }
+
+    /// Cleanup and actiavete the automation task also it's calculate total committed max gas
+    fun cleanup_and_activate_tasks(
+        automation_registry: &mut AutomationRegistry,
+        current_time: u64
+    ): (u256, vector<u64>) {
+        let ids = enumerable_map::get_map_list(&automation_registry.tasks);
+        let active_task_ids = vector[];
+        let tcmg = 0;
+
+        // Perform clean up and updation of state
+        vector::for_each(ids, |task_index| {
+            let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, task_index);
+
+            // Drop or activate task for this current epoch.
+            if (task.expiry_time <= current_time || task.state == CANCELLED) {
+                enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
+            } else {
+                task.state = ACTIVE;
+                vector::push_back(&mut active_task_ids, task.task_index);
+                tcmg = tcmg + (task.max_gas_amount as u256);
+            }
+        });
+        (tcmg, active_task_ids)
     }
 
     /// Charges automation task fees for all active tasks at the beginning of a new epoch.
@@ -346,10 +354,9 @@ module supra_framework::automation_registry {
         })
     }
 
-    /// Charges automation task fees for a single task at the beginning of a new epoch.
-    /// It's return boolean value
-    ///     true means balance fee charges successfully deducted,
-    ///     false means due to task expiry or
+    /// Charges automation task fees for a single task at the time of new epoch.
+    /// This is supposed to be called only after removing expired task and must not be called for expired task.
+    /// It's return
     fun calculate_task_fee(
         aei: &AutomationEpochInfo,
         arc: &AutomationRegistryConfig,
