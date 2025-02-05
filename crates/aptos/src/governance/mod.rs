@@ -50,6 +50,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use std::fmt::Display;
+use std::str::FromStr;
 use supra_aptos::{SupraCommand, SupraCommandArguments};
 use tempfile::TempDir;
 use crate::move_tool::IncludedArtifacts::{All, Sparse};
@@ -1048,8 +1049,8 @@ pub struct GenerateUpgradeProposal {
     #[clap(long, default_value = "")]
     pub(crate) next_execution_hash: String,
 
-    ///  To denote if the upgrade is done via a Single-step or a Multi-step proposal
-    #[clap(long, default_value_t = ProposalType::SingleStep)]
+    /// To denote if the upgrade is done via a Single-step or a Multi-step proposal
+    #[clap(long)]
     pub(crate) proposal_type: ProposalType,
 
     /// Name of the smart contract proposal function. Defaults to 'main' if not supplied
@@ -1118,7 +1119,13 @@ impl CliCommand<()> for GenerateUpgradeProposal {
             }
             // If we're generating a multi-step proposal
         } else {
-            // let next_execution_hash_bytes = hex::decode(next_execution_hash)?;
+            let next_execution_hash = if !next_execution_hash.is_empty() {
+                Some(HashValue::from_str(&next_execution_hash)
+                    .map_err(|e| CliError::HashError(e, next_execution_hash))?)
+            } else {
+                None
+            };
+
             release.generate_script_proposal_multi_step(
                 account,
                 output,
