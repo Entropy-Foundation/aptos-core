@@ -111,13 +111,13 @@ module supra_framework::poel {
         total_borrowable_amount: coin::Coin<SupraCoin>,
         /// Index of the lockup cycle when the PoEL last withdrew Supra tokens
         withdrawal_OLC_index: u64,
-
+        /// Represents the earned staking rewards that will be available for withdrawal in the next lockup cycle
         withdrawable_rewards: u64,
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct AdminManagement has key {
-        /// Total amount of Supra tokens requested for withdrawal
+        /// Total amount of Supra tokens requested by the admin for withdrawal as part of the process to reduce the rentable amount 
         withdraw_requested_assets: u64,
         /// Index of the last withdrawal request submitted by the admin
         withdraw_OLC_index: u64,
@@ -133,7 +133,7 @@ module supra_framework::poel {
         reward_allocation_OLC_index: u64,
     }
 
-
+      /// Stores the bridge address used to verify that a Supra renting request is submitted by a valid address.
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct BridgeAddresses has key {
         bridge_addresses: vector<address>,
@@ -144,11 +144,16 @@ module supra_framework::poel {
       extend_ref: ExtendRef,
     }
 
-
+    /// In addition to staking rewards, contributors in the Intralayer vaults (iAsset holders)
+    /// can also earn extra $Supra rewards that are submitted by admin and other users.
+    /// This struct is designed to record the budget for these additional reward distributions.
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct ExtraReward has key {
+    /// Total budget for rewards earmarked for distribution over multiple epochs. 
         multiperiod_extra_rewards: u64,
+    /// he current balance of these rewards after previous distributions.
         multiperiod_reward_balance: u64,
+    /// The current balance of rewards that will be immediately applied in the next lockup cycle (these rewards are asset-specific). 
         singleperiod_reward_balance: u64,
     }
 
@@ -210,6 +215,8 @@ module supra_framework::poel {
     
     }
 
+
+     \\\ The function initializes and registers the bridge addresses and original delegation pools used in the system  
     public fun initialize_Bridge_Pools(bridge_addresses: vector<address>, delegation_pools: vector<address>) acquires BridgeAddresses, DelegatedAmount {
         let obj_address = get_poel_storage_address();
 
@@ -276,7 +283,7 @@ module supra_framework::poel {
     //    table::borrow(&request_table.requests, asset)
     //}
 
-
+/// Enables admin to configure the mutable parameters used for various processes, such as collateralization rate calculations and reward distribution.
     entry fun set_parameters(
         account: &signer,
         coefficient_k: u64,
@@ -376,7 +383,7 @@ module supra_framework::poel {
         delegated_amount_ref.total_delegated_amount = delegated_amount_ref.total_delegated_amount + adjusted_supra_amount;
     }
 
-    /// Facilitates the withdrawal of unlocked tokens from the inactive delegation pools.
+    /// Enables the withdrawal of unlocked tokens that are in an inactive state from delegation pools.
     public fun withdraw_tokens() acquires DelegatedAmount, PoelControler {
         let delegated_amount_ref = borrow_global_mut<DelegatedAmount>(get_poel_storage_address());
 
@@ -414,9 +421,23 @@ module supra_framework::poel {
 ///the price of asset $a$ (in terms of \$Supra) at the epoch $e$ submitted by an Oracle, $\rho$ is collaterisation rate.  
 ///    b.2 Calculate the reward distributed for an asset($DR^a_e$).
 ///DR^a_e = \frac{L^a_e \cdot \mathcal{W}^a_e}{\sum^N_{j=0} L^j_e \cdot \mathcal{W}^j_e} \cdot R_e
-///where $R_e$ is total rewards earned from the staking rewards, $N$ is the length of the set of asset $\mathbf{A}$ 
+///where R_e is total rewards earned from the staking and other distributable rewards, $N$ is the length of the set of asset $\mathbf{A}$ 
 ///supported by the system, $\mathcal{W}^a_e$ is the desirability parameter for asset $a$. 
 ///c. updates reward index for the asset
+/// R_e consists of three components:
+/// a. **Staking Rewards:** The rewards earned from staking, adjusted by a reward reduction rate(RRR). RRR can be modified by admin decisions—either 
+///to allocate a portion of rewards elsewhere or to implement logic that distributes additional rewards(accrued as cut from earned staking rewards) to market participant
+///(e.g., liquidity providers) who assume greater roles in the system.
+/// b. **Administrative Rewards:** Extra rewards in $Supra can be submitted by the admin, which are then distributed to iAsset 
+///holders over multiple operating cycles (not asset-specific).
+/// c. **Asset-Specific Rewards:** Any market participant can provide rewards targeted at specific assets, 
+/// which are distributed to the holders of those iAssets. It is distributed directly in the next operating cycle 
+/// If the Intralayer vaults migrate into AMM pools, the fees generated can be used by the AMM contract to distribute asset-specific rewards to iAsset holders,
+///who effectively act as liquidity providers (LPs).
+///R_e = rounddown(withdrawable_rewards * (1 - reward_reduction_rate)) + min(adminstrative rewards / Number_of_Epochs_for_Extra_Reward_Allocation, multiperiod_reward_balance)
+///the asset specific distributable rewards can be computed as
+///asset_specific_rewards = DR^a_e + asset-specific rewards
+
 
     public fun allocate_rewards() acquires DelegatedAmount, MutableParameters, PoelControler {
         let total_reward_earned: u64 = 0;
@@ -486,7 +507,7 @@ module supra_framework::poel {
 
 
     ///  This function recalculates and updates(delegates or unlocks) the total amount of
-    /// Supra that is borrowed based on the current asset prices, supplies, and collateralization rates.
+    /// Supra that is borrowed and delegated based on the current asset prices, supplies, collateralization rates, borrow and redeem requests.
     public fun update_rented_amount() acquires DelegatedAmount, MutableParameters, PoelControler {
         let delegated_amount_ref = borrow_global_mut<DelegatedAmount>(get_poel_storage_address());
         let current_delegated_amount = delegated_amount_ref.total_delegated_amount;
@@ -532,7 +553,7 @@ module supra_framework::poel {
         }
     }
 
-    /// Enables increasing the rentable Supra amount by transferring funds to the PoEL contract.
+    /// Enables admin to increase the rentable Supra amount by transferring funds to the PoEL contract.
     public fun increase_rentable_amount<CoinType>(account: &signer, amount: u64) acquires DelegatedAmount, AdminManagement {
         assert!(signer::address_of(account) == get_admin_address(), error::permission_denied(ENOT_OWNER));
 
@@ -600,9 +621,9 @@ module supra_framework::poel {
         admin_management_ref.withdraw_OLC_index = current_olc_index;
     }
 
-    /// Facilitates the creation of borrow requests following the deposition of the original asset into
-    /// an intermediary vault. One of the main reasons why the borrow_request function has been suggested 
-    /// in the flow to borrow is because the pending_active coins do not earn rewards. 
+    /// After a user submits assets to the Intralayer vaults, this function enables the creation of a borrow request via the bridge. 
+    /// The system then periodically collects these borrow requests and, based on them, allocates $Supra to 
+    /// liquidity providers of the Intralayer vaults, delegating it to the delegation pools on their behalf. 
     public fun borrow_request(
         account: &signer,
         asset_symbol: vector<u8>,
@@ -622,7 +643,8 @@ module supra_framework::poel {
     }
 
 
-    /// Facilitates borrowing of assets, calculates new collateralization rates and manages distribution across staking pools.
+    /// The function calculates the appropriate borrowable amount based on the type and quantity of the asset deposited into the Intralayer vaults.
+    /// It also manages the delegation of this borrowable amount across different staking pools.
     public fun borrow(
         asset_symbol: vector<u8>,
         asset_amount: u64,
@@ -658,6 +680,7 @@ module supra_framework::poel {
         delegated_amount_ref.total_delegated_amount = delegated_amount_ref.total_delegated_amount + borrowed_amount;
     }
 
+    \\\ Function is applied to increment the OLC index 
     fun update_olc_index(olc_index_update_timestep: u64) acquires MutableParameters {
         let mutable_params_ref = borrow_global<MutableParameters>(get_poel_storage_address());
 
@@ -667,7 +690,8 @@ module supra_framework::poel {
             poel_update_olc_index()        };
 
     }
-    
+    \\\ This function allows to add extra rewards to the system, which will be distributed  
+    \\\ across multiple periods.
     entry fun add_multiperiod_extra_rewards(amount: u64, account: &signer) acquires ExtraReward {
         let extra_reward_ref = borrow_global_mut<ExtraReward>(get_poel_storage_address());
 
@@ -680,7 +704,8 @@ module supra_framework::poel {
         extra_reward_ref.multiperiod_reward_balance = amount;
     }
 
-
+    \\\ The function allows anyone to add extra rewards to the system, which will be distributed  
+    \\\ in the next OLC.
     entry fun add_singleperiod_extra_rewards(amount: u64, account: &signer) acquires ExtraReward {
         let user_balance = coin::balance<SupraCoin>(signer::address_of(account));
         assert!(user_balance >= amount, error::invalid_argument(EINSUFICIENT_CALLER_BALANCE));
@@ -689,7 +714,7 @@ module supra_framework::poel {
         extra_reward_ref.singleperiod_reward_balance = amount;
     }
 
-
+    \\\  Enables change of admin 
     entry fun change_admin(account: &signer, new_address: address) acquires AdminManagement {
         let admin_management_ref = borrow_global_mut<AdminManagement>(get_poel_storage_address());
 
@@ -698,7 +723,7 @@ module supra_framework::poel {
         admin_management_ref.admin_address = new_address;
     }
 
-
+    \\\ Enables updating the withdrawal address, which is where funds are sent when the admin decreases the total rentable amount.
     entry fun change_withdrawal_address(account: &signer, new_address: address) acquires AdminManagement {
         let admin_management_ref = borrow_global_mut<AdminManagement>(get_poel_storage_address());
 
