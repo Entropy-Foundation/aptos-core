@@ -603,12 +603,8 @@ module supra_framework::automation_registry {
     ///   - pending, it is removed form the list.
     ///   - cancelled, an error is reported
     /// Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
-    public entry fun cancel_task(
-        owner: &signer,
-        task_index: u64
-    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig {
+    public entry fun cancel_task(owner: &signer, task_index: u64) acquires AutomationRegistry {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
-        let automation_registry_config = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
         assert!(enumerable_map::contains(&automation_registry.tasks, task_index), EAUTOMATION_TASK_NOT_FOUND);
 
         let automation_task_metadata = enumerable_map::get_value(&mut automation_registry.tasks, task_index);
@@ -632,29 +628,6 @@ module supra_framework::automation_registry {
         automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
 
         event::emit(CancelledAutomationTask { task_index: automation_task_metadata.task_index });
-        refund_automation_task_fee(
-            signer::address_of(owner),
-            &automation_task_metadata,
-            &automation_registry_config.main_config
-        );
-    }
-
-    /// Refunds the automation task fee to the user who has removed their task registration from the list.
-    fun refund_automation_task_fee(
-        user: address,
-        automation_task_metadata: &AutomationTaskMetaData,
-        automation_registry_config: &AutomationRegistryConfig,
-    ) acquires AutomationRegistry {
-        let current_time = timestamp::now_seconds();
-        if (automation_task_metadata.expiry_time > current_time) {
-            let residual_ttl = automation_task_metadata.expiry_time - current_time;
-
-            let refund_amount = residual_ttl * automation_registry_config.automation_base_fee_in_quants_per_sec;
-            transfer_fee_to_account_internal(user, refund_amount);
-            event::emit(
-                AutomationCancellationRefund { user, task_index: automation_task_metadata.task_index, amount: refund_amount }
-            );
-        }
     }
 
     /// Update epoch interval in registry while actually update happens in block module
@@ -1181,7 +1154,7 @@ module supra_framework::automation_registry {
     fun check_cancellation_of_non_existing_task(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig {
+    ) acquires AutomationRegistry {
         initialize_registry_test(framework, user);
 
         cancel_task(user, 1);
