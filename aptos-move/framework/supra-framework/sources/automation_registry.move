@@ -279,13 +279,12 @@ module supra_framework::automation_registry {
 
         // Accumulated maximum gas amount of the registered tasks for the current epoch
         let current_time = timestamp::now_seconds();
-        let (tcmg, active_task_ids) = cleanup_and_activate_tasks(automation_registry, current_time);
+        let tcmg = cleanup_and_activate_tasks(automation_registry, current_time);
 
         let list = calculate_epoch_fees(
             automation_registry,
             automation_epoch_info,
             &automation_registry_config,
-            active_task_ids,
             current_time,
             tcmg
         );
@@ -302,13 +301,9 @@ module supra_framework::automation_registry {
         automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
     }
 
-    /// Cleanup and actiavete the automation task also it's calculate total committed max gas
-    fun cleanup_and_activate_tasks(
-        automation_registry: &mut AutomationRegistry,
-        current_time: u64
-    ): (u256, vector<u64>) {
+    /// Cleanup and actiavete the automation task also it's calculate and return total committed max gas
+    fun cleanup_and_activate_tasks(automation_registry: &mut AutomationRegistry, current_time: u64): u256 {
         let ids = enumerable_map::get_map_list(&automation_registry.tasks);
-        let active_task_ids = vector[];
         let tcmg = 0;
 
         // Perform clean up and updation of state
@@ -320,11 +315,10 @@ module supra_framework::automation_registry {
                 enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
             } else {
                 task.state = ACTIVE;
-                vector::push_back(&mut active_task_ids, task.task_index);
                 tcmg = tcmg + (task.max_gas_amount as u256);
             }
         });
-        (tcmg, active_task_ids)
+        tcmg
     }
 
     /// Charges automation task fees for all active tasks at the beginning of a new epoch.
@@ -332,26 +326,30 @@ module supra_framework::automation_registry {
         automation_registry: &AutomationRegistry,
         aei: &AutomationEpochInfo,
         arc: &AutomationRegistryConfig,
-        active_task_ids: vector<u64>,
         current_time: u64,
         tcmg: u256
     ): vector<AutomationTaskFee> {
+        let ids = enumerable_map::get_map_list(&automation_registry.tasks);
         // Compute the automation congestion fee (acf) for the epoch
         let acf = calculate_automation_congestion_fee(arc, tcmg);
+        let task_with_fees = vector[];
 
         // Process each active task and apply the fee charges for the new epoch
-        vector::map(active_task_ids, |task_index| {
+        vector::for_each(ids, |task_index| {
             let task = enumerable_map::get_value(&automation_registry.tasks, task_index);
-            let task_fee = calculate_task_fee(aei, arc, &task, current_time, acf);
-            AutomationTaskFee {
-                task_index: task.task_index,
-                owner: task.owner,
-                fee: task_fee,
-                max_gas_amount: task.max_gas_amount,
-                expiry_time: task.expiry_time,
-                automation_fee_cap_for_epoch: task.automation_fee_cap_for_epoch,
+            if (task.state == ACTIVE) {
+                let task_fee = calculate_task_fee(aei, arc, &task, current_time, acf);
+                vector::push_back(&mut task_with_fees, AutomationTaskFee {
+                    task_index: task.task_index,
+                    owner: task.owner,
+                    fee: task_fee,
+                    max_gas_amount: task.max_gas_amount,
+                    expiry_time: task.expiry_time,
+                    automation_fee_cap_for_epoch: task.automation_fee_cap_for_epoch,
+                });
             }
-        })
+        });
+        task_with_fees
     }
 
     /// Charges automation task fees for a single task at the time of new epoch.
