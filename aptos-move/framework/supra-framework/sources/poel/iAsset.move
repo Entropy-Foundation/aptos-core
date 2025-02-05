@@ -1,13 +1,12 @@
 ///
-/// This is the iAsset module used as the iAsset standard given to users who deposited assets 
-/// via the intralayer vault. Holders of iAsset get an amount of $supra delegated to staking pools depending on the
-/// amount of assets deposited and the price of the asset. ie If the price of the asset if 
-/// up compared with $Supra the system lends more to the user delegating more $supra 
-/// to the delegation pools and correspondingly if the price drops the system lends less, withdrawing some assets
-/// from the delegation pools. Holders of iAsset get $supra rewards from the staking pools while enabling them to utilize 
-/// the iAsset as an underlying asset of their deposited asset for other defi utilities. Transfer of iAsset to a different address
-/// transfers the acrual of rewards to the receiving address for the period beging after the transfer. 
-///
+/// The iAsset module provides a standardized token (iAsset) for users who deposit assets into the Intralayer vault.
+/// Effectively, iAsset are coupons representing their users share in the Intralayer vaults for a specific asset. 
+/// Owning iAsset entitles the holder to earn staking rewards, which are paid in $Supra.
+/// Holders of iAsset earn $Supra rewards from staking pools and can also use iAsset as collateral or as an underlying asset
+/// for various DeFi utilities. Users can manage their iAssets freely—transferring them to other addresses or deploying them in DeFi pools.
+/// Please note that transferring iAsset to a different address will transfer the accrual of rewards to the receiving address,
+/// effective from the period following the transfer.
+
 module supra_framework::iAsset {
     use aptos_std::simple_map::{Self, SimpleMap};
     use aptos_std::vector;
@@ -214,8 +213,8 @@ module supra_framework::iAsset {
     }
 
     #[view]
-    /// Function asset_addess
-    /// Description returns the address of the assets's metadata derived from the creator and its symbol
+    /// Function: asset_addess
+    /// Description: returns the address of the assets's metadata derived from the creator and its symbol
     /// @param: symbol: the symbol used during the creation of the asset's object
     public fun asset_address(symbol: vector<u8>): address {
         object::create_object_address(&@supra_framework, symbol)
@@ -223,8 +222,8 @@ module supra_framework::iAsset {
 
 
     #[view]
-    /// Function asset_metadata
-    /// Description returns the assets's metadata derived from its address
+    /// Function: asset_metadata
+    /// Description: returns the assets's metadata derived from its address
     /// @param symbol: the symbol used during the creation of the asset's object
     public fun asset_metadata(symbol: vector<u8>): Object<Metadata> {
         object::address_to_object<Metadata>(asset_address(symbol))
@@ -860,6 +859,9 @@ module supra_framework::iAsset {
 
     }
 
+///Calculate Total Renable amount
+/// Calculates the total amount that is rentable to the users based on the current 
+
     public fun calculate_total_rentable(
         coefficient_k: u64,
         coefficient_m: u64,
@@ -900,8 +902,24 @@ module supra_framework::iAsset {
     }
 
 
-    //5. calculate_collaterisation_rate(asset_nominal_value, total_nominal_liquidity, assetID)
-    //Purpose: Calculates and updates the collateralization rate for a specified asset based on dynamic market weights and predefined coefficients.
+///Calculate_collaterisation_rate
+///Purpose: Calculates and updates the collateralization rate for a specified asset based on dynamic market weights and predefined coefficients.
+///Calculation Method:  The quality of collateral is crucial, yet the pursuit of specific assets must be weighed against diversification to mitigate both known 
+/// and unknown risks. We calculate the collateralisation rate for an asset (\rho^{{X}^i}_e) as follows:
+///  \rho^ {X^i}_e = 
+/// \begin{cases}
+///     \rho_{min} + (\rho_{max}^I - \rho_{min}) \cdot rounddown(\left(\frac{w^{X^{i^{\ast}}}_e-w^{{X}^i}_e}{w^{X^{i^{\ast}}}_e}\right)^k) & 
+///     \forall  0 \leq w^{X^i}_e \leq w^{X^{i^{\ast}}}_e\\     
+
+///     \rho_{min} + \left(\rho_{max}^{II} -  \rho_{min}\right)\cdot rounddown(\left(\frac{w^{{X}^i}_e- w^{X^{i^{\ast}}}_e}{  100 - w^{X^{i^{\ast}}}_e}\right)^m) &
+///     \forall w^{X^{i^{\ast}}}_e < w^{X^i}_e \leq 100\\
+/// \end{cases} 
+///   Here, $\rho_{min}$ represents the minimum collateralization rate available for an asset, while $\rho_{max}^{I}$ and $\rho_{max}^{II}$ are the maximum 
+///collateralization rates for the asset, corresponding to the first and second intervals of the function, respectively. The parameters $k$ and $m$ describe 
+/// the relationship between the deviation of the asset weight in the collateral pool from desired weight and the collateralization rate for the asset. $w^{X^{i^{\ast}}}_e$ 
+///represents target weights of asset $X^i \neq 0$\footnote{$w^{X^{i^{\ast}}}_t = 0$ would mean that an asset cannot be admitted as collateral.};
+///and ${w^{{X}^i}_e}$ represents the weight of the asset in the basket in e-th epoch. This approach means that an excess or deficit of a specific asset influences the collateralisation rate. 
+
     public fun calculate_collaterisation_rate(
         symbol: vector<u8>,
         coefficient_k: u64,
