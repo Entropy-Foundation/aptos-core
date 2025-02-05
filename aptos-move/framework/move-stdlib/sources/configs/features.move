@@ -586,7 +586,7 @@ module std::features {
     /// enabling automation task registration, execution and cancellation.
     ///
     /// Lifetime: transient
-    const SUPRA_NATIVE_AUTOMATION: u64 = 89;
+    const SUPRA_NATIVE_AUTOMATION: u64 = 88;
 
     public fun get_supra_nateive_automation_feature(): u64 { SUPRA_NATIVE_AUTOMATION }
 

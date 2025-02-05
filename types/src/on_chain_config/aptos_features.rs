@@ -87,8 +87,8 @@ pub enum FeatureFlag {
     LIMIT_VM_TYPE_SIZE = 69,
     ABORT_IF_MULTISIG_PAYLOAD_MISMATCH = 70,
     // Keeping 16 bit reserved to have graceful updated from aptos-mainstream in case of new flags have been added
-    // Ends up in 11th byte 1st bit
-    SUPRA_NATIVE_AUTOMATION = 89,
+    // Ends up in 11th byte, 0th bit
+    SUPRA_NATIVE_AUTOMATION = 88,
 }
 
 impl FeatureFlag {
