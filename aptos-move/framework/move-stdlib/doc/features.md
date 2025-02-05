@@ -864,7 +864,7 @@ enabling automation task registration, execution and cancellation.
 Lifetime: transient
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_NATIVE_AUTOMATION">SUPRA_NATIVE_AUTOMATION</a>: u64 = 89;
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_NATIVE_AUTOMATION">SUPRA_NATIVE_AUTOMATION</a>: u64 = 88;
 </code></pre>
 
 
