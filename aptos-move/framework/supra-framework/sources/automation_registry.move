@@ -423,6 +423,8 @@ module supra_framework::automation_registry {
     ): u64 {
         let gas_committed_for_next_epoch = 0;
 
+        vector_sorting(&mut tasks_automation_fees);
+
         vector::for_each(tasks_automation_fees, |task| {
             let task: AutomationTaskFee = task;
             let task_metadata = enumerable_map::get_value(&automation_registry.tasks, task.task_index);
@@ -660,6 +662,24 @@ module supra_framework::automation_registry {
         if (exists<AutomationEpochInfo>(@supra_framework)) {
             let automation_epoch_info = borrow_global_mut<AutomationEpochInfo>(@supra_framework);
             automation_epoch_info.epoch_interval = epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR;
+        };
+    }
+
+    /// Sorting vector implementation
+    fun vector_sorting(v: &mut vector<AutomationTaskFee>) {
+        let len = vector::length(v);
+        let i = 0;
+        while (i < len) {
+            let j = 0;
+            while (j < len - i - 1) {
+                if (vector::borrow(v, j).task_index > vector::borrow(v, j + 1).task_index) {
+                    // Swap elements
+                    vector::swap(v, j, j + 1);
+                    vector::swap(v, j + 1, j);
+                };
+                j = j + 1;
+            };
+            i = i + 1;
         };
     }
 
