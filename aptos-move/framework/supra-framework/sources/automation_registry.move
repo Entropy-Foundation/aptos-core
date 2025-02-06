@@ -221,13 +221,7 @@ module supra_framework::automation_registry {
     /// Represents the fee charged for an automation task execution and some additional information.
     struct AutomationTaskFee has drop {
         task_index: u64,
-        owner: address,
         fee: u64,
-        // Need max gas amount to calculate "gas_committed_for_next_epoch"
-        max_gas_amount: u64,
-        // Need expiry time to calculate "gas_committed_for_next_epoch"
-        expiry_time: u64,
-        automation_fee_cap_for_epoch: u64,
     }
 
     /// This is temporary function : until we have initialization flow properly implemented
@@ -365,11 +359,7 @@ module supra_framework::automation_registry {
                 let task_fee = calculate_task_fee(aei, arc, &task, current_time, acf);
                 vector::push_back(&mut task_with_fees, AutomationTaskFee {
                     task_index: task.task_index,
-                    owner: task.owner,
                     fee: task_fee,
-                    max_gas_amount: task.max_gas_amount,
-                    expiry_time: task.expiry_time,
-                    automation_fee_cap_for_epoch: task.automation_fee_cap_for_epoch,
                 });
             }
         });
@@ -435,37 +425,42 @@ module supra_framework::automation_registry {
 
         vector::for_each(tasks_automation_fees, |task| {
             let task: AutomationTaskFee = task;
-            let user_balance = balance<SupraCoin>(task.owner);
+            let task_metadata = enumerable_map::get_value(&automation_registry.tasks, task.task_index);
+            let user_balance = balance<SupraCoin>(task_metadata.owner);
 
             // Remove the automation task if the epoch fee cap is exceeded
-            if (task.fee > task.automation_fee_cap_for_epoch) {
+            if (task.fee > task_metadata.automation_fee_cap_for_epoch) {
                 enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
                 event::emit(TaskCancelledCapacitySurpassed {
                     task_index: task.task_index,
-                    owner: task.owner,
+                    owner: task_metadata.owner,
                     fee: task.fee,
-                    automation_fee_cap: task.automation_fee_cap_for_epoch,
+                    automation_fee_cap: task_metadata.automation_fee_cap_for_epoch,
                 });
             } else if (user_balance < task.fee) {
                 // If the user does not have enough balance, remove the task and emit an event
                 enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
                 event::emit(TaskCancelledInsufficentBalance {
                     task_index: task.task_index,
-                    owner: task.owner,
+                    owner: task_metadata.owner,
                     fee: task.fee,
                 });
             } else {
                 // Charge the fee and emit a success event
-                supra_account::transfer(&create_signer(task.owner), automation_registry.registry_fee_address, task.fee);
+                supra_account::transfer(
+                    &create_signer(task_metadata.owner),
+                    automation_registry.registry_fee_address,
+                    task.fee
+                );
                 event::emit(TaskEpochFeeWithdraw {
                     task_index: task.task_index,
-                    owner: task.owner,
+                    owner: task_metadata.owner,
                     fee: task.fee,
                 });
 
                 // Calculate gas commitment for the next epoch only for valid active tasks
-                if (task.expiry_time > (current_time + epoch_interval)) {
-                    gas_committed_for_next_epoch = gas_committed_for_next_epoch + task.max_gas_amount;
+                if (task_metadata.expiry_time > (current_time + epoch_interval)) {
+                    gas_committed_for_next_epoch = gas_committed_for_next_epoch + task_metadata.max_gas_amount;
                 };
             };
         });
