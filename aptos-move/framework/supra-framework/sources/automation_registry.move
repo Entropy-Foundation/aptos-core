@@ -149,9 +149,9 @@ module supra_framework::automation_registry {
         /// Auxiliary data specified for the task to aid registration.
         /// Not used currently. Reserved for future extentions.
         aux_data: vector<vector<u8>>,
-        /// Registration epoch time
+        /// Registration timestamp in seconds
         registration_time: u64,
-        /// Flag indicating whether the task is active, canclled or pending.
+        /// Flag indicating whether the task is active, cancelled or pending.
         state: u8
     }
 
@@ -164,17 +164,9 @@ module supra_framework::automation_registry {
     }
 
     #[event]
-    /// Emitted on withdrawal of specified amount from automation registry fee address to the sepcified address.
+    /// Emitted on withdrawal of specified amount from automation registry fee address to the specified address.
     struct RegistryFeeWithdraw has drop, store {
         to: address,
-        amount: u64
-    }
-
-    #[event]
-    /// Withdraw user's registration fee event
-    struct AutomationCancellationRefund has drop, store {
-        user: address,
-        task_index: u64,
         amount: u64
     }
 
@@ -189,7 +181,7 @@ module supra_framework::automation_registry {
     #[event]
     /// Event emitted when an automation fee is refunded for an automation task at the end of the epoch for excessive
     /// duration paid at the beginning of the epoch due to epoch-duration reduction by governance.
-    struct AutomationTaskFeeRefund has drop, store {
+    struct TaskFeeRefund has drop, store {
         task_index: u64,
         owner: address,
         amount: u64,
@@ -198,7 +190,8 @@ module supra_framework::automation_registry {
     #[event]
     /// Event emitted on automation task cancellation by owner.
     struct TaskCancelled has drop, store {
-        task_index: u64
+        task_index: u64,
+        owner: address,
     }
 
     #[event]
@@ -561,7 +554,7 @@ module supra_framework::automation_registry {
         //Well-formedness check of payload_tx is done in native layer beforehand.
 
         let registration_time = timestamp::now_seconds();
-        let task_duration = check_registration_task_duration(
+        check_registration_task_duration(
             expiry_time,
             registration_time,
             &automation_registry_config.main_config,
@@ -610,7 +603,7 @@ module supra_framework::automation_registry {
         registration_time: u64,
         automation_registry_config: &AutomationRegistryConfig,
         automation_epoch_info: &AutomationEpochInfo
-    ): u64 {
+    ) {
         assert!(expiry_time > registration_time, EINVALID_EXPIRY_TIME);
         let task_duration = expiry_time - registration_time;
         assert!(task_duration < automation_registry_config.task_duration_cap_in_secs, EEXPIRY_TIME_UPPER);
@@ -620,7 +613,6 @@ module supra_framework::automation_registry {
             expiry_time > (automation_epoch_info.start_time + automation_epoch_info.epoch_interval),
             EEXPIRY_BEFORE_NEXT_EPOCH
         );
-        task_duration
     }
 
     /// Cancel Automation task with specified task_index.
@@ -630,12 +622,13 @@ module supra_framework::automation_registry {
     ///   - pending, it is removed form the list.
     ///   - cancelled, an error is reported
     /// Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
-    public entry fun cancel_task(owner: &signer, task_index: u64) acquires AutomationRegistry {
+    public entry fun cancel_task(owner_signer: &signer, task_index: u64) acquires AutomationRegistry {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         assert!(enumerable_map::contains(&automation_registry.tasks, task_index), EAUTOMATION_TASK_NOT_FOUND);
 
         let automation_task_metadata = enumerable_map::get_value(&mut automation_registry.tasks, task_index);
-        assert!(automation_task_metadata.owner == signer::address_of(owner), EUNAUTHORIZED_TASK_OWNER);
+        let owner = signer::address_of(owner_signer);
+        assert!(automation_task_metadata.owner == owner, EUNAUTHORIZED_TASK_OWNER);
         assert!(automation_task_metadata.state != CANCELLED, EALREADY_CANCELLED);
         if (automation_task_metadata.state == PENDING) {
             enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
@@ -654,7 +647,7 @@ module supra_framework::automation_registry {
         // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
         automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
 
-        event::emit(TaskCancelled { task_index: automation_task_metadata.task_index });
+        event::emit(TaskCancelled { task_index: automation_task_metadata.task_index, owner });
     }
 
     /// Update epoch interval in registry while actually update happens in block module
