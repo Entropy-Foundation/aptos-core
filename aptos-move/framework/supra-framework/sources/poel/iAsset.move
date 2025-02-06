@@ -158,7 +158,7 @@ module supra_framework::iAsset {
     /// Description creates a new iAsset as a fungible asset and tracks it in the AssetTracker
     /// @param iAsset_name: the name of the iAsset
     /// @param iAsset_symbol: its corresponding symbol
-    public fun create_new_iAsset(account: &signer, iAsset_name: vector<u8>, iAsset_symbol: vector<u8>, pair_id: u32) acquires AssetTracker {
+    public fun create_new_iAsset(supra_framework: &signer, iAsset_name: vector<u8>, iAsset_symbol: vector<u8>, pair_id: u32) acquires AssetTracker {
         assert!(is_reserved_address(signer::address_of(account)), error::permission_denied(ENOT_FRAMEWORK_ADDRESS));
         let tracker_address = object::create_object_address(&@supra_framework, IASSET_GLOBAL);
 
