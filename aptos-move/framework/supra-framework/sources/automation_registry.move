@@ -214,6 +214,7 @@ module supra_framework::automation_registry {
     /// Represents the fee charged for an automation task execution and some additional information.
     struct AutomationTaskFee has drop {
         task_index: u64,
+        owner: address,
         fee: u64,
     }
 
@@ -288,16 +289,25 @@ module supra_framework::automation_registry {
             @supra_framework
         ).main_config;
 
-        // Accumulated maximum gas amount of the registered tasks for the current epoch
         let current_time = timestamp::now_seconds();
+
+        adjust_epoch_task_fee_refund(
+            automation_registry,
+            &automation_registry_config,
+            automation_epoch_info,
+            current_time
+        );
+
+        // Accumulated maximum gas amount of the registered tasks for the current epoch
         let tcmg = cleanup_and_activate_tasks(automation_registry, current_time);
 
         let tasks_automation_fees = calculate_tasks_automation_fees(
             automation_registry,
-            automation_epoch_info,
             &automation_registry_config,
+            automation_epoch_info.epoch_interval,
             current_time,
-            tcmg
+            tcmg,
+            false
         );
 
         let gas_committed_for_next_epoch = try_withdraw_task_automation_fees(
@@ -310,6 +320,66 @@ module supra_framework::automation_registry {
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
         automation_epoch_info.start_time = current_time;
         automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
+    }
+
+    /// Adjusts task fees and processes refunds when there's a change in epoch duration.
+    fun adjust_epoch_task_fee_refund(
+        automation_registry: &AutomationRegistry,
+        arc: &AutomationRegistryConfig,
+        aei: &AutomationEpochInfo,
+        current_time: u64
+    ) {
+        let epoch_duration = current_time - aei.start_time;
+        let residual_time = if (epoch_duration < aei.expected_epoch_duration) {
+            aei.expected_epoch_duration - epoch_duration
+        } else 0;
+
+        if (residual_time != 0) {
+            let tcmg = calculate_total_committed_max_gas(automation_registry);
+            let tasks_automation_refund_fees = calculate_tasks_automation_fees(
+                automation_registry,
+                arc,
+                residual_time,
+                current_time,
+                tcmg,
+                true
+            );
+            process_task_fee_refunds(
+                &automation_registry.registry_fee_address_signer_cap,
+                tasks_automation_refund_fees
+            );
+        }
+    }
+
+    /// Processes refunds for automation task fees.
+    fun process_task_fee_refunds(
+        resource_signer_cap: &SignerCapability,
+        tasks_automation_refund_fees: vector<AutomationTaskFee>
+    ) {
+        let resource_signer = account::create_signer_with_capability(resource_signer_cap);
+        let resource_balance = balance<SupraCoin>(signer::address_of(&resource_signer));
+
+        vector::for_each(tasks_automation_refund_fees, |task| {
+            let task: AutomationTaskFee = task;
+            if (task.fee != 0 && resource_balance >= task.fee) {
+                supra_account::transfer(&resource_signer, task.owner, task.fee);
+                event::emit(TaskFeeRefund { task_index: task.task_index, owner: task.owner, amount: task.fee });
+                resource_balance = resource_balance - task.fee;
+            }
+        });
+    }
+
+    /// Calculates the total committed maximum gas for tasks that are not in the pending state.
+    fun calculate_total_committed_max_gas(automation_registry: &AutomationRegistry): u256 {
+        let total_committed_max_gas = 0;
+        let ids = enumerable_map::get_map_list(&automation_registry.tasks);
+        vector::for_each(ids, |task_index| {
+            let task = enumerable_map::get_value(&automation_registry.tasks, task_index);
+            if (task.state != PENDING) {
+                total_committed_max_gas = total_committed_max_gas + (task.max_gas_amount as u256);
+            }
+        });
+        total_committed_max_gas
     }
 
     /// Cleanup and actiavete the automation task also it's calculate and return total committed max gas
@@ -335,10 +405,11 @@ module supra_framework::automation_registry {
     /// Charges automation task fees for all active tasks at the beginning of a new epoch.
     fun calculate_tasks_automation_fees(
         automation_registry: &AutomationRegistry,
-        aei: &AutomationEpochInfo,
         arc: &AutomationRegistryConfig,
+        interval: u64,
         current_time: u64,
-        tcmg: u256
+        tcmg: u256,
+        include_cancelled_task: bool
     ): vector<AutomationTaskFee> {
         let ids = enumerable_map::get_map_list(&automation_registry.tasks);
         // Compute the automation congestion fee (acf) for the epoch
@@ -348,10 +419,11 @@ module supra_framework::automation_registry {
         // Process each active task and calculate fee for the epoch for the tasks
         vector::for_each(ids, |task_index| {
             let task = enumerable_map::get_value(&automation_registry.tasks, task_index);
-            if (task.state == ACTIVE) {
-                let task_fee = calculate_task_fee(aei, arc, &task, current_time, acf);
+            if (task.state == ACTIVE || (include_cancelled_task && task.state == CANCELLED)) {
+                let task_fee = calculate_task_fee(arc, &task, interval, current_time, acf);
                 vector::push_back(&mut task_with_fees, AutomationTaskFee {
                     task_index: task.task_index,
+                    owner: task.owner,
                     fee: task_fee,
                 });
             }
@@ -363,9 +435,9 @@ module supra_framework::automation_registry {
     /// This is supposed to be called only after removing expired task and must not be called for expired task.
     /// It's return calculated task for the epoch (sum of automation fee + congestion fee)
     fun calculate_task_fee(
-        aei: &AutomationEpochInfo,
         arc: &AutomationRegistryConfig,
         task: &AutomationTaskMetaData,
+        interval: u64,
         current_time: u64,
         acf: u256
     ): u64 {
@@ -373,11 +445,9 @@ module supra_framework::automation_registry {
         let max_gas_cap = (arc.registry_max_gas_cap as u256);
         let task_max_gas = (task.max_gas_amount as u256);
 
-        let epoch_interval = aei.epoch_interval;
-
         // Subtraction is safe here, as we already removed expired tasks
         let remaining_time = task.expiry_time - current_time;
-        let min_interval = (math64::min(remaining_time, epoch_interval) as u256);
+        let min_interval = (math64::min(remaining_time, interval) as u256);
         let task_occupancy_ratio_by_duration = min_interval * (task_max_gas * DECIMAL) / max_gas_cap;
 
         // Compute the base automation fee (taf). Total base fee for the interval

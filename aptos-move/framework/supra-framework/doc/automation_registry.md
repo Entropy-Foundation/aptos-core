@@ -25,6 +25,9 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `initializate_by_default`](#0x1_automation_registry_initializate_by_default)
 -  [Function `initialize`](#0x1_automation_registry_initialize)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
+-  [Function `adjust_epoch_task_fee_refund`](#0x1_automation_registry_adjust_epoch_task_fee_refund)
+-  [Function `process_task_fee_refunds`](#0x1_automation_registry_process_task_fee_refunds)
+-  [Function `calculate_total_committed_max_gas`](#0x1_automation_registry_calculate_total_committed_max_gas)
 -  [Function `cleanup_and_activate_tasks`](#0x1_automation_registry_cleanup_and_activate_tasks)
 -  [Function `calculate_tasks_automation_fees`](#0x1_automation_registry_calculate_tasks_automation_fees)
 -  [Function `calculate_task_fee`](#0x1_automation_registry_calculate_task_fee)
@@ -659,6 +662,12 @@ Represents the fee charged for an automation task execution and some additional 
 
 </dd>
 <dt>
+<code>owner: <b>address</b></code>
+</dt>
+<dd>
+
+</dd>
+<dt>
 <code>fee: u64</code>
 </dt>
 <dd>
@@ -1018,16 +1027,25 @@ On new epoch this function will be triggered and update the automation registry 
         @supra_framework
     ).main_config;
 
-    // Accumulated maximum gas amount of the registered tasks for the current epoch
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
+
+    <a href="automation_registry.md#0x1_automation_registry_adjust_epoch_task_fee_refund">adjust_epoch_task_fee_refund</a>(
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
+        &automation_registry_config,
+        automation_epoch_info,
+        current_time
+    );
+
+    // Accumulated maximum gas amount of the registered tasks for the current epoch
     <b>let</b> tcmg = <a href="automation_registry.md#0x1_automation_registry_cleanup_and_activate_tasks">cleanup_and_activate_tasks</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>, current_time);
 
     <b>let</b> tasks_automation_fees = <a href="automation_registry.md#0x1_automation_registry_calculate_tasks_automation_fees">calculate_tasks_automation_fees</a>(
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
-        automation_epoch_info,
         &automation_registry_config,
+        automation_epoch_info.epoch_interval,
         current_time,
-        tcmg
+        tcmg,
+        <b>false</b>
     );
 
     <b>let</b> gas_committed_for_next_epoch = <a href="automation_registry.md#0x1_automation_registry_try_withdraw_task_automation_fees">try_withdraw_task_automation_fees</a>(
@@ -1040,6 +1058,126 @@ On new epoch this function will be triggered and update the automation registry 
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
     automation_epoch_info.start_time = current_time;
     automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_adjust_epoch_task_fee_refund"></a>
+
+## Function `adjust_epoch_task_fee_refund`
+
+Adjusts task fees and processes refunds when there's a change in epoch duration.
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_adjust_epoch_task_fee_refund">adjust_epoch_task_fee_refund</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, aei: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">automation_registry::AutomationEpochInfo</a>, current_time: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_adjust_epoch_task_fee_refund">adjust_epoch_task_fee_refund</a>(
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>,
+    arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
+    aei: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>,
+    current_time: u64
+) {
+    <b>let</b> epoch_duration = current_time - aei.start_time;
+    <b>let</b> residual_time = <b>if</b> (epoch_duration &lt; aei.expected_epoch_duration) {
+        aei.expected_epoch_duration - epoch_duration
+    } <b>else</b> 0;
+
+    <b>if</b> (residual_time != 0) {
+        <b>let</b> tcmg = <a href="automation_registry.md#0x1_automation_registry_calculate_total_committed_max_gas">calculate_total_committed_max_gas</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>);
+        <b>let</b> tasks_automation_refund_fees = <a href="automation_registry.md#0x1_automation_registry_calculate_tasks_automation_fees">calculate_tasks_automation_fees</a>(
+            <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
+            arc,
+            residual_time,
+            current_time,
+            tcmg,
+            <b>true</b>
+        );
+        <a href="automation_registry.md#0x1_automation_registry_process_task_fee_refunds">process_task_fee_refunds</a>(
+            &<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address_signer_cap,
+            tasks_automation_refund_fees
+        );
+    }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_process_task_fee_refunds"></a>
+
+## Function `process_task_fee_refunds`
+
+Processes refunds for automation task fees.
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_process_task_fee_refunds">process_task_fee_refunds</a>(resource_signer_cap: &<a href="account.md#0x1_account_SignerCapability">account::SignerCapability</a>, tasks_automation_refund_fees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">automation_registry::AutomationTaskFee</a>&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_process_task_fee_refunds">process_task_fee_refunds</a>(
+    resource_signer_cap: &SignerCapability,
+    tasks_automation_refund_fees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">AutomationTaskFee</a>&gt;
+) {
+    <b>let</b> resource_signer = <a href="account.md#0x1_account_create_signer_with_capability">account::create_signer_with_capability</a>(resource_signer_cap);
+    <b>let</b> resource_balance = balance&lt;SupraCoin&gt;(<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&resource_signer));
+
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(tasks_automation_refund_fees, |task| {
+        <b>let</b> task: <a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">AutomationTaskFee</a> = task;
+        <b>if</b> (task.fee != 0 && resource_balance &gt;= task.fee) {
+            <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(&resource_signer, task.owner, task.fee);
+            <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskFeeRefund">TaskFeeRefund</a> { task_index: task.task_index, owner: task.owner, amount: task.fee });
+            resource_balance = resource_balance - task.fee;
+        }
+    });
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_calculate_total_committed_max_gas"></a>
+
+## Function `calculate_total_committed_max_gas`
+
+Calculates the total committed maximum gas for tasks that are not in the pending state.
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_total_committed_max_gas">calculate_total_committed_max_gas</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>): u256
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_total_committed_max_gas">calculate_total_committed_max_gas</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>): u256 {
+    <b>let</b> total_committed_max_gas = 0;
+    <b>let</b> ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(ids, |task_index| {
+        <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
+        <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
+            total_committed_max_gas = total_committed_max_gas + (task.max_gas_amount <b>as</b> u256);
+        }
+    });
+    total_committed_max_gas
 }
 </code></pre>
 
@@ -1094,7 +1232,7 @@ Cleanup and actiavete the automation task also it's calculate and return total c
 Charges automation task fees for all active tasks at the beginning of a new epoch.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_tasks_automation_fees">calculate_tasks_automation_fees</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, aei: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">automation_registry::AutomationEpochInfo</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, current_time: u64, tcmg: u256): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">automation_registry::AutomationTaskFee</a>&gt;
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_tasks_automation_fees">calculate_tasks_automation_fees</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, interval: u64, current_time: u64, tcmg: u256, include_cancelled_task: bool): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">automation_registry::AutomationTaskFee</a>&gt;
 </code></pre>
 
 
@@ -1105,10 +1243,11 @@ Charges automation task fees for all active tasks at the beginning of a new epoc
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_tasks_automation_fees">calculate_tasks_automation_fees</a>(
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>,
-    aei: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>,
     arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
+    interval: u64,
     current_time: u64,
-    tcmg: u256
+    tcmg: u256,
+    include_cancelled_task: bool
 ): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">AutomationTaskFee</a>&gt; {
     <b>let</b> ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
     // Compute the automation congestion fee (acf) for the epoch
@@ -1118,10 +1257,11 @@ Charges automation task fees for all active tasks at the beginning of a new epoc
     // Process each active task and calculate fee for the epoch for the tasks
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(ids, |task_index| {
         <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
-        <b>if</b> (task.state == <a href="automation_registry.md#0x1_automation_registry_ACTIVE">ACTIVE</a>) {
-            <b>let</b> task_fee = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(aei, arc, &task, current_time, acf);
+        <b>if</b> (task.state == <a href="automation_registry.md#0x1_automation_registry_ACTIVE">ACTIVE</a> || (include_cancelled_task && task.state == <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a>)) {
+            <b>let</b> task_fee = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(arc, &task, interval, current_time, acf);
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> task_with_fees, <a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">AutomationTaskFee</a> {
                 task_index: task.task_index,
+                owner: task.owner,
                 fee: task_fee,
             });
         }
@@ -1143,7 +1283,7 @@ This is supposed to be called only after removing expired task and must not be c
 It's return calculated task for the epoch (sum of automation fee + congestion fee)
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(aei: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">automation_registry::AutomationEpochInfo</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, current_time: u64, acf: u256): u64
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, interval: u64, current_time: u64, acf: u256): u64
 </code></pre>
 
 
@@ -1153,9 +1293,9 @@ It's return calculated task for the epoch (sum of automation fee + congestion fe
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(
-    aei: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>,
     arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
     task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a>,
+    interval: u64,
     current_time: u64,
     acf: u256
 ): u64 {
@@ -1163,11 +1303,9 @@ It's return calculated task for the epoch (sum of automation fee + congestion fe
     <b>let</b> max_gas_cap = (arc.registry_max_gas_cap <b>as</b> u256);
     <b>let</b> task_max_gas = (task.max_gas_amount <b>as</b> u256);
 
-    <b>let</b> epoch_interval = aei.epoch_interval;
-
     // Subtraction is safe here, <b>as</b> we already removed expired tasks
     <b>let</b> remaining_time = task.expiry_time - current_time;
-    <b>let</b> min_interval = (<a href="../../aptos-stdlib/doc/math64.md#0x1_math64_min">math64::min</a>(remaining_time, epoch_interval) <b>as</b> u256);
+    <b>let</b> min_interval = (<a href="../../aptos-stdlib/doc/math64.md#0x1_math64_min">math64::min</a>(remaining_time, interval) <b>as</b> u256);
     <b>let</b> task_occupancy_ratio_by_duration = min_interval * (task_max_gas * <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>) / max_gas_cap;
 
     // Compute the base automation fee (taf). Total base fee for the interval
