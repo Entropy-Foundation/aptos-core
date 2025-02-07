@@ -345,7 +345,7 @@ module supra_framework::automation_registry {
         let acf = calculate_automation_congestion_fee(arc, tcmg);
         let task_with_fees = vector[];
 
-        // Process each active task and apply the fee charges for the new epoch
+        // Process each active task and calculate fee for the epoch for the tasks
         vector::for_each(ids, |task_index| {
             let task = enumerable_map::get_value(&automation_registry.tasks, task_index);
             if (task.state == ACTIVE) {
@@ -359,9 +359,9 @@ module supra_framework::automation_registry {
         task_with_fees
     }
 
-    /// Charges automation task fees for a single task at the time of new epoch.
+    /// Calculates automation task fees for a single task at the time of new epoch.
     /// This is supposed to be called only after removing expired task and must not be called for expired task.
-    /// It's return
+    /// It's return calculated task for the epoch (sum of automation fee + congestion fee)
     fun calculate_task_fee(
         aei: &AutomationEpochInfo,
         arc: &AutomationRegistryConfig,
@@ -375,16 +375,16 @@ module supra_framework::automation_registry {
 
         let epoch_interval = aei.epoch_interval;
 
-        // Subtraction is safe here, as we already removed expiry tasks
+        // Subtraction is safe here, as we already removed expired tasks
         let remaining_time = task.expiry_time - current_time;
         let min_interval = (math64::min(remaining_time, epoch_interval) as u256);
-        let task_occupancy_ratio_by_duration = min_interval * task_max_gas / max_gas_cap;
+        let task_occupancy_ratio_by_duration = min_interval * (task_max_gas * DECIMAL) / max_gas_cap;
 
         // Compute the base automation fee (taf). Total base fee for the interval
-        let taf = abf * task_occupancy_ratio_by_duration;
+        let taf = abf * task_occupancy_ratio_by_duration / DECIMAL;
 
         // Compute the congestion fee per task (tcf)
-        let tcf = acf * task_occupancy_ratio_by_duration;
+        let tcf = acf * task_occupancy_ratio_by_duration / DECIMAL;
 
         (taf + tcf as u64)
     }
@@ -398,9 +398,9 @@ module supra_framework::automation_registry {
         let threshold_usage = (tcmg * DECIMAL / max_gas_cap) * 100;
         if (threshold_usage < threshold_percentage) 0
         else {
-            let threshold_surplus = threshold_usage - threshold_percentage;
+            let threshold_surplus_normalized = (threshold_usage - threshold_percentage) / 100;
             // Compute the automation congestion fee (acf) for the epoch
-            let acf = ((arc.congestion_base_fee_in_quants_per_sec as u256) * threshold_surplus / 100) / DECIMAL;
+            let acf = ((arc.congestion_base_fee_in_quants_per_sec as u256) * threshold_surplus_normalized) / DECIMAL;
             acf
         }
     }
@@ -416,7 +416,7 @@ module supra_framework::automation_registry {
     ): u64 {
         let gas_committed_for_next_epoch = 0;
 
-        vector_sorting(&mut tasks_automation_fees);
+        sort_by_task_index(&mut tasks_automation_fees);
 
         vector::for_each(tasks_automation_fees, |task| {
             let task: AutomationTaskFee = task;
@@ -659,16 +659,14 @@ module supra_framework::automation_registry {
     }
 
     /// Sorting vector implementation
-    fun vector_sorting(v: &mut vector<AutomationTaskFee>) {
+    fun sort_by_task_index(v: &mut vector<AutomationTaskFee>) {
         let len = vector::length(v);
         let i = 0;
         while (i < len) {
-            let j = 0;
-            while (j < len - i - 1) {
-                if (vector::borrow(v, j).task_index > vector::borrow(v, j + 1).task_index) {
-                    // Swap elements
-                    vector::swap(v, j, j + 1);
-                    vector::swap(v, j + 1, j);
+            let j = i + 1;
+            while (j < len) {
+                if (vector::borrow(v, i).task_index > vector::borrow(v, j).task_index) {
+                    vector::swap(v, i, j)
                 };
                 j = j + 1;
             };

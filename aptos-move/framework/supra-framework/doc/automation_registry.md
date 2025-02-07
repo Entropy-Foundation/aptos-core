@@ -38,7 +38,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `check_registration_task_duration`](#0x1_automation_registry_check_registration_task_duration)
 -  [Function `cancel_task`](#0x1_automation_registry_cancel_task)
 -  [Function `update_epoch_interval_in_registry`](#0x1_automation_registry_update_epoch_interval_in_registry)
--  [Function `vector_sorting`](#0x1_automation_registry_vector_sorting)
+-  [Function `sort_by_task_index`](#0x1_automation_registry_sort_by_task_index)
 -  [Function `get_next_task_index`](#0x1_automation_registry_get_next_task_index)
 -  [Function `get_active_task_ids`](#0x1_automation_registry_get_active_task_ids)
 -  [Function `get_task_details`](#0x1_automation_registry_get_task_details)
@@ -1115,7 +1115,7 @@ Charges automation task fees for all active tasks at the beginning of a new epoc
     <b>let</b> acf = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_congestion_fee">calculate_automation_congestion_fee</a>(arc, tcmg);
     <b>let</b> task_with_fees = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
 
-    // Process each active task and <b>apply</b> the fee charges for the new epoch
+    // Process each active task and calculate fee for the epoch for the tasks
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(ids, |task_index| {
         <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
         <b>if</b> (task.state == <a href="automation_registry.md#0x1_automation_registry_ACTIVE">ACTIVE</a>) {
@@ -1138,9 +1138,9 @@ Charges automation task fees for all active tasks at the beginning of a new epoc
 
 ## Function `calculate_task_fee`
 
-Charges automation task fees for a single task at the time of new epoch.
+Calculates automation task fees for a single task at the time of new epoch.
 This is supposed to be called only after removing expired task and must not be called for expired task.
-It's return
+It's return calculated task for the epoch (sum of automation fee + congestion fee)
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(aei: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">automation_registry::AutomationEpochInfo</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, current_time: u64, acf: u256): u64
@@ -1165,16 +1165,16 @@ It's return
 
     <b>let</b> epoch_interval = aei.epoch_interval;
 
-    // Subtraction is safe here, <b>as</b> we already removed expiry tasks
+    // Subtraction is safe here, <b>as</b> we already removed expired tasks
     <b>let</b> remaining_time = task.expiry_time - current_time;
     <b>let</b> min_interval = (<a href="../../aptos-stdlib/doc/math64.md#0x1_math64_min">math64::min</a>(remaining_time, epoch_interval) <b>as</b> u256);
-    <b>let</b> task_occupancy_ratio_by_duration = min_interval * task_max_gas / max_gas_cap;
+    <b>let</b> task_occupancy_ratio_by_duration = min_interval * (task_max_gas * <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>) / max_gas_cap;
 
     // Compute the base automation fee (taf). Total base fee for the interval
-    <b>let</b> taf = abf * task_occupancy_ratio_by_duration;
+    <b>let</b> taf = abf * task_occupancy_ratio_by_duration / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>;
 
     // Compute the congestion fee per task (tcf)
-    <b>let</b> tcf = acf * task_occupancy_ratio_by_duration;
+    <b>let</b> tcf = acf * task_occupancy_ratio_by_duration / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>;
 
     (taf + tcf <b>as</b> u64)
 }
@@ -1208,9 +1208,9 @@ Calculate automation congestion fee for the epoch
     <b>let</b> threshold_usage = (tcmg * <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> / max_gas_cap) * 100;
     <b>if</b> (threshold_usage &lt; threshold_percentage) 0
     <b>else</b> {
-        <b>let</b> threshold_surplus = threshold_usage - threshold_percentage;
+        <b>let</b> threshold_surplus_normalized = (threshold_usage - threshold_percentage) / 100;
         // Compute the automation congestion fee (acf) for the epoch
-        <b>let</b> acf = ((arc.congestion_base_fee_in_quants_per_sec <b>as</b> u256) * threshold_surplus / 100) / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>;
+        <b>let</b> acf = ((arc.congestion_base_fee_in_quants_per_sec <b>as</b> u256) * threshold_surplus_normalized) / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>;
         acf
     }
 }
@@ -1246,7 +1246,7 @@ Processes automation task fees by checking user balances.
 ): u64 {
     <b>let</b> gas_committed_for_next_epoch = 0;
 
-    <a href="automation_registry.md#0x1_automation_registry_vector_sorting">vector_sorting</a>(&<b>mut</b> tasks_automation_fees);
+    <a href="automation_registry.md#0x1_automation_registry_sort_by_task_index">sort_by_task_index</a>(&<b>mut</b> tasks_automation_fees);
 
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(tasks_automation_fees, |task| {
         <b>let</b> task: <a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">AutomationTaskFee</a> = task;
@@ -1653,14 +1653,14 @@ Update epoch interval in registry while actually update happens in block module
 
 </details>
 
-<a id="0x1_automation_registry_vector_sorting"></a>
+<a id="0x1_automation_registry_sort_by_task_index"></a>
 
-## Function `vector_sorting`
+## Function `sort_by_task_index`
 
 Sorting vector implementation
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_vector_sorting">vector_sorting</a>(v: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">automation_registry::AutomationTaskFee</a>&gt;)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_sort_by_task_index">sort_by_task_index</a>(v: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">automation_registry::AutomationTaskFee</a>&gt;)
 </code></pre>
 
 
@@ -1669,16 +1669,14 @@ Sorting vector implementation
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_vector_sorting">vector_sorting</a>(v: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">AutomationTaskFee</a>&gt;) {
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_sort_by_task_index">sort_by_task_index</a>(v: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">AutomationTaskFee</a>&gt;) {
     <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(v);
     <b>let</b> i = 0;
     <b>while</b> (i &lt; len) {
-        <b>let</b> j = 0;
-        <b>while</b> (j &lt; len - i - 1) {
-            <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(v, j).task_index &gt; <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(v, j + 1).task_index) {
-                // Swap elements
-                <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_swap">vector::swap</a>(v, j, j + 1);
-                <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_swap">vector::swap</a>(v, j + 1, j);
+        <b>let</b> j = i + 1;
+        <b>while</b> (j &lt; len) {
+            <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(v, i).task_index &gt; <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(v, j).task_index) {
+                <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_swap">vector::swap</a>(v, i, j)
             };
             j = j + 1;
         };
