@@ -6,22 +6,18 @@ use move_vm_types::loaded_data::runtime_types::Type;
 use eth_trie::{EthTrie, Trie, DB};
 use eth_trie::MemoryDB;
 use smallvec::{smallvec, SmallVec};
-use aptos_native_interface::{safely_pop_arg, safely_pop_vec_arg, RawSafeNative, SafeNativeBuilder, SafeNativeContext, SafeNativeError, SafeNativeResult};
-use move_core_types::gas_algebra::InternalGas;
+use move_core_types::gas_algebra::{NumArgs, NumBytes};
 use move_vm_runtime::native_functions::NativeFunction;
+use aptos_native_interface::{safely_pop_arg, safely_pop_vec_arg, RawSafeNative, SafeNativeBuilder, SafeNativeContext, SafeNativeResult};
+use aptos_gas_schedule::gas_params::natives::aptos_framework::{ETH_TRIE_PROOF_BASE, ETH_TRIE_PROOF_DECODE_BASE, ETH_TRIE_PROOF_DECODE_PER_BYTE, ETH_TRIE_PROOF_HASH_BASE, ETH_TRIE_PROOF_HASH_PER_BYTE};
+#[cfg(feature = "testing")]
 use rand::Rng;
-
-/// Abort code when merkle proof is invalid
-pub mod abort_codes {
-    pub const E_INVALID_PROOF: u64 = 1;
-}
 
 /// The minimum length (in bytes) for an encoded node to be stored by hash.
 const HASHED_LENGTH: usize = 32;
 
-/// Gas cost parameters for verifying a Merkle proof.
-const MERKLE_PROOF_BASE: u64 = 15_000;
-const MERKLE_PROOF_PER_NODE: u64 = 20_000;
+/// The maximum number of nodes allowed in a proof to prevent malicious calls to the function
+const MAX_PROOF_NODES: usize = 1024;
 
 /// Native function for verifying an Ethereum Merkle Patricia Trie proof.
 ///
@@ -33,30 +29,33 @@ const MERKLE_PROOF_PER_NODE: u64 = 20_000;
 ///
 /// # Returns
 ///
-/// A tuple of `(vector<u8>, bool)` where:
-///   - If the proof is valid and the key exists, returns `(value, true)` (with `value` being the found value).
-///   - Otherwise, returns `(empty vector, false)` to show the key does not exist.
-///   - Returns an error if the proof is invalid
-///
-/// Gas is charged as a fixed base plus a cost per proof node.
+/// A tuple of `(bool, vector<u8>)` where:
+///   - If the proof is valid and the key exists, returns `(true, value)` (with `value` being the found value)
+///     i.e. inclusion proof.
+///   - Otherwise, returns `(true, empty vector)` to show the proof is valid and key does not exist
+///     i.e. exclusion proof.
+///   - Returns `(false, empty vector)` to show that proof is invalid
 pub fn native_verify_proof_eth_trie(
     context: &mut SafeNativeContext,
     _ty_args: Vec<Type>,
     mut arguments: VecDeque<Value>,
 ) -> SafeNativeResult<SmallVec<[Value; 1]>> {
 
-    // First pop the proof (a Vec<Vec<u8>>)
+    context.charge(ETH_TRIE_PROOF_BASE)?;
+
     let proof: Vec<Vec<u8>> = safely_pop_vec_arg!(arguments, Vec<u8>);
-
-    // Next pop the key (a Vec<u8>)
     let key: Vec<u8> = safely_pop_arg!(arguments, Vec<u8>);
-
-    // Finally pop the root (a Vec<u8>)
     let root: Vec<u8> = safely_pop_arg!(arguments, Vec<u8>);
 
-    // Charge gas: base cost plus a per–node cost.
-    let total_gas = MERKLE_PROOF_BASE + MERKLE_PROOF_PER_NODE * (proof.len() as u64);
-    context.charge(InternalGas::new(total_gas))?;
+    // if the proof size is larger than max allowed we can ignore the proof
+    if proof.len() > MAX_PROOF_NODES{
+        return Ok(smallvec![Value::bool(false), Value::vector_u8(vec![])]);
+    }
+
+    let total_proof_bytes = proof.iter().map(|node| node.len() as u64).sum::<u64>();
+    context.charge(
+            (ETH_TRIE_PROOF_HASH_BASE + ETH_TRIE_PROOF_DECODE_BASE) * NumArgs::new(proof.len() as u64) +
+            (ETH_TRIE_PROOF_HASH_PER_BYTE + ETH_TRIE_PROOF_DECODE_PER_BYTE) * NumBytes::new(total_proof_bytes))?;
 
     // Convert the root (a Vec<u8>) into a H256 hash.
     let root_hash = H256::from_slice(&root);
@@ -79,17 +78,15 @@ pub fn native_verify_proof_eth_trie(
     let value_opt = match trie.get(key.as_slice()) {
         Ok(value_opt) => value_opt,
         Err(_) => {
-            return Err(SafeNativeError::Abort {
-                abort_code: abort_codes::E_INVALID_PROOF,
-            })
+            return Ok(smallvec![Value::bool(false), Value::vector_u8(vec![])]);
         },
     };
 
-    // Convert the Option<Vec<u8>> result into a tuple (vector, bool).
-    // If Some(val) is returned, we output (val, true); if None, we output (empty vector, false).
+    // Convert the Option<Vec<u8>> result into a tuple (bool, vector).
+    // If Some(val) is returned, we output (true, val); if None, we output (true, empty vector).
     let result = match value_opt {
-        Some(val) => smallvec![Value::vector_u8(val), Value::bool(true)],
-        None => smallvec![Value::vector_u8(vec![]), Value::bool(false)],
+        Some(val) => smallvec![Value::bool(true), Value::vector_u8(val)],
+        None => smallvec![Value::bool(true), Value::vector_u8(vec![])],
     };
 
     Ok(result)

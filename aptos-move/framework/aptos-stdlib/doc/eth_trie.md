@@ -5,24 +5,25 @@
 
 
 
--  [Function `verify_proof`](#0x1_eth_trie_verify_proof)
+-  [Function `verify_eth_trie_inclusion_proof`](#0x1_eth_trie_verify_eth_trie_inclusion_proof)
+-  [Function `verify_eth_trie_exclusion_proof`](#0x1_eth_trie_verify_eth_trie_exclusion_proof)
 -  [Function `native_verify_proof_eth_trie`](#0x1_eth_trie_native_verify_proof_eth_trie)
 
 
-<pre><code></code></pre>
+<pre><code><b>use</b> <a href="../../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
+</code></pre>
 
 
 
-<a id="0x1_eth_trie_verify_proof"></a>
+<a id="0x1_eth_trie_verify_eth_trie_inclusion_proof"></a>
 
-## Function `verify_proof`
+## Function `verify_eth_trie_inclusion_proof`
 
 Public wrapper function that calls the native and returns a bool.
-Returns true if the proof is valid and the key exists in the trie, and false if the proof is valid but the key does not exist.
-Returns an error if the proof is invalid
+Returns true if the inclusion proof is valid i.e. the value exists in the tree
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="eth_trie.md#0x1_eth_trie_verify_proof">verify_proof</a>(root: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, key: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, proof: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;): (<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, bool)
+<pre><code><b>public</b> <b>fun</b> <a href="eth_trie.md#0x1_eth_trie_verify_eth_trie_inclusion_proof">verify_eth_trie_inclusion_proof</a>(root: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, key: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, proof: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;): bool
 </code></pre>
 
 
@@ -31,14 +32,44 @@ Returns an error if the proof is invalid
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="eth_trie.md#0x1_eth_trie_verify_proof">verify_proof</a>(
+<pre><code><b>public</b> <b>fun</b> <a href="eth_trie.md#0x1_eth_trie_verify_eth_trie_inclusion_proof">verify_eth_trie_inclusion_proof</a>(
     root: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
     key: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
     proof: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
-): (<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, bool) {
-    // Call the <b>native</b> function. (Arguments are passed in the order declared.)
-    <b>let</b> (value, <b>exists</b>) = <a href="eth_trie.md#0x1_eth_trie_native_verify_proof_eth_trie">native_verify_proof_eth_trie</a>(root, key, proof);
-    (value, <b>exists</b>)
+): bool {
+    <b>let</b> (proof_is_valid, value) = <a href="eth_trie.md#0x1_eth_trie_native_verify_proof_eth_trie">native_verify_proof_eth_trie</a>(root, key, proof);
+    proof_is_valid && !<a href="../../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&value)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_eth_trie_verify_eth_trie_exclusion_proof"></a>
+
+## Function `verify_eth_trie_exclusion_proof`
+
+Public wrapper function that calls the native and returns a bool.
+Returns true if the exclusion proof is valid i.e. the value does not exist in the tree
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="eth_trie.md#0x1_eth_trie_verify_eth_trie_exclusion_proof">verify_eth_trie_exclusion_proof</a>(root: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, key: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, proof: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="eth_trie.md#0x1_eth_trie_verify_eth_trie_exclusion_proof">verify_eth_trie_exclusion_proof</a>(
+    root: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    key: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    proof: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
+): bool {
+    <b>let</b> (proof_is_valid, value) = <a href="eth_trie.md#0x1_eth_trie_native_verify_proof_eth_trie">native_verify_proof_eth_trie</a>(root, key, proof);
+    proof_is_valid && <a href="../../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&value)
 }
 </code></pre>
 
@@ -52,7 +83,7 @@ Returns an error if the proof is invalid
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="eth_trie.md#0x1_eth_trie_native_verify_proof_eth_trie">native_verify_proof_eth_trie</a>(root: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, key: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, proof: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;): (<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, bool)
+<pre><code><b>public</b> <b>fun</b> <a href="eth_trie.md#0x1_eth_trie_native_verify_proof_eth_trie">native_verify_proof_eth_trie</a>(root: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, key: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, proof: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;): (bool, <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
 </code></pre>
 
 
@@ -65,7 +96,7 @@ Returns an error if the proof is invalid
     root: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
     key: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
     proof: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
-): (<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, bool);
+): (bool, <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;);
 </code></pre>
 
 

@@ -1,19 +1,27 @@
 module aptos_std::eth_trie {
 
-    #[test_only]
     use std::vector;
 
     /// Public wrapper function that calls the native and returns a bool.
-    /// Returns true if the proof is valid and the key exists in the trie, and false if the proof is valid but the key does not exist.
-    /// Returns an error if the proof is invalid
-    public fun verify_proof(
+    /// Returns true if the inclusion proof is valid i.e. the value exists in the tree
+    public fun verify_eth_trie_inclusion_proof(
         root: vector<u8>,
         key: vector<u8>,
         proof: vector<vector<u8>>
-    ): (vector<u8>, bool) {
-        // Call the native function. (Arguments are passed in the order declared.)
-        let (value, exists) = native_verify_proof_eth_trie(root, key, proof);
-        (value, exists)
+    ): bool {
+        let (proof_is_valid, value) = native_verify_proof_eth_trie(root, key, proof);
+        proof_is_valid && !vector::is_empty(&value)
+    }
+
+    /// Public wrapper function that calls the native and returns a bool.
+    /// Returns true if the exclusion proof is valid i.e. the value does not exist in the tree
+    public fun verify_eth_trie_exclusion_proof(
+        root: vector<u8>,
+        key: vector<u8>,
+        proof: vector<vector<u8>>
+    ): bool {
+        let (proof_is_valid, value) = native_verify_proof_eth_trie(root, key, proof);
+        proof_is_valid && vector::is_empty(&value)
     }
 
     //
@@ -23,7 +31,7 @@ module aptos_std::eth_trie {
         root: vector<u8>,
         key: vector<u8>,
         proof: vector<vector<u8>>
-    ): (vector<u8>, bool);
+    ): (bool, vector<u8>);
 
     #[test_only]
     native fun generate_random_trie(num_keys: u64): (vector<u8>, vector<vector<vector<u8>>>);
@@ -78,9 +86,9 @@ module aptos_std::eth_trie {
         vector::push_back(&mut proof, node1);
         vector::push_back(&mut proof, node2);
 
-        let (_val, exists) = verify_proof(root, key, proof);
+        let flag = verify_eth_trie_inclusion_proof(root, key, proof);
         // Expect true since "doe" exists.
-        assert!(exists, 1);
+        assert!(flag, 1);
     }
 
     #[test]
@@ -127,13 +135,12 @@ module aptos_std::eth_trie {
         vector::push_back(&mut proof, p2);
         vector::push_back(&mut proof, p3);
 
-        let (_val, exists) = verify_proof(root, key, proof);
-        // Since "dogg" does not exist, the function should return false.
-        assert!(!exists, 1);
+        let flag = verify_eth_trie_exclusion_proof(root, key, proof);
+        // Since "dogg" does not exist, the exclusion proof should be valid.
+        assert!(flag, 1);
     }
 
     #[test]
-    #[expected_failure(abort_code = 1, location = Self)]
     public fun test_proof_empty() {
         let root: vector<u8> = vector[
             // (Suppose this is the root of a trie that contains some keys.)
@@ -144,13 +151,15 @@ module aptos_std::eth_trie {
         ];
         let key: vector<u8> = b"doe";
         let proof: vector<vector<u8>> = vector::empty();
-        // This should abort with code = 1 (i.e. E_INVALID_PROOF).
-        // The test harness expects that the function call will fail,
-        let (_val, _exists) = verify_proof(root, key, proof);
+
+        // Since the proof is empty, both inclusion and exclusion proof verification should return false
+        let flag_inclusion = verify_eth_trie_inclusion_proof(root, key, proof);
+        assert!(!flag_inclusion, 1);
+        let flag_exclusion = verify_eth_trie_exclusion_proof(root, key, proof);
+        assert!(!flag_exclusion, 1);
     }
 
     #[test]
-    #[expected_failure(abort_code = 1, location = Self)]
     public fun test_proof_bad() {
         let root: vector<u8> = vector[
             // (Suppose this is the root of a trie that contains some keys.)
@@ -161,14 +170,17 @@ module aptos_std::eth_trie {
         ];
         let key: vector<u8> = b"doe";
         let proof: vector<vector<u8>> = vector[ b"aaa",  b"ccc"];
-        // This should abort with code = 1 (i.e. E_INVALID_PROOF).
-        // The test harness expects that the function call will fail,
-        let (_val, _exists) = verify_proof(root, key, proof);
+
+        // Since the proof is invalid, both inclusion and exclusion proof verification should return false
+        let flag_inclusion = verify_eth_trie_inclusion_proof(root, key, proof);
+        assert!(!flag_inclusion, 1);
+        let flag_exclusion = verify_eth_trie_exclusion_proof(root, key, proof);
+        assert!(!flag_exclusion, 1);
     }
 
     #[test]
     public fun test_proof_random_trie() {
-        let (root, outer_vec) = generate_random_trie(100);
+        let (root, outer_vec) = generate_random_trie(1000);
 
         let i = 0;
         while (i < vector::length(&outer_vec)) {
@@ -187,16 +199,10 @@ module aptos_std::eth_trie {
             };
 
             // Now call verify_proof
-            let (value, exists) = verify_proof(root, *key, proof);
+            let flag = verify_eth_trie_inclusion_proof(root, *key, proof);
             // Because we inserted key=val in the Rust code, the proof should be correct
-            // and we expect `exists == true` and `value == key`.
-            assert!(exists, 1);
-
-            // Check that the returned value matches the key
-            if (value != *key) {
-                // Just fail if mismatch.
-                assert!(false, 2);
-            };
+            // and we expect `flag == true`.
+            assert!(flag, 1);
 
             i = i + 1;
         };
