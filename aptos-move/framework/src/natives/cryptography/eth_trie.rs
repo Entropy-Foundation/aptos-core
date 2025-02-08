@@ -17,7 +17,7 @@ use rand::Rng;
 const HASHED_LENGTH: usize = 32;
 
 /// The maximum number of nodes allowed in a proof to prevent malicious calls to the function
-const MAX_PROOF_NODES: usize = 1024;
+const MAX_PROOF_NODES: usize = 2048;
 
 /// Native function for verifying an Ethereum Merkle Patricia Trie proof.
 ///
