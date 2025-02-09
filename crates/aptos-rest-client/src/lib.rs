@@ -452,7 +452,7 @@ impl Client {
         let response = self
             .inner
             .post(url)
-            .header(CONTENT_TYPE, BCS_SIGNED_TRANSACTION)
+            .header(CONTENT_TYPE, JSON)
             .json(&txn_payload)
             .send()
             .await?;
