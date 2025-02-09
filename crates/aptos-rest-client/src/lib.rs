@@ -443,7 +443,7 @@ impl Client {
 
     pub async fn submit(
         &self,
-        txn: SignedTransaction,
+        txn: &SignedTransaction,
     ) -> AptosResult<Response<PendingTransaction>> {
         // let txn_payload = bcs::to_bytes(txn)?;
         let txn_payload = Move::new(txn);

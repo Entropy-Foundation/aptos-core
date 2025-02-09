@@ -459,9 +459,9 @@ pub struct Move {
 }
 
 impl Move {
-    pub fn new(Move:SignedTransaction) -> Self {
+    pub fn new(txn: &SignedTransaction) -> Self {
         Move {
-            Move
+            Move: txn.clone()
         }
     }
 }
