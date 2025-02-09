@@ -68,7 +68,7 @@ type AptosResult<T> = Result<T, RestError>;
 pub struct Client {
     inner: ReqwestClient,
     base_url: Url,
-    version_path_base: String,
+    // version_path_base: String,
 }
 
 impl Client {
@@ -80,22 +80,22 @@ impl Client {
         Self::builder(AptosBaseUrl::Custom(base_url)).build()
     }
 
-    pub fn path_prefix_string(&self) -> String {
-        self.base_url
-            .join(&self.version_path_base)
-            .map(|path| path.to_string())
-            .unwrap_or_else(|_| "<bad_base_url>".to_string())
-    }
+    // pub fn path_prefix_string(&self) -> String {
+    //     self.base_url
+    //         .join(&self.version_path_base)
+    //         .map(|path| path.to_string())
+    //         .unwrap_or_else(|_| "<bad_base_url>".to_string())
+    // }
 
     /// Set a different version path base, e.g. "v1/" See
     /// DEFAULT_VERSION_PATH_BASE for the default value.
-    pub fn version_path_base(mut self, version_path_base: String) -> AptosResult<Self> {
-        if !version_path_base.ends_with('/') {
-            return Err(anyhow!("version_path_base must end with '/', e.g. 'v1/'").into());
-        }
-        self.version_path_base = version_path_base;
-        Ok(self)
-    }
+    // pub fn version_path_base(mut self, version_path_base: String) -> AptosResult<Self> {
+    //     if !version_path_base.ends_with('/') {
+    //         return Err(anyhow!("version_path_base must end with '/', e.g. 'v1/'").into());
+    //     }
+    //     self.version_path_base = version_path_base;
+    //     Ok(self)
+    // }
 
     pub fn build_path(&self, path: &str) -> AptosResult<Url> {
         Ok(self.base_url.join(path)?)
@@ -678,13 +678,13 @@ impl Client {
                     } else {
                         return Err(error);
                     }
-                    sample!(
-                        SampleRate::Duration(Duration::from_secs(30)),
-                        debug!(
-                            "Cannot yet find transaction in mempool on {:?}, continuing to wait.",
-                            self.path_prefix_string(),
-                        )
-                    );
+                    // sample!(
+                    //     SampleRate::Duration(Duration::from_secs(30)),
+                    //     // debug!(
+                    //     //     "Cannot yet find transaction in mempool on {:?}, continuing to wait.",
+                    //     //     self.path_prefix_string(),
+                    //     // )
+                    // );
                 },
                 Err(err) => {
                     debug!("Fetching error, will retry: {}", err);
@@ -696,8 +696,8 @@ impl Client {
                     > expiration_timestamp_secs + max_server_lag_wait_duration.as_secs()
                 {
                     return Err(anyhow!(
-                        "Ledger on endpoint ({}) is more than {}s behind current time, timing out waiting for the transaction. Warning, transaction ({}) might still succeed.",
-                        self.path_prefix_string(),
+                        "Ledger on endpoint ({}) is more thans behind current time, timing out waiting for the transaction. Warning, transaction ({}) might still succeed.",
+                        // self.path_prefix_string(),
                         max_server_lag_wait_duration.as_secs(),
                         hash,
                     ).into());
@@ -716,24 +716,24 @@ impl Client {
             }
 
             if elapsed.as_secs() > 30 {
-                sample!(
-                    SampleRate::Duration(Duration::from_secs(30)),
-                    debug!(
-                        "Continuing to wait for transaction {}, ledger on endpoint ({}) is {}",
-                        hash,
-                        self.path_prefix_string(),
-                        if let Some(timestamp_usecs) = chain_timestamp_usecs {
-                            format!(
-                                "{}s behind current time",
-                                aptos_infallible::duration_since_epoch()
-                                    .saturating_sub(Duration::from_micros(timestamp_usecs))
-                                    .as_secs()
-                            )
-                        } else {
-                            "unreachable".to_string()
-                        },
-                    )
-                );
+                // sample!(
+                //     // SampleRate::Duration(Duration::from_secs(30)),
+                //     // debug!(
+                //     //     "Continuing to wait for transaction {}, ledger on endpoint ({}) is {}",
+                //     //     hash,
+                //     //     self.path_prefix_string(),
+                //     //     if let Some(timestamp_usecs) = chain_timestamp_usecs {
+                //     //         format!(
+                //     //             "{}s behind current time",
+                //     //             aptos_infallible::duration_since_epoch()
+                //     //                 .saturating_sub(Duration::from_micros(timestamp_usecs))
+                //     //                 .as_secs()
+                //     //         )
+                //     //     } else {
+                //     //         "unreachable".to_string()
+                //     //     },
+                //     // )
+                // );
             }
 
             tokio::time::sleep(DEFAULT_DELAY).await;
@@ -1727,7 +1727,7 @@ impl From<(ReqwestClient, Url)> for Client {
         Client {
             inner,
             base_url,
-            version_path_base: DEFAULT_VERSION_PATH_BASE.to_string(),
+            // version_path_base: DEFAULT_VERSION_PATH_BASE.to_string(),
         }
     }
 }

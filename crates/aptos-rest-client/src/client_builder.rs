@@ -88,7 +88,7 @@ impl ClientBuilder {
     // }
 
     pub fn build(self) -> Client {
-        let version_path_base = get_version_path_with_base(self.base_url.clone());
+        // let version_path_base = get_version_path_with_base(self.base_url.clone());
 
         Client {
             inner: self
@@ -98,7 +98,7 @@ impl ClientBuilder {
                 .build()
                 .unwrap(),
             base_url: self.base_url,
-            version_path_base,
+            // version_path_base,
         }
     }
 }
