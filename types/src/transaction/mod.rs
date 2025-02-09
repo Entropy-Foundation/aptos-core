@@ -453,7 +453,7 @@ impl WriteSetPayload {
     }
 }
 
-#[derive(Clone, Eq, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize,PartialEq)]
 pub struct Move {
     Move:SignedTransaction
 }
