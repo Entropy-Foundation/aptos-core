@@ -27,12 +27,12 @@ impl FaucetClient {
                 .timeout(Duration::from_secs(10))
                 .build()
                 .unwrap(),
-            rest_client: Client::new(rest_url)
+            rest_client: Client::new(rest_url),
                 // By default the path is prefixed with the version, e.g. `v1`.
                 // The fake API used in the faucet tests doesn't have a
                 // versioned API however, so we just set it to `/`.
-                .version_path_base("/".to_string())
-                .unwrap(),
+                // .version_path_base("/".to_string())
+                // .unwrap(),
             token: None,
         }
     }
