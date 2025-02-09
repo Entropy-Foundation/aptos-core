@@ -37,7 +37,7 @@ use aptos_types::{
     account_config::{AccountResource, CoinStoreResource, NewBlockEvent, CORE_CODE_ADDRESS},
     contract_event::EventWithVersion,
     state_store::state_key::StateKey,
-    transaction::SignedTransaction,
+    transaction::{Move, SignedTransaction},
 };
 use move_core_types::language_storage::StructTag;
 use reqwest::{
@@ -443,16 +443,17 @@ impl Client {
 
     pub async fn submit(
         &self,
-        txn: &SignedTransaction,
+        txn: SignedTransaction,
     ) -> AptosResult<Response<PendingTransaction>> {
-        let txn_payload = bcs::to_bytes(txn)?;
-        let url = self.build_path("transactions")?;
+        // let txn_payload = bcs::to_bytes(txn)?;
+        let txn_payload = Move::new(txn);
+        let url = self.build_path("rpc/v1/transactions/submit")?;
 
         let response = self
             .inner
             .post(url)
             .header(CONTENT_TYPE, BCS_SIGNED_TRANSACTION)
-            .body(txn_payload)
+            .json(&txn_payload)
             .send()
             .await?;
 

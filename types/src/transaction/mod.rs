@@ -453,6 +453,19 @@ impl WriteSetPayload {
     }
 }
 
+#[derive(Clone, Eq, Serialize, Deserialize)]
+pub struct Move {
+    Move:SignedTransaction
+}
+
+impl Move {
+    pub fn new(Move:SignedTransaction) -> Self {
+        Move {
+            Move
+        }
+    }
+}
+
 /// A transaction that has been signed.
 ///
 /// A `SignedTransaction` is a single transaction that can be atomically executed. Clients submit
