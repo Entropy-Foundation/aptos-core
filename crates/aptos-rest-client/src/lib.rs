@@ -98,7 +98,7 @@ impl Client {
     }
 
     pub fn build_path(&self, path: &str) -> AptosResult<Url> {
-        Ok(self.base_url.join(&self.version_path_base)?.join(path)?)
+        Ok(self.base_url.join(path)?)
     }
 
     pub async fn get_aptos_version(&self) -> AptosResult<Response<AptosVersion>> {
