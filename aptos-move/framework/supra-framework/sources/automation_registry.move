@@ -50,6 +50,10 @@ module supra_framework::automation_registry {
     const EGAS_COMMITTEED_VALUE_UNDERFLOW: u64 = 13;
     /// Auxiliary data during registration is not supported
     const ENO_AUX_DATA_SUPPORTED: u64 = 14;
+    /// Insufficient balance in the resource wallet for withdrawal
+    const EINSUFFICIENT_BALANCE: u64 = 15;
+    /// Requested amount exceeds the frozen balance
+    const EREQUEST_EXCEEDS_FROZEN_AMOUNT: u64 = 16;
 
     /// The lenght of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -105,6 +109,8 @@ module supra_framework::automation_registry {
         current_index: u64,
         /// Gas committed for next epoch
         gas_committed_for_next_epoch: u64,
+        /// Total fee charged to users during the epoch, which is not withdrawable
+        epoch_freeze_fees: u64,
         /// It's resource address which is use to deposit user automation fee
         registry_fee_address: address,
         /// Resource account signature capability
@@ -254,6 +260,7 @@ module supra_framework::automation_registry {
             tasks: enumerable_map::new_map(),
             current_index: 0,
             gas_committed_for_next_epoch: 0,
+            epoch_freeze_fees: 0,
             registry_fee_address: signer::address_of(&registry_fee_resource_signer),
             registry_fee_address_signer_cap,
         });
@@ -310,7 +317,7 @@ module supra_framework::automation_registry {
             false
         );
 
-        let gas_committed_for_next_epoch = try_withdraw_task_automation_fees(
+        let (gas_committed_for_next_epoch, epoch_freeze_fees) = try_withdraw_task_automation_fees(
             automation_registry,
             tasks_automation_fees,
             current_time,
@@ -318,6 +325,7 @@ module supra_framework::automation_registry {
         );
 
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
+        automation_registry.epoch_freeze_fees = epoch_freeze_fees;
         automation_epoch_info.start_time = current_time;
         automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
     }
@@ -357,14 +365,12 @@ module supra_framework::automation_registry {
         tasks_automation_refund_fees: vector<AutomationTaskFee>
     ) {
         let resource_signer = account::create_signer_with_capability(resource_signer_cap);
-        let resource_balance = balance<SupraCoin>(signer::address_of(&resource_signer));
 
         vector::for_each(tasks_automation_refund_fees, |task| {
             let task: AutomationTaskFee = task;
-            if (task.fee != 0 && resource_balance >= task.fee) {
+            if (task.fee != 0) {
                 supra_account::transfer(&resource_signer, task.owner, task.fee);
                 event::emit(TaskFeeRefund { task_index: task.task_index, owner: task.owner, amount: task.fee });
-                resource_balance = resource_balance - task.fee;
             }
         });
     }
@@ -484,8 +490,8 @@ module supra_framework::automation_registry {
         tasks_automation_fees: vector<AutomationTaskFee>,
         current_time: u64,
         epoch_interval: u64,
-    ): u64 {
-        let gas_committed_for_next_epoch = 0;
+    ): (u64, u64) {
+        let (gas_committed_for_next_epoch, epoch_freeze_fees) = (0, 0);
 
         sort_by_task_index(&mut tasks_automation_fees);
 
@@ -523,6 +529,8 @@ module supra_framework::automation_registry {
                     owner: task_metadata.owner,
                     fee: task.fee,
                 });
+                // Total task fees deducted from the user's account
+                epoch_freeze_fees = epoch_freeze_fees + task.fee;
 
                 // Calculate gas commitment for the next epoch only for valid active tasks
                 if (task_metadata.expiry_time > (current_time + epoch_interval)) {
@@ -530,7 +538,7 @@ module supra_framework::automation_registry {
                 };
             };
         });
-        gas_committed_for_next_epoch
+        (gas_committed_for_next_epoch, epoch_freeze_fees)
     }
 
     /// The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
@@ -563,6 +571,12 @@ module supra_framework::automation_registry {
     /// Transfers the specified fee amount from the resource account to the target account.
     fun transfer_fee_to_account_internal(to: address, amount: u64) acquires AutomationRegistry {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
+        let resource_balance = balance<SupraCoin>(automation_registry.registry_fee_address);
+
+        assert!(resource_balance >= amount, EINSUFFICIENT_BALANCE);
+
+        assert!((resource_balance - amount) >= automation_registry.epoch_freeze_fees, EREQUEST_EXCEEDS_FROZEN_AMOUNT);
+
         let resource_signer = account::create_signer_with_capability(
             &automation_registry.registry_fee_address_signer_cap
         );
@@ -760,6 +774,13 @@ module supra_framework::automation_registry {
     public fun get_next_task_index(): u64 acquires AutomationRegistry {
         let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
         automation_registry.current_index
+    }
+
+    #[view]
+    /// Get freeze balance of the resouce account
+    public fun get_epoch_freeze_balance(): u64 acquires AutomationRegistry {
+        let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
+        automation_registry.epoch_freeze_fees
     }
 
     #[view]
