@@ -42,6 +42,11 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `cancel_task`](#0x1_automation_registry_cancel_task)
 -  [Function `update_epoch_interval_in_registry`](#0x1_automation_registry_update_epoch_interval_in_registry)
 -  [Function `sort_by_task_index`](#0x1_automation_registry_sort_by_task_index)
+-  [Function `upscale_from_u8`](#0x1_automation_registry_upscale_from_u8)
+-  [Function `upscale_from_u64`](#0x1_automation_registry_upscale_from_u64)
+-  [Function `upscale_from_u256`](#0x1_automation_registry_upscale_from_u256)
+-  [Function `downscale_to_u64`](#0x1_automation_registry_downscale_to_u64)
+-  [Function `downscale_to_u256`](#0x1_automation_registry_downscale_to_u256)
 -  [Function `get_next_task_index`](#0x1_automation_registry_get_next_task_index)
 -  [Function `get_active_task_ids`](#0x1_automation_registry_get_active_task_ids)
 -  [Function `get_task_details`](#0x1_automation_registry_get_task_details)
@@ -1301,20 +1306,19 @@ It's return calculated task for the epoch (sum of automation fee + congestion fe
 ): u64 {
     <b>let</b> abf = (arc.automation_base_fee_in_quants_per_sec <b>as</b> u256);
     <b>let</b> max_gas_cap = (arc.registry_max_gas_cap <b>as</b> u256);
-    <b>let</b> task_max_gas = (task.max_gas_amount <b>as</b> u256);
 
     // Subtraction is safe here, <b>as</b> we already removed expired tasks
     <b>let</b> remaining_time = task.expiry_time - current_time;
     <b>let</b> min_interval = (<a href="../../aptos-stdlib/doc/math64.md#0x1_math64_min">math64::min</a>(remaining_time, interval) <b>as</b> u256);
-    <b>let</b> task_occupancy_ratio_by_duration = min_interval * (task_max_gas * <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>) / max_gas_cap;
+    <b>let</b> task_occupancy_ratio_by_duration = (min_interval * <a href="automation_registry.md#0x1_automation_registry_upscale_from_u64">upscale_from_u64</a>(task.max_gas_amount)) / max_gas_cap;
 
     // Compute the base automation fee (taf). Total base fee for the interval
-    <b>let</b> taf = abf * task_occupancy_ratio_by_duration / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>;
+    <b>let</b> taf = <a href="automation_registry.md#0x1_automation_registry_downscale_to_u64">downscale_to_u64</a>(abf * task_occupancy_ratio_by_duration);
 
     // Compute the congestion fee per task (tcf)
-    <b>let</b> tcf = acf * task_occupancy_ratio_by_duration / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>;
+    <b>let</b> tcf = <a href="automation_registry.md#0x1_automation_registry_downscale_to_u64">downscale_to_u64</a>(acf * task_occupancy_ratio_by_duration);
 
-    (taf + tcf <b>as</b> u64)
+    taf + tcf
 }
 </code></pre>
 
@@ -1340,15 +1344,17 @@ Calculate automation congestion fee for the epoch
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_congestion_fee">calculate_automation_congestion_fee</a>(arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>, tcmg: u256): u256 {
     <b>let</b> max_gas_cap = (arc.registry_max_gas_cap <b>as</b> u256);
-    <b>let</b> threshold_percentage = (arc.congestion_threshold_percentage <b>as</b> u256) * <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>;
+    <b>let</b> threshold_percentage = <a href="automation_registry.md#0x1_automation_registry_upscale_from_u8">upscale_from_u8</a>(arc.congestion_threshold_percentage);
 
     // Calculate congestion threshold surplus for the current epoch
-    <b>let</b> threshold_usage = (tcmg * <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> / max_gas_cap) * 100;
+    <b>let</b> threshold_usage = <a href="automation_registry.md#0x1_automation_registry_upscale_from_u256">upscale_from_u256</a>(tcmg) * 100 / max_gas_cap;
     <b>if</b> (threshold_usage &lt; threshold_percentage) 0
     <b>else</b> {
         <b>let</b> threshold_surplus_normalized = (threshold_usage - threshold_percentage) / 100;
         // Compute the automation congestion fee (acf) for the epoch
-        <b>let</b> acf = ((arc.congestion_base_fee_in_quants_per_sec <b>as</b> u256) * threshold_surplus_normalized) / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>;
+        <b>let</b> acf = <a href="automation_registry.md#0x1_automation_registry_downscale_to_u256">downscale_to_u256</a>(
+            (arc.congestion_base_fee_in_quants_per_sec <b>as</b> u256) * threshold_surplus_normalized
+        );
         acf
     }
 }
@@ -1821,6 +1827,116 @@ Sorting vector implementation
         i = i + 1;
     };
 }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_upscale_from_u8"></a>
+
+## Function `upscale_from_u8`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_upscale_from_u8">upscale_from_u8</a>(value: u8): u256
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_upscale_from_u8">upscale_from_u8</a>(value: u8): u256 { (value <b>as</b> u256) * <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_upscale_from_u64"></a>
+
+## Function `upscale_from_u64`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_upscale_from_u64">upscale_from_u64</a>(value: u64): u256
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_upscale_from_u64">upscale_from_u64</a>(value: u64): u256 { (value <b>as</b> u256) * <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_upscale_from_u256"></a>
+
+## Function `upscale_from_u256`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_upscale_from_u256">upscale_from_u256</a>(value: u256): u256
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_upscale_from_u256">upscale_from_u256</a>(value: u256): u256 { value * <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_downscale_to_u64"></a>
+
+## Function `downscale_to_u64`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_downscale_to_u64">downscale_to_u64</a>(value: u256): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_downscale_to_u64">downscale_to_u64</a>(value: u256): u64 { ((value / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>) <b>as</b> u64) }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_downscale_to_u256"></a>
+
+## Function `downscale_to_u256`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_downscale_to_u256">downscale_to_u256</a>(value: u256): u256
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_downscale_to_u256">downscale_to_u256</a>(value: u256): u256 { value / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> }
 </code></pre>
 
 

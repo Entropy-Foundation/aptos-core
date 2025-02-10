@@ -443,34 +443,35 @@ module supra_framework::automation_registry {
     ): u64 {
         let abf = (arc.automation_base_fee_in_quants_per_sec as u256);
         let max_gas_cap = (arc.registry_max_gas_cap as u256);
-        let task_max_gas = (task.max_gas_amount as u256);
 
         // Subtraction is safe here, as we already removed expired tasks
         let remaining_time = task.expiry_time - current_time;
         let min_interval = (math64::min(remaining_time, interval) as u256);
-        let task_occupancy_ratio_by_duration = min_interval * (task_max_gas * DECIMAL) / max_gas_cap;
+        let task_occupancy_ratio_by_duration = (min_interval * upscale_from_u64(task.max_gas_amount)) / max_gas_cap;
 
         // Compute the base automation fee (taf). Total base fee for the interval
-        let taf = abf * task_occupancy_ratio_by_duration / DECIMAL;
+        let taf = downscale_to_u64(abf * task_occupancy_ratio_by_duration);
 
         // Compute the congestion fee per task (tcf)
-        let tcf = acf * task_occupancy_ratio_by_duration / DECIMAL;
+        let tcf = downscale_to_u64(acf * task_occupancy_ratio_by_duration);
 
-        (taf + tcf as u64)
+        taf + tcf
     }
 
     /// Calculate automation congestion fee for the epoch
     fun calculate_automation_congestion_fee(arc: &AutomationRegistryConfig, tcmg: u256): u256 {
         let max_gas_cap = (arc.registry_max_gas_cap as u256);
-        let threshold_percentage = (arc.congestion_threshold_percentage as u256) * DECIMAL;
+        let threshold_percentage = upscale_from_u8(arc.congestion_threshold_percentage);
 
         // Calculate congestion threshold surplus for the current epoch
-        let threshold_usage = (tcmg * DECIMAL / max_gas_cap) * 100;
+        let threshold_usage = upscale_from_u256(tcmg) * 100 / max_gas_cap;
         if (threshold_usage < threshold_percentage) 0
         else {
             let threshold_surplus_normalized = (threshold_usage - threshold_percentage) / 100;
             // Compute the automation congestion fee (acf) for the epoch
-            let acf = ((arc.congestion_base_fee_in_quants_per_sec as u256) * threshold_surplus_normalized) / DECIMAL;
+            let acf = downscale_to_u256(
+                (arc.congestion_base_fee_in_quants_per_sec as u256) * threshold_surplus_normalized
+            );
             acf
         }
     }
@@ -743,6 +744,16 @@ module supra_framework::automation_registry {
             i = i + 1;
         };
     }
+
+    fun upscale_from_u8(value: u8): u256 { (value as u256) * DECIMAL }
+
+    fun upscale_from_u64(value: u64): u256 { (value as u256) * DECIMAL }
+
+    fun upscale_from_u256(value: u256): u256 { value * DECIMAL }
+
+    fun downscale_to_u64(value: u256): u64 { ((value / DECIMAL) as u64) }
+
+    fun downscale_to_u256(value: u256): u256 { value / DECIMAL }
 
     #[view]
     /// Returns next task index in registry
