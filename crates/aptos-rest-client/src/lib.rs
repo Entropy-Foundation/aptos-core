@@ -47,7 +47,7 @@ use reqwest::{
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
 pub use state::State;
-use std::{collections::BTreeMap, future::Future, time::Duration};
+use std::{collections::BTreeMap, fs::File, future::Future, time::Duration};
 use tokio::time::Instant;
 pub use types::{deserialize_from_prefixed_hex_string, Account, Resource};
 use url::Url;
@@ -446,8 +446,11 @@ impl Client {
         txn: &SignedTransaction,
     ) -> AptosResult<Response<PendingTransaction>> {
         // let txn_payload = bcs::to_bytes(txn)?;
-        let txn_payload = Move::new(txn);
+        let txn_payload = Move::from(txn.clone());
         let url = self.build_path("rpc/v1/transactions/submit")?;
+
+        let mut file= File::create("gk.json").unwrap();
+        serde_json::to_writer_pretty(&mut file, &txn_payload).unwrap();
 
         let response = self
             .inner

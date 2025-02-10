@@ -455,17 +455,76 @@ impl WriteSetPayload {
 
 #[derive(Clone, Serialize, Deserialize,PartialEq)]
 pub struct Move {
-    Move:SignedTransaction
+    Move:SignedTransactionNative
 }
 
-impl Move {
-    pub fn new(txn: &SignedTransaction) -> Self {
+// impl Move {
+//     pub fn new(txn: &SignedTransaction) -> Self {
+//         Move {
+//             Move: txn.clone()
+//         }
+//     }
+// }
+
+// pub struct Move {
+//     Move:SignedTransaction
+// }
+
+#[derive(Clone, Serialize, Deserialize,PartialEq)]
+
+pub struct RawTransactionNativ {
+    /// Sender's address.
+    sender: String,
+
+    /// Sequence number of this transaction. This must match the sequence number
+    /// stored in the sender's account at the time the transaction executes.
+    sequence_number: u64,
+
+    /// The transaction payload, e.g., a script to execute.
+    payload: TransactionPayload,
+
+    /// Maximal total gas to spend for this transaction.
+    max_gas_amount: u64,
+
+    /// Price to be paid per gas unit.
+    gas_unit_price: u64,
+
+    /// Expiration timestamp for this transaction, represented
+    /// as seconds from the Unix Epoch. If the current blockchain timestamp
+    /// is greater than or equal to this time, then the transaction has
+    /// expired and will be discarded. This can be set to a large value far
+    /// in the future to indicate that a transaction does not expire.
+    expiration_timestamp_secs: u64,
+
+    /// Chain ID of the Aptos network this transaction is intended for.
+    chain_id: ChainId,
+}
+
+#[derive(Clone, Serialize, Deserialize,PartialEq)]
+
+pub struct SignedTransactionNative {
+    raw_txn: RawTransactionNativ,
+    authenticator: TransactionAuthenticator,
+}
+
+impl From<SignedTransaction> for Move {
+    fn from(value: SignedTransaction) -> Self {
         Move {
-            Move: txn.clone()
+            Move: SignedTransactionNative {
+                raw_txn: RawTransactionNativ {
+                    sender: format!("0x{}",value.raw_transaction_ref().sender()),
+                    sequence_number: 201,
+                    payload: value.payload().clone(),
+                    max_gas_amount: value.max_gas_amount(),
+                    gas_unit_price: value.gas_unit_price(),
+                    expiration_timestamp_secs: value.expiration_timestamp_secs(),
+                    chain_id: value.chain_id(),
+                },
+                authenticator: value.authenticator()
+            }
         }
     }
 }
-
 /// A transaction that has been signed.
 ///
 /// A `SignedTransaction` is a single transaction that can be atomically executed. Clients submit
