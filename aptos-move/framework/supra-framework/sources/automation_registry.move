@@ -113,7 +113,7 @@ module supra_framework::automation_registry {
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     /// Epoch state
-    struct AutomationEpochInfo has key {
+    struct AutomationEpochInfo has key, copy {
         /// Epoch expected duration at the beginning of the new epoch, Based on this and actual
         /// epoch_duration which will be (current_time - last_reconfiguration_time) automation tasks
         /// refunds will be calculated.
@@ -817,9 +817,15 @@ module supra_framework::automation_registry {
     }
 
     #[view]
-    /// Get automation registry configration
+    /// Get automation registry next epoch max gas cap
     public fun get_next_epoch_registry_max_gas_cap(): u64 acquires ActiveAutomationRegistryConfig {
         borrow_global<ActiveAutomationRegistryConfig>(@supra_framework).next_epoch_registry_max_gas_cap
+    }
+
+    #[view]
+    /// Get automation epoch info
+    public fun get_automation_epoch_info(): AutomationEpochInfo acquires AutomationEpochInfo {
+        *borrow_global<AutomationEpochInfo>(@supra_framework)
     }
 
     #[test_only]

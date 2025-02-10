@@ -55,6 +55,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `get_gas_committed_for_next_epoch`](#0x1_automation_registry_get_gas_committed_for_next_epoch)
 -  [Function `get_automation_registry_config`](#0x1_automation_registry_get_automation_registry_config)
 -  [Function `get_next_epoch_registry_max_gas_cap`](#0x1_automation_registry_get_next_epoch_registry_max_gas_cap)
+-  [Function `get_automation_epoch_info`](#0x1_automation_registry_get_automation_epoch_info)
 
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
@@ -233,7 +234,7 @@ Epoch state
 
 
 <pre><code>#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> <b>has</b> key
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> <b>has</b> <b>copy</b>, key
 </code></pre>
 
 
@@ -2148,7 +2149,7 @@ Get automation registry configration
 
 ## Function `get_next_epoch_registry_max_gas_cap`
 
-Get automation registry configration
+Get automation registry next epoch max gas cap
 
 
 <pre><code>#[view]
@@ -2163,6 +2164,32 @@ Get automation registry configration
 
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_next_epoch_registry_max_gas_cap">get_next_epoch_registry_max_gas_cap</a>(): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework).next_epoch_registry_max_gas_cap
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_get_automation_epoch_info"></a>
+
+## Function `get_automation_epoch_info`
+
+Get automation epoch info
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_automation_epoch_info">get_automation_epoch_info</a>(): <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">automation_registry::AutomationEpochInfo</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_automation_epoch_info">get_automation_epoch_info</a>(): <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> {
+    *<b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework)
 }
 </code></pre>
 
