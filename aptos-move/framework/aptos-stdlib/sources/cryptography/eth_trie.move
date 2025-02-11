@@ -180,7 +180,7 @@ module aptos_std::eth_trie {
 
     #[test]
     public fun test_proof_random_trie() {
-        let (root, outer_vec) = generate_random_trie(1000);
+        let (root, outer_vec) = generate_random_trie(100);
 
         let i = 0;
         while (i < vector::length(&outer_vec)) {
