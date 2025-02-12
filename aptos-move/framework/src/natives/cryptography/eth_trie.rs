@@ -92,7 +92,6 @@ pub fn native_verify_proof_eth_trie(
     Ok(result)
 }
 
-
 #[cfg(feature = "testing")]
 pub fn native_generate_random_trie(
     _context: &mut SafeNativeContext,
