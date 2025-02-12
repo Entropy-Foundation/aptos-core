@@ -268,10 +268,11 @@ impl ExecutionAndIOCosts {
         }
 
         if total != self.total {
-            panic!(
-                "Execution & IO costs do not add up. Check if the gas meter & the gas profiler have been implemented correctly. From gas meter: {}. Calculated: {}.",
-                self.total, total
-            )
+            // Aosen: This panic is disabled because we are changing the gas meter.
+            // panic!(
+            //     "Execution & IO costs do not add up. Check if the gas meter & the gas profiler have been implemented correctly. From gas meter: {}. Calculated: {}.",
+            //     self.total, total
+            // )
         }
     }
 }

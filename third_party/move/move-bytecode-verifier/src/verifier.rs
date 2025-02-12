@@ -19,6 +19,7 @@ use move_binary_format::{
 use move_core_types::{state::VMState, vm_status::StatusCode};
 use serde::Serialize;
 use std::time::Instant;
+use crate::call_edge_detection::CallEdgeDetector;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct VerifierConfig {
@@ -104,6 +105,7 @@ pub fn verify_module_with_config_for_test_with_version(
 pub fn verify_module_with_config(config: &VerifierConfig, module: &CompiledModule) -> VMResult<()> {
     let prev_state = move_core_types::state::set_state(VMState::VERIFIER);
     let result = std::panic::catch_unwind(|| {
+        CallEdgeDetector::verify_module(module)?;
         // Always needs to run bound checker first as subsequent passes depend on it
         BoundsChecker::verify_module(module).map_err(|e| {
             // We can't point the error at the module, because if bounds-checking
