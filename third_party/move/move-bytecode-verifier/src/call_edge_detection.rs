@@ -17,6 +17,7 @@ use move_binary_format::{
     },
 };
 use move_binary_format::file_format::Bytecode;
+use move_core_types::account_address::AccountAddress;
 
 pub struct CallEdgeDetector<'a> {
     module: &'a CompiledModule,
@@ -34,17 +35,17 @@ impl<'a> CallEdgeDetector<'a> {
     }
 
     pub fn print_module_addresses(module: &CompiledModule) {
-        println!("Module address: {:?}", module.self_id().address());
-
-        // Print the addresses of all the module's dependencies
-        for dep in module.immediate_dependencies() {
-            println!("Dependency address: {:?}", dep.address());
-        }
-
-        // Print the addresses of all the module's friends
-        for friend in module.immediate_friends() {
-            println!("Friend address: {:?}", friend.address());
-        }
+        // println!("Module address: {:?}", module.self_id().address());
+        //
+        // // Print the addresses of all the module's dependencies
+        // for dep in module.immediate_dependencies() {
+        //     println!("Dependency address: {:?}", dep.address());
+        // }
+        //
+        // // Print the addresses of all the module's friends
+        // for friend in module.immediate_friends() {
+        //     println!("Friend address: {:?}", friend.address());
+        // }
     }
 
     // Print the function calls and module address from and to in the module
@@ -53,7 +54,6 @@ impl<'a> CallEdgeDetector<'a> {
         for function_def in module.function_defs().iter() {
             let function_handle = &module.function_handle_at(function_def.function);
             let function_name = module.identifier_at(function_handle.name);
-            println!("Function: {}", function_name);
             // Iterate over all the bytecodes that represent function calls in the function
             if let Some(code) = &function_def.code {
                 for bytecode in &code.code {
@@ -67,10 +67,13 @@ impl<'a> CallEdgeDetector<'a> {
                             let self_address = module.self_id().address().clone();
                             let target_module = module.address_identifiers().get(called_function_handle.module.0 as usize)
                                 .unwrap_or_else(|| &self_address);
-                            println!(
-                                "  Calls: {} from module: {:x} to module: {:x}",
-                                called_function_name, source_module, target_module
-                            );
+                            if target_module != &AccountAddress::ONE {
+                                println!("Function: {}", function_name);
+                                println!(
+                                    "  Calls: {} from module: {:x} to module: {:x}",
+                                    called_function_name, source_module, target_module
+                                );
+                            }
                         }
                         Bytecode::CallGeneric(inst_index) => {
                             let inst = module.function_instantiation_at(*inst_index);
@@ -81,18 +84,25 @@ impl<'a> CallEdgeDetector<'a> {
                             let self_address = module.self_id().address().clone();
                             let target_module = module.address_identifiers().get(called_function_handle.module.0 as usize)
                                 .unwrap_or_else(|| &self_address);
-                            println!(
-                                "  Calls: {} from module: {:x} to module: {:x}",
-                                called_function_name, source_module, target_module
-                            );
+                            if target_module != &AccountAddress::ONE {
+                                println!("Function: {}", function_name);
+                                println!(
+                                    "  Calls: {} from module: {:x} to module: {:x}",
+                                    called_function_name, source_module, target_module
+                                );
+                            }
                         }
                         Bytecode::Ret => {
                             let module_id = module.self_id();
                             let source_module = module_id.address();
-                            println!(
-                                "  Returns to module: {:x}",
-                                source_module
-                            );
+                            let target_module = module.address_identifiers().get(0).unwrap_or_else(|| &source_module);
+                            if source_module != &AccountAddress::ONE {
+                                println!("Function: {}", function_name);
+                                println!(
+                                    "  Returns from module: {:x} to module: {:x}",
+                                    source_module, target_module
+                                );
+                            }
                         }
                         _ => {}
                     }

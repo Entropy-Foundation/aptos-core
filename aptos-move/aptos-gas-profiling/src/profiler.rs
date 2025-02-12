@@ -1,6 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+use std::collections::HashMap;
 use crate::log::{
     CallFrame, Dependency, EventStorage, EventTransient, ExecutionAndIOCosts, ExecutionGasEvent,
     FrameName, StorageFees, TransactionGasLog, WriteOpType, WriteStorage, WriteTransient,
@@ -41,6 +42,8 @@ pub struct GasProfiler<G> {
     events_transient: Vec<EventTransient>,
     write_set_transient: Vec<WriteTransient>,
     storage_fees: Option<StorageFees>,
+    module_gas_usage: HashMap<ModuleId, InternalGas>,
+    gas_cost_stack: Vec<InternalGas>
 }
 
 // TODO: consider switching to a library like https://docs.rs/delegate/latest/delegate/.
@@ -98,6 +101,8 @@ impl<G> GasProfiler<G> {
             events_transient: vec![],
             write_set_transient: vec![],
             storage_fees: None,
+            module_gas_usage: HashMap::new(),
+            gas_cost_stack: vec![]
         }
     }
 
@@ -118,14 +123,132 @@ impl<G> GasProfiler<G> {
             events_transient: vec![],
             write_set_transient: vec![],
             storage_fees: None,
+            module_gas_usage: HashMap::new(),
+            gas_cost_stack: vec![]
         }
     }
 }
+
+// 0 -> 800 -> 1500 -> 2000 -> 2500
+// A::Foo() { Bar()}
+// B::Bar() { Barz()}
+// C::Barz() {}
+// TODO: add a new value if it is intermodule call, also think about return intermodule.
 
 impl<G> GasProfiler<G>
 where
     G: AptosGasMeter,
 {
+    // Method to print the module_gas_usage hash table
+    pub fn print_module_gas_usage(&self) {
+        for (module_id, gas) in &self.module_gas_usage {
+            println!("Module: {:?}, Gas Used: {:?}", module_id, gas);
+        }
+    }
+
+    fn is_intra_module_call(&self, module_id: &ModuleId) -> bool {
+        if module_id.address() == &AccountAddress::ONE {
+            return true;
+        }
+        if let Some(frame) = self.frames.last() {
+            if let FrameName::Function { module_id: current_module_id, .. } = &frame.name {
+                return current_module_id == module_id;
+            }
+        }
+        false
+    }
+
+    // Add a method to get the total gas usage for a module
+    pub fn get_module_gas_usage(&self, module_id: &ModuleId) -> InternalGas {
+        *self.module_gas_usage.get(module_id).unwrap_or(&InternalGas::zero())
+    }
+
+    fn charge_call_with_metering(
+        &mut self,
+        module_id: &ModuleId,
+        func_name: &str,
+        args: impl ExactSizeIterator<Item = impl ValueView> + Clone,
+        num_locals: NumArgs,
+    ) -> PartialVMResult<()> {
+        let is_intra_module = self.is_intra_module_call(module_id);
+        let base_cost = if is_intra_module {
+            InternalGas::new(0)
+        } else {
+            InternalGas::new(20)
+        };
+
+        let (cost, res) = self.delegate_charge(|base| {
+            base.charge_call(module_id, func_name, args, num_locals)
+        });
+        let total_cost = cost + base_cost;
+
+        // if !is_intra_module {
+        //     print!("Inter module call\n");
+        //     print!("Old cost: {}\n", cost);
+        //     print!("New Cost: {}\n", cost+base_cost);
+        // }
+        // println!("Module ID: {:?}, Total Cost: {:?}", module_id, total_cost);
+
+        // Record gas usage for the current module
+        *self.module_gas_usage.entry(module_id.clone()).or_insert(InternalGas::zero()) += total_cost;
+        // Push the current gas cost onto the stack
+        self.gas_cost_stack.push(self.base.balance_internal());
+        self.record_bytecode(Opcodes::CALL, cost + base_cost);
+        self.frames.push(CallFrame::new_function(
+            module_id.clone(),
+            Identifier::new(func_name).unwrap(),
+            vec![],
+        ));
+
+        res
+    }
+
+    fn charge_call_generic_with_metering(
+        &mut self,
+        module_id: &ModuleId,
+        func_name: &str,
+        ty_args: impl ExactSizeIterator<Item = impl TypeView> + Clone,
+        args: impl ExactSizeIterator<Item = impl ValueView> + Clone,
+        num_locals: NumArgs,
+    ) -> PartialVMResult<()> {
+        let is_intra_module = self.is_intra_module_call(module_id);
+        let base_cost = if is_intra_module {
+            InternalGas::new(0)
+        } else {
+            InternalGas::new(20)
+        };
+
+        let ty_tags = ty_args
+            .clone()
+            .map(|ty| ty.to_type_tag())
+            .collect::<Vec<_>>();
+
+        let (cost, res) = self.delegate_charge(|base| {
+            base.charge_call_generic(module_id, func_name, ty_args, args, num_locals)
+        });
+
+        let total_cost = cost + base_cost;
+
+        if !is_intra_module {
+            print!("Inter module call\n");
+            print!("Old cost: {}\n", cost);
+            print!("New Cost: {}\n", cost + base_cost);
+        }
+        // println!("Module ID: {:?}, Total Cost: {:?}", module_id, total_cost);
+        // Record gas usage for the current module
+        *self.module_gas_usage.entry(module_id.clone()).or_insert(InternalGas::zero()) += total_cost;
+        // Push the current gas cost onto the stack
+        self.gas_cost_stack.push(self.base.balance_internal());
+        self.record_bytecode(Opcodes::CALL_GENERIC, cost + base_cost);
+        self.frames.push(CallFrame::new_function(
+            module_id.clone(),
+            Identifier::new(func_name).unwrap(),
+            ty_tags,
+        ));
+
+        res
+    }
+
     fn active_event_stream(&mut self) -> &mut Vec<ExecutionGasEvent> {
         &mut self.frames.last_mut().unwrap().events
     }
@@ -399,7 +522,16 @@ where
         if matches!(instr, SimpleInstruction::Ret) && self.frames.len() > 1 {
             let cur_frame = self.frames.pop().expect("frame must exist");
             let last_frame = self.frames.last_mut().expect("frame must exist");
-            last_frame.events.push(ExecutionGasEvent::Call(cur_frame));
+            last_frame.events.push(ExecutionGasEvent::Call(cur_frame.clone()));
+            // Pop the gas cost from the stack and calculate the difference
+            let start_gas = self.gas_cost_stack.pop().expect("stack must not be empty");
+            let end_gas = self.base.balance_internal();
+            let function_cost = start_gas.checked_sub(end_gas).expect("gas cost must be non-negative");
+
+            // Print the function name and cost
+            if let FrameName::Function { name, .. } = &cur_frame.name {
+                println!("Function: {}, Cost: {:?}", name, function_cost);
+            }
         }
 
         res
@@ -412,17 +544,7 @@ where
         args: impl ExactSizeIterator<Item = impl ValueView> + Clone,
         num_locals: NumArgs,
     ) -> PartialVMResult<()> {
-        let (cost, res) =
-            self.delegate_charge(|base| base.charge_call(module_id, func_name, args, num_locals));
-
-        self.record_bytecode(Opcodes::CALL, cost);
-        self.frames.push(CallFrame::new_function(
-            module_id.clone(),
-            Identifier::new(func_name).unwrap(),
-            vec![],
-        ));
-
-        res
+        self.charge_call_with_metering(module_id, func_name, args, num_locals)
     }
 
     fn charge_call_generic(
@@ -433,23 +555,7 @@ where
         args: impl ExactSizeIterator<Item = impl ValueView> + Clone,
         num_locals: NumArgs,
     ) -> PartialVMResult<()> {
-        let ty_tags = ty_args
-            .clone()
-            .map(|ty| ty.to_type_tag())
-            .collect::<Vec<_>>();
-
-        let (cost, res) = self.delegate_charge(|base| {
-            base.charge_call_generic(module_id, func_name, ty_args, args, num_locals)
-        });
-
-        self.record_bytecode(Opcodes::CALL_GENERIC, cost);
-        self.frames.push(CallFrame::new_function(
-            module_id.clone(),
-            Identifier::new(func_name).unwrap(),
-            ty_tags,
-        ));
-
-        res
+        self.charge_call_generic_with_metering(module_id, func_name, ty_args, args, num_locals)
     }
 
     fn charge_load_resource(
@@ -668,6 +774,8 @@ where
     G: AptosGasMeter,
 {
     pub fn finish(mut self) -> TransactionGasLog {
+        // Print the module_gas_usage hash table
+        self.print_module_gas_usage();
         while self.frames.len() > 1 {
             let cur = self.frames.pop().expect("frame must exist");
             let last = self.frames.last_mut().expect("frame must exist");
