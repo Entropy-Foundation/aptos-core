@@ -212,7 +212,7 @@ module supra_framework::genesis {
     }
 
     /// Genesis step 3: Initialize Supra Native Automation.
-    fun initialize_supra_native_automation(supra_framework: &signer,
+    public fun initialize_supra_native_automation(supra_framework: &signer,
                                            task_duration_cap_in_secs: u64,
                                            registry_max_gas_cap: u64,
                                            automation_base_fee_in_quants_per_sec: u64,

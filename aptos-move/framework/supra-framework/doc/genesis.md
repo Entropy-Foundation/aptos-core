@@ -681,7 +681,7 @@ Genesis step 2: Initialize Supra coin.
 Genesis step 3: Initialize Supra Native Automation.
 
 
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_native_automation">initialize_supra_native_automation</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64)
+<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_native_automation">initialize_supra_native_automation</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64)
 </code></pre>
 
 
@@ -690,7 +690,7 @@ Genesis step 3: Initialize Supra Native Automation.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_native_automation">initialize_supra_native_automation</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_native_automation">initialize_supra_native_automation</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
                                        task_duration_cap_in_secs: u64,
                                        registry_max_gas_cap: u64,
                                        automation_base_fee_in_quants_per_sec: u64,

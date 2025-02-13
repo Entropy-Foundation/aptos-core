@@ -175,16 +175,16 @@ module supra_framework::automation_registry {
         id: u64
     }
 
-    /// Checks whether all required resources are created.
     #[view]
+    /// Checks whether all required resources are created.
     public fun is_initialized(): bool {
             exists<AutomationRegistry>(@supra_framework)
             && exists<AutomationEpochInfo>(@supra_framework)
             && exists<ActiveAutomationRegistryConfig>(@supra_framework)
     }
 
-    /// Checks whether SUPRA_NATIVE_AUTOMATION feature flag is enabled.
     #[view]
+    /// Checks whether SUPRA_NATIVE_AUTOMATION feature flag is enabled.
     public fun is_feature_enabled(): bool {
         features::supra_native_automation_enabled()
     }
@@ -662,7 +662,7 @@ module supra_framework::automation_registry {
     fun initialize_registry_test(supra_framework: &signer, user: &signer) {
         initialize_registry_test_partially(supra_framework, user);
         features::change_feature_flags_for_testing(supra_framework,
-            vector[features::get_supra_nateive_automation_feature()],
+            vector[features::get_supra_native_automation_feature()],
             vector::empty<u64>());
     }
 

@@ -129,7 +129,7 @@ return true.
 -  [Function `default_to_concurrent_fungible_balance_enabled`](#0x1_features_default_to_concurrent_fungible_balance_enabled)
 -  [Function `get_abort_if_multisig_payload_mismatch_feature`](#0x1_features_get_abort_if_multisig_payload_mismatch_feature)
 -  [Function `abort_if_multisig_payload_mismatch_enabled`](#0x1_features_abort_if_multisig_payload_mismatch_enabled)
--  [Function `get_supra_nateive_automation_feature`](#0x1_features_get_supra_nateive_automation_feature)
+-  [Function `get_supra_native_automation_feature`](#0x1_features_get_supra_native_automation_feature)
 -  [Function `supra_native_automation_enabled`](#0x1_features_supra_native_automation_enabled)
 -  [Function `change_feature_flags`](#0x1_features_change_feature_flags)
 -  [Function `change_feature_flags_internal`](#0x1_features_change_feature_flags_internal)
@@ -3169,13 +3169,13 @@ Lifetime: transient
 
 </details>
 
-<a id="0x1_features_get_supra_nateive_automation_feature"></a>
+<a id="0x1_features_get_supra_native_automation_feature"></a>
 
-## Function `get_supra_nateive_automation_feature`
+## Function `get_supra_native_automation_feature`
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_nateive_automation_feature">get_supra_nateive_automation_feature</a>(): u64
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_native_automation_feature">get_supra_native_automation_feature</a>(): u64
 </code></pre>
 
 
@@ -3184,7 +3184,7 @@ Lifetime: transient
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_nateive_automation_feature">get_supra_nateive_automation_feature</a>(): u64 { <a href="features.md#0x1_features_SUPRA_NATIVE_AUTOMATION">SUPRA_NATIVE_AUTOMATION</a> }
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_native_automation_feature">get_supra_native_automation_feature</a>(): u64 { <a href="features.md#0x1_features_SUPRA_NATIVE_AUTOMATION">SUPRA_NATIVE_AUTOMATION</a> }
 </code></pre>
 
 

@@ -678,6 +678,7 @@ The lenght of the transaction hash.
 
 ## Function `is_initialized`
 
+Checks whether all required resources are created.
 
 
 <pre><code>#[view]
@@ -705,6 +706,7 @@ The lenght of the transaction hash.
 
 ## Function `is_feature_enabled`
 
+Checks whether SUPRA_NATIVE_AUTOMATION feature flag is enabled.
 
 
 <pre><code>#[view]
