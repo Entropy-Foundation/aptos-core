@@ -4,6 +4,7 @@
 use aptos_cached_packages::aptos_framework_sdk_builder;
 use aptos_language_e2e_tests::account::{Account, AccountData};
 use aptos_language_e2e_tests::executor::FakeExecutor;
+use aptos_types::on_chain_config::FeatureFlag;
 use aptos_types::transaction::automation::{AutomationTaskMetaData, RegistrationParams};
 use aptos_types::transaction::{
     EntryFunction, ExecutionStatus, SignedTransaction, TransactionOutput, TransactionPayload,
@@ -49,6 +50,29 @@ impl AutomationRegistrationTestContext {
             executor,
             txn_sender,
         }
+    }
+
+    pub(crate) fn set_supra_native_automation(&mut self, enable: bool) {
+        let acc = AccountAddress::ONE;
+        let flag_value = [FeatureFlag::SUPRA_NATIVE_AUTOMATION]
+            .into_iter()
+            .map(|f| f as u64)
+            .collect::<Vec<_>>();
+        let (enabled, disabled) = if enable {
+            (flag_value, vec![])
+        } else {
+            (vec![], flag_value)
+        };
+        self.executor.exec(
+            "features",
+            "change_feature_flags_internal",
+            vec![],
+            vec![
+                MoveValue::Signer(acc).simple_serialize().unwrap(),
+                bcs::to_bytes(&enabled).unwrap(),
+                bcs::to_bytes(&disabled).unwrap(),
+            ],
+        );
     }
 
     pub(crate) fn new_account_data(&mut self, amount: u64, seq_num: u64) -> AccountData {
@@ -189,6 +213,7 @@ impl DerefMut for AutomationRegistrationTestContext {
 
 #[test]
 fn check_successful_registration() {
+    // Feature flag is not enabled yet.
     let mut test_context = AutomationRegistrationTestContext::new();
     // Prepare inner-entry-function to be automated.
     let dest_account = test_context.new_account_data(0, 0);
@@ -211,6 +236,16 @@ fn check_successful_registration() {
 
     let sender_address = test_context.sender_account_address();
     let sender_seq_num_old = test_context.account_sequence_number(sender_address);
+
+    // when flag is not enabled although registry in initialized, registration will fail.
+    let result = test_context.execute_transaction(automation_txn.clone());
+    assert!(matches!(
+        result.status().status(),
+        Ok(ExecutionStatus::MoveAbort { .. })
+    ));
+
+    // enable the supra native automation, registration should succeed.
+    test_context.set_supra_native_automation(true);
     let output = test_context.execute_and_apply(automation_txn);
     assert_eq!(
         output.status(),
@@ -228,6 +263,7 @@ fn check_successful_registration() {
 #[test]
 fn check_invalid_automation_txn() {
     let mut test_context = AutomationRegistrationTestContext::new();
+    test_context.set_supra_native_automation(true);
     // Create automation registration transaction with entry-function with invalid arguments.
     let dest_account = test_context.new_account_data(0, 0);
     let (m_id, f_id, _, _) =

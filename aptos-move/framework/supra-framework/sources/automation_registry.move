@@ -3,6 +3,7 @@
 /// This contract is part of the Supra Framework and is designed to manage automated task entries
 module supra_framework::automation_registry {
 
+    use std::features;
     use std::signer;
     use std::vector;
 
@@ -17,6 +18,7 @@ module supra_framework::automation_registry {
 
     friend supra_framework::block;
     friend supra_framework::reconfiguration;
+    friend supra_framework::genesis;
 
     /// Invalid expiry time: it cannot be earlier than the current time
     const EINVALID_EXPIRY_TIME: u64 = 1;
@@ -46,6 +48,9 @@ module supra_framework::automation_registry {
     const EGAS_COMMITTEED_VALUE_UNDERFLOW: u64 = 13;
     /// Auxiliary data during registration is not supported
     const ENO_AUX_DATA_SUPPORTED: u64 = 14;
+    /// Supra native automation feature is not initialized or enabled
+    const EDISABLED_AUTOMATION_FEATURE: u64 = 15;
+
 
     /// The lenght of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -141,11 +146,11 @@ module supra_framework::automation_registry {
         /// Maximum automation fee for epoch to be paid ever.
         automation_fee_cap_for_epoch: u64,
         /// Auxiliary data specified for the task to aid registration.
-        /// Not used currently. Reserved for future extentions.
+        /// Not used currently. Reserved for future extensions.
         aux_data: vector<vector<u8>>,
         /// Registration epoch time
         registration_time: u64,
-        /// Flag indicating whether the task is active, canclled or pending.
+        /// Flag indicating whether the task is active, cancelled or pending.
         state: u8
     }
 
@@ -170,24 +175,30 @@ module supra_framework::automation_registry {
         id: u64
     }
 
-    /// This is temporary function : until we have initialization flow properly implemented
-    public fun initializate_by_default(supra_framework: &signer, epoch_interval_microsecs: u64) {
-        initialize(
-            supra_framework,
-            epoch_interval_microsecs,
-            2_626_560,
-            100_000_000,
-            1000,
-            100_000_000, // 1 supra
-            80,
-            100,
-        );
+    #[view]
+    /// Checks whether all required resources are created.
+    public fun is_initialized(): bool {
+            exists<AutomationRegistry>(@supra_framework)
+            && exists<AutomationEpochInfo>(@supra_framework)
+            && exists<ActiveAutomationRegistryConfig>(@supra_framework)
     }
 
-    /// Initialization of Automation Registry
-    public fun initialize(
+    #[view]
+    /// Checks whether SUPRA_NATIVE_AUTOMATION feature flag is enabled.
+    public fun is_feature_enabled(): bool {
+        features::supra_native_automation_enabled()
+    }
+
+    /// Asserts that SUPRA_NATIVE_AUTOMATION feature flag is enabled.
+    fun assert_feature_enabled() {
+        assert!(is_feature_enabled(), EDISABLED_AUTOMATION_FEATURE)
+    }
+
+
+    /// Initialization of Automation Registry with configuration parameters is expected metrics.
+    public(friend) fun initialize(
         supra_framework: &signer,
-        epoch_interval_microsecs: u64,
+        epoch_interval_secs: u64,
         task_duration_cap_in_secs: u64,
         registry_max_gas_cap: u64,
         automation_base_fee_in_quants_per_sec: u64,
@@ -222,16 +233,25 @@ module supra_framework::automation_registry {
             next_epoch_registry_max_gas_cap: registry_max_gas_cap
         });
 
-        let epoch_interval = epoch_interval_microsecs / MICROSECS_CONVERSION_FACTOR;
         move_to(supra_framework, AutomationEpochInfo {
-            expected_epoch_duration: epoch_interval,
-            epoch_interval,
+            expected_epoch_duration: epoch_interval_secs,
+            epoch_interval: epoch_interval_secs,
             start_time: 0,
         });
     }
 
+
     /// On new epoch this function will be triggered and update the automation registry state
     public(friend) fun on_new_epoch() acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        // Unless registry in initialized, registry will not be updated on new epoch.
+        // Here we need to be carefull as well. If the feature is disabled for the current epoch then
+        //  - refund for the previous epoch should be done,
+        //  - cleanup of the expired/cancelled task should be done
+        //  - but no charges for the current epoch should be collected.
+        // Note that with the current setup feature::on_new_epoch is called before automation_registry::on_new_epoch
+        if (!is_initialized()) {
+            return
+        };
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let ids = enumerable_map::get_map_list(&automation_registry.tasks);
 
@@ -361,6 +381,9 @@ module supra_framework::automation_registry {
         tx_hash: vector<u8>,
         aux_data: vector<vector<u8>>
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        // Guarding registration if feature is not enabled.
+        assert_feature_enabled();
+
         assert!(vector::is_empty(&aux_data), ENO_AUX_DATA_SUPPORTED);
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let automation_registry_config = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
@@ -495,10 +518,30 @@ module supra_framework::automation_registry {
     }
 
     #[view]
+    /// Means to query by user whether the automation registry has been properly initialized and ready to be utilized.
+    public fun is_feature_enabled_and_initialized(): bool {
+        is_feature_enabled() && is_initialized()
+    }
+
+    #[view]
     /// Returns next task index in registry
     public fun get_next_task_index(): u64 acquires AutomationRegistry {
         let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
         automation_registry.current_index
+    }
+
+    #[view]
+    /// Returns number of available tasks.
+    public fun get_task_count(): u64 acquires AutomationRegistry {
+        let state = borrow_global<AutomationRegistry>(@supra_framework);
+        enumerable_map::length(&state.tasks)
+    }
+
+    #[view]
+    /// List all automation task ids available in register.
+    public fun get_task_ids(): vector<u64> acquires AutomationRegistry {
+        let state = borrow_global<AutomationRegistry>(@supra_framework);
+        enumerable_map::get_map_list(&state.tasks)
     }
 
     #[view]
@@ -550,13 +593,13 @@ module supra_framework::automation_registry {
     }
 
     #[view]
-    /// Get automation registry configration
+    /// Get automation registry configuration
     public fun get_automation_registry_config(): AutomationRegistryConfig acquires ActiveAutomationRegistryConfig {
         borrow_global<ActiveAutomationRegistryConfig>(@supra_framework).main_config
     }
 
     #[view]
-    /// Get automation registry configration
+    /// Get automation registry maximum gas capacity for the next epoch
     public fun get_next_epoch_registry_max_gas_cap(): u64 acquires ActiveAutomationRegistryConfig {
         borrow_global<ActiveAutomationRegistryConfig>(@supra_framework).next_epoch_registry_max_gas_cap
     }
@@ -575,7 +618,7 @@ module supra_framework::automation_registry {
     const CONGESTION_BASE_FEE_TEST: u64 = 100;
     #[test_only]
     /// Value defined in microsecond
-    const EPOCH_INTERVAL_FOR_TEST: u64 = 7200000000;
+    const EPOCH_INTERVAL_FOR_TEST_IN_SECS: u64 = 7200;
     #[test_only]
     const PARENT_HASH: vector<u8> = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
     #[test_only]
@@ -585,7 +628,8 @@ module supra_framework::automation_registry {
 
 
     #[test_only]
-    fun initialize_registry_test(supra_framework: &signer, user: &signer) {
+    /// Initializes registry without enabling SUPRA_NATIVE_AUTOMATION feature flag
+    fun initialize_registry_test_partially(supra_framework: &signer, user: &signer) {
         use supra_framework::coin;
         use supra_framework::supra_coin::{Self, SupraCoin};
 
@@ -603,7 +647,7 @@ module supra_framework::automation_registry {
 
         initialize(
             supra_framework,
-            EPOCH_INTERVAL_FOR_TEST,
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS,
             TTL_UPPER_BOUND_TEST,
             AUTOMATION_MAX_GAS_TEST,
             AUTOMATION_BASE_FEE_TEST,
@@ -612,6 +656,16 @@ module supra_framework::automation_registry {
             CONGESTION_BASE_FEE_TEST,
         );
     }
+
+    #[test_only]
+    /// Initializes registry and enables SUPRA_NATIVE_AUTOMATION feature flag
+    fun initialize_registry_test(supra_framework: &signer, user: &signer) {
+        initialize_registry_test_partially(supra_framework, user);
+        features::change_feature_flags_for_testing(supra_framework,
+            vector[features::get_supra_native_automation_feature()],
+            vector::empty<u64>());
+    }
+
 
     #[test_only]
     fun has_task_with_id(id: u64): bool acquires AutomationRegistry {
@@ -625,6 +679,26 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
         initialize_registry_test(supra_framework, user);
+
+        let payload = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132";
+        let parent_hash = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
+        register(user, payload, 86400, 1000, 100000,  100_000_00, parent_hash, AUX_DATA);
+    }
+
+    #[test]
+    fun test_on_new_epoch_without_initialization(
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        // Nothing will be attempted if the registry is not initialized.
+        on_new_epoch()
+    }
+
+    #[test(supra_framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = EDISABLED_AUTOMATION_FEATURE, location = Self)]
+    fun test_registration_with_partial_initialization(
+        supra_framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test_partially(supra_framework, user);
 
         let payload = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132";
         let parent_hash = x"0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20";
@@ -742,7 +816,7 @@ module supra_framework::automation_registry {
 
         register(user,
             PAYLOAD,
-            EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR / 2,
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2,
             70,
             20,
             1000,
@@ -904,7 +978,7 @@ module supra_framework::automation_registry {
         let active_task_ids = get_active_task_ids();
         assert!(active_task_ids == vector[], 1);
 
-        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR);
+        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
         on_new_epoch();
         assert!(40 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
@@ -959,7 +1033,7 @@ module supra_framework::automation_registry {
             AUX_DATA
         );
 
-        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST / MICROSECS_CONVERSION_FACTOR);
+        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
         on_new_epoch();
         assert!(40 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
