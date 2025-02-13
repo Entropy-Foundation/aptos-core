@@ -205,7 +205,11 @@ impl ReleasePackage {
             "// Upgrade proposal for package `{}`\n",
             self.metadata.name
         );
-        emitln!(writer, "// source digest: {}", self.metadata.source_digest);
+
+        // The Sha2-256 digest here is the combined hash of all the hashes of the `.move` files and
+        // the manifest file(Move.toml) in the source package.
+        // Check [move_package::resolution::digest::compile_digest]
+        emitln!(writer, "// source package's SHA2-256 digest: {}", self.metadata.source_digest);
         emitln!(writer, "script {");
         writer.indent();
         emitln!(writer, "use std::vector;");
@@ -213,7 +217,7 @@ impl ReleasePackage {
         emitln!(writer, "use supra_framework::code;\n");
 
         if is_testnet && !is_multi_step {
-            emitln!(writer, "fun {function_name}(core_resources: &signer){{");
+            emitln!(writer, "fun {function_name} (core_resources: &signer) {{");
             writer.indent();
             emitln!(
                 writer,
@@ -221,7 +225,7 @@ impl ReleasePackage {
                 for_address
             );
         } else if !is_multi_step {
-            emitln!(writer, "fun {}(proposal_id: u64){{", function_name);
+            emitln!(writer, "fun {} (proposal_id: u64) {{", function_name);
             writer.indent();
             emitln!(
                 writer,
@@ -229,7 +233,7 @@ impl ReleasePackage {
                 for_address
             );
         } else {
-            emitln!(writer, "fun {}(proposal_id: u64){{", function_name);
+            emitln!(writer, "fun {} (proposal_id: u64) {{", function_name);
             writer.indent();
             Self::generate_next_execution_hash_blob(&writer, for_address, next_execution_hash);
         }
