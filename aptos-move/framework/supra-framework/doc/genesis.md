@@ -15,6 +15,7 @@
 -  [Constants](#@Constants_0)
 -  [Function `initialize`](#0x1_genesis_initialize)
 -  [Function `initialize_supra_coin`](#0x1_genesis_initialize_supra_coin)
+-  [Function `initialize_supra_native_automation`](#0x1_genesis_initialize_supra_native_automation)
 -  [Function `initialize_core_resources_and_supra_coin`](#0x1_genesis_initialize_core_resources_and_supra_coin)
 -  [Function `create_accounts`](#0x1_genesis_create_accounts)
 -  [Function `create_account`](#0x1_genesis_create_account)
@@ -632,7 +633,6 @@ Genesis step 1: Initialize aptos framework account and core modules on chain.
     <a href="reconfiguration.md#0x1_reconfiguration_initialize">reconfiguration::initialize</a>(&supra_framework_account);
     <a href="block.md#0x1_block_initialize">block::initialize</a>(&supra_framework_account, epoch_interval_microsecs);
     <a href="state_storage.md#0x1_state_storage_initialize">state_storage::initialize</a>(&supra_framework_account);
-    <a href="automation_registry.md#0x1_automation_registry_initializate_by_default">automation_registry::initializate_by_default</a>(&supra_framework_account, epoch_interval_microsecs);
     <a href="timestamp.md#0x1_timestamp_set_time_has_started">timestamp::set_time_has_started</a>(&supra_framework_account, genesis_timestamp_in_microseconds);
 }
 </code></pre>
@@ -667,6 +667,48 @@ Genesis step 2: Initialize Supra coin.
     <a href="transaction_fee.md#0x1_transaction_fee_store_supra_coin_burn_cap">transaction_fee::store_supra_coin_burn_cap</a>(supra_framework, burn_cap);
     // Give <a href="transaction_fee.md#0x1_transaction_fee">transaction_fee</a> <b>module</b> MintCapability&lt;SupraCoin&gt; so it can mint refunds.
     <a href="transaction_fee.md#0x1_transaction_fee_store_supra_coin_mint_cap">transaction_fee::store_supra_coin_mint_cap</a>(supra_framework, mint_cap);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_genesis_initialize_supra_native_automation"></a>
+
+## Function `initialize_supra_native_automation`
+
+Genesis step 3: Initialize Supra Native Automation.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_native_automation">initialize_supra_native_automation</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_native_automation">initialize_supra_native_automation</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+                                       task_duration_cap_in_secs: u64,
+                                       registry_max_gas_cap: u64,
+                                       automation_base_fee_in_quants_per_sec: u64,
+                                       flat_registration_fee_in_quants: u64,
+                                       congestion_threshold_percentage: u8,
+                                       congestion_base_fee_in_quants_per_sec: u64,
+) {
+    <b>let</b> epoch_interval_secs = <a href="block.md#0x1_block_get_epoch_interval_secs">block::get_epoch_interval_secs</a>();
+    <a href="automation_registry.md#0x1_automation_registry_initialize">automation_registry::initialize</a>(
+        supra_framework,
+        epoch_interval_secs,
+        task_duration_cap_in_secs,
+        registry_max_gas_cap,
+        automation_base_fee_in_quants_per_sec,
+        flat_registration_fee_in_quants,
+        congestion_threshold_percentage,
+        congestion_base_fee_in_quants_per_sec,
+    )
 }
 </code></pre>
 
