@@ -1053,7 +1053,7 @@ impl CliCommand<TransactionSummary> for UpdateConsensusKey {
         self.txn_options
             .submit_transaction(aptos_stdlib::stake_rotate_consensus_key(
                 address,
-                consensus_public_key.to_bytes().to_vec(),
+                consensus_public_key.to_bytes().to_vec(),vec![]
             ))
             .await
             .map(|inner| inner.into())

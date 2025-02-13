@@ -402,6 +402,7 @@ spec supra_framework::stake {
         operator: &signer,
         pool_address: address,
         new_consensus_pubkey: vector<u8>,
+        new_consensus_bls_pubkey: vector<u8>,
     ) {
         let pre_stake_pool = global<StakePool>(pool_address);
         let post validator_info = global<ValidatorConfig>(pool_address);
@@ -423,6 +424,7 @@ spec supra_framework::stake {
         operator: &signer,
         pool_address: address,
         new_consensus_pubkey: vector<u8>,
+        new_consensus_bls_pubkey: vector<u8>,
         genesis: bool,
     ) {
         modifies global<ValidatorConfig>(pool_address);

@@ -249,6 +249,8 @@ module supra_framework::stake {
         pool_address: address,
         old_consensus_pubkey: vector<u8>,
         new_consensus_pubkey: vector<u8>,
+        old_consensus_bls_pubkey: vector<u8>,
+        new_consensus_bls_pubkey: vector<u8>,
     }
 
     #[event]
@@ -256,6 +258,8 @@ module supra_framework::stake {
         pool_address: address,
         old_consensus_pubkey: vector<u8>,
         new_consensus_pubkey: vector<u8>,
+        old_consensus_bls_pubkey: vector<u8>,
+        new_consensus_bls_pubkey: vector<u8>,
     }
 
     struct UpdateNetworkAndFullnodeAddressesEvent has drop, store {
@@ -813,6 +817,7 @@ module supra_framework::stake {
         operator: &signer,
         pool_address: address,
         new_consensus_pubkey: vector<u8>,
+        new_consensus_bls_pubkey: vector<u8>,
         genesis: bool,
     ) acquires StakePool, ValidatorConfig {
         assert_reconfig_not_in_progress();
@@ -824,6 +829,7 @@ module supra_framework::stake {
         assert!(exists<ValidatorConfig>(pool_address), error::not_found(EVALIDATOR_CONFIG));
         let validator_info = borrow_global_mut<ValidatorConfig>(pool_address);
         let old_consensus_pubkey = validator_info.consensus_pubkey;
+        let old_consensus_bls_pubkey = validator_info.consensus_bls_pubkey;
         // Checks the public key is valid to prevent rogue-key attacks.
         if (!genesis) {
             let validated_public_key = ed25519::new_validated_public_key_from_bytes(new_consensus_pubkey);
@@ -833,13 +839,15 @@ module supra_framework::stake {
             assert!(option::is_some(&validated_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
         };
         validator_info.consensus_pubkey = new_consensus_pubkey;
-
+        validator_info.consensus_bls_pubkey = new_consensus_bls_pubkey;
         if (std::features::module_event_migration_enabled()) {
             event::emit(
                 RotateConsensusKey {
                     pool_address,
                     old_consensus_pubkey,
                     new_consensus_pubkey,
+                    old_consensus_bls_pubkey,
+                    new_consensus_bls_pubkey,
                 },
             );
         };
@@ -849,6 +857,8 @@ module supra_framework::stake {
                 pool_address,
                 old_consensus_pubkey,
                 new_consensus_pubkey,
+                old_consensus_bls_pubkey,
+                new_consensus_bls_pubkey,
             },
         );
     }
@@ -860,8 +870,9 @@ module supra_framework::stake {
         operator: &signer,
         pool_address: address,
         new_consensus_pubkey: vector<u8>,
+        new_consensus_bls_pubkey: vector<u8>,
     ) acquires StakePool, ValidatorConfig {
-        rotate_consensus_key_internal(operator, pool_address, new_consensus_pubkey, true);
+        rotate_consensus_key_internal(operator, pool_address, new_consensus_pubkey, new_consensus_bls_pubkey,true);
     }
 
     /// Rotate the consensus key of the validator, it'll take effect in next epoch.
@@ -869,8 +880,9 @@ module supra_framework::stake {
         operator: &signer,
         pool_address: address,
         new_consensus_pubkey: vector<u8>,
+        new_consensus_bls_pubkey: vector<u8>,
     ) acquires StakePool, ValidatorConfig {
-        rotate_consensus_key_internal(operator, pool_address, new_consensus_pubkey, false);
+        rotate_consensus_key_internal(operator, pool_address, new_consensus_pubkey, new_consensus_bls_pubkey,false);
     }
 
     /// Update the network and full node addresses of the validator. This only takes effect in the next epoch.
@@ -1799,6 +1811,10 @@ module supra_framework::stake {
     use supra_framework::validator_consensus_info;
     use supra_framework::validator_consensus_info::ValidatorConsensusInfo;
     #[test_only]
+    use aptos_std::bls12381;
+    #[test_only]
+    use aptos_std::blsttc;
+    #[test_only]
     use aptos_std::fixed_point64;
 
     #[test_only]
@@ -1816,12 +1832,14 @@ module supra_framework::stake {
     #[test_only]
     public fun join_validator_set_for_test(
         pk: &ed25519::UnvalidatedPublicKey,
+        bls_pk: &blsttc::PublicKey,
         operator: &signer,
         pool_address: address,
         should_end_epoch: bool,
     ) acquires SupraCoinCapabilities, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
         let pk_bytes = ed25519::unvalidated_public_key_to_bytes(pk);
-        rotate_consensus_key(operator, pool_address, pk_bytes);
+        let bls_pk_bytes = blsttc::public_key_to_bytes(bls_pk);
+        rotate_consensus_key(operator, pool_address, pk_bytes, bls_pk_bytes);
         join_validator_set(operator, pool_address);
         if (should_end_epoch) {
             end_epoch();
@@ -1988,6 +2006,13 @@ module supra_framework::stake {
         let (sk, validated_pub_key) = ed25519::generate_keys();
         let unvalidated_pk = ed25519::public_key_to_unvalidated(&validated_pub_key);
         (sk, unvalidated_pk)
+    }
+
+    #[test_only]
+    public fun generate_bls_identity(): (blsttc::SecretKey, blsttc::PublicKey) {
+        let (sk, validated_pub_key) = blsttc::generate_keys();
+        let pk = validated_pub_key;
+        (sk,pk)
     }
 
     #[test(supra_framework = @supra_framework, validator = @0x123)]
@@ -2605,7 +2630,9 @@ module supra_framework::stake {
         // Validator 1 rotates consensus key. Validator 2 leaves. Validator 3 joins.
         let (_sk_1b, pk_1b) = generate_identity();
         let pk_1b_bytes = ed25519::unvalidated_public_key_to_bytes(&pk_1b);
-        rotate_consensus_key(validator_1, validator_1_address, pk_1b_bytes);
+        let (_bsk_1b, bpk_1b) = generate_bls_identity();
+        let bpk_1b_bytes = blsttc::public_key_to_bytes(&bpk_1b);
+        rotate_consensus_key(validator_1, validator_1_address, pk_1b_bytes, bpk_1b_bytes);
         leave_validator_set(validator_2, validator_2_address);
         join_validator_set(validator_3, validator_3_address);
         // Validator 2 is not effectively removed until next epoch.
@@ -2694,7 +2721,9 @@ module supra_framework::stake {
         // Operator can separately rotate consensus key.
         let (_sk_new, pk_new) = generate_identity();
         let pk_new_bytes = ed25519::unvalidated_public_key_to_bytes(&pk_new);
-        rotate_consensus_key(validator, pool_address, pk_new_bytes);
+        let (_bsk_new, bpk_new) = generate_bls_identity();
+        let bpk_new_bytes = blsttc::public_key_to_bytes(&bpk_new);
+        rotate_consensus_key(validator, pool_address, pk_new_bytes, bpk_new_bytes);
         let validator_config = borrow_global<ValidatorConfig>(pool_address);
         assert!(validator_config.consensus_pubkey == pk_new_bytes, 2);
 
@@ -3071,7 +3100,9 @@ module supra_framework::stake {
         let validator_address = signer::address_of(validator);
         let (_sk_new, pk_new) = generate_identity();
         let pk_new_bytes = ed25519::unvalidated_public_key_to_bytes(&pk_new);
-        rotate_consensus_key(validator, validator_address, pk_new_bytes);
+        let (_bsk_new, bpk_new) = generate_bls_identity();
+        let bpk_new_bytes = blsttc::public_key_to_bytes(&bpk_new);
+        rotate_consensus_key(validator, validator_address, pk_new_bytes, bpk_new_bytes);
 
         // Join the validator set with enough stake. This now wouldn't fail since the validator config already exists.
         join_validator_set(validator, validator_address);

@@ -71,6 +71,7 @@ module supra_framework::committee_map {
         ip_public_address: vector<u8>,
         // public key to be used for voting
         node_public_key: vector<u8>,
+        node_bls_public_key: vector<u8>,
         // public key for secure TLS connection
         network_public_key: vector<u8>,
         cg_public_key: vector<u8>,
@@ -84,6 +85,7 @@ module supra_framework::committee_map {
         operator: address,
         ip_public_address: vector<u8>,
         node_public_key: vector<u8>,
+        node_bls_public_key: vector<u8>,
         network_public_key: vector<u8>,
         cg_public_key: vector<u8>,
         network_port: u16,
@@ -211,6 +213,7 @@ module supra_framework::committee_map {
                 operator: addr,
                 ip_public_address: node_info.ip_public_address,
                 node_public_key: node_info.node_public_key,
+                node_bls_public_key: node_info.node_bls_public_key,
                 network_public_key: node_info.network_public_key,
                 cg_public_key: node_info.cg_public_key,
                 network_port: node_info.network_port,
@@ -256,6 +259,7 @@ module supra_framework::committee_map {
             operator: node_address,
             ip_public_address: node_info.ip_public_address,
             node_public_key: node_info.node_public_key,
+            node_bls_public_key: node_info.node_bls_public_key,
             network_public_key: node_info.network_public_key,
             cg_public_key: node_info.cg_public_key,
             network_port: node_info.network_port,
@@ -326,6 +330,7 @@ module supra_framework::committee_map {
         node_addresses: vector<address>,
         ip_public_address: vector<vector<u8>>,
         node_public_key: vector<vector<u8>>,
+        node_bls_public_key: vector<vector<u8>>,
         network_public_key: vector<vector<u8>>,
         cg_public_key: vector<vector<u8>>,
         network_port: vector<u16>,
@@ -366,6 +371,7 @@ module supra_framework::committee_map {
         while (vector::length(&node_addresses_for_iteration) > 0) {
             let ip_public_address = vector::pop_back(&mut ip_public_address);
             let node_public_key = vector::pop_back(&mut node_public_key);
+            let node_bls_public_key = vector::pop_back(&mut node_bls_public_key);
             let network_public_key = vector::pop_back(&mut network_public_key);
             let cg_public_key = vector::pop_back(&mut cg_public_key);
             let network_port = vector::pop_back(&mut network_port);
@@ -373,6 +379,7 @@ module supra_framework::committee_map {
             let node_info = NodeInfo {
                 ip_public_address: copy ip_public_address,
                 node_public_key: copy node_public_key,
+                node_bls_public_key: copy node_bls_public_key,
                 network_public_key: copy network_public_key,
                 cg_public_key: copy cg_public_key,
                 network_port,
@@ -420,6 +427,7 @@ module supra_framework::committee_map {
         node_addresses_bulk: vector<vector<address>>,
         ip_public_address_bulk: vector<vector<vector<u8>>>,
         node_public_key_bulk: vector<vector<vector<u8>>>,
+        node_bls_public_key_bulk: vector<vector<vector<u8>>>,
         network_public_key_bulk: vector<vector<vector<u8>>>,
         cg_public_key_bulk: vector<vector<vector<u8>>>,
         network_port_bulk: vector<vector<u16>>,
@@ -461,6 +469,7 @@ module supra_framework::committee_map {
             let node_addresses = vector::pop_back(&mut node_addresses_bulk);
             let ip_public_address = vector::pop_back(&mut ip_public_address_bulk);
             let node_public_key = vector::pop_back(&mut node_public_key_bulk);
+            let node_bls_public_key = vector::pop_back(&mut node_bls_public_key_bulk);
             let network_public_key = vector::pop_back(&mut network_public_key_bulk);
             let cg_public_key = vector::pop_back(&mut cg_public_key_bulk);
             let network_port = vector::pop_back(&mut network_port_bulk);
@@ -473,6 +482,7 @@ module supra_framework::committee_map {
                 node_addresses,
                 ip_public_address,
                 node_public_key,
+                node_bls_public_key,
                 network_public_key,
                 cg_public_key,
                 network_port,
@@ -536,6 +546,7 @@ module supra_framework::committee_map {
         node_address: address,
         ip_public_address: vector<u8>,
         node_public_key: vector<u8>,
+        node_bls_public_key: vector<u8>,
         network_public_key: vector<u8>,
         cg_public_key: vector<u8>,
         network_port: u16,
@@ -549,6 +560,7 @@ module supra_framework::committee_map {
         let node_info = NodeInfo {
             ip_public_address: copy ip_public_address,
             node_public_key: copy node_public_key,
+            node_bls_public_key: copy node_bls_public_key,
             network_public_key: copy network_public_key,
             cg_public_key: copy cg_public_key,
             network_port: network_port,
@@ -584,6 +596,7 @@ module supra_framework::committee_map {
         node_addresses: vector<address>,
         ip_public_address: vector<vector<u8>>,
         node_public_key: vector<vector<u8>>,
+        node_bls_public_key: vector<vector<u8>>,
         network_public_key: vector<vector<u8>>,
         cg_public_key: vector<vector<u8>>,
         network_port: vector<u16>,
@@ -623,6 +636,7 @@ module supra_framework::committee_map {
             let node_address = vector::pop_back(&mut node_addresses);
             let ip_public_address = vector::pop_back(&mut ip_public_address);
             let node_public_key = vector::pop_back(&mut node_public_key);
+            let node_bls_public_key = vector::pop_back(&mut node_bls_public_key);
             let network_public_key = vector::pop_back(&mut network_public_key);
             let cg_public_key = vector::pop_back(&mut cg_public_key);
             let network_port = vector::pop_back(&mut network_port);
@@ -634,6 +648,7 @@ module supra_framework::committee_map {
                 node_address,
                 ip_public_address,
                 node_public_key,
+                node_bls_public_key,
                 network_public_key,
                 cg_public_key,
                 network_port,
@@ -664,6 +679,7 @@ module supra_framework::committee_map {
                 committee_member: NodeInfo {
                     ip_public_address: node_info.ip_public_address,
                     node_public_key: node_info.node_public_key,
+                    node_bls_public_key: node_info.node_bls_public_key,
                     network_public_key: node_info.network_public_key,
                     cg_public_key: node_info.cg_public_key,
                     network_port: node_info.network_port,
@@ -689,6 +705,7 @@ module supra_framework::committee_map {
                 operator: copy node_address,
                 ip_public_address: vector::empty(),
                 node_public_key: vector::empty(),
+                node_bls_public_key: vector::empty(),
                 network_public_key: vector::empty(),
                 cg_public_key: vector::empty(),
                 network_port: 0,
@@ -700,6 +717,7 @@ module supra_framework::committee_map {
                 operator: copy node_address,
                 ip_public_address: node_info.ip_public_address,
                 node_public_key: node_info.node_public_key,
+                node_bls_public_key: node_info.node_bls_public_key,
                 network_public_key: node_info.network_public_key,
                 cg_public_key: node_info.cg_public_key,
                 network_port: node_info.network_port,
@@ -730,6 +748,7 @@ module supra_framework::committee_map {
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
+            vector[vector[123], vector[123]],
             vector[123, 123],
             vector[123, 123],
             1
@@ -752,6 +771,7 @@ module supra_framework::committee_map {
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
+            vector[vector[123], vector[123]],
             vector[123, 123],
             vector[123, 123],
             1
@@ -761,6 +781,7 @@ module supra_framework::committee_map {
             resource_address,
             1,
             @0x1,
+            vector[123],
             vector[123],
             vector[123],
             vector[123],
@@ -785,6 +806,7 @@ module supra_framework::committee_map {
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
+            vector[vector[123], vector[123]],
             vector[123, 123],
             vector[123, 123],
             1
@@ -794,6 +816,7 @@ module supra_framework::committee_map {
             resource_address,
             1,
             @0x1,
+            vector[123],
             vector[123],
             vector[123],
             vector[123],
@@ -819,6 +842,7 @@ module supra_framework::committee_map {
             vector[vector[vector[123], vector[124]], vector[vector[125], vector[126]]],
             vector[vector[vector[123], vector[124]], vector[vector[125], vector[126]]],
             vector[vector[vector[123], vector[124]], vector[vector[125], vector[126]]],
+            vector[vector[vector[123], vector[124]], vector[vector[125], vector[126]]],
             vector[vector[123, 124], vector[125, 126]],
             vector[vector[123, 124], vector[125, 126]],
             vector[1,1]
@@ -836,6 +860,7 @@ module supra_framework::committee_map {
             resource_address,
             1,
             vector[@0x1, @0x2],
+            vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
@@ -862,6 +887,7 @@ module supra_framework::committee_map {
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
+            vector[vector[123], vector[123]],
             vector[123, 123],
             vector[123, 123],
             1
@@ -871,6 +897,7 @@ module supra_framework::committee_map {
             resource_address,
             vector[1],
             vector[@0x1],
+            vector[vector[123]],
             vector[vector[123]],
             vector[vector[123]],
             vector[vector[123]],
@@ -891,6 +918,7 @@ module supra_framework::committee_map {
             resource_address,
             1,
             vector[@0x1, @0x2],
+            vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
@@ -917,6 +945,7 @@ module supra_framework::committee_map {
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
+            vector[vector[123], vector[123]],
             vector[123, 123],
             vector[123, 123],
             1
@@ -936,6 +965,7 @@ module supra_framework::committee_map {
             resource_address,
             1,
             vector[@0x1, @0x2],
+            vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
@@ -964,6 +994,7 @@ module supra_framework::committee_map {
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
+            vector[vector[123], vector[123]],
             vector[123, 123],
             vector[123, 123],
             1
@@ -983,6 +1014,7 @@ module supra_framework::committee_map {
             resource_address,
             1,
             vector[@0x1, @0x2],
+            vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
@@ -1010,6 +1042,7 @@ module supra_framework::committee_map {
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
+            vector[vector[123], vector[123]],
             vector[123, 123],
             vector[123, 123],
             1
@@ -1029,6 +1062,7 @@ module supra_framework::committee_map {
             resource_address,
             1,
             vector[@0x1, @0x2],
+            vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],
             vector[vector[123], vector[123]],

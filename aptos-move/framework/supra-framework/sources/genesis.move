@@ -612,6 +612,7 @@ module supra_framework::genesis {
             operator,
             pool_address,
             validator.consensus_pubkey,
+            validator.consensus_bls_pubkey
         );
         stake::update_network_and_fullnode_addresses(
             operator,
