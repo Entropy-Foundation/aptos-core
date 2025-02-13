@@ -15,6 +15,15 @@ pub struct EvmConfigV1 {
     chain_id: u64,
 }
 
+impl Default for OnChainEvmConfig {
+    fn default() -> Self {
+        // Chose a chain_id that is not used by Ethereum compatible chains
+        OnChainEvmConfig::V1(EvmConfigV1 { chain_id: 0x1a2b3c4d_1a2b3c4d })
+    }
+}
+
+/// This onchain config does not exist from genesis, until it is added by the governance proposal.
+/// If the config is not found, Evm should not be enabled.
 impl OnChainConfig for OnChainEvmConfig {
     const MODULE_IDENTIFIER: &'static str = "evm_config";
     const TYPE_IDENTIFIER: &'static str = "EvmConfig";
