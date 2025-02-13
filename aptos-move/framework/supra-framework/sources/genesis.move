@@ -195,7 +195,6 @@ module supra_framework::genesis {
         reconfiguration::initialize(&supra_framework_account);
         block::initialize(&supra_framework_account, epoch_interval_microsecs);
         state_storage::initialize(&supra_framework_account);
-        automation_registry::initializate_by_default(&supra_framework_account, epoch_interval_microsecs);
         timestamp::set_time_has_started(&supra_framework_account, genesis_timestamp_in_microseconds);
     }
 
@@ -211,6 +210,29 @@ module supra_framework::genesis {
         // Give transaction_fee module MintCapability<SupraCoin> so it can mint refunds.
         transaction_fee::store_supra_coin_mint_cap(supra_framework, mint_cap);
     }
+
+    /// Genesis step 3: Initialize Supra Native Automation.
+    public fun initialize_supra_native_automation(supra_framework: &signer,
+                                           task_duration_cap_in_secs: u64,
+                                           registry_max_gas_cap: u64,
+                                           automation_base_fee_in_quants_per_sec: u64,
+                                           flat_registration_fee_in_quants: u64,
+                                           congestion_threshold_percentage: u8,
+                                           congestion_base_fee_in_quants_per_sec: u64,
+    ) {
+        let epoch_interval_secs = block::get_epoch_interval_secs();
+        automation_registry::initialize(
+            supra_framework,
+            epoch_interval_secs,
+            task_duration_cap_in_secs,
+            registry_max_gas_cap,
+            automation_base_fee_in_quants_per_sec,
+            flat_registration_fee_in_quants,
+            congestion_threshold_percentage,
+            congestion_base_fee_in_quants_per_sec,
+        )
+    }
+
 
     /// Only called for testnets and e2e tests.
     fun initialize_core_resources_and_supra_coin(
