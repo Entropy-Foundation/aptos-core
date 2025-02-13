@@ -15,7 +15,7 @@ module supra_framework::evm_config {
     /// The provided on chain config bytes are empty or invalid
     const EINVALID_CONFIG: u64 = 1;
 
-    /// This can be called by on-chain governance to update on-chain consensus configs for the next epoch.
+    /// This can be called by on-chain governance to update on-chain evm configs for the next epoch.
     /// Example usage:
     /// ```
     /// supra_framework::evm_config::set_for_next_epoch(&framework_signer, some_config_bytes);
