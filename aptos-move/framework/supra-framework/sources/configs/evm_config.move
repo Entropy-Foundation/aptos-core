@@ -15,6 +15,12 @@ module supra_framework::evm_config {
     /// The provided on chain config bytes are empty or invalid
     const EINVALID_CONFIG: u64 = 1;
 
+    public(friend) fun initialize(supra_framework: &signer, config: vector<u8>) {
+        system_addresses::assert_supra_framework(supra_framework);
+        assert!(vector::length(&config) != 0, error::invalid_argument(EINVALID_CONFIG));
+        move_to(supra_framework, EvmConfig { config });
+    }
+    
     /// This can be called by on-chain governance to update on-chain evm configs for the next epoch.
     /// Example usage:
     /// ```
