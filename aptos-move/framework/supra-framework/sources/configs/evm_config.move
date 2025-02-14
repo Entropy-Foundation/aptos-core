@@ -15,6 +15,7 @@ module supra_framework::evm_config {
     /// The provided on chain config bytes are empty or invalid
     const EINVALID_CONFIG: u64 = 1;
 
+    /// Publishes the EvmConfig config.
     public(friend) fun initialize(supra_framework: &signer, config: vector<u8>) {
         system_addresses::assert_supra_framework(supra_framework);
         assert!(vector::length(&config) != 0, error::invalid_argument(EINVALID_CONFIG));
