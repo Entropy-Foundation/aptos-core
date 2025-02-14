@@ -116,6 +116,8 @@ module supra_framework::automation_registry {
         gas_committed_for_next_epoch: u64,
         /// Total fee charged to users during the epoch, which is not withdrawable
         epoch_locked_fees: u64,
+        /// Total committed max gas amount for the epoch
+        total_committed_max_gas_amount: u256,
         /// It's resource address which is use to deposit user automation fee
         registry_fee_address: address,
         /// Resource account signature capability
@@ -272,6 +274,7 @@ module supra_framework::automation_registry {
             current_index: 0,
             gas_committed_for_next_epoch: 0,
             epoch_locked_fees: 0,
+            total_committed_max_gas_amount: 0,
             registry_fee_address: signer::address_of(&registry_fee_resource_signer),
             registry_fee_address_signer_cap,
         });
@@ -310,8 +313,6 @@ module supra_framework::automation_registry {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let automation_epoch_info = borrow_global_mut<AutomationEpochInfo>(@supra_framework);
 
-        // Apply the latest configuration if any parameter has been updated.
-        update_config_from_buffer();
         let automation_registry_config = borrow_global_mut<ActiveAutomationRegistryConfig>(
             @supra_framework
         ).main_config;
@@ -324,6 +325,9 @@ module supra_framework::automation_registry {
             automation_epoch_info,
             current_time
         );
+
+        // Apply the latest configuration if any parameter has been updated.
+        update_config_from_buffer();
 
         // Accumulated maximum gas amount of the registered tasks for the current epoch
         let tcmg = cleanup_and_activate_tasks(automation_registry, current_time);
@@ -346,6 +350,7 @@ module supra_framework::automation_registry {
 
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
         automation_registry.epoch_locked_fees = epoch_locked_fees;
+        automation_registry.total_committed_max_gas_amount = tcmg;
         automation_epoch_info.start_time = current_time;
         automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
     }
@@ -358,12 +363,12 @@ module supra_framework::automation_registry {
         current_time: u64
     ) {
         let epoch_duration = current_time - aei.start_time;
-        let residual_time = if (epoch_duration < aei.expected_epoch_duration) {
-            aei.expected_epoch_duration - epoch_duration
-        } else 0;
-
-        if (residual_time != 0) {
-            let tcmg = calculate_total_committed_max_gas(automation_registry);
+        if (aei.expected_epoch_duration <= epoch_duration) {
+            return
+        } else {
+            let residual_time = aei.expected_epoch_duration - epoch_duration;
+            let tcmg = automation_registry.total_committed_max_gas_amount;
+            let registry_fee_address_signer_cap = &automation_registry.registry_fee_address_signer_cap;
             let tasks_automation_refund_fees = calculate_tasks_automation_fees(
                 automation_registry,
                 arc,
@@ -372,15 +377,12 @@ module supra_framework::automation_registry {
                 tcmg,
                 true
             );
-            process_task_fee_refunds(
-                &automation_registry.registry_fee_address_signer_cap,
-                tasks_automation_refund_fees
-            );
-        }
+            refund_tasks_fee(registry_fee_address_signer_cap, tasks_automation_refund_fees);
+        };
     }
 
     /// Processes refunds for automation task fees.
-    fun process_task_fee_refunds(
+    fun refund_tasks_fee(
         resource_signer_cap: &SignerCapability,
         tasks_automation_refund_fees: vector<AutomationTaskFee>
     ) {
@@ -398,9 +400,8 @@ module supra_framework::automation_registry {
     /// Calculates the total committed maximum gas for tasks that are not in the pending state.
     fun calculate_total_committed_max_gas(automation_registry: &AutomationRegistry): u256 {
         let total_committed_max_gas = 0;
-        let ids = enumerable_map::get_map_list(&automation_registry.tasks);
-        vector::for_each(ids, |task_index| {
-            let task = enumerable_map::get_value(&automation_registry.tasks, task_index);
+        enumerable_map::for_each_value_ref(&automation_registry.tasks, |task| {
+            let task: &AutomationTaskMetaData = task;
             if (task.state != PENDING) {
                 total_committed_max_gas = total_committed_max_gas + (task.max_gas_amount as u256);
             }
@@ -413,7 +414,7 @@ module supra_framework::automation_registry {
         let ids = enumerable_map::get_map_list(&automation_registry.tasks);
         let tcmg = 0;
 
-        // Perform clean up and updation of state
+        // Perform clean up and updation of state (we can't use enumerable_map::for_each, as actually we need value as mutable ref)
         vector::for_each(ids, |task_index| {
             let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, task_index);
 
@@ -428,7 +429,8 @@ module supra_framework::automation_registry {
         tcmg
     }
 
-    /// Charges automation task fees for all active tasks at the beginning of a new epoch.
+    /// Calculates automation task fees for the active tasks for the provided interval with provided tcmg occupancy.
+    /// The CANCELLED tasks are also taken into account if include_cancelled_task is true.
     fun calculate_tasks_automation_fees(
         automation_registry: &AutomationRegistry,
         arc: &AutomationRegistryConfig,
@@ -437,16 +439,15 @@ module supra_framework::automation_registry {
         tcmg: u256,
         include_cancelled_task: bool
     ): vector<AutomationTaskFee> {
-        let ids = enumerable_map::get_map_list(&automation_registry.tasks);
         // Compute the automation congestion fee (acf) for the epoch
         let acf = calculate_automation_congestion_fee(arc, tcmg);
         let task_with_fees = vector[];
 
         // Process each active task and calculate fee for the epoch for the tasks
-        vector::for_each(ids, |task_index| {
-            let task = enumerable_map::get_value(&automation_registry.tasks, task_index);
+        enumerable_map::for_each_value_ref(&automation_registry.tasks, |task| {
+            let task: &AutomationTaskMetaData = task;
             if (task.state == ACTIVE || (include_cancelled_task && task.state == CANCELLED)) {
-                let task_fee = calculate_task_fee(arc, &task, interval, current_time, acf);
+                let task_fee = calculate_task_fee(arc, task, interval, current_time, acf);
                 vector::push_back(&mut task_with_fees, AutomationTaskFee {
                     task_index: task.task_index,
                     owner: task.owner,
@@ -470,18 +471,21 @@ module supra_framework::automation_registry {
         let abf = (arc.automation_base_fee_in_quants_per_sec as u256);
         let max_gas_cap = (arc.registry_max_gas_cap as u256);
 
-        // Subtraction is safe here, as we already removed expired tasks
-        let remaining_time = task.expiry_time - current_time;
-        let min_interval = (math64::min(remaining_time, interval) as u256);
-        let task_occupancy_ratio_by_duration = (min_interval * upscale_from_u64(task.max_gas_amount)) / max_gas_cap;
+        if (task.expiry_time <= current_time) { 0 }
+        else {
+            // Subtraction is safe here, as we already removed expired tasks
+            let remaining_time = task.expiry_time - current_time;
+            let min_interval = (math64::min(remaining_time, interval) as u256);
+            let task_occupancy_ratio_by_duration = (min_interval * upscale_from_u64(task.max_gas_amount)) / max_gas_cap;
 
-        // Compute the base automation fee (taf). Total base fee for the interval
-        let taf = downscale_to_u64(abf * task_occupancy_ratio_by_duration);
+            // Compute the base automation fee (taf). Total base fee for the interval
+            let taf = abf * task_occupancy_ratio_by_duration;
 
-        // Compute the congestion fee per task (tcf)
-        let tcf = downscale_to_u64(acf * task_occupancy_ratio_by_duration);
+            // Compute the congestion fee per task (tcf)
+            let tcf = acf * task_occupancy_ratio_by_duration;
 
-        taf + tcf
+            downscale_to_u64(taf + tcf)
+        }
     }
 
     /// Calculate automation congestion fee for the epoch
@@ -495,16 +499,15 @@ module supra_framework::automation_registry {
         else {
             let threshold_surplus_normalized = (threshold_usage - threshold_percentage) / 100;
             // Compute the automation congestion fee (acf) for the epoch
-            let acf = downscale_to_u256(
-                (arc.congestion_base_fee_in_quants_per_sec as u256) * threshold_surplus_normalized
-            );
-            acf
+            let acf = (arc.congestion_base_fee_in_quants_per_sec as u256) * threshold_surplus_normalized;
+            downscale_to_u256(acf)
         }
     }
 
-    /// Processes automation task fees by checking user balances.
+    /// Processes automation task fees by checking user balances and task's commitment on automation-fee, i.e. automation-fee-cap
     /// - If the user has sufficient balance, deducts the fee and emits a success event.
     /// - If the balance is insufficient, removes the task and emits a cancellation event.
+    /// - If calculated fee for the epoch surpasses task's automation-fee-cap task is removed and cancellation event is emitted.
     fun try_withdraw_task_automation_fees(
         automation_registry: &mut AutomationRegistry,
         tasks_automation_fees: vector<AutomationTaskFee>,
@@ -518,7 +521,6 @@ module supra_framework::automation_registry {
         vector::for_each(tasks_automation_fees, |task| {
             let task: AutomationTaskFee = task;
             let task_metadata = enumerable_map::get_value(&automation_registry.tasks, task.task_index);
-            let user_balance = balance<SupraCoin>(task_metadata.owner);
 
             // Remove the automation task if the epoch fee cap is exceeded
             if (task.fee > task_metadata.automation_fee_cap_for_epoch) {
@@ -529,34 +531,37 @@ module supra_framework::automation_registry {
                     fee: task.fee,
                     automation_fee_cap: task_metadata.automation_fee_cap_for_epoch,
                 });
-            } else if (user_balance < task.fee) {
-                // If the user does not have enough balance, remove the task and emit an event
-                enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
-                event::emit(TaskCancelledInsufficentBalance {
-                    task_index: task.task_index,
-                    owner: task_metadata.owner,
-                    fee: task.fee,
-                });
             } else {
-                // Charge the fee and emit a success event
-                supra_account::transfer(
-                    &create_signer(task_metadata.owner),
-                    automation_registry.registry_fee_address,
-                    task.fee
-                );
-                event::emit(TaskEpochFeeWithdraw {
-                    task_index: task.task_index,
-                    owner: task_metadata.owner,
-                    fee: task.fee,
-                });
-                // Total task fees deducted from the user's account
-                epoch_locked_fees = epoch_locked_fees + task.fee;
+                let user_balance = balance<SupraCoin>(task_metadata.owner);
+                if (user_balance < task.fee) {
+                    // If the user does not have enough balance, remove the task and emit an event
+                    enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
+                    event::emit(TaskCancelledInsufficentBalance {
+                        task_index: task.task_index,
+                        owner: task_metadata.owner,
+                        fee: task.fee,
+                    });
+                } else {
+                    // Charge the fee and emit a success event
+                    supra_account::transfer(
+                        &create_signer(task_metadata.owner),
+                        automation_registry.registry_fee_address,
+                        task.fee
+                    );
+                    event::emit(TaskEpochFeeWithdraw {
+                        task_index: task.task_index,
+                        owner: task_metadata.owner,
+                        fee: task.fee,
+                    });
+                    // Total task fees deducted from the user's account
+                    epoch_locked_fees = epoch_locked_fees + task.fee;
 
-                // Calculate gas commitment for the next epoch only for valid active tasks
-                if (task_metadata.expiry_time > (current_time + epoch_interval)) {
-                    gas_committed_for_next_epoch = gas_committed_for_next_epoch + task_metadata.max_gas_amount;
+                    // Calculate gas commitment for the next epoch only for valid active tasks
+                    if (task_metadata.expiry_time > (current_time + epoch_interval)) {
+                        gas_committed_for_next_epoch = gas_committed_for_next_epoch + task_metadata.max_gas_amount;
+                    };
                 };
-            };
+            }
         });
         (gas_committed_for_next_epoch, epoch_locked_fees)
     }
@@ -819,7 +824,7 @@ module supra_framework::automation_registry {
     }
 
     #[view]
-    /// Get locked balance of the resouce account
+    /// Get locked balance of the resource account
     public fun get_epoch_locked_balance(): u64 acquires AutomationRegistry {
         let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
         automation_registry.epoch_locked_fees
