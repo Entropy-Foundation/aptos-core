@@ -1,12 +1,8 @@
 spec supra_framework::evm_config {
 
     spec module {
-        use supra_framework::chain_status;
         pragma verify = true;
         pragma aborts_if_is_strict;
-        /// The Evm config does not exist on chain from genesis.
-        /// So we do not require below condition.
-        // chain_status::is_operating() ==> exists<EvmConfig>(@supra_framework);
     }
 
     spec set_for_next_epoch(account: &signer, config: vector<u8>) {

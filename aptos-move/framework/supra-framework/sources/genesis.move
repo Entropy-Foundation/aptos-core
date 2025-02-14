@@ -21,6 +21,7 @@ module supra_framework::genesis {
     use supra_framework::consensus_config;
     use supra_framework::execution_config;
     use supra_framework::supra_config;
+    use supra_framework::evm_config;
     use supra_framework::create_signer::create_signer;
     use supra_framework::gas_schedule;
     use supra_framework::reconfiguration;
@@ -135,6 +136,7 @@ module supra_framework::genesis {
         rewards_rate_denominator: u64,
         voting_power_increase_limit: u64,
         genesis_timestamp_in_microseconds: u64,
+        evm_config: vector<u8>,
     ) {
         // Initialize the aptos framework account. This is the account where system resources and modules will be
         // deployed to. This will be entirely managed by on-chain governance and no entities have the key or privileges
@@ -189,6 +191,7 @@ module supra_framework::genesis {
         block::initialize(&supra_framework_account, epoch_interval_microsecs);
         state_storage::initialize(&supra_framework_account);
         timestamp::set_time_has_started(&supra_framework_account, genesis_timestamp_in_microseconds);
+        evm_config::initialize(&supra_framework_account, evm_config);
     }
 
     /// Genesis step 2: Initialize Supra coin.
@@ -641,6 +644,7 @@ module supra_framework::genesis {
         consensus_config: vector<u8>,
         execution_config: vector<u8>,
         supra_config: vector<u8>,
+        evm_config: vector<u8>,
         epoch_interval_microsecs: u64,
         minimum_stake: u64,
         maximum_stake: u64,
@@ -677,6 +681,8 @@ module supra_framework::genesis {
             rewards_rate_denominator,
             voting_power_increase_limit,
             0,
+            evm_config,
+
         );
         features::change_feature_flags_for_verification(supra_framework, vector[1, 2, 11], vector[]);
         initialize_supra_coin(supra_framework);
@@ -714,6 +720,7 @@ module supra_framework::genesis {
             1,
             30,
             0,
+            x"15",
         )
 
     }

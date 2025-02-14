@@ -64,6 +64,7 @@ pub use self::{
     timestamp::CurrentTimeMicroseconds,
     transaction_fee::TransactionFeeBurnCap,
     validator_set::{ConsensusScheme, ValidatorSet},
+    evm_config::OnChainEvmConfig,
 };
 
 /// To register an on-chain config in Rust:
