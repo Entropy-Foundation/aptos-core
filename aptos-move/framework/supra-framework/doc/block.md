@@ -428,7 +428,7 @@ This can only be called during Genesis.
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="block.md#0x1_block_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
-    <b>assert</b>!(epoch_interval_microsecs &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="block.md#0x1_block_EZERO_EPOCH_INTERVAL">EZERO_EPOCH_INTERVAL</a>));
+    <b>assert</b>!(epoch_interval_microsecs != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="block.md#0x1_block_EZERO_EPOCH_INTERVAL">EZERO_EPOCH_INTERVAL</a>));
 
     <b>move_to</b>&lt;<a href="block.md#0x1_block_CommitHistory">CommitHistory</a>&gt;(supra_framework, <a href="block.md#0x1_block_CommitHistory">CommitHistory</a> {
         max_capacity: 2000,
@@ -469,7 +469,7 @@ Initialize the commit history resource if it's not in genesis.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="block.md#0x1_block_initialize_commit_history">initialize_commit_history</a>(fx: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, max_capacity: u32) {
-    <b>assert</b>!(max_capacity &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="block.md#0x1_block_EZERO_MAX_CAPACITY">EZERO_MAX_CAPACITY</a>));
+    <b>assert</b>!(max_capacity != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="block.md#0x1_block_EZERO_MAX_CAPACITY">EZERO_MAX_CAPACITY</a>));
     <b>move_to</b>&lt;<a href="block.md#0x1_block_CommitHistory">CommitHistory</a>&gt;(fx, <a href="block.md#0x1_block_CommitHistory">CommitHistory</a> {
         max_capacity,
         next_idx: 0,
@@ -504,7 +504,7 @@ Can only be called as part of the Supra governance proposal process established 
     new_epoch_interval: u64,
 ) <b>acquires</b> <a href="block.md#0x1_block_BlockResource">BlockResource</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
-    <b>assert</b>!(new_epoch_interval &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="block.md#0x1_block_EZERO_EPOCH_INTERVAL">EZERO_EPOCH_INTERVAL</a>));
+    <b>assert</b>!(new_epoch_interval != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="block.md#0x1_block_EZERO_EPOCH_INTERVAL">EZERO_EPOCH_INTERVAL</a>));
 
     <b>let</b> block_resource = <b>borrow_global_mut</b>&lt;<a href="block.md#0x1_block_BlockResource">BlockResource</a>&gt;(@supra_framework);
     <b>let</b> old_epoch_interval = block_resource.epoch_interval;

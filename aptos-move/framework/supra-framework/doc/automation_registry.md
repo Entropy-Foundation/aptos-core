@@ -22,7 +22,9 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `TaskCancelledCapacitySurpassed`](#0x1_automation_registry_TaskCancelledCapacitySurpassed)
 -  [Struct `AutomationTaskFee`](#0x1_automation_registry_AutomationTaskFee)
 -  [Constants](#@Constants_0)
--  [Function `initializate_by_default`](#0x1_automation_registry_initializate_by_default)
+-  [Function `is_initialized`](#0x1_automation_registry_is_initialized)
+-  [Function `is_feature_enabled`](#0x1_automation_registry_is_feature_enabled)
+-  [Function `assert_feature_enabled`](#0x1_automation_registry_assert_feature_enabled)
 -  [Function `initialize`](#0x1_automation_registry_initialize)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
 -  [Function `adjust_epoch_task_fee_refund`](#0x1_automation_registry_adjust_epoch_task_fee_refund)
@@ -47,7 +49,10 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `upscale_from_u256`](#0x1_automation_registry_upscale_from_u256)
 -  [Function `downscale_to_u64`](#0x1_automation_registry_downscale_to_u64)
 -  [Function `downscale_to_u256`](#0x1_automation_registry_downscale_to_u256)
+-  [Function `is_feature_enabled_and_initialized`](#0x1_automation_registry_is_feature_enabled_and_initialized)
 -  [Function `get_next_task_index`](#0x1_automation_registry_get_next_task_index)
+-  [Function `get_task_count`](#0x1_automation_registry_get_task_count)
+-  [Function `get_task_ids`](#0x1_automation_registry_get_task_ids)
 -  [Function `get_epoch_freeze_balance`](#0x1_automation_registry_get_epoch_freeze_balance)
 -  [Function `get_active_task_ids`](#0x1_automation_registry_get_active_task_ids)
 -  [Function `get_task_details`](#0x1_automation_registry_get_task_details)
@@ -65,6 +70,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 <b>use</b> <a href="create_signer.md#0x1_create_signer">0x1::create_signer</a>;
 <b>use</b> <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map">0x1::enumerable_map</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/math64.md#0x1_math64">0x1::math64</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
 <b>use</b> <a href="supra_account.md#0x1_supra_account">0x1::supra_account</a>;
@@ -350,7 +356,7 @@ Epoch state
 </dt>
 <dd>
  Auxiliary data specified for the task to aid registration.
- Not used currently. Reserved for future extentions.
+ Not used currently. Reserved for future extensions.
 </dd>
 <dt>
 <code>registration_time: u64</code>
@@ -720,7 +726,7 @@ Max U64 value
 Insufficient balance in the resource wallet for withdrawal
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINSUFFICIENT_BALANCE">EINSUFFICIENT_BALANCE</a>: u64 = 15;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINSUFFICIENT_BALANCE">EINSUFFICIENT_BALANCE</a>: u64 = 16;
 </code></pre>
 
 
@@ -760,6 +766,16 @@ Task with provided task index not found
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EAUTOMATION_TASK_NOT_FOUND">EAUTOMATION_TASK_NOT_FOUND</a>: u64 = 6;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE"></a>
+
+Supra native automation feature is not initialized or enabled
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>: u64 = 15;
 </code></pre>
 
 
@@ -869,7 +885,7 @@ Auxiliary data during registration is not supported
 Requested amount exceeds the frozen balance
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EREQUEST_EXCEEDS_FROZEN_AMOUNT">EREQUEST_EXCEEDS_FROZEN_AMOUNT</a>: u64 = 16;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EREQUEST_EXCEEDS_FROZEN_AMOUNT">EREQUEST_EXCEEDS_FROZEN_AMOUNT</a>: u64 = 17;
 </code></pre>
 
 
@@ -934,14 +950,15 @@ The lenght of the transaction hash.
 
 
 
-<a id="0x1_automation_registry_initializate_by_default"></a>
+<a id="0x1_automation_registry_is_initialized"></a>
 
-## Function `initializate_by_default`
+## Function `is_initialized`
 
-This is temporary function : until we have initialization flow properly implemented
+Checks whether all required resources are created.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initializate_by_default">initializate_by_default</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64)
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>(): bool
 </code></pre>
 
 
@@ -950,17 +967,61 @@ This is temporary function : until we have initialization flow properly implemen
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initializate_by_default">initializate_by_default</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64) {
-    <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(
-        supra_framework,
-        epoch_interval_microsecs,
-        2_626_560,
-        100_000_000,
-        1000,
-        100_000_000, // 1 supra
-        80,
-        100,
-    );
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>(): bool {
+        <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework)
+        && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework)
+        && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_is_feature_enabled"></a>
+
+## Function `is_feature_enabled`
+
+Checks whether SUPRA_NATIVE_AUTOMATION feature flag is enabled.
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(): bool {
+    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>()
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_assert_feature_enabled"></a>
+
+## Function `assert_feature_enabled`
+
+Asserts that SUPRA_NATIVE_AUTOMATION feature flag is enabled.
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_assert_feature_enabled">assert_feature_enabled</a>()
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_assert_feature_enabled">assert_feature_enabled</a>() {
+    <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>)
 }
 </code></pre>
 
@@ -972,10 +1033,10 @@ This is temporary function : until we have initialization flow properly implemen
 
 ## Function `initialize`
 
-Initialization of Automation Registry
+Initialization of Automation Registry with configuration parameters is expected metrics.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_microsecs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64)
 </code></pre>
 
 
@@ -984,9 +1045,9 @@ Initialization of Automation Registry
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    epoch_interval_microsecs: u64,
+    epoch_interval_secs: u64,
     task_duration_cap_in_secs: u64,
     registry_max_gas_cap: u64,
     automation_base_fee_in_quants_per_sec: u64,
@@ -1022,10 +1083,9 @@ Initialization of Automation Registry
         next_epoch_registry_max_gas_cap: registry_max_gas_cap
     });
 
-    <b>let</b> epoch_interval = epoch_interval_microsecs / <a href="automation_registry.md#0x1_automation_registry_MICROSECS_CONVERSION_FACTOR">MICROSECS_CONVERSION_FACTOR</a>;
     <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> {
-        expected_epoch_duration: epoch_interval,
-        epoch_interval,
+        expected_epoch_duration: epoch_interval_secs,
+        epoch_interval: epoch_interval_secs,
         start_time: 0,
     });
 }
@@ -1052,6 +1112,15 @@ On new epoch this function will be triggered and update the automation registry 
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+    // Unless registry in initialized, registry will not be updated on new epoch.
+    // Here we need <b>to</b> be carefull <b>as</b> well. If the feature is disabled for the current epoch then
+    //  - refund for the previous epoch should be done,
+    //  - cleanup of the expired/cancelled task should be done
+    //  - but no charges for the current epoch should be collected.
+    // Note that <b>with</b> the current setup feature::on_new_epoch is called before <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">automation_registry::on_new_epoch</a>
+    <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>()) {
+        <b>return</b>
+    };
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <b>let</b> automation_epoch_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
 
@@ -1655,6 +1724,9 @@ Registers a new automation task entry.
     tx_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
     aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+    // Guarding registration <b>if</b> feature is not enabled.
+    <a href="automation_registry.md#0x1_automation_registry_assert_feature_enabled">assert_feature_enabled</a>();
+
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&aux_data), <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>);
     <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
@@ -1979,6 +2051,32 @@ Sorting vector implementation
 
 </details>
 
+<a id="0x1_automation_registry_is_feature_enabled_and_initialized"></a>
+
+## Function `is_feature_enabled_and_initialized`
+
+Means to query by user whether the automation registry has been properly initialized and ready to be utilized.
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled_and_initialized">is_feature_enabled_and_initialized</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled_and_initialized">is_feature_enabled_and_initialized</a>(): bool {
+    <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>() && <a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>()
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_automation_registry_get_next_task_index"></a>
 
 ## Function `get_next_task_index`
@@ -1999,6 +2097,59 @@ Returns next task index in registry
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_next_task_index">get_next_task_index</a>(): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_get_task_count"></a>
+
+## Function `get_task_count`
+
+Returns number of available tasks.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_task_count">get_task_count</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_task_count">get_task_count</a>(): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+    <b>let</b> state = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_length">enumerable_map::length</a>(&state.tasks)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_get_task_ids"></a>
+
+## Function `get_task_ids`
+
+List all automation task ids available in register.
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_task_ids">get_task_ids</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_task_ids">get_task_ids</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt; <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+    <b>let</b> state = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&state.tasks)
 }
 </code></pre>
 
@@ -2185,7 +2336,7 @@ Get gas committed for next epoch
 
 ## Function `get_automation_registry_config`
 
-Get automation registry configration
+Get automation registry configuration
 
 
 <pre><code>#[view]
@@ -2211,7 +2362,7 @@ Get automation registry configration
 
 ## Function `get_next_epoch_registry_max_gas_cap`
 
-Get automation registry next epoch max gas cap
+Get automation registry maximum gas capacity for the next epoch
 
 
 <pre><code>#[view]

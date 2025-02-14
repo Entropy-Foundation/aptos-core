@@ -1189,7 +1189,7 @@ Create a vesting schedule with the given schedule of distributions, a vesting st
     period_duration: u64
 ): <a href="vesting_without_staking.md#0x1_vesting_without_staking_VestingSchedule">VestingSchedule</a> {
     <b>let</b> schedule_len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&schedule);
-    <b>assert</b>!(schedule_len &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_EEMPTY_VESTING_SCHEDULE">EEMPTY_VESTING_SCHEDULE</a>));
+    <b>assert</b>!(schedule_len != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_EEMPTY_VESTING_SCHEDULE">EEMPTY_VESTING_SCHEDULE</a>));
     // If the first <a href="vesting.md#0x1_vesting">vesting</a> fraction is zero, we can replace it <b>with</b> nonzero by increasing start time
     <b>assert</b>!(
         <a href="../../aptos-stdlib/../move-stdlib/doc/fixed_point32.md#0x1_fixed_point32_get_raw_value">fixed_point32::get_raw_value</a>(*<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&schedule, 0)) != 0,
@@ -1202,7 +1202,7 @@ Create a vesting schedule with the given schedule of distributions, a vesting st
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_EEMPTY_VESTING_SCHEDULE">EEMPTY_VESTING_SCHEDULE</a>)
     );
     <b>assert</b>!(
-        period_duration &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_EZERO_VESTING_SCHEDULE_PERIOD">EZERO_VESTING_SCHEDULE_PERIOD</a>)
+        period_duration != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_EZERO_VESTING_SCHEDULE_PERIOD">EZERO_VESTING_SCHEDULE_PERIOD</a>)
     );
     <a href="vesting_without_staking.md#0x1_vesting_without_staking_VestingSchedule">VestingSchedule</a> {
         schedule,
@@ -1249,7 +1249,7 @@ Create a vesting schedule with the given schedule of distributions, a vesting st
     );
     assert_account_is_registered_for_supra(withdrawal_address);
     <b>assert</b>!(
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&shareholders) &gt; 0,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&shareholders) != 0,
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_ENO_SHAREHOLDERS">ENO_SHAREHOLDERS</a>)
     );
     <b>assert</b>!(
@@ -1304,7 +1304,7 @@ Create a vesting schedule with the given schedule of distributions, a vesting st
             grant_amount = grant_amount + amount;
         }
     );
-    <b>assert</b>!(grant_amount &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_EZERO_GRANT">EZERO_GRANT</a>));
+    <b>assert</b>!(grant_amount != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_EZERO_GRANT">EZERO_GRANT</a>));
     <a href="coin.md#0x1_coin_transfer">coin::transfer</a>&lt;SupraCoin&gt;(admin, contract_signer_address, grant_amount);
 
     <b>let</b> admin_store = <b>borrow_global_mut</b>&lt;<a href="vesting_without_staking.md#0x1_vesting_without_staking_AdminStore">AdminStore</a>&gt;(admin_address);
@@ -1378,7 +1378,7 @@ Create a vesting contract with a given configurations.
     assert_account_is_registered_for_supra(withdrawal_address);
     <b>let</b> shareholders_address = &<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_keys">simple_map::keys</a>(&buy_ins);
     <b>assert</b>!(
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(shareholders_address) &gt; 0,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(shareholders_address) != 0,
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_ENO_SHAREHOLDERS">ENO_SHAREHOLDERS</a>)
     );
 
@@ -1386,7 +1386,7 @@ Create a vesting contract with a given configurations.
     <b>let</b> grant = <a href="coin.md#0x1_coin_zero">coin::zero</a>&lt;SupraCoin&gt;();
     <b>let</b> grant_amount = 0;
     <b>let</b> (shareholders_address, buy_ins) = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_to_vec_pair">simple_map::to_vec_pair</a>(buy_ins);
-    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&shareholders_address) &gt; 0) {
+    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&shareholders_address) != 0) {
         <b>let</b> shareholder = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> shareholders_address);
         <b>let</b> buy_in = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> buy_ins);
         <b>let</b> init = <a href="coin.md#0x1_coin_value">coin::value</a>(&buy_in);
@@ -1402,7 +1402,7 @@ Create a vesting contract with a given configurations.
         );
         grant_amount = grant_amount + init;
     };
-    <b>assert</b>!(grant_amount &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_EZERO_GRANT">EZERO_GRANT</a>));
+    <b>assert</b>!(grant_amount != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_EZERO_GRANT">EZERO_GRANT</a>));
 
     // If this is the first time this admin <a href="account.md#0x1_account">account</a> <b>has</b> created a <a href="vesting.md#0x1_vesting">vesting</a> contract, initialize the admin store.
     <b>let</b> admin_address = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(admin);
@@ -1492,7 +1492,7 @@ Unlock any vested portion of the grant.
         &gt; <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>()) { <b>return</b> };
 
     <b>let</b> shareholders = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_keys">simple_map::keys</a>(&vesting_contract.shareholders);
-    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&shareholders) &gt; 0) {
+    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&shareholders) != 0) {
         <b>let</b> shareholder = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> shareholders);
         <a href="vesting_without_staking.md#0x1_vesting_without_staking_vest_individual">vest_individual</a>(contract_address, shareholder);
     };
@@ -1551,7 +1551,7 @@ Unlock any vested portion of the grant.
 
     // Index is 0-based <b>while</b> period is 1-based so we need <b>to</b> subtract 1.
 
-    <b>while</b> (last_completed_period &gt;= next_period_to_vest && vesting_record.left_amount &gt; 0 && next_period_to_vest &lt;= <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(schedule)) {
+    <b>while</b> (last_completed_period &gt;= next_period_to_vest && vesting_record.left_amount != 0 && next_period_to_vest &lt;= <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(schedule)) {
         <b>let</b> schedule_index = next_period_to_vest - 1;
         <b>let</b> vesting_fraction = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(schedule, schedule_index);
         <a href="vesting_without_staking.md#0x1_vesting_without_staking_vest_transfer">vest_transfer</a>(vesting_record, signer_cap, beneficiary, vesting_fraction);
@@ -1566,7 +1566,7 @@ Unlock any vested portion of the grant.
         next_period_to_vest = next_period_to_vest + 1;
     };
 
-    <b>if</b>(last_completed_period &gt;= next_period_to_vest && vesting_record.left_amount &gt; 0) {
+    <b>if</b>(last_completed_period &gt;= next_period_to_vest && vesting_record.left_amount != 0) {
         <b>let</b> final_fraction = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(schedule, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(schedule) - 1);
         <b>let</b> final_fraction_amount = <a href="../../aptos-stdlib/../move-stdlib/doc/fixed_point32.md#0x1_fixed_point32_multiply_u64">fixed_point32::multiply_u64</a>(vesting_record.init_amount, final_fraction);
         // Determine how many periods is needed based on the left_amount

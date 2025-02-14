@@ -95,6 +95,7 @@ fn check_automated_transaction_with_insufficient_balance() {
 #[test]
 fn check_automated_transaction_successful_execution() {
     let mut test_context = AutomationRegistrationTestContext::new();
+    test_context.set_supra_native_automation(true);
     let dest_account = test_context.new_account_data(1_000_000, 0);
     let payload =
         aptos_framework_sdk_builder::supra_account_transfer(dest_account.address().clone(), 100);

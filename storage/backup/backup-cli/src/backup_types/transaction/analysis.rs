@@ -114,7 +114,7 @@ impl TransactionAnalysis {
 
         match txn {
             UserTransaction(signed_txn) => signed_txn.raw_txn_bytes_len(),
-            AutomatedTransaction(autoamted_txn) => autoamted_txn.raw_txn_bytes_len(),
+            AutomatedTransaction(automated_txn) => automated_txn.raw_txn_bytes_len(),
             GenesisTransaction(_)
             | BlockMetadata(_)
             | BlockMetadataExt(_)

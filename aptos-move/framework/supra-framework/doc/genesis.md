@@ -15,6 +15,7 @@
 -  [Constants](#@Constants_0)
 -  [Function `initialize`](#0x1_genesis_initialize)
 -  [Function `initialize_supra_coin`](#0x1_genesis_initialize_supra_coin)
+-  [Function `initialize_supra_native_automation`](#0x1_genesis_initialize_supra_native_automation)
 -  [Function `initialize_core_resources_and_supra_coin`](#0x1_genesis_initialize_core_resources_and_supra_coin)
 -  [Function `create_accounts`](#0x1_genesis_create_accounts)
 -  [Function `create_account`](#0x1_genesis_create_account)
@@ -632,7 +633,6 @@ Genesis step 1: Initialize aptos framework account and core modules on chain.
     <a href="reconfiguration.md#0x1_reconfiguration_initialize">reconfiguration::initialize</a>(&supra_framework_account);
     <a href="block.md#0x1_block_initialize">block::initialize</a>(&supra_framework_account, epoch_interval_microsecs);
     <a href="state_storage.md#0x1_state_storage_initialize">state_storage::initialize</a>(&supra_framework_account);
-    <a href="automation_registry.md#0x1_automation_registry_initializate_by_default">automation_registry::initializate_by_default</a>(&supra_framework_account, epoch_interval_microsecs);
     <a href="timestamp.md#0x1_timestamp_set_time_has_started">timestamp::set_time_has_started</a>(&supra_framework_account, genesis_timestamp_in_microseconds);
 }
 </code></pre>
@@ -667,6 +667,48 @@ Genesis step 2: Initialize Supra coin.
     <a href="transaction_fee.md#0x1_transaction_fee_store_supra_coin_burn_cap">transaction_fee::store_supra_coin_burn_cap</a>(supra_framework, burn_cap);
     // Give <a href="transaction_fee.md#0x1_transaction_fee">transaction_fee</a> <b>module</b> MintCapability&lt;SupraCoin&gt; so it can mint refunds.
     <a href="transaction_fee.md#0x1_transaction_fee_store_supra_coin_mint_cap">transaction_fee::store_supra_coin_mint_cap</a>(supra_framework, mint_cap);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_genesis_initialize_supra_native_automation"></a>
+
+## Function `initialize_supra_native_automation`
+
+Genesis step 3: Initialize Supra Native Automation.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_native_automation">initialize_supra_native_automation</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_native_automation">initialize_supra_native_automation</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+                                       task_duration_cap_in_secs: u64,
+                                       registry_max_gas_cap: u64,
+                                       automation_base_fee_in_quants_per_sec: u64,
+                                       flat_registration_fee_in_quants: u64,
+                                       congestion_threshold_percentage: u8,
+                                       congestion_base_fee_in_quants_per_sec: u64,
+) {
+    <b>let</b> epoch_interval_secs = <a href="block.md#0x1_block_get_epoch_interval_secs">block::get_epoch_interval_secs</a>();
+    <a href="automation_registry.md#0x1_automation_registry_initialize">automation_registry::initialize</a>(
+        supra_framework,
+        epoch_interval_secs,
+        task_duration_cap_in_secs,
+        registry_max_gas_cap,
+        automation_base_fee_in_quants_per_sec,
+        flat_registration_fee_in_quants,
+        congestion_threshold_percentage,
+        congestion_base_fee_in_quants_per_sec,
+    )
 }
 </code></pre>
 
@@ -1144,7 +1186,7 @@ encoded in a single BCS byte array.
 ) {
     <b>let</b> unique_accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
     <b>assert</b>!(
-        delegation_percentage &gt; 0 && delegation_percentage &lt;= 100,
+        delegation_percentage != 0 && delegation_percentage &lt;= 100,
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>)
     );
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_ref">vector::for_each_ref</a>(&pbo_delegator_configs, |pbo_delegator_config| {
@@ -1181,7 +1223,7 @@ encoded in a single BCS byte array.
     delegation_percentage: u64,
 ) {
     <b>assert</b>!(
-        delegation_percentage &gt; 0 && delegation_percentage &lt;= 100,
+        delegation_percentage != 0 && delegation_percentage &lt;= 100,
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>)
     );
     <b>let</b> unique_accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
@@ -1294,9 +1336,9 @@ encoded in a single BCS byte array.
         <b>let</b> pool_config: &<a href="genesis.md#0x1_genesis_VestingPoolsMap">VestingPoolsMap</a> = pool_config;
         <b>let</b> schedule = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
         <b>let</b> schedule_length = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&pool_config.vesting_numerators);
-        <b>assert</b>!(schedule_length &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EVESTING_SCHEDULE_IS_ZERO">EVESTING_SCHEDULE_IS_ZERO</a>));
-        <b>assert</b>!(pool_config.vesting_denominator &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EDENOMINATOR_IS_ZERO">EDENOMINATOR_IS_ZERO</a>));
-        <b>assert</b>!(pool_config.vpool_locking_percentage &gt; 0 && pool_config.vpool_locking_percentage &lt;= 100,
+        <b>assert</b>!(schedule_length != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EVESTING_SCHEDULE_IS_ZERO">EVESTING_SCHEDULE_IS_ZERO</a>));
+        <b>assert</b>!(pool_config.vesting_denominator != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EDENOMINATOR_IS_ZERO">EDENOMINATOR_IS_ZERO</a>));
+        <b>assert</b>!(pool_config.vpool_locking_percentage != 0 && pool_config.vpool_locking_percentage &lt;=100 ,
             <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>));
         //check the sum of numerator are &lt;= denominator.
         <b>let</b> sum = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_fold">vector::fold</a>(pool_config.vesting_numerators, 0, |acc, x| acc + x);
@@ -1314,10 +1356,11 @@ encoded in a single BCS byte array.
         //Create the <a href="vesting.md#0x1_vesting">vesting</a> schedule
         <b>let</b> j = 0;
         <b>while</b> (j &lt; schedule_length) {
-            <b>let</b> numerator = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&pool_config.vesting_numerators, j);
-            <b>assert</b>!(numerator &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_ENUMERATOR_IS_ZERO">ENUMERATOR_IS_ZERO</a>));
-            <b>let</b> <a href="event.md#0x1_event">event</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/fixed_point32.md#0x1_fixed_point32_create_from_rational">fixed_point32::create_from_rational</a>(numerator, pool_config.vesting_denominator);
-            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> schedule, <a href="event.md#0x1_event">event</a>);
+
+            <b>let</b> numerator = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&pool_config.vesting_numerators,j);
+            <b>assert</b>!(numerator != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_ENUMERATOR_IS_ZERO">ENUMERATOR_IS_ZERO</a>));
+            <b>let</b> <a href="event.md#0x1_event">event</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/fixed_point32.md#0x1_fixed_point32_create_from_rational">fixed_point32::create_from_rational</a>(numerator,pool_config.vesting_denominator);
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> schedule,<a href="event.md#0x1_event">event</a>);
             j = j + 1;
         };
 
@@ -1329,7 +1372,7 @@ encoded in a single BCS byte array.
 
         <b>let</b> buy_ins = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_create">simple_map::create</a>();
         <b>let</b> num_shareholders = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&pool_config.shareholders);
-        <b>assert</b>!(num_shareholders &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_ENO_SHAREHOLDERS">ENO_SHAREHOLDERS</a>));
+        <b>assert</b>!(num_shareholders != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_ENO_SHAREHOLDERS">ENO_SHAREHOLDERS</a>));
         <b>let</b> j = 0;
         <b>while</b> (j &lt; num_shareholders) {
             <b>let</b> shareholder = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&pool_config.shareholders, j);

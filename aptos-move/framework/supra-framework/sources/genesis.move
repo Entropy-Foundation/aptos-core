@@ -195,7 +195,6 @@ module supra_framework::genesis {
         reconfiguration::initialize(&supra_framework_account);
         block::initialize(&supra_framework_account, epoch_interval_microsecs);
         state_storage::initialize(&supra_framework_account);
-        automation_registry::initializate_by_default(&supra_framework_account, epoch_interval_microsecs);
         timestamp::set_time_has_started(&supra_framework_account, genesis_timestamp_in_microseconds);
     }
 
@@ -211,6 +210,29 @@ module supra_framework::genesis {
         // Give transaction_fee module MintCapability<SupraCoin> so it can mint refunds.
         transaction_fee::store_supra_coin_mint_cap(supra_framework, mint_cap);
     }
+
+    /// Genesis step 3: Initialize Supra Native Automation.
+    public fun initialize_supra_native_automation(supra_framework: &signer,
+                                           task_duration_cap_in_secs: u64,
+                                           registry_max_gas_cap: u64,
+                                           automation_base_fee_in_quants_per_sec: u64,
+                                           flat_registration_fee_in_quants: u64,
+                                           congestion_threshold_percentage: u8,
+                                           congestion_base_fee_in_quants_per_sec: u64,
+    ) {
+        let epoch_interval_secs = block::get_epoch_interval_secs();
+        automation_registry::initialize(
+            supra_framework,
+            epoch_interval_secs,
+            task_duration_cap_in_secs,
+            registry_max_gas_cap,
+            automation_base_fee_in_quants_per_sec,
+            flat_registration_fee_in_quants,
+            congestion_threshold_percentage,
+            congestion_base_fee_in_quants_per_sec,
+        )
+    }
+
 
     /// Only called for testnets and e2e tests.
     fun initialize_core_resources_and_supra_coin(
@@ -488,7 +510,7 @@ module supra_framework::genesis {
     ) {
         let unique_accounts: vector<address> = vector::empty();
         assert!(
-            delegation_percentage > 0 && delegation_percentage <= 100,
+            delegation_percentage != 0 && delegation_percentage <= 100,
             error::invalid_argument(EPERCENTAGE_INVALID)
         );
         vector::for_each_ref(&pbo_delegator_configs, |pbo_delegator_config| {
@@ -505,7 +527,7 @@ module supra_framework::genesis {
         delegation_percentage: u64,
     ) {
         assert!(
-            delegation_percentage > 0 && delegation_percentage <= 100,
+            delegation_percentage != 0 && delegation_percentage <= 100,
             error::invalid_argument(EPERCENTAGE_INVALID)
         );
         let unique_accounts: vector<address> = vector::empty();
@@ -578,9 +600,9 @@ module supra_framework::genesis {
             let pool_config: &VestingPoolsMap = pool_config;
             let schedule = vector::empty();
             let schedule_length = vector::length(&pool_config.vesting_numerators);
-            assert!(schedule_length > 0, error::invalid_argument(EVESTING_SCHEDULE_IS_ZERO));
-            assert!(pool_config.vesting_denominator > 0, error::invalid_argument(EDENOMINATOR_IS_ZERO));
-            assert!(pool_config.vpool_locking_percentage > 0 && pool_config.vpool_locking_percentage <= 100,
+            assert!(schedule_length != 0, error::invalid_argument(EVESTING_SCHEDULE_IS_ZERO));
+            assert!(pool_config.vesting_denominator != 0, error::invalid_argument(EDENOMINATOR_IS_ZERO));
+            assert!(pool_config.vpool_locking_percentage != 0 && pool_config.vpool_locking_percentage <=100 ,
                 error::invalid_argument(EPERCENTAGE_INVALID));
             //check the sum of numerator are <= denominator.
             let sum = vector::fold(pool_config.vesting_numerators, 0, |acc, x| acc + x);
@@ -598,10 +620,11 @@ module supra_framework::genesis {
             //Create the vesting schedule
             let j = 0;
             while (j < schedule_length) {
-                let numerator = *vector::borrow(&pool_config.vesting_numerators, j);
-                assert!(numerator > 0, error::invalid_argument(ENUMERATOR_IS_ZERO));
-                let event = fixed_point32::create_from_rational(numerator, pool_config.vesting_denominator);
-                vector::push_back(&mut schedule, event);
+
+                let numerator = *vector::borrow(&pool_config.vesting_numerators,j);
+                assert!(numerator != 0, error::invalid_argument(ENUMERATOR_IS_ZERO));
+                let event = fixed_point32::create_from_rational(numerator,pool_config.vesting_denominator);
+                vector::push_back(&mut schedule,event);
                 j = j + 1;
             };
 
@@ -613,7 +636,7 @@ module supra_framework::genesis {
 
             let buy_ins = simple_map::create();
             let num_shareholders = vector::length(&pool_config.shareholders);
-            assert!(num_shareholders > 0, error::invalid_argument(ENO_SHAREHOLDERS));
+            assert!(num_shareholders != 0, error::invalid_argument(ENO_SHAREHOLDERS));
             let j = 0;
             while (j < num_shareholders) {
                 let shareholder = *vector::borrow(&pool_config.shareholders, j);
