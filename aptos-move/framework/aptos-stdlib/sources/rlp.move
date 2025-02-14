@@ -1,110 +1,98 @@
 module std::rlp {
 
-    use std::bcs;
-    use aptos_std::from_bcs;
-    #[test_only]
-    use std::string;
     #[test_only]
     use std::vector;
 
-    //
-    // 2) Encode/Decode for Primitives
-    //
-    //    Each function:
-    //      - BCS-serialize the primitive
-    //      - RLP-encode the resulting bytes
-    //    Then decode does the reverse: RLP-decode -> BCS bytes -> Convert to the primitive.
-
     public fun encode_bool(x: bool): vector<u8> {
-        native_rlp_encode(bcs::to_bytes(&x))
+        native_rlp_encode_bool(x)
     }
 
     public fun decode_bool(encoded_rlp: vector<u8>): bool {
-        from_bcs::to_bool(native_rlp_decode(encoded_rlp))
+        native_rlp_decode_bool(encoded_rlp)
     }
 
     public fun encode_u8(x: u8): vector<u8> {
-        native_rlp_encode(bcs::to_bytes(&x))
+        native_rlp_encode_u8(x)
     }
 
     public fun decode_u8(encoded_rlp: vector<u8>): u8 {
-        from_bcs::to_u8(native_rlp_decode(encoded_rlp))
+        native_rlp_decode_u8(encoded_rlp)
     }
 
     public fun encode_u16(x: u16): vector<u8> {
-        native_rlp_encode(bcs::to_bytes(&x))
+        native_rlp_encode_u16(x)
     }
 
     public fun decode_u16(encoded_rlp: vector<u8>): u16 {
-        from_bcs::to_u16(native_rlp_decode(encoded_rlp))
+        native_rlp_decode_u16(encoded_rlp)
     }
 
     public fun encode_u32(x: u32): vector<u8> {
-        native_rlp_encode(bcs::to_bytes(&x))
+        native_rlp_encode_u32(x)
     }
 
     public fun decode_u32(encoded_rlp: vector<u8>): u32 {
-        from_bcs::to_u32(native_rlp_decode(encoded_rlp))
+        native_rlp_decode_u32(encoded_rlp)
     }
 
     public fun encode_u64(x: u64): vector<u8> {
-        native_rlp_encode(bcs::to_bytes(&x))
+        native_rlp_encode_u64(x)
     }
 
     public fun decode_u64(encoded_rlp: vector<u8>): u64 {
-        from_bcs::to_u64(native_rlp_decode(encoded_rlp))
+        native_rlp_decode_u64(encoded_rlp)
     }
 
     public fun encode_u128(x: u128): vector<u8> {
-        native_rlp_encode(bcs::to_bytes(&x))
+        native_rlp_encode_u128(x)
     }
 
     public fun decode_u128(encoded_rlp: vector<u8>): u128 {
-        from_bcs::to_u128(native_rlp_decode(encoded_rlp))
-    }
-
-    public fun encode_u256(x: u256): vector<u8> {
-        native_rlp_encode(bcs::to_bytes(&x))
-    }
-
-    public fun decode_u256(encoded_rlp: vector<u8>): u256 {
-        from_bcs::to_u256(native_rlp_decode(encoded_rlp))
+        native_rlp_decode_u128(encoded_rlp)
     }
 
     public fun encode_address(addr: address): vector<u8> {
-        native_rlp_encode(bcs::to_bytes(&addr))
+        native_rlp_encode_address(addr)
     }
 
     public fun decode_address(encoded_rlp: vector<u8>): address {
-        from_bcs::to_address(native_rlp_decode(encoded_rlp))
+        native_rlp_decode_address(encoded_rlp)
     }
 
     public fun encode_bytes(data: vector<u8>): vector<u8> {
-        native_rlp_encode(data)
+        native_rlp_encode_bytes(data)
     }
 
     public fun decode_bytes(encoded_rlp: vector<u8>): vector<u8> {
-        native_rlp_decode(encoded_rlp)
-    }
-
-    public fun encode_string(s: &std::string::String): vector<u8> {
-        native_rlp_encode(bcs::to_bytes(s))
-    }
-
-    public fun decode_string(encoded_rlp: vector<u8>): std::string::String {
-        from_bcs::to_string(native_rlp_decode(encoded_rlp))
+        native_rlp_decode_bytes(encoded_rlp)
     }
 
     //
     // Native functions
     //
-    native public fun native_rlp_encode(
-        data: vector<u8>,
-    ): vector<u8>;
+    native public fun native_rlp_encode_bool(x: bool): vector<u8>;
+    native public fun native_rlp_decode_bool(data: vector<u8>): bool;
 
-    native public fun native_rlp_decode(
-        encoded_data: vector<u8>,
-    ): vector<u8>;
+    native public fun native_rlp_encode_u8(x: u8): vector<u8>;
+    native public fun native_rlp_decode_u8(data: vector<u8>): u8;
+
+    native public fun native_rlp_encode_u16(x: u16): vector<u8>;
+    native public fun native_rlp_decode_u16(data: vector<u8>): u16;
+
+    native public fun native_rlp_encode_u32(x: u32): vector<u8>;
+    native public fun native_rlp_decode_u32(data: vector<u8>): u32;
+
+    native public fun native_rlp_encode_u64(x: u64): vector<u8>;
+    native public fun native_rlp_decode_u64(data: vector<u8>): u64;
+
+    native public fun native_rlp_encode_u128(x: u128): vector<u8>;
+    native public fun native_rlp_decode_u128(data: vector<u8>): u128;
+
+    native public fun native_rlp_encode_bytes(x: vector<u8>): vector<u8>;
+    native public fun native_rlp_decode_bytes(data: vector<u8>): vector<u8>;
+
+    native public fun native_rlp_encode_address(x: address): vector<u8>;
+    native public fun native_rlp_decode_address(data: vector<u8>): address;
 
     //
     // 1) Test encode_bool / decode_bool
@@ -231,28 +219,6 @@ module std::rlp {
     }
 
     //
-    // 7) Test encode_u256 / decode_u256
-    //
-    #[test]
-    fun test_u256() {
-        let cases: vector<u256> = vector[
-        0,
-        1,
-        115792089237316195423570985008687907853269984665640564039457584007913129639935
-        ];
-        let len = vector::length(&cases);
-
-        let i = 0;
-        while (i < len) {
-            let orig = *vector::borrow(&cases, i);
-            let encoded = encode_u256(orig);
-            let decoded = decode_u256(encoded);
-            assert!(decoded == orig, 7000 + i);
-            i = i + 1;
-        };
-    }
-
-    //
     // 8) Test encode_address / decode_address
     //
     #[test]
@@ -307,34 +273,10 @@ module std::rlp {
         };
     }
 
-    //
-    // 10) Test encode_string / decode_string
-    //
-    #[test]
-    fun test_string() {
-        let s_empty = string::utf8(b"");
-        let s_ascii = string::utf8(b"Hello, RLP!");
-
-        let cases: vector<string::String> = vector[
-        s_empty,
-        s_ascii,
-        ];
-        let len = vector::length(&cases);
-
-        let i = 0;
-        while (i < len) {
-            let orig = *vector::borrow(&cases, i);
-            let encoded = encode_string(&orig);
-            let decoded = decode_string(encoded);
-            assert!(decoded == orig, 10000 + i);
-            i = i + 1;
-        };
-    }
-
     #[test]
     #[expected_failure( abort_code = 0x1, location = Self)]
     fun test_decode_u8_with_invalid_data() {
-        let invalid_data = b"\xDE\xAD\xBE\xEF"; // random bytes, not valid RLP for a single BCS-encoded u8
+        let invalid_data = b"\xDE\xAD\xBE\xEF"; // random bytes, not valid RLP
         let _ = decode_u8(invalid_data);
         // Should abort.
     }
@@ -342,7 +284,7 @@ module std::rlp {
     #[test]
     #[expected_failure( abort_code = 0x1, location = Self)]
     fun test_decode_u64_with_empty_data() {
-        // Empty data is definitely not valid RLP (or BCS) for a u64
+        // Empty data is definitely not valid RLP for a u64
         let invalid_data = b"";
         let _ = decode_u64(invalid_data);
         // Should abort.
@@ -350,10 +292,9 @@ module std::rlp {
 
     #[test]
     #[expected_failure( abort_code = 0x1, location = Self)]
-    fun test_decode_string_with_junk_data() {
-        // This might cause the RLP decode to fail (and return empty),
-        let invalid_data = b"\xFF\xFF\xFF\xFF\x00\x01\x02";
-        let _ = decode_string(invalid_data);
+    fun test_decode_address_with_invalid_data() {
+        let invalid_data = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012"; // random bytes, not valid RLP
+        let _ = decode_address(invalid_data);
         // Should abort.
     }
 }

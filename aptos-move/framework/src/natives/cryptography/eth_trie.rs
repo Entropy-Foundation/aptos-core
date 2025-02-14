@@ -16,9 +16,6 @@ use rand::Rng;
 /// The minimum length (in bytes) for an encoded node to be stored by hash.
 const HASHED_LENGTH: usize = 32;
 
-/// The maximum number of nodes allowed in a proof to prevent malicious calls to the function
-const MAX_PROOF_NODES: usize = 2048;
-
 /// Native function for verifying an Ethereum Merkle Patricia Trie proof.
 ///
 /// # Arguments
@@ -30,10 +27,8 @@ const MAX_PROOF_NODES: usize = 2048;
 /// # Returns
 ///
 /// A tuple of `(bool, vector<u8>)` where:
-///   - If the proof is valid and the key exists, returns `(true, value)` (with `value` being the found value)
-///     i.e. inclusion proof.
-///   - Otherwise, returns `(true, empty vector)` to show the proof is valid and key does not exist
-///     i.e. exclusion proof.
+///   - If the proof is valid and the key exists, returns `(true, value)` (with `value` being the found value) (i.e. inclusion proof.)
+///   - Otherwise, returns `(true, empty vector)` to show the proof is valid and key does not exist (i.e. exclusion proof.)
 ///   - Returns `(false, empty vector)` to show that proof is invalid
 pub fn native_verify_proof_eth_trie(
     context: &mut SafeNativeContext,
@@ -46,11 +41,6 @@ pub fn native_verify_proof_eth_trie(
     let proof: Vec<Vec<u8>> = safely_pop_vec_arg!(arguments, Vec<u8>);
     let key: Vec<u8> = safely_pop_arg!(arguments, Vec<u8>);
     let root: Vec<u8> = safely_pop_arg!(arguments, Vec<u8>);
-
-    // if the proof size is larger than max allowed we can ignore the proof
-    if proof.len() > MAX_PROOF_NODES{
-        return Ok(smallvec![Value::bool(false), Value::vector_u8(vec![])]);
-    }
 
     let total_proof_bytes = proof.iter().map(|node| node.len() as u64).sum::<u64>();
     context.charge(
