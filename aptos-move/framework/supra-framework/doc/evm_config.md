@@ -7,6 +7,7 @@
 
 -  [Resource `EvmConfig`](#0x1_evm_config_EvmConfig)
 -  [Constants](#@Constants_0)
+-  [Function `initialize`](#0x1_evm_config_initialize)
 -  [Function `set_for_next_epoch`](#0x1_evm_config_set_for_next_epoch)
 -  [Function `on_new_epoch`](#0x1_evm_config_on_new_epoch)
 -  [Specification](#@Specification_1)
@@ -63,11 +64,37 @@ The provided on chain config bytes are empty or invalid
 
 
 
+<a id="0x1_evm_config_initialize"></a>
+
+## Function `initialize`
+
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="evm_config.md#0x1_evm_config_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, config: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="evm_config.md#0x1_evm_config_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, config: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;) {
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&config) != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EINVALID_CONFIG">EINVALID_CONFIG</a>));
+    <b>move_to</b>(supra_framework, <a href="evm_config.md#0x1_evm_config_EvmConfig">EvmConfig</a> { config });
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_evm_config_set_for_next_epoch"></a>
 
 ## Function `set_for_next_epoch`
 
-This can be called by on-chain governance to update on-chain consensus configs for the next epoch.
+This can be called by on-chain governance to update on-chain evm configs for the next epoch.
 Example usage:
 ```
 supra_framework::evm_config::set_for_next_epoch(&framework_signer, some_config_bytes);
@@ -134,6 +161,8 @@ Otherwise, move the new config to supra_framework.
 
 ## Specification
 
+Test docs
+Generate docs?
 
 
 <pre><code><b>pragma</b> verify = <b>true</b>;

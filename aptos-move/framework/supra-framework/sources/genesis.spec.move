@@ -100,7 +100,7 @@ spec supra_framework::genesis {
     }
 
     spec initialize_supra_coin {
-        // property 3: The Supra coin should be initialized during genesis and only the Aptos framework account should
+        // property 3: The Supra coin should be initialized during genesis and only the Supra framework account should
         // own the mint and burn capabilities for the SUPRA token.
         /// [high-level-req-3]
         requires !exists<stake::SupraCoinCapabilities>(@supra_framework);
