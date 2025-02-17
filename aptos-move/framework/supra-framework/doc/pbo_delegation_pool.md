@@ -131,6 +131,7 @@ transferred to A
 -  [Struct `UnlockStakeEvent`](#0x1_pbo_delegation_pool_UnlockStakeEvent)
 -  [Struct `WithdrawStakeEvent`](#0x1_pbo_delegation_pool_WithdrawStakeEvent)
 -  [Struct `DistributeCommissionEvent`](#0x1_pbo_delegation_pool_DistributeCommissionEvent)
+-  [Struct `UnlockScheduleUpdated`](#0x1_pbo_delegation_pool_UnlockScheduleUpdated)
 -  [Struct `DistributeCommission`](#0x1_pbo_delegation_pool_DistributeCommission)
 -  [Struct `DelegatorReplacemendEvent`](#0x1_pbo_delegation_pool_DelegatorReplacemendEvent)
 -  [Struct `VoteEvent`](#0x1_pbo_delegation_pool_VoteEvent)
@@ -909,6 +910,58 @@ This struct should be stored in the delegation pool resource account.
 
 </details>
 
+<a id="0x1_pbo_delegation_pool_UnlockScheduleUpdated"></a>
+
+## Struct `UnlockScheduleUpdated`
+
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_UnlockScheduleUpdated">UnlockScheduleUpdated</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>pool_address: <b>address</b></code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>unlock_numerators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>unlock_denominator: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>unlock_start_time: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>unlock_duration: u64</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
 <a id="0x1_pbo_delegation_pool_DistributeCommission"></a>
 
 ## Struct `DistributeCommission`
@@ -1574,6 +1627,15 @@ Commission percentage change is too late in this lockup period, and should be do
 
 
 <pre><code><b>const</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ETOO_LATE_COMMISSION_CHANGE">ETOO_LATE_COMMISSION_CHANGE</a>: u64 = 21;
+</code></pre>
+
+
+
+<a id="0x1_pbo_delegation_pool_EUNLOCKING_ALREADY_STARTED"></a>
+
+
+
+<pre><code><b>const</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EUNLOCKING_ALREADY_STARTED">EUNLOCKING_ALREADY_STARTED</a>: u64 = 41;
 </code></pre>
 
 
@@ -2369,7 +2431,7 @@ Ownership over setting the operator/voter is granted to <code>owner</code> who h
     // initialize the principle <a href="stake.md#0x1_stake">stake</a> <a href="../../aptos-stdlib/doc/table.md#0x1_table">table</a>
     <b>let</b> principle_stake_table = <a href="../../aptos-stdlib/doc/table.md#0x1_table_new">table::new</a>&lt;<b>address</b>, u64&gt;();
     // initialize the principle <a href="stake.md#0x1_stake">stake</a> <a href="../../aptos-stdlib/doc/table.md#0x1_table">table</a>
-    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&delegator_address) &gt; 0) {
+    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&delegator_address) != 0) {
         <b>let</b> delegator = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> delegator_address);
         <b>let</b> <a href="stake.md#0x1_stake">stake</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> principle_stake);
         <a href="../../aptos-stdlib/doc/table.md#0x1_table_add">table::add</a>(&<b>mut</b> principle_stake_table, delegator, <a href="stake.md#0x1_stake">stake</a>);
@@ -2413,7 +2475,7 @@ Ownership over setting the operator/voter is granted to <code>owner</code> who h
     <b>move_to</b>(owner, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPoolOwnership">DelegationPoolOwnership</a> { pool_address });
 
     // Add <a href="stake.md#0x1_stake">stake</a> <b>to</b> each delegator
-    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&delegator_address_copy) &gt; 0) {
+    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&delegator_address_copy) != 0) {
         <b>let</b> delegator = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> delegator_address_copy);
         <b>let</b> <a href="stake.md#0x1_stake">stake</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> principle_stake_copy);
         <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_add_stake_initialization">add_stake_initialization</a>(delegator, pool_address, <a href="stake.md#0x1_stake">stake</a>);
@@ -3711,7 +3773,6 @@ accurate as time passes
 
         last_unlocked_period = last_unlocked_period + 1;
     };
-
     unlock_schedule.cumulative_unlocked_fraction = cfraction;
     unlock_schedule.last_unlock_period = unlock_periods_passed;
     <b>let</b> unlockable_amount = <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_cached_unlockable_balance">cached_unlockable_balance</a>(delegator_addr, pool_address);
