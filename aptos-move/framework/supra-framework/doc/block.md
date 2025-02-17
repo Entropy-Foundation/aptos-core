@@ -486,7 +486,7 @@ Initialize the commit history resource if it's not in genesis.
 ## Function `update_epoch_interval_microsecs`
 
 Update the epoch interval.
-Can only be called as part of the Supra governance proposal process established by the AptosGovernance module.
+Can only be called as part of the Supra governance proposal process established by the SupraGovernance module.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="block.md#0x1_block_update_epoch_interval_microsecs">update_epoch_interval_microsecs</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, new_epoch_interval: u64)
