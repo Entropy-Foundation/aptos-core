@@ -53,7 +53,7 @@ spec supra_framework::reconfiguration {
     }
 
     /// Make sure the signer address is @supra_framework.
-    spec schema AbortsIfNotAptosFramework {
+    spec schema AbortsIfNotSupraFramework {
         supra_framework: &signer;
 
         let addr = signer::address_of(supra_framework);
@@ -68,7 +68,7 @@ spec supra_framework::reconfiguration {
         use supra_framework::account::{Account};
         use supra_framework::guid;
 
-        include AbortsIfNotAptosFramework;
+        include AbortsIfNotSupraFramework;
         let addr = signer::address_of(supra_framework);
         let post config = global<Configuration>(@supra_framework);
         requires exists<Account>(addr);
@@ -96,7 +96,7 @@ spec supra_framework::reconfiguration {
     }
 
     spec disable_reconfiguration(supra_framework: &signer) {
-        include AbortsIfNotAptosFramework;
+        include AbortsIfNotSupraFramework;
         aborts_if exists<DisableReconfiguration>(@supra_framework);
         ensures exists<DisableReconfiguration>(@supra_framework);
     }
@@ -104,7 +104,7 @@ spec supra_framework::reconfiguration {
     /// Make sure the caller is admin and check the resource DisableReconfiguration.
     spec enable_reconfiguration(supra_framework: &signer) {
         use supra_framework::reconfiguration::{DisableReconfiguration};
-        include AbortsIfNotAptosFramework;
+        include AbortsIfNotSupraFramework;
         aborts_if !exists<DisableReconfiguration>(@supra_framework);
         ensures !exists<DisableReconfiguration>(@supra_framework);
     }
