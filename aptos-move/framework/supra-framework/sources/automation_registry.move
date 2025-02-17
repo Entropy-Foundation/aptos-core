@@ -56,7 +56,7 @@ module supra_framework::automation_registry {
     const EDISABLED_AUTOMATION_FEATURE: u64 = 15;
     /// Insufficient balance in the resource wallet for withdrawal
     const EINSUFFICIENT_BALANCE: u64 = 16;
-    /// Requested amount exceeds the frozen balance
+    /// Requested amount exceeds the locked balance
     const EREQUEST_EXCEEDS_FROZEN_AMOUNT: u64 = 17;
 
 
@@ -116,8 +116,8 @@ module supra_framework::automation_registry {
         gas_committed_for_next_epoch: u64,
         /// Total fee charged to users during the epoch, which is not withdrawable
         epoch_locked_fees: u64,
-        /// Total committed max gas amount for the epoch
-        total_committed_max_gas_amount: u256,
+        /// Total committed max gas amount at the beginning of the current epoch.
+        gas_committed_for_this_epoch: u256,
         /// It's resource address which is use to deposit user automation fee
         registry_fee_address: address,
         /// Resource account signature capability
@@ -274,7 +274,7 @@ module supra_framework::automation_registry {
             current_index: 0,
             gas_committed_for_next_epoch: 0,
             epoch_locked_fees: 0,
-            total_committed_max_gas_amount: 0,
+            gas_committed_for_this_epoch: 0,
             registry_fee_address: signer::address_of(&registry_fee_resource_signer),
             registry_fee_address_signer_cap,
         });
@@ -350,7 +350,7 @@ module supra_framework::automation_registry {
 
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
         automation_registry.epoch_locked_fees = epoch_locked_fees;
-        automation_registry.total_committed_max_gas_amount = tcmg;
+        automation_registry.gas_committed_for_this_epoch = tcmg;
         automation_epoch_info.start_time = current_time;
         automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
     }
@@ -365,20 +365,20 @@ module supra_framework::automation_registry {
         let epoch_duration = current_time - aei.start_time;
         if (aei.expected_epoch_duration <= epoch_duration) {
             return
-        } else {
-            let residual_time = aei.expected_epoch_duration - epoch_duration;
-            let tcmg = automation_registry.total_committed_max_gas_amount;
-            let registry_fee_address_signer_cap = &automation_registry.registry_fee_address_signer_cap;
-            let tasks_automation_refund_fees = calculate_tasks_automation_fees(
-                automation_registry,
-                arc,
-                residual_time,
-                current_time,
-                tcmg,
-                true
-            );
-            refund_tasks_fee(registry_fee_address_signer_cap, tasks_automation_refund_fees);
         };
+
+        let residual_time = aei.expected_epoch_duration - epoch_duration;
+        let tcmg = automation_registry.gas_committed_for_this_epoch;
+        let registry_fee_address_signer_cap = &automation_registry.registry_fee_address_signer_cap;
+        let tasks_automation_refund_fees = calculate_tasks_automation_fees(
+            automation_registry,
+            arc,
+            residual_time,
+            current_time,
+            tcmg,
+            true
+        );
+        refund_tasks_fee(registry_fee_address_signer_cap, tasks_automation_refund_fees);
     }
 
     /// Processes refunds for automation task fees.

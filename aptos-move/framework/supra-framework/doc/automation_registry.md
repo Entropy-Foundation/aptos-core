@@ -223,10 +223,10 @@ It tracks entries both pending and completed, organized by unique indices.
  Total fee charged to users during the epoch, which is not withdrawable
 </dd>
 <dt>
-<code>total_committed_max_gas_amount: u256</code>
+<code>gas_committed_for_this_epoch: u256</code>
 </dt>
 <dd>
- Total committed max gas amount for the epoch
+ Total committed max gas amount at the beginning of the current epoch.
 </dd>
 <dt>
 <code>registry_fee_address: <b>address</b></code>
@@ -888,7 +888,7 @@ Auxiliary data during registration is not supported
 
 <a id="0x1_automation_registry_EREQUEST_EXCEEDS_FROZEN_AMOUNT"></a>
 
-Requested amount exceeds the frozen balance
+Requested amount exceeds the locked balance
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EREQUEST_EXCEEDS_FROZEN_AMOUNT">EREQUEST_EXCEEDS_FROZEN_AMOUNT</a>: u64 = 17;
@@ -1073,7 +1073,7 @@ Initialization of Automation Registry with configuration parameters is expected 
         current_index: 0,
         gas_committed_for_next_epoch: 0,
         epoch_locked_fees: 0,
-        total_committed_max_gas_amount: 0,
+        gas_committed_for_this_epoch: 0,
         registry_fee_address: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&registry_fee_resource_signer),
         registry_fee_address_signer_cap,
     });
@@ -1168,7 +1168,7 @@ On new epoch this function will be triggered and update the automation registry 
 
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees = epoch_locked_fees;
-    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.total_committed_max_gas_amount = tcmg;
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch = tcmg;
     automation_epoch_info.start_time = current_time;
     automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
 }
@@ -1203,20 +1203,20 @@ Adjusts task fees and processes refunds when there's a change in epoch duration.
     <b>let</b> epoch_duration = current_time - aei.start_time;
     <b>if</b> (aei.expected_epoch_duration &lt;= epoch_duration) {
         <b>return</b>
-    } <b>else</b> {
-        <b>let</b> residual_time = aei.expected_epoch_duration - epoch_duration;
-        <b>let</b> tcmg = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.total_committed_max_gas_amount;
-        <b>let</b> registry_fee_address_signer_cap = &<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address_signer_cap;
-        <b>let</b> tasks_automation_refund_fees = <a href="automation_registry.md#0x1_automation_registry_calculate_tasks_automation_fees">calculate_tasks_automation_fees</a>(
-            <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
-            arc,
-            residual_time,
-            current_time,
-            tcmg,
-            <b>true</b>
-        );
-        <a href="automation_registry.md#0x1_automation_registry_refund_tasks_fee">refund_tasks_fee</a>(registry_fee_address_signer_cap, tasks_automation_refund_fees);
     };
+
+    <b>let</b> residual_time = aei.expected_epoch_duration - epoch_duration;
+    <b>let</b> tcmg = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch;
+    <b>let</b> registry_fee_address_signer_cap = &<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address_signer_cap;
+    <b>let</b> tasks_automation_refund_fees = <a href="automation_registry.md#0x1_automation_registry_calculate_tasks_automation_fees">calculate_tasks_automation_fees</a>(
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
+        arc,
+        residual_time,
+        current_time,
+        tcmg,
+        <b>true</b>
+    );
+    <a href="automation_registry.md#0x1_automation_registry_refund_tasks_fee">refund_tasks_fee</a>(registry_fee_address_signer_cap, tasks_automation_refund_fees);
 }
 </code></pre>
 
