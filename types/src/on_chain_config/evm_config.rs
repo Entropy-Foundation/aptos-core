@@ -16,10 +16,11 @@ pub struct EvmConfigV1 {
 }
 
 impl OnChainEvmConfig {
+    /// TODO: remove, and allow config from genesis parameter.
     pub fn default_for_test() -> Self {
         Self::V1(EvmConfigV1 { chain_id: 0x12_3456_7890 })
     }
-
+    /// TODO: remove, and allow config from genesis parameter.
     pub fn default_for_mainnet() -> Self {
         Self::V1(EvmConfigV1 { chain_id: 0xffff_aaaa_eeee })
     }
