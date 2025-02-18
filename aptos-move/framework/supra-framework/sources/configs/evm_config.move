@@ -36,6 +36,7 @@ module supra_framework::evm_config {
         assert!(!vector::is_empty(&config), error::invalid_argument(EINVALID_CONFIG));
         std::config_buffer::upsert<EvmConfig>(EvmConfig {config});
     }
+
     /// Only used in reconfigurations to apply the pending `EvmConfig` in buffer, if there is any.
     /// If supra_framework has a EvmConfig, then update the new config to supra_framework.
     /// Otherwise, move the new config to supra_framework.
