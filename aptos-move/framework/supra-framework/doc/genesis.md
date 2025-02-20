@@ -797,17 +797,23 @@ If it exists, it just returns the signer.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_multiple_multisig_accounts_with_schema">create_multiple_multisig_accounts_with_schema</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-owner: <b>address</b>, additional_owners: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,num_signatures_required:u64,metadata_keys:<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,metadata_values:<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;,
-timeout_duration:u64, balance:u64, num_of_accounts: u32): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; {
-
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_multiple_multisig_accounts_with_schema">create_multiple_multisig_accounts_with_schema</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    owner: <b>address</b>,
+    additional_owners: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
+    num_signatures_required:u64,
+    metadata_keys:<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
+    metadata_values:<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;,
+    timeout_duration:u64,
+    balance:u64,
+    num_of_accounts: u32
+): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; {
     <b>let</b> counter = 0;
     <b>let</b> result = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
     <b>while</b> (counter &lt; num_of_accounts) {
         <b>let</b> account_addr = <a href="genesis.md#0x1_genesis_create_multisig_account_with_balance">create_multisig_account_with_balance</a>(supra_framework, owner, additional_owners,
                             num_signatures_required,metadata_keys,metadata_values,timeout_duration,balance);
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> result,account_addr);
-        <a href="account.md#0x1_account_increment_sequence_number">account::increment_sequence_number</a>(owner);
         counter = counter + 1;
     };
     result
@@ -833,20 +839,25 @@ timeout_duration:u64, balance:u64, num_of_accounts: u32): <a href="../../aptos-s
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_multisig_account_with_balance">create_multisig_account_with_balance</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, owner: <b>address</b>, additional_owners: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
-                            num_signatures_required:u64, metadata_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
-                            metadata_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, timeout_duration: u64, balance:u64 ) : <b>address</b> {
-
-
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_multisig_account_with_balance">create_multisig_account_with_balance</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    owner: <b>address</b>,
+    additional_owners: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
+    num_signatures_required:u64,
+    metadata_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
+    metadata_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;,
+    timeout_duration: u64,
+    balance:u64,
+): <b>address</b> {
     <b>assert</b>!(<a href="account.md#0x1_account_exists_at">account::exists_at</a>(owner),<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EACCOUNT_DOES_NOT_EXIST">EACCOUNT_DOES_NOT_EXIST</a>));
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_all">vector::all</a>(&additional_owners,|ao_addr|{<a href="account.md#0x1_account_exists_at">account::exists_at</a>(*ao_addr)}),<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EACCOUNT_DOES_NOT_EXIST">EACCOUNT_DOES_NOT_EXIST</a>));
     <b>let</b> addr = <a href="multisig_account.md#0x1_multisig_account_get_next_multisig_account_address">multisig_account::get_next_multisig_account_address</a>(owner);
     <b>let</b> owner_signer = <a href="create_signer.md#0x1_create_signer">create_signer</a>(owner);
     <a href="multisig_account.md#0x1_multisig_account_create_with_owners">multisig_account::create_with_owners</a>(&owner_signer,additional_owners,num_signatures_required,metadata_keys,metadata_values,timeout_duration);
     <a href="supra_coin.md#0x1_supra_coin_mint">supra_coin::mint</a>(supra_framework,addr,balance);
+    <a href="account.md#0x1_account_increment_sequence_number">account::increment_sequence_number</a>(owner);
     addr
-
-    }
+}
 </code></pre>
 
 
@@ -1115,7 +1126,7 @@ encoded in a single BCS byte array.
     delegation_percentage: u64,
 ) {
 		<b>let</b> unique_accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
-    <b>assert</b>!(delegation_percentage &gt; 0 && delegation_percentage &lt;= 100, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>));
+    <b>assert</b>!(delegation_percentage != 0 && delegation_percentage &lt;= 100, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>));
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_ref">vector::for_each_ref</a>(&pbo_delegator_configs, |pbo_delegator_config| {
         <b>let</b> pbo_delegator_config: &<a href="genesis.md#0x1_genesis_PboDelegatorConfiguration">PboDelegatorConfiguration</a> = pbo_delegator_config;
 			<b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&unique_accounts,&pbo_delegator_config.delegator_config.owner_address),
@@ -1149,7 +1160,7 @@ encoded in a single BCS byte array.
     pbo_delegator_config: &<a href="genesis.md#0x1_genesis_PboDelegatorConfiguration">PboDelegatorConfiguration</a>,
     delegation_percentage: u64,
 ) {
-		<b>assert</b>!(delegation_percentage&gt;0 && delegation_percentage&lt;=100,<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>));
+		<b>assert</b>!(delegation_percentage != 0 && delegation_percentage&lt;=100,<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>));
     <b>let</b> unique_accounts:<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_ref">vector::for_each_ref</a>(&pbo_delegator_config.delegator_config.delegator_addresses, |delegator_address| {
         <b>let</b> delegator_address: &<b>address</b> = delegator_address;
@@ -1258,9 +1269,9 @@ encoded in a single BCS byte array.
         <b>let</b> pool_config: &<a href="genesis.md#0x1_genesis_VestingPoolsMap">VestingPoolsMap</a> = pool_config;
         <b>let</b> schedule  = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
         <b>let</b> schedule_length = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&pool_config.vesting_numerators);
-        <b>assert</b>!(schedule_length &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EVESTING_SCHEDULE_IS_ZERO">EVESTING_SCHEDULE_IS_ZERO</a>));
-        <b>assert</b>!(pool_config.vesting_denominator &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EDENOMINATOR_IS_ZERO">EDENOMINATOR_IS_ZERO</a>));
-        <b>assert</b>!(pool_config.vpool_locking_percentage &gt; 0 && pool_config.vpool_locking_percentage &lt;=100 ,
+        <b>assert</b>!(schedule_length != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EVESTING_SCHEDULE_IS_ZERO">EVESTING_SCHEDULE_IS_ZERO</a>));
+        <b>assert</b>!(pool_config.vesting_denominator != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EDENOMINATOR_IS_ZERO">EDENOMINATOR_IS_ZERO</a>));
+        <b>assert</b>!(pool_config.vpool_locking_percentage != 0 && pool_config.vpool_locking_percentage &lt;=100 ,
             <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>));
         //check the sum of numerator are &lt;= denominator.
         <b>let</b> sum = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_fold">vector::fold</a>(pool_config.vesting_numerators,0,|acc, x| acc + x);
@@ -1276,7 +1287,7 @@ encoded in a single BCS byte array.
         <b>let</b> j=0;
         <b>while</b> (j &lt; schedule_length) {
             <b>let</b> numerator = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&pool_config.vesting_numerators,j);
-            <b>assert</b>!(numerator &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_ENUMERATOR_IS_ZERO">ENUMERATOR_IS_ZERO</a>));
+            <b>assert</b>!(numerator != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_ENUMERATOR_IS_ZERO">ENUMERATOR_IS_ZERO</a>));
             <b>let</b> <a href="event.md#0x1_event">event</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/fixed_point32.md#0x1_fixed_point32_create_from_rational">fixed_point32::create_from_rational</a>(numerator,pool_config.vesting_denominator);
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> schedule,<a href="event.md#0x1_event">event</a>);
             j = j + 1;
@@ -1290,7 +1301,7 @@ encoded in a single BCS byte array.
 
         <b>let</b> buy_ins  = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_create">simple_map::create</a>();
         <b>let</b> num_shareholders = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&pool_config.shareholders);
-        <b>assert</b>!(num_shareholders &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_ENO_SHAREHOLDERS">ENO_SHAREHOLDERS</a>));
+        <b>assert</b>!(num_shareholders != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_ENO_SHAREHOLDERS">ENO_SHAREHOLDERS</a>));
         <b>let</b> j = 0;
         <b>while</b> (j &lt; num_shareholders) {
             <b>let</b> shareholder = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&pool_config.shareholders,j);
