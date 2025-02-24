@@ -1129,7 +1129,7 @@ encoded in a single BCS byte array.
     delegation_percentage: u64,
 ) {
 		<b>let</b> unique_accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
-    <b>assert</b>!(delegation_percentage != 0 && delegation_percentage &lt;= 100, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>));
+    <b>assert</b>!(delegation_percentage &gt; 0 && delegation_percentage &lt;= 100, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>));
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_ref">vector::for_each_ref</a>(&pbo_delegator_configs, |pbo_delegator_config| {
         <b>let</b> pbo_delegator_config: &<a href="genesis.md#0x1_genesis_PboDelegatorConfiguration">PboDelegatorConfiguration</a> = pbo_delegator_config;
 			<b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&unique_accounts,&pbo_delegator_config.delegator_config.owner_address),
@@ -1163,7 +1163,7 @@ encoded in a single BCS byte array.
     pbo_delegator_config: &<a href="genesis.md#0x1_genesis_PboDelegatorConfiguration">PboDelegatorConfiguration</a>,
     delegation_percentage: u64,
 ) {
-		<b>assert</b>!(delegation_percentage != 0 && delegation_percentage&lt;=100,<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>));
+		<b>assert</b>!(delegation_percentage&gt;0 && delegation_percentage&lt;=100,<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>));
     <b>let</b> unique_accounts:<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_ref">vector::for_each_ref</a>(&pbo_delegator_config.delegator_config.delegator_addresses, |delegator_address| {
         <b>let</b> delegator_address: &<b>address</b> = delegator_address;
@@ -1272,9 +1272,9 @@ encoded in a single BCS byte array.
         <b>let</b> pool_config: &<a href="genesis.md#0x1_genesis_VestingPoolsMap">VestingPoolsMap</a> = pool_config;
         <b>let</b> schedule  = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
         <b>let</b> schedule_length = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&pool_config.vesting_numerators);
-        <b>assert</b>!(schedule_length != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EVESTING_SCHEDULE_IS_ZERO">EVESTING_SCHEDULE_IS_ZERO</a>));
-        <b>assert</b>!(pool_config.vesting_denominator != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EDENOMINATOR_IS_ZERO">EDENOMINATOR_IS_ZERO</a>));
-        <b>assert</b>!(pool_config.vpool_locking_percentage != 0 && pool_config.vpool_locking_percentage &lt;=100 ,
+        <b>assert</b>!(schedule_length &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EVESTING_SCHEDULE_IS_ZERO">EVESTING_SCHEDULE_IS_ZERO</a>));
+        <b>assert</b>!(pool_config.vesting_denominator &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EDENOMINATOR_IS_ZERO">EDENOMINATOR_IS_ZERO</a>));
+        <b>assert</b>!(pool_config.vpool_locking_percentage &gt; 0 && pool_config.vpool_locking_percentage &lt;=100 ,
             <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_EPERCENTAGE_INVALID">EPERCENTAGE_INVALID</a>));
         //check the sum of numerator are &lt;= denominator.
         <b>let</b> sum = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_fold">vector::fold</a>(pool_config.vesting_numerators,0,|acc, x| acc + x);
@@ -1290,7 +1290,7 @@ encoded in a single BCS byte array.
         <b>let</b> j=0;
         <b>while</b> (j &lt; schedule_length) {
             <b>let</b> numerator = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&pool_config.vesting_numerators,j);
-            <b>assert</b>!(numerator != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_ENUMERATOR_IS_ZERO">ENUMERATOR_IS_ZERO</a>));
+            <b>assert</b>!(numerator &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_ENUMERATOR_IS_ZERO">ENUMERATOR_IS_ZERO</a>));
             <b>let</b> <a href="event.md#0x1_event">event</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/fixed_point32.md#0x1_fixed_point32_create_from_rational">fixed_point32::create_from_rational</a>(numerator,pool_config.vesting_denominator);
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> schedule,<a href="event.md#0x1_event">event</a>);
             j = j + 1;
@@ -1304,7 +1304,7 @@ encoded in a single BCS byte array.
 
         <b>let</b> buy_ins  = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_create">simple_map::create</a>();
         <b>let</b> num_shareholders = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&pool_config.shareholders);
-        <b>assert</b>!(num_shareholders != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_ENO_SHAREHOLDERS">ENO_SHAREHOLDERS</a>));
+        <b>assert</b>!(num_shareholders &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="genesis.md#0x1_genesis_ENO_SHAREHOLDERS">ENO_SHAREHOLDERS</a>));
         <b>let</b> j = 0;
         <b>while</b> (j &lt; num_shareholders) {
             <b>let</b> shareholder = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&pool_config.shareholders,j);

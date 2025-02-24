@@ -602,20 +602,6 @@ pub enum EntryFunctionCall {
         new_commission_percentage: u64,
     },
 
-    /// Pre-condition: `cumulative_unlocked_fraction` should be zero, which would indicate that even
-    /// though there are principle stake holders, none of those have yet called `unlock` on the pool
-    /// thus it is ``safe'' to change the schedule
-    /// This is a temporary measure to allow Supra Foundation to change the schedule for those pools
-    /// there were initialized with ``dummy/default'' schedule. This method must be disabled
-    /// before external validators are allowed to join the validator set.
-    PboDelegationPoolUpdateUnlockingSchedule {
-        pool_address: AccountAddress,
-        unlock_numerators: Vec<u64>,
-        unlock_denominator: u64,
-        unlock_start_time: u64,
-        unlock_duration: u64,
-    },
-
     /// Withdraw `amount` of owned inactive stake from the delegation pool at `pool_address`.
     PboDelegationPoolWithdraw {
         pool_address: AccountAddress,
@@ -1552,19 +1538,6 @@ impl EntryFunctionCall {
             PboDelegationPoolUpdateCommissionPercentage {
                 new_commission_percentage,
             } => pbo_delegation_pool_update_commission_percentage(new_commission_percentage),
-            PboDelegationPoolUpdateUnlockingSchedule {
-                pool_address,
-                unlock_numerators,
-                unlock_denominator,
-                unlock_start_time,
-                unlock_duration,
-            } => pbo_delegation_pool_update_unlocking_schedule(
-                pool_address,
-                unlock_numerators,
-                unlock_denominator,
-                unlock_start_time,
-                unlock_duration,
-            ),
             PboDelegationPoolWithdraw {
                 pool_address,
                 amount,
@@ -3490,39 +3463,6 @@ pub fn pbo_delegation_pool_update_commission_percentage(
         ident_str!("update_commission_percentage").to_owned(),
         vec![],
         vec![bcs::to_bytes(&new_commission_percentage).unwrap()],
-    ))
-}
-
-/// Pre-condition: `cumulative_unlocked_fraction` should be zero, which would indicate that even
-/// though there are principle stake holders, none of those have yet called `unlock` on the pool
-/// thus it is ``safe'' to change the schedule
-/// This is a temporary measure to allow Supra Foundation to change the schedule for those pools
-/// there were initialized with ``dummy/default'' schedule. This method must be disabled
-/// before external validators are allowed to join the validator set.
-pub fn pbo_delegation_pool_update_unlocking_schedule(
-    pool_address: AccountAddress,
-    unlock_numerators: Vec<u64>,
-    unlock_denominator: u64,
-    unlock_start_time: u64,
-    unlock_duration: u64,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("pbo_delegation_pool").to_owned(),
-        ),
-        ident_str!("update_unlocking_schedule").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&pool_address).unwrap(),
-            bcs::to_bytes(&unlock_numerators).unwrap(),
-            bcs::to_bytes(&unlock_denominator).unwrap(),
-            bcs::to_bytes(&unlock_start_time).unwrap(),
-            bcs::to_bytes(&unlock_duration).unwrap(),
-        ],
     ))
 }
 
@@ -6138,24 +6078,6 @@ mod decoder {
         }
     }
 
-    pub fn pbo_delegation_pool_update_unlocking_schedule(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(
-                EntryFunctionCall::PboDelegationPoolUpdateUnlockingSchedule {
-                    pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
-                    unlock_numerators: bcs::from_bytes(script.args().get(1)?).ok()?,
-                    unlock_denominator: bcs::from_bytes(script.args().get(2)?).ok()?,
-                    unlock_start_time: bcs::from_bytes(script.args().get(3)?).ok()?,
-                    unlock_duration: bcs::from_bytes(script.args().get(4)?).ok()?,
-                },
-            )
-        } else {
-            None
-        }
-    }
-
     pub fn pbo_delegation_pool_withdraw(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(script) = payload {
             Some(EntryFunctionCall::PboDelegationPoolWithdraw {
@@ -7439,10 +7361,6 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "pbo_delegation_pool_update_commission_percentage".to_string(),
             Box::new(decoder::pbo_delegation_pool_update_commission_percentage),
-        );
-        map.insert(
-            "pbo_delegation_pool_update_unlocking_schedule".to_string(),
-            Box::new(decoder::pbo_delegation_pool_update_unlocking_schedule),
         );
         map.insert(
             "pbo_delegation_pool_withdraw".to_string(),
