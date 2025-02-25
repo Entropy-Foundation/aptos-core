@@ -347,6 +347,36 @@ module supra_framework::automation_registry {
         *borrow_global<AutomationEpochInfo>(@supra_framework)
     }
 
+    #[view]
+    /// Extimates automation fee for the next epoch for specified task occupancey for the cofigured epoch-interval
+    /// referencing the current automation regitry fee parameters, current total occupancey and registry maximum allowed
+    /// occupancey for the next epoch.
+    public fun estimate_automation_fee(task_occupancy: u64) : u64 acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        let registry = borrow_global<AutomationRegistry>(@supra_framework);
+        estimate_automation_fee_with_committed_occupancy(task_occupancy, registry.gas_committed_for_next_epoch)
+    }
+
+    #[view]
+    /// Extimates automation fee the next epoch for specified task occupancey for the cofigured epoch-interval
+    /// referencing the current automation regitry fee parameters, specified total/committed occupancey and registry
+    /// maximum allowed occupancey for the next epoch.
+    public fun estimate_automation_fee_with_committed_occupancy(task_occupancy: u64, committed_occupancy: u64) : u64 acquires AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        let epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
+        let config = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
+        let total_committed_max_gas = committed_occupancy + task_occupancy;
+
+        let congestion_base_fee_per_sec = calculate_automation_congestion_fee(
+            &config.main_config,
+            (total_committed_max_gas as u256),
+            config.next_epoch_registry_max_gas_cap);
+        calculate_automation_fee_for_interval(
+            epoch_info.epoch_interval,
+            task_occupancy,
+            config.main_config.automation_base_fee_in_quants_per_sec,
+            congestion_base_fee_per_sec,
+            config.next_epoch_registry_max_gas_cap)
+    }
+
 
     /// Asserts that SUPRA_NATIVE_AUTOMATION feature flag is enabled.
     fun assert_feature_enabled() {
@@ -549,7 +579,7 @@ module supra_framework::automation_registry {
         include_cancelled_task: bool
     ): vector<AutomationTaskFee> {
         // Compute the automation congestion fee (acf) for the epoch
-        let acf = calculate_automation_congestion_fee(arc, tcmg);
+        let acf = calculate_automation_congestion_fee(arc, tcmg, arc.registry_max_gas_cap);
         let task_with_fees = vector[];
 
         // Process each active task and calculate fee for the epoch for the tasks
@@ -577,27 +607,46 @@ module supra_framework::automation_registry {
         current_time: u64,
         acf: u256
     ): u64 {
-        let abf = (arc.automation_base_fee_in_quants_per_sec as u256);
-        let max_gas_cap = (arc.registry_max_gas_cap as u256);
-
         if (task.expiry_time <= current_time) { return 0 };
         // Subtraction is safe here, as we already excluded expired tasks
         let remaining_time = task.expiry_time - current_time;
-        let min_interval = (math64::min(remaining_time, interval) as u256);
-        let task_occupancy_ratio_by_duration = (min_interval * upscale_from_u64(task.max_gas_amount)) / max_gas_cap;
+        let min_interval = math64::min(remaining_time, interval);
+        calculate_automation_fee_for_interval(
+            min_interval,
+            task.max_gas_amount,
+            arc.automation_base_fee_in_quants_per_sec,
+            acf,
+            arc.registry_max_gas_cap)
+    }
+
+    /// Calculates automation task fees for a single task at the time of new epoch.
+    /// This is supposed to be called only after removing expired task and must not be called for expired task.
+    /// It's return calculated task for the epoch (sum of automation fee + congestion fee)
+    fun calculate_automation_fee_for_interval(
+        interval: u64,
+        task_occupancey: u64,
+        automation_base_fee_per_sec: u64,
+        congenstion_base_fee_per_sec: u256,
+        registry_max_gas_cap: u64,
+    ): u64 {
+        let abf = (automation_base_fee_per_sec as u256);
+        let max_gas_cap = (registry_max_gas_cap as u256);
+
+        let duration = (interval as u256);
+        let task_occupancy_ratio_by_duration = (duration * upscale_from_u64(task_occupancey)) / max_gas_cap;
 
         // Compute the base automation fee (taf). Total automation fee for the interval
         let taf = abf * task_occupancy_ratio_by_duration;
 
         // Compute the congestion fee per task (tcf)
-        let tcf = acf * task_occupancy_ratio_by_duration;
+        let tcf = congenstion_base_fee_per_sec * task_occupancy_ratio_by_duration;
 
         downscale_to_u64(taf + tcf)
     }
 
     /// Calculate automation congestion fee for the epoch
-    fun calculate_automation_congestion_fee(arc: &AutomationRegistryConfig, tcmg: u256): u256 {
-        let max_gas_cap = (arc.registry_max_gas_cap as u256);
+    fun calculate_automation_congestion_fee(arc: &AutomationRegistryConfig, tcmg: u256, registry_max_gas_cap: u64): u256 {
+        let max_gas_cap = (registry_max_gas_cap as u256);
         let threshold_percentage = upscale_from_u8(arc.congestion_threshold_percentage);
 
         // Calculate congestion threshold surplus for the current epoch
@@ -1943,5 +1992,50 @@ module supra_framework::automation_registry {
         let ar = borrow_global<AutomationRegistry>(fwk_address);
         assert!(ar.gas_committed_for_this_epoch == tcmg, 4);
         assert!(ar.gas_committed_for_next_epoch == t1_t2_max_gas, 5);
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafa)]
+    fun check_estimate_api(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry,  AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+        let fwk_address = address_of(framework);
+        let task_max_gas = 10_000_000;
+        // 10/100  * 1000 = 100 - automation_epoch_fee_per_sec, 7200 epoch duration. no congestion fee as threshold is not crossed.
+        let expected_automation_fee = 100 * EPOCH_INTERVAL_FOR_TEST_IN_SECS;
+        let result = estimate_automation_fee(task_max_gas);
+        assert!(result == expected_automation_fee, 1);
+
+        // expected congetion fee with 85 % congestion
+        // 5% surpass, 5/100 * 100(cbf) = 5 (acf), task occupancey 10% epoch interval 7200
+        let expected_congestion_fee = 5 * 10 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
+        let result = estimate_automation_fee_with_committed_occupancy(task_max_gas, 75_000_000);
+        assert!(result == expected_automation_fee + expected_congestion_fee, 2);
+
+        // update next epoch committed max gas to cause the same congestion
+        {
+            let registry = borrow_global_mut<AutomationRegistry>(fwk_address);
+            registry.gas_committed_for_next_epoch = 75_000_000;
+        };
+        let result = estimate_automation_fee(task_max_gas);
+        assert!(result == expected_automation_fee + expected_congestion_fee, 2);
+
+        // update next epoch registry max gas cap to desolve the congestion
+        {
+            let active_config = borrow_global_mut<ActiveAutomationRegistryConfig>(address_of(framework));
+            active_config.next_epoch_registry_max_gas_cap = 200_000_000;
+        };
+
+        // 10/200 * 1000 occupancy - 50 - automation_epoch_fee_per_sec, 7200 epoch duration. no congestion fee as threshold is not crossed.
+        let expected_automation_fee = 50 * EPOCH_INTERVAL_FOR_TEST_IN_SECS;
+        let result = estimate_automation_fee(task_max_gas);
+        assert!(result == expected_automation_fee, 2);
+
+        // expected congetion fee with 86 % congestion
+        // 6% surpass, 6/100 * 100(cbf) = 6 (acf), task occupancey 5% epoch interval 7200
+        let expected_congestion_fee = 6 * 5 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
+        let result = estimate_automation_fee_with_committed_occupancy(task_max_gas, 162_000_000);
+        assert!(result == expected_automation_fee + expected_congestion_fee, 2);
     }
 }
