@@ -3,6 +3,8 @@
 
 use serde::{Deserialize, Serialize};
 use anyhow::{Result, anyhow};
+use crate::chain_id::ChainId;
+
 use super::OnChainConfig;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -16,13 +18,13 @@ pub struct EvmConfigV1 {
 }
 
 impl OnChainEvmConfig {
-    /// TODO: remove, and allow config from genesis parameter.
-    pub fn default_for_test() -> Self {
-        Self::V1(EvmConfigV1 { chain_id: 0x12_3456_7890 })
-    }
-    /// TODO: remove, and allow config from genesis parameter.
-    pub fn default_for_mainnet() -> Self {
-        Self::V1(EvmConfigV1 { chain_id: 0xffff_aaaa_eeee })
+    /// Create a new EvmConfigV1 with the given move chain_id.
+    /// The EVM chain_id is derived from the move chain_id.
+    ///   `evm_chain_id = move_chain_id << 32 | move_chain_id << 16 | move_chain_id`
+    pub fn new_v1(chain_id: ChainId) -> Self {
+        let chain_id = chain_id.id() as u64;
+        let chain_id = chain_id << 32 | chain_id << 16 | chain_id;
+        Self::V1(EvmConfigV1 { chain_id })
     }
 }
 

@@ -168,7 +168,6 @@ impl GenesisInfo {
             &self.execution_config,
             &self.gas_schedule,
             b"test".to_vec(),
-            &OnChainEvmConfig::default_for_test(),
         )
     }
 

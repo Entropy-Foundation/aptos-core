@@ -155,7 +155,8 @@ pub fn encode_supra_mainnet_genesis_transaction(
     let consensus_config = OnChainConsensusConfig::default_for_genesis();
     let execution_config = OnChainExecutionConfig::default_for_genesis();
     let gas_schedule = default_gas_schedule();
-    let evm_config = OnChainEvmConfig::default_for_mainnet();
+    // Derive the EVM config from the chain ID.
+    let evm_config = OnChainEvmConfig::new_v1(chain_id);
     initialize(
         &mut session,
         chain_id,
@@ -248,7 +249,6 @@ pub fn encode_genesis_transaction_for_testnet(
     execution_config: &OnChainExecutionConfig,
     gas_schedule: &GasScheduleV2,
     supra_config_bytes: Vec<u8>,
-    evm_config: &OnChainEvmConfig,
 ) -> Transaction {
     Transaction::GenesisTransaction(WriteSetPayload::Direct(
         encode_genesis_change_set_for_testnet(
@@ -268,7 +268,6 @@ pub fn encode_genesis_transaction_for_testnet(
             execution_config,
             gas_schedule,
             supra_config_bytes,
-            evm_config,
         ),
     ))
 }
@@ -290,10 +289,10 @@ pub fn encode_genesis_change_set_for_testnet(
     execution_config: &OnChainExecutionConfig,
     gas_schedule: &GasScheduleV2,
     supra_config_bytes: Vec<u8>,
-    evm_config: &OnChainEvmConfig,
 ) -> ChangeSet {
     validate_genesis_config(genesis_config);
-
+    // Derive the EVM config from the chain ID. 
+    let evm_config = OnChainEvmConfig::new_v1(chain_id);
     // Create a Move VM session so we can invoke on-chain genesis initializations.
     let mut state_view = GenesisStateView::new();
     for (module_bytes, module) in framework.code_and_compiled_modules() {
@@ -313,7 +312,7 @@ pub fn encode_genesis_change_set_for_testnet(
         execution_config,
         gas_schedule,
         supra_config_bytes,
-        evm_config,
+        &evm_config,
     );
     initialize_features(
         &mut session,
@@ -1211,7 +1210,6 @@ pub fn generate_test_genesis(
         &OnChainExecutionConfig::default_for_genesis(),
         &default_gas_schedule(),
         b"test".to_vec(),
-        &OnChainEvmConfig::default_for_test(),
     );
     (genesis, test_validators)
 }
@@ -1242,7 +1240,6 @@ pub fn generate_mainnet_genesis(
         &OnChainExecutionConfig::default_for_genesis(),
         &default_gas_schedule(),
         b"test".to_vec(),
-        &OnChainEvmConfig::default_for_test(),
     );
     (genesis, test_validators)
 }
