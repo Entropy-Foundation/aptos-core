@@ -122,7 +122,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 
 ## Resource `AutomationRegistryConfig`
 
-Automation registry config
+Automation registry configuration parameters
 
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]
@@ -581,7 +581,7 @@ Event emitted on automation task cancellation by owner.
 
 ## Struct `TaskCancelledInsufficentBalance`
 
-Event emitted when an automation task is canceled due to insufficient balance.
+Event emitted when an automation task is cancelled due to insufficient balance.
 
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]
@@ -622,7 +622,7 @@ Event emitted when an automation task is canceled due to insufficient balance.
 
 ## Struct `TaskCancelledCapacitySurpassed`
 
-Event emitted when an automation task is canceled due to automation fee capacity surpass.
+Event emitted when an automation task is cancelled due to automation fee capacity surpass.
 
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]
@@ -870,7 +870,7 @@ Invalid max gas amount for automated task: it cannot be zero
 
 <a id="0x1_automation_registry_EINVALID_TXN_HASH"></a>
 
-Transactoin hash that registring current task is invalid. Lenght should be 32.
+Transaction hash that registering current task is invalid. Length should be 32.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_TXN_HASH">EINVALID_TXN_HASH</a>: u64 = 9;
@@ -960,7 +960,7 @@ Registry resource creation seed
 
 <a id="0x1_automation_registry_TXN_HASH_LENGTH"></a>
 
-The lenght of the transaction hash.
+The length of the transaction hash.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_TXN_HASH_LENGTH">TXN_HASH_LENGTH</a>: u64 = 32;
@@ -1386,9 +1386,9 @@ Get automation epoch info
 
 ## Function `estimate_automation_fee`
 
-Extimates automation fee for the next epoch for specified task occupancey for the cofigured epoch-interval
-referencing the current automation regitry fee parameters, current total occupancey and registry maximum allowed
-occupancey for the next epoch.
+Estimates automation fee for the next epoch for specified task occupancy for the configured epoch-interval
+referencing the current automation registry fee parameters, current total occupancy and registry maximum allowed
+occupancy for the next epoch.
 
 
 <pre><code>#[view]
@@ -1415,9 +1415,9 @@ occupancey for the next epoch.
 
 ## Function `estimate_automation_fee_with_committed_occupancy`
 
-Extimates automation fee the next epoch for specified task occupancey for the cofigured epoch-interval
-referencing the current automation regitry fee parameters, specified total/committed occupancey and registry
-maximum allowed occupancey for the next epoch.
+Estimates automation fee the next epoch for specified task occupancy for the configured epoch-interval
+referencing the current automation registry fee parameters, specified total/committed occupancy and registry
+maximum allowed occupancy for the next epoch.
 
 
 <pre><code>#[view]
@@ -1562,7 +1562,7 @@ On new epoch this function will be triggered and update the automation registry 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     // Unless registry in initialized, registry will not be updated on new epoch.
-    // Here we need <b>to</b> be carefull <b>as</b> well. If the feature is disabled for the current epoch then
+    // Here we need <b>to</b> be careful <b>as</b> well. If the feature is disabled for the current epoch then
     //  - refund for the previous epoch should be done,
     //  - cleanup of the expired/cancelled task should be done
     //  - but no charges for the current epoch should be collected.
@@ -1587,21 +1587,24 @@ On new epoch this function will be triggered and update the automation registry 
         current_time
     );
 
-    // Apply the latest configuration <b>if</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> parameter <b>has</b> been updated.
+    // Apply the latest configuration <b>if</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> parameter <b>has</b> been updated
+    // only after refund <b>has</b> been done for previous epoch.
     <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>();
+
+    // If feature is not enabled then we are not charging and tasks are cleared.
+    <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>()) {
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = 0;
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees = 0;
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch = 0;
+        automation_epoch_info.start_time = current_time;
+        automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
+        <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_clear">enumerable_map::clear</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
+        <b>return</b>
+    };
 
     // Accumulated maximum gas amount of the registered tasks for the current epoch
     <b>let</b> tcmg = <a href="automation_registry.md#0x1_automation_registry_cleanup_and_activate_tasks">cleanup_and_activate_tasks</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>, current_time);
 
-    // If feature is not enabled then we are not charging and doing <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> extra calculation <b>except</b> cleanup.
-    <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>()) {
-        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = 0;
-        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees = 0;
-        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch = tcmg;
-        automation_epoch_info.start_time = current_time;
-        automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
-        <b>return</b>
-    };
 
     <b>let</b> tasks_automation_fees = <a href="automation_registry.md#0x1_automation_registry_calculate_tasks_automation_fees">calculate_tasks_automation_fees</a>(
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
@@ -1724,7 +1727,7 @@ Processes refunds for automation task fees.
 
 ## Function `cleanup_and_activate_tasks`
 
-Cleanup and actiavete the automation task also it's calculate and return total committed max gas
+Cleanup and activate the automation task also it's calculate and return total committed max gas
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_cleanup_and_activate_tasks">cleanup_and_activate_tasks</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, current_time: u64): u256
@@ -1860,7 +1863,7 @@ This is supposed to be called only after removing expired task and must not be c
 It's return calculated task for the epoch (sum of automation fee + congestion fee)
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_for_interval">calculate_automation_fee_for_interval</a>(interval: u64, task_occupancey: u64, automation_base_fee_per_sec: u64, congenstion_base_fee_per_sec: u256, registry_max_gas_cap: u64): u64
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_for_interval">calculate_automation_fee_for_interval</a>(interval: u64, task_occupancy: u64, automation_base_fee_per_sec: u64, congestion_base_fee_per_sec: u256, registry_max_gas_cap: u64): u64
 </code></pre>
 
 
@@ -1871,22 +1874,22 @@ It's return calculated task for the epoch (sum of automation fee + congestion fe
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_for_interval">calculate_automation_fee_for_interval</a>(
     interval: u64,
-    task_occupancey: u64,
+    task_occupancy: u64,
     automation_base_fee_per_sec: u64,
-    congenstion_base_fee_per_sec: u256,
+    congestion_base_fee_per_sec: u256,
     registry_max_gas_cap: u64,
 ): u64 {
     <b>let</b> abf = (automation_base_fee_per_sec <b>as</b> u256);
     <b>let</b> max_gas_cap = (registry_max_gas_cap <b>as</b> u256);
 
     <b>let</b> duration = (interval <b>as</b> u256);
-    <b>let</b> task_occupancy_ratio_by_duration = (duration * <a href="automation_registry.md#0x1_automation_registry_upscale_from_u64">upscale_from_u64</a>(task_occupancey)) / max_gas_cap;
+    <b>let</b> task_occupancy_ratio_by_duration = (duration * <a href="automation_registry.md#0x1_automation_registry_upscale_from_u64">upscale_from_u64</a>(task_occupancy)) / max_gas_cap;
 
     // Compute the base automation fee (taf). Total automation fee for the interval
     <b>let</b> taf = abf * task_occupancy_ratio_by_duration;
 
     // Compute the congestion fee per task (tcf)
-    <b>let</b> tcf = congenstion_base_fee_per_sec * task_occupancy_ratio_by_duration;
+    <b>let</b> tcf = congestion_base_fee_per_sec * task_occupancy_ratio_by_duration;
 
     <a href="automation_registry.md#0x1_automation_registry_downscale_to_u64">downscale_to_u64</a>(taf + tcf)
 }
@@ -2252,7 +2255,7 @@ Registers a new automation task entry.
     <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_add_value">enumerable_map::add_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index, automation_task_metadata);
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index + 1;
 
-    // Charge flate registration fee from the user at the time of registration
+    // Charge flat registration fee from the user at the time of registration
     <b>let</b> fee = automation_registry_config.main_config.flat_registration_fee_in_quants;
     <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(owner_signer, <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address, fee);
 
@@ -2307,7 +2310,7 @@ Registers a new automation task entry.
 ## Function `cancel_task`
 
 Cancel Automation task with specified task_index.
-Only existing task, which is PENDING or ACTIVE, can be cancled and only by task onwer.
+Only existing task, which is PENDING or ACTIVE, can be cancelled and only by task owner.
 If the task is
 - active, its state is updated to be CANCELLED.
 - pending, it is removed form the list.

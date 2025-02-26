@@ -148,7 +148,7 @@ pub enum EntryFunctionCall {
     },
 
     /// Cancel Automation task with specified task_index.
-    /// Only existing task, which is PENDING or ACTIVE, can be cancled and only by task onwer.
+    /// Only existing task, which is PENDING or ACTIVE, can be cancelled and only by task owner.
     /// If the task is
     ///   - active, its state is updated to be CANCELLED.
     ///   - pending, it is removed form the list.
@@ -2259,7 +2259,7 @@ pub fn account_rotate_authentication_key_with_rotation_capability(
 }
 
 /// Cancel Automation task with specified task_index.
-/// Only existing task, which is PENDING or ACTIVE, can be cancled and only by task onwer.
+/// Only existing task, which is PENDING or ACTIVE, can be cancelled and only by task owner.
 /// If the task is
 ///   - active, its state is updated to be CANCELLED.
 ///   - pending, it is removed form the list.
