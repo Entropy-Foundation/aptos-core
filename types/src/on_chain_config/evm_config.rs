@@ -26,6 +26,12 @@ impl OnChainEvmConfig {
         let chain_id = chain_id << 32 | chain_id << 16 | chain_id;
         Self::V1(EvmConfigV1 { chain_id })
     }
+
+    pub fn chain_id(&self) -> u64 {
+        match self {
+            Self::V1(config) => config.chain_id,
+        }
+    }
 }
 
 
