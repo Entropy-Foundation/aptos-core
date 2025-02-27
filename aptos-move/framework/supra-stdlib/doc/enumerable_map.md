@@ -407,6 +407,9 @@ Will clear the entire data from the Enumerable Map
 
 <pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_clear">clear</a>&lt;K: <b>copy</b>+drop, V: store+drop+<b>copy</b>&gt;(map: &<b>mut</b> <a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">EnumerableMap</a>&lt;K, V&gt;) {
     <b>let</b> list = <a href="enumerable_map.md#0x1_enumerable_map_get_map_list">get_map_list</a>(map);
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&list)) {
+        <b>return</b>
+    };
     <a href="enumerable_map.md#0x1_enumerable_map_remove_value_bulk">remove_value_bulk</a>(map, list);
 }
 </code></pre>

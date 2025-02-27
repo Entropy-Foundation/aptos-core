@@ -17,17 +17,19 @@ use aptos_gas_schedule::VMGasParameters;
 use aptos_types::fee_statement::FeeStatement;
 use aptos_types::on_chain_config::FeatureFlag;
 use aptos_types::transaction::automated_transaction::AutomatedTransaction;
-use aptos_types::transaction::{EntryFunction, ExecutionStatus, TransactionAuxiliaryData, TransactionPayload, TransactionStatus};
+use aptos_types::transaction::{
+    EntryFunction, ExecutionStatus, TransactionAuxiliaryData, TransactionPayload, TransactionStatus,
+};
 use aptos_vm_logging::log_schema::AdapterLogSchema;
 use aptos_vm_types::change_set::VMChangeSet;
 use aptos_vm_types::output::VMOutput;
 use aptos_vm_types::storage::change_set_configs::ChangeSetConfigs;
 use aptos_vm_types::storage::StorageGasParameters;
 use fail::fail_point;
+use move_binary_format::errors::Location;
 use move_core_types::vm_status::{StatusCode, VMStatus};
 use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
 use std::ops::Deref;
-use move_binary_format::errors::Location;
 
 pub struct AutomatedTransactionProcessor<'m> {
     aptos_vm: &'m AptosVM,
@@ -84,8 +86,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         log_context: &AdapterLogSchema,
         change_set_configs: &ChangeSetConfigs,
         traversal_context: &mut TraversalContext,
-    ) -> Result<(VMStatus, VMOutput), VMStatus>
-    {
+    ) -> Result<(VMStatus, VMOutput), VMStatus> {
         if self.gas_feature_version() >= 12 {
             // Check if the gas meter's internal counters are consistent.
             //
@@ -128,7 +129,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         Ok((VMStatus::Executed, output))
     }
 
-    fn executed_entry_function<'a, 'r, 'l>(
+    fn execute_entry_function<'a, 'r, 'l>(
         &'l self,
         resolver: &'r impl AptosMoveResolver,
         mut session: UserSession<'r, 'l>,
@@ -275,7 +276,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         // // cache as part of executing transactions. This would allow us to decide whether the cache
         // // should be flushed later.
         let mut new_published_modules_loaded = false;
-        let result = self.executed_entry_function(
+        let result = self.execute_entry_function(
             resolver,
             user_session,
             gas_meter,

@@ -125,6 +125,9 @@ module supra_std::enumerable_map {
     /// Will clear the entire data from the Enumerable Map
     public fun clear<K: copy+drop, V: store+drop+copy>(map: &mut EnumerableMap<K, V>) {
         let list = get_map_list(map);
+        if (vector::is_empty(&list)) {
+            return
+        };
         remove_value_bulk(map, list);
     }
 
@@ -333,6 +336,9 @@ module supra_std::enumerable_map {
         clear(&mut enum_map);
 
         assert!(length(&enum_map) == 0, 2);
+
+        // Empty map clearing does not throw an error
+        clear(&mut enum_map);
 
         move_to(owner, EnumerableMapTest { e: enum_map })
     }
