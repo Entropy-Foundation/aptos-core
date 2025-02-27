@@ -2076,10 +2076,10 @@ module supra_framework::automation_registry {
     ) acquires AutomationRegistry {
         initialize_registry_test(framework, user);
         set_locked_fee(framework, 100_000_000);
-        let withdraw_amout = 99_999_999;
-        let expected_registry_balance = REGISTRY_DEFAULT_BALANCE - withdraw_amout;
-        let expected_user_balance = ACCOUNT_BALANCE + withdraw_amout;
-        withdraw_automation_task_fees(framework, address_of(user), withdraw_amout);
+        let withdraw_amount = 99_999_999;
+        let expected_registry_balance = REGISTRY_DEFAULT_BALANCE - withdraw_amount;
+        let expected_user_balance = ACCOUNT_BALANCE + withdraw_amount;
+        withdraw_automation_task_fees(framework, address_of(user), withdraw_amount);
         check_account_balance(get_registry_fee_address(), expected_registry_balance);
         check_account_balance(address_of(user), expected_user_balance);
     }
@@ -2092,8 +2092,8 @@ module supra_framework::automation_registry {
     ) acquires AutomationRegistry  {
         initialize_registry_test(framework, user);
         set_locked_fee(framework, 100_000_000);
-        let withdraw_amout = REGISTRY_DEFAULT_BALANCE - 80_000_000;
-        withdraw_automation_task_fees(framework, address_of(user), withdraw_amout);
+        let withdraw_amount = REGISTRY_DEFAULT_BALANCE - 80_000_000;
+        withdraw_automation_task_fees(framework, address_of(user), withdraw_amount);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
@@ -2103,7 +2103,6 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistry  {
         initialize_registry_test(framework, user);
-        set_locked_fee(framework, 100_000_000);
         let withdraw_amount = REGISTRY_DEFAULT_BALANCE + 1;
         withdraw_automation_task_fees(framework, address_of(user), withdraw_amount);
     }
