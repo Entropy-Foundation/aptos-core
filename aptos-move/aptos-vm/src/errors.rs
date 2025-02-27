@@ -110,8 +110,7 @@ pub fn convert_prologue_error(
             VMStatus::error(new_major_status, None)
         },
         VMStatus::MoveAbort(location, code) => {
-            let (category, ccode) = error_split(code);
-            let new_major_status = match (category, ccode) {
+            let new_major_status = match error_split(code) {
                 // Invalid authentication key
                 (INVALID_ARGUMENT, EBAD_ACCOUNT_AUTHENTICATION_KEY) => StatusCode::INVALID_AUTH_KEY,
                 // Sequence number too old

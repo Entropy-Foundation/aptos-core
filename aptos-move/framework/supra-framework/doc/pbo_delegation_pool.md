@@ -2264,7 +2264,7 @@ extracted-fee = (amount - extracted-fee) * reward-rate% * (100% - operator-commi
     <b>if</b> (<a href="stake.md#0x1_stake_is_current_epoch_validator">stake::is_current_epoch_validator</a>(pool_address)) {
         <b>let</b> (rewards_rate, rewards_rate_denominator) =
             <a href="staking_config.md#0x1_staking_config_get_reward_rate">staking_config::get_reward_rate</a>(&<a href="staking_config.md#0x1_staking_config_get">staking_config::get</a>());
-        <b>if</b> (rewards_rate_denominator &gt; 0) {
+        <b>if</b> (rewards_rate_denominator != 0) {
             <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_assert_delegation_pool_exists">assert_delegation_pool_exists</a>(pool_address);
 
             rewards_rate = rewards_rate
@@ -2721,13 +2721,13 @@ before external validators are allowed to join the validator set.
     unlock_duration: u64
 ) {
     //Unlock duration can not be zero
-    <b>assert</b>!(unlock_duration &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EPERIOD_DURATION_IS_ZERO">EPERIOD_DURATION_IS_ZERO</a>));
+    <b>assert</b>!(unlock_duration != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EPERIOD_DURATION_IS_ZERO">EPERIOD_DURATION_IS_ZERO</a>));
     //Fraction denominator can not be zero
     <b>assert</b>!(unlock_denominator != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EDENOMINATOR_IS_ZERO">EDENOMINATOR_IS_ZERO</a>));
     <b>let</b> numerator_length = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(unlock_numerators);
     //Fraction numerators can not be empty
     <b>assert</b>!(
-        numerator_length &gt; 0,
+        numerator_length != 0,
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EEMPTY_UNLOCK_SCHEDULE">EEMPTY_UNLOCK_SCHEDULE</a>)
     );
     //First and last numerator can not be zero
@@ -2864,7 +2864,7 @@ Ownership over setting the operator/voter is granted to <code>owner</code> who h
     // initialize the principle <a href="stake.md#0x1_stake">stake</a> <a href="../../aptos-stdlib/doc/table.md#0x1_table">table</a>
     <b>let</b> principle_stake_table = <a href="../../aptos-stdlib/doc/table.md#0x1_table_new">table::new</a>&lt;<b>address</b>, u64&gt;();
     // initialize the principle <a href="stake.md#0x1_stake">stake</a> <a href="../../aptos-stdlib/doc/table.md#0x1_table">table</a>
-    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&delegator_address) &gt; 0) {
+    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&delegator_address) != 0) {
         <b>let</b> delegator = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> delegator_address);
         <b>let</b> <a href="stake.md#0x1_stake">stake</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> principle_stake);
         <a href="../../aptos-stdlib/doc/table.md#0x1_table_add">table::add</a>(&<b>mut</b> principle_stake_table, delegator, <a href="stake.md#0x1_stake">stake</a>);
@@ -2915,7 +2915,7 @@ Ownership over setting the operator/voter is granted to <code>owner</code> who h
     <b>move_to</b>(owner, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPoolOwnership">DelegationPoolOwnership</a> { pool_address });
 
     // Add <a href="stake.md#0x1_stake">stake</a> <b>to</b> each delegator
-    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&delegator_address_copy) &gt; 0) {
+    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&delegator_address_copy) != 0) {
         <b>let</b> delegator = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> delegator_address_copy);
         <b>let</b> <a href="stake.md#0x1_stake">stake</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> principle_stake_copy);
         <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_add_stake_initialization">add_stake_initialization</a>(delegator, pool_address, <a href="stake.md#0x1_stake">stake</a>);
@@ -2976,7 +2976,7 @@ Ownership over setting the operator/voter is granted to <code>owner</code> who h
         stakes,
         |delegator, <a href="stake.md#0x1_stake">stake</a>| {
             // Ignore <b>if</b> <a href="stake.md#0x1_stake">stake</a> <b>to</b> be added is `0`
-            <b>if</b> (<a href="stake.md#0x1_stake">stake</a> &gt; 0) {
+            <b>if</b> (<a href="stake.md#0x1_stake">stake</a> != 0) {
                 // Compute the actual <a href="stake.md#0x1_stake">stake</a> that would be added, `principle_stake` <b>has</b> <b>to</b> be
                 // populated in the <a href="../../aptos-stdlib/doc/table.md#0x1_table">table</a> accordingly
                 <b>if</b> (<a href="../../aptos-stdlib/doc/table.md#0x1_table_contains">table::contains</a>(principle_stake_table, delegator)) {
@@ -4380,7 +4380,7 @@ validator-owners to prevent it from being abused.
             <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ENOT_AUTHORIZED">ENOT_AUTHORIZED</a>)
         );
     };
-    <b>assert</b>!(amount &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EWITHDRAW_ZERO_STAKE">EWITHDRAW_ZERO_STAKE</a>));
+    <b>assert</b>!(amount != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EWITHDRAW_ZERO_STAKE">EWITHDRAW_ZERO_STAKE</a>));
     <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_withdraw_internal">withdraw_internal</a>(
         <b>borrow_global_mut</b>&lt;<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>&gt;(pool_address),
         delegator_address,
@@ -4983,7 +4983,7 @@ Withdraw <code>amount</code> of owned inactive stake from the delegation pool at
 <pre><code><b>public</b> entry <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_withdraw">withdraw</a>(
     delegator: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, pool_address: <b>address</b>, amount: u64
 ) <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_GovernanceRecords">GovernanceRecords</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_BeneficiaryForOperator">BeneficiaryForOperator</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_NextCommissionPercentage">NextCommissionPercentage</a> {
-    <b>assert</b>!(amount &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EWITHDRAW_ZERO_STAKE">EWITHDRAW_ZERO_STAKE</a>));
+    <b>assert</b>!(amount != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EWITHDRAW_ZERO_STAKE">EWITHDRAW_ZERO_STAKE</a>));
     // Synchronize the delegation and <a href="stake.md#0x1_stake">stake</a> pools before <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> user operation.
     <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_synchronize_delegation_pool">synchronize_delegation_pool</a>(pool_address);
     <b>let</b> delegator_address = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(delegator);
