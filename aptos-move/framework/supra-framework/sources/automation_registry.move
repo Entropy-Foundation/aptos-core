@@ -436,9 +436,8 @@ module supra_framework::automation_registry {
     public(friend) fun on_new_epoch() acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
         // Unless registry in initialized, registry will not be updated on new epoch.
         // Here we need to be careful as well. If the feature is disabled for the current epoch then
-        //  - refund for the previous epoch should be done,
-        //  - cleanup of the expired/cancelled task should be done
-        //  - but no charges for the current epoch should be collected.
+        //  - refund for the previous epoch should be done if any charges has been done.
+        //  - all tasks should be removed from registry state
         // Note that with the current setup feature::on_new_epoch is called before automation_registry::on_new_epoch
         if (!is_initialized()) {
             return
@@ -2087,7 +2086,7 @@ module supra_framework::automation_registry {
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
     #[expected_failure(abort_code = EREQUEST_EXCEEDS_LOCKED_BALANCE, location = Self)]
-    fun check_registry_fee_failed_withdrawal(
+    fun check_registry_fee_failed_withdrawal_locked_balance(
         framework: &signer,
         user: &signer
     ) acquires AutomationRegistry  {
@@ -2105,8 +2104,8 @@ module supra_framework::automation_registry {
     ) acquires AutomationRegistry  {
         initialize_registry_test(framework, user);
         set_locked_fee(framework, 100_000_000);
-        let withdraw_amout = REGISTRY_DEFAULT_BALANCE + 1;
-        withdraw_automation_task_fees(framework, address_of(user), withdraw_amout);
+        let withdraw_amount = REGISTRY_DEFAULT_BALANCE + 1;
+        withdraw_automation_task_fees(framework, address_of(user), withdraw_amount);
     }
 
     #[test]

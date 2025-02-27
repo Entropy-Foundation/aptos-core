@@ -1563,9 +1563,8 @@ On new epoch this function will be triggered and update the automation registry 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     // Unless registry in initialized, registry will not be updated on new epoch.
     // Here we need <b>to</b> be careful <b>as</b> well. If the feature is disabled for the current epoch then
-    //  - refund for the previous epoch should be done,
-    //  - cleanup of the expired/cancelled task should be done
-    //  - but no charges for the current epoch should be collected.
+    //  - refund for the previous epoch should be done <b>if</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> charges <b>has</b> been done.
+    //  - all tasks should be removed from registry state
     // Note that <b>with</b> the current setup feature::on_new_epoch is called before <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">automation_registry::on_new_epoch</a>
     <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>()) {
         <b>return</b>
