@@ -1,13 +1,13 @@
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::aptos_vm::get_or_vm_startup_failure;
+use crate::gas::{make_prod_gas_meter, ProdGasMeter};
+use crate::move_vm_ext::SessionId::Void;
+use crate::AptosVM;
 use aptos_types::state_store::StateView;
 use aptos_types::transaction::{ViewFunction, ViewFunctionOutput};
 use aptos_vm_logging::log_schema::AdapterLogSchema;
-use crate::aptos_vm::get_or_vm_startup_failure;
-use crate::AptosVM;
-use crate::gas::{make_prod_gas_meter, ProdGasMeter};
-use crate::move_vm_ext::SessionId::Void;
 
 /// Move VM with only view function API.
 /// Convenient to use when more than one view function needs to be executed on the same state-view,
@@ -18,31 +18,28 @@ pub struct AptosVMViewer<'t, SV: StateView> {
     log_context: AdapterLogSchema,
 }
 
-impl <'t, SV: StateView> AptosVMViewer<'t, SV> {
+impl<'t, SV: StateView> AptosVMViewer<'t, SV> {
     /// Creates a new VM instance, initializing the runtime environment from the state.
     pub fn new(state_view: &'t SV) -> Self {
         let vm = AptosVM::new(state_view);
         let log_context = AdapterLogSchema::new(state_view.id(), 0);
         Self {
-            vm ,
+            vm,
             state_view,
-            log_context
+            log_context,
         }
     }
 
     fn create_gas_meter(&self, max_gas_amount: u64) -> anyhow::Result<ProdGasMeter> {
-        let vm_gas_params = match get_or_vm_startup_failure(&self.vm.gas_params_internal(), &self.log_context) {
-            Ok(gas_params) => gas_params.vm.clone(),
-            Err(err) => {
-                return Err(anyhow::Error::msg(format!("{}", err)))
-            },
-        };
+        let vm_gas_params =
+            match get_or_vm_startup_failure(&self.vm.gas_params_internal(), &self.log_context) {
+                Ok(gas_params) => gas_params.vm.clone(),
+                Err(err) => return Err(anyhow::Error::msg(format!("{}", err))),
+            };
         let storage_gas_params =
             match get_or_vm_startup_failure(&self.vm.storage_gas_params, &self.log_context) {
                 Ok(gas_params) => gas_params.clone(),
-                Err(err) => {
-                    return Err(anyhow::Error::msg(format!("{}", err)))
-                },
+                Err(err) => return Err(anyhow::Error::msg(format!("{}", err))),
             };
 
         let gas_meter = make_prod_gas_meter(
@@ -60,13 +57,11 @@ impl <'t, SV: StateView> AptosVMViewer<'t, SV> {
         function: ViewFunction,
         max_gas_amount: u64,
     ) -> ViewFunctionOutput {
-
-
         let resolver = self.vm.as_move_resolver(self.state_view);
         let mut session = self.vm.new_session(&resolver, Void, None);
         let mut gas_meter = match self.create_gas_meter(max_gas_amount) {
             Ok(meter) => meter,
-            Err(e) => return ViewFunctionOutput::new(Err(e), 0)
+            Err(e) => return ViewFunctionOutput::new(Err(e), 0),
         };
         let (module_id, func_name, type_args, arguments) = function.into_inner();
 
