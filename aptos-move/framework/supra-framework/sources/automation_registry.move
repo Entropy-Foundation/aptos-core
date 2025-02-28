@@ -108,6 +108,8 @@ module supra_framework::automation_registry {
         congestion_threshold_percentage: u8,
         /// Base fee per second for the full capacity of the automation registry when the congestion threshold is exceeded.
         congestion_base_fee_in_quants_per_sec: u64,
+        /// The congestion fee increases exponentially based on this value, ensuring higher fees as the registry approaches full capacity.
+        congestion_exponent: u64,
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -402,6 +404,7 @@ module supra_framework::automation_registry {
         flat_registration_fee_in_quants: u64,
         congestion_threshold_percentage: u8,
         congestion_base_fee_in_quants_per_sec: u64,
+        congestion_exponent: u64,
     ) {
         system_addresses::assert_supra_framework(supra_framework);
 
@@ -428,6 +431,7 @@ module supra_framework::automation_registry {
                 flat_registration_fee_in_quants,
                 congestion_threshold_percentage,
                 congestion_base_fee_in_quants_per_sec,
+                congestion_exponent,
             },
             next_epoch_registry_max_gas_cap: registry_max_gas_cap
         });
@@ -749,6 +753,7 @@ module supra_framework::automation_registry {
             automation_registry_config.flat_registration_fee_in_quants = buffer.flat_registration_fee_in_quants;
             automation_registry_config.congestion_threshold_percentage = buffer.congestion_threshold_percentage;
             automation_registry_config.congestion_base_fee_in_quants_per_sec = buffer.congestion_base_fee_in_quants_per_sec;
+            automation_registry_config.congestion_exponent = buffer.congestion_exponent;
         };
     }
 
@@ -787,6 +792,7 @@ module supra_framework::automation_registry {
         flat_registration_fee_in_quants: u64,
         congestion_threshold_percentage: u8,
         congestion_base_fee_in_quants_per_sec: u64,
+        congestion_exponent: u64,
     ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationEpochInfo {
         system_addresses::assert_supra_framework(supra_framework);
 
@@ -810,6 +816,7 @@ module supra_framework::automation_registry {
             flat_registration_fee_in_quants,
             congestion_threshold_percentage,
             congestion_base_fee_in_quants_per_sec,
+            congestion_exponent,
         };
         config_buffer::upsert(copy new_automation_registry_config);
 
@@ -986,6 +993,8 @@ module supra_framework::automation_registry {
     #[test_only]
     const CONGESTION_BASE_FEE_TEST: u64 = 100;
     #[test_only]
+    const CONGESTION_EXPONENT_TEST: u64 = 6;
+    #[test_only]
     /// Value defined in microsecond
     const EPOCH_INTERVAL_FOR_TEST_IN_SECS: u64 = 7200;
     #[test_only]
@@ -1019,6 +1028,7 @@ module supra_framework::automation_registry {
             FLAT_REGISTRATION_FEE_TEST,
             CONGESTION_THRESHOLD_TEST,
             CONGESTION_BASE_FEE_TEST,
+            CONGESTION_EXPONENT_TEST,
         );
         let ar = borrow_global<AutomationRegistry>(address_of(supra_framework));
         let resource_signer = account::create_signer_with_capability(
@@ -1161,7 +1171,7 @@ module supra_framework::automation_registry {
         config_buffer::initialize(framework);
         // Next epoch gas committed gas is less than the new limit value.
         // Configuration parameter will update after on new epoch
-        update_config(framework, 1_626_560, 75, 1005, 700000000, 70, 2000);
+        update_config(framework, 1_626_560, 75, 1005, 700000000, 70, 2000, 5);
 
         let state = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
         assert!(state.main_config.registry_max_gas_cap == AUTOMATION_MAX_GAS_TEST, 1);
@@ -1176,6 +1186,7 @@ module supra_framework::automation_registry {
         assert!(state.flat_registration_fee_in_quants == 700000000, 5);
         assert!(state.congestion_threshold_percentage == 70, 6);
         assert!(state.congestion_base_fee_in_quants_per_sec == 2000, 7);
+        assert!(state.congestion_exponent == 5, 8);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
@@ -1203,6 +1214,7 @@ module supra_framework::automation_registry {
             FLAT_REGISTRATION_FEE_TEST,
             CONGESTION_THRESHOLD_TEST,
             CONGESTION_BASE_FEE_TEST,
+            CONGESTION_EXPONENT_TEST,
         );
     }
 
@@ -1221,6 +1233,7 @@ module supra_framework::automation_registry {
             FLAT_REGISTRATION_FEE_TEST,
             CONGESTION_THRESHOLD_TEST,
             CONGESTION_BASE_FEE_TEST,
+            CONGESTION_EXPONENT_TEST,
         );
     }
 
@@ -1806,6 +1819,7 @@ module supra_framework::automation_registry {
             FLAT_REGISTRATION_FEE_TEST,
             CONGESTION_THRESHOLD_TEST / 2,
             CONGESTION_BASE_FEE_TEST / 2,
+            CONGESTION_EXPONENT_TEST,
         );
         // Disable feature in order to avoid charges and check only refunds.
         toggle_feature_flag(framework, false);
