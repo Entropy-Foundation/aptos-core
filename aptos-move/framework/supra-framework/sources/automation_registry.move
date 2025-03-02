@@ -673,9 +673,36 @@ module supra_framework::automation_registry {
         else {
             let threshold_surplus_normalized = (threshold_usage - threshold_percentage) / 100;
             // Compute the automation congestion fee (acf) for the epoch
-            let acf = (arc.congestion_base_fee_in_quants_per_sec as u256) * threshold_surplus_normalized;
+            let threshold_surplus_exponential = calculate_exponentiation(
+                threshold_surplus_normalized,
+                arc.congestion_exponent
+            );
+            let acf = (arc.congestion_base_fee_in_quants_per_sec as u256) * threshold_surplus_exponential;
             downscale_to_u256(acf)
         }
+    }
+
+    /// Calculates (1 + base)^exponent, where `base` is represented with `DECIMAL` decimal places.
+    /// For example, if `base` is 0.5, it should be passed as 0.5 * DECIMAL (i.e., 50000000).
+    /// The result is returned as an integer with `DECIMAL` decimal places.
+    /// - It will return the result of ((1 + base)^exponent-1), scaled by `DECIMAL` (e.g., 103906250 for 1.0390625).
+    fun calculate_exponentiation(base: u256, exponent: u64): u256 {
+        // Add 1 (represented as DECIMAL) to the base
+        let one_scaled = DECIMAL; // 1.0 in DECIMAL representation
+        let adjusted_base = base + one_scaled; // (1 + base) in DECIMAL representation
+
+        // Initialize result as 1 (represented in DECIMAL)
+        let result = one_scaled;
+
+        // Perform exponential calculation using integer arithmetic
+        let i: u64 = 0;
+        while (i < exponent) {
+            result = result * adjusted_base / DECIMAL; // Adjust for decimal places
+            i = i + 1;
+        };
+
+        // Subtract the initial added 1 (DECIMAL) to get the final result
+        result - one_scaled
     }
 
     /// Processes automation task fees by checking user balances and task's commitment on automation-fee, i.e. automation-fee-cap
@@ -1670,8 +1697,8 @@ module supra_framework::automation_registry {
 
         // 85/100 * 1000 = 850 - automation_epoch_fee_per_second, 7200 epoch duration
         let expected_automation_fee = EPOCH_INTERVAL_FOR_TEST_IN_SECS * 850;
-        // 5% surpasses the threshold, 5/100 * 100 = 5 congestion base fee, occupancy 85/100, 7200 epoch duration
-        let expected_congestion_fee = 5 * 85 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
+        // 5% surpasses the threshold, ((1+(5/100))^exponent-1) * 100 = 34 congestion base fee, occupancy 85/100, 7200 epoch duration
+        let expected_congestion_fee = 34 * 85 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
         let expected_epoch_fee = expected_automation_fee + expected_congestion_fee;
         // check user balance after on new epoch fee applied
         check_account_balance(user_address, expected_current_balance - expected_epoch_fee);
@@ -1715,8 +1742,8 @@ module supra_framework::automation_registry {
 
         // 44/100 * 1000 = 440 - automation_epoch_fee_per_second, 7200 epoch duration
         let expected_automation_fee_per_task = EPOCH_INTERVAL_FOR_TEST_IN_SECS * 440;
-        // 8% surpasses the threshold, 8/100 * 100 = 8 congestion base fee, occupancy 44/100, 7200 epoch duration
-        let expected_congestion_fee_per_task = 8 * 44 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
+        // 8% surpasses the threshold, ((1+(8/100))^exponent-1) * 100 = 58 congestion base fee, occupancy 44/100, 7200 epoch duration
+        let expected_congestion_fee_per_task = 58 * 44 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
         let fwk_address = address_of(framework);
         let user_address = address_of(user);
 
@@ -1831,8 +1858,8 @@ module supra_framework::automation_registry {
 
         // 44/100 * 1000 = 440 - automation_epoch_fee_per_second, 7200 epoch duration
         let expected_automation_fee_per_task = EPOCH_INTERVAL_FOR_TEST_IN_SECS * 440;
-        // 8% surpasses the threshold, 8/100 * 100 = 8 congestion base fee, occupancy 44/100, 7200 epoch duration
-        let expected_congestion_fee_per_task = 8 * 44 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
+        // 8% surpasses the threshold, ((1+(8/100))^exponent-1) * 100 = 58 congestion base fee, occupancy 44/100, 7200 epoch duration
+        let expected_congestion_fee_per_task = 58 * 44 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
         // Epoch cut short 2 times
 
         // Refund is expected
@@ -1895,8 +1922,8 @@ module supra_framework::automation_registry {
 
         // 44/100 * 1000 = 440 - automation_epoch_fee_per_second, 7200 epoch duration
         let expected_automation_fee_per_task = EPOCH_INTERVAL_FOR_TEST_IN_SECS * 440;
-        // 8% surpasses the threshold, 8/100 * 100 = 8 congestion base fee, occupancy 44/100, 7200 epoch duration
-        let expected_congestion_fee_per_task = 8 * 44 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
+        // 8% surpasses the threshold, ((1+(8/100))^exponent-1) * 100 = 58 congestion base fee, occupancy 44/100, 7200 epoch duration
+        let expected_congestion_fee_per_task = 58 * 44 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
         // Epoch cut short 2 times
         let fwk_address = address_of(framework);
 
@@ -2012,8 +2039,8 @@ module supra_framework::automation_registry {
         // TASK 1 and 2 expected epoch fee calculation
         // 44/100 * 1000 = 440 - automation_epoch_fee_per_second, 7200 epoch duration
         let expected_automation_fee_for_t1_2 = EPOCH_INTERVAL_FOR_TEST_IN_SECS * 440;
-        // 18% surpasses the threshold, 18/100 * 100(cbf) = 18 congestion base fee, occupancy 44/100, 7200 epoch duration
-        let expected_congestion_fee_for_t1_2 = 18 * 44 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
+        // 18% surpasses the threshold, ((1+(18/100))^exponent-1) * 100 = 169 congestion base fee, occupancy 44/100, 7200 epoch duration
+        let expected_congestion_fee_for_t1_2 = 169 * 44 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
         let expected_epoch_fee_for_t1_2 = expected_automation_fee_for_t1_2 + expected_congestion_fee_for_t1_2;
 
         // 3 tasks have been registered
@@ -2064,8 +2091,8 @@ module supra_framework::automation_registry {
         assert!(result == expected_automation_fee, 1);
 
         // expected congestion fee with 85 % congestion
-        // 5% surpass, 5/100 * 100(cbf) = 5 (acf), task occupancy 10% epoch interval 7200
-        let expected_congestion_fee = 5 * 10 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
+        // 5% surpass, ((1+(5/100))^exponent-1) * 100 = 34 (acf), task occupancy 10% epoch interval 7200
+        let expected_congestion_fee = 34 * 10 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
         let result = estimate_automation_fee_with_committed_occupancy(task_max_gas, 75_000_000);
         assert!(result == expected_automation_fee + expected_congestion_fee, 2);
 
@@ -2089,8 +2116,8 @@ module supra_framework::automation_registry {
         assert!(result == expected_automation_fee, 2);
 
         // expected congestion fee with 86 % congestion
-        // 6% surpass, 6/100 * 100(cbf) = 6 (acf), task occupancy 5% epoch interval 7200
-        let expected_congestion_fee = 6 * 5 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
+        // 6% surpass, ((1+(6/100))^exponent-1) * 100 = 41 (acf), task occupancy 5% epoch interval 7200
+        let expected_congestion_fee = 41 * 5 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
         let result = estimate_automation_fee_with_committed_occupancy(task_max_gas, 162_000_000);
         assert!(result == expected_automation_fee + expected_congestion_fee, 2);
     }
@@ -2168,5 +2195,20 @@ module supra_framework::automation_registry {
             assert!(i + 1 == item.task_index, i);
             i = i + 1;
         };
+    }
+
+    #[test]
+    fun check_calculate_exponentiation() {
+        // 5% threshould which means (5/100) * DECIMAL
+        let result = calculate_exponentiation(5 * DECIMAL / 100, CONGESTION_EXPONENT_TEST);
+        assert!(result == 34009563, 11); // ~0.34
+
+        // 28% threshould which means (28/100) * DECIMAL
+        let result = calculate_exponentiation(28 * DECIMAL / 100, CONGESTION_EXPONENT_TEST);
+        assert!(result == 339804650, 12); // ~3.39
+
+        // 50% threshould which means (50/100) * DECIMAL
+        let result = calculate_exponentiation(50 * DECIMAL / 100, CONGESTION_EXPONENT_TEST);
+        assert!(result == 1039062500, 13); // ~10.39
     }
 }
