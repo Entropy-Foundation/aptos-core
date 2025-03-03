@@ -65,6 +65,8 @@ module supra_framework::automation_registry {
     const EUNACCEPTABLE_TASK_DURATION_CAP: u64 = 18;
     /// Congestion threshold should not exceed 100
     const MAX_CONGESTION_THRESHOLD: u64 = 19;
+    /// Congestion exponent must be non-zero
+    const CONGESTION_EXP_NON_ZERO: u64 = 20;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -409,6 +411,7 @@ module supra_framework::automation_registry {
     ) {
         system_addresses::assert_supra_framework(supra_framework);
         assert!(congestion_threshold_percentage < 100, MAX_CONGESTION_THRESHOLD);
+        assert!(congestion_exponent > 0, CONGESTION_EXP_NON_ZERO);
 
         let (registry_fee_resource_signer, registry_fee_address_signer_cap) = account::create_resource_account(
             supra_framework,
@@ -839,6 +842,7 @@ module supra_framework::automation_registry {
         );
 
         assert!(congestion_threshold_percentage < 100, MAX_CONGESTION_THRESHOLD);
+        assert!(congestion_exponent > 0, CONGESTION_EXP_NON_ZERO);
 
         let new_automation_registry_config = AutomationRegistryConfig {
             task_duration_cap_in_secs,
@@ -1284,6 +1288,25 @@ module supra_framework::automation_registry {
             150,
             CONGESTION_BASE_FEE_TEST,
             CONGESTION_EXPONENT_TEST,
+        );
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = CONGESTION_EXP_NON_ZERO, location = Self)]
+    fun check_config_udpate_with_invalid_congestion_exponent(
+        framework: &signer, user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+        // Specified task duration cap is less than epoch length
+        update_config(
+            framework,
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS + 1,
+            AUTOMATION_MAX_GAS_TEST,
+            AUTOMATION_BASE_FEE_TEST,
+            FLAT_REGISTRATION_FEE_TEST,
+            CONGESTION_THRESHOLD_TEST,
+            CONGESTION_BASE_FEE_TEST,
+            0,
         );
     }
 

@@ -755,6 +755,16 @@ Insufficient balance in the resource wallet for withdrawal
 
 
 
+<a id="0x1_automation_registry_CONGESTION_EXP_NON_ZERO"></a>
+
+Congestion exponent must be non-zero
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_CONGESTION_EXP_NON_ZERO">CONGESTION_EXP_NON_ZERO</a>: u64 = 20;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_DECIMAL"></a>
 
 Decimal place to make
@@ -2237,6 +2247,7 @@ Update Automation Registry Config
     );
 
     <b>assert</b>!(congestion_threshold_percentage &lt; 100, <a href="automation_registry.md#0x1_automation_registry_MAX_CONGESTION_THRESHOLD">MAX_CONGESTION_THRESHOLD</a>);
+    <b>assert</b>!(congestion_exponent &gt; 0, <a href="automation_registry.md#0x1_automation_registry_CONGESTION_EXP_NON_ZERO">CONGESTION_EXP_NON_ZERO</a>);
 
     <b>let</b> new_automation_registry_config = <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
         task_duration_cap_in_secs,
