@@ -179,7 +179,7 @@ Automation registry configuration parameters
  Base fee per second for the full capacity of the automation registry when the congestion threshold is exceeded.
 </dd>
 <dt>
-<code>congestion_exponent: u64</code>
+<code>congestion_exponent: u8</code>
 </dt>
 <dd>
  The congestion fee increases exponentially based on this value, ensuring higher fees as the registry approaches full capacity.
@@ -1506,7 +1506,7 @@ Asserts that SUPRA_NATIVE_AUTOMATION feature flag is enabled.
 Initialization of Automation Registry with configuration parameters is expected metrics.
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u64)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8)
 </code></pre>
 
 
@@ -1524,9 +1524,10 @@ Initialization of Automation Registry with configuration parameters is expected 
     flat_registration_fee_in_quants: u64,
     congestion_threshold_percentage: u8,
     congestion_base_fee_in_quants_per_sec: u64,
-    congestion_exponent: u64,
+    congestion_exponent: u8,
 ) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
+    <b>assert</b>!(congestion_threshold_percentage &lt; 100, <a href="automation_registry.md#0x1_automation_registry_MAX_CONGESTION_THRESHOLD">MAX_CONGESTION_THRESHOLD</a>);
 
     <b>let</b> (registry_fee_resource_signer, registry_fee_address_signer_cap) = <a href="account.md#0x1_account_create_resource_account">account::create_resource_account</a>(
         supra_framework,
@@ -1976,7 +1977,7 @@ The result is returned as an integer with <code><a href="automation_registry.md#
 - It will return the result of ((1 + base)^exponent-1), scaled by <code><a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a></code> (e.g., 103906250 for 1.0390625).
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_exponentiation">calculate_exponentiation</a>(base: u256, exponent: u64): u256
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_exponentiation">calculate_exponentiation</a>(base: u256, exponent: u8): u256
 </code></pre>
 
 
@@ -1985,7 +1986,7 @@ The result is returned as an integer with <code><a href="automation_registry.md#
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_exponentiation">calculate_exponentiation</a>(base: u256, exponent: u64): u256 {
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_exponentiation">calculate_exponentiation</a>(base: u256, exponent: u8): u256 {
     // Add 1 (represented <b>as</b> <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>) <b>to</b> the base
     <b>let</b> one_scaled = <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>; // 1.0 in <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> representation
     <b>let</b> adjusted_base = base + one_scaled; // (1 + base) in <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> representation
@@ -1994,7 +1995,7 @@ The result is returned as an integer with <code><a href="automation_registry.md#
     <b>let</b> result = one_scaled;
 
     // Perform exponential calculation using integer arithmetic
-    <b>let</b> i: u64 = 0;
+    <b>let</b> i = 0;
     <b>while</b> (i &lt; exponent) {
         result = result * adjusted_base / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>; // Adjust for decimal places
         i = i + 1;
@@ -2201,7 +2202,7 @@ Transfers the specified fee amount from the resource account to the target accou
 Update Automation Registry Config
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u64)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8)
 </code></pre>
 
 
@@ -2218,7 +2219,7 @@ Update Automation Registry Config
     flat_registration_fee_in_quants: u64,
     congestion_threshold_percentage: u8,
     congestion_base_fee_in_quants_per_sec: u64,
-    congestion_exponent: u64,
+    congestion_exponent: u8,
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 

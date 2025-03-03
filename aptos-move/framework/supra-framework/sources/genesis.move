@@ -220,7 +220,7 @@ module supra_framework::genesis {
         flat_registration_fee_in_quants: u64,
         congestion_threshold_percentage: u8,
         congestion_base_fee_in_quants_per_sec: u64,
-        congestion_exponent: u64,
+        congestion_exponent: u8,
     ) {
         let epoch_interval_secs = block::get_epoch_interval_secs();
         automation_registry::initialize(

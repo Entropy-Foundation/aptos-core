@@ -110,7 +110,7 @@ module supra_framework::automation_registry {
         /// Base fee per second for the full capacity of the automation registry when the congestion threshold is exceeded.
         congestion_base_fee_in_quants_per_sec: u64,
         /// The congestion fee increases exponentially based on this value, ensuring higher fees as the registry approaches full capacity.
-        congestion_exponent: u64,
+        congestion_exponent: u8,
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -405,7 +405,7 @@ module supra_framework::automation_registry {
         flat_registration_fee_in_quants: u64,
         congestion_threshold_percentage: u8,
         congestion_base_fee_in_quants_per_sec: u64,
-        congestion_exponent: u64,
+        congestion_exponent: u8,
     ) {
         system_addresses::assert_supra_framework(supra_framework);
         assert!(congestion_threshold_percentage < 100, MAX_CONGESTION_THRESHOLD);
@@ -688,7 +688,7 @@ module supra_framework::automation_registry {
     /// For example, if `base` is 0.5, it should be passed as 0.5 * DECIMAL (i.e., 50000000).
     /// The result is returned as an integer with `DECIMAL` decimal places.
     /// - It will return the result of ((1 + base)^exponent-1), scaled by `DECIMAL` (e.g., 103906250 for 1.0390625).
-    fun calculate_exponentiation(base: u256, exponent: u64): u256 {
+    fun calculate_exponentiation(base: u256, exponent: u8): u256 {
         // Add 1 (represented as DECIMAL) to the base
         let one_scaled = DECIMAL; // 1.0 in DECIMAL representation
         let adjusted_base = base + one_scaled; // (1 + base) in DECIMAL representation
@@ -697,7 +697,7 @@ module supra_framework::automation_registry {
         let result = one_scaled;
 
         // Perform exponential calculation using integer arithmetic
-        let i: u64 = 0;
+        let i = 0;
         while (i < exponent) {
             result = result * adjusted_base / DECIMAL; // Adjust for decimal places
             i = i + 1;
@@ -821,7 +821,7 @@ module supra_framework::automation_registry {
         flat_registration_fee_in_quants: u64,
         congestion_threshold_percentage: u8,
         congestion_base_fee_in_quants_per_sec: u64,
-        congestion_exponent: u64,
+        congestion_exponent: u8,
     ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationEpochInfo {
         system_addresses::assert_supra_framework(supra_framework);
 
@@ -1024,7 +1024,7 @@ module supra_framework::automation_registry {
     #[test_only]
     const CONGESTION_BASE_FEE_TEST: u64 = 100;
     #[test_only]
-    const CONGESTION_EXPONENT_TEST: u64 = 6;
+    const CONGESTION_EXPONENT_TEST: u8 = 6;
     #[test_only]
     /// Value defined in microsecond
     const EPOCH_INTERVAL_FOR_TEST_IN_SECS: u64 = 7200;
@@ -1869,7 +1869,7 @@ module supra_framework::automation_registry {
             FLAT_REGISTRATION_FEE_TEST,
             CONGESTION_THRESHOLD_TEST / 2,
             CONGESTION_BASE_FEE_TEST / 2,
-            CONGESTION_EXPONENT_TEST,
+            CONGESTION_EXPONENT_TEST - 1,
         );
         // Disable feature in order to avoid charges and check only refunds.
         toggle_feature_flag(framework, false);
@@ -1902,6 +1902,7 @@ module supra_framework::automation_registry {
         assert!(arc.main_config.automation_base_fee_in_quants_per_sec == AUTOMATION_BASE_FEE_TEST / 2, 14);
         assert!(arc.main_config.congestion_threshold_percentage == CONGESTION_THRESHOLD_TEST / 2, 14);
         assert!(arc.main_config.congestion_base_fee_in_quants_per_sec == CONGESTION_BASE_FEE_TEST / 2, 14);
+        assert!(arc.main_config.congestion_exponent == CONGESTION_EXPONENT_TEST - 1, 14);
         // Check that if feature is disabled, cleanup happens and no task is available in the registry.
         assert!(!has_task_with_id(t1), 15);
         assert!(!has_task_with_id(t2), 15);
