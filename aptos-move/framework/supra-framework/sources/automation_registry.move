@@ -63,7 +63,8 @@ module supra_framework::automation_registry {
     const EREQUEST_EXCEEDS_LOCKED_BALANCE: u64 = 17;
     /// Current epoch interval is greater than specified task duration cap.
     const EUNACCEPTABLE_TASK_DURATION_CAP: u64 = 18;
-
+    /// Congestion threshold should not exceed 100
+    const MAX_CONGESTION_THRESHOLD: u64 = 19;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -407,6 +408,7 @@ module supra_framework::automation_registry {
         congestion_exponent: u64,
     ) {
         system_addresses::assert_supra_framework(supra_framework);
+        assert!(congestion_threshold_percentage < 100, MAX_CONGESTION_THRESHOLD);
 
         let (registry_fee_resource_signer, registry_fee_address_signer_cap) = account::create_resource_account(
             supra_framework,
@@ -836,6 +838,8 @@ module supra_framework::automation_registry {
             EUNACCEPTABLE_TASK_DURATION_CAP
         );
 
+        assert!(congestion_threshold_percentage < 100, MAX_CONGESTION_THRESHOLD);
+
         let new_automation_registry_config = AutomationRegistryConfig {
             task_duration_cap_in_secs,
             registry_max_gas_cap,
@@ -1259,6 +1263,25 @@ module supra_framework::automation_registry {
             AUTOMATION_BASE_FEE_TEST,
             FLAT_REGISTRATION_FEE_TEST,
             CONGESTION_THRESHOLD_TEST,
+            CONGESTION_BASE_FEE_TEST,
+            CONGESTION_EXPONENT_TEST,
+        );
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = MAX_CONGESTION_THRESHOLD, location = Self)]
+    fun check_config_udpate_with_max_congestion_threshold(
+        framework: &signer, user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+        // Specified task duration cap is less than epoch length
+        update_config(
+            framework,
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS + 1,
+            AUTOMATION_MAX_GAS_TEST,
+            AUTOMATION_BASE_FEE_TEST,
+            FLAT_REGISTRATION_FEE_TEST,
+            150,
             CONGESTION_BASE_FEE_TEST,
             CONGESTION_EXPONENT_TEST,
         );

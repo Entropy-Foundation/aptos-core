@@ -935,6 +935,16 @@ Unauthorized access: the caller is not the owner of the task
 
 
 
+<a id="0x1_automation_registry_MAX_CONGESTION_THRESHOLD"></a>
+
+Congestion threshold should not exceed 100
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_MAX_CONGESTION_THRESHOLD">MAX_CONGESTION_THRESHOLD</a>: u64 = 19;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_MICROSECS_CONVERSION_FACTOR"></a>
 
 Conversion factor between microseconds and second
@@ -2224,6 +2234,8 @@ Update Automation Registry Config
         automation_epoch_info.epoch_interval &lt; task_duration_cap_in_secs,
         <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_TASK_DURATION_CAP">EUNACCEPTABLE_TASK_DURATION_CAP</a>
     );
+
+    <b>assert</b>!(congestion_threshold_percentage &lt; 100, <a href="automation_registry.md#0x1_automation_registry_MAX_CONGESTION_THRESHOLD">MAX_CONGESTION_THRESHOLD</a>);
 
     <b>let</b> new_automation_registry_config = <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
         task_duration_cap_in_secs,
