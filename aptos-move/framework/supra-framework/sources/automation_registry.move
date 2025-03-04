@@ -858,7 +858,7 @@ module supra_framework::automation_registry {
             EUNACCEPTABLE_TASK_DURATION_CAP
         );
 
-        assert!(congestion_threshold_percentage < 100, MAX_CONGESTION_THRESHOLD);
+        assert!(congestion_threshold_percentage <= 100, MAX_CONGESTION_THRESHOLD);
         assert!(congestion_exponent > 0, CONGESTION_EXP_NON_ZERO);
 
         let new_automation_registry_config = AutomationRegistryConfig {
