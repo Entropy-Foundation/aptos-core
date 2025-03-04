@@ -63,10 +63,16 @@ module supra_framework::automation_registry {
     const EREQUEST_EXCEEDS_LOCKED_BALANCE: u64 = 17;
     /// Current epoch interval is greater than specified task duration cap.
     const EUNACCEPTABLE_TASK_DURATION_CAP: u64 = 18;
-    /// Congestion threshold should not exceed 100
-    const MAX_CONGESTION_THRESHOLD: u64 = 19;
-    /// Congestion exponent must be non-zero
-    const CONGESTION_EXP_NON_ZERO: u64 = 20;
+    /// Congestion threshold should not exceed 100.
+    const EMAX_CONGESTION_THRESHOLD: u64 = 19;
+    /// Congestion exponent must be non-zero.
+    const ECONGESTION_EXP_NON_ZERO: u64 = 20;
+    /// Automation fee capacity for the epoch cannot be zero the task.
+    const EAUTOMATION_FEE_CAP_FOR_EPOCH_NON_ZERO: u64 = 21;
+    /// Automation fee capacity for the epoch should not be less than estimated one.
+    const EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH: u64 = 22;
+    /// Automation registry max gas capacity cannot be zero.
+    const EREGISTRY_MAX_GAS_CAP_NON_ZERO: u64 = 21;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -77,7 +83,9 @@ module supra_framework::automation_registry {
     /// Max U64 value
     const MAX_U64: u128 = 18446744073709551615;
     /// Decimal place to make
-    const DECIMAL: u256 = 100000000; // 10^8 Power
+    const DECIMAL: u256 = 100_000_000; // 10^8 Power
+    /// 100 Percentage
+    const MAX_PERCENTAGE: u8 = 100;
 
     /// Constants describing task state.
     const PENDING: u8 = 0;
@@ -338,6 +346,13 @@ module supra_framework::automation_registry {
     }
 
     #[view]
+    /// Get gas committed for the current epoch at the beginning of the epoch.
+    public fun get_gas_committed_for_current_epoch(): u64 acquires AutomationRegistry {
+        let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
+        (automation_registry.gas_committed_for_this_epoch as u64)
+    }
+
+    #[view]
     /// Get automation registry configuration
     public fun get_automation_registry_config(): AutomationRegistryConfig acquires ActiveAutomationRegistryConfig {
         borrow_global<ActiveAutomationRegistryConfig>(@supra_framework).main_config
@@ -376,18 +391,7 @@ module supra_framework::automation_registry {
     ): u64 acquires AutomationEpochInfo, ActiveAutomationRegistryConfig {
         let epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
         let config = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
-        let total_committed_max_gas = committed_occupancy + task_occupancy;
-
-        let congestion_base_fee_per_sec = calculate_automation_congestion_fee(
-            &config.main_config,
-            (total_committed_max_gas as u256),
-            config.next_epoch_registry_max_gas_cap);
-        calculate_automation_fee_for_interval(
-            epoch_info.epoch_interval,
-            task_occupancy,
-            config.main_config.automation_base_fee_in_quants_per_sec,
-            congestion_base_fee_per_sec,
-            config.next_epoch_registry_max_gas_cap)
+        estimate_automation_fee_with_committed_occupancy_internal(task_occupancy, committed_occupancy, epoch_info, config)
     }
 
 
@@ -396,6 +400,29 @@ module supra_framework::automation_registry {
         assert!(is_feature_enabled(), EDISABLED_AUTOMATION_FEATURE)
     }
 
+
+    /// Estimates automation fee the next epoch for specified task occupancy for the configured epoch-interval
+    /// referencing the current automation registry fee parameters, specified total/committed occupancy and registry
+    /// maximum allowed occupancy for the next epoch.
+    fun estimate_automation_fee_with_committed_occupancy_internal(
+        task_occupancy: u64,
+        committed_occupancy: u64,
+        epoch_info: &AutomationEpochInfo,
+        active_config: &ActiveAutomationRegistryConfig
+    ): u64 {
+        let total_committed_max_gas = committed_occupancy + task_occupancy;
+
+        let congestion_base_fee_per_sec = calculate_automation_congestion_fee(
+            &active_config.main_config,
+            (total_committed_max_gas as u256),
+            active_config.next_epoch_registry_max_gas_cap);
+        calculate_automation_fee_for_interval(
+            epoch_info.epoch_interval,
+            task_occupancy,
+            active_config.main_config.automation_base_fee_in_quants_per_sec,
+            congestion_base_fee_per_sec,
+            active_config.next_epoch_registry_max_gas_cap)
+    }
 
     /// Initialization of Automation Registry with configuration parameters is expected metrics.
     public(friend) fun initialize(
@@ -410,8 +437,10 @@ module supra_framework::automation_registry {
         congestion_exponent: u8,
     ) {
         system_addresses::assert_supra_framework(supra_framework);
-        assert!(congestion_threshold_percentage < 100, MAX_CONGESTION_THRESHOLD);
-        assert!(congestion_exponent > 0, CONGESTION_EXP_NON_ZERO);
+        assert!(congestion_threshold_percentage < MAX_PERCENTAGE, EMAX_CONGESTION_THRESHOLD);
+        assert!(congestion_exponent > 0, ECONGESTION_EXP_NON_ZERO);
+        assert!(task_duration_cap_in_secs > epoch_interval_secs, EUNACCEPTABLE_TASK_DURATION_CAP);
+        assert!(registry_max_gas_cap > 0, EREGISTRY_MAX_GAS_CAP_NON_ZERO);
 
         let (registry_fee_resource_signer, registry_fee_address_signer_cap) = account::create_resource_account(
             supra_framework,
@@ -848,6 +877,7 @@ module supra_framework::automation_registry {
         let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
         let automation_epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
 
+        assert!(registry_max_gas_cap > 0, EREGISTRY_MAX_GAS_CAP_NON_ZERO);
         assert!(
             automation_registry.gas_committed_for_next_epoch < registry_max_gas_cap,
             EUNACCEPTABLE_AUTOMATION_GAS_LIMIT
@@ -858,8 +888,8 @@ module supra_framework::automation_registry {
             EUNACCEPTABLE_TASK_DURATION_CAP
         );
 
-        assert!(congestion_threshold_percentage <= 100, MAX_CONGESTION_THRESHOLD);
-        assert!(congestion_exponent > 0, CONGESTION_EXP_NON_ZERO);
+        assert!(congestion_threshold_percentage <= 100, EMAX_CONGESTION_THRESHOLD);
+        assert!(congestion_exponent > 0, ECONGESTION_EXP_NON_ZERO);
 
         let new_automation_registry_config = AutomationRegistryConfig {
             task_duration_cap_in_secs,
@@ -918,6 +948,18 @@ module supra_framework::automation_registry {
 
         let committed_gas = (committed_gas as u64);
         assert!(committed_gas < automation_registry_config.next_epoch_registry_max_gas_cap, EGAS_AMOUNT_UPPER);
+
+        // Check the automation fee capacity
+        assert!(automation_fee_cap_for_epoch > 0, EAUTOMATION_FEE_CAP_FOR_EPOCH_NON_ZERO);
+        let estimated_automation_fee_for_epoch = estimate_automation_fee_with_committed_occupancy_internal(
+            max_gas_amount,
+            committed_gas,
+            automation_epoch_info,
+            automation_registry_config);
+        assert!(automation_fee_cap_for_epoch >= estimated_automation_fee_for_epoch,
+            EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH
+        );
+
         automation_registry.gas_committed_for_next_epoch = committed_gas;
         let task_index = automation_registry.current_index;
 
@@ -1113,6 +1155,36 @@ module supra_framework::automation_registry {
     }
 
     #[test_only]
+    public fun update_config_for_tests(
+        supra_framework: &signer,
+        task_duration_cap_in_secs: u64,
+        registry_max_gas_cap: u64,
+        automation_base_fee_in_quants_per_sec: u64,
+        flat_registration_fee_in_quants: u64,
+        congestion_threshold_percentage: u8,
+        congestion_base_fee_in_quants_per_sec: u64,
+        congestion_exponent: u8,
+    ) acquires ActiveAutomationRegistryConfig {
+        system_addresses::assert_supra_framework(supra_framework);
+
+        let new_automation_registry_config = AutomationRegistryConfig {
+            task_duration_cap_in_secs,
+            registry_max_gas_cap,
+            automation_base_fee_in_quants_per_sec,
+            flat_registration_fee_in_quants,
+            congestion_threshold_percentage,
+            congestion_base_fee_in_quants_per_sec,
+            congestion_exponent,
+        };
+
+        let automation_registry_config = borrow_global_mut<ActiveAutomationRegistryConfig>(@supra_framework);
+        automation_registry_config.main_config = new_automation_registry_config;
+        automation_registry_config.next_epoch_registry_max_gas_cap = registry_max_gas_cap;
+
+        event::emit(new_automation_registry_config);
+    }
+
+    #[test_only]
     /// Initializes registry and enables SUPRA_NATIVE_AUTOMATION feature flag
     fun initialize_registry_test(supra_framework: &signer, user: &signer) acquires AutomationRegistry {
         initialize_registry_test_partially(supra_framework, user);
@@ -1173,6 +1245,77 @@ module supra_framework::automation_registry {
         assert!(current_balance == expected_balance, current_balance);
     }
 
+    #[test(supra_framework = @supra_framework)]
+    #[expected_failure(abort_code = EUNACCEPTABLE_TASK_DURATION_CAP, location = Self)]
+    fun test_initialization_with_invalid_task_duration(
+        supra_framework: &signer,
+    )  {
+        initialize(
+            supra_framework,
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS,
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS,
+            AUTOMATION_MAX_GAS_TEST,
+            AUTOMATION_BASE_FEE_TEST,
+            FLAT_REGISTRATION_FEE_TEST,
+            CONGESTION_THRESHOLD_TEST,
+            CONGESTION_BASE_FEE_TEST,
+            CONGESTION_EXPONENT_TEST,
+        );
+    }
+
+    #[test(supra_framework = @supra_framework)]
+    #[expected_failure(abort_code = EREGISTRY_MAX_GAS_CAP_NON_ZERO, location = Self)]
+    fun test_initialization_with_invalid_registry_max_gas_cap(
+        supra_framework: &signer,
+    )  {
+        initialize(
+            supra_framework,
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS,
+            2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS,
+            0,
+            AUTOMATION_BASE_FEE_TEST,
+            FLAT_REGISTRATION_FEE_TEST,
+            CONGESTION_THRESHOLD_TEST,
+            CONGESTION_BASE_FEE_TEST,
+            CONGESTION_EXPONENT_TEST,
+        );
+    }
+
+    #[test(supra_framework = @supra_framework)]
+    #[expected_failure(abort_code = ECONGESTION_EXP_NON_ZERO, location = Self)]
+    fun test_initialization_with_invalid_congestion_exponent(
+        supra_framework: &signer,
+    )  {
+        initialize(
+            supra_framework,
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS,
+            2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS,
+            AUTOMATION_MAX_GAS_TEST,
+            AUTOMATION_BASE_FEE_TEST,
+            FLAT_REGISTRATION_FEE_TEST,
+            CONGESTION_THRESHOLD_TEST,
+            CONGESTION_BASE_FEE_TEST,
+            0,
+        );
+    }
+
+    #[test(supra_framework = @supra_framework)]
+    #[expected_failure(abort_code = EMAX_CONGESTION_THRESHOLD, location = Self)]
+    fun test_initialization_with_invalid_threshold_percentage(
+        supra_framework: &signer,
+    )  {
+        initialize(
+            supra_framework,
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS,
+            2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS,
+            AUTOMATION_MAX_GAS_TEST,
+            AUTOMATION_BASE_FEE_TEST,
+            FLAT_REGISTRATION_FEE_TEST,
+            200,
+            CONGESTION_BASE_FEE_TEST,
+            CONGESTION_EXPONENT_TEST,
+        );
+    }
 
     #[test(supra_framework = @supra_framework, user = @0x1cafe)]
     fun test_registry(
@@ -1290,7 +1433,7 @@ module supra_framework::automation_registry {
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
-    #[expected_failure(abort_code = MAX_CONGESTION_THRESHOLD, location = Self)]
+    #[expected_failure(abort_code = EMAX_CONGESTION_THRESHOLD, location = Self)]
     fun check_config_udpate_with_max_congestion_threshold(
         framework: &signer, user: &signer
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
@@ -1309,7 +1452,7 @@ module supra_framework::automation_registry {
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
-    #[expected_failure(abort_code = CONGESTION_EXP_NON_ZERO, location = Self)]
+    #[expected_failure(abort_code = ECONGESTION_EXP_NON_ZERO, location = Self)]
     fun check_config_udpate_with_invalid_congestion_exponent(
         framework: &signer, user: &signer
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
@@ -1324,6 +1467,25 @@ module supra_framework::automation_registry {
             CONGESTION_THRESHOLD_TEST,
             CONGESTION_BASE_FEE_TEST,
             0,
+        );
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = EREGISTRY_MAX_GAS_CAP_NON_ZERO, location = Self)]
+    fun check_config_udpate_with_invalid_registry_max_gas_cap(
+        framework: &signer, user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+        // Specified task duration cap is less than epoch length
+        update_config(
+            framework,
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS + 1,
+            0,
+            AUTOMATION_BASE_FEE_TEST,
+            FLAT_REGISTRATION_FEE_TEST,
+            CONGESTION_THRESHOLD_TEST,
+            CONGESTION_BASE_FEE_TEST,
+            CONGESTION_EXPONENT_TEST,
         );
     }
 
@@ -1460,7 +1622,6 @@ module supra_framework::automation_registry {
         );
     }
 
-
     #[test(framework = @supra_framework, user = @0x1cafe)]
     #[expected_failure(abort_code = EGAS_AMOUNT_UPPER, location = Self)]
     fun check_registration_with_overflow_gas_limit(
@@ -1473,7 +1634,7 @@ module supra_framework::automation_registry {
             86400,
             60000000,
             20,
-            1000,
+            100_000_000,
             PARENT_HASH,
             AUX_DATA
         );
@@ -1484,7 +1645,43 @@ module supra_framework::automation_registry {
             86400,
             50000000,
             20,
-            1000,
+            100_000_000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = EAUTOMATION_FEE_CAP_FOR_EPOCH_NON_ZERO, location = Self)]
+    fun check_registration_with_zero_automation_fee_cap(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+        register(user,
+            PAYLOAD,
+            86400,
+            10,
+            70,
+            0,
+            PARENT_HASH,
+            AUX_DATA,
+        );
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH, location = Self)]
+    fun check_registration_with_insufficient_automation_fee_cap(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+        register(user,
+            PAYLOAD,
+            86400,
+            10_000,
+            70,
+            1,
             PARENT_HASH,
             AUX_DATA
         );
@@ -2084,7 +2281,7 @@ module supra_framework::automation_registry {
             framework,
             user,
             t1_t2_max_gas,
-            1_000_000,
+            10_000_000,
             2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS, ACTIVE);
         let t2 = register_with_state(
             framework,
@@ -2100,11 +2297,23 @@ module supra_framework::automation_registry {
             100_000_000,
             2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS, ACTIVE);
 
+        // Update config to cause automation fee cap overflow for the 1st task
+        update_config_for_tests(framework,
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS,
+            AUTOMATION_MAX_GAS_TEST,
+            AUTOMATION_BASE_FEE_TEST,
+            FLAT_REGISTRATION_FEE_TEST,
+            CONGESTION_THRESHOLD_TEST,
+            CONGESTION_BASE_FEE_TEST * 100,
+            CONGESTION_EXPONENT_TEST,
+        );
+
         // TASK 1 and 2 expected epoch fee calculation
         // 44/100 * 1000 = 440 - automation_epoch_fee_per_second, 7200 epoch duration
         let expected_automation_fee_for_t1_2 = EPOCH_INTERVAL_FOR_TEST_IN_SECS * 440;
-        // 18% surpasses the threshold, ((1+(18/100))^exponent-1) * 100 = 169 congestion base fee, occupancy 44/100, 7200 epoch duration
-        let expected_congestion_fee_for_t1_2 = 169 * 44 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
+        // 18% surpasses the threshold, ((1+(18/100))^exponent-1) * 10000 = 1.6995541 * 10000 congestion base fee,
+        // occupancy 44/100, 7200 epoch duration
+        let expected_congestion_fee_for_t1_2 = 16995 * 44 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
         let expected_epoch_fee_for_t1_2 = expected_automation_fee_for_t1_2 + expected_congestion_fee_for_t1_2;
 
         // 3 tasks have been registered
@@ -2275,4 +2484,5 @@ module supra_framework::automation_registry {
         let result = calculate_exponentiation(50 * DECIMAL / 100, CONGESTION_EXPONENT_TEST);
         assert!(result == 1039062500, 13); // ~10.39
     }
+
 }
