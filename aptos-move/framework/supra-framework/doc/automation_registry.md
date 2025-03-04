@@ -1538,6 +1538,7 @@ Initialization of Automation Registry with configuration parameters is expected 
 ) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
     <b>assert</b>!(congestion_threshold_percentage &lt; 100, <a href="automation_registry.md#0x1_automation_registry_MAX_CONGESTION_THRESHOLD">MAX_CONGESTION_THRESHOLD</a>);
+    <b>assert</b>!(congestion_exponent &gt; 0, <a href="automation_registry.md#0x1_automation_registry_CONGESTION_EXP_NON_ZERO">CONGESTION_EXP_NON_ZERO</a>);
 
     <b>let</b> (registry_fee_resource_signer, registry_fee_address_signer_cap) = <a href="account.md#0x1_account_create_resource_account">account::create_resource_account</a>(
         supra_framework,
@@ -1962,11 +1963,21 @@ Calculate automation congestion fee for the epoch
     <b>if</b> (threshold_usage &lt; threshold_percentage) 0
     <b>else</b> {
         <b>let</b> threshold_surplus_normalized = (threshold_usage - threshold_percentage) / 100;
+
+        // Ensure threshold + threshold_surplus does not exceeds 1 (1 in scaled terms)
+        <b>let</b> threshold_percentage_scaled = threshold_percentage / 100;
+        <b>let</b> threshold_surplus_clip = <b>if</b> ((threshold_surplus_normalized + threshold_percentage_scaled) &gt; <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>) {
+            <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> - threshold_percentage_scaled
+        } <b>else</b> {
+            threshold_surplus_normalized
+        };
         // Compute the automation congestion fee (acf) for the epoch
         <b>let</b> threshold_surplus_exponential = <a href="automation_registry.md#0x1_automation_registry_calculate_exponentiation">calculate_exponentiation</a>(
-            threshold_surplus_normalized,
+            threshold_surplus_clip,
             arc.congestion_exponent
         );
+
+        // Calculate acf by multiplying base fee <b>with</b> exponential result
         <b>let</b> acf = (arc.congestion_base_fee_in_quants_per_sec <b>as</b> u256) * threshold_surplus_exponential;
         <a href="automation_registry.md#0x1_automation_registry_downscale_to_u256">downscale_to_u256</a>(acf)
     }

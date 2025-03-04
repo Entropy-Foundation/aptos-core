@@ -677,11 +677,21 @@ module supra_framework::automation_registry {
         if (threshold_usage < threshold_percentage) 0
         else {
             let threshold_surplus_normalized = (threshold_usage - threshold_percentage) / 100;
+
+            // Ensure threshold + threshold_surplus does not exceeds 1 (1 in scaled terms)
+            let threshold_percentage_scaled = threshold_percentage / 100;
+            let threshold_surplus_clip = if ((threshold_surplus_normalized + threshold_percentage_scaled) > DECIMAL) {
+                DECIMAL - threshold_percentage_scaled
+            } else {
+                threshold_surplus_normalized
+            };
             // Compute the automation congestion fee (acf) for the epoch
             let threshold_surplus_exponential = calculate_exponentiation(
-                threshold_surplus_normalized,
+                threshold_surplus_clip,
                 arc.congestion_exponent
             );
+
+            // Calculate acf by multiplying base fee with exponential result
             let acf = (arc.congestion_base_fee_in_quants_per_sec as u256) * threshold_surplus_exponential;
             downscale_to_u256(acf)
         }
