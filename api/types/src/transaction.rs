@@ -328,12 +328,21 @@ impl
             u64,
         ),
     ) -> Self {
-        // If at some point Aptos will utilize Automated transactions then here we will use as
-        // registration hash(the hash of the transaction which registered this automation task)
-        // transaction hash calculated in Aptos-style,
-        // i.e Transaction::AutomatedTransaction(txn).hash() which is stored in TransactionInfo
+        // AutomatedTranscation has reference to the automation-registration-transaction hash which
+        // is the authenticator of the automated-transaction.
+        // Transaction hash calculated by APTOS differs from transaction hash that smr-moonshot(supra)
+        // calculates for transactions.
+        // In current implementation of AutomationRegistration transaction execution in MoveVM
+        // we are using transaction-hash in supra-style to specify parent-hash/authenticator of
+        // the automation task/automated transaction in order for later to use it as Authenticator
+        // in supra-layer.
+        // Here, when creating meta registration transaction hash in Aptos Style should have been specified,
+        // but it is not possible.
+        // Note: In the execution flow AutomationRegistration transaction hash calculation should be
+        // updated to APTOS style if APTOS DB and API flow is going to be utilized to request automation
+        // registration transaction data.
         Transaction::AutomatedTransaction(Box::new(AutomatedTransaction {
-            meta: (info.hash.clone(), txn, payload).into(),
+            meta: (txn.authenticator(), txn, payload).into(),
             info,
             events,
             timestamp: timestamp.into(),

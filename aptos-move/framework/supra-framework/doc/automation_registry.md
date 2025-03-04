@@ -2264,7 +2264,7 @@ Update Automation Registry Config
         <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_TASK_DURATION_CAP">EUNACCEPTABLE_TASK_DURATION_CAP</a>
     );
 
-    <b>assert</b>!(congestion_threshold_percentage &lt; 100, <a href="automation_registry.md#0x1_automation_registry_MAX_CONGESTION_THRESHOLD">MAX_CONGESTION_THRESHOLD</a>);
+    <b>assert</b>!(congestion_threshold_percentage &lt;= 100, <a href="automation_registry.md#0x1_automation_registry_MAX_CONGESTION_THRESHOLD">MAX_CONGESTION_THRESHOLD</a>);
     <b>assert</b>!(congestion_exponent &gt; 0, <a href="automation_registry.md#0x1_automation_registry_CONGESTION_EXP_NON_ZERO">CONGESTION_EXP_NON_ZERO</a>);
 
     <b>let</b> new_automation_registry_config = <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
