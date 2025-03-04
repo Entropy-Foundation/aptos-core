@@ -12,6 +12,7 @@ const DEFAULT_AUTOMATION_BASE_FEE_IN_QUANTS_PER_SEC: u64 = 1000;
 const ONE_SUPRA_IN_QUANTS: u64 = 100_000_000;
 const DEFAULT_CONGESTION_THRESHOLD_PERCENTAGE: u8 = 80;
 const DEFAULT_CONGESTION_BASE_FEE_IN_QUANTS_PER_SEC: u64 = 100;
+const DEFAULT_CONGESTION_EXPONENT: u8 = 6;
 
 /// Initial version of configuration parameters for Supra native automation feature
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Eq)]
@@ -32,6 +33,8 @@ pub struct AutomationRegistryConfigV1 {
     congestion_threshold_percentage: u8,
     /// Base fee per second for the full capacity of the automation registry when the congestion threshold is exceeded.
     congestion_base_fee_in_quants_per_sec: u64,
+    /// The congestion fee increases exponentially based on this value, ensuring higher fees as the registry approaches full capacity.
+    congestion_exponent: u8,
 }
 
 impl Default for AutomationRegistryConfigV1 {
@@ -43,6 +46,7 @@ impl Default for AutomationRegistryConfigV1 {
             flat_registration_fee_in_quants: ONE_SUPRA_IN_QUANTS,
             congestion_threshold_percentage: DEFAULT_CONGESTION_THRESHOLD_PERCENTAGE,
             congestion_base_fee_in_quants_per_sec: DEFAULT_CONGESTION_BASE_FEE_IN_QUANTS_PER_SEC,
+            congestion_exponent: DEFAULT_CONGESTION_EXPONENT,
         }
     }
 }
@@ -70,8 +74,8 @@ impl AutomationRegistryConfigV1 {
         self.congestion_base_fee_in_quants_per_sec
     }
 
-    pub fn verify(&self) {
-
+    pub fn congestion_exponent(&self) -> u8 {
+        self.congestion_exponent
     }
 }
 
@@ -100,6 +104,7 @@ impl AutomationRegistryConfig {
             MoveValue::U64(config.flat_registration_fee_in_quants()),
             MoveValue::U8(config.congestion_threshold_percentage()),
             MoveValue::U64(config.congestion_base_fee_in_quants_per_sec()),
+            MoveValue::U8(config.congestion_exponent()),
         ];
         serialize_values(&arguments)
     }
