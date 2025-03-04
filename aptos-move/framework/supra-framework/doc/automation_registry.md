@@ -1995,7 +1995,14 @@ Calculate automation congestion fee for the epoch
 Calculates (1 + base)^exponent, where <code>base</code> is represented with <code><a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a></code> decimal places.
 For example, if <code>base</code> is 0.5, it should be passed as 0.5 * DECIMAL (i.e., 50000000).
 The result is returned as an integer with <code><a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a></code> decimal places.
-- It will return the result of ((1 + base)^exponent-1), scaled by <code><a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a></code> (e.g., 103906250 for 1.0390625).
+It will return the result of (((1 + base)^exponent) - 1), scaled by <code><a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a></code> (e.g., 103906250 for 1.0390625).
+The reason for using <code>(1 + base)^exponent</code> is that <code>base</code> would be the fraction by which the congestion threshold is crossed,
+thus highly likely to be less than one. To ensure that as <code>exponent</code> increases, the function increases, <code>1</code> is added.
+In the final result, after <code>(1 + base)^exponent</code> is calculated, <code>1</code> is subtracted so as not to subsume the automation
+base fee in this component. This would allow the freedom to set a multiplier for the automation base fee separately
+from the congestion fee.
+<code>exponent</code> here acts as the degree of the polynomial, therefore an <code>exponent</code> of <code>2</code> or higher
+would allow the congestion fee to increase in a non-linear fashion.
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_exponentiation">calculate_exponentiation</a>(base: u256, exponent: u8): u256

@@ -700,7 +700,14 @@ module supra_framework::automation_registry {
     /// Calculates (1 + base)^exponent, where `base` is represented with `DECIMAL` decimal places.
     /// For example, if `base` is 0.5, it should be passed as 0.5 * DECIMAL (i.e., 50000000).
     /// The result is returned as an integer with `DECIMAL` decimal places.
-    /// - It will return the result of ((1 + base)^exponent-1), scaled by `DECIMAL` (e.g., 103906250 for 1.0390625).
+    /// It will return the result of (((1 + base)^exponent) - 1), scaled by `DECIMAL` (e.g., 103906250 for 1.0390625).
+    /// The reason for using `(1 + base)^exponent` is that `base` would be the fraction by which the congestion threshold is crossed,
+    ///     thus highly likely to be less than one. To ensure that as `exponent` increases, the function increases, `1` is added.
+    ///     In the final result, after `(1 + base)^exponent` is calculated, `1` is subtracted so as not to subsume the automation
+    ///     base fee in this component. This would allow the freedom to set a multiplier for the automation base fee separately
+    ///     from the congestion fee.
+    /// `exponent` here acts as the degree of the polynomial, therefore an `exponent` of `2` or higher
+    ///     would allow the congestion fee to increase in a non-linear fashion.
     fun calculate_exponentiation(base: u256, exponent: u8): u256 {
         // Add 1 (represented as DECIMAL) to the base
         let one_scaled = DECIMAL; // 1.0 in DECIMAL representation
