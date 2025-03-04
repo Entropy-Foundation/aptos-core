@@ -49,6 +49,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `calculate_task_fee`](#0x1_automation_registry_calculate_task_fee)
 -  [Function `calculate_automation_fee_for_interval`](#0x1_automation_registry_calculate_automation_fee_for_interval)
 -  [Function `calculate_automation_congestion_fee`](#0x1_automation_registry_calculate_automation_congestion_fee)
+-  [Function `calculate_exponentiation`](#0x1_automation_registry_calculate_exponentiation)
 -  [Function `try_withdraw_task_automation_fees`](#0x1_automation_registry_try_withdraw_task_automation_fees)
 -  [Function `update_config_from_buffer`](#0x1_automation_registry_update_config_from_buffer)
 -  [Function `withdraw_automation_task_fees`](#0x1_automation_registry_withdraw_automation_task_fees)
@@ -176,6 +177,12 @@ Automation registry configuration parameters
 </dt>
 <dd>
  Base fee per second for the full capacity of the automation registry when the congestion threshold is exceeded.
+</dd>
+<dt>
+<code>congestion_exponent: u8</code>
+</dt>
+<dd>
+ The congestion fee increases exponentially based on this value, ensuring higher fees as the registry approaches full capacity.
 </dd>
 </dl>
 
@@ -748,6 +755,16 @@ Insufficient balance in the resource wallet for withdrawal
 
 
 
+<a id="0x1_automation_registry_CONGESTION_EXP_NON_ZERO"></a>
+
+Congestion exponent must be non-zero
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_CONGESTION_EXP_NON_ZERO">CONGESTION_EXP_NON_ZERO</a>: u64 = 20;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_DECIMAL"></a>
 
 Decimal place to make
@@ -924,6 +941,16 @@ Unauthorized access: the caller is not the owner of the task
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OWNER">EUNAUTHORIZED_TASK_OWNER</a>: u64 = 8;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_MAX_CONGESTION_THRESHOLD"></a>
+
+Congestion threshold should not exceed 100
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_MAX_CONGESTION_THRESHOLD">MAX_CONGESTION_THRESHOLD</a>: u64 = 19;
 </code></pre>
 
 
@@ -1401,7 +1428,9 @@ occupancy for the next epoch.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee">estimate_automation_fee</a>(task_occupancy: u64) : u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee">estimate_automation_fee</a>(
+    task_occupancy: u64
+): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     <b>let</b> registry = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy">estimate_automation_fee_with_committed_occupancy</a>(task_occupancy, registry.gas_committed_for_next_epoch)
 }
@@ -1430,7 +1459,10 @@ maximum allowed occupancy for the next epoch.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy">estimate_automation_fee_with_committed_occupancy</a>(task_occupancy: u64, committed_occupancy: u64) : u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy">estimate_automation_fee_with_committed_occupancy</a>(
+    task_occupancy: u64,
+    committed_occupancy: u64
+): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     <b>let</b> epoch_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
     <b>let</b> config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
     <b>let</b> total_committed_max_gas = committed_occupancy + task_occupancy;
@@ -1484,7 +1516,7 @@ Asserts that SUPRA_NATIVE_AUTOMATION feature flag is enabled.
 Initialization of Automation Registry with configuration parameters is expected metrics.
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8)
 </code></pre>
 
 
@@ -1502,8 +1534,11 @@ Initialization of Automation Registry with configuration parameters is expected 
     flat_registration_fee_in_quants: u64,
     congestion_threshold_percentage: u8,
     congestion_base_fee_in_quants_per_sec: u64,
+    congestion_exponent: u8,
 ) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
+    <b>assert</b>!(congestion_threshold_percentage &lt; 100, <a href="automation_registry.md#0x1_automation_registry_MAX_CONGESTION_THRESHOLD">MAX_CONGESTION_THRESHOLD</a>);
+    <b>assert</b>!(congestion_exponent &gt; 0, <a href="automation_registry.md#0x1_automation_registry_CONGESTION_EXP_NON_ZERO">CONGESTION_EXP_NON_ZERO</a>);
 
     <b>let</b> (registry_fee_resource_signer, registry_fee_address_signer_cap) = <a href="account.md#0x1_account_create_resource_account">account::create_resource_account</a>(
         supra_framework,
@@ -1528,6 +1563,7 @@ Initialization of Automation Registry with configuration parameters is expected 
             flat_registration_fee_in_quants,
             congestion_threshold_percentage,
             congestion_base_fee_in_quants_per_sec,
+            congestion_exponent,
         },
         next_epoch_registry_max_gas_cap: registry_max_gas_cap
     });
@@ -1914,7 +1950,11 @@ Calculate automation congestion fee for the epoch
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_congestion_fee">calculate_automation_congestion_fee</a>(arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>, tcmg: u256, registry_max_gas_cap: u64): u256 {
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_congestion_fee">calculate_automation_congestion_fee</a>(
+    arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
+    tcmg: u256,
+    registry_max_gas_cap: u64
+): u256 {
     <b>let</b> max_gas_cap = (registry_max_gas_cap <b>as</b> u256);
     <b>let</b> threshold_percentage = <a href="automation_registry.md#0x1_automation_registry_upscale_from_u8">upscale_from_u8</a>(arc.congestion_threshold_percentage);
 
@@ -1923,10 +1963,74 @@ Calculate automation congestion fee for the epoch
     <b>if</b> (threshold_usage &lt; threshold_percentage) 0
     <b>else</b> {
         <b>let</b> threshold_surplus_normalized = (threshold_usage - threshold_percentage) / 100;
+
+        // Ensure threshold + threshold_surplus does not exceeds 1 (1 in scaled terms)
+        <b>let</b> threshold_percentage_scaled = threshold_percentage / 100;
+        <b>let</b> threshold_surplus_clip = <b>if</b> ((threshold_surplus_normalized + threshold_percentage_scaled) &gt; <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>) {
+            <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> - threshold_percentage_scaled
+        } <b>else</b> {
+            threshold_surplus_normalized
+        };
         // Compute the automation congestion fee (acf) for the epoch
-        <b>let</b> acf = (arc.congestion_base_fee_in_quants_per_sec <b>as</b> u256) * threshold_surplus_normalized;
+        <b>let</b> threshold_surplus_exponential = <a href="automation_registry.md#0x1_automation_registry_calculate_exponentiation">calculate_exponentiation</a>(
+            threshold_surplus_clip,
+            arc.congestion_exponent
+        );
+
+        // Calculate acf by multiplying base fee <b>with</b> exponential result
+        <b>let</b> acf = (arc.congestion_base_fee_in_quants_per_sec <b>as</b> u256) * threshold_surplus_exponential;
         <a href="automation_registry.md#0x1_automation_registry_downscale_to_u256">downscale_to_u256</a>(acf)
     }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_calculate_exponentiation"></a>
+
+## Function `calculate_exponentiation`
+
+Calculates (1 + base)^exponent, where <code>base</code> is represented with <code><a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a></code> decimal places.
+For example, if <code>base</code> is 0.5, it should be passed as 0.5 * DECIMAL (i.e., 50000000).
+The result is returned as an integer with <code><a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a></code> decimal places.
+It will return the result of (((1 + base)^exponent) - 1), scaled by <code><a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a></code> (e.g., 103906250 for 1.0390625).
+The reason for using <code>(1 + base)^exponent</code> is that <code>base</code> would be the fraction by which the congestion threshold is crossed,
+thus highly likely to be less than one. To ensure that as <code>exponent</code> increases, the function increases, <code>1</code> is added.
+In the final result, after <code>(1 + base)^exponent</code> is calculated, <code>1</code> is subtracted so as not to subsume the automation
+base fee in this component. This would allow the freedom to set a multiplier for the automation base fee separately
+from the congestion fee.
+<code>exponent</code> here acts as the degree of the polynomial, therefore an <code>exponent</code> of <code>2</code> or higher
+would allow the congestion fee to increase in a non-linear fashion.
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_exponentiation">calculate_exponentiation</a>(base: u256, exponent: u8): u256
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_exponentiation">calculate_exponentiation</a>(base: u256, exponent: u8): u256 {
+    // Add 1 (represented <b>as</b> <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>) <b>to</b> the base
+    <b>let</b> one_scaled = <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>; // 1.0 in <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> representation
+    <b>let</b> adjusted_base = base + one_scaled; // (1 + base) in <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a> representation
+
+    // Initialize result <b>as</b> 1 (represented in <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>)
+    <b>let</b> result = one_scaled;
+
+    // Perform exponential calculation using integer arithmetic
+    <b>let</b> i = 0;
+    <b>while</b> (i &lt; exponent) {
+        result = result * adjusted_base / <a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>; // Adjust for decimal places
+        i = i + 1;
+    };
+
+    // Subtract the initial added 1 (<a href="automation_registry.md#0x1_automation_registry_DECIMAL">DECIMAL</a>) <b>to</b> get the final result
+    result - one_scaled
 }
 </code></pre>
 
@@ -2044,6 +2148,7 @@ The function updates the ActiveAutomationRegistryConfig structure with values ex
         automation_registry_config.flat_registration_fee_in_quants = buffer.flat_registration_fee_in_quants;
         automation_registry_config.congestion_threshold_percentage = buffer.congestion_threshold_percentage;
         automation_registry_config.congestion_base_fee_in_quants_per_sec = buffer.congestion_base_fee_in_quants_per_sec;
+        automation_registry_config.congestion_exponent = buffer.congestion_exponent;
     };
 }
 </code></pre>
@@ -2125,7 +2230,7 @@ Transfers the specified fee amount from the resource account to the target accou
 Update Automation Registry Config
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8)
 </code></pre>
 
 
@@ -2142,6 +2247,7 @@ Update Automation Registry Config
     flat_registration_fee_in_quants: u64,
     congestion_threshold_percentage: u8,
     congestion_base_fee_in_quants_per_sec: u64,
+    congestion_exponent: u8,
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
@@ -2158,6 +2264,9 @@ Update Automation Registry Config
         <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_TASK_DURATION_CAP">EUNACCEPTABLE_TASK_DURATION_CAP</a>
     );
 
+    <b>assert</b>!(congestion_threshold_percentage &lt; 100, <a href="automation_registry.md#0x1_automation_registry_MAX_CONGESTION_THRESHOLD">MAX_CONGESTION_THRESHOLD</a>);
+    <b>assert</b>!(congestion_exponent &gt; 0, <a href="automation_registry.md#0x1_automation_registry_CONGESTION_EXP_NON_ZERO">CONGESTION_EXP_NON_ZERO</a>);
+
     <b>let</b> new_automation_registry_config = <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
         task_duration_cap_in_secs,
         registry_max_gas_cap,
@@ -2165,6 +2274,7 @@ Update Automation Registry Config
         flat_registration_fee_in_quants,
         congestion_threshold_percentage,
         congestion_base_fee_in_quants_per_sec,
+        congestion_exponent,
     };
     <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(<b>copy</b> new_automation_registry_config);
 

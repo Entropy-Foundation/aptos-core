@@ -212,13 +212,15 @@ module supra_framework::genesis {
     }
 
     /// Genesis step 3: Initialize Supra Native Automation.
-    public fun initialize_supra_native_automation(supra_framework: &signer,
-                                           task_duration_cap_in_secs: u64,
-                                           registry_max_gas_cap: u64,
-                                           automation_base_fee_in_quants_per_sec: u64,
-                                           flat_registration_fee_in_quants: u64,
-                                           congestion_threshold_percentage: u8,
-                                           congestion_base_fee_in_quants_per_sec: u64,
+    public fun initialize_supra_native_automation(
+        supra_framework: &signer,
+        task_duration_cap_in_secs: u64,
+        registry_max_gas_cap: u64,
+        automation_base_fee_in_quants_per_sec: u64,
+        flat_registration_fee_in_quants: u64,
+        congestion_threshold_percentage: u8,
+        congestion_base_fee_in_quants_per_sec: u64,
+        congestion_exponent: u8,
     ) {
         let epoch_interval_secs = block::get_epoch_interval_secs();
         automation_registry::initialize(
@@ -230,6 +232,7 @@ module supra_framework::genesis {
             flat_registration_fee_in_quants,
             congestion_threshold_percentage,
             congestion_base_fee_in_quants_per_sec,
+            congestion_exponent,
         )
     }
 
@@ -602,7 +605,7 @@ module supra_framework::genesis {
             let schedule_length = vector::length(&pool_config.vesting_numerators);
             assert!(schedule_length != 0, error::invalid_argument(EVESTING_SCHEDULE_IS_ZERO));
             assert!(pool_config.vesting_denominator != 0, error::invalid_argument(EDENOMINATOR_IS_ZERO));
-            assert!(pool_config.vpool_locking_percentage != 0 && pool_config.vpool_locking_percentage <=100 ,
+            assert!(pool_config.vpool_locking_percentage != 0 && pool_config.vpool_locking_percentage <= 100,
                 error::invalid_argument(EPERCENTAGE_INVALID));
             //check the sum of numerator are <= denominator.
             let sum = vector::fold(pool_config.vesting_numerators, 0, |acc, x| acc + x);
@@ -620,11 +623,10 @@ module supra_framework::genesis {
             //Create the vesting schedule
             let j = 0;
             while (j < schedule_length) {
-
-                let numerator = *vector::borrow(&pool_config.vesting_numerators,j);
+                let numerator = *vector::borrow(&pool_config.vesting_numerators, j);
                 assert!(numerator != 0, error::invalid_argument(ENUMERATOR_IS_ZERO));
-                let event = fixed_point32::create_from_rational(numerator,pool_config.vesting_denominator);
-                vector::push_back(&mut schedule,event);
+                let event = fixed_point32::create_from_rational(numerator, pool_config.vesting_denominator);
+                vector::push_back(&mut schedule, event);
                 j = j + 1;
             };
 
