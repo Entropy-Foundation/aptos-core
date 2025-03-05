@@ -200,8 +200,8 @@ pub struct AutomatedTransactionBuilder {
     /// Sender's address.
     pub(crate) sender: Option<AccountAddress>,
 
-    /// Sequence number of the automated transaction which  corresponds to teh task index in registry
-    /// based on which automated transaction is going to be created.
+    /// Sequence number of the automated transaction which corresponds to the task index in registry
+    /// based on which this automated transaction is going to be created.
     pub(crate) sequence_number: Option<u64>,
 
     /// The transaction payload to execute.

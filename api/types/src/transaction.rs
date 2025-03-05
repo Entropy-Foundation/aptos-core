@@ -328,7 +328,7 @@ impl
             u64,
         ),
     ) -> Self {
-        // AutomatedTranscation has reference to the automation-registration-transaction hash which
+        // AutomatedTransaction has reference to the automation-registration-transaction hash which
         // is the authenticator of the automated-transaction.
         // Transaction hash calculated by APTOS differs from transaction hash that smr-moonshot(supra)
         // calculates for transactions.
