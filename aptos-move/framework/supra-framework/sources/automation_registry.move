@@ -394,13 +394,6 @@ module supra_framework::automation_registry {
         estimate_automation_fee_with_committed_occupancy_internal(task_occupancy, committed_occupancy, epoch_info, config)
     }
 
-
-    /// Asserts that SUPRA_NATIVE_AUTOMATION feature flag is enabled.
-    fun assert_feature_enabled() {
-        assert!(is_feature_enabled(), EDISABLED_AUTOMATION_FEATURE)
-    }
-
-
     /// Estimates automation fee the next epoch for specified task occupancy for the configured epoch-interval
     /// referencing the current automation registry fee parameters, specified total/committed occupancy and registry
     /// maximum allowed occupancy for the next epoch.
@@ -424,6 +417,19 @@ module supra_framework::automation_registry {
             active_config.next_epoch_registry_max_gas_cap)
     }
 
+    fun validate_configuration_parameters_common(
+        epoch_interval_secs: u64,
+        task_duration_cap_in_secs: u64,
+        registry_max_gas_cap: u64,
+        congestion_threshold_percentage: u8,
+        congestion_exponent: u8,
+    )  {
+        assert!(congestion_threshold_percentage <= MAX_PERCENTAGE, EMAX_CONGESTION_THRESHOLD);
+        assert!(congestion_exponent > 0, ECONGESTION_EXP_NON_ZERO);
+        assert!(task_duration_cap_in_secs > epoch_interval_secs, EUNACCEPTABLE_TASK_DURATION_CAP);
+        assert!(registry_max_gas_cap > 0, EREGISTRY_MAX_GAS_CAP_NON_ZERO);
+    }
+
     /// Initialization of Automation Registry with configuration parameters is expected metrics.
     public(friend) fun initialize(
         supra_framework: &signer,
@@ -437,10 +443,12 @@ module supra_framework::automation_registry {
         congestion_exponent: u8,
     ) {
         system_addresses::assert_supra_framework(supra_framework);
-        assert!(congestion_threshold_percentage < MAX_PERCENTAGE, EMAX_CONGESTION_THRESHOLD);
-        assert!(congestion_exponent > 0, ECONGESTION_EXP_NON_ZERO);
-        assert!(task_duration_cap_in_secs > epoch_interval_secs, EUNACCEPTABLE_TASK_DURATION_CAP);
-        assert!(registry_max_gas_cap > 0, EREGISTRY_MAX_GAS_CAP_NON_ZERO);
+        validate_configuration_parameters_common(
+            epoch_interval_secs,
+            task_duration_cap_in_secs,
+            registry_max_gas_cap,
+            congestion_threshold_percentage,
+            congestion_exponent);
 
         let (registry_fee_resource_signer, registry_fee_address_signer_cap) = account::create_resource_account(
             supra_framework,
@@ -877,19 +885,17 @@ module supra_framework::automation_registry {
         let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
         let automation_epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
 
-        assert!(registry_max_gas_cap > 0, EREGISTRY_MAX_GAS_CAP_NON_ZERO);
+        validate_configuration_parameters_common(
+            automation_epoch_info.epoch_interval,
+            task_duration_cap_in_secs,
+            registry_max_gas_cap,
+            congestion_threshold_percentage,
+            congestion_exponent);
+
         assert!(
             automation_registry.gas_committed_for_next_epoch < registry_max_gas_cap,
             EUNACCEPTABLE_AUTOMATION_GAS_LIMIT
         );
-
-        assert!(
-            automation_epoch_info.epoch_interval < task_duration_cap_in_secs,
-            EUNACCEPTABLE_TASK_DURATION_CAP
-        );
-
-        assert!(congestion_threshold_percentage <= 100, EMAX_CONGESTION_THRESHOLD);
-        assert!(congestion_exponent > 0, ECONGESTION_EXP_NON_ZERO);
 
         let new_automation_registry_config = AutomationRegistryConfig {
             task_duration_cap_in_secs,
@@ -921,7 +927,7 @@ module supra_framework::automation_registry {
         aux_data: vector<vector<u8>>
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
         // Guarding registration if feature is not enabled.
-        assert_feature_enabled();
+        assert!(is_feature_enabled(), EDISABLED_AUTOMATION_FEATURE);
         assert!(vector::is_empty(&aux_data), ENO_AUX_DATA_SUPPORTED);
 
         let owner = signer::address_of(owner_signer);
