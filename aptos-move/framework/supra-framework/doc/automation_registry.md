@@ -40,8 +40,8 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `get_automation_epoch_info`](#0x1_automation_registry_get_automation_epoch_info)
 -  [Function `estimate_automation_fee`](#0x1_automation_registry_estimate_automation_fee)
 -  [Function `estimate_automation_fee_with_committed_occupancy`](#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy)
--  [Function `assert_feature_enabled`](#0x1_automation_registry_assert_feature_enabled)
 -  [Function `estimate_automation_fee_with_committed_occupancy_internal`](#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal)
+-  [Function `validate_configuration_parameters_common`](#0x1_automation_registry_validate_configuration_parameters_common)
 -  [Function `initialize`](#0x1_automation_registry_initialize)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
 -  [Function `adjust_tasks_epoch_fee_refund`](#0x1_automation_registry_adjust_tasks_epoch_fee_refund)
@@ -1542,31 +1542,6 @@ maximum allowed occupancy for the next epoch.
 
 </details>
 
-<a id="0x1_automation_registry_assert_feature_enabled"></a>
-
-## Function `assert_feature_enabled`
-
-Asserts that SUPRA_NATIVE_AUTOMATION feature flag is enabled.
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_assert_feature_enabled">assert_feature_enabled</a>()
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_assert_feature_enabled">assert_feature_enabled</a>() {
-    <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>)
-}
-</code></pre>
-
-
-
-</details>
-
 <a id="0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal"></a>
 
 ## Function `estimate_automation_fee_with_committed_occupancy_internal`
@@ -1610,6 +1585,39 @@ maximum allowed occupancy for the next epoch.
 
 </details>
 
+<a id="0x1_automation_registry_validate_configuration_parameters_common"></a>
+
+## Function `validate_configuration_parameters_common`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, congestion_threshold_percentage: u8, congestion_exponent: u8)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(
+    epoch_interval_secs: u64,
+    task_duration_cap_in_secs: u64,
+    registry_max_gas_cap: u64,
+    congestion_threshold_percentage: u8,
+    congestion_exponent: u8,
+)  {
+    <b>assert</b>!(congestion_threshold_percentage &lt;= <a href="automation_registry.md#0x1_automation_registry_MAX_PERCENTAGE">MAX_PERCENTAGE</a>, <a href="automation_registry.md#0x1_automation_registry_EMAX_CONGESTION_THRESHOLD">EMAX_CONGESTION_THRESHOLD</a>);
+    <b>assert</b>!(congestion_exponent &gt; 0, <a href="automation_registry.md#0x1_automation_registry_ECONGESTION_EXP_NON_ZERO">ECONGESTION_EXP_NON_ZERO</a>);
+    <b>assert</b>!(task_duration_cap_in_secs &gt; epoch_interval_secs, <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_TASK_DURATION_CAP">EUNACCEPTABLE_TASK_DURATION_CAP</a>);
+    <b>assert</b>!(registry_max_gas_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO">EREGISTRY_MAX_GAS_CAP_NON_ZERO</a>);
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_automation_registry_initialize"></a>
 
 ## Function `initialize`
@@ -1638,10 +1646,12 @@ Initialization of Automation Registry with configuration parameters is expected 
     congestion_exponent: u8,
 ) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
-    <b>assert</b>!(congestion_threshold_percentage &lt; <a href="automation_registry.md#0x1_automation_registry_MAX_PERCENTAGE">MAX_PERCENTAGE</a>, <a href="automation_registry.md#0x1_automation_registry_EMAX_CONGESTION_THRESHOLD">EMAX_CONGESTION_THRESHOLD</a>);
-    <b>assert</b>!(congestion_exponent &gt; 0, <a href="automation_registry.md#0x1_automation_registry_ECONGESTION_EXP_NON_ZERO">ECONGESTION_EXP_NON_ZERO</a>);
-    <b>assert</b>!(task_duration_cap_in_secs &gt; epoch_interval_secs, <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_TASK_DURATION_CAP">EUNACCEPTABLE_TASK_DURATION_CAP</a>);
-    <b>assert</b>!(registry_max_gas_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO">EREGISTRY_MAX_GAS_CAP_NON_ZERO</a>);
+    <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(
+        epoch_interval_secs,
+        task_duration_cap_in_secs,
+        registry_max_gas_cap,
+        congestion_threshold_percentage,
+        congestion_exponent);
 
     <b>let</b> (registry_fee_resource_signer, registry_fee_address_signer_cap) = <a href="account.md#0x1_account_create_resource_account">account::create_resource_account</a>(
         supra_framework,
@@ -2357,19 +2367,17 @@ Update Automation Registry Config
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <b>let</b> automation_epoch_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
 
-    <b>assert</b>!(registry_max_gas_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO">EREGISTRY_MAX_GAS_CAP_NON_ZERO</a>);
+    <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(
+        automation_epoch_info.epoch_interval,
+        task_duration_cap_in_secs,
+        registry_max_gas_cap,
+        congestion_threshold_percentage,
+        congestion_exponent);
+
     <b>assert</b>!(
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &lt; registry_max_gas_cap,
         <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_AUTOMATION_GAS_LIMIT">EUNACCEPTABLE_AUTOMATION_GAS_LIMIT</a>
     );
-
-    <b>assert</b>!(
-        automation_epoch_info.epoch_interval &lt; task_duration_cap_in_secs,
-        <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_TASK_DURATION_CAP">EUNACCEPTABLE_TASK_DURATION_CAP</a>
-    );
-
-    <b>assert</b>!(congestion_threshold_percentage &lt;= 100, <a href="automation_registry.md#0x1_automation_registry_EMAX_CONGESTION_THRESHOLD">EMAX_CONGESTION_THRESHOLD</a>);
-    <b>assert</b>!(congestion_exponent &gt; 0, <a href="automation_registry.md#0x1_automation_registry_ECONGESTION_EXP_NON_ZERO">ECONGESTION_EXP_NON_ZERO</a>);
 
     <b>let</b> new_automation_registry_config = <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
         task_duration_cap_in_secs,
@@ -2421,7 +2429,7 @@ Registers a new automation task entry.
     aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     // Guarding registration <b>if</b> feature is not enabled.
-    <a href="automation_registry.md#0x1_automation_registry_assert_feature_enabled">assert_feature_enabled</a>();
+    <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>);
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&aux_data), <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>);
 
     <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
