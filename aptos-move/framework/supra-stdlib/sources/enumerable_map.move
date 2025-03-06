@@ -248,6 +248,21 @@ module supra_std::enumerable_map {
         result
     }
 
+    /// Applies a filter and transformation function to values in an EnumerableMap, returning a vector of results.
+    public inline fun filter_map_ref<K: copy+drop, V: store+drop+copy, T>(
+        set: &EnumerableMap<K, V>,
+        f: |&V| (bool, T)
+    ): vector<T> {
+        let result = vector<T>[];
+        for_each_value_ref(set, |v| {
+            let (should_include, transformed_value) = f(v);
+            if (should_include) {
+                vector::push_back(&mut result, transformed_value);
+            }
+        });
+        result
+    }
+
     #[test_only]
     struct EnumerableMapTest<K: copy + drop, V: store+drop+copy> has key {
         e: EnumerableMap<K, V>
