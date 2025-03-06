@@ -42,7 +42,9 @@ pub struct AutomatedTransaction {
 /// PartialEq ignores the cached OnceCell fields that may or may not be initialized.
 impl PartialEq for AutomatedTransaction {
     fn eq(&self, other: &Self) -> bool {
-        self.raw_txn == other.raw_txn && self.authenticator == other.authenticator
+        self.raw_txn == other.raw_txn
+            && self.authenticator == other.authenticator
+            && self.block_height == other.block_height
     }
 }
 
@@ -50,11 +52,7 @@ impl Debug for AutomatedTransaction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "AutomatedTransaction {{ \n \
-             {{ raw_txn: {:#?}, \n \
-             authenticator: {:#?}, \n \
-             }} \n \
-             }}",
+            "AutomatedTransaction {{ raw_txn: {:?}, authenticator: {:?} }}",
             self.raw_txn, self.authenticator
         )
     }
@@ -168,11 +166,6 @@ pub enum BuilderResult {
         threshold: u64,
         value: u64,
     },
-    ExpiryThresholdExceeded {
-        task_index: u64,
-        threshold: u64,
-        value: u64,
-    },
     MissingValue(&'static str),
 }
 
@@ -192,13 +185,7 @@ impl BuilderResult {
             value,
         }
     }
-    pub fn expiry_threshold_exceeded(task_index: u64, threshold: u64, value: u64) -> BuilderResult {
-        Self::ExpiryThresholdExceeded {
-            task_index,
-            threshold,
-            value,
-        }
-    }
+
     pub fn missing_value(missing: &'static str) -> BuilderResult {
         Self::MissingValue(missing)
     }
@@ -210,14 +197,11 @@ pub struct AutomatedTransactionBuilder {
     /// Gas unit price threshold. Default to 0.
     pub(crate) gas_price_cap: u64,
 
-    /// Expiration time threshold. Default to 0.
-    pub(crate) expiry_threshold_secs: u64,
-
     /// Sender's address.
     pub(crate) sender: Option<AccountAddress>,
 
-    /// Sequence number of this transaction. This must match the sequence number
-    /// stored in the sender's account at the time the transaction executes.
+    /// Sequence number of the automated transaction which corresponds to the task index in registry
+    /// based on which this automated transaction is going to be created.
     pub(crate) sequence_number: Option<u64>,
 
     /// The transaction payload to execute.
@@ -285,10 +269,6 @@ impl AutomatedTransactionBuilder {
     pub fn block_height(&self) -> &Option<u64> {
         &self.block_height
     }
-
-    pub fn expiry_threshold(&self) -> &u64 {
-        &self.expiry_threshold_secs
-    }
 }
 
 impl AutomatedTransactionBuilder {
@@ -342,11 +322,6 @@ impl AutomatedTransactionBuilder {
         self
     }
 
-    pub fn with_expiry_threshold_secs(mut self, secs: u64) -> Self {
-        self.expiry_threshold_secs = secs;
-        self
-    }
-
     /// Build an [AutomatedTransaction] instance.
     /// Fails if
     ///    - any of the mandatory fields is missing
@@ -354,7 +329,6 @@ impl AutomatedTransactionBuilder {
     pub fn build(self) -> BuilderResult {
         let AutomatedTransactionBuilder {
             gas_price_cap,
-            expiry_threshold_secs,
             sender,
             sequence_number,
             payload,
@@ -380,13 +354,6 @@ impl AutomatedTransactionBuilder {
                 sequence_number,
                 gas_price_cap,
                 gas_unit_price,
-            );
-        }
-        if expiry_threshold_secs > expiration_timestamp_secs {
-            return BuilderResult::expiry_threshold_exceeded(
-                sequence_number,
-                expiry_threshold_secs,
-                expiration_timestamp_secs,
             );
         }
         let raw_transaction = RawTransaction::new(
