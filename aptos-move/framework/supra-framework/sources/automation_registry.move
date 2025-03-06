@@ -138,6 +138,8 @@ module supra_framework::automation_registry {
         registry_fee_address: address,
         /// Resource account signature capability
         registry_fee_address_signer_cap: SignerCapability,
+        /// Cached active task indexes for the current epoch.
+        epoch_active_task_ids: vector<u64>
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -295,12 +297,7 @@ module supra_framework::automation_registry {
     /// as cancellation takes effect in the next epoch only.
     public fun get_active_task_ids(): vector<u64> acquires AutomationRegistry {
         let state = borrow_global<AutomationRegistry>(@supra_framework);
-
-        enumerable_map::filter_map(&state.tasks, |task| {
-            let task: AutomationTaskMetaData = task; // we need to define task type here to avoid compiler error
-            if (task.state != PENDING) (true, task.task_index)
-            else (false, task.task_index)
-        })
+        state.epoch_active_task_ids
     }
 
     #[view]
@@ -455,6 +452,7 @@ module supra_framework::automation_registry {
             gas_committed_for_this_epoch: 0,
             registry_fee_address: signer::address_of(&registry_fee_resource_signer),
             registry_fee_address_signer_cap,
+            epoch_active_task_ids: vector[],
         });
 
         move_to(supra_framework, ActiveAutomationRegistryConfig {
@@ -516,6 +514,7 @@ module supra_framework::automation_registry {
             automation_registry.gas_committed_for_this_epoch = 0;
             automation_epoch_info.start_time = current_time;
             automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
+            automation_registry.epoch_active_task_ids = vector[];
             enumerable_map::clear(&mut automation_registry.tasks);
             return
         };
@@ -533,7 +532,7 @@ module supra_framework::automation_registry {
             false
         );
 
-        let (gas_committed_for_next_epoch, epoch_locked_fees) = try_withdraw_task_automation_fees(
+        let (gas_committed_for_next_epoch, epoch_locked_fees, epoch_active_task_ids) = try_withdraw_task_automation_fees(
             automation_registry,
             tasks_automation_fees,
             current_time,
@@ -543,6 +542,7 @@ module supra_framework::automation_registry {
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
         automation_registry.epoch_locked_fees = epoch_locked_fees;
         automation_registry.gas_committed_for_this_epoch = tcmg;
+        automation_registry.epoch_active_task_ids = epoch_active_task_ids;
         automation_epoch_info.start_time = current_time;
         automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
     }
@@ -760,13 +760,15 @@ module supra_framework::automation_registry {
     /// - If the user has sufficient balance, deducts the fee and emits a success event.
     /// - If the balance is insufficient, removes the task and emits a cancellation event.
     /// - If calculated fee for the epoch surpasses task's automation-fee-cap task is removed and cancellation event is emitted.
+    /// Return estimated committed gas for the next epoch, locked automation fee amount for this epoch, and list of active task indexes
     fun try_withdraw_task_automation_fees(
         automation_registry: &mut AutomationRegistry,
         tasks_automation_fees: vector<AutomationTaskFee>,
         current_time: u64,
         epoch_interval: u64,
-    ): (u64, u64) {
+    ): (u64, u64, vector<u64>) {
         let (gas_committed_for_next_epoch, epoch_locked_fees) = (0, 0);
+        let epoch_active_task_ids = vector[];
 
         sort_by_task_index(&mut tasks_automation_fees);
 
@@ -807,6 +809,7 @@ module supra_framework::automation_registry {
                     });
                     // Total task fees deducted from the user's account
                     epoch_locked_fees = epoch_locked_fees + task.fee;
+                    vector::push_back(&mut epoch_active_task_ids, task.task_index);
 
                     // Calculate gas commitment for the next epoch only for valid active tasks
                     if (task_metadata.expiry_time > (current_time + epoch_interval)) {
@@ -815,7 +818,7 @@ module supra_framework::automation_registry {
                 };
             }
         });
-        (gas_committed_for_next_epoch, epoch_locked_fees)
+        (gas_committed_for_next_epoch, epoch_locked_fees, epoch_active_task_ids)
     }
 
     /// The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
