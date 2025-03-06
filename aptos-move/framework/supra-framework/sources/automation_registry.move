@@ -67,12 +67,10 @@ module supra_framework::automation_registry {
     const EMAX_CONGESTION_THRESHOLD: u64 = 19;
     /// Congestion exponent must be non-zero.
     const ECONGESTION_EXP_NON_ZERO: u64 = 20;
-    /// Automation fee capacity for the epoch cannot be zero the task.
-    const EAUTOMATION_FEE_CAP_FOR_EPOCH_NON_ZERO: u64 = 21;
     /// Automation fee capacity for the epoch should not be less than estimated one.
-    const EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH: u64 = 22;
+    const EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH: u64 = 21;
     /// Automation registry max gas capacity cannot be zero.
-    const EREGISTRY_MAX_GAS_CAP_NON_ZERO: u64 = 21;
+    const EREGISTRY_MAX_GAS_CAP_NON_ZERO: u64 = 22;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -258,15 +256,9 @@ module supra_framework::automation_registry {
     }
 
     #[view]
-    /// Checks whether SUPRA_NATIVE_AUTOMATION feature flag is enabled.
-    public fun is_feature_enabled(): bool {
-        features::supra_native_automation_enabled()
-    }
-
-    #[view]
     /// Means to query by user whether the automation registry has been properly initialized and ready to be utilized.
     public fun is_feature_enabled_and_initialized(): bool {
-        is_feature_enabled() && is_initialized()
+        features::supra_native_automation_enabled() && is_initialized()
     }
 
     #[view]
@@ -518,7 +510,7 @@ module supra_framework::automation_registry {
         update_config_from_buffer();
 
         // If feature is not enabled then we are not charging and tasks are cleared.
-        if (!is_feature_enabled()) {
+        if (!features::supra_native_automation_enabled()) {
             automation_registry.gas_committed_for_next_epoch = 0;
             automation_registry.epoch_locked_fees = 0;
             automation_registry.gas_committed_for_this_epoch = 0;
@@ -927,7 +919,7 @@ module supra_framework::automation_registry {
         aux_data: vector<vector<u8>>
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
         // Guarding registration if feature is not enabled.
-        assert!(is_feature_enabled(), EDISABLED_AUTOMATION_FEATURE);
+        assert!(features::supra_native_automation_enabled(), EDISABLED_AUTOMATION_FEATURE);
         assert!(vector::is_empty(&aux_data), ENO_AUX_DATA_SUPPORTED);
 
         let owner = signer::address_of(owner_signer);
@@ -956,7 +948,6 @@ module supra_framework::automation_registry {
         assert!(committed_gas < automation_registry_config.next_epoch_registry_max_gas_cap, EGAS_AMOUNT_UPPER);
 
         // Check the automation fee capacity
-        assert!(automation_fee_cap_for_epoch > 0, EAUTOMATION_FEE_CAP_FOR_EPOCH_NON_ZERO);
         let estimated_automation_fee_for_epoch = estimate_automation_fee_with_committed_occupancy_internal(
             max_gas_amount,
             committed_gas,
@@ -1654,24 +1645,6 @@ module supra_framework::automation_registry {
             100_000_000,
             PARENT_HASH,
             AUX_DATA
-        );
-    }
-
-    #[test(framework = @supra_framework, user = @0x1cafe)]
-    #[expected_failure(abort_code = EAUTOMATION_FEE_CAP_FOR_EPOCH_NON_ZERO, location = Self)]
-    fun check_registration_with_zero_automation_fee_cap(
-        framework: &signer,
-        user: &signer
-    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
-        initialize_registry_test(framework, user);
-        register(user,
-            PAYLOAD,
-            86400,
-            10,
-            70,
-            0,
-            PARENT_HASH,
-            AUX_DATA,
         );
     }
 
