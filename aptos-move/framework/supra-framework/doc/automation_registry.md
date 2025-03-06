@@ -23,7 +23,6 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `AutomationTaskFee`](#0x1_automation_registry_AutomationTaskFee)
 -  [Constants](#@Constants_0)
 -  [Function `is_initialized`](#0x1_automation_registry_is_initialized)
--  [Function `is_feature_enabled`](#0x1_automation_registry_is_feature_enabled)
 -  [Function `is_feature_enabled_and_initialized`](#0x1_automation_registry_is_feature_enabled_and_initialized)
 -  [Function `get_next_task_index`](#0x1_automation_registry_get_next_task_index)
 -  [Function `get_task_count`](#0x1_automation_registry_get_task_count)
@@ -777,16 +776,6 @@ Task is already cancelled.
 
 
 
-<a id="0x1_automation_registry_EAUTOMATION_FEE_CAP_FOR_EPOCH_NON_ZERO"></a>
-
-Automation fee capacity for the epoch cannot be zero the task.
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EAUTOMATION_FEE_CAP_FOR_EPOCH_NON_ZERO">EAUTOMATION_FEE_CAP_FOR_EPOCH_NON_ZERO</a>: u64 = 21;
-</code></pre>
-
-
-
 <a id="0x1_automation_registry_EAUTOMATION_TASK_NOT_FOUND"></a>
 
 Task with provided task index not found
@@ -872,7 +861,7 @@ The gas committed for next epoch value is underflow after remove old max gas
 Automation fee capacity for the epoch should not be less than estimated one.
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH">EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH</a>: u64 = 22;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH">EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH</a>: u64 = 21;
 </code></pre>
 
 
@@ -942,7 +931,7 @@ Auxiliary data during registration is not supported
 Automation registry max gas capacity cannot be zero.
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO">EREGISTRY_MAX_GAS_CAP_NON_ZERO</a>: u64 = 21;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO">EREGISTRY_MAX_GAS_CAP_NON_ZERO</a>: u64 = 22;
 </code></pre>
 
 
@@ -1065,32 +1054,6 @@ Checks whether all required resources are created.
 
 </details>
 
-<a id="0x1_automation_registry_is_feature_enabled"></a>
-
-## Function `is_feature_enabled`
-
-Checks whether SUPRA_NATIVE_AUTOMATION feature flag is enabled.
-
-
-<pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(): bool
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(): bool {
-    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>()
-}
-</code></pre>
-
-
-
-</details>
-
 <a id="0x1_automation_registry_is_feature_enabled_and_initialized"></a>
 
 ## Function `is_feature_enabled_and_initialized`
@@ -1109,7 +1072,7 @@ Means to query by user whether the automation registry has been properly initial
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled_and_initialized">is_feature_enabled_and_initialized</a>(): bool {
-    <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>() && <a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>()
+    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>() && <a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>()
 }
 </code></pre>
 
@@ -1740,7 +1703,7 @@ On new epoch this function will be triggered and update the automation registry 
     <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>();
 
     // If feature is not enabled then we are not charging and tasks are cleared.
-    <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>()) {
+    <b>if</b> (!<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>()) {
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = 0;
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees = 0;
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch = 0;
@@ -2429,7 +2392,7 @@ Registers a new automation task entry.
     aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     // Guarding registration <b>if</b> feature is not enabled.
-    <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>);
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>);
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&aux_data), <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>);
 
     <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
@@ -2458,7 +2421,6 @@ Registers a new automation task entry.
     <b>assert</b>!(committed_gas &lt; automation_registry_config.next_epoch_registry_max_gas_cap, <a href="automation_registry.md#0x1_automation_registry_EGAS_AMOUNT_UPPER">EGAS_AMOUNT_UPPER</a>);
 
     // Check the automation fee capacity
-    <b>assert</b>!(automation_fee_cap_for_epoch &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EAUTOMATION_FEE_CAP_FOR_EPOCH_NON_ZERO">EAUTOMATION_FEE_CAP_FOR_EPOCH_NON_ZERO</a>);
     <b>let</b> estimated_automation_fee_for_epoch = <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal">estimate_automation_fee_with_committed_occupancy_internal</a>(
         max_gas_amount,
         committed_gas,
