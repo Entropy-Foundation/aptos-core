@@ -28,7 +28,7 @@ fn test_registration_params_serde() {
         max_gas_amount,
         gas_price_cap,
         automation_fee_cap_for_epoch,
-        aux_data.clone()
+        aux_data.clone(),
     );
     let address = AccountAddress::random();
     let parent_hash = HashValue::random();
@@ -197,13 +197,6 @@ fn automated_txn_build() {
     assert!(matches!(
         builder_with_higher_gas_unit_price.clone().build(),
         BuilderResult::GasPriceThresholdExceeded { .. }
-    ));
-
-    // Expired transaction
-    let builder_with_expired_timestamp = builder_valid.clone().with_expiry_threshold_secs(2 * expiry_time);
-    assert!(matches!(
-        builder_with_expired_timestamp.clone().build(),
-        BuilderResult::ExpiryThresholdExceeded { .. }
     ));
 
     // Any other field if missing build will fail

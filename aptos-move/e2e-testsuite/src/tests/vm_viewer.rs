@@ -7,6 +7,7 @@ use aptos_types::transaction::{ViewFunction, ViewFunctionOutput};
 use aptos_vm::aptos_vm_viewer::AptosVMViewer;
 use move_core_types::language_storage::TypeTag;
 use std::time::Instant;
+use aptos_logger::debug;
 
 const TIMESTAMP_NOW_SECONDS: &str = "0x1::timestamp::now_seconds";
 const ACCOUNT_BALANCE: &str = "0x1::coin::balance";
@@ -47,7 +48,7 @@ fn test_vm_viewer() {
                 vec![],
                 vec![],
             ));
-            println!("AptosVM step: {}", time.elapsed().as_secs_f64());
+            debug!("AptosVM step: {}", time.elapsed().as_secs_f64());
             let time = Instant::now();
             let address_arg = account.address().to_vec();
             let account_balance = extract_view_output(test_executor.execute_view_function(
@@ -55,14 +56,14 @@ fn test_vm_viewer() {
                 vec![supra_coin_ty_tag.clone()],
                 vec![address_arg.clone()],
             ));
-            println!("AptosVM step: {}", time.elapsed().as_secs_f64());
+            debug!("AptosVM step: {}", time.elapsed().as_secs_f64());
             let time = Instant::now();
             let account_seq_num = extract_view_output(test_executor.execute_view_function(
                 account_seq_ref.clone(),
                 vec![],
                 vec![address_arg],
             ));
-            println!("AptosVM step: {}", time.elapsed().as_secs_f64());
+            debug!("AptosVM step: {}", time.elapsed().as_secs_f64());
             (timestamp, account_seq_num, account_balance)
         })
         .collect::<Vec<_>>();
@@ -72,7 +73,7 @@ fn test_vm_viewer() {
     let viewer_ifc_time = Instant::now();
     let time = Instant::now();
     let vm_viewer = AptosVMViewer::new(test_executor.data_store());
-    println!("AptosVMViewer creation time: {}", time.elapsed().as_secs_f64());
+    debug!("AptosVMViewer creation time: {}", time.elapsed().as_secs_f64());
     let actual_results = accounts
         .iter()
         .map(|account| {
@@ -81,7 +82,7 @@ fn test_vm_viewer() {
                 to_view_function(timestamp_now_ref.clone(), vec![], vec![]),
                 u64::MAX,
             ));
-            println!("AptosVMViewer step: {}", time.elapsed().as_secs_f64());
+            debug!("AptosVMViewer step: {}", time.elapsed().as_secs_f64());
             let time = Instant::now();
             let address_arg = account.address().to_vec();
             let account_balance = extract_view_output(vm_viewer.execute_view_function(
@@ -92,17 +93,17 @@ fn test_vm_viewer() {
                 ),
                 u64::MAX,
             ));
-            println!("AptosVMViewer step: {}", time.elapsed().as_secs_f64());
+            debug!("AptosVMViewer step: {}", time.elapsed().as_secs_f64());
             let time = Instant::now();
             let account_seq_num = extract_view_output(vm_viewer.execute_view_function(
                 to_view_function(account_seq_ref.clone(), vec![], vec![address_arg]),
                 u64::MAX,
             ));
-            println!("AptosVMViewer step: {}", time.elapsed().as_secs_f64());
+            debug!("AptosVMViewer step: {}", time.elapsed().as_secs_f64());
             (timestamp, account_seq_num, account_balance)
         })
         .collect::<Vec<_>>();
     let viewer_ifc_time = viewer_ifc_time.elapsed().as_secs_f64();
     assert_eq!(actual_results, expected_results);
-    println!("AptosVM: {one_time_ifc_time} - AptosVMViewer: {viewer_ifc_time}")
+    debug!("AptosVM: {one_time_ifc_time} - AptosVMViewer: {viewer_ifc_time}")
 }

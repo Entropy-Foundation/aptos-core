@@ -232,7 +232,6 @@ pub(crate) fn run_automated_transaction_prologue(
         .or_else(|err| convert_prologue_error(err, log_context))
 }
 
-
 fn run_epilogue(
     session: &mut SessionExt,
     gas_remaining: Gas,
@@ -324,14 +323,15 @@ fn run_automated_txn_epilogue(
         MoveValue::U64(txn_max_gas_units.into()),
         MoveValue::U64(gas_remaining.into()),
     ];
-    session.execute_function_bypass_visibility(
-        &APTOS_TRANSACTION_VALIDATION.module_id(),
-        &APTOS_TRANSACTION_VALIDATION.automated_txn_epilogue_name,
-        vec![],
-        serialize_values(&args),
-        &mut UnmeteredGasMeter,
-        traversal_context,
-    )
+    session
+        .execute_function_bypass_visibility(
+            &APTOS_TRANSACTION_VALIDATION.module_id(),
+            &APTOS_TRANSACTION_VALIDATION.automated_txn_epilogue_name,
+            vec![],
+            serialize_values(&args),
+            &mut UnmeteredGasMeter,
+            traversal_context,
+        )
         .map(|_return_vals| ())
         .map_err(expect_no_verification_errors)?;
 
@@ -417,7 +417,7 @@ pub(crate) fn run_automated_txn_success_epilogue(
         features,
         traversal_context,
     )
-        .or_else(|err| convert_epilogue_error(err, log_context))
+    .or_else(|err| convert_epilogue_error(err, log_context))
 }
 
 /// Run the failure epilogue of a transaction by calling into `USER_EPILOGUE_NAME` function
@@ -467,11 +467,13 @@ pub(crate) fn run_automated_txn_failure_epilogue(
         features,
         traversal_context,
     )
-        .or_else(|e| {
-            expect_only_successful_execution(
-                e,
-                APTOS_TRANSACTION_VALIDATION.automated_txn_epilogue_name.as_str(),
-                log_context,
-            )
-        })
+    .or_else(|e| {
+        expect_only_successful_execution(
+            e,
+            APTOS_TRANSACTION_VALIDATION
+                .automated_txn_epilogue_name
+                .as_str(),
+            log_context,
+        )
+    })
 }
