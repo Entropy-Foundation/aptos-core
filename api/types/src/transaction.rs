@@ -342,7 +342,7 @@ impl
         // updated to APTOS style if APTOS DB and API flow is going to be utilized to request automation
         // registration transaction data.
         Transaction::AutomatedTransaction(Box::new(AutomatedTransaction {
-            meta: (txn.authenticator(), txn, payload).into(),
+            meta: (txn.authenticator().into(), txn, payload).into(),
             info,
             events,
             timestamp: timestamp.into(),
