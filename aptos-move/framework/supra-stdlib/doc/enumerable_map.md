@@ -35,6 +35,7 @@ The module includes error handling and a suite of test functions for validation.
 -  [Function `map`](#0x1_enumerable_map_map)
 -  [Function `map_ref`](#0x1_enumerable_map_map_ref)
 -  [Function `filter_map`](#0x1_enumerable_map_filter_map)
+-  [Function `filter_map_ref`](#0x1_enumerable_map_filter_map_ref)
 
 
 <pre><code><b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
@@ -822,6 +823,41 @@ Applies a filter and transformation function to values in an EnumerableMap, retu
 ): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;T&gt; {
     <b>let</b> result = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;T&gt;[];
     <a href="enumerable_map.md#0x1_enumerable_map_for_each_value">for_each_value</a>(set, |v| {
+        <b>let</b> (should_include, transformed_value) = f(v);
+        <b>if</b> (should_include) {
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> result, transformed_value);
+        }
+    });
+    result
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_enumerable_map_filter_map_ref"></a>
+
+## Function `filter_map_ref`
+
+Applies a filter and transformation function to values in an EnumerableMap, returning a vector of results.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_filter_map_ref">filter_map_ref</a>&lt;K: <b>copy</b>, drop, V: <b>copy</b>, drop, store, T&gt;(set: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">enumerable_map::EnumerableMap</a>&lt;K, V&gt;, f: |&V|(bool, T)): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;T&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> inline <b>fun</b> <a href="enumerable_map.md#0x1_enumerable_map_filter_map_ref">filter_map_ref</a>&lt;K: <b>copy</b>+drop, V: store+drop+<b>copy</b>, T&gt;(
+    set: &<a href="enumerable_map.md#0x1_enumerable_map_EnumerableMap">EnumerableMap</a>&lt;K, V&gt;,
+    f: |&V| (bool, T)
+): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;T&gt; {
+    <b>let</b> result = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;T&gt;[];
+    <a href="enumerable_map.md#0x1_enumerable_map_for_each_value_ref">for_each_value_ref</a>(set, |v| {
         <b>let</b> (should_include, transformed_value) = f(v);
         <b>if</b> (should_include) {
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> result, transformed_value);

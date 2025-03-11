@@ -23,7 +23,6 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `AutomationTaskFee`](#0x1_automation_registry_AutomationTaskFee)
 -  [Constants](#@Constants_0)
 -  [Function `is_initialized`](#0x1_automation_registry_is_initialized)
--  [Function `is_feature_enabled`](#0x1_automation_registry_is_feature_enabled)
 -  [Function `is_feature_enabled_and_initialized`](#0x1_automation_registry_is_feature_enabled_and_initialized)
 -  [Function `get_next_task_index`](#0x1_automation_registry_get_next_task_index)
 -  [Function `get_task_count`](#0x1_automation_registry_get_task_count)
@@ -34,12 +33,14 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `has_sender_active_task_with_id`](#0x1_automation_registry_has_sender_active_task_with_id)
 -  [Function `get_registry_fee_address`](#0x1_automation_registry_get_registry_fee_address)
 -  [Function `get_gas_committed_for_next_epoch`](#0x1_automation_registry_get_gas_committed_for_next_epoch)
+-  [Function `get_gas_committed_for_current_epoch`](#0x1_automation_registry_get_gas_committed_for_current_epoch)
 -  [Function `get_automation_registry_config`](#0x1_automation_registry_get_automation_registry_config)
 -  [Function `get_next_epoch_registry_max_gas_cap`](#0x1_automation_registry_get_next_epoch_registry_max_gas_cap)
 -  [Function `get_automation_epoch_info`](#0x1_automation_registry_get_automation_epoch_info)
 -  [Function `estimate_automation_fee`](#0x1_automation_registry_estimate_automation_fee)
 -  [Function `estimate_automation_fee_with_committed_occupancy`](#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy)
--  [Function `assert_feature_enabled`](#0x1_automation_registry_assert_feature_enabled)
+-  [Function `estimate_automation_fee_with_committed_occupancy_internal`](#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal)
+-  [Function `validate_configuration_parameters_common`](#0x1_automation_registry_validate_configuration_parameters_common)
 -  [Function `initialize`](#0x1_automation_registry_initialize)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
 -  [Function `adjust_tasks_epoch_fee_refund`](#0x1_automation_registry_adjust_tasks_epoch_fee_refund)
@@ -248,6 +249,12 @@ It tracks entries both pending and completed, organized by unique indices.
 </dt>
 <dd>
  Resource account signature capability
+</dd>
+<dt>
+<code>epoch_active_task_ids: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;</code>
+</dt>
+<dd>
+ Cached active task indexes for the current epoch.
 </dd>
 </dl>
 
@@ -755,16 +762,6 @@ Insufficient balance in the resource wallet for withdrawal
 
 
 
-<a id="0x1_automation_registry_CONGESTION_EXP_NON_ZERO"></a>
-
-Congestion exponent must be non-zero
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_CONGESTION_EXP_NON_ZERO">CONGESTION_EXP_NON_ZERO</a>: u64 = 20;
-</code></pre>
-
-
-
 <a id="0x1_automation_registry_DECIMAL"></a>
 
 Decimal place to make
@@ -791,6 +788,16 @@ Task with provided task index not found
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EAUTOMATION_TASK_NOT_FOUND">EAUTOMATION_TASK_NOT_FOUND</a>: u64 = 6;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_ECONGESTION_EXP_NON_ZERO"></a>
+
+Congestion exponent must be non-zero.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ECONGESTION_EXP_NON_ZERO">ECONGESTION_EXP_NON_ZERO</a>: u64 = 20;
 </code></pre>
 
 
@@ -855,6 +862,16 @@ The gas committed for next epoch value is underflow after remove old max gas
 
 
 
+<a id="0x1_automation_registry_EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH"></a>
+
+Automation fee capacity for the epoch should not be less than estimated one.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH">EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH</a>: u64 = 21;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_EINVALID_EXPIRY_TIME"></a>
 
 Invalid expiry time: it cannot be earlier than the current time
@@ -895,12 +912,32 @@ Transaction hash that registering current task is invalid. Length should be 32.
 
 
 
+<a id="0x1_automation_registry_EMAX_CONGESTION_THRESHOLD"></a>
+
+Congestion threshold should not exceed 100.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EMAX_CONGESTION_THRESHOLD">EMAX_CONGESTION_THRESHOLD</a>: u64 = 19;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_ENO_AUX_DATA_SUPPORTED"></a>
 
 Auxiliary data during registration is not supported
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>: u64 = 14;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO"></a>
+
+Automation registry max gas capacity cannot be zero.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO">EREGISTRY_MAX_GAS_CAP_NON_ZERO</a>: u64 = 22;
 </code></pre>
 
 
@@ -945,12 +982,12 @@ Unauthorized access: the caller is not the owner of the task
 
 
 
-<a id="0x1_automation_registry_MAX_CONGESTION_THRESHOLD"></a>
+<a id="0x1_automation_registry_MAX_PERCENTAGE"></a>
 
-Congestion threshold should not exceed 100
+100 Percentage
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_MAX_CONGESTION_THRESHOLD">MAX_CONGESTION_THRESHOLD</a>: u64 = 19;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_MAX_PERCENTAGE">MAX_PERCENTAGE</a>: u8 = 100;
 </code></pre>
 
 
@@ -1023,32 +1060,6 @@ Checks whether all required resources are created.
 
 </details>
 
-<a id="0x1_automation_registry_is_feature_enabled"></a>
-
-## Function `is_feature_enabled`
-
-Checks whether SUPRA_NATIVE_AUTOMATION feature flag is enabled.
-
-
-<pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(): bool
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(): bool {
-    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>()
-}
-</code></pre>
-
-
-
-</details>
-
 <a id="0x1_automation_registry_is_feature_enabled_and_initialized"></a>
 
 ## Function `is_feature_enabled_and_initialized`
@@ -1067,7 +1078,7 @@ Means to query by user whether the automation registry has been properly initial
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled_and_initialized">is_feature_enabled_and_initialized</a>(): bool {
-    <a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>() && <a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>()
+    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>() && <a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>()
 }
 </code></pre>
 
@@ -1204,12 +1215,7 @@ as cancellation takes effect in the next epoch only.
 
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_active_task_ids">get_active_task_ids</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt; <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> state = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
-
-    <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_filter_map">enumerable_map::filter_map</a>(&state.tasks, |task| {
-        <b>let</b> task: <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a> = task; // we need <b>to</b> define task type here <b>to</b> avoid compiler <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">error</a>
-        <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) (<b>true</b>, task.task_index)
-        <b>else</b> (<b>false</b>, task.task_index)
-    })
+    state.epoch_active_task_ids
 }
 </code></pre>
 
@@ -1324,6 +1330,33 @@ Get gas committed for next epoch
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_gas_committed_for_next_epoch">get_gas_committed_for_next_epoch</a>(): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_get_gas_committed_for_current_epoch"></a>
+
+## Function `get_gas_committed_for_current_epoch`
+
+Get gas committed for the current epoch at the beginning of the epoch.
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_gas_committed_for_current_epoch">get_gas_committed_for_current_epoch</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_gas_committed_for_current_epoch">get_gas_committed_for_current_epoch</a>(): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    (<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch <b>as</b> u64)
 }
 </code></pre>
 
@@ -1465,18 +1498,7 @@ maximum allowed occupancy for the next epoch.
 ): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     <b>let</b> epoch_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
     <b>let</b> config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
-    <b>let</b> total_committed_max_gas = committed_occupancy + task_occupancy;
-
-    <b>let</b> congestion_base_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_congestion_fee">calculate_automation_congestion_fee</a>(
-        &config.main_config,
-        (total_committed_max_gas <b>as</b> u256),
-        config.next_epoch_registry_max_gas_cap);
-    <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_for_interval">calculate_automation_fee_for_interval</a>(
-        epoch_info.epoch_interval,
-        task_occupancy,
-        config.main_config.automation_base_fee_in_quants_per_sec,
-        congestion_base_fee_per_sec,
-        config.next_epoch_registry_max_gas_cap)
+    <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal">estimate_automation_fee_with_committed_occupancy_internal</a>(task_occupancy, committed_occupancy, epoch_info, config)
 }
 </code></pre>
 
@@ -1484,14 +1506,16 @@ maximum allowed occupancy for the next epoch.
 
 </details>
 
-<a id="0x1_automation_registry_assert_feature_enabled"></a>
+<a id="0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal"></a>
 
-## Function `assert_feature_enabled`
+## Function `estimate_automation_fee_with_committed_occupancy_internal`
 
-Asserts that SUPRA_NATIVE_AUTOMATION feature flag is enabled.
+Estimates automation fee the next epoch for specified task occupancy for the configured epoch-interval
+referencing the current automation registry fee parameters, specified total/committed occupancy and registry
+maximum allowed occupancy for the next epoch.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_assert_feature_enabled">assert_feature_enabled</a>()
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal">estimate_automation_fee_with_committed_occupancy_internal</a>(task_occupancy: u64, committed_occupancy: u64, epoch_info: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">automation_registry::AutomationEpochInfo</a>, active_config: &<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">automation_registry::ActiveAutomationRegistryConfig</a>): u64
 </code></pre>
 
 
@@ -1500,8 +1524,57 @@ Asserts that SUPRA_NATIVE_AUTOMATION feature flag is enabled.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_assert_feature_enabled">assert_feature_enabled</a>() {
-    <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal">estimate_automation_fee_with_committed_occupancy_internal</a>(
+    task_occupancy: u64,
+    committed_occupancy: u64,
+    epoch_info: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>,
+    active_config: &<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>
+): u64 {
+    <b>let</b> total_committed_max_gas = committed_occupancy + task_occupancy;
+
+    <b>let</b> congestion_base_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_congestion_fee">calculate_automation_congestion_fee</a>(
+        &active_config.main_config,
+        (total_committed_max_gas <b>as</b> u256),
+        active_config.next_epoch_registry_max_gas_cap);
+    <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_for_interval">calculate_automation_fee_for_interval</a>(
+        epoch_info.epoch_interval,
+        task_occupancy,
+        active_config.main_config.automation_base_fee_in_quants_per_sec,
+        congestion_base_fee_per_sec,
+        active_config.next_epoch_registry_max_gas_cap)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_validate_configuration_parameters_common"></a>
+
+## Function `validate_configuration_parameters_common`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, congestion_threshold_percentage: u8, congestion_exponent: u8)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(
+    epoch_interval_secs: u64,
+    task_duration_cap_in_secs: u64,
+    registry_max_gas_cap: u64,
+    congestion_threshold_percentage: u8,
+    congestion_exponent: u8,
+)  {
+    <b>assert</b>!(congestion_threshold_percentage &lt;= <a href="automation_registry.md#0x1_automation_registry_MAX_PERCENTAGE">MAX_PERCENTAGE</a>, <a href="automation_registry.md#0x1_automation_registry_EMAX_CONGESTION_THRESHOLD">EMAX_CONGESTION_THRESHOLD</a>);
+    <b>assert</b>!(congestion_exponent &gt; 0, <a href="automation_registry.md#0x1_automation_registry_ECONGESTION_EXP_NON_ZERO">ECONGESTION_EXP_NON_ZERO</a>);
+    <b>assert</b>!(task_duration_cap_in_secs &gt; epoch_interval_secs, <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_TASK_DURATION_CAP">EUNACCEPTABLE_TASK_DURATION_CAP</a>);
+    <b>assert</b>!(registry_max_gas_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO">EREGISTRY_MAX_GAS_CAP_NON_ZERO</a>);
 }
 </code></pre>
 
@@ -1537,8 +1610,12 @@ Initialization of Automation Registry with configuration parameters is expected 
     congestion_exponent: u8,
 ) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
-    <b>assert</b>!(congestion_threshold_percentage &lt; 100, <a href="automation_registry.md#0x1_automation_registry_MAX_CONGESTION_THRESHOLD">MAX_CONGESTION_THRESHOLD</a>);
-    <b>assert</b>!(congestion_exponent &gt; 0, <a href="automation_registry.md#0x1_automation_registry_CONGESTION_EXP_NON_ZERO">CONGESTION_EXP_NON_ZERO</a>);
+    <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(
+        epoch_interval_secs,
+        task_duration_cap_in_secs,
+        registry_max_gas_cap,
+        congestion_threshold_percentage,
+        congestion_exponent);
 
     <b>let</b> (registry_fee_resource_signer, registry_fee_address_signer_cap) = <a href="account.md#0x1_account_create_resource_account">account::create_resource_account</a>(
         supra_framework,
@@ -1553,6 +1630,7 @@ Initialization of Automation Registry with configuration parameters is expected 
         gas_committed_for_this_epoch: 0,
         registry_fee_address: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&registry_fee_resource_signer),
         registry_fee_address_signer_cap,
+        epoch_active_task_ids: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[],
     });
 
     <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
@@ -1627,12 +1705,13 @@ On new epoch this function will be triggered and update the automation registry 
     <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>();
 
     // If feature is not enabled then we are not charging and tasks are cleared.
-    <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled">is_feature_enabled</a>()) {
+    <b>if</b> (!<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>()) {
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = 0;
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees = 0;
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch = 0;
         automation_epoch_info.start_time = current_time;
         automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
         <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_clear">enumerable_map::clear</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
         <b>return</b>
     };
@@ -1650,7 +1729,7 @@ On new epoch this function will be triggered and update the automation registry 
         <b>false</b>
     );
 
-    <b>let</b> (gas_committed_for_next_epoch, epoch_locked_fees) = <a href="automation_registry.md#0x1_automation_registry_try_withdraw_task_automation_fees">try_withdraw_task_automation_fees</a>(
+    <b>let</b> (gas_committed_for_next_epoch, epoch_locked_fees, epoch_active_task_ids) = <a href="automation_registry.md#0x1_automation_registry_try_withdraw_task_automation_fees">try_withdraw_task_automation_fees</a>(
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
         tasks_automation_fees,
         current_time,
@@ -1660,6 +1739,7 @@ On new epoch this function will be triggered and update the automation registry 
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees = epoch_locked_fees;
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch = tcmg;
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids = <b>move</b> epoch_active_task_ids;
     automation_epoch_info.start_time = current_time;
     automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
 }
@@ -2046,9 +2126,10 @@ Processes automation task fees by checking user balances and task's commitment o
 - If the user has sufficient balance, deducts the fee and emits a success event.
 - If the balance is insufficient, removes the task and emits a cancellation event.
 - If calculated fee for the epoch surpasses task's automation-fee-cap task is removed and cancellation event is emitted.
+Return estimated committed gas for the next epoch, locked automation fee amount for this epoch, and list of active task indexes
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_try_withdraw_task_automation_fees">try_withdraw_task_automation_fees</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, tasks_automation_fees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">automation_registry::AutomationTaskFee</a>&gt;, current_time: u64, epoch_interval: u64): (u64, u64)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_try_withdraw_task_automation_fees">try_withdraw_task_automation_fees</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, tasks_automation_fees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">automation_registry::AutomationTaskFee</a>&gt;, current_time: u64, epoch_interval: u64): (u64, u64, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
 </code></pre>
 
 
@@ -2062,8 +2143,9 @@ Processes automation task fees by checking user balances and task's commitment o
     tasks_automation_fees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">AutomationTaskFee</a>&gt;,
     current_time: u64,
     epoch_interval: u64,
-): (u64, u64) {
+): (u64, u64, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;) {
     <b>let</b> (gas_committed_for_next_epoch, epoch_locked_fees) = (0, 0);
+    <b>let</b> epoch_active_task_ids = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
 
     <a href="automation_registry.md#0x1_automation_registry_sort_by_task_index">sort_by_task_index</a>(&<b>mut</b> tasks_automation_fees);
 
@@ -2104,6 +2186,7 @@ Processes automation task fees by checking user balances and task's commitment o
                 });
                 // Total task fees deducted from the user's <a href="account.md#0x1_account">account</a>
                 epoch_locked_fees = epoch_locked_fees + task.fee;
+                <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> epoch_active_task_ids, task.task_index);
 
                 // Calculate gas commitment for the next epoch only for valid active tasks
                 <b>if</b> (task_metadata.expiry_time &gt; (current_time + epoch_interval)) {
@@ -2112,7 +2195,7 @@ Processes automation task fees by checking user balances and task's commitment o
             };
         }
     });
-    (gas_committed_for_next_epoch, epoch_locked_fees)
+    (gas_committed_for_next_epoch, epoch_locked_fees, epoch_active_task_ids)
 }
 </code></pre>
 
@@ -2254,18 +2337,17 @@ Update Automation Registry Config
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <b>let</b> automation_epoch_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
 
+    <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(
+        automation_epoch_info.epoch_interval,
+        task_duration_cap_in_secs,
+        registry_max_gas_cap,
+        congestion_threshold_percentage,
+        congestion_exponent);
+
     <b>assert</b>!(
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &lt; registry_max_gas_cap,
         <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_AUTOMATION_GAS_LIMIT">EUNACCEPTABLE_AUTOMATION_GAS_LIMIT</a>
     );
-
-    <b>assert</b>!(
-        automation_epoch_info.epoch_interval &lt; task_duration_cap_in_secs,
-        <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_TASK_DURATION_CAP">EUNACCEPTABLE_TASK_DURATION_CAP</a>
-    );
-
-    <b>assert</b>!(congestion_threshold_percentage &lt;= 100, <a href="automation_registry.md#0x1_automation_registry_MAX_CONGESTION_THRESHOLD">MAX_CONGESTION_THRESHOLD</a>);
-    <b>assert</b>!(congestion_exponent &gt; 0, <a href="automation_registry.md#0x1_automation_registry_CONGESTION_EXP_NON_ZERO">CONGESTION_EXP_NON_ZERO</a>);
 
     <b>let</b> new_automation_registry_config = <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
         task_duration_cap_in_secs,
@@ -2317,7 +2399,7 @@ Registers a new automation task entry.
     aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     // Guarding registration <b>if</b> feature is not enabled.
-    <a href="automation_registry.md#0x1_automation_registry_assert_feature_enabled">assert_feature_enabled</a>();
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>);
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&aux_data), <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>);
 
     <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
@@ -2344,6 +2426,17 @@ Registers a new automation task entry.
 
     <b>let</b> committed_gas = (committed_gas <b>as</b> u64);
     <b>assert</b>!(committed_gas &lt; automation_registry_config.next_epoch_registry_max_gas_cap, <a href="automation_registry.md#0x1_automation_registry_EGAS_AMOUNT_UPPER">EGAS_AMOUNT_UPPER</a>);
+
+    // Check the automation fee capacity
+    <b>let</b> estimated_automation_fee_for_epoch = <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal">estimate_automation_fee_with_committed_occupancy_internal</a>(
+        max_gas_amount,
+        committed_gas,
+        automation_epoch_info,
+        automation_registry_config);
+    <b>assert</b>!(automation_fee_cap_for_epoch &gt;= estimated_automation_fee_for_epoch,
+        <a href="automation_registry.md#0x1_automation_registry_EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH">EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH</a>
+    );
+
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = committed_gas;
     <b>let</b> task_index = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index;
 
