@@ -221,6 +221,7 @@ module supra_framework::genesis {
         congestion_threshold_percentage: u8,
         congestion_base_fee_in_quants_per_sec: u64,
         congestion_exponent: u8,
+        task_capacity: u16,
     ) {
         let epoch_interval_secs = block::get_epoch_interval_secs();
         automation_registry::initialize(
@@ -233,6 +234,7 @@ module supra_framework::genesis {
             congestion_threshold_percentage,
             congestion_base_fee_in_quants_per_sec,
             congestion_exponent,
+            task_capacity,
         )
     }
 

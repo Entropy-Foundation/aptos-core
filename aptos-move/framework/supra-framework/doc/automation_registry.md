@@ -185,6 +185,12 @@ Automation registry configuration parameters
 <dd>
  The congestion fee increases exponentially based on this value, ensuring higher fees as the registry approaches full capacity.
 </dd>
+<dt>
+<code>task_capacity: u16</code>
+</dt>
+<dd>
+ Maximum number of tasks that registry can hold.
+</dd>
 </dl>
 
 
@@ -932,6 +938,16 @@ Auxiliary data during registration is not supported
 
 
 
+<a id="0x1_automation_registry_EREGISTRY_IS_FULL"></a>
+
+Registry task capacity has reached.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_IS_FULL">EREGISTRY_IS_FULL</a>: u64 = 23;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO"></a>
 
 Automation registry max gas capacity cannot be zero.
@@ -1589,7 +1605,7 @@ maximum allowed occupancy for the next epoch.
 Initialization of Automation Registry with configuration parameters is expected metrics.
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16)
 </code></pre>
 
 
@@ -1608,6 +1624,7 @@ Initialization of Automation Registry with configuration parameters is expected 
     congestion_threshold_percentage: u8,
     congestion_base_fee_in_quants_per_sec: u64,
     congestion_exponent: u8,
+    task_capacity: u16,
 ) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
     <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(
@@ -1642,6 +1659,7 @@ Initialization of Automation Registry with configuration parameters is expected 
             congestion_threshold_percentage,
             congestion_base_fee_in_quants_per_sec,
             congestion_exponent,
+            task_capacity
         },
         next_epoch_registry_max_gas_cap: registry_max_gas_cap
     });
@@ -2232,6 +2250,7 @@ The function updates the ActiveAutomationRegistryConfig structure with values ex
         automation_registry_config.congestion_threshold_percentage = buffer.congestion_threshold_percentage;
         automation_registry_config.congestion_base_fee_in_quants_per_sec = buffer.congestion_base_fee_in_quants_per_sec;
         automation_registry_config.congestion_exponent = buffer.congestion_exponent;
+        automation_registry_config.task_capacity = buffer.task_capacity;
     };
 }
 </code></pre>
@@ -2313,7 +2332,7 @@ Transfers the specified fee amount from the resource account to the target accou
 Update Automation Registry Config
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16)
 </code></pre>
 
 
@@ -2331,6 +2350,7 @@ Update Automation Registry Config
     congestion_threshold_percentage: u8,
     congestion_base_fee_in_quants_per_sec: u64,
     congestion_exponent: u8,
+    task_capacity: u16,
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
@@ -2357,6 +2377,7 @@ Update Automation Registry Config
         congestion_threshold_percentage,
         congestion_base_fee_in_quants_per_sec,
         congestion_exponent,
+        task_capacity
     };
     <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(<b>copy</b> new_automation_registry_config);
 
@@ -2402,9 +2423,12 @@ Registers a new automation task entry.
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>);
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&aux_data), <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>);
 
+    <b>let</b> automation_registry_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
+    // If registry is full, reject task registration
+    <b>assert</b>!((<a href="automation_registry.md#0x1_automation_registry_get_task_count">get_task_count</a>() <b>as</b> u16) &lt; automation_registry_config.main_config.task_capacity, <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_IS_FULL">EREGISTRY_IS_FULL</a>);
+
     <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
-    <b>let</b> automation_registry_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
     <b>let</b> automation_epoch_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
 
     //Well-formedness check of payload_tx is done in <b>native</b> layer beforehand.
