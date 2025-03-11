@@ -1,6 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+use std::collections::HashMap;
 use crate::log::{
     CallFrame, Dependency, EventStorage, EventTransient, ExecutionAndIOCosts, ExecutionGasEvent,
     FrameName, StorageFees, TransactionGasLog, WriteOpType, WriteStorage, WriteTransient,
@@ -41,6 +42,9 @@ pub struct GasProfiler<G> {
     events_transient: Vec<EventTransient>,
     write_set_transient: Vec<WriteTransient>,
     storage_fees: Option<StorageFees>,
+    module_gas_usage: HashMap<ModuleId, InternalGas>,
+    // A variable to store the last read value of the gas meter
+    last_read: InternalGas,
 }
 
 // TODO: consider switching to a library like https://docs.rs/delegate/latest/delegate/.
@@ -85,11 +89,12 @@ macro_rules! record_bytecode {
     };
 }
 
-impl<G> GasProfiler<G> {
+impl<G> GasProfiler<G> where
+    G: AptosGasMeter,
+{
     pub fn new_script(base: G) -> Self {
-        Self {
+        let mut profiler = Self {
             base,
-
             intrinsic_cost: None,
             keyless_cost: None,
             dependencies: vec![],
@@ -98,7 +103,11 @@ impl<G> GasProfiler<G> {
             events_transient: vec![],
             write_set_transient: vec![],
             storage_fees: None,
-        }
+            module_gas_usage: HashMap::new(),
+            last_read: InternalGas::zero(),
+        };
+        profiler.initialize_last_read();
+        profiler
     }
 
     pub fn new_function(
@@ -107,9 +116,8 @@ impl<G> GasProfiler<G> {
         func_name: Identifier,
         ty_args: Vec<TypeTag>,
     ) -> Self {
-        Self {
+        let mut profiler = Self {
             base,
-
             intrinsic_cost: None,
             keyless_cost: None,
             dependencies: vec![],
@@ -118,14 +126,137 @@ impl<G> GasProfiler<G> {
             events_transient: vec![],
             write_set_transient: vec![],
             storage_fees: None,
-        }
+            module_gas_usage: HashMap::new(),
+            last_read: InternalGas::zero(),
+        };
+        profiler.initialize_last_read();
+        profiler
+    }
+    fn initialize_last_read(&mut self) {
+        self.last_read = self.base.balance_internal();
+        println!("initializing last_read: {:?}", self.last_read);
+        println!("Gas metering: {:?}", self.base.balance_internal());
     }
 }
+
 
 impl<G> GasProfiler<G>
 where
     G: AptosGasMeter,
 {
+    // Method to print the module_gas_usage hash table
+    pub fn print_module_gas_usage(&self) {
+        for (module_id, gas) in &self.module_gas_usage {
+            println!("Module: {:?}, Gas Used: {:?}", module_id, gas);
+        }
+    }
+
+    fn is_intra_module_call(&self, module_id: &ModuleId) -> bool {
+        // Ignore call to supraframework
+        if module_id.address() == &AccountAddress::ONE {
+            return true;
+        }
+        if let Some(frame) = self.frames.last() {
+            if let FrameName::Function { module_id: current_module_id, .. } = &frame.name {
+                return current_module_id == module_id;
+            }
+        }
+        false
+    }
+
+    // Add a method to get the total gas usage for a module
+    pub fn get_module_gas_usage(&self, module_id: &ModuleId) -> InternalGas {
+        *self.module_gas_usage.get(module_id).unwrap_or(&InternalGas::zero())
+    }
+
+    //TODO: see whether this is increasing gas meter or decreasing gas meter
+    fn charge_call_with_metering(
+        &mut self,
+        module_id: &ModuleId,
+        func_name: &str,
+        args: impl ExactSizeIterator<Item = impl ValueView> + Clone,
+        num_locals: NumArgs,
+    ) -> PartialVMResult<()> {
+        let is_intra_module = self.is_intra_module_call(module_id);
+        let (cost, res) = self.delegate_charge(|base| {
+            base.charge_call(module_id, func_name, args, num_locals)
+        });
+        self.record_bytecode(Opcodes::CALL, cost);
+
+        // println!("is_intra_module: {:?}", is_intra_module);
+        if !is_intra_module {
+            let current_meter_value = self.base.balance_internal();
+            // Try print u64 rep
+            println!("current_meter_value: {:?}", current_meter_value);
+            println!("last_read: {:?}", self.last_read);
+            let delta = self.last_read.checked_sub(current_meter_value).expect("gas cost must be non-negative");
+            if let Some(frame) = self.frames.last() {
+                if let FrameName::Function { module_id: cur_module_id, .. } = &frame.name {
+                    *self.module_gas_usage.entry(cur_module_id.clone()).or_insert(InternalGas::zero()) += delta;
+                    println!("Intermodule call detected");
+                    println!("Current Module: {:?}", cur_module_id);
+                    println!("Called Module: {:?}", module_id);
+                    println!("Adding to cost: {:?} to module: {:?}", delta, cur_module_id);
+                    self.last_read = current_meter_value;
+                }
+            }
+        };
+
+        self.frames.push(CallFrame::new_function(
+            module_id.clone(),
+            Identifier::new(func_name).unwrap(),
+            vec![],
+        ));
+
+        res
+    }
+
+    fn charge_call_generic_with_metering(
+        &mut self,
+        module_id: &ModuleId,
+        func_name: &str,
+        ty_args: impl ExactSizeIterator<Item = impl TypeView> + Clone,
+        args: impl ExactSizeIterator<Item = impl ValueView> + Clone,
+        num_locals: NumArgs,
+    ) -> PartialVMResult<()> {
+        let is_intra_module = self.is_intra_module_call(module_id);
+        let ty_tags = ty_args
+            .clone()
+            .map(|ty| ty.to_type_tag())
+            .collect::<Vec<_>>();
+        let (cost, res) = self.delegate_charge(|base| {
+            base.charge_call_generic(module_id, func_name, ty_args, args, num_locals)
+        });
+        self.record_bytecode(Opcodes::CALL_GENERIC, cost);
+
+        // println!("is_intra_module: {:?}", is_intra_module);
+        if !is_intra_module {
+            let current_meter_value = self.base.balance_internal();
+            // Try print u64 rep
+            println!("current_meter_value: {:?}", current_meter_value);
+            println!("last_read: {:?}", self.last_read);
+            let delta = self.last_read.checked_sub(current_meter_value).expect("gas cost must be non-negative");
+            if let Some(frame) = self.frames.last() {
+                if let FrameName::Function { module_id: cur_module_id, .. } = &frame.name {
+                    *self.module_gas_usage.entry(cur_module_id.clone()).or_insert(InternalGas::zero()) += delta;
+                    println!("Intermodule call detected");
+                    println!("Current Module: {:?}", cur_module_id);
+                    println!("Called Module: {:?}", module_id);
+                    println!("Adding to cost: {:?} to module: {:?}", delta, cur_module_id);
+                    self.last_read = current_meter_value;
+                }
+            }
+        };
+
+        self.frames.push(CallFrame::new_function(
+            module_id.clone(),
+            Identifier::new(func_name).unwrap(),
+            ty_tags,
+        ));
+
+        res
+    }
+
     fn active_event_stream(&mut self) -> &mut Vec<ExecutionGasEvent> {
         &mut self.frames.last_mut().unwrap().events
     }
@@ -390,7 +521,6 @@ where
         let (cost, res) = self.delegate_charge(|base| base.charge_simple_instr(instr));
 
         self.record_bytecode(instr.to_opcode(), cost);
-
         // TODO: Right now we keep the last frame on the stack even after hitting the ret instruction,
         //       so that it can be picked up by finishing procedure.
         //       This is a bit hacky and can lead to weird behaviors if the profiler is used
@@ -399,7 +529,28 @@ where
         if matches!(instr, SimpleInstruction::Ret) && self.frames.len() > 1 {
             let cur_frame = self.frames.pop().expect("frame must exist");
             let last_frame = self.frames.last_mut().expect("frame must exist");
-            last_frame.events.push(ExecutionGasEvent::Call(cur_frame));
+            // last_frame.events.push(ExecutionGasEvent::Call(cur_frame.clone()));
+            // If it intermodule return, add the gas cost to current module
+
+            if let FrameName::Function { module_id: cur_module_id, .. } = &cur_frame.name {
+                if let FrameName::Function { module_id: last_module_id, .. } = &last_frame.name {
+                    // println!("Current Frame Module ID: {:?}", cur_module_id);
+                    // println!("Last Frame Module ID: {:?}", last_module_id);
+                    if cur_module_id != last_module_id {
+                        let start_gas = self.last_read;
+                        let end_gas = self.base.balance_internal();
+                        // println!("start_gas: {:?}", start_gas);
+                        // println!("end_gas: {:?}", end_gas);
+                        let function_cost = start_gas.checked_sub(end_gas).expect("gas cost must be non-negative");
+                        self.last_read = end_gas;
+                        *self.module_gas_usage.entry(cur_module_id.clone()).or_insert(InternalGas::zero()) += function_cost;
+                        println!("Intermodule return detected");
+                        println!("Current Module: {:?}", cur_module_id);
+                        println!("Last Module: {:?}", last_module_id);
+                        println!("Adding to cost: {:?} to module: {:?}", function_cost, cur_module_id);
+                    }
+                }
+            }
         }
 
         res
@@ -412,17 +563,7 @@ where
         args: impl ExactSizeIterator<Item = impl ValueView> + Clone,
         num_locals: NumArgs,
     ) -> PartialVMResult<()> {
-        let (cost, res) =
-            self.delegate_charge(|base| base.charge_call(module_id, func_name, args, num_locals));
-
-        self.record_bytecode(Opcodes::CALL, cost);
-        self.frames.push(CallFrame::new_function(
-            module_id.clone(),
-            Identifier::new(func_name).unwrap(),
-            vec![],
-        ));
-
-        res
+        self.charge_call_with_metering(module_id, func_name, args, num_locals)
     }
 
     fn charge_call_generic(
@@ -433,23 +574,7 @@ where
         args: impl ExactSizeIterator<Item = impl ValueView> + Clone,
         num_locals: NumArgs,
     ) -> PartialVMResult<()> {
-        let ty_tags = ty_args
-            .clone()
-            .map(|ty| ty.to_type_tag())
-            .collect::<Vec<_>>();
-
-        let (cost, res) = self.delegate_charge(|base| {
-            base.charge_call_generic(module_id, func_name, ty_args, args, num_locals)
-        });
-
-        self.record_bytecode(Opcodes::CALL_GENERIC, cost);
-        self.frames.push(CallFrame::new_function(
-            module_id.clone(),
-            Identifier::new(func_name).unwrap(),
-            ty_tags,
-        ));
-
-        res
+        self.charge_call_generic_with_metering(module_id, func_name, ty_args, args, num_locals)
     }
 
     fn charge_load_resource(
@@ -668,6 +793,8 @@ where
     G: AptosGasMeter,
 {
     pub fn finish(mut self) -> TransactionGasLog {
+        // Print the module_gas_usage hash table
+        self.print_module_gas_usage();
         while self.frames.len() > 1 {
             let cur = self.frames.pop().expect("frame must exist");
             let last = self.frames.last_mut().expect("frame must exist");
