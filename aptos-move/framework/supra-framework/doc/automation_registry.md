@@ -189,7 +189,7 @@ Automation registry configuration parameters
 <code>task_capacity: u16</code>
 </dt>
 <dd>
- Mximum tasks that registry can hold.
+ Maximum number of tasks that registry can hold.
 </dd>
 </dl>
 

@@ -121,7 +121,7 @@ module supra_framework::automation_registry {
         congestion_base_fee_in_quants_per_sec: u64,
         /// The congestion fee increases exponentially based on this value, ensuring higher fees as the registry approaches full capacity.
         congestion_exponent: u8,
-        /// Mximum tasks that registry can hold.
+        /// Maximum number of tasks that registry can hold.
         task_capacity: u16,
     }
 
@@ -1393,8 +1393,9 @@ module supra_framework::automation_registry {
             1005,
             700000000,
             70,
-            2000, 5,
-        200);
+            2000,
+            5,
+            200);
 
         let state = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
         assert!(state.main_config.registry_max_gas_cap == AUTOMATION_MAX_GAS_TEST, 1);

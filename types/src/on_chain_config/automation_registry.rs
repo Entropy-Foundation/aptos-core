@@ -36,7 +36,7 @@ pub struct AutomationRegistryConfigV1 {
     congestion_base_fee_in_quants_per_sec: u64,
     /// The congestion fee increases exponentially based on this value, ensuring higher fees as the registry approaches full capacity.
     congestion_exponent: u8,
-    /// Number maximum task that registry can hold.
+    /// Maximum number of tasks that registry can hold.
     task_capacity: u16,
 }
 
