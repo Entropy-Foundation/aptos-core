@@ -542,7 +542,7 @@ module supra_framework::automation_registry {
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
         automation_registry.epoch_locked_fees = epoch_locked_fees;
         automation_registry.gas_committed_for_this_epoch = tcmg;
-        automation_registry.epoch_active_task_ids = epoch_active_task_ids;
+        automation_registry.epoch_active_task_ids = move epoch_active_task_ids;
         automation_epoch_info.start_time = current_time;
         automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
     }

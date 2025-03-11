@@ -1739,7 +1739,7 @@ On new epoch this function will be triggered and update the automation registry 
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees = epoch_locked_fees;
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch = tcmg;
-    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids = epoch_active_task_ids;
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids = <b>move</b> epoch_active_task_ids;
     automation_epoch_info.start_time = current_time;
     automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
 }
