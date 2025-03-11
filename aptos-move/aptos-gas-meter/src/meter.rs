@@ -1,6 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+use std::collections::HashMap;
 use crate::traits::{AptosGasMeter, GasAlgebra};
 use aptos_gas_algebra::{Fee, FeePerGasUnit, NumTypeNodes};
 use aptos_gas_schedule::{
@@ -31,6 +32,9 @@ use move_vm_types::{
 /// consisting all the gas parameters, which it can lookup when performing gas calculations.
 pub struct StandardGasMeter<A> {
     algebra: A,
+    module_gas_usage: HashMap<ModuleId, InternalGas>,
+    // A variable to store the last read value of the gas meter
+    last_read: InternalGas,
 }
 
 impl<A> StandardGasMeter<A>
@@ -38,12 +42,69 @@ where
     A: GasAlgebra,
 {
     pub fn new(algebra: A) -> Self {
-        Self { algebra }
+        print!("Gas metering: {:?}", algebra.balance_internal());
+        let mut meter = Self {
+            algebra,
+            module_gas_usage: HashMap::new(),
+            last_read: InternalGas::zero(),
+        };
+        meter.initialize_last_read();
+        meter
     }
 
     pub fn feature_version(&self) -> u64 {
         self.algebra.feature_version()
     }
+
+    fn initialize_last_read(&mut self) {
+        self.last_read = self.algebra.balance_internal();
+        println!("initializing last_read: {:?}", self.last_read);
+        println!("Gas metering: {:?}", self.algebra.balance_internal());
+    }
+
+    // fn is_intra_module_call(&self, module_id: &ModuleId) -> bool {
+    //     if module_id.address() == &AccountAddress::ONE {
+    //         return true;
+    //     }
+    //     if let Some(frame) = self.frames.last() {
+    //         if let FrameName::Function { module_id: current_module_id, .. } = &frame.name {
+    //             return current_module_id == module_id;
+    //         }
+    //     }
+    //     false
+    // }
+    //
+    // fn track_intermodule_call(&mut self, module_id: &ModuleId) {
+    //     if !self.is_intra_module_call(module_id) {
+    //         let current_meter_value = self.balance_internal();
+    //         let delta = self.last_read.checked_sub(current_meter_value).expect("gas cost must be non-negative");
+    //         if let Some(frame) = self.frames.last() {
+    //             if let FrameName::Function { module_id: cur_module_id, .. } = &frame.name {
+    //                 *self.module_gas_usage.entry(cur_module_id.clone()).or_insert(InternalGas::zero()) += delta;
+    //                 self.last_read = current_meter_value;
+    //             }
+    //         }
+    //     }
+    // }
+    //
+    // fn track_intermodule_return(&mut self) {
+    //     if self.frames.len() > 1 {
+    //         let cur_frame = self.frames.pop().expect("frame must exist");
+    //         let last_frame = self.frames.last_mut().expect("frame must exist");
+    //
+    //         if let FrameName::Function { module_id: cur_module_id, .. } = &cur_frame.name {
+    //             if let FrameName::Function { module_id: last_module_id, .. } = &last_frame.name {
+    //                 if cur_module_id != last_module_id {
+    //                     let start_gas = self.last_read;
+    //                     let end_gas = self.balance_internal();
+    //                     let function_cost = start_gas.checked_sub(end_gas).expect("gas cost must be non-negative");
+    //                     self.last_read = end_gas;
+    //                     *self.module_gas_usage.entry(cur_module_id.clone()).or_insert(InternalGas::zero()) += function_cost;
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 impl<A> MoveGasMeter for StandardGasMeter<A>
