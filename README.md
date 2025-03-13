@@ -1,12 +1,12 @@
 <a href="https://supra.com">
- <img width="100%" src="./.assets/aptos_banner.png" alt="Supra Banner" />
+ <img width="100%" src="./.assets/supra_banner.png" alt="Supra Banner" />
 </a>
 
 ---
 
 [![License](https://img.shields.io/badge/license-Apache-green.svg)](LICENSE)
 [![Lint+Test](https://github.com/Entropy-Foundation/aptos-core/actions/workflows/lint-test.yaml/badge.svg)](https://github.com/Entropy-Foundation/aptos-core/actions/workflows/lint-test.yaml)
-[![Discord chat](https://img.shields.io/discord/945856774056083548?style=flat-square)](https://discord.gg/supralabs)
+[![Discord chat](https://img.shields.io/discord/850682587273625661?style=flat-square)](https://discord.gg/supralabs)
 
 Supra is a layer 1 blockchain bringing a paradigm shift to Web3 through better technology and user experience. Built with Move to create a home for developers building next-gen applications.
 
