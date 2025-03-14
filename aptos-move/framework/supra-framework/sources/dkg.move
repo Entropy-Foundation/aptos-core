@@ -12,6 +12,12 @@ module supra_framework::dkg {
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
     use supra_framework::validator_consensus_info::ValidatorConsensusInfo;
+    #[test_only]
+    use std::option::extract;
+    #[test_only]
+    use supra_framework::account::create_signer_for_test;
+    #[test_only]
+    use supra_framework::validator_consensus_info::new;
     friend supra_framework::block;
     friend supra_framework::reconfiguration_with_dkg;
 
@@ -174,6 +180,7 @@ module supra_framework::dkg {
                 committee_pk: committee_pk_bytes,
                 accumulation_value: accumulation_value
             });
+        dkg_state.in_progress = option::some(session);
     }
 
     /// Mark the incomplete DKG session completed.
@@ -208,5 +215,110 @@ module supra_framework::dkg {
     /// Return the dealer epoch of a `DKGSessionState`.
     public fun session_dealer_epoch(session: &DKGSessionState): u32 {
         session.metadata.dealer_epoch
+    }
+
+    //----------------------------------------------------------------------------
+    // Helper function to create a dummy ValidatorConsensusInfo.
+    //----------------------------------------------------------------------------
+    #[test_only]
+    fun dummy_validator(addr: address, pk: vector<u8>, voting: u64): ValidatorConsensusInfo {
+        new(addr, pk, voting)
+    }
+
+    #[test_only]
+    fun test_setup(): (vector<u8>, vector<u8>, vector<u8>, vector<vector<u8>>){
+        let committee_pk: vector<u8> = vector[182, 73, 201, 14, 230, 212, 121, 234, 4, 2, 125, 30, 61, 139, 81, 76, 241, 191, 75, 135, 143, 132, 162, 52, 121, 234, 164, 60, 119, 40, 189, 164, 194, 214, 90, 25, 73, 85, 94, 130, 208, 18, 199, 241, 167, 98, 239, 68];
+        let accumulation: vector<u8> = vector[232, 119, 152, 228, 1, 19, 215, 62, 95, 203, 75, 118, 224, 181, 223, 233, 41, 47, 51, 61, 85, 215, 75, 107, 104, 79, 222, 151, 170, 97, 92, 207];
+        let agg_signature: vector<u8> = vector[181, 161, 53, 232, 184, 30, 201, 51, 146, 146, 54, 240, 64, 227, 1, 247, 176, 252, 106, 194, 225, 145, 142, 52, 220, 79, 27, 148, 84, 137, 166, 112, 7, 118, 119, 67, 199, 31, 198, 251, 216, 37, 64, 72, 51, 235, 62, 178, 2, 6, 214, 51, 156, 158, 215, 63, 178, 97, 176, 148, 12, 47, 95, 201, 130, 98, 93, 112, 182, 62, 36, 4, 42, 85, 90, 82, 198, 222, 84, 90, 19, 223, 179, 47, 108, 229, 238, 59, 42, 240, 175, 153, 155, 185, 173, 69];
+
+        let signer_vks = vector[];
+        vector::push_back(&mut signer_vks, vector[147, 241, 20, 165, 199, 147, 154, 35, 21, 86, 138, 254, 208, 81, 28, 40, 164, 200, 57, 247, 61, 46, 40, 186, 98, 69, 139, 204, 0, 59, 27, 93, 146, 25, 226, 194, 50, 123, 219, 188, 67, 140, 160, 36, 231, 138, 250, 250]);
+        vector::push_back(&mut signer_vks, vector[178, 205, 57, 192, 200, 251, 129, 159, 191, 92, 52, 131, 206, 229, 115, 188, 169, 164, 37, 221, 14, 196, 152, 27, 23, 46, 129, 27, 172, 105, 177, 242, 211, 220, 82, 104, 112, 124, 136, 166, 61, 16, 0, 35, 218, 29, 192, 153]);
+        vector::push_back(&mut signer_vks, vector[161, 241, 195, 163, 120, 146, 20, 253, 54, 116, 156, 150, 25, 17, 95, 44, 38, 23, 53, 227, 113, 92, 19, 200, 201, 191, 124, 89, 247, 219, 33, 215, 146, 18, 26, 230, 112, 228, 236, 42, 238, 80, 149, 35, 13, 142, 136, 92]);
+        vector::push_back(&mut signer_vks, vector[140, 4, 151, 88, 74, 215, 20, 193, 21, 212, 234, 80, 106, 30, 152, 62, 170, 176, 125, 81, 101, 139, 28, 189, 78, 216, 78, 161, 245, 95, 105, 117, 191, 136, 140, 117, 51, 167, 237, 200, 126, 179, 94, 206, 218, 205, 128, 71]);
+
+        (committee_pk, accumulation, agg_signature, signer_vks)
+    }
+
+    //----------------------------------------------------------------------------
+    // Test 1: start() correctly initializes a DKG session.
+    //----------------------------------------------------------------------------
+    #[test]
+    fun test_start_session() acquires DKGState {
+        let sf = @supra_framework; // framework signer address
+        let sf_signer = create_signer_for_test(sf);
+        // Initialize the global timestamp resource.
+        timestamp::set_time_has_started_for_testing(&sf_signer);
+
+        initialize(&sf_signer);
+        // Create a dealer and a target validator.
+        let dealer = dummy_validator(@0x1, vector[9, 9, 9], 100);
+        let target = dummy_validator(@0x2, vector[10, 10, 10], 100);
+
+        let dealer_set = vector::empty<ValidatorConsensusInfo>();
+        vector::push_back(&mut dealer_set, dealer);
+        let target_set = vector::empty<ValidatorConsensusInfo>();
+        vector::push_back(&mut target_set, target);
+
+        // Start a session with dealer_epoch = 10 and threshold = 1.
+        start(10, 1, dealer_set, target_set);
+
+        // Verify that an in-progress session exists and metadata is set.
+        let session_opt = incomplete_session();
+        assert!(is_some(&session_opt), 100);
+        let session = extract(&mut session_opt);
+        assert!(session_dealer_epoch(&session) == 10, 101);
+    }
+
+    //----------------------------------------------------------------------------
+    // Test 2: Successful add_dkg_meta.
+    //----------------------------------------------------------------------------
+    #[test]
+    fun test_add_dkg_meta_success() acquires DKGState {
+        let sf = @supra_framework;
+        let sf_signer = create_signer_for_test(sf);
+        // Initialize the global timestamp resource.
+        timestamp::set_time_has_started_for_testing(&sf_signer);
+        initialize(&sf_signer);
+
+        // Create dummy validator sets.
+        let dealer = dummy_validator(@0x1, vector[9, 9, 9], 100);
+        let target = dummy_validator(@0x2, vector[10, 10, 10], 100);
+        let dealer_set = vector::empty<ValidatorConsensusInfo>();
+        vector::push_back(&mut dealer_set, dealer);
+        let target_set = vector::empty<ValidatorConsensusInfo>();
+        vector::push_back(&mut target_set, target);
+
+        let epoch = 10;
+        let threshold = 4;
+        start(epoch, threshold, dealer_set, target_set);
+
+        let (committee_pk, accumulation, agg_signature, signer_vks) = test_setup();
+
+        let session_opt = incomplete_session();
+        assert!(is_some(&session_opt), 100);
+
+        // Call add_dkg_meta with valid inputs.
+        add_dkg_meta(
+            committee_pk,
+            accumulation,
+            agg_signature,
+            signer_vks
+        );
+
+        // Verify that the DKG meta transcript was set.
+        let session_opt = incomplete_session();
+        assert!(is_some(&session_opt), 100);
+
+        let session = extract(&mut session_opt);
+        assert!(session_dealer_epoch(&session) == 10, 101);
+
+        assert!(is_some(&session.dkg_meta_transcript), 102);
+
+        let dkg_meta = extract(&mut session.dkg_meta_transcript);
+
+        assert!(dkg_meta.committee_pk == committee_pk, 103);
+        assert!(dkg_meta.accumulation_value == accumulation, 104);
+
     }
 }
