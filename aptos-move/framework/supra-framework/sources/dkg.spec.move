@@ -12,8 +12,8 @@ spec supra_framework::dkg {
     }
 
     spec start(
-        dealer_epoch: u64,
-        randomness_config: RandomnessConfig,
+        dealer_epoch: u32,
+        threshold: u32,
         dealer_validator_set: vector<ValidatorConsensusInfo>,
         target_validator_set: vector<ValidatorConsensusInfo>,
     ) {
@@ -21,7 +21,7 @@ spec supra_framework::dkg {
         aborts_if !exists<timestamp::CurrentTimeMicroseconds>(@supra_framework);
     }
 
-    spec finish(transcript: vector<u8>) {
+    spec finish() {
         use std::option;
         requires exists<DKGState>(@supra_framework);
         requires option::is_some(global<DKGState>(@supra_framework).in_progress);

@@ -7,12 +7,17 @@ DKG on-chain states and helper functions.
 
 
 -  [Struct `DKGSessionMetadata`](#0x1_dkg_DKGSessionMetadata)
+-  [Struct `DKGMeta`](#0x1_dkg_DKGMeta)
+-  [Struct `DKGMetaWithAggregateSignature`](#0x1_dkg_DKGMetaWithAggregateSignature)
 -  [Struct `DKGStartEvent`](#0x1_dkg_DKGStartEvent)
 -  [Struct `DKGSessionState`](#0x1_dkg_DKGSessionState)
 -  [Resource `DKGState`](#0x1_dkg_DKGState)
 -  [Constants](#@Constants_0)
+-  [Function `u32_to_bytes_le`](#0x1_dkg_u32_to_bytes_le)
+-  [Function `serialize_dkg_meta`](#0x1_dkg_serialize_dkg_meta)
 -  [Function `initialize`](#0x1_dkg_initialize)
 -  [Function `start`](#0x1_dkg_start)
+-  [Function `add_dkg_meta`](#0x1_dkg_add_dkg_meta)
 -  [Function `finish`](#0x1_dkg_finish)
 -  [Function `try_clear_incomplete_session`](#0x1_dkg_try_clear_incomplete_session)
 -  [Function `incomplete_session`](#0x1_dkg_incomplete_session)
@@ -25,13 +30,14 @@ DKG on-chain states and helper functions.
     -  [Function `incomplete_session`](#@Specification_1_incomplete_session)
 
 
-<pre><code><b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
+<pre><code><b>use</b> <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381">0x1::bls12381</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
-<b>use</b> <a href="randomness_config.md#0x1_randomness_config">0x1::randomness_config</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="timestamp.md#0x1_timestamp">0x1::timestamp</a>;
 <b>use</b> <a href="validator_consensus_info.md#0x1_validator_consensus_info">0x1::validator_consensus_info</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 </code></pre>
 
 
@@ -54,13 +60,13 @@ This can be considered as the public input of DKG.
 
 <dl>
 <dt>
-<code>dealer_epoch: u64</code>
+<code>dealer_epoch: u32</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code><a href="randomness_config.md#0x1_randomness_config">randomness_config</a>: <a href="randomness_config.md#0x1_randomness_config_RandomnessConfig">randomness_config::RandomnessConfig</a></code>
+<code>threshold: u32</code>
 </dt>
 <dd>
 
@@ -73,6 +79,78 @@ This can be considered as the public input of DKG.
 </dd>
 <dt>
 <code>target_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_dkg_DKGMeta"></a>
+
+## Struct `DKGMeta`
+
+
+
+<pre><code><b>struct</b> <a href="dkg.md#0x1_dkg_DKGMeta">DKGMeta</a> <b>has</b> <b>copy</b>, drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>committee_pk: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>accumulation_value: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_dkg_DKGMetaWithAggregateSignature"></a>
+
+## Struct `DKGMetaWithAggregateSignature`
+
+
+
+<pre><code><b>struct</b> <a href="dkg.md#0x1_dkg_DKGMetaWithAggregateSignature">DKGMetaWithAggregateSignature</a> <b>has</b> <b>copy</b>
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>dkg_meta: <a href="dkg.md#0x1_dkg_DKGMeta">dkg::DKGMeta</a></code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>signers: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u32&gt;</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>signature: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u32&gt;</code>
 </dt>
 <dd>
 
@@ -147,7 +225,7 @@ The validator set of epoch <code>x</code> works together for an DKG output for t
 
 </dd>
 <dt>
-<code>transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>
+<code>dkg_meta_transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="dkg.md#0x1_dkg_DKGMeta">dkg::DKGMeta</a>&gt;</code>
 </dt>
 <dd>
 
@@ -196,6 +274,33 @@ The completed and in-progress DKG sessions.
 ## Constants
 
 
+<a id="0x1_dkg_EDKG_DKG_META_ALREADY_SET"></a>
+
+
+
+<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_DKG_META_ALREADY_SET">EDKG_DKG_META_ALREADY_SET</a>: u64 = 3;
+</code></pre>
+
+
+
+<a id="0x1_dkg_EDKG_DKG_META_SIGNATURE_VERIFICATION_FAILED"></a>
+
+
+
+<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_DKG_META_SIGNATURE_VERIFICATION_FAILED">EDKG_DKG_META_SIGNATURE_VERIFICATION_FAILED</a>: u64 = 6;
+</code></pre>
+
+
+
+<a id="0x1_dkg_EDKG_INVALID_SIGNER_VERIFICATION_KEY"></a>
+
+
+
+<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_INVALID_SIGNER_VERIFICATION_KEY">EDKG_INVALID_SIGNER_VERIFICATION_KEY</a>: u64 = 5;
+</code></pre>
+
+
+
 <a id="0x1_dkg_EDKG_IN_PROGRESS"></a>
 
 
@@ -213,6 +318,82 @@ The completed and in-progress DKG sessions.
 </code></pre>
 
 
+
+<a id="0x1_dkg_EDKG_NOT_THRESHOLD_SIGNERS"></a>
+
+
+
+<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_NOT_THRESHOLD_SIGNERS">EDKG_NOT_THRESHOLD_SIGNERS</a>: u64 = 4;
+</code></pre>
+
+
+
+<a id="0x1_dkg_u32_to_bytes_le"></a>
+
+## Function `u32_to_bytes_le`
+
+
+
+<pre><code><b>fun</b> <a href="dkg.md#0x1_dkg_u32_to_bytes_le">u32_to_bytes_le</a>(n: u32): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="dkg.md#0x1_dkg_u32_to_bytes_le">u32_to_bytes_le</a>(n: u32): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
+    <b>let</b> bytes = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>&lt;u8&gt;();
+    <b>let</b> x = n;
+    <b>let</b> i = 0;
+    <b>while</b> (i &lt; 4) {
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> bytes, ((x & 0xFF) <b>as</b> u8));
+        x = x &gt;&gt; 8;
+        i = i + 1;
+    };
+    bytes
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_serialize_dkg_meta"></a>
+
+## Function `serialize_dkg_meta`
+
+Serialize DKG Meta to be used as input for multi signature verification
+
+
+<pre><code><b>fun</b> <a href="dkg.md#0x1_dkg_serialize_dkg_meta">serialize_dkg_meta</a>(dealer_epoch: u32, committee_pk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, accumulation_value: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="dkg.md#0x1_dkg_serialize_dkg_meta">serialize_dkg_meta</a>(dealer_epoch: u32,
+                       committee_pk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+                       accumulation_value: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;{
+
+    <b>let</b> data_input = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+    <b>let</b> dealer_epoch_bytes = <a href="dkg.md#0x1_dkg_u32_to_bytes_le">u32_to_bytes_le</a>(dealer_epoch);
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_append">vector::append</a>(&<b>mut</b> data_input, dealer_epoch_bytes);
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_append">vector::append</a>(&<b>mut</b> data_input, <a href="dkg.md#0x1_dkg_u32_to_bytes_le">u32_to_bytes_le</a>((<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&committee_pk_bytes) <b>as</b> u32)));
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_append">vector::append</a>(&<b>mut</b> data_input, committee_pk_bytes);
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_append">vector::append</a>(&<b>mut</b> data_input, <a href="dkg.md#0x1_dkg_u32_to_bytes_le">u32_to_bytes_le</a>((<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&accumulation_value) <b>as</b> u32)));
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_append">vector::append</a>(&<b>mut</b> data_input, accumulation_value);
+    data_input
+}
+</code></pre>
+
+
+
+</details>
 
 <a id="0x1_dkg_initialize"></a>
 
@@ -256,7 +437,7 @@ Mark on-chain DKG state as in-progress. Notify validators to start DKG.
 Abort if a DKG is already in progress.
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(dealer_epoch: u64, <a href="randomness_config.md#0x1_randomness_config">randomness_config</a>: <a href="randomness_config.md#0x1_randomness_config_RandomnessConfig">randomness_config::RandomnessConfig</a>, dealer_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;, target_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(dealer_epoch: u32, threshold: u32, dealer_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;, target_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;)
 </code></pre>
 
 
@@ -266,15 +447,15 @@ Abort if a DKG is already in progress.
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(
-    dealer_epoch: u64,
-    <a href="randomness_config.md#0x1_randomness_config">randomness_config</a>: RandomnessConfig,
+    dealer_epoch: u32,
+    threshold: u32,
     dealer_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;ValidatorConsensusInfo&gt;,
     target_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;ValidatorConsensusInfo&gt;,
 ) <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
     <b>let</b> dkg_state = <b>borrow_global_mut</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
     <b>let</b> new_session_metadata = <a href="dkg.md#0x1_dkg_DKGSessionMetadata">DKGSessionMetadata</a> {
         dealer_epoch,
-        <a href="randomness_config.md#0x1_randomness_config">randomness_config</a>,
+        threshold,
         dealer_validator_set,
         target_validator_set,
     };
@@ -282,7 +463,7 @@ Abort if a DKG is already in progress.
     dkg_state.in_progress = std::option::some(<a href="dkg.md#0x1_dkg_DKGSessionState">DKGSessionState</a> {
         metadata: new_session_metadata,
         start_time_us,
-        transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[],
+        dkg_meta_transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     });
 
     emit(<a href="dkg.md#0x1_dkg_DKGStartEvent">DKGStartEvent</a> {
@@ -296,16 +477,13 @@ Abort if a DKG is already in progress.
 
 </details>
 
-<a id="0x1_dkg_finish"></a>
+<a id="0x1_dkg_add_dkg_meta"></a>
 
-## Function `finish`
-
-Put a transcript into the currently incomplete DKG session, then mark it completed.
-
-Abort if DKG is not in progress.
+## Function `add_dkg_meta`
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>(transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_add_dkg_meta">add_dkg_meta</a>(committee_pk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, accumulation_value: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, agg_signature: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, signer_vk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;)
 </code></pre>
 
 
@@ -314,11 +492,78 @@ Abort if DKG is not in progress.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>(transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;) <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_add_dkg_meta">add_dkg_meta</a>(committee_pk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+                                accumulation_value: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+                                agg_signature: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+                                signer_vk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;,
+) <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a>{
+
+    // ensure <a href="dkg.md#0x1_dkg">dkg</a> is in progress
+    <b>let</b> dkg_state = <b>borrow_global_mut</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&dkg_state.in_progress), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="dkg.md#0x1_dkg_EDKG_NOT_IN_PROGRESS">EDKG_NOT_IN_PROGRESS</a>));
+
+    // we only add the first DKG Meta proposed and ignore the rest
+    <b>let</b> session = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> dkg_state.in_progress);
+    <b>assert</b>!(std::option::is_none(&session.dkg_meta_transcript), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_already_exists">error::already_exists</a>(<a href="dkg.md#0x1_dkg_EDKG_DKG_META_ALREADY_SET">EDKG_DKG_META_ALREADY_SET</a>));
+
+    <b>assert</b>!( (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&signer_vk_bytes) <b>as</b> u32) == session.metadata.threshold,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="dkg.md#0x1_dkg_EDKG_NOT_THRESHOLD_SIGNERS">EDKG_NOT_THRESHOLD_SIGNERS</a>));
+
+    // serialize the <a href="dkg.md#0x1_dkg">dkg</a> meta similar <b>to</b> the rust implementation, <b>to</b> verify the multi signature
+    <b>let</b> data_input =
+        <a href="dkg.md#0x1_dkg_serialize_dkg_meta">serialize_dkg_meta</a>(session.metadata.dealer_epoch,
+            committee_pk_bytes,
+            accumulation_value);
+
+    <b>let</b> signer_vks_with_pop: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;PublicKeyWithPoP&gt; = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+    // create <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a> vks assuming the corresponding pops have already been verified upon registration
+    for(i in 0..<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&signer_vk_bytes)){
+        <b>let</b> signer_vk_option = public_key_from_bytes_with_pop_externally_verified(*<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&signer_vk_bytes, i));
+        <b>assert</b>!(is_some(&signer_vk_option),<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="dkg.md#0x1_dkg_EDKG_INVALID_SIGNER_VERIFICATION_KEY">EDKG_INVALID_SIGNER_VERIFICATION_KEY</a>));
+        <b>let</b> signer_vk = std::option::extract(&<b>mut</b> signer_vk_option);
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> signer_vks_with_pop, signer_vk);
+    };
+
+    // verify the multi signature on the <a href="dkg.md#0x1_dkg">dkg</a> meta is correct
+    <b>let</b> agg_sig = aggr_or_multi_signature_from_bytes(agg_signature);
+    <b>let</b> agg_pk = aggregate_pubkeys(signer_vks_with_pop);
+    <b>assert</b>!(verify_multisignature(&agg_sig, &agg_pk, data_input),
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="dkg.md#0x1_dkg_EDKG_DKG_META_SIGNATURE_VERIFICATION_FAILED">EDKG_DKG_META_SIGNATURE_VERIFICATION_FAILED</a>));
+
+    session.dkg_meta_transcript = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
+        <a href="dkg.md#0x1_dkg_DKGMeta">DKGMeta</a>{
+            committee_pk: committee_pk_bytes,
+            accumulation_value: accumulation_value
+        });
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_finish"></a>
+
+## Function `finish`
+
+Mark the incomplete DKG session completed.
+
+Abort if DKG is not in progress.
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>()
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>() <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
     <b>let</b> dkg_state = <b>borrow_global_mut</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&dkg_state.in_progress), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="dkg.md#0x1_dkg_EDKG_NOT_IN_PROGRESS">EDKG_NOT_IN_PROGRESS</a>));
     <b>let</b> session = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> dkg_state.in_progress);
-    session.transcript = transcript;
     dkg_state.last_completed = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(session);
     dkg_state.in_progress = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>();
 }
@@ -393,7 +638,7 @@ Return the incomplete DKG session state, if it exists.
 Return the dealer epoch of a <code><a href="dkg.md#0x1_dkg_DKGSessionState">DKGSessionState</a></code>.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg.md#0x1_dkg_session_dealer_epoch">session_dealer_epoch</a>(session: &<a href="dkg.md#0x1_dkg_DKGSessionState">dkg::DKGSessionState</a>): u64
+<pre><code><b>public</b> <b>fun</b> <a href="dkg.md#0x1_dkg_session_dealer_epoch">session_dealer_epoch</a>(session: &<a href="dkg.md#0x1_dkg_DKGSessionState">dkg::DKGSessionState</a>): u32
 </code></pre>
 
 
@@ -402,7 +647,7 @@ Return the dealer epoch of a <code><a href="dkg.md#0x1_dkg_DKGSessionState">DKGS
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg.md#0x1_dkg_session_dealer_epoch">session_dealer_epoch</a>(session: &<a href="dkg.md#0x1_dkg_DKGSessionState">DKGSessionState</a>): u64 {
+<pre><code><b>public</b> <b>fun</b> <a href="dkg.md#0x1_dkg_session_dealer_epoch">session_dealer_epoch</a>(session: &<a href="dkg.md#0x1_dkg_DKGSessionState">DKGSessionState</a>): u32 {
     session.metadata.dealer_epoch
 }
 </code></pre>
@@ -444,7 +689,7 @@ Return the dealer epoch of a <code><a href="dkg.md#0x1_dkg_DKGSessionState">DKGS
 ### Function `start`
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(dealer_epoch: u64, <a href="randomness_config.md#0x1_randomness_config">randomness_config</a>: <a href="randomness_config.md#0x1_randomness_config_RandomnessConfig">randomness_config::RandomnessConfig</a>, dealer_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;, target_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(dealer_epoch: u32, threshold: u32, dealer_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;, target_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;)
 </code></pre>
 
 
@@ -461,7 +706,7 @@ Return the dealer epoch of a <code><a href="dkg.md#0x1_dkg_DKGSessionState">DKGS
 ### Function `finish`
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>(transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>()
 </code></pre>
 
 
