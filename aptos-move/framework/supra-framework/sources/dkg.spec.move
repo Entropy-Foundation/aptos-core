@@ -13,9 +13,7 @@ spec supra_framework::dkg {
 
     spec start(
         dealer_epoch: u32,
-        threshold: u32,
-        dealer_validator_set: vector<ValidatorConsensusInfo>,
-        target_validator_set: vector<ValidatorConsensusInfo>,
+        dkg_config: DkgConfig,
     ) {
         aborts_if !exists<DKGState>(@supra_framework);
         aborts_if !exists<timestamp::CurrentTimeMicroseconds>(@supra_framework);

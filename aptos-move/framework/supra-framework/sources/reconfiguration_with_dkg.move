@@ -32,12 +32,12 @@ module supra_framework::reconfiguration_with_dkg {
         };
         reconfiguration_state::on_reconfig_start();
         let cur_epoch = reconfiguration::current_epoch();
-        dkg::start(
+        /*dkg::start(
             (cur_epoch as u32),
             10,
             stake::cur_validator_consensus_infos(),
             stake::next_validator_consensus_infos(),
-        );
+        );*/
     }
 
     /// Clear incomplete DKG session, if it exists.

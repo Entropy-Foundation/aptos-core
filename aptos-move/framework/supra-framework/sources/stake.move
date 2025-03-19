@@ -26,6 +26,8 @@ module supra_framework::stake {
     use aptos_std::ed25519;
     use aptos_std::math64::min;
     use aptos_std::table::{Self, Table};
+    use supra_framework::dkg_config::{DkgFeatureFlag, DkgNodeConfig, get_dkg_feature_flag, dkg_node_config_exists};
+    use supra_framework::dkg_config;
     use supra_framework::supra_coin::SupraCoin;
     use supra_framework::account;
     use supra_framework::coin::{Self, Coin, MintCapability};
@@ -81,6 +83,8 @@ module supra_framework::stake {
     const EFEES_TABLE_ALREADY_EXISTS: u64 = 19;
     /// Validator set change temporarily disabled because of in-progress reconfiguration.
     const ERECONFIGURATION_IN_PROGRESS: u64 = 20;
+    /// Validator Node Dkg Config not published.
+    const EVALIDATOR_DKG_CONFIG: u64 = 21;
 
     /// Validator status enum. We can switch to proper enum later once Move supports it.
     const VALIDATOR_STATUS_PENDING_ACTIVE: u64 = 1;
@@ -632,6 +636,25 @@ module supra_framework::stake {
         move_to(owner, OwnerCapability { pool_address: owner_address });
     }
 
+    /// Set the DkgNodeConfig for a validator account
+    /// Can only be called after calling `initialize_validator`
+    public entry fun set_validator_dkg_config(
+        account: &signer,
+        ed_pubkey: vector<u8>,
+        bls_pubkey: vector<u8>,
+        pop_bls_pubkey: vector<u8>,
+        cg_pubkey: vector<u8>,
+    ) acquires ValidatorConfig {
+        let account_address = signer::address_of(account);
+
+        // Ensure the validator is initialized
+        assert_stake_pool_exists(account_address);
+        assert!(exists<ValidatorConfig>(account_address), error::invalid_state(EVALIDATOR_CONFIG));
+
+        let validator_info = borrow_global<ValidatorConfig>(account_address);
+        dkg_config::store_dkg_node_config(account, account_address, validator_info.network_addresses, ed_pubkey, bls_pubkey, pop_bls_pubkey, cg_pubkey);
+    }
+
     /// Extract and return owner capability from the signing account.
     public fun extract_owner_cap(owner: &signer): OwnerCapability acquires OwnerCapability {
         let owner_address = signer::address_of(owner);
@@ -991,6 +1014,15 @@ module supra_framework::stake {
 
         // Track and validate voting power increase.
         update_voting_power_increase(voting_power);
+
+        // Check DKG flag and enforce DkgNodeConfig presence
+        /*let dkg_feature_is_enabled = get_dkg_feature_flag();
+        if (dkg_feature_is_enabled) {
+            assert!(
+                dkg_node_config_exists(pool_address),
+                error::invalid_state(EVALIDATOR_DKG_CONFIG)
+            );
+        };*/
 
         // Add validator to pending_active, to be activated in the next epoch.
         let validator_config = borrow_global_mut<ValidatorConfig>(pool_address);
