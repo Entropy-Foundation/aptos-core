@@ -14,3 +14,4 @@ vm_reserved = "0x0"
 [dependencies]
 AptosStdlib = { local = "../aptos-stdlib" }
 MoveStdlib = { local = "../move-stdlib" }
+core = { git = "https://github.com/Entropy-Foundation/dora-interface", subdir = "supra/testnet/core", rev = "dev" }
