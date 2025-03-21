@@ -33,7 +33,12 @@ module supra_framework::dkg_config {
         *enable_dkg_flag = enable;
     }
 
-    public(friend) fun get_dkg_feature_flag(): bool acquires DkgFeatureFlag {
+    public(friend) fun dkg_feature_enabled(): bool acquires DkgFeatureFlag {
+        let dkg_flag_exists = exists<DkgFeatureFlag>(@supra_framework);
+        if (!dkg_flag_exists){
+            return false
+        };
+
         let enable_dkg_flag = borrow_global<DkgFeatureFlag>(@supra_framework).enable_dkg;
         enable_dkg_flag
     }

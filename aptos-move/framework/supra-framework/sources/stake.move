@@ -26,7 +26,7 @@ module supra_framework::stake {
     use aptos_std::ed25519;
     use aptos_std::math64::min;
     use aptos_std::table::{Self, Table};
-    use supra_framework::dkg_config::{DkgFeatureFlag, DkgNodeConfig, get_dkg_feature_flag, dkg_node_config_exists};
+    use supra_framework::dkg_config::{dkg_feature_enabled, dkg_node_config_exists};
     use supra_framework::dkg_config;
     use supra_framework::supra_coin::SupraCoin;
     use supra_framework::account;
@@ -1016,13 +1016,13 @@ module supra_framework::stake {
         update_voting_power_increase(voting_power);
 
         // Check DKG flag and enforce DkgNodeConfig presence
-        /*let dkg_feature_is_enabled = get_dkg_feature_flag();
+        let dkg_feature_is_enabled = dkg_feature_enabled();
         if (dkg_feature_is_enabled) {
             assert!(
                 dkg_node_config_exists(pool_address),
                 error::invalid_state(EVALIDATOR_DKG_CONFIG)
             );
-        };*/
+        };
 
         // Add validator to pending_active, to be activated in the next epoch.
         let validator_config = borrow_global_mut<ValidatorConfig>(pool_address);
