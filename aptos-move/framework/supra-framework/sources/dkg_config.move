@@ -7,6 +7,8 @@ module supra_framework::dkg_config {
     use aptos_std::ed25519;
     use supra_framework::system_addresses;
     friend supra_framework::stake;
+    friend supra_framework::reconfiguration_with_dkg;
+    friend supra_framework::dkg;
 
     /// Invalid ed25519 public key
     const EINVALID_EDPUBLIC_KEY: u64 = 1;
@@ -14,8 +16,10 @@ module supra_framework::dkg_config {
     const EINVALID_BLS_PUBLIC_KEY: u64 = 2;
     /// Invalid cg public key
     const EINVALID_CG_PUBLIC_KEY: u64 = 3;
-    /// Invalid cg public key
+    /// Invalid dkg config
     const EINVALID_DKG_CONFIG: u64 = 4;
+    /// Missing node dkg config
+    const EDKG_NODE_CONFIG_NOT_EXIST: u64 = 5;
 
     /// Configuration that controls if the dkg is enabled for validators
     struct DkgFeatureFlag has key {
@@ -100,8 +104,14 @@ module supra_framework::dkg_config {
     }
 
     // Check if DkgNodeConfig exists for a node
-    public fun dkg_node_config_exists(account_address: address): bool{
+    public(friend) fun dkg_node_config_exists(account_address: address): bool{
         exists<DkgNodeConfig>(account_address)
+    }
+
+    public(friend) fun get_dkg_node_config(account_address: address): DkgNodeConfig acquires DkgNodeConfig {
+        assert!(dkg_node_config_exists(account_address), EDKG_NODE_CONFIG_NOT_EXIST);
+        let dkg_node_config = borrow_global<DkgNodeConfig>(account_address);
+        *dkg_node_config
     }
 
     public fun create_dkg_config(dealer_clan_committee: vector<DkgNodeConfig>,
@@ -121,6 +131,20 @@ module supra_framework::dkg_config {
 
     public fun get_dealer_clan_committee(dkg_config: &DkgConfig): vector<DkgNodeConfig>{
         dkg_config.dealer_clan_committee
+    }
+
+    public(friend) fun is_node_family_committee_member(addr: address, dkg_config: &DkgConfig): bool {
+        let family_committee = &dkg_config.family_committee;
+        let len = vector::length(family_committee);
+        let i = 0;
+        while (i < len) {
+            let family_node = vector::borrow(family_committee, i);
+            if (family_node.addr == addr) {
+                return true
+            };
+            i = i + 1;
+        };
+        false
     }
 
     public fun get_dkg_node_bls_pubkey(dkg_node_config: &DkgNodeConfig): vector<u8>{

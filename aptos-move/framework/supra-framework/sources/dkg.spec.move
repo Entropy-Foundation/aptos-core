@@ -12,7 +12,7 @@ spec supra_framework::dkg {
     }
 
     spec start(
-        dealer_epoch: u32,
+        dealer_epoch: u64,
         dkg_config: DkgConfig,
     ) {
         aborts_if !exists<DKGState>(@supra_framework);

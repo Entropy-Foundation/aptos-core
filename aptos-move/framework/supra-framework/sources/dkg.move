@@ -3,25 +3,23 @@ module supra_framework::dkg {
     use std::error;
     use std::option;
     use std::option::{Option, is_some};
+    use std::signer;
     use std::vector;
     use aptos_std::bls12381::{PublicKeyWithPoP, public_key_from_bytes_with_pop_externally_verified,
         aggr_or_multi_signature_from_bytes, aggregate_pubkeys, verify_multisignature
     };
-    use supra_framework::dkg_config::{DkgNodeConfig, DkgConfig, get_dealer_clan_committee, get_dkg_node_bls_pubkey};
+    use supra_framework::dkg_config::{DkgNodeConfig, DkgConfig, get_dealer_clan_committee, get_dkg_node_bls_pubkey,
+        is_node_family_committee_member
+    };
     use supra_framework::event::emit;
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
-    use supra_framework::validator_consensus_info::ValidatorConsensusInfo;
     #[test_only]
     use std::option::extract;
-    #[test_only]
-    use aptos_std::ed25519;
     #[test_only]
     use supra_framework::account::create_signer_for_test;
     #[test_only]
     use supra_framework::dkg_config::{create_dkg_config, create_dkg_node_config_for_test};
-    #[test_only]
-    use supra_framework::validator_consensus_info::new;
     friend supra_framework::block;
     friend supra_framework::reconfiguration_with_dkg;
 
@@ -31,6 +29,7 @@ module supra_framework::dkg {
     const EDKG_NOT_THRESHOLD_SIGNERS: u64 = 4;
     const EDKG_INVALID_SIGNER_VERIFICATION_KEY: u64 = 5;
     const EDKG_META_SIGNATURE_VERIFICATION_FAILED: u64 = 6;
+    const EDKG_NOT_FAMILY_NODE: u64 = 7;
 
     /// This can be considered as the public input of DKG.
     struct DKGSessionMetadata has copy, drop, store {
@@ -137,12 +136,12 @@ module supra_framework::dkg {
     /// Mark on-chain DKG state as in-progress. Notify validators to start DKG.
     /// Abort if a DKG is already in progress.
     public(friend) fun start(
-        dealer_epoch: u32,
+        dealer_epoch: u64,
         dkg_config: DkgConfig,
     ) acquires DKGState {
         let dkg_state = borrow_global_mut<DKGState>(@supra_framework);
         let new_session_metadata = DKGSessionMetadata {
-            dealer_epoch,
+            dealer_epoch: (dealer_epoch as u32),
             dkg_config
         };
         let start_time_us = timestamp::now_microseconds();
@@ -158,10 +157,11 @@ module supra_framework::dkg {
         });
     }
 
-    public(friend) fun add_dkg_meta(committee_pk_bytes: vector<u8>,
-                                    accumulation_value: vector<u8>,
-                                    agg_signature: vector<u8>,
-                                    signers: vector<u32>,
+    public entry fun add_dkg_meta(account: signer,
+                                  committee_pk_bytes: vector<u8>,
+                                  accumulation_value: vector<u8>,
+                                  agg_signature: vector<u8>,
+                                  signers: vector<u32>,
     ) acquires DKGState{
 
         // ensure dkg is in progress
@@ -171,6 +171,12 @@ module supra_framework::dkg {
         // we only add the first DKG Meta proposed and ignore the rest
         let session = option::extract(&mut dkg_state.in_progress);
         assert!(std::option::is_none(&session.dkg_meta_transcript), error::already_exists(EDKG_META_ALREADY_SET));
+
+        // the dkg meta should only be added by a family node
+        let account_address = signer::address_of(&account);
+        assert!(is_node_family_committee_member(account_address, &session.metadata.dkg_config),
+            EDKG_NOT_FAMILY_NODE
+        );
 
         let dealer_clan_committee = get_dealer_clan_committee(&session.metadata.dkg_config);
         let clan_threshold = clan_threshold( vector::length(&dealer_clan_committee));
@@ -243,9 +249,9 @@ module supra_framework::dkg {
     }
 
     #[test_only]
-    fun test_setup(): (u32, DkgConfig, vector<u8>, vector<u8>, vector<u8>, vector<u32>){
+    fun test_setup(): (u64, DkgConfig, vector<u8>, vector<u8>, vector<u8>, vector<u32>){
 
-        let epoch: u32 = 10;
+        let epoch: u64 = 10;
         let dealer_clan_committee = vector[];
         let family_committee = vector[];
         let target_committee = vector[];
@@ -294,6 +300,7 @@ module supra_framework::dkg {
 
         // Call add_dkg_meta with valid inputs.
         add_dkg_meta(
+            sf_signer,
             committee_pk,
             accumulation,
             agg_signature,

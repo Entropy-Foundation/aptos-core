@@ -37,6 +37,7 @@ DKG on-chain states and helper functions.
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="timestamp.md#0x1_timestamp">0x1::timestamp</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
@@ -302,6 +303,15 @@ The completed and in-progress DKG sessions.
 
 
 
+<a id="0x1_dkg_EDKG_NOT_FAMILY_NODE"></a>
+
+
+
+<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_NOT_FAMILY_NODE">EDKG_NOT_FAMILY_NODE</a>: u64 = 7;
+</code></pre>
+
+
+
 <a id="0x1_dkg_EDKG_NOT_IN_PROGRESS"></a>
 
 
@@ -491,7 +501,7 @@ Mark on-chain DKG state as in-progress. Notify validators to start DKG.
 Abort if a DKG is already in progress.
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(dealer_epoch: u32, <a href="dkg_config.md#0x1_dkg_config">dkg_config</a>: <a href="dkg_config.md#0x1_dkg_config_DkgConfig">dkg_config::DkgConfig</a>)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(dealer_epoch: u64, <a href="dkg_config.md#0x1_dkg_config">dkg_config</a>: <a href="dkg_config.md#0x1_dkg_config_DkgConfig">dkg_config::DkgConfig</a>)
 </code></pre>
 
 
@@ -501,12 +511,12 @@ Abort if a DKG is already in progress.
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(
-    dealer_epoch: u32,
+    dealer_epoch: u64,
     <a href="dkg_config.md#0x1_dkg_config">dkg_config</a>: DkgConfig,
 ) <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
     <b>let</b> dkg_state = <b>borrow_global_mut</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
     <b>let</b> new_session_metadata = <a href="dkg.md#0x1_dkg_DKGSessionMetadata">DKGSessionMetadata</a> {
-        dealer_epoch,
+        dealer_epoch: (dealer_epoch <b>as</b> u32),
         <a href="dkg_config.md#0x1_dkg_config">dkg_config</a>
     };
     <b>let</b> start_time_us = <a href="timestamp.md#0x1_timestamp_now_microseconds">timestamp::now_microseconds</a>();
@@ -533,7 +543,7 @@ Abort if a DKG is already in progress.
 
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_add_dkg_meta">add_dkg_meta</a>(committee_pk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, accumulation_value: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, agg_signature: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, signers: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u32&gt;)
+<pre><code><b>public</b> entry <b>fun</b> <a href="dkg.md#0x1_dkg_add_dkg_meta">add_dkg_meta</a>(<a href="account.md#0x1_account">account</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, committee_pk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, accumulation_value: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, agg_signature: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, signers: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u32&gt;)
 </code></pre>
 
 
@@ -542,10 +552,11 @@ Abort if a DKG is already in progress.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_add_dkg_meta">add_dkg_meta</a>(committee_pk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-                                accumulation_value: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-                                agg_signature: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-                                signers: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u32&gt;,
+<pre><code><b>public</b> entry <b>fun</b> <a href="dkg.md#0x1_dkg_add_dkg_meta">add_dkg_meta</a>(<a href="account.md#0x1_account">account</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+                              committee_pk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+                              accumulation_value: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+                              agg_signature: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+                              signers: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u32&gt;,
 ) <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a>{
 
     // ensure <a href="dkg.md#0x1_dkg">dkg</a> is in progress
@@ -555,6 +566,12 @@ Abort if a DKG is already in progress.
     // we only add the first DKG Meta proposed and ignore the rest
     <b>let</b> session = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> dkg_state.in_progress);
     <b>assert</b>!(std::option::is_none(&session.dkg_meta_transcript), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_already_exists">error::already_exists</a>(<a href="dkg.md#0x1_dkg_EDKG_META_ALREADY_SET">EDKG_META_ALREADY_SET</a>));
+
+    // the <a href="dkg.md#0x1_dkg">dkg</a> meta should only be added by a family node
+    <b>let</b> account_address = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&<a href="account.md#0x1_account">account</a>);
+    <b>assert</b>!(is_node_family_committee_member(account_address, &session.metadata.<a href="dkg_config.md#0x1_dkg_config">dkg_config</a>),
+        <a href="dkg.md#0x1_dkg_EDKG_NOT_FAMILY_NODE">EDKG_NOT_FAMILY_NODE</a>
+    );
 
     <b>let</b> dealer_clan_committee = get_dealer_clan_committee(&session.metadata.<a href="dkg_config.md#0x1_dkg_config">dkg_config</a>);
     <b>let</b> clan_threshold = <a href="dkg.md#0x1_dkg_clan_threshold">clan_threshold</a>( <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&dealer_clan_committee));
@@ -736,7 +753,7 @@ Return the dealer epoch of a <code><a href="dkg.md#0x1_dkg_DKGSessionState">DKGS
 ### Function `start`
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(dealer_epoch: u32, <a href="dkg_config.md#0x1_dkg_config">dkg_config</a>: <a href="dkg_config.md#0x1_dkg_config_DkgConfig">dkg_config::DkgConfig</a>)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(dealer_epoch: u64, <a href="dkg_config.md#0x1_dkg_config">dkg_config</a>: <a href="dkg_config.md#0x1_dkg_config_DkgConfig">dkg_config::DkgConfig</a>)
 </code></pre>
 
 

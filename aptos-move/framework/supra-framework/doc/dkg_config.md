@@ -13,8 +13,10 @@
 -  [Function `get_dkg_feature_flag`](#0x1_dkg_config_get_dkg_feature_flag)
 -  [Function `store_dkg_node_config`](#0x1_dkg_config_store_dkg_node_config)
 -  [Function `dkg_node_config_exists`](#0x1_dkg_config_dkg_node_config_exists)
+-  [Function `get_dkg_node_config`](#0x1_dkg_config_get_dkg_node_config)
 -  [Function `create_dkg_config`](#0x1_dkg_config_create_dkg_config)
 -  [Function `get_dealer_clan_committee`](#0x1_dkg_config_get_dealer_clan_committee)
+-  [Function `is_node_family_committee_member`](#0x1_dkg_config_is_node_family_committee_member)
 -  [Function `get_dkg_node_bls_pubkey`](#0x1_dkg_config_get_dkg_node_bls_pubkey)
 
 
@@ -151,6 +153,16 @@ Configuration that controls if the dkg is enabled for validators
 ## Constants
 
 
+<a id="0x1_dkg_config_EDKG_NODE_CONFIG_NOT_EXIST"></a>
+
+Missing node dkg config
+
+
+<pre><code><b>const</b> <a href="dkg_config.md#0x1_dkg_config_EDKG_NODE_CONFIG_NOT_EXIST">EDKG_NODE_CONFIG_NOT_EXIST</a>: u64 = 5;
+</code></pre>
+
+
+
 <a id="0x1_dkg_config_EINVALID_BLS_PUBLIC_KEY"></a>
 
 Invalid bls public key
@@ -173,7 +185,7 @@ Invalid cg public key
 
 <a id="0x1_dkg_config_EINVALID_DKG_CONFIG"></a>
 
-Invalid cg public key
+Invalid dkg config
 
 
 <pre><code><b>const</b> <a href="dkg_config.md#0x1_dkg_config_EINVALID_DKG_CONFIG">EINVALID_DKG_CONFIG</a>: u64 = 4;
@@ -302,7 +314,7 @@ This should be called by on-chain governance to enable/disable dkg for the valid
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_dkg_node_config_exists">dkg_node_config_exists</a>(account_address: <b>address</b>): bool
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_dkg_node_config_exists">dkg_node_config_exists</a>(account_address: <b>address</b>): bool
 </code></pre>
 
 
@@ -311,8 +323,34 @@ This should be called by on-chain governance to enable/disable dkg for the valid
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_dkg_node_config_exists">dkg_node_config_exists</a>(account_address: <b>address</b>): bool{
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_dkg_node_config_exists">dkg_node_config_exists</a>(account_address: <b>address</b>): bool{
     <b>exists</b>&lt;<a href="dkg_config.md#0x1_dkg_config_DkgNodeConfig">DkgNodeConfig</a>&gt;(account_address)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_config_get_dkg_node_config"></a>
+
+## Function `get_dkg_node_config`
+
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_dkg_node_config">get_dkg_node_config</a>(account_address: <b>address</b>): <a href="dkg_config.md#0x1_dkg_config_DkgNodeConfig">dkg_config::DkgNodeConfig</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_dkg_node_config">get_dkg_node_config</a>(account_address: <b>address</b>): <a href="dkg_config.md#0x1_dkg_config_DkgNodeConfig">DkgNodeConfig</a> <b>acquires</b> <a href="dkg_config.md#0x1_dkg_config_DkgNodeConfig">DkgNodeConfig</a> {
+    <b>assert</b>!(<a href="dkg_config.md#0x1_dkg_config_dkg_node_config_exists">dkg_node_config_exists</a>(account_address), <a href="dkg_config.md#0x1_dkg_config_EDKG_NODE_CONFIG_NOT_EXIST">EDKG_NODE_CONFIG_NOT_EXIST</a>);
+    <b>let</b> dkg_node_config = <b>borrow_global</b>&lt;<a href="dkg_config.md#0x1_dkg_config_DkgNodeConfig">DkgNodeConfig</a>&gt;(account_address);
+    *dkg_node_config
 }
 </code></pre>
 
@@ -372,6 +410,40 @@ This should be called by on-chain governance to enable/disable dkg for the valid
 
 <pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_dealer_clan_committee">get_dealer_clan_committee</a>(<a href="dkg_config.md#0x1_dkg_config">dkg_config</a>: &<a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a>): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_config.md#0x1_dkg_config_DkgNodeConfig">DkgNodeConfig</a>&gt;{
     <a href="dkg_config.md#0x1_dkg_config">dkg_config</a>.dealer_clan_committee
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_config_is_node_family_committee_member"></a>
+
+## Function `is_node_family_committee_member`
+
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_is_node_family_committee_member">is_node_family_committee_member</a>(addr: <b>address</b>, <a href="dkg_config.md#0x1_dkg_config">dkg_config</a>: &<a href="dkg_config.md#0x1_dkg_config_DkgConfig">dkg_config::DkgConfig</a>): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_is_node_family_committee_member">is_node_family_committee_member</a>(addr: <b>address</b>, <a href="dkg_config.md#0x1_dkg_config">dkg_config</a>: &<a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a>): bool {
+    <b>let</b> family_committee = &<a href="dkg_config.md#0x1_dkg_config">dkg_config</a>.family_committee; // Borrow the <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>
+    <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(family_committee);         // Get the <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>'s length
+    <b>let</b> i = 0;                                          // Initialize index
+    <b>while</b> (i &lt; len) {
+        <b>let</b> family_node = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(family_committee, i); // Borrow each element
+        <b>if</b> (family_node.addr == addr) {
+            <b>return</b> <b>true</b>;                                // Match found, <b>return</b> <b>true</b>
+        };
+        i = i + 1;                                      // Increment index
+    };
+    <b>false</b>                                               // No match found
 }
 </code></pre>
 

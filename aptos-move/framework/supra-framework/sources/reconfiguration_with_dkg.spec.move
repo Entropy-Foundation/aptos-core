@@ -65,7 +65,7 @@ spec supra_framework::reconfiguration_with_dkg {
         include config_buffer::OnNewEpochRequirement<keyless_account::Groth16VerificationKey>;
     }
 
-    spec finish_with_dkg_result(account: &signer, dkg_result: vector<u8>) {
+    spec finish_dkg(account: &signer) {
         use supra_framework::dkg;
         pragma verify_duration_estimate = 1500;
         include FinishRequirement {
