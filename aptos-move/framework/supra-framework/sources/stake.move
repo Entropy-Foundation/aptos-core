@@ -1313,6 +1313,8 @@ module supra_framework::stake {
         let vlen = vector::length(&validator_set.active_validators);
         let total_voting_power = 0;
         let i = 0;
+        // Check DKG flag and enforce DkgNodeConfig presence
+        let dkg_feature_is_enabled = dkg_feature_enabled();
         while ({
             spec {
                 invariant spec_validators_are_initialized(next_epoch_validators);
@@ -1327,7 +1329,9 @@ module supra_framework::stake {
             let new_validator_info = generate_validator_info(pool_address, stake_pool, *validator_config);
 
             // A validator needs at least the min stake required to join the validator set.
-            if (new_validator_info.voting_power >= minimum_stake) {
+            // if dkg feature is enabled, the validator must have DkgNodeConfig set
+            if (new_validator_info.voting_power >= minimum_stake &&
+                (!dkg_feature_is_enabled || dkg_node_config_exists(pool_address))) {
                 spec {
                     assume total_voting_power + new_validator_info.voting_power <= MAX_U128;
                 };
