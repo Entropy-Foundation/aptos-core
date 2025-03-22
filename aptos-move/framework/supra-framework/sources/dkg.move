@@ -157,11 +157,13 @@ module supra_framework::dkg {
         });
     }
 
-    public entry fun add_dkg_meta(account: signer,
-                                  committee_pk_bytes: vector<u8>,
-                                  accumulation_value: vector<u8>,
-                                  agg_signature: vector<u8>,
-                                  signers: vector<u32>,
+    /// Family Node sets the DKGMeta for the in-progress DKG session and
+    /// marks the incomplete DKG session completed.
+    public entry fun finish(account: signer,
+                            committee_pk_bytes: vector<u8>,
+                            accumulation_value: vector<u8>,
+                            agg_signature: vector<u8>,
+                            signers: vector<u32>,
     ) acquires DKGState{
 
         // ensure dkg is in progress
@@ -203,16 +205,7 @@ module supra_framework::dkg {
                 committee_pk: committee_pk_bytes,
                 accumulation_value: accumulation_value
             });
-        dkg_state.in_progress = option::some(session);
-    }
 
-    /// Mark the incomplete DKG session completed.
-    ///
-    /// Abort if DKG is not in progress.
-    public(friend) fun finish() acquires DKGState {
-        let dkg_state = borrow_global_mut<DKGState>(@supra_framework);
-        assert!(option::is_some(&dkg_state.in_progress), error::invalid_state(EDKG_NOT_IN_PROGRESS));
-        let session = option::extract(&mut dkg_state.in_progress);
         dkg_state.last_completed = option::some(session);
         dkg_state.in_progress = option::none();
     }
@@ -230,6 +223,15 @@ module supra_framework::dkg {
     public fun incomplete_session(): Option<DKGSessionState> acquires DKGState {
         if (exists<DKGState>(@supra_framework)) {
             borrow_global<DKGState>(@supra_framework).in_progress
+        } else {
+            option::none()
+        }
+    }
+
+    /// Return the last completed DKG session state, if it exists.
+    public fun last_completed_session(): Option<DKGSessionState> acquires DKGState {
+        if (exists<DKGState>(@supra_framework)) {
+            borrow_global<DKGState>(@supra_framework).last_completed
         } else {
             option::none()
         }
@@ -298,8 +300,8 @@ module supra_framework::dkg {
         let session_opt = incomplete_session();
         assert!(is_some(&session_opt), 100);
 
-        // Call add_dkg_meta with valid inputs.
-        add_dkg_meta(
+        // Call finish with valid inputs.
+        finish(
             sf_signer,
             committee_pk,
             accumulation,
@@ -308,7 +310,7 @@ module supra_framework::dkg {
         );
 
         // Verify that the DKG meta transcript was set.
-        let session_opt = incomplete_session();
+        let session_opt = last_completed_session();
         assert!(is_some(&session_opt), 100);
 
         let session = extract(&mut session_opt);

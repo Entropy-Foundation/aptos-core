@@ -19,7 +19,12 @@ spec supra_framework::dkg {
         aborts_if !exists<timestamp::CurrentTimeMicroseconds>(@supra_framework);
     }
 
-    spec finish() {
+    spec finish(
+        account: signer,
+        committee_pk_bytes: vector<u8>,
+        accumulation_value: vector<u8>,
+        agg_signature: vector<u8>,
+        signers: vector<u32>) {
         use std::option;
         requires exists<DKGState>(@supra_framework);
         requires option::is_some(global<DKGState>(@supra_framework).in_progress);

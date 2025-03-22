@@ -131,9 +131,7 @@ module supra_framework::reconfiguration_with_dkg {
     }
 
     /// Complete the current reconfiguration with DKG.
-    /// Abort if no DKG is in progress or DKG Meta is not set for the in-progress session.
     fun finish_dkg(account: &signer) {
-        dkg::finish();
         finish(account);
     }
 }
