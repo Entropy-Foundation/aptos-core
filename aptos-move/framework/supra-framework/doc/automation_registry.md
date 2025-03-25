@@ -1552,11 +1552,18 @@ maximum allowed occupancy for the next epoch.
         &active_config.main_config,
         (total_committed_max_gas <b>as</b> u256),
         active_config.next_epoch_registry_max_gas_cap);
+
+    <b>let</b> automation_fee_per_sec = (active_config.main_config.automation_base_fee_in_quants_per_sec <b>as</b> u256) +
+        congestion_base_fee_per_sec;
+
+    <b>if</b> (automation_fee_per_sec == 0) {
+        <b>return</b> 0
+    };
+
     <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_for_interval">calculate_automation_fee_for_interval</a>(
         epoch_info.epoch_interval,
         task_occupancy,
-        active_config.main_config.automation_base_fee_in_quants_per_sec,
-        congestion_base_fee_per_sec,
+        automation_fee_per_sec,
         active_config.next_epoch_registry_max_gas_cap)
 }
 </code></pre>
@@ -1924,12 +1931,20 @@ The CANCELLED tasks are also taken into account if include_cancelled_task is tru
     // Compute the automation congestion fee (acf) for the epoch
     <b>let</b> acf = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_congestion_fee">calculate_automation_congestion_fee</a>(arc, tcmg, arc.registry_max_gas_cap);
     <b>let</b> task_with_fees = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+    // Automation fee per second is the sum of the automation base fee per second and congeation fee per second
+    // calculated based on the current registry occupancy.
+    <b>let</b> automation_fee_per_sec = acf + (arc.automation_base_fee_in_quants_per_sec <b>as</b> u256);
+
+    // Return early <b>if</b> automation fee per second is 0
+    <b>if</b> (automation_fee_per_sec == 0) {
+        <b>return</b> task_with_fees
+    };
 
     // Process each active task and calculate fee for the epoch for the tasks
     <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_for_each_value_ref">enumerable_map::for_each_value_ref</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, |task| {
         <b>let</b> task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a> = task;
         <b>if</b> (task.state == <a href="automation_registry.md#0x1_automation_registry_ACTIVE">ACTIVE</a> || (include_cancelled_task && task.state == <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a>)) {
-            <b>let</b> task_fee = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(arc, task, interval, current_time, acf);
+            <b>let</b> task_fee = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(arc, task, interval, current_time, automation_fee_per_sec);
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> task_with_fees, <a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">AutomationTaskFee</a> {
                 task_index: task.task_index,
                 owner: task.owner,
@@ -1951,10 +1966,10 @@ The CANCELLED tasks are also taken into account if include_cancelled_task is tru
 
 Calculates automation task fees for a single task at the time of new epoch.
 This is supposed to be called only after removing expired task and must not be called for expired task.
-It's return calculated task for the epoch (sum of automation fee + congestion fee)
+It returns calculated task fee for the interval the task will be active.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, interval: u64, current_time: u64, acf: u256): u64
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, interval: u64, current_time: u64, automation_fee_per_sec: u256): u64
 </code></pre>
 
 
@@ -1968,7 +1983,7 @@ It's return calculated task for the epoch (sum of automation fee + congestion fe
     task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a>,
     interval: u64,
     current_time: u64,
-    acf: u256
+    automation_fee_per_sec: u256
 ): u64 {
     <b>if</b> (task.expiry_time &lt;= current_time) { <b>return</b> 0 };
     // Subtraction is safe here, <b>as</b> we already excluded expired tasks
@@ -1977,8 +1992,7 @@ It's return calculated task for the epoch (sum of automation fee + congestion fe
     <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_for_interval">calculate_automation_fee_for_interval</a>(
         min_interval,
         task.max_gas_amount,
-        arc.automation_base_fee_in_quants_per_sec,
-        acf,
+        automation_fee_per_sec,
         arc.registry_max_gas_cap)
 }
 </code></pre>
@@ -1993,10 +2007,9 @@ It's return calculated task for the epoch (sum of automation fee + congestion fe
 
 Calculates automation task fees for a single task at the time of new epoch.
 This is supposed to be called only after removing expired task and must not be called for expired task.
-It's return calculated task for the epoch (sum of automation fee + congestion fee)
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_for_interval">calculate_automation_fee_for_interval</a>(interval: u64, task_occupancy: u64, automation_base_fee_per_sec: u64, congestion_base_fee_per_sec: u256, registry_max_gas_cap: u64): u64
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_for_interval">calculate_automation_fee_for_interval</a>(interval: u64, task_occupancy: u64, automation_fee_per_sec: u256, registry_max_gas_cap: u64): u64
 </code></pre>
 
 
@@ -2008,23 +2021,16 @@ It's return calculated task for the epoch (sum of automation fee + congestion fe
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_for_interval">calculate_automation_fee_for_interval</a>(
     interval: u64,
     task_occupancy: u64,
-    automation_base_fee_per_sec: u64,
-    congestion_base_fee_per_sec: u256,
+    automation_fee_per_sec: u256,
     registry_max_gas_cap: u64,
 ): u64 {
-    <b>let</b> abf = (automation_base_fee_per_sec <b>as</b> u256);
     <b>let</b> max_gas_cap = (registry_max_gas_cap <b>as</b> u256);
-
     <b>let</b> duration = (interval <b>as</b> u256);
     <b>let</b> task_occupancy_ratio_by_duration = (duration * <a href="automation_registry.md#0x1_automation_registry_upscale_from_u64">upscale_from_u64</a>(task_occupancy)) / max_gas_cap;
 
-    // Compute the base automation fee (taf). Total automation fee for the interval
-    <b>let</b> taf = abf * task_occupancy_ratio_by_duration;
+    <b>let</b> automation_fee_for_interval = automation_fee_per_sec * task_occupancy_ratio_by_duration;
 
-    // Compute the congestion fee per task (tcf)
-    <b>let</b> tcf = congestion_base_fee_per_sec * task_occupancy_ratio_by_duration;
-
-    <a href="automation_registry.md#0x1_automation_registry_downscale_to_u64">downscale_to_u64</a>(taf + tcf)
+    <a href="automation_registry.md#0x1_automation_registry_downscale_to_u64">downscale_to_u64</a>(automation_fee_for_interval)
 }
 </code></pre>
 
@@ -2053,6 +2059,10 @@ Calculate automation congestion fee for the epoch
     tcmg: u256,
     registry_max_gas_cap: u64
 ): u256 {
+    <b>if</b> (arc.congestion_threshold_percentage == <a href="automation_registry.md#0x1_automation_registry_MAX_PERCENTAGE">MAX_PERCENTAGE</a> || arc.congestion_base_fee_in_quants_per_sec == 0) {
+        <b>return</b> 0
+    };
+
     <b>let</b> max_gas_cap = (registry_max_gas_cap <b>as</b> u256);
     <b>let</b> threshold_percentage = <a href="automation_registry.md#0x1_automation_registry_upscale_from_u8">upscale_from_u8</a>(arc.congestion_threshold_percentage);
 
