@@ -11,11 +11,10 @@ module supra_framework::automation_registry {
     use supra_std::enumerable_map::{Self, EnumerableMap};
 
     use supra_framework::account::{Self, SignerCapability};
-    use supra_framework::coin::balance;
+    use supra_framework::coin;
     use supra_framework::config_buffer;
     use supra_framework::create_signer::create_signer;
     use supra_framework::event;
-    use supra_framework::supra_account;
     use supra_framework::supra_coin::SupraCoin;
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
@@ -430,6 +429,15 @@ module supra_framework::automation_registry {
         assert!(registry_max_gas_cap > 0, EREGISTRY_MAX_GAS_CAP_NON_ZERO);
     }
 
+    fun create_resouce_account(supra_framework: &signer): (signer, SignerCapability) {
+        let (registry_fee_resource_signer, registry_fee_address_signer_cap) = account::create_resource_account(
+            supra_framework,
+            REGISTRY_RESOURCE_SEED
+        );
+        coin::register<SupraCoin>(&registry_fee_resource_signer);
+        (registry_fee_resource_signer, registry_fee_address_signer_cap)
+    }
+
     /// Initialization of Automation Registry with configuration parameters is expected metrics.
     public(friend) fun initialize(
         supra_framework: &signer,
@@ -451,10 +459,7 @@ module supra_framework::automation_registry {
             congestion_threshold_percentage,
             congestion_exponent);
 
-        let (registry_fee_resource_signer, registry_fee_address_signer_cap) = account::create_resource_account(
-            supra_framework,
-            REGISTRY_RESOURCE_SEED
-        );
+        let (registry_fee_resource_signer, registry_fee_address_signer_cap) = create_resouce_account(supra_framework);
 
         move_to(supra_framework, AutomationRegistry {
             tasks: enumerable_map::new_map(),
@@ -603,7 +608,7 @@ module supra_framework::automation_registry {
         vector::for_each(tasks_automation_refund_fees, |task| {
             let task: AutomationTaskFee = task;
             if (task.fee != 0) {
-                supra_account::transfer(&resource_signer, task.owner, task.fee);
+                coin::transfer<SupraCoin>(&resource_signer, task.owner, task.fee);
                 event::emit(TaskFeeRefund { task_index: task.task_index, owner: task.owner, amount: task.fee });
             }
         });
@@ -802,7 +807,7 @@ module supra_framework::automation_registry {
                     automation_fee_cap: task_metadata.automation_fee_cap_for_epoch,
                 });
             } else {
-                let user_balance = balance<SupraCoin>(task_metadata.owner);
+                let user_balance = coin::balance<SupraCoin>(task_metadata.owner);
                 if (user_balance < task.fee) {
                     // If the user does not have enough balance, remove the task and emit an event
                     enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
@@ -813,7 +818,7 @@ module supra_framework::automation_registry {
                     });
                 } else {
                     // Charge the fee and emit a success event
-                    supra_account::transfer(
+                    coin::transfer<SupraCoin>(
                         &create_signer(task_metadata.owner),
                         automation_registry.registry_fee_address,
                         task.fee
@@ -869,7 +874,7 @@ module supra_framework::automation_registry {
     /// Transfers the specified fee amount from the resource account to the target account.
     fun transfer_fee_to_account_internal(to: address, amount: u64) acquires AutomationRegistry {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
-        let resource_balance = balance<SupraCoin>(automation_registry.registry_fee_address);
+        let resource_balance = coin::balance<SupraCoin>(automation_registry.registry_fee_address);
 
         assert!(resource_balance >= amount, EINSUFFICIENT_BALANCE);
 
@@ -878,7 +883,7 @@ module supra_framework::automation_registry {
         let resource_signer = account::create_signer_with_capability(
             &automation_registry.registry_fee_address_signer_cap
         );
-        supra_account::transfer(&resource_signer, to, amount);
+        coin::transfer<SupraCoin>(&resource_signer, to, amount);
     }
 
     /// Update Automation Registry Config
@@ -1004,7 +1009,7 @@ module supra_framework::automation_registry {
 
         // Charge flat registration fee from the user at the time of registration
         let fee = automation_registry_config.main_config.flat_registration_fee_in_quants;
-        supra_account::transfer(owner_signer, automation_registry.registry_fee_address, fee);
+        coin::transfer<SupraCoin>(owner_signer, automation_registry.registry_fee_address, fee);
 
         event::emit(TaskRegistrationFeeWithdraw { task_index, owner, fee });
         event::emit(automation_task_metadata);
@@ -1129,13 +1134,15 @@ module supra_framework::automation_registry {
 
     #[test_only]
     /// Initializes registry without enabling SUPRA_NATIVE_AUTOMATION feature flag
-    fun initialize_registry_test_partially(supra_framework: &signer, user: &signer) acquires AutomationRegistry {
+    fun initialize_registry_test_partially(supra_framework: &signer, user: &signer) {
         use supra_framework::coin;
         use supra_framework::supra_coin::{Self, SupraCoin};
 
         let user_addr = signer::address_of(user);
         account::create_account_for_test(user_addr);
         account::create_account_for_test(@supra_framework);
+
+        let (burn_cap, mint_cap) = supra_coin::initialize_for_test(supra_framework);
 
         initialize(
             supra_framework,
@@ -1149,14 +1156,8 @@ module supra_framework::automation_registry {
             CONGESTION_EXPONENT_TEST,
             TASK_CAPACITY_TEST,
         );
-        let ar = borrow_global<AutomationRegistry>(address_of(supra_framework));
-        let resource_signer = account::create_signer_with_capability(
-            &ar.registry_fee_address_signer_cap
-        );
 
-        let (burn_cap, mint_cap) = supra_coin::initialize_for_test(supra_framework);
         coin::register<SupraCoin>(user);
-        coin::register<SupraCoin>(&resource_signer);
         supra_coin::mint(supra_framework, user_addr, ACCOUNT_BALANCE);
         supra_coin::mint(supra_framework, get_registry_fee_address(), REGISTRY_DEFAULT_BALANCE);
         coin::destroy_burn_cap(burn_cap);
@@ -1213,7 +1214,7 @@ module supra_framework::automation_registry {
 
     #[test_only]
     /// Initializes registry and enables SUPRA_NATIVE_AUTOMATION feature flag
-    fun initialize_registry_test(supra_framework: &signer, user: &signer) acquires AutomationRegistry {
+    fun initialize_registry_test(supra_framework: &signer, user: &signer) {
         initialize_registry_test_partially(supra_framework, user);
         toggle_feature_flag(supra_framework, true);
     }
@@ -1268,7 +1269,7 @@ module supra_framework::automation_registry {
         account: address,
         expected_balance: u64,
     ) {
-        let current_balance = balance<SupraCoin>(account);
+        let current_balance = coin::balance<SupraCoin>(account);
         assert!(current_balance == expected_balance, current_balance);
     }
 
@@ -2201,7 +2202,7 @@ module supra_framework::automation_registry {
         // Refund is expected
         timestamp::update_global_time_for_test_secs(3600);
         on_new_epoch();
-        let balance = balance<SupraCoin>(signer::address_of(user));
+        let balance = coin::balance<SupraCoin>(signer::address_of(user));
         // as account have 2 tasks with same automation and congestion fees then refund is double
         let expected_refund = expected_congestion_fee_per_task + expected_automation_fee_per_task;
         assert!(balance == expected_user_current_balance + expected_refund, 12);
@@ -2553,7 +2554,7 @@ module supra_framework::automation_registry {
         let expected_registry_current_balance = REGISTRY_DEFAULT_BALANCE + 3 * FLAT_REGISTRATION_FEE_TEST;
         // Make sure that user account has only enough balance for task 2 automation fee
         let withdraw_amount = expected_user_current_balance - expected_epoch_fee_for_t1_2;
-        supra_account::transfer(
+        coin::transfer<SupraCoin>(
             user,
             get_registry_fee_address(),
             withdraw_amount);

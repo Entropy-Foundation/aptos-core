@@ -41,6 +41,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `estimate_automation_fee_with_committed_occupancy`](#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy)
 -  [Function `estimate_automation_fee_with_committed_occupancy_internal`](#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal)
 -  [Function `validate_configuration_parameters_common`](#0x1_automation_registry_validate_configuration_parameters_common)
+-  [Function `create_resouce_account`](#0x1_automation_registry_create_resouce_account)
 -  [Function `initialize`](#0x1_automation_registry_initialize)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
 -  [Function `adjust_tasks_epoch_fee_refund`](#0x1_automation_registry_adjust_tasks_epoch_fee_refund)
@@ -77,7 +78,6 @@ This contract is part of the Supra Framework and is designed to manage automated
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/math64.md#0x1_math64">0x1::math64</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
-<b>use</b> <a href="supra_account.md#0x1_supra_account">0x1::supra_account</a>;
 <b>use</b> <a href="supra_coin.md#0x1_supra_coin">0x1::supra_coin</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="timestamp.md#0x1_timestamp">0x1::timestamp</a>;
@@ -1605,6 +1605,35 @@ maximum allowed occupancy for the next epoch.
 
 </details>
 
+<a id="0x1_automation_registry_create_resouce_account"></a>
+
+## Function `create_resouce_account`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_create_resouce_account">create_resouce_account</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>): (<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="account.md#0x1_account_SignerCapability">account::SignerCapability</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_create_resouce_account">create_resouce_account</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>): (<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, SignerCapability) {
+    <b>let</b> (registry_fee_resource_signer, registry_fee_address_signer_cap) = <a href="account.md#0x1_account_create_resource_account">account::create_resource_account</a>(
+        supra_framework,
+        <a href="automation_registry.md#0x1_automation_registry_REGISTRY_RESOURCE_SEED">REGISTRY_RESOURCE_SEED</a>
+    );
+    <a href="coin.md#0x1_coin_register">coin::register</a>&lt;SupraCoin&gt;(&registry_fee_resource_signer);
+    (registry_fee_resource_signer, registry_fee_address_signer_cap)
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_automation_registry_initialize"></a>
 
 ## Function `initialize`
@@ -1641,10 +1670,7 @@ Initialization of Automation Registry with configuration parameters is expected 
         congestion_threshold_percentage,
         congestion_exponent);
 
-    <b>let</b> (registry_fee_resource_signer, registry_fee_address_signer_cap) = <a href="account.md#0x1_account_create_resource_account">account::create_resource_account</a>(
-        supra_framework,
-        <a href="automation_registry.md#0x1_automation_registry_REGISTRY_RESOURCE_SEED">REGISTRY_RESOURCE_SEED</a>
-    );
+    <b>let</b> (registry_fee_resource_signer, registry_fee_address_signer_cap) = <a href="automation_registry.md#0x1_automation_registry_create_resouce_account">create_resouce_account</a>(supra_framework);
 
     <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
         tasks: <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_new_map">enumerable_map::new_map</a>(),
@@ -1852,7 +1878,7 @@ Processes refunds for automation task fees.
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(tasks_automation_refund_fees, |task| {
         <b>let</b> task: <a href="automation_registry.md#0x1_automation_registry_AutomationTaskFee">AutomationTaskFee</a> = task;
         <b>if</b> (task.fee != 0) {
-            <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(&resource_signer, task.owner, task.fee);
+            <a href="coin.md#0x1_coin_transfer">coin::transfer</a>&lt;SupraCoin&gt;(&resource_signer, task.owner, task.fee);
             <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskFeeRefund">TaskFeeRefund</a> { task_index: task.task_index, owner: task.owner, amount: task.fee });
         }
     });
@@ -2191,7 +2217,7 @@ Return estimated committed gas for the next epoch, locked automation fee amount 
                 automation_fee_cap: task_metadata.automation_fee_cap_for_epoch,
             });
         } <b>else</b> {
-            <b>let</b> user_balance = balance&lt;SupraCoin&gt;(task_metadata.owner);
+            <b>let</b> user_balance = <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(task_metadata.owner);
             <b>if</b> (user_balance &lt; task.fee) {
                 // If the user does not have enough balance, remove the task and emit an <a href="event.md#0x1_event">event</a>
                 <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task.task_index);
@@ -2202,7 +2228,7 @@ Return estimated committed gas for the next epoch, locked automation fee amount 
                 });
             } <b>else</b> {
                 // Charge the fee and emit a success <a href="event.md#0x1_event">event</a>
-                <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(
+                <a href="coin.md#0x1_coin_transfer">coin::transfer</a>&lt;SupraCoin&gt;(
                     &<a href="create_signer.md#0x1_create_signer">create_signer</a>(task_metadata.owner),
                     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address,
                     task.fee
@@ -2318,7 +2344,7 @@ Transfers the specified fee amount from the resource account to the target accou
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_transfer_fee_to_account_internal">transfer_fee_to_account_internal</a>(<b>to</b>: <b>address</b>, amount: u64) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
-    <b>let</b> resource_balance = balance&lt;SupraCoin&gt;(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address);
+    <b>let</b> resource_balance = <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address);
 
     <b>assert</b>!(resource_balance &gt;= amount, <a href="automation_registry.md#0x1_automation_registry_EINSUFFICIENT_BALANCE">EINSUFFICIENT_BALANCE</a>);
 
@@ -2327,7 +2353,7 @@ Transfers the specified fee amount from the resource account to the target accou
     <b>let</b> resource_signer = <a href="account.md#0x1_account_create_signer_with_capability">account::create_signer_with_capability</a>(
         &<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address_signer_cap
     );
-    <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(&resource_signer, <b>to</b>, amount);
+    <a href="coin.md#0x1_coin_transfer">coin::transfer</a>&lt;SupraCoin&gt;(&resource_signer, <b>to</b>, amount);
 }
 </code></pre>
 
@@ -2493,7 +2519,7 @@ Registers a new automation task entry.
 
     // Charge flat registration fee from the user at the time of registration
     <b>let</b> fee = automation_registry_config.main_config.flat_registration_fee_in_quants;
-    <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(owner_signer, <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address, fee);
+    <a href="coin.md#0x1_coin_transfer">coin::transfer</a>&lt;SupraCoin&gt;(owner_signer, <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address, fee);
 
     <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskRegistrationFeeWithdraw">TaskRegistrationFeeWithdraw</a> { task_index, owner, fee });
     <a href="event.md#0x1_event_emit">event::emit</a>(automation_task_metadata);
