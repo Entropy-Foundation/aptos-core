@@ -429,7 +429,7 @@ module supra_framework::automation_registry {
         assert!(registry_max_gas_cap > 0, EREGISTRY_MAX_GAS_CAP_NON_ZERO);
     }
 
-    fun create_registry_resouce_account(supra_framework: &signer): (signer, SignerCapability) {
+    fun create_registry_resource_account(supra_framework: &signer): (signer, SignerCapability) {
         let (registry_fee_resource_signer, registry_fee_address_signer_cap) = account::create_resource_account(
             supra_framework,
             REGISTRY_RESOURCE_SEED
@@ -459,7 +459,7 @@ module supra_framework::automation_registry {
             congestion_threshold_percentage,
             congestion_exponent);
 
-        let (registry_fee_resource_signer, registry_fee_address_signer_cap) = create_registry_resouce_account(supra_framework);
+        let (registry_fee_resource_signer, registry_fee_address_signer_cap) = create_registry_resource_account(supra_framework);
 
         move_to(supra_framework, AutomationRegistry {
             tasks: enumerable_map::new_map(),
