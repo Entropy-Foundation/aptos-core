@@ -1,3 +1,4 @@
+// Copyright (c) 2024 Supra.
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
@@ -67,6 +68,7 @@ use std::{
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use thiserror::Error;
+use aptos_crypto::hash::HashValueParseError;
 
 pub const USER_AGENT: &str = concat!("aptos-cli/", env!("CARGO_PKG_VERSION"));
 const US_IN_SECS: u64 = 1_000_000;
@@ -116,6 +118,8 @@ pub enum CliError {
     SimulationError(String),
     #[error("Coverage failed with status: {0}")]
     CoverageError(String),
+    #[error("Failed to parse hash {1} with error: {0}")]
+    HashError(#[source] HashValueParseError, String),
 }
 
 impl CliError {
@@ -136,6 +140,7 @@ impl CliError {
             CliError::UnexpectedError(_) => "UnexpectedError",
             CliError::SimulationError(_) => "SimulationError",
             CliError::CoverageError(_) => "CoverageError",
+            CliError::HashError(..) => "HashError",
         }
     }
 }
@@ -1375,6 +1380,18 @@ impl From<&Transaction> for TransactionSummary {
                 timestamp_us: Some(txn.timestamp().0),
                 version: Some(txn.transaction_info().version.0),
                 vm_status: Some(txn.transaction_info().vm_status.clone()),
+            },
+            Transaction::AutomatedTransaction(txn) => TransactionSummary {
+                transaction_hash: txn.info.hash,
+                sender: Some(*txn.meta.sender.inner()),
+                gas_used: Some(txn.info.gas_used.0),
+                gas_unit_price: Some(txn.meta.gas_unit_price.0),
+                success: Some(txn.info.success),
+                version: Some(txn.info.version.0),
+                vm_status: Some(txn.info.vm_status.clone()),
+                sequence_number: Some(txn.meta.index.0),
+                timestamp_us: Some(txn.timestamp.0),
+                pending: None,
             },
         }
     }
