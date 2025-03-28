@@ -10,7 +10,7 @@
 -  [Resource `DkgConfig`](#0x1_dkg_config_DkgConfig)
 -  [Constants](#@Constants_0)
 -  [Function `update_dkg_feature_flag`](#0x1_dkg_config_update_dkg_feature_flag)
--  [Function `get_dkg_feature_flag`](#0x1_dkg_config_get_dkg_feature_flag)
+-  [Function `dkg_feature_enabled`](#0x1_dkg_config_dkg_feature_enabled)
 -  [Function `store_dkg_node_config`](#0x1_dkg_config_store_dkg_node_config)
 -  [Function `dkg_node_config_exists`](#0x1_dkg_config_dkg_node_config_exists)
 -  [Function `get_dkg_node_config`](#0x1_dkg_config_get_dkg_node_config)
@@ -230,13 +230,13 @@ This should be called by on-chain governance to enable/disable dkg for the valid
 
 </details>
 
-<a id="0x1_dkg_config_get_dkg_feature_flag"></a>
+<a id="0x1_dkg_config_dkg_feature_enabled"></a>
 
-## Function `get_dkg_feature_flag`
+## Function `dkg_feature_enabled`
 
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_dkg_feature_flag">get_dkg_feature_flag</a>(): bool
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_dkg_feature_enabled">dkg_feature_enabled</a>(): bool
 </code></pre>
 
 
@@ -245,7 +245,12 @@ This should be called by on-chain governance to enable/disable dkg for the valid
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_dkg_feature_flag">get_dkg_feature_flag</a>(): bool <b>acquires</b> <a href="dkg_config.md#0x1_dkg_config_DkgFeatureFlag">DkgFeatureFlag</a> {
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_dkg_feature_enabled">dkg_feature_enabled</a>(): bool <b>acquires</b> <a href="dkg_config.md#0x1_dkg_config_DkgFeatureFlag">DkgFeatureFlag</a> {
+    <b>let</b> dkg_flag_exists = <b>exists</b>&lt;<a href="dkg_config.md#0x1_dkg_config_DkgFeatureFlag">DkgFeatureFlag</a>&gt;(@supra_framework);
+    <b>if</b> (!dkg_flag_exists){
+        <b>return</b> <b>false</b>
+    };
+
     <b>let</b> enable_dkg_flag = <b>borrow_global</b>&lt;<a href="dkg_config.md#0x1_dkg_config_DkgFeatureFlag">DkgFeatureFlag</a>&gt;(@supra_framework).enable_dkg;
     enable_dkg_flag
 }
@@ -433,17 +438,17 @@ This should be called by on-chain governance to enable/disable dkg for the valid
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_is_node_family_committee_member">is_node_family_committee_member</a>(addr: <b>address</b>, <a href="dkg_config.md#0x1_dkg_config">dkg_config</a>: &<a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a>): bool {
-    <b>let</b> family_committee = &<a href="dkg_config.md#0x1_dkg_config">dkg_config</a>.family_committee; // Borrow the <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>
-    <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(family_committee);         // Get the <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>'s length
-    <b>let</b> i = 0;                                          // Initialize index
+    <b>let</b> family_committee = &<a href="dkg_config.md#0x1_dkg_config">dkg_config</a>.family_committee;
+    <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(family_committee);
+    <b>let</b> i = 0;
     <b>while</b> (i &lt; len) {
-        <b>let</b> family_node = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(family_committee, i); // Borrow each element
+        <b>let</b> family_node = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(family_committee, i);
         <b>if</b> (family_node.addr == addr) {
-            <b>return</b> <b>true</b>;                                // Match found, <b>return</b> <b>true</b>
+            <b>return</b> <b>true</b>
         };
-        i = i + 1;                                      // Increment index
+        i = i + 1;
     };
-    <b>false</b>                                               // No match found
+    <b>false</b>
 }
 </code></pre>
 

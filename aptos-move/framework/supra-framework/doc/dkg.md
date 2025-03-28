@@ -19,10 +19,10 @@ DKG on-chain states and helper functions.
 -  [Function `get_signer_bls_keys_from_index`](#0x1_dkg_get_signer_bls_keys_from_index)
 -  [Function `initialize`](#0x1_dkg_initialize)
 -  [Function `start`](#0x1_dkg_start)
--  [Function `add_dkg_meta`](#0x1_dkg_add_dkg_meta)
 -  [Function `finish`](#0x1_dkg_finish)
 -  [Function `try_clear_incomplete_session`](#0x1_dkg_try_clear_incomplete_session)
 -  [Function `incomplete_session`](#0x1_dkg_incomplete_session)
+-  [Function `last_completed_session`](#0x1_dkg_last_completed_session)
 -  [Function `session_dealer_epoch`](#0x1_dkg_session_dealer_epoch)
 -  [Specification](#@Specification_1)
     -  [Function `initialize`](#@Specification_1_initialize)
@@ -537,13 +537,15 @@ Abort if a DKG is already in progress.
 
 </details>
 
-<a id="0x1_dkg_add_dkg_meta"></a>
+<a id="0x1_dkg_finish"></a>
 
-## Function `add_dkg_meta`
+## Function `finish`
+
+Family Node sets the DKGMeta for the in-progress DKG session and
+marks the incomplete DKG session completed.
 
 
-
-<pre><code><b>public</b> entry <b>fun</b> <a href="dkg.md#0x1_dkg_add_dkg_meta">add_dkg_meta</a>(<a href="account.md#0x1_account">account</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, committee_pk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, accumulation_value: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, agg_signature: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, signers: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u32&gt;)
+<pre><code><b>public</b> entry <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>(<a href="account.md#0x1_account">account</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, committee_pk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, accumulation_value: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, agg_signature: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, signers: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u32&gt;)
 </code></pre>
 
 
@@ -552,11 +554,11 @@ Abort if a DKG is already in progress.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="dkg.md#0x1_dkg_add_dkg_meta">add_dkg_meta</a>(<a href="account.md#0x1_account">account</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-                              committee_pk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-                              accumulation_value: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-                              agg_signature: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-                              signers: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u32&gt;,
+<pre><code><b>public</b> entry <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>(<a href="account.md#0x1_account">account</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+                        committee_pk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+                        accumulation_value: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+                        agg_signature: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+                        signers: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u32&gt;,
 ) <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a>{
 
     // ensure <a href="dkg.md#0x1_dkg">dkg</a> is in progress
@@ -598,36 +600,7 @@ Abort if a DKG is already in progress.
             committee_pk: committee_pk_bytes,
             accumulation_value: accumulation_value
         });
-    dkg_state.in_progress = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(session);
-}
-</code></pre>
 
-
-
-</details>
-
-<a id="0x1_dkg_finish"></a>
-
-## Function `finish`
-
-Mark the incomplete DKG session completed.
-
-Abort if DKG is not in progress.
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>()
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>() <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
-    <b>let</b> dkg_state = <b>borrow_global_mut</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
-    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&dkg_state.in_progress), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="dkg.md#0x1_dkg_EDKG_NOT_IN_PROGRESS">EDKG_NOT_IN_PROGRESS</a>));
-    <b>let</b> session = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> dkg_state.in_progress);
     dkg_state.last_completed = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(session);
     dkg_state.in_progress = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>();
 }
@@ -685,6 +658,35 @@ Return the incomplete DKG session state, if it exists.
 <pre><code><b>public</b> <b>fun</b> <a href="dkg.md#0x1_dkg_incomplete_session">incomplete_session</a>(): Option&lt;<a href="dkg.md#0x1_dkg_DKGSessionState">DKGSessionState</a>&gt; <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
     <b>if</b> (<b>exists</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework)) {
         <b>borrow_global</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework).in_progress
+    } <b>else</b> {
+        <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+    }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_last_completed_session"></a>
+
+## Function `last_completed_session`
+
+Return the last completed DKG session state, if it exists.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg.md#0x1_dkg_last_completed_session">last_completed_session</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="dkg.md#0x1_dkg_DKGSessionState">dkg::DKGSessionState</a>&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg.md#0x1_dkg_last_completed_session">last_completed_session</a>(): Option&lt;<a href="dkg.md#0x1_dkg_DKGSessionState">DKGSessionState</a>&gt; <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
+    <b>if</b> (<b>exists</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework)) {
+        <b>borrow_global</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework).last_completed
     } <b>else</b> {
         <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     }
@@ -770,7 +772,7 @@ Return the dealer epoch of a <code><a href="dkg.md#0x1_dkg_DKGSessionState">DKGS
 ### Function `finish`
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>()
+<pre><code><b>public</b> entry <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>(<a href="account.md#0x1_account">account</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, committee_pk_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, accumulation_value: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, agg_signature: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, signers: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u32&gt;)
 </code></pre>
 
 
