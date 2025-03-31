@@ -131,6 +131,7 @@ transferred to A
 -  [Struct `UnlockStakeEvent`](#0x1_pbo_delegation_pool_UnlockStakeEvent)
 -  [Struct `WithdrawStakeEvent`](#0x1_pbo_delegation_pool_WithdrawStakeEvent)
 -  [Struct `DistributeCommissionEvent`](#0x1_pbo_delegation_pool_DistributeCommissionEvent)
+-  [Struct `UnlockScheduleUpdated`](#0x1_pbo_delegation_pool_UnlockScheduleUpdated)
 -  [Struct `DistributeCommission`](#0x1_pbo_delegation_pool_DistributeCommission)
 -  [Struct `DelegatorReplacemendEvent`](#0x1_pbo_delegation_pool_DelegatorReplacemendEvent)
 -  [Struct `VoteEvent`](#0x1_pbo_delegation_pool_VoteEvent)
@@ -138,6 +139,7 @@ transferred to A
 -  [Struct `DelegateVotingPowerEvent`](#0x1_pbo_delegation_pool_DelegateVotingPowerEvent)
 -  [Struct `SetBeneficiaryForOperator`](#0x1_pbo_delegation_pool_SetBeneficiaryForOperator)
 -  [Struct `CommissionPercentageChange`](#0x1_pbo_delegation_pool_CommissionPercentageChange)
+-  [Struct `UnlockScheduleApplied`](#0x1_pbo_delegation_pool_UnlockScheduleApplied)
 -  [Constants](#@Constants_0)
 -  [Function `owner_cap_exists`](#0x1_pbo_delegation_pool_owner_cap_exists)
 -  [Function `get_owned_pool_address`](#0x1_pbo_delegation_pool_get_owned_pool_address)
@@ -157,6 +159,12 @@ transferred to A
 -  [Function `calculate_and_update_delegator_voter`](#0x1_pbo_delegation_pool_calculate_and_update_delegator_voter)
 -  [Function `get_expected_stake_pool_address`](#0x1_pbo_delegation_pool_get_expected_stake_pool_address)
 -  [Function `min_remaining_secs_for_commission_change`](#0x1_pbo_delegation_pool_min_remaining_secs_for_commission_change)
+-  [Function `initialize_delegation_pool_with_amount`](#0x1_pbo_delegation_pool_initialize_delegation_pool_with_amount)
+-  [Function `initialize_delegation_pool_with_amount_without_multisig_admin`](#0x1_pbo_delegation_pool_initialize_delegation_pool_with_amount_without_multisig_admin)
+-  [Function `get_unlock_schedule`](#0x1_pbo_delegation_pool_get_unlock_schedule)
+-  [Function `create_schedule_fractions`](#0x1_pbo_delegation_pool_create_schedule_fractions)
+-  [Function `update_unlocking_schedule`](#0x1_pbo_delegation_pool_update_unlocking_schedule)
+-  [Function `validate_unlock_schedule_params`](#0x1_pbo_delegation_pool_validate_unlock_schedule_params)
 -  [Function `initialize_delegation_pool`](#0x1_pbo_delegation_pool_initialize_delegation_pool)
 -  [Function `fund_delegators_with_locked_stake`](#0x1_pbo_delegation_pool_fund_delegators_with_locked_stake)
 -  [Function `fund_delegators_with_stake`](#0x1_pbo_delegation_pool_fund_delegators_with_stake)
@@ -193,6 +201,9 @@ transferred to A
 -  [Function `fund_delegator_stake`](#0x1_pbo_delegation_pool_fund_delegator_stake)
 -  [Function `add_stake`](#0x1_pbo_delegation_pool_add_stake)
 -  [Function `replace_in_smart_tables`](#0x1_pbo_delegation_pool_replace_in_smart_tables)
+-  [Function `authorized_reactivate_stake`](#0x1_pbo_delegation_pool_authorized_reactivate_stake)
+-  [Function `admin_withdraw`](#0x1_pbo_delegation_pool_admin_withdraw)
+-  [Function `lock_delegators_stakes`](#0x1_pbo_delegation_pool_lock_delegators_stakes)
 -  [Function `replace_delegator`](#0x1_pbo_delegation_pool_replace_delegator)
 -  [Function `is_principle_stakeholder`](#0x1_pbo_delegation_pool_is_principle_stakeholder)
 -  [Function `get_principle_stake`](#0x1_pbo_delegation_pool_get_principle_stake)
@@ -915,6 +926,58 @@ This struct should be stored in the delegation pool resource account.
 
 </details>
 
+<a id="0x1_pbo_delegation_pool_UnlockScheduleUpdated"></a>
+
+## Struct `UnlockScheduleUpdated`
+
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_UnlockScheduleUpdated">UnlockScheduleUpdated</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>pool_address: <b>address</b></code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>unlock_numerators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>unlock_denominator: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>unlock_start_time: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>unlock_duration: u64</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
 <a id="0x1_pbo_delegation_pool_DistributeCommission"></a>
 
 ## Struct `DistributeCommission`
@@ -1216,6 +1279,46 @@ This struct should be stored in the delegation pool resource account.
 
 </details>
 
+<a id="0x1_pbo_delegation_pool_UnlockScheduleApplied"></a>
+
+## Struct `UnlockScheduleApplied`
+
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_UnlockScheduleApplied">UnlockScheduleApplied</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>pool_address: <b>address</b></code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>delegator: <b>address</b></code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>amount: u64</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
 <a id="@Constants_0"></a>
 
 ## Constants
@@ -1367,6 +1470,16 @@ Requested amount too high, the balance would fall below principle stake after un
 
 
 
+<a id="0x1_pbo_delegation_pool_EBALANCE_NOT_SUFFICIENT"></a>
+
+Balance is not enough.
+
+
+<pre><code><b>const</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EBALANCE_NOT_SUFFICIENT">EBALANCE_NOT_SUFFICIENT</a>: u64 = 39;
+</code></pre>
+
+
+
 <a id="0x1_pbo_delegation_pool_ECOIN_VALUE_NOT_SAME_AS_PRINCIPAL_STAKE"></a>
 
 Coin value is not the same with principle stake.
@@ -1461,6 +1574,27 @@ The voter does not have sufficient stake to create a proposal.
 
 
 <pre><code><b>const</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EINSUFFICIENT_PROPOSER_STAKE">EINSUFFICIENT_PROPOSER_STAKE</a>: u64 = 15;
+</code></pre>
+
+
+
+<a id="0x1_pbo_delegation_pool_EINSUFFICIENT_STAKE_TO_LOCK"></a>
+
+Thrown by <code>lock_delegators_stakes</code> when a given delegator has less than the specified
+amount of stake available in the specified stake pool.
+
+
+<pre><code><b>const</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EINSUFFICIENT_STAKE_TO_LOCK">EINSUFFICIENT_STAKE_TO_LOCK</a>: u64 = 40;
+</code></pre>
+
+
+
+<a id="0x1_pbo_delegation_pool_EMINIMUM_UNLOCK_AMOUNT"></a>
+
+Minimum amount of coins to be unlocked.
+
+
+<pre><code><b>const</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EMINIMUM_UNLOCK_AMOUNT">EMINIMUM_UNLOCK_AMOUNT</a>: u64 = 38;
 </code></pre>
 
 
@@ -1580,6 +1714,15 @@ Commission percentage change is too late in this lockup period, and should be do
 
 
 <pre><code><b>const</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ETOO_LATE_COMMISSION_CHANGE">ETOO_LATE_COMMISSION_CHANGE</a>: u64 = 21;
+</code></pre>
+
+
+
+<a id="0x1_pbo_delegation_pool_EUNLOCKING_ALREADY_STARTED"></a>
+
+
+
+<pre><code><b>const</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EUNLOCKING_ALREADY_STARTED">EUNLOCKING_ALREADY_STARTED</a>: u64 = 41;
 </code></pre>
 
 
@@ -2121,7 +2264,7 @@ extracted-fee = (amount - extracted-fee) * reward-rate% * (100% - operator-commi
     <b>if</b> (<a href="stake.md#0x1_stake_is_current_epoch_validator">stake::is_current_epoch_validator</a>(pool_address)) {
         <b>let</b> (rewards_rate, rewards_rate_denominator) =
             <a href="staking_config.md#0x1_staking_config_get_reward_rate">staking_config::get_reward_rate</a>(&<a href="staking_config.md#0x1_staking_config_get">staking_config::get</a>());
-        <b>if</b> (rewards_rate_denominator &gt; 0) {
+        <b>if</b> (rewards_rate_denominator != 0) {
             <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_assert_delegation_pool_exists">assert_delegation_pool_exists</a>(pool_address);
 
             rewards_rate = rewards_rate
@@ -2296,6 +2439,321 @@ Return the minimum remaining time in seconds for commission change, which is one
 
 </details>
 
+<a id="0x1_pbo_delegation_pool_initialize_delegation_pool_with_amount"></a>
+
+## Function `initialize_delegation_pool_with_amount`
+
+Initialize a delegation pool without actual coin but withdraw from the owner's account.
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_initialize_delegation_pool_with_amount">initialize_delegation_pool_with_amount</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, multisig_admin: <b>address</b>, amount: u64, operator_commission_percentage: u64, delegation_pool_creation_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, delegator_address: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, principle_stake: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, unlock_numerators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, unlock_denominator: u64, unlock_start_time: u64, unlock_duration: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_initialize_delegation_pool_with_amount">initialize_delegation_pool_with_amount</a>(
+    owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    multisig_admin: <b>address</b>,
+    amount: u64,
+    operator_commission_percentage: u64,
+    delegation_pool_creation_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    delegator_address: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
+    principle_stake: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
+    unlock_numerators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
+    unlock_denominator: u64,
+    unlock_start_time: u64,
+    unlock_duration: u64
+) <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_GovernanceRecords">GovernanceRecords</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_BeneficiaryForOperator">BeneficiaryForOperator</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_NextCommissionPercentage">NextCommissionPercentage</a> {
+    <b>assert</b>!(
+        <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner)) &gt;= amount,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EBALANCE_NOT_SUFFICIENT">EBALANCE_NOT_SUFFICIENT</a>)
+    );
+    <b>let</b> <a href="coin.md#0x1_coin">coin</a> = <a href="coin.md#0x1_coin_withdraw">coin::withdraw</a>&lt;SupraCoin&gt;(owner, amount);
+
+    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_initialize_delegation_pool">initialize_delegation_pool</a>(
+        owner,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(multisig_admin),
+        operator_commission_percentage,
+        delegation_pool_creation_seed,
+        delegator_address,
+        principle_stake,
+        <a href="coin.md#0x1_coin">coin</a>,
+        unlock_numerators,
+        unlock_denominator,
+        unlock_start_time,
+        unlock_duration
+    )
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_pbo_delegation_pool_initialize_delegation_pool_with_amount_without_multisig_admin"></a>
+
+## Function `initialize_delegation_pool_with_amount_without_multisig_admin`
+
+Initialize a delegation pool without actual coin but withdraw from the owner's account.
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_initialize_delegation_pool_with_amount_without_multisig_admin">initialize_delegation_pool_with_amount_without_multisig_admin</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, amount: u64, operator_commission_percentage: u64, delegation_pool_creation_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, delegator_address: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, principle_stake: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, unlock_numerators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, unlock_denominator: u64, unlock_start_time: u64, unlock_duration: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_initialize_delegation_pool_with_amount_without_multisig_admin">initialize_delegation_pool_with_amount_without_multisig_admin</a>(
+    owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    amount: u64,
+    operator_commission_percentage: u64,
+    delegation_pool_creation_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    delegator_address: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
+    principle_stake: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
+    unlock_numerators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
+    unlock_denominator: u64,
+    unlock_start_time: u64,
+    unlock_duration: u64
+) <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_GovernanceRecords">GovernanceRecords</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_BeneficiaryForOperator">BeneficiaryForOperator</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_NextCommissionPercentage">NextCommissionPercentage</a> {
+    <b>assert</b>!(
+        <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner)) &gt;= amount,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EBALANCE_NOT_SUFFICIENT">EBALANCE_NOT_SUFFICIENT</a>)
+    );
+    <b>let</b> <a href="coin.md#0x1_coin">coin</a> = <a href="coin.md#0x1_coin_withdraw">coin::withdraw</a>&lt;SupraCoin&gt;(owner, amount);
+
+    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_initialize_delegation_pool">initialize_delegation_pool</a>(
+        owner,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>&lt;<b>address</b>&gt;(),
+        operator_commission_percentage,
+        delegation_pool_creation_seed,
+        delegator_address,
+        principle_stake,
+        <a href="coin.md#0x1_coin">coin</a>,
+        unlock_numerators,
+        unlock_denominator,
+        unlock_start_time,
+        unlock_duration
+    )
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_pbo_delegation_pool_get_unlock_schedule"></a>
+
+## Function `get_unlock_schedule`
+
+Return the unlock schedule of the pool as (schedule, start_time, period_duration, last_unlock_period, cumulative_unlocked_fraction)
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_get_unlock_schedule">get_unlock_schedule</a>(pool_address: <b>address</b>): (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_FixedPoint64">fixed_point64::FixedPoint64</a>&gt;, u64, u64, u64, <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_FixedPoint64">fixed_point64::FixedPoint64</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_get_unlock_schedule">get_unlock_schedule</a>(
+    pool_address: <b>address</b>
+): (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;FixedPoint64&gt;, u64, u64, u64, FixedPoint64) <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a> {
+    <b>let</b> uschedule =
+        <b>borrow_global</b>&lt;<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>&gt;(pool_address).principle_unlock_schedule;
+    (
+        uschedule.schedule,
+        uschedule.start_timestamp_secs,
+        uschedule.period_duration,
+        uschedule.last_unlock_period,
+        uschedule.cumulative_unlocked_fraction
+    )
+
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_pbo_delegation_pool_create_schedule_fractions"></a>
+
+## Function `create_schedule_fractions`
+
+
+
+<pre><code><b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_create_schedule_fractions">create_schedule_fractions</a>(unlock_numerators: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, unlock_denominator: u64): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_FixedPoint64">fixed_point64::FixedPoint64</a>&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_create_schedule_fractions">create_schedule_fractions</a>(unlock_numerators: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, unlock_denominator: u64) : <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;FixedPoint64&gt; {
+
+//Create unlock schedule
+    <b>let</b> schedule = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_ref">vector::for_each_ref</a>(
+        unlock_numerators,
+        |e| {
+            <b>let</b> fraction =
+                <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_create_from_rational">fixed_point64::create_from_rational</a>(
+                    (*e <b>as</b> u128), (unlock_denominator <b>as</b> u128)
+                );
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> schedule, fraction);
+        }
+    );
+
+    schedule
+
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_pbo_delegation_pool_update_unlocking_schedule"></a>
+
+## Function `update_unlocking_schedule`
+
+Pre-condition: <code>cumulative_unlocked_fraction</code> should be zero, which would indicate that even
+though there are principle stake holders, none of those have yet called <code>unlock</code> on the pool
+thus it is ```safe'' to change the schedule
+This is a temporary measure to allow Supra Foundation to change the schedule for those pools
+there were initialized with ```dummy/default'' schedule. This method must be disabled
+before external validators are allowed to join the validator set.
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_update_unlocking_schedule">update_unlocking_schedule</a>(multisig_admin: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, pool_address: <b>address</b>, unlock_numerators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, unlock_denominator: u64, unlock_start_time: u64, unlock_duration: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_update_unlocking_schedule">update_unlocking_schedule</a>(
+    multisig_admin: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    pool_address: <b>address</b>,
+    unlock_numerators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
+    unlock_denominator: u64,
+    unlock_start_time: u64,
+    unlock_duration: u64
+) <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a> {
+    <b>assert</b>!(
+        <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_is_admin">is_admin</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(multisig_admin), pool_address),
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ENOT_AUTHORIZED">ENOT_AUTHORIZED</a>)
+    );
+    <b>let</b> pool = <b>borrow_global_mut</b>&lt;<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>&gt;(pool_address);
+    <b>assert</b>!(
+        <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_is_zero">fixed_point64::is_zero</a>(
+            pool.principle_unlock_schedule.cumulative_unlocked_fraction
+        ),
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EUNLOCKING_ALREADY_STARTED">EUNLOCKING_ALREADY_STARTED</a>)
+    );
+
+    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_validate_unlock_schedule_params">validate_unlock_schedule_params</a>(
+        &unlock_numerators,
+        unlock_denominator,
+        unlock_start_time,
+        unlock_duration
+    );
+
+    //Create unlock schedule fractions
+    <b>let</b> schedule = <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_create_schedule_fractions">create_schedule_fractions</a>(&unlock_numerators,unlock_denominator);
+
+    pool.principle_unlock_schedule = <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_UnlockSchedule">UnlockSchedule</a> {
+        schedule: schedule,
+        start_timestamp_secs: unlock_start_time,
+        period_duration: unlock_duration,
+        last_unlock_period: 0,
+        cumulative_unlocked_fraction: <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_create_from_rational">fixed_point64::create_from_rational</a>(0, 1)
+    };
+    <a href="event.md#0x1_event_emit">event::emit</a>(
+        <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_UnlockScheduleUpdated">UnlockScheduleUpdated</a> {
+            pool_address,
+            unlock_numerators,
+            unlock_denominator,
+            unlock_start_time,
+            unlock_duration
+        }
+    );
+
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_pbo_delegation_pool_validate_unlock_schedule_params"></a>
+
+## Function `validate_unlock_schedule_params`
+
+
+
+<pre><code><b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_validate_unlock_schedule_params">validate_unlock_schedule_params</a>(unlock_numerators: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, unlock_denominator: u64, _unlock_start_time: u64, unlock_duration: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_validate_unlock_schedule_params">validate_unlock_schedule_params</a>(
+    unlock_numerators: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
+    unlock_denominator: u64,
+    _unlock_start_time: u64,
+    unlock_duration: u64
+) {
+    //Unlock duration can not be zero
+    <b>assert</b>!(unlock_duration != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EPERIOD_DURATION_IS_ZERO">EPERIOD_DURATION_IS_ZERO</a>));
+    //Fraction denominator can not be zero
+    <b>assert</b>!(unlock_denominator != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EDENOMINATOR_IS_ZERO">EDENOMINATOR_IS_ZERO</a>));
+    <b>let</b> numerator_length = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(unlock_numerators);
+    //Fraction numerators can not be empty
+    <b>assert</b>!(
+        numerator_length != 0,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EEMPTY_UNLOCK_SCHEDULE">EEMPTY_UNLOCK_SCHEDULE</a>)
+    );
+    //First and last numerator can not be zero
+    <b>assert</b>!(
+        *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(unlock_numerators, 0) != 0,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ESCHEDULE_WITH_ZERO_FRACTION">ESCHEDULE_WITH_ZERO_FRACTION</a>)
+    );
+    <b>assert</b>!(
+        *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(unlock_numerators, numerator_length - 1) != 0,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ESCHEDULE_WITH_ZERO_FRACTION">ESCHEDULE_WITH_ZERO_FRACTION</a>)
+    );
+
+    <b>let</b> sum = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_foldr">vector::foldr</a>(*unlock_numerators, 0, |e, a| { e + a });
+    //Sum of numerators can not be greater than denominators
+    <b>assert</b>!(
+        sum &lt;= unlock_denominator,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ENUMERATORS_GRATER_THAN_DENOMINATOR">ENUMERATORS_GRATER_THAN_DENOMINATOR</a>)
+    );
+
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_pbo_delegation_pool_initialize_delegation_pool"></a>
 
 ## Function `initialize_delegation_pool`
@@ -2352,31 +2810,13 @@ Ownership over setting the operator/voter is granted to <code>owner</code> who h
         <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_delegation_pools_enabled">features::delegation_pools_enabled</a>(),
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EDELEGATION_POOLS_DISABLED">EDELEGATION_POOLS_DISABLED</a>)
     );
-    //Unlock start time can not be in the past
-    <b>assert</b>!(
-        unlock_start_time &gt;= <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>(),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ESTARTUP_TIME_IN_PAST">ESTARTUP_TIME_IN_PAST</a>)
-    );
-    //Unlock duration can not be zero
-    <b>assert</b>!(unlock_duration &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EPERIOD_DURATION_IS_ZERO">EPERIOD_DURATION_IS_ZERO</a>));
-    //Fraction denominator can not be zero
-    <b>assert</b>!(unlock_denominator != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EDENOMINATOR_IS_ZERO">EDENOMINATOR_IS_ZERO</a>));
-    //Fraction numerators can not be empty
-    <b>assert</b>!(
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&unlock_numerators) &gt; 0,
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EEMPTY_UNLOCK_SCHEDULE">EEMPTY_UNLOCK_SCHEDULE</a>)
-    );
-    //Fraction numerators can not be zero
-    <b>assert</b>!(
-        !<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_any">vector::any</a>(&unlock_numerators, |e| { *e == 0 }),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ESCHEDULE_WITH_ZERO_FRACTION">ESCHEDULE_WITH_ZERO_FRACTION</a>)
-    );
 
-    <b>let</b> sum = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_foldr">vector::foldr</a>(unlock_numerators, 0, |e, a| { e + a });
-    //Sum of numerators can not be greater than denominators
-    <b>assert</b>!(
-        sum &lt;= unlock_denominator,
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ENUMERATORS_GRATER_THAN_DENOMINATOR">ENUMERATORS_GRATER_THAN_DENOMINATOR</a>)
+
+    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_validate_unlock_schedule_params">validate_unlock_schedule_params</a>(
+        &unlock_numerators,
+        unlock_denominator,
+        unlock_start_time,
+        unlock_duration
     );
 
     <b>let</b> owner_address = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner);
@@ -2424,24 +2864,14 @@ Ownership over setting the operator/voter is granted to <code>owner</code> who h
     // initialize the principle <a href="stake.md#0x1_stake">stake</a> <a href="../../aptos-stdlib/doc/table.md#0x1_table">table</a>
     <b>let</b> principle_stake_table = <a href="../../aptos-stdlib/doc/table.md#0x1_table_new">table::new</a>&lt;<b>address</b>, u64&gt;();
     // initialize the principle <a href="stake.md#0x1_stake">stake</a> <a href="../../aptos-stdlib/doc/table.md#0x1_table">table</a>
-    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&delegator_address) &gt; 0) {
+    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&delegator_address) != 0) {
         <b>let</b> delegator = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> delegator_address);
         <b>let</b> <a href="stake.md#0x1_stake">stake</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> principle_stake);
         <a href="../../aptos-stdlib/doc/table.md#0x1_table_add">table::add</a>(&<b>mut</b> principle_stake_table, delegator, <a href="stake.md#0x1_stake">stake</a>);
     };
 
     //Create unlock schedule
-    <b>let</b> schedule = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_ref">vector::for_each_ref</a>(
-        &unlock_numerators,
-        |e| {
-            <b>let</b> fraction =
-                <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_create_from_rational">fixed_point64::create_from_rational</a>(
-                    (*e <b>as</b> u128), (unlock_denominator <b>as</b> u128)
-                );
-            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> schedule, fraction);
-        }
-    );
+    <b>let</b> schedule = <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_create_schedule_fractions">create_schedule_fractions</a>(&unlock_numerators,unlock_denominator);
 
     <b>move_to</b>(
         &stake_pool_signer,
@@ -2485,7 +2915,7 @@ Ownership over setting the operator/voter is granted to <code>owner</code> who h
     <b>move_to</b>(owner, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPoolOwnership">DelegationPoolOwnership</a> { pool_address });
 
     // Add <a href="stake.md#0x1_stake">stake</a> <b>to</b> each delegator
-    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&delegator_address_copy) &gt; 0) {
+    <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&delegator_address_copy) != 0) {
         <b>let</b> delegator = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> delegator_address_copy);
         <b>let</b> <a href="stake.md#0x1_stake">stake</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> principle_stake_copy);
         <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_add_stake_initialization">add_stake_initialization</a>(delegator, pool_address, <a href="stake.md#0x1_stake">stake</a>);
@@ -2545,17 +2975,23 @@ Ownership over setting the operator/voter is granted to <code>owner</code> who h
         delegators,
         stakes,
         |delegator, <a href="stake.md#0x1_stake">stake</a>| {
-            //Ignore <b>if</b> <a href="stake.md#0x1_stake">stake</a> <b>to</b> be added is `0`
-            <b>if</b> (<a href="stake.md#0x1_stake">stake</a> &gt; 0) {
-                //Compute the actual <a href="stake.md#0x1_stake">stake</a> that would be added, `principle_stake` <b>has</b> <b>to</b> be
-                //populated in the <a href="../../aptos-stdlib/doc/table.md#0x1_table">table</a> accordingly
+            // Ignore <b>if</b> <a href="stake.md#0x1_stake">stake</a> <b>to</b> be added is `0`
+            <b>if</b> (<a href="stake.md#0x1_stake">stake</a> != 0) {
+                // Compute the actual <a href="stake.md#0x1_stake">stake</a> that would be added, `principle_stake` <b>has</b> <b>to</b> be
+                // populated in the <a href="../../aptos-stdlib/doc/table.md#0x1_table">table</a> accordingly
                 <b>if</b> (<a href="../../aptos-stdlib/doc/table.md#0x1_table_contains">table::contains</a>(principle_stake_table, delegator)) {
                     <b>let</b> stake_amount =
                         <a href="../../aptos-stdlib/doc/table.md#0x1_table_borrow_mut">table::borrow_mut</a>(principle_stake_table, delegator);
                     *stake_amount = *stake_amount + <a href="stake.md#0x1_stake">stake</a>;
                 } <b>else</b> {
                     <a href="../../aptos-stdlib/doc/table.md#0x1_table_add">table::add</a>(principle_stake_table, delegator, <a href="stake.md#0x1_stake">stake</a>);
-                }
+                };
+
+                // Record the details of the lockup <a href="event.md#0x1_event">event</a>. Note that only the newly locked
+                // amount is reported and not the total locked amount.
+                <a href="event.md#0x1_event_emit">event::emit</a>(
+                    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_UnlockScheduleApplied">UnlockScheduleApplied</a> { pool_address, delegator, amount: <a href="stake.md#0x1_stake">stake</a> }
+                );
             }
         }
     );
@@ -2597,7 +3033,6 @@ Ownership over setting the operator/voter is granted to <code>owner</code> who h
             <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_fund_delegator_stake">fund_delegator_stake</a>(funder, pool_address, delegator, <a href="stake.md#0x1_stake">stake</a>);
         }
     );
-
 }
 </code></pre>
 
@@ -3733,6 +4168,11 @@ Add <code>amount</code> of coins to the delegation pool <code>pool_address</code
 ) <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_GovernanceRecords">GovernanceRecords</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_BeneficiaryForOperator">BeneficiaryForOperator</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_NextCommissionPercentage">NextCommissionPercentage</a> {
     // short-circuit <b>if</b> amount <b>to</b> add is 0 so no <a href="event.md#0x1_event">event</a> is emitted
     <b>if</b> (amount == 0) { <b>return</b> };
+    // fail unlock of less than `<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_MIN_COINS_ON_SHARES_POOL">MIN_COINS_ON_SHARES_POOL</a>`
+    <b>assert</b>!(
+        amount &gt;= <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_MIN_COINS_ON_SHARES_POOL">MIN_COINS_ON_SHARES_POOL</a>,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EMINIMUM_UNLOCK_AMOUNT">EMINIMUM_UNLOCK_AMOUNT</a>)
+    );
     // synchronize delegation and <a href="stake.md#0x1_stake">stake</a> pools before <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> user operation
     <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_synchronize_delegation_pool">synchronize_delegation_pool</a>(pool_address);
 
@@ -3835,6 +4275,248 @@ Add <code>amount</code> of coins to the delegation pool <code>pool_address</code
 
 </details>
 
+<a id="0x1_pbo_delegation_pool_authorized_reactivate_stake"></a>
+
+## Function `authorized_reactivate_stake`
+
+Reactivates the <code>pending_inactive</code> stake of <code>delegator</code>.
+
+This function must remain private because it must only be called by an authorized entity and it is the
+callers responsibility to ensure that this is true. Authorized entities currently include the delegator
+itself and the multisig admin of the delegation pool, which must be controlled by The Supra Foundation.
+
+Note that this function is only temporarily intended to work as specified above and exists to enable The
+Supra Foundation to ensure that the allocations of all investors are subject to the terms specified in the
+corresponding legal contracts. It will be deactivated before the validator set it opened up to external
+validator-owners to prevent it from being abused, from which time forward only the delegator will be
+authorized to reactivate their own stake.
+
+
+<pre><code><b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_authorized_reactivate_stake">authorized_reactivate_stake</a>(delegator: <b>address</b>, pool_address: <b>address</b>, amount: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_authorized_reactivate_stake">authorized_reactivate_stake</a>(
+    delegator: <b>address</b>, pool_address: <b>address</b>, amount: u64
+) <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_GovernanceRecords">GovernanceRecords</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_BeneficiaryForOperator">BeneficiaryForOperator</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_NextCommissionPercentage">NextCommissionPercentage</a> {
+    // short-circuit <b>if</b> amount <b>to</b> reactivate is 0 so no <a href="event.md#0x1_event">event</a> is emitted
+    <b>if</b> (amount == 0) { <b>return</b> };
+    // fail unlock of less than `<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_MIN_COINS_ON_SHARES_POOL">MIN_COINS_ON_SHARES_POOL</a>`
+    <b>assert</b>!(
+        amount &gt;= <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_MIN_COINS_ON_SHARES_POOL">MIN_COINS_ON_SHARES_POOL</a>,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EMINIMUM_UNLOCK_AMOUNT">EMINIMUM_UNLOCK_AMOUNT</a>)
+    );
+    // synchronize delegation and <a href="stake.md#0x1_stake">stake</a> pools before <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> user operation
+    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_synchronize_delegation_pool">synchronize_delegation_pool</a>(pool_address);
+
+    <b>let</b> pool = <b>borrow_global_mut</b>&lt;<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>&gt;(pool_address);
+
+    amount = <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_coins_to_transfer_to_ensure_min_stake">coins_to_transfer_to_ensure_min_stake</a>(
+        <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_pending_inactive_shares_pool">pending_inactive_shares_pool</a>(pool),
+        &pool.active_shares,
+        delegator,
+        amount
+    );
+    <b>let</b> observed_lockup_cycle = pool.observed_lockup_cycle;
+    amount = <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_redeem_inactive_shares">redeem_inactive_shares</a>(pool, delegator, amount, observed_lockup_cycle);
+
+    <a href="stake.md#0x1_stake_reactivate_stake">stake::reactivate_stake</a>(&<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_retrieve_stake_pool_owner">retrieve_stake_pool_owner</a>(pool), amount);
+
+    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_buy_in_active_shares">buy_in_active_shares</a>(pool, delegator, amount);
+    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_assert_min_active_balance">assert_min_active_balance</a>(pool, delegator);
+
+    <a href="event.md#0x1_event_emit_event">event::emit_event</a>(
+        &<b>mut</b> pool.reactivate_stake_events,
+        <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ReactivateStakeEvent">ReactivateStakeEvent</a> {
+            pool_address,
+            delegator_address: delegator,
+            amount_reactivated: amount
+        }
+    );
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_pbo_delegation_pool_admin_withdraw"></a>
+
+## Function `admin_withdraw`
+
+Withdraws the specified <code>amount</code> from the <code>inactive</code> stake belonging to the given <code>delegator_address</code>
+to the address of the <code><a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a></code>'s <code>multisig_admin</code>, if available.
+
+Note that this function is only temporarily intended to work as specified above and exists to enable The
+Supra Foundation to ensure that the allocations of all investors are subject to the terms specified in the
+corresponding legal contracts. It will be deactivated before the validator set it opened up to external
+validator-owners to prevent it from being abused.
+
+
+<pre><code><b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_admin_withdraw">admin_withdraw</a>(multisig_admin: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, pool_address: <b>address</b>, delegator_address: <b>address</b>, amount: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_admin_withdraw">admin_withdraw</a>(
+    multisig_admin: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    pool_address: <b>address</b>,
+    delegator_address: <b>address</b>,
+    amount: u64
+) <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_GovernanceRecords">GovernanceRecords</a> {
+    // Ensure that the caller is the admin of the delegation pool.
+    {
+        <b>assert</b>!(
+            <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_is_admin">is_admin</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(multisig_admin), pool_address),
+            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ENOT_AUTHORIZED">ENOT_AUTHORIZED</a>)
+        );
+    };
+    <b>assert</b>!(amount != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EWITHDRAW_ZERO_STAKE">EWITHDRAW_ZERO_STAKE</a>));
+    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_withdraw_internal">withdraw_internal</a>(
+        <b>borrow_global_mut</b>&lt;<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>&gt;(pool_address),
+        delegator_address,
+        amount,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(multisig_admin)
+    );
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_pbo_delegation_pool_lock_delegators_stakes"></a>
+
+## Function `lock_delegators_stakes`
+
+Updates the <code>principle_stake</code> of each <code>delegator</code> in <code>delegators</code> according to the amount specified
+at the corresponding index of <code>new_principle_stakes</code>. Also ensures that the <code>delegator</code>'s <code>active</code> stake
+is as close to the specified amount as possible. The locked amount is subject to the vesting schedule
+specified when the delegation pool corresponding to <code>pool_address</code> was created.
+
+Note that this function is only temporarily intended to work as specified above and exists to enable The
+Supra Foundation to ensure that the allocations of all investors are subject to the terms specified in the
+corresponding legal contracts. It will be deactivated before the validator set it opened up to external
+validator-owners to prevent it from being abused.
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_lock_delegators_stakes">lock_delegators_stakes</a>(multisig_admin: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, pool_address: <b>address</b>, delegators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, new_principle_stakes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_lock_delegators_stakes">lock_delegators_stakes</a>(
+    multisig_admin: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    pool_address: <b>address</b>,
+    delegators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
+    new_principle_stakes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;
+) <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_GovernanceRecords">GovernanceRecords</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_BeneficiaryForOperator">BeneficiaryForOperator</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_NextCommissionPercentage">NextCommissionPercentage</a> {
+    // Ensure that the caller is the admin of the delegation pool.
+    {
+        <b>assert</b>!(
+            <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_is_admin">is_admin</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(multisig_admin), pool_address),
+            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ENOT_AUTHORIZED">ENOT_AUTHORIZED</a>)
+        );
+    };
+
+    // Synchronize the delegation and <a href="stake.md#0x1_stake">stake</a> pools before <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> user operation.
+    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_synchronize_delegation_pool">synchronize_delegation_pool</a>(pool_address);
+
+    // Ensure that each `delegator` <b>has</b> an `active` <a href="stake.md#0x1_stake">stake</a> balance that is <b>as</b> close <b>to</b>
+    // `principle_stake`  <b>as</b> possible.
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_zip_reverse">vector::zip_reverse</a>(
+        delegators,
+        new_principle_stakes,
+        |delegator, principle_stake| {
+            <b>let</b> (active, inactive, pending_inactive) =
+                <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_get_stake">get_stake</a>(pool_address, delegator);
+
+            // Ensure that all <a href="stake.md#0x1_stake">stake</a> <b>to</b> be locked is made `active`.
+            <b>if</b> (active &lt; principle_stake) {
+                // The amount <b>to</b> lock can be covered by reactivating some previously unlocked <a href="stake.md#0x1_stake">stake</a>.
+                // Only reactivate the required amount <b>to</b> avoid unnecessarily interfering <b>with</b>
+                // in-progress withdrawals.
+                <b>let</b> amount_to_reactivate = principle_stake - active;
+
+                // Ensure that we do not try <b>to</b> reactivate more than the available `pending_inactive` <a href="stake.md#0x1_stake">stake</a>.
+                // This should be enforced by functions within `authorized_reactivate_stake`, but checking
+                // again here makes the correctness of this function easier <b>to</b> reason about.
+                <b>if</b> (amount_to_reactivate &gt; pending_inactive) {
+                    amount_to_reactivate = pending_inactive;
+                };
+
+                <b>if</b> (amount_to_reactivate &gt; <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_MIN_COINS_ON_SHARES_POOL">MIN_COINS_ON_SHARES_POOL</a>) {
+                    // Reactivate the required amount of `pending_inactive` <a href="stake.md#0x1_stake">stake</a> first.
+                    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_authorized_reactivate_stake">authorized_reactivate_stake</a>(
+                        delegator, pool_address, amount_to_reactivate
+                    );
+                };
+
+                <b>let</b> active_and_pending_inactive = active + pending_inactive;
+
+                <b>if</b> (active_and_pending_inactive &lt; principle_stake) {
+                    // Need <b>to</b> reactivate some of the `inactive` <a href="stake.md#0x1_stake">stake</a>.
+                    <b>let</b> amount_to_withdraw =
+                        principle_stake - active_and_pending_inactive;
+
+                    // Ensure that we do not try <b>to</b> withdraw more <a href="stake.md#0x1_stake">stake</a> than the `inactive` <a href="stake.md#0x1_stake">stake</a>.
+                    <b>if</b> (amount_to_withdraw &gt; inactive) {
+                        amount_to_withdraw = inactive;
+                    };
+
+                    <b>if</b> (amount_to_withdraw &gt; <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_MIN_COINS_ON_SHARES_POOL">MIN_COINS_ON_SHARES_POOL</a>) {
+                        // Withdraw the minimum required amount <b>to</b> the admin's <b>address</b>.
+                        <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_admin_withdraw">admin_withdraw</a>(
+                            multisig_admin,
+                            pool_address,
+                            delegator,
+                            amount_to_withdraw
+                        );
+                        // Then allocate it <b>to</b> the delegator again.
+                        <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_fund_delegator_stake">fund_delegator_stake</a>(
+                            multisig_admin,
+                            pool_address,
+                            delegator,
+                            amount_to_withdraw
+                        );
+                    }
+                }
+            };
+            // <b>else</b>: The amount <b>to</b> lock can be covered by the currently `active` <a href="stake.md#0x1_stake">stake</a>.
+
+            // Update the delegator's principle <a href="stake.md#0x1_stake">stake</a> and record the details of the lockup <a href="event.md#0x1_event">event</a>.
+            <b>let</b> principle_stake_table =
+                &<b>mut</b> (<b>borrow_global_mut</b>&lt;<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>&gt;(pool_address).principle_stake);
+            <a href="../../aptos-stdlib/doc/table.md#0x1_table_upsert">table::upsert</a>(principle_stake_table, delegator, principle_stake);
+            <a href="event.md#0x1_event_emit">event::emit</a>(
+                <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_UnlockScheduleApplied">UnlockScheduleApplied</a> {
+                    pool_address,
+                    delegator,
+                    amount: principle_stake
+                }
+            );
+        }
+    );
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_pbo_delegation_pool_replace_delegator"></a>
 
 ## Function `replace_delegator`
@@ -3843,6 +4525,11 @@ CAUTION: This is to be used only in the rare circumstances where multisig_admin 
 rightful owner of <code>old_delegator</code> but has lost access and the delegator is also the rightful
 owner of <code>new_delegator</code> , Only for those stakeholders which were added at the time of creation
 This does not apply to anyone who added stake later or operator
+
+Note that this function is only temporarily intended to work as specified above and exists to enable The
+Supra Foundation to ensure that the allocations of all investors are subject to the terms specified in the
+corresponding legal contracts. It will be deactivated before the validator set it opened up to external
+validator-owners to prevent it from being abused.
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_replace_delegator">replace_delegator</a>(multisig_admin: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, pool_address: <b>address</b>, old_delegator: <b>address</b>, new_delegator: <b>address</b>)
@@ -4143,23 +4830,31 @@ Note: this does not synchronize with stake pool, therefore the answer may be con
     <b>let</b> schedule_length = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&unlock_schedule.schedule);
     <b>let</b> cfraction = unlock_schedule.cumulative_unlocked_fraction;
     <b>while</b> (last_unlocked_period &lt; unlock_periods_passed
-        && <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_less">fixed_point64::less</a>(cfraction, one)) {
+        && <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_less">fixed_point64::less</a>(cfraction, one)
+        && last_unlocked_period &lt; schedule_length) {
         <b>let</b> next_fraction =
-            <b>if</b> (schedule_length &lt;= last_unlocked_period) {
-                *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&unlock_schedule.schedule, schedule_length - 1)
-            } <b>else</b> {
-                *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&unlock_schedule.schedule, last_unlocked_period)
-            };
+            *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&unlock_schedule.schedule, last_unlocked_period);
         cfraction = <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_add">fixed_point64::add</a>(cfraction, next_fraction);
-
         last_unlocked_period = last_unlocked_period + 1;
     };
-
+    <b>if</b> (last_unlocked_period &lt; unlock_periods_passed
+        && <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_less">fixed_point64::less</a>(cfraction, one)) {
+        <b>let</b> final_fraction =
+            *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&unlock_schedule.schedule, schedule_length - 1);
+        // Acclerate calculation <b>to</b> current period and don't <b>update</b> last_unlocked_period since it is not used anymore
+        cfraction = <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_add">fixed_point64::add</a>(
+            cfraction,
+            <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_multiply_u128_return_fixpoint64">fixed_point64::multiply_u128_return_fixpoint64</a>(
+                (unlock_periods_passed - last_unlocked_period <b>as</b> u128),
+                final_fraction
+            )
+        );
+        cfraction = <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_min">fixed_point64::min</a>(cfraction, one);
+    };
     unlock_schedule.cumulative_unlocked_fraction = cfraction;
     unlock_schedule.last_unlock_period = unlock_periods_passed;
     <b>let</b> unlockable_amount = <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_cached_unlockable_balance">cached_unlockable_balance</a>(delegator_addr, pool_address);
     amount &lt;= unlockable_amount
-
 }
 </code></pre>
 
@@ -4189,6 +4884,11 @@ at most how much active stake there is on the stake pool.
 ) <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_GovernanceRecords">GovernanceRecords</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_BeneficiaryForOperator">BeneficiaryForOperator</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_NextCommissionPercentage">NextCommissionPercentage</a> {
     // short-circuit <b>if</b> amount <b>to</b> unlock is 0 so no <a href="event.md#0x1_event">event</a> is emitted
     <b>if</b> (amount == 0) { <b>return</b> };
+    // fail unlock of less than `<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_MIN_COINS_ON_SHARES_POOL">MIN_COINS_ON_SHARES_POOL</a>`
+    <b>assert</b>!(
+        amount &gt;= <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_MIN_COINS_ON_SHARES_POOL">MIN_COINS_ON_SHARES_POOL</a>,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EMINIMUM_UNLOCK_AMOUNT">EMINIMUM_UNLOCK_AMOUNT</a>)
+    );
     // fail unlock of more <a href="stake.md#0x1_stake">stake</a> than `active` on the <a href="stake.md#0x1_stake">stake</a> pool
     <b>let</b> (active, _, _, _) = <a href="stake.md#0x1_stake_get_stake">stake::get_stake</a>(pool_address);
     <b>assert</b>!(
@@ -4255,41 +4955,8 @@ Move <code>amount</code> of coins from pending_inactive to active.
 <pre><code><b>public</b> entry <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_reactivate_stake">reactivate_stake</a>(
     delegator: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, pool_address: <b>address</b>, amount: u64
 ) <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_GovernanceRecords">GovernanceRecords</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_BeneficiaryForOperator">BeneficiaryForOperator</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_NextCommissionPercentage">NextCommissionPercentage</a> {
-    // short-circuit <b>if</b> amount <b>to</b> reactivate is 0 so no <a href="event.md#0x1_event">event</a> is emitted
-    <b>if</b> (amount == 0) { <b>return</b> };
-    // synchronize delegation and <a href="stake.md#0x1_stake">stake</a> pools before <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> user operation
-    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_synchronize_delegation_pool">synchronize_delegation_pool</a>(pool_address);
-
-    <b>let</b> pool = <b>borrow_global_mut</b>&lt;<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>&gt;(pool_address);
     <b>let</b> delegator_address = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(delegator);
-
-    amount = <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_coins_to_transfer_to_ensure_min_stake">coins_to_transfer_to_ensure_min_stake</a>(
-        <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_pending_inactive_shares_pool">pending_inactive_shares_pool</a>(pool),
-        &pool.active_shares,
-        delegator_address,
-        amount
-    );
-    <b>let</b> observed_lockup_cycle = pool.observed_lockup_cycle;
-    amount = <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_redeem_inactive_shares">redeem_inactive_shares</a>(
-        pool,
-        delegator_address,
-        amount,
-        observed_lockup_cycle
-    );
-
-    <a href="stake.md#0x1_stake_reactivate_stake">stake::reactivate_stake</a>(&<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_retrieve_stake_pool_owner">retrieve_stake_pool_owner</a>(pool), amount);
-
-    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_buy_in_active_shares">buy_in_active_shares</a>(pool, delegator_address, amount);
-    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_assert_min_active_balance">assert_min_active_balance</a>(pool, delegator_address);
-
-    <a href="event.md#0x1_event_emit_event">event::emit_event</a>(
-        &<b>mut</b> pool.reactivate_stake_events,
-        <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_ReactivateStakeEvent">ReactivateStakeEvent</a> {
-            pool_address,
-            delegator_address,
-            amount_reactivated: amount
-        }
-    );
+    <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_authorized_reactivate_stake">authorized_reactivate_stake</a>(delegator_address, pool_address, amount)
 }
 </code></pre>
 
@@ -4316,13 +4983,15 @@ Withdraw <code>amount</code> of owned inactive stake from the delegation pool at
 <pre><code><b>public</b> entry <b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_withdraw">withdraw</a>(
     delegator: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, pool_address: <b>address</b>, amount: u64
 ) <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_GovernanceRecords">GovernanceRecords</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_BeneficiaryForOperator">BeneficiaryForOperator</a>, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_NextCommissionPercentage">NextCommissionPercentage</a> {
-    <b>assert</b>!(amount &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EWITHDRAW_ZERO_STAKE">EWITHDRAW_ZERO_STAKE</a>));
-    // synchronize delegation and <a href="stake.md#0x1_stake">stake</a> pools before <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> user operation
+    <b>assert</b>!(amount != 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EWITHDRAW_ZERO_STAKE">EWITHDRAW_ZERO_STAKE</a>));
+    // Synchronize the delegation and <a href="stake.md#0x1_stake">stake</a> pools before <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> user operation.
     <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_synchronize_delegation_pool">synchronize_delegation_pool</a>(pool_address);
+    <b>let</b> delegator_address = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(delegator);
     <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_withdraw_internal">withdraw_internal</a>(
         <b>borrow_global_mut</b>&lt;<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>&gt;(pool_address),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(delegator),
-        amount
+        delegator_address,
+        amount,
+        delegator_address
     );
 }
 </code></pre>
@@ -4337,7 +5006,7 @@ Withdraw <code>amount</code> of owned inactive stake from the delegation pool at
 
 
 
-<pre><code><b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_withdraw_internal">withdraw_internal</a>(pool: &<b>mut</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">pbo_delegation_pool::DelegationPool</a>, delegator_address: <b>address</b>, amount: u64)
+<pre><code><b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_withdraw_internal">withdraw_internal</a>(pool: &<b>mut</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">pbo_delegation_pool::DelegationPool</a>, delegator_address: <b>address</b>, amount: u64, recipient_address: <b>address</b>)
 </code></pre>
 
 
@@ -4347,7 +5016,10 @@ Withdraw <code>amount</code> of owned inactive stake from the delegation pool at
 
 
 <pre><code><b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_withdraw_internal">withdraw_internal</a>(
-    pool: &<b>mut</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>, delegator_address: <b>address</b>, amount: u64
+    pool: &<b>mut</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>,
+    delegator_address: <b>address</b>,
+    amount: u64,
+    recipient_address: <b>address</b>
 ) <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_GovernanceRecords">GovernanceRecords</a> {
     // TODO: recycle storage when a delegator fully exits the delegation pool.
     // short-circuit <b>if</b> amount <b>to</b> withdraw is 0 so no <a href="event.md#0x1_event">event</a> is emitted
@@ -4399,7 +5071,7 @@ Withdraw <code>amount</code> of owned inactive stake from the delegation pool at
         // no excess <a href="stake.md#0x1_stake">stake</a> <b>if</b> `<a href="stake.md#0x1_stake_withdraw">stake::withdraw</a>` does not inactivate at all
         <a href="stake.md#0x1_stake_withdraw">stake::withdraw</a>(stake_pool_owner, amount);
     };
-    <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(stake_pool_owner, delegator_address, amount);
+    <a href="supra_account.md#0x1_supra_account_transfer">supra_account::transfer</a>(stake_pool_owner, recipient_address, amount);
 
     // commit withdrawal of possibly inactive <a href="stake.md#0x1_stake">stake</a> <b>to</b> the `total_coins_inactive`
     // known by the delegation pool in order <b>to</b> not mistake it for slashing at next synchronization
@@ -4527,7 +5199,12 @@ be explicitly withdrawn by delegator
         <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_pending_withdrawal_exists">pending_withdrawal_exists</a>(pool, delegator_address);
     <b>if</b> (withdrawal_exists
         && withdrawal_olc.index &lt; pool.observed_lockup_cycle.index) {
-        <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_withdraw_internal">withdraw_internal</a>(pool, delegator_address, <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_MAX_U64">MAX_U64</a>);
+        <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_withdraw_internal">withdraw_internal</a>(
+            pool,
+            delegator_address,
+            <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_MAX_U64">MAX_U64</a>,
+            delegator_address
+        );
     }
 }
 </code></pre>

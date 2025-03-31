@@ -582,6 +582,18 @@ module std::features {
         is_enabled(ABORT_IF_MULTISIG_PAYLOAD_MISMATCH)
     }
 
+    /// Whether Supra native automation is enabled. Once enabled, the native automation feature can be utilized,
+    /// enabling automation task registration, execution and cancellation.
+    ///
+    /// Lifetime: transient
+    const SUPRA_NATIVE_AUTOMATION: u64 = 88;
+
+    public fun get_supra_native_automation_feature(): u64 { SUPRA_NATIVE_AUTOMATION }
+
+    public fun supra_native_automation_enabled(): bool acquires Features {
+        is_enabled(SUPRA_NATIVE_AUTOMATION)
+    }
+
     // ============================================================================================
     // Feature Flag Implementation
 
