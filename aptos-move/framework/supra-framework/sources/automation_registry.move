@@ -248,7 +248,7 @@ module supra_framework::automation_registry {
     #[event]
     /// Event emitted when on new epoch a task is accessed with index of the task for the expected list
     /// but value does not exist in the map
-    struct ErrorTaskDoesNotExists has drop, store {
+    struct ErrorTaskDoesNotExist has drop, store {
         task_index: u64,
     }
 
@@ -267,14 +267,14 @@ module supra_framework::automation_registry {
     }
 
     /// Represents intermediate state of the registry on epoch change.
-    struct IntermedateState has drop {
+    struct IntermediateState has drop {
         active_task_ids: vector<u64>,
         gas_committed_for_next_epoch: u64,
         epoch_locked_fees: u64,
     }
 
-    fun active_task_ids(intermedate_state: IntermedateState): vector<u64> {
-        intermedate_state.active_task_ids
+    fun active_task_ids(intermediate_state: IntermediateState): vector<u64> {
+        intermediate_state.active_task_ids
     }
 
     #[view]
@@ -577,17 +577,17 @@ module supra_framework::automation_registry {
             false
         );
 
-        let intermedate_state = try_withdraw_task_automation_fees(
+        let intermediate_state = try_withdraw_task_automation_fees(
             automation_registry,
             tasks_automation_fees,
             current_time,
             automation_epoch_info.epoch_interval
         );
 
-        automation_registry.gas_committed_for_next_epoch = intermedate_state.gas_committed_for_next_epoch;
-        automation_registry.epoch_locked_fees = intermedate_state.epoch_locked_fees;
+        automation_registry.gas_committed_for_next_epoch = intermediate_state.gas_committed_for_next_epoch;
+        automation_registry.epoch_locked_fees = intermediate_state.epoch_locked_fees;
         automation_registry.gas_committed_for_this_epoch = tcmg;
-        automation_registry.epoch_active_task_ids = active_task_ids(intermedate_state);
+        automation_registry.epoch_active_task_ids = active_task_ids(intermediate_state);
 
         automation_epoch_info.start_time = current_time;
         automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
@@ -650,7 +650,7 @@ module supra_framework::automation_registry {
         // Perform clean up and updation of state (we can't use enumerable_map::for_each, as actually we need value as mutable ref)
         vector::for_each(ids, |task_index| {
             if (!enumerable_map::contains(&automation_registry.tasks, task_index)) {
-                event::emit(ErrorTaskDoesNotExists { task_index })
+                event::emit(ErrorTaskDoesNotExist { task_index })
             } else {
                 let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, task_index);
 
@@ -819,8 +819,8 @@ module supra_framework::automation_registry {
         tasks_automation_fees: vector<AutomationTaskFee>,
         current_time: u64,
         epoch_interval: u64,
-    ): IntermedateState {
-        let intermediate_state = IntermedateState {
+    ): IntermediateState {
+        let intermediate_state = IntermediateState {
             gas_committed_for_next_epoch: 0,
             epoch_locked_fees: 0,
             active_task_ids: vector[]
@@ -844,7 +844,7 @@ module supra_framework::automation_registry {
         task: AutomationTaskFee,
         current_time: u64,
         epoch_interval: u64,
-        intermediate_state: &mut IntermedateState) {
+        intermediate_state: &mut IntermediateState) {
 
         let task_metadata = enumerable_map::get_value(&automation_registry.tasks, task.task_index);
 
@@ -1024,7 +1024,7 @@ module supra_framework::automation_registry {
         assert!(committed_gas <= MAX_U64, EGAS_COMMITTEED_VALUE_OVERFLOW);
 
         let committed_gas = (committed_gas as u64);
-        assert!(committed_gas < automation_registry_config.next_epoch_registry_max_gas_cap, EGAS_AMOUNT_UPPER);
+        assert!(committed_gas <= automation_registry_config.next_epoch_registry_max_gas_cap, EGAS_AMOUNT_UPPER);
 
         // Check the automation fee capacity
         let estimated_automation_fee_for_epoch = estimate_automation_fee_with_committed_occupancy_internal(
