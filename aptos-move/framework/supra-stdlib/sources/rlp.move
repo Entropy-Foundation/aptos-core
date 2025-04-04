@@ -1,98 +1,39 @@
-module std::rlp {
+module supra_std::rlp {
 
+    use std::bcs;
     #[test_only]
     use std::vector;
 
-    public fun encode_bool(x: bool): vector<u8> {
-        native_rlp_encode_bool(x)
+    // Encode/Decode for type T
+    // Types supported: bool, u8, u16, u32, u64, u128, address, vector<u8>
+    // Attempting to encode any other type results in E_UNSUPPORTED_TYPE error
+    public fun encode<T>(x: T): vector<u8> {
+        native_rlp_encode(x)
     }
 
-    public fun decode_bool(encoded_rlp: vector<u8>): bool {
-        native_rlp_decode_bool(encoded_rlp)
+    public fun decode<T>(encoded_rlp: vector<u8>): T {
+        native_rlp_decode(encoded_rlp)
     }
 
-    public fun encode_u8(x: u8): vector<u8> {
-        native_rlp_encode_u8(x)
+    // Encode/Decode for list
+    // Type of lists supported: bool, u8, u16, u32, u64, u128, address
+    // Attempting to encode any other type results in E_UNSUPPORTED_TYPE error
+    public fun encode_list<T: drop>(data: vector<T>): vector<u8> {
+        native_rlp_encode_list<T>(bcs::to_bytes(&data))
     }
 
-    public fun decode_u8(encoded_rlp: vector<u8>): u8 {
-        native_rlp_decode_u8(encoded_rlp)
-    }
-
-    public fun encode_u16(x: u16): vector<u8> {
-        native_rlp_encode_u16(x)
-    }
-
-    public fun decode_u16(encoded_rlp: vector<u8>): u16 {
-        native_rlp_decode_u16(encoded_rlp)
-    }
-
-    public fun encode_u32(x: u32): vector<u8> {
-        native_rlp_encode_u32(x)
-    }
-
-    public fun decode_u32(encoded_rlp: vector<u8>): u32 {
-        native_rlp_decode_u32(encoded_rlp)
-    }
-
-    public fun encode_u64(x: u64): vector<u8> {
-        native_rlp_encode_u64(x)
-    }
-
-    public fun decode_u64(encoded_rlp: vector<u8>): u64 {
-        native_rlp_decode_u64(encoded_rlp)
-    }
-
-    public fun encode_u128(x: u128): vector<u8> {
-        native_rlp_encode_u128(x)
-    }
-
-    public fun decode_u128(encoded_rlp: vector<u8>): u128 {
-        native_rlp_decode_u128(encoded_rlp)
-    }
-
-    public fun encode_address(addr: address): vector<u8> {
-        native_rlp_encode_address(addr)
-    }
-
-    public fun decode_address(encoded_rlp: vector<u8>): address {
-        native_rlp_decode_address(encoded_rlp)
-    }
-
-    public fun encode_bytes(data: vector<u8>): vector<u8> {
-        native_rlp_encode_bytes(data)
-    }
-
-    public fun decode_bytes(encoded_rlp: vector<u8>): vector<u8> {
-        native_rlp_decode_bytes(encoded_rlp)
+    public fun decode_list<T>(encoded_rlp: vector<u8>): vector<T> {
+        native_rlp_decode_list(encoded_rlp)
     }
 
     //
     // Native functions
     //
-    native public fun native_rlp_encode_bool(x: bool): vector<u8>;
-    native public fun native_rlp_decode_bool(data: vector<u8>): bool;
+    native public fun native_rlp_encode<T>(x: T): vector<u8>;
+    native public fun native_rlp_decode<T>(data: vector<u8>): T;
 
-    native public fun native_rlp_encode_u8(x: u8): vector<u8>;
-    native public fun native_rlp_decode_u8(data: vector<u8>): u8;
-
-    native public fun native_rlp_encode_u16(x: u16): vector<u8>;
-    native public fun native_rlp_decode_u16(data: vector<u8>): u16;
-
-    native public fun native_rlp_encode_u32(x: u32): vector<u8>;
-    native public fun native_rlp_decode_u32(data: vector<u8>): u32;
-
-    native public fun native_rlp_encode_u64(x: u64): vector<u8>;
-    native public fun native_rlp_decode_u64(data: vector<u8>): u64;
-
-    native public fun native_rlp_encode_u128(x: u128): vector<u8>;
-    native public fun native_rlp_decode_u128(data: vector<u8>): u128;
-
-    native public fun native_rlp_encode_bytes(x: vector<u8>): vector<u8>;
-    native public fun native_rlp_decode_bytes(data: vector<u8>): vector<u8>;
-
-    native public fun native_rlp_encode_address(x: address): vector<u8>;
-    native public fun native_rlp_decode_address(data: vector<u8>): address;
+    native public fun native_rlp_encode_list<T>(x: vector<u8>): vector<u8>;
+    native public fun native_rlp_decode_list<T>(data: vector<u8>): vector<T>;
 
     //
     // 1) Test encode_bool / decode_bool
@@ -105,8 +46,8 @@ module std::rlp {
         let i = 0;
         while (i < len) {
             let orig = *vector::borrow(&cases, i);
-            let encoded = encode_bool(orig);
-            let decoded = decode_bool(encoded);
+            let encoded = encode(orig);
+            let decoded = decode(encoded);
             assert!(decoded == orig, 1000 + i);
             i = i + 1;
         };
@@ -123,8 +64,8 @@ module std::rlp {
         let i = 0;
         while (i < len) {
             let orig = *vector::borrow(&cases, i);
-            let encoded = encode_u8(orig);
-            let decoded = decode_u8(encoded);
+            let encoded = encode(orig);
+            let decoded = decode(encoded);
             assert!(decoded == orig, 2000 + i);
             i = i + 1;
         };
@@ -141,8 +82,8 @@ module std::rlp {
         let i = 0;
         while (i < len) {
             let orig = *vector::borrow(&cases, i);
-            let encoded = encode_u16(orig);
-            let decoded = decode_u16(encoded);
+            let encoded = encode(orig);
+            let decoded = decode(encoded);
             assert!(decoded == orig, 3000 + i);
             i = i + 1;
         };
@@ -164,8 +105,8 @@ module std::rlp {
         let i = 0;
         while (i < len) {
             let orig = *vector::borrow(&cases, i);
-            let encoded = encode_u32(orig);
-            let decoded = decode_u32(encoded);
+            let encoded = encode(orig);
+            let decoded = decode(encoded);
             assert!(decoded == orig, 4000 + i);
             i = i + 1;
         };
@@ -188,8 +129,8 @@ module std::rlp {
         let i = 0;
         while (i < len) {
             let orig = *vector::borrow(&cases, i);
-            let encoded = encode_u64(orig);
-            let decoded = decode_u64(encoded);
+            let encoded = encode(orig);
+            let decoded = decode(encoded);
             assert!(decoded == orig, 5000 + i);
             i = i + 1;
         };
@@ -211,8 +152,8 @@ module std::rlp {
         let i = 0;
         while (i < len) {
             let orig = *vector::borrow(&cases, i);
-            let encoded = encode_u128(orig);
-            let decoded = decode_u128(encoded);
+            let encoded = encode(orig);
+            let decoded = decode(encoded);
             assert!(decoded == orig, 6000 + i);
             i = i + 1;
         };
@@ -236,8 +177,8 @@ module std::rlp {
         let i = 0;
         while (i < len) {
             let orig = *vector::borrow(&addresses, i);
-            let encoded = encode_address(orig);
-            let decoded = decode_address(encoded);
+            let encoded = encode(orig);
+            let decoded = decode(encoded);
             assert!(decoded == orig, 8000 + i);
             i = i + 1;
         };
@@ -266,18 +207,52 @@ module std::rlp {
         let i = 0;
         while (i < len) {
             let orig = *vector::borrow(&cases, i);
-            let encoded = encode_bytes(orig);
-            let decoded = decode_bytes(encoded);
+            let encoded = encode(orig);
+            let decoded = decode(encoded);
             assert!(decoded == orig, 9000 + i);
             i = i + 1;
         };
+    }
+
+    //
+    // 10) Test encode_list / decode_list
+    //
+    #[test]
+    fun test_list() {
+
+        let u8_list: vector<u8> =  vector[1, 2, 3];
+        let encoded = encode_list<u8>(u8_list);
+        let decoded: vector<u8> = decode_list<u8>(encoded);
+        assert!(decoded == u8_list, 10000);
+
+        let u64_list: vector<u64> =  vector[1, 2, 3];
+        let encoded = encode_list<u64>(u64_list);
+        let decoded: vector<u64> = decode_list<u64>(encoded);
+        assert!(decoded == u64_list, 10001);
+
+        let bool_list: vector<bool> =  vector[true, false, true];
+        let encoded = encode_list<bool>(bool_list);
+        let decoded: vector<bool> = decode_list<bool>(encoded);
+        assert!(decoded == bool_list, 10002);
+
+        let addr1 = @0x0;
+        let addr2 = @0x1;
+        let addr3 = @0x1234;
+        let addr4 = @0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+        let addr5 = @0x123456789ABCDEF0123456789ABCDEF0;
+        let adress_list: vector<address> = vector[addr1, addr2, addr3, addr4, addr5];
+
+        let encoded = encode_list<address>(adress_list);
+        let decoded: vector<address> = decode_list<address>(encoded);
+        assert!(decoded == adress_list, 10003);
+
     }
 
     #[test]
     #[expected_failure( abort_code = 0x1, location = Self)]
     fun test_decode_u8_with_invalid_data() {
         let invalid_data = b"\xDE\xAD\xBE\xEF"; // random bytes, not valid RLP
-        let _ = decode_u8(invalid_data);
+        let _ = decode<vector<u8>>(invalid_data);
         // Should abort.
     }
 
@@ -286,7 +261,7 @@ module std::rlp {
     fun test_decode_u64_with_empty_data() {
         // Empty data is definitely not valid RLP for a u64
         let invalid_data = b"";
-        let _ = decode_u64(invalid_data);
+        let _ = decode<u64>(invalid_data);
         // Should abort.
     }
 
@@ -294,7 +269,31 @@ module std::rlp {
     #[expected_failure( abort_code = 0x1, location = Self)]
     fun test_decode_address_with_invalid_data() {
         let invalid_data = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012"; // random bytes, not valid RLP
-        let _ = decode_address(invalid_data);
+        let _ = decode<address>(invalid_data);
+        // Should abort.
+    }
+
+    #[test]
+    #[expected_failure( abort_code = 0x3, location = Self)]
+    fun test_encode_with_unsupported_type() {
+        let invalid_data = vector[1,2,3];
+        let _ = encode<vector<u128>>(invalid_data);
+        // Should abort.
+    }
+
+    #[test]
+    #[expected_failure( abort_code = 0x3, location = Self)]
+    fun test_encode_list_with_unsupported_type() {
+        let invalid_data = b"1234";
+        let _ = encode_list<vector<u8>>(vector[invalid_data]);
+        // Should abort.
+    }
+
+    #[test]
+    #[expected_failure( abort_code = 0x3, location = Self)]
+    fun test_decode_list_with_unsupported_type() {
+        let invalid_data = b"1234"; // random bytes, not valid RLP
+        let _ = decode_list<vector<u8>>(invalid_data);
         // Should abort.
     }
 }
