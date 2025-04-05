@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use ark_std::iterable::Iterable;
+use byteorder::{LittleEndian, WriteBytesExt};
 use keccak_hash::H256;
 use rlp::Rlp;
 use smallvec::{smallvec, SmallVec};
@@ -203,7 +204,7 @@ pub fn native_rlp_decode(
 // Attempting to encode any other type results in E_UNSUPPORTED_TYPE error
 // ----------------------------------------------------------------------------
 //
-pub fn native_rlp_encode_list(
+pub fn native_rlp_encode_list_scalar(
     context: &mut SafeNativeContext,
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
@@ -259,7 +260,7 @@ pub fn native_rlp_encode_list(
     }
 }
 
-pub fn native_rlp_decode_list(
+pub fn native_rlp_decode_list_scalar(
     context: &mut SafeNativeContext,
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
@@ -324,6 +325,64 @@ pub fn native_rlp_decode_list(
     }
 }
 
+/// Helper function to serialize a Vec<Vec<u8>> into a flat Vec<u8>.
+fn serialize_vec_vec_u8(data: Vec<Vec<u8>>) -> Result<Vec<u8>, SafeNativeError> {
+    let mut serialized = Vec::new();
+    for inner_vec in data {
+        let len = inner_vec.len() as u32;
+        // Write length as 4-byte u32 in little-endian
+        serialized
+            .write_u32::<LittleEndian>(len)
+            .map_err(|_| SafeNativeError::Abort {
+                abort_code: E_DECODE_FAILURE,
+            })?;
+        // Append the inner vector's data
+        serialized.extend_from_slice(&inner_vec);
+    }
+    Ok(serialized)
+}
+
+pub fn native_rlp_encode_list_byte_array(
+    context: &mut SafeNativeContext,
+    _ty_args: Vec<Type>,
+    mut args: VecDeque<Value>,
+) -> SafeNativeResult<SmallVec<[Value; 1]>> {
+
+    let data: Vec<u8> = safely_pop_arg!(args, Vec<u8>);
+    let total_data_bytes = data.len() as u64;
+    context.charge(
+        RLP_ENCODE_DECODE_BASE+
+            RLP_ENCODE_DECODE_PER_BYTE * NumBytes::new(total_data_bytes))?;
+    let data: Vec<Vec<u8>> = bcs::from_bytes(&data)
+        .map_err(|_| SafeNativeError::Abort { abort_code: E_ENCODE_FAILURE })?;
+    let encoded_data = rlp::encode_list::<Vec<u8>, _>(&data).to_vec();
+    Ok(smallvec![Value::vector_u8(encoded_data)])
+}
+
+pub fn native_rlp_decode_list_byte_array(
+    context: &mut SafeNativeContext,
+    _ty_args: Vec<Type>,
+    mut args: VecDeque<Value>,
+) -> SafeNativeResult<SmallVec<[Value; 1]>> {
+
+    let encoded_data: Vec<u8> = safely_pop_arg!(args, Vec<u8>);
+    context.charge(
+        RLP_ENCODE_DECODE_BASE+
+            RLP_ENCODE_DECODE_PER_BYTE * NumBytes::new(encoded_data.len() as u64)
+    )?;
+
+    let rlp = Rlp::new(&encoded_data);
+
+    match rlp.as_list::<Vec<u8>>() {
+        Ok(decoded) => {
+            //serialize and return data
+            let serialized_data = serialize_vec_vec_u8(decoded)?;
+            Ok(smallvec![Value::vector_u8(serialized_data)])
+        },
+        Err(_) => Err(SafeNativeError::Abort { abort_code: E_DECODE_FAILURE }),
+    }
+}
+
 pub fn make_all(
     builder: &SafeNativeBuilder,
 ) -> impl Iterator<Item = (String, NativeFunction)> + '_ {
@@ -333,8 +392,11 @@ pub fn make_all(
         ("native_rlp_encode", native_rlp_encode as RawSafeNative),
         ("native_rlp_decode", native_rlp_decode as RawSafeNative),
 
-        ("native_rlp_encode_list", native_rlp_encode_list as RawSafeNative),
-        ("native_rlp_decode_list", native_rlp_decode_list as RawSafeNative),
+        ("native_rlp_encode_list_scalar", native_rlp_encode_list_scalar as RawSafeNative),
+        ("native_rlp_decode_list_scalar", native_rlp_decode_list_scalar as RawSafeNative),
+
+        ("native_rlp_encode_list_byte_array", native_rlp_encode_list_byte_array as RawSafeNative),
+        ("native_rlp_decode_list_byte_array", native_rlp_decode_list_byte_array as RawSafeNative),
     ]);
 
     builder.make_named_natives(natives)
