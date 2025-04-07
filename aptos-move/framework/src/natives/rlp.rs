@@ -1,3 +1,5 @@
+// Copyright (c) 2024 Supra.
+
 use std::collections::VecDeque;
 use ark_std::iterable::Iterable;
 use byteorder::{LittleEndian, WriteBytesExt};
