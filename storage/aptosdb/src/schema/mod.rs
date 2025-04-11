@@ -31,6 +31,7 @@ pub(crate) mod write_set;
 
 use anyhow::{ensure, Result};
 use aptos_schemadb::ColumnFamilyName;
+pub use stale_node_index::StaleNodeIndexSchema;
 
 pub const BLOCK_BY_VERSION_CF_NAME: ColumnFamilyName = "block_by_version";
 pub const BLOCK_INFO_CF_NAME: ColumnFamilyName = "block_info";

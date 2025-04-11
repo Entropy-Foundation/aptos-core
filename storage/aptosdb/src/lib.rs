@@ -32,7 +32,7 @@ mod db_options;
 mod event_store;
 mod ledger_db;
 mod lru_node_cache;
-mod pruner;
+pub mod pruner;
 mod state_kv_db;
 pub mod state_merkle_db;
 mod state_store;

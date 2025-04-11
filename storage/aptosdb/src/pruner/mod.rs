@@ -12,6 +12,6 @@ mod state_kv_pruner;
 mod state_merkle_pruner;
 
 pub(crate) use ledger_pruner::ledger_pruner_manager::LedgerPrunerManager;
-pub(crate) use pruner_manager::PrunerManager;
 pub(crate) use state_kv_pruner::state_kv_pruner_manager::StateKvPrunerManager;
-pub(crate) use state_merkle_pruner::state_merkle_pruner_manager::StateMerklePrunerManager;
+pub use pruner_manager::PrunerManager;
+pub use state_merkle_pruner::state_merkle_pruner_manager::StateMerklePrunerManager;
