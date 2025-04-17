@@ -238,25 +238,17 @@ fn check_successful_registration() {
     // When the SUPRA_NATIVE_AUTOMATION feature flag is not enabled registration requests must fail
     // to validate. This ensures that they won't be accepted by the RPC nodes or the Mempool.
     let validation_result = test_context.validate_transaction(automation_txn.clone());
-    assert!(matches!(
-        validation_result.status().status(),
-        Err(VMStatus::Error {
-            status_code: StatusCode::FEATURE_UNDER_GATING,
-            sub_status: None,
-            ..
-        })
-    ));
+    assert_eq!(
+        validation_result.status(),
+        Some(StatusCode::FEATURE_UNDER_GATING)
+    );
 
     // When the SUPRA_NATIVE_AUTOMATION feature flag is not enabled registration requests must fail
     // to execute.
     let result = test_context.execute_transaction(automation_txn.clone());
     assert!(matches!(
         result.status().status(),
-        Err(VMStatus::Error {
-            status_code: StatusCode::FEATURE_UNDER_GATING,
-            sub_status: None,
-            ..
-        })
+        Err(StatusCode::FEATURE_UNDER_GATING)
     ));
 
     // enable the supra native automation, registration should succeed.
