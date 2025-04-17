@@ -131,6 +131,8 @@ return true.
 -  [Function `abort_if_multisig_payload_mismatch_enabled`](#0x1_features_abort_if_multisig_payload_mismatch_enabled)
 -  [Function `get_supra_native_automation_feature`](#0x1_features_get_supra_native_automation_feature)
 -  [Function `supra_native_automation_enabled`](#0x1_features_supra_native_automation_enabled)
+-  [Function `get_supra_bridge_feature`](#0x1_features_get_supra_bridge_feature)
+-  [Function `supra_bridge_enabled`](#0x1_features_supra_bridge_enabled)
 -  [Function `change_feature_flags`](#0x1_features_change_feature_flags)
 -  [Function `change_feature_flags_internal`](#0x1_features_change_feature_flags_internal)
 -  [Function `change_feature_flags_for_next_epoch`](#0x1_features_change_feature_flags_for_next_epoch)
@@ -852,6 +854,19 @@ Lifetime: transient
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_STRUCT_CONSTRUCTORS">STRUCT_CONSTRUCTORS</a>: u64 = 15;
+</code></pre>
+
+
+
+<a id="0x1_features_SUPRA_BRIDGE"></a>
+
+Whether Supra apis releated to bridge feature is enabled. Once enabled, the bridge related APIs can be utilized,
+like supra_std::eth_trie.
+
+Lifetime: transient
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_BRIDGE">SUPRA_BRIDGE</a>: u64 = 89;
 </code></pre>
 
 
@@ -3208,6 +3223,52 @@ Lifetime: transient
 
 <pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_native_automation_enabled">supra_native_automation_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
     <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_NATIVE_AUTOMATION">SUPRA_NATIVE_AUTOMATION</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_get_supra_bridge_feature"></a>
+
+## Function `get_supra_bridge_feature`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_bridge_feature">get_supra_bridge_feature</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_bridge_feature">get_supra_bridge_feature</a>(): u64 { <a href="features.md#0x1_features_SUPRA_BRIDGE">SUPRA_BRIDGE</a> }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_supra_bridge_enabled"></a>
+
+## Function `supra_bridge_enabled`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_bridge_enabled">supra_bridge_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_bridge_enabled">supra_bridge_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_BRIDGE">SUPRA_BRIDGE</a>)
 }
 </code></pre>
 

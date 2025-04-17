@@ -1,6 +1,10 @@
 module supra_std::eth_trie {
 
+    use std::features;
     use std::vector;
+
+    /// Bridge feature APIs are disabled.
+    const EBRIDGE_FEATURE_DISABLED:u64 = 1;
 
     /// Public wrapper function that calls the native and returns a bool.
     /// Returns true if the inclusion proof is valid i.e. the value exists in the tree
@@ -10,6 +14,7 @@ module supra_std::eth_trie {
         key: vector<u8>,
         proof: vector<vector<u8>>
     ): (bool, vector<u8>) {
+        assert!(features::supra_bridge_enabled(), EBRIDGE_FEATURE_DISABLED);
         let (proof_is_valid, value) = native_verify_proof_eth_trie(root, key, proof);
         (proof_is_valid && !vector::is_empty(&value), value)
     }
@@ -21,6 +26,7 @@ module supra_std::eth_trie {
         key: vector<u8>,
         proof: vector<vector<u8>>
     ): bool {
+        assert!(features::supra_bridge_enabled(), EBRIDGE_FEATURE_DISABLED);
         let (proof_is_valid, value) = native_verify_proof_eth_trie(root, key, proof);
         proof_is_valid && vector::is_empty(&value)
     }
@@ -41,8 +47,16 @@ module supra_std::eth_trie {
     // Test functions
     /////////////////////////
 
-    #[test]
-    public fun test_proof_basic() {
+    #[test_only]
+    fun prepare_env(supra_framework: &signer) {
+        let flag = vector[features::get_supra_bridge_feature()];
+        features::change_feature_flags_for_testing(supra_framework, flag, vector::empty<u64>());
+    }
+
+    #[test(supra_framework= @supra_framework)]
+    public fun test_proof_basic(supra_framework: signer) {
+        prepare_env(&supra_framework);
+
         // These constants must match the values computed by your trie.
         // For example, suppose the trie built with:
         //   "doe" -> "reindeer"
@@ -97,7 +111,32 @@ module supra_std::eth_trie {
     }
 
     #[test]
-    public fun test_proof_nonexistent() {
+    #[expected_failure(abort_code = EBRIDGE_FEATURE_DISABLED, location = Self)]
+    public fun test_proof_inclusion_bridge_feature_disabled() {
+
+        let root: vector<u8> = vector[];
+        let key: vector<u8> = b"doe";
+        let proof: vector<vector<u8>> = vector::empty();
+
+        verify_eth_trie_inclusion_proof(root, key, proof);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = EBRIDGE_FEATURE_DISABLED, location = Self)]
+    public fun test_proof_exclusion_bridge_feature_disabled() {
+
+        let root: vector<u8> = vector[];
+        let key: vector<u8> = b"doe";
+        let proof: vector<vector<u8>> = vector::empty();
+
+        verify_eth_trie_exclusion_proof(root, key, proof);
+    }
+
+
+    #[test(supra_framework= @supra_framework)]
+    public fun test_proof_nonexistent(supra_framework: signer) {
+        prepare_env(&supra_framework);
+
         // Use the same root as before.
         let root: vector<u8> = vector[
             0x8a, 0xad, 0x78, 0x9d, 0xff, 0x2f, 0x53, 0x8b,
@@ -145,8 +184,9 @@ module supra_std::eth_trie {
         assert!(flag, 1);
     }
 
-    #[test]
-    public fun test_proof_empty() {
+    #[test(supra_framework= @supra_framework)]
+    public fun test_proof_empty(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let root: vector<u8> = vector[
             // (Suppose this is the root of a trie that contains some keys.)
             0x8a, 0xad, 0x78, 0x9d, 0xff, 0x2f, 0x53, 0x8b,
@@ -164,8 +204,9 @@ module supra_std::eth_trie {
         assert!(!flag_exclusion, 1);
     }
 
-    #[test]
-    public fun test_proof_bad() {
+    #[test(supra_framework= @supra_framework)]
+    public fun test_proof_bad(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let root: vector<u8> = vector[
             // (Suppose this is the root of a trie that contains some keys.)
             0x8a, 0xad, 0x78, 0x9d, 0xff, 0x2f, 0x53, 0x8b,
@@ -183,8 +224,9 @@ module supra_std::eth_trie {
         assert!(!flag_exclusion, 1);
     }
 
-    #[test]
-    public fun test_proof_random_trie() {
+    #[test(supra_framework= @supra_framework)]
+    public fun test_proof_random_trie(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let (root, outer_vec) = generate_random_trie(100);
 
         let i = 0;

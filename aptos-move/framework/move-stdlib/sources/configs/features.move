@@ -594,6 +594,18 @@ module std::features {
         is_enabled(SUPRA_NATIVE_AUTOMATION)
     }
 
+    /// Whether Supra apis releated to bridge feature is enabled. Once enabled, the bridge related APIs can be utilized,
+    /// like supra_std::eth_trie.
+    ///
+    /// Lifetime: transient
+    const SUPRA_BRIDGE: u64 = 89;
+
+    public fun get_supra_bridge_feature(): u64 { SUPRA_BRIDGE }
+
+    public fun supra_bridge_enabled(): bool acquires Features {
+        is_enabled(SUPRA_BRIDGE)
+    }
+
     // ============================================================================================
     // Feature Flag Implementation
 
