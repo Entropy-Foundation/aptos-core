@@ -1,5 +1,4 @@
-// Copyright (c) Aptos Foundation
-// SPDX-License-Identifier: Apache-2.0
+// Copyright © Entropy Foundation
 
 use crate::common::types::{GasOptions, ProfileOptions, RestOptions};
 
@@ -15,6 +14,7 @@ impl From<RestOptions> for supra_aptos::RestOptions {
             url: value.url,
             connection_timeout_secs: value.connection_timeout_secs,
             node_api_key: value.node_api_key,
+            api_version: value.api_version,
         }
     }
 }
