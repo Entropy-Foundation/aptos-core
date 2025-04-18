@@ -69,6 +69,7 @@ use std::{
 };
 use thiserror::Error;
 use aptos_crypto::hash::HashValueParseError;
+use supra_aptos::ApiVersion;
 
 pub const USER_AGENT: &str = concat!("aptos-cli/", env!("CARGO_PKG_VERSION"));
 const US_IN_SECS: u64 = 1_000_000;
@@ -988,6 +989,8 @@ pub struct RestOptions {
     /// environment variable.
     #[clap(long, env)]
     pub node_api_key: Option<String>,
+    #[clap(long, default_value_t = ApiVersion::V3)]
+    pub(crate) api_version: ApiVersion,
 }
 
 impl RestOptions {
@@ -996,6 +999,7 @@ impl RestOptions {
             url,
             connection_timeout_secs: connection_timeout_secs.unwrap_or(DEFAULT_EXPIRATION_SECS),
             node_api_key: None,
+            api_version: ApiVersion::default(),
         }
     }
 
