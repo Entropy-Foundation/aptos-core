@@ -122,7 +122,7 @@ pub enum FeatureFlag {
     LimitVMTypeSize,
     AbortIfMultisigPayloadMismatch,
     SupraNativeAutomation,
-    SupraBridge,
+    SupraEthTrie,
 }
 
 fn generate_features_blob(writer: &CodeWriter, data: &[u64]) {
@@ -319,7 +319,7 @@ impl From<FeatureFlag> for AptosFeatureFlag {
                 AptosFeatureFlag::ABORT_IF_MULTISIG_PAYLOAD_MISMATCH
             },
             FeatureFlag::SupraNativeAutomation => AptosFeatureFlag::SUPRA_NATIVE_AUTOMATION,
-            FeatureFlag::SupraBridge => AptosFeatureFlag::SUPRA_BRIDGE,
+            FeatureFlag::SupraEthTrie => AptosFeatureFlag::SUPRA_ETH_TRIE,
         }
     }
 }
@@ -445,7 +445,7 @@ impl From<AptosFeatureFlag> for FeatureFlag {
                 FeatureFlag::AbortIfMultisigPayloadMismatch
             },
             AptosFeatureFlag::SUPRA_NATIVE_AUTOMATION => FeatureFlag::SupraNativeAutomation,
-            AptosFeatureFlag::SUPRA_BRIDGE => FeatureFlag::SupraBridge,
+            AptosFeatureFlag::SUPRA_ETH_TRIE=> FeatureFlag::SupraEthTrie,
         }
     }
 }
