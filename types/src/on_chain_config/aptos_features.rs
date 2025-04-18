@@ -89,7 +89,7 @@ pub enum FeatureFlag {
     // Keeping 16 bit reserved to have graceful updated from aptos-mainstream in case of new flags have been added
     // Ends up in 11th byte, 0th bit
     SUPRA_NATIVE_AUTOMATION = 88,
-    SUPRA_BRIDGE = 89,
+    ETH_TRIE = 89,
 }
 
 impl FeatureFlag {
