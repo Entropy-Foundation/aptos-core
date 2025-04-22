@@ -196,6 +196,12 @@ Automation registry configuration parameters
 <dd>
  Maximum number of tasks that registry can hold.
 </dd>
+<dt>
+<code>task_max_gas_cap: u64</code>
+</dt>
+<dd>
+ Maximum gas amount task may be registered with.
+</dd>
 </dl>
 
 
@@ -1073,6 +1079,26 @@ Requested amount exceeds the locked balance
 
 
 
+<a id="0x1_automation_registry_ETASK_MAX_GAS_CAP_NONE_ZERO"></a>
+
+Task max gas capacity should not be 0
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ETASK_MAX_GAS_CAP_NONE_ZERO">ETASK_MAX_GAS_CAP_NONE_ZERO</a>: u64 = 24;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_ETASK_MAX_GAS_OVERFLOW"></a>
+
+Task max gas exceeds configured task max gas capacity
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ETASK_MAX_GAS_OVERFLOW">ETASK_MAX_GAS_OVERFLOW</a>: u64 = 25;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_EUNACCEPTABLE_AUTOMATION_GAS_LIMIT"></a>
 
 Current committed gas amount is greater than the automation gas limit.
@@ -1707,7 +1733,7 @@ maximum allowed occupancy for the next epoch.
 
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, congestion_threshold_percentage: u8, congestion_exponent: u8)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, congestion_threshold_percentage: u8, congestion_exponent: u8, task_max_gas_cap: u64)
 </code></pre>
 
 
@@ -1722,11 +1748,13 @@ maximum allowed occupancy for the next epoch.
     registry_max_gas_cap: u64,
     congestion_threshold_percentage: u8,
     congestion_exponent: u8,
+    task_max_gas_cap: u64,
 )  {
     <b>assert</b>!(congestion_threshold_percentage &lt;= <a href="automation_registry.md#0x1_automation_registry_MAX_PERCENTAGE">MAX_PERCENTAGE</a>, <a href="automation_registry.md#0x1_automation_registry_EMAX_CONGESTION_THRESHOLD">EMAX_CONGESTION_THRESHOLD</a>);
     <b>assert</b>!(congestion_exponent &gt; 0, <a href="automation_registry.md#0x1_automation_registry_ECONGESTION_EXP_NON_ZERO">ECONGESTION_EXP_NON_ZERO</a>);
     <b>assert</b>!(task_duration_cap_in_secs &gt; epoch_interval_secs, <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_TASK_DURATION_CAP">EUNACCEPTABLE_TASK_DURATION_CAP</a>);
     <b>assert</b>!(registry_max_gas_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO">EREGISTRY_MAX_GAS_CAP_NON_ZERO</a>);
+    <b>assert</b>!(task_max_gas_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_ETASK_MAX_GAS_CAP_NONE_ZERO">ETASK_MAX_GAS_CAP_NONE_ZERO</a>);
 }
 </code></pre>
 
@@ -1770,7 +1798,7 @@ maximum allowed occupancy for the next epoch.
 Initialization of Automation Registry with configuration parameters is expected metrics.
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16, task_max_gas_cap: u64)
 </code></pre>
 
 
@@ -1790,6 +1818,7 @@ Initialization of Automation Registry with configuration parameters is expected 
     congestion_base_fee_in_quants_per_sec: u64,
     congestion_exponent: u8,
     task_capacity: u16,
+    task_max_gas_cap: u64,
 ) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
     <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(
@@ -1797,7 +1826,9 @@ Initialization of Automation Registry with configuration parameters is expected 
         task_duration_cap_in_secs,
         registry_max_gas_cap,
         congestion_threshold_percentage,
-        congestion_exponent);
+        congestion_exponent,
+        task_max_gas_cap,
+    );
 
     <b>let</b> (registry_fee_resource_signer, registry_fee_address_signer_cap) = <a href="automation_registry.md#0x1_automation_registry_create_registry_resource_account">create_registry_resource_account</a>(supra_framework);
 
@@ -1821,7 +1852,8 @@ Initialization of Automation Registry with configuration parameters is expected 
             congestion_threshold_percentage,
             congestion_base_fee_in_quants_per_sec,
             congestion_exponent,
-            task_capacity
+            task_capacity,
+            task_max_gas_cap
         },
         next_epoch_registry_max_gas_cap: registry_max_gas_cap
     });
@@ -2460,6 +2492,7 @@ The function updates the ActiveAutomationRegistryConfig structure with values ex
         automation_registry_config.congestion_base_fee_in_quants_per_sec = buffer.congestion_base_fee_in_quants_per_sec;
         automation_registry_config.congestion_exponent = buffer.congestion_exponent;
         automation_registry_config.task_capacity = buffer.task_capacity;
+        automation_registry_config.task_max_gas_cap = buffer.task_max_gas_cap;
     };
 }
 </code></pre>
@@ -2541,7 +2574,7 @@ Transfers the specified fee amount from the resource account to the target accou
 Update Automation Registry Config
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16, task_max_gas_cap: u64)
 </code></pre>
 
 
@@ -2560,6 +2593,7 @@ Update Automation Registry Config
     congestion_base_fee_in_quants_per_sec: u64,
     congestion_exponent: u8,
     task_capacity: u16,
+    task_max_gas_cap: u64,
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
@@ -2571,7 +2605,8 @@ Update Automation Registry Config
         task_duration_cap_in_secs,
         registry_max_gas_cap,
         congestion_threshold_percentage,
-        congestion_exponent);
+        congestion_exponent,
+        task_max_gas_cap);
 
     <b>assert</b>!(
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &lt; registry_max_gas_cap,
@@ -2586,7 +2621,8 @@ Update Automation Registry Config
         congestion_threshold_percentage,
         congestion_base_fee_in_quants_per_sec,
         congestion_exponent,
-        task_capacity
+        task_capacity,
+        task_max_gas_cap,
     };
     <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(<b>copy</b> new_automation_registry_config);
 
@@ -2652,6 +2688,7 @@ Registers a new automation task entry.
 
     <b>assert</b>!(gas_price_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EINVALID_GAS_PRICE">EINVALID_GAS_PRICE</a>);
     <b>assert</b>!(max_gas_amount &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EINVALID_MAX_GAS_AMOUNT">EINVALID_MAX_GAS_AMOUNT</a>);
+    <b>assert</b>!(max_gas_amount &lt;= automation_registry_config.main_config.task_max_gas_cap, <a href="automation_registry.md#0x1_automation_registry_ETASK_MAX_GAS_OVERFLOW">ETASK_MAX_GAS_OVERFLOW</a>);
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&tx_hash) == <a href="automation_registry.md#0x1_automation_registry_TXN_HASH_LENGTH">TXN_HASH_LENGTH</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_TXN_HASH">EINVALID_TXN_HASH</a>);
 
     <b>let</b> committed_gas = (<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch <b>as</b> u128) + (max_gas_amount <b>as</b> u128);

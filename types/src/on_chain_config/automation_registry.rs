@@ -38,6 +38,8 @@ pub struct AutomationRegistryConfigV1 {
     congestion_exponent: u8,
     /// Maximum number of tasks that registry can hold.
     task_capacity: u16,
+    /// Maximum gas amount task may be registered with.
+    task_max_gas_cap: u64,
 }
 
 impl Default for AutomationRegistryConfigV1 {
@@ -51,6 +53,7 @@ impl Default for AutomationRegistryConfigV1 {
             congestion_base_fee_in_quants_per_sec: DEFAULT_CONGESTION_BASE_FEE_IN_QUANTS_PER_SEC,
             congestion_exponent: DEFAULT_CONGESTION_EXPONENT,
             task_capacity: DEFAULT_TASK_CAPACITY,
+            task_max_gas_cap: DEFAULT_REGISTRY_MAX_GAS_CAP / (DEFAULT_TASK_CAPACITY as u64),
         }
     }
 }
@@ -85,6 +88,10 @@ impl AutomationRegistryConfigV1 {
     pub fn task_capacity(&self) -> u16 {
         self.task_capacity
     }
+
+    pub fn task_max_gas_cap(&self) -> u64 {
+        self.task_max_gas_cap
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Eq)]
@@ -114,6 +121,7 @@ impl AutomationRegistryConfig {
             MoveValue::U64(config.congestion_base_fee_in_quants_per_sec()),
             MoveValue::U8(config.congestion_exponent()),
             MoveValue::U16(config.task_capacity()),
+            MoveValue::U64(config.task_max_gas_cap()),
         ];
         serialize_values(&arguments)
     }
