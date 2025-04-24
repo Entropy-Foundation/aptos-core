@@ -73,7 +73,7 @@ use url::Url;
 mod aptos_debug_natives;
 mod bytecode;
 pub mod coverage;
-mod fmt;
+pub mod fmt;
 mod manifest;
 pub mod package_hooks;
 mod show;
