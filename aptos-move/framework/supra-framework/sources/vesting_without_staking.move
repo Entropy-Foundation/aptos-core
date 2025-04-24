@@ -380,6 +380,10 @@ module supra_framework::vesting_without_staking {
             error::invalid_argument(EINVALID_VESTING_SCHEDULE),
         );
         assert!(
+            sum <= denominator,
+            error::invalid_argument(EINVALID_VESTING_SCHEDULE)
+        );
+        assert!(
             denominator != 0,
             error::invalid_argument(EINVALID_VESTING_SCHEDULE),
         );
