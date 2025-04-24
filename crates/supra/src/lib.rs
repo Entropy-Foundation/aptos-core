@@ -40,7 +40,7 @@ pub struct RestOptions {
     /// URL to a fullnode on the network
     ///
     /// Defaults to the URL in the `default` profile
-    pub url: Option<reqwest::Url>,
+    pub rpc_url: Option<reqwest::Url>,
 
     /// Connection timeout in seconds, used for the REST endpoint of the fullnode
     pub connection_timeout_secs: u64,

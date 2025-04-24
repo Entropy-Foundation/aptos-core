@@ -978,7 +978,7 @@ pub struct RestOptions {
     ///
     /// Defaults to the URL in the `default` profile
     #[clap(long)]
-    pub(crate) url: Option<reqwest::Url>,
+    pub(crate) rpc_url: Option<reqwest::Url>,
 
     /// Connection timeout in seconds, used for the REST endpoint of the fullnode
     #[clap(long, default_value_t = DEFAULT_EXPIRATION_SECS, alias = "connection-timeout-s")]
@@ -996,7 +996,7 @@ pub struct RestOptions {
 impl RestOptions {
     pub fn new(url: Option<reqwest::Url>, connection_timeout_secs: Option<u64>) -> Self {
         RestOptions {
-            url,
+            rpc_url: url,
             connection_timeout_secs: connection_timeout_secs.unwrap_or(DEFAULT_EXPIRATION_SECS),
             node_api_key: None,
             api_version: ApiVersion::default(),
@@ -1005,7 +1005,7 @@ impl RestOptions {
 
     /// Retrieve the URL from the profile or the command line
     pub fn url(&self, profile: &ProfileOptions) -> CliTypedResult<reqwest::Url> {
-        if let Some(ref url) = self.url {
+        if let Some(ref url) = self.rpc_url {
             Ok(url.clone())
         } else if let Some(Some(url)) = CliConfig::load_profile(
             profile.profile_name(),
