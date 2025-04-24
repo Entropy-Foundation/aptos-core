@@ -674,9 +674,6 @@ module supra_framework::vesting_without_staking {
 
         if (last_completed_period >= next_period_to_vest && vesting_record.left_amount != 0) {
             let final_fraction = *vector::borrow(schedule, vector::length(schedule) - 1);
-            let final_fraction_amount = fixed_point32::multiply_u64(
-                vesting_record.init_amount, final_fraction
-            );
             // Determine how many periods is needed based on the left_amount
             periods_fast_forward = last_completed_period - next_period_to_vest + 1;
             let added_fraction = fixed_point32::multiply_u64_return_fixpoint32(
@@ -688,10 +685,6 @@ module supra_framework::vesting_without_staking {
             );
 
         };
-        let total_vesting_fraction_amount = fixed_point32::multiply_u64(
-            vesting_record.init_amount,
-            total_vesting_fraction,
-        );
         // We don't need to check vesting_record.left_amount > 0 because vest_transfer will handle that.
         let transfer_happened = vest_transfer(
             vesting_record, signer_cap, beneficiary, total_vesting_fraction
@@ -733,14 +726,12 @@ module supra_framework::vesting_without_staking {
                 vesting_record.left_amount,
                 fixed_point32::multiply_u64(vesting_record.init_amount, vesting_fraction),
             );
-        let result =
             if (amount > 0) {
                 //update left_amount for the shareholder
                 vesting_record.left_amount = vesting_record.left_amount - amount;
                 coin::transfer<SupraCoin>(&vesting_signer, beneficiary, amount);
                 true
-            } else { false };
-        result
+            } else { false }
     }
 
     public entry fun set_vesting_schedule(
@@ -760,9 +751,7 @@ module supra_framework::vesting_without_staking {
         let schedule = vector::map_ref(
             &vesting_numerators,
             |numerator| {
-                let e =
-                    fixed_point32::create_from_rational(*numerator, vesting_denominator);
-                e
+                    fixed_point32::create_from_rational(*numerator, vesting_denominator)
             },
         );
 
@@ -777,7 +766,6 @@ module supra_framework::vesting_without_staking {
                 let new_last_vested_period = (
                     msrecord.last_vested_period * old_period_duration
                 ) / period_duration;
-                msrecord.last_vested_period = new_last_vested_period;
                 msrecord.last_vested_period = new_last_vested_period;
             },
         );
