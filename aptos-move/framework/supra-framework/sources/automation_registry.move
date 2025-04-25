@@ -96,7 +96,7 @@ module supra_framework::automation_registry {
         main_config: AutomationRegistryConfig,
         /// Will be the same as main_config.registry_max_gas_cap, unless updated during the epoch.
         next_epoch_registry_max_gas_cap: u64,
-        /// Flag indicating task whether the registration is enabled or paused.
+        /// Flag indicating whether the task registration is enabled or paused.
         /// If paused a new task registration will fail.
         registration_enabled: bool,
     }

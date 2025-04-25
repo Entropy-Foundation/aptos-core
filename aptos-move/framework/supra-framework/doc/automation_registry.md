@@ -124,7 +124,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 <code>registration_enabled: bool</code>
 </dt>
 <dd>
- Flag indicating task whether the registration is enabled or paused.
+ Flag indicating whether the task registration is enabled or paused.
  If paused a new task registration will fail.
 </dd>
 </dl>
