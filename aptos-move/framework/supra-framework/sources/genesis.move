@@ -149,7 +149,7 @@ module supra_framework::genesis {
         let (supra_framework_account, supra_framework_signer_cap) = account::create_framework_reserved_account(
             @supra_framework
         );
-        // Initialize account configs on aptos framework account.
+        // Initialize account configs on supra framework account.
         account::initialize(&supra_framework_account);
 
         transaction_validation::initialize(
