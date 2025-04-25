@@ -202,6 +202,8 @@ pub struct AutomationTaskMetaData {
     pub(crate) registration_time: u64,
     /// Flag indicating whether the task is active.
     pub(crate) is_active: bool,
+    /// Fee locked for the task estimated for the next epoch at the start of the current epoch.
+    pub(crate) locked_fee_for_next_epoch: u64,
 }
 
 impl AutomationTaskMetaData {
@@ -218,6 +220,7 @@ impl AutomationTaskMetaData {
         aux_data: Vec<Vec<u8>>,
         registration_time: u64,
         is_active: bool,
+        locked_fee_for_next_epoch: u64,
     ) -> Self {
         Self {
             id,
@@ -231,6 +234,7 @@ impl AutomationTaskMetaData {
             aux_data,
             registration_time,
             is_active,
+            locked_fee_for_next_epoch,
         }
     }
 
@@ -268,5 +272,9 @@ impl AutomationTaskMetaData {
 
     pub fn id(&self) -> u64 {
         self.id
+    }
+
+    pub fn locked_fee_for_next_epoch(&self) -> u64 {
+        self.locked_fee_for_next_epoch
     }
 }
