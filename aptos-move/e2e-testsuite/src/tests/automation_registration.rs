@@ -330,6 +330,24 @@ fn check_invalid_gas_params_of_automation_task() {
         0,
         inner_entry_function.clone(),
         3600,
+        aptos_global_constants::MAX_GAS_AMOUNT + 1,
+        100,
+        automation_fee_cap,
+        aux_data.clone(),
+    );
+
+    let output = test_context.execute_transaction(automation_txn.clone());
+    AutomationRegistrationTestContext::check_discarded_output(
+        output,
+        StatusCode::MAX_GAS_UNITS_EXCEEDS_MAX_GAS_UNITS_BOUND,
+    );
+    let validation_output = test_context.validate_transaction(automation_txn);
+    assert_eq!(validation_output.status(), Some(StatusCode::MAX_GAS_UNITS_EXCEEDS_MAX_GAS_UNITS_BOUND));
+
+    let automation_txn = test_context.create_automation_txn(
+        0,
+        inner_entry_function.clone(),
+        3600,
         100,
         10_000_000_001,
         automation_fee_cap,
