@@ -1129,16 +1129,6 @@ Registry task capacity has reached.
 
 
 
-<a id="0x1_automation_registry_EREGISTRY_IS_PAUSED"></a>
-
-Registry operation is currently paused.
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_IS_PAUSED">EREGISTRY_IS_PAUSED</a>: u64 = 24;
-</code></pre>
-
-
-
 <a id="0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO"></a>
 
 Automation registry max gas capacity cannot be zero.
@@ -1155,6 +1145,16 @@ Requested amount exceeds the locked balance
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EREQUEST_EXCEEDS_LOCKED_BALANCE">EREQUEST_EXCEEDS_LOCKED_BALANCE</a>: u64 = 17;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_ETASK_REGISTRATION_DISABLED"></a>
+
+Task registration is currently disabled.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ETASK_REGISTRATION_DISABLED">ETASK_REGISTRATION_DISABLED</a>: u64 = 24;
 </code></pre>
 
 
@@ -2802,7 +2802,7 @@ Registers a new automation task entry.
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&aux_data), <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>);
 
     <b>let</b> automation_registry_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
-    <b>assert</b>!(automation_registry_config.registration_enabled, <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_IS_PAUSED">EREGISTRY_IS_PAUSED</a>);
+    <b>assert</b>!(automation_registry_config.registration_enabled, <a href="automation_registry.md#0x1_automation_registry_ETASK_REGISTRATION_DISABLED">ETASK_REGISTRATION_DISABLED</a>);
 
     // If registry is full, reject task registration
     <b>assert</b>!((<a href="automation_registry.md#0x1_automation_registry_get_task_count">get_task_count</a>() <b>as</b> u16) &lt; automation_registry_config.main_config.task_capacity, <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_IS_FULL">EREGISTRY_IS_FULL</a>);

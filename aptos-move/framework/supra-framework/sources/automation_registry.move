@@ -72,8 +72,8 @@ module supra_framework::automation_registry {
     const EREGISTRY_MAX_GAS_CAP_NON_ZERO: u64 = 22;
     /// Registry task capacity has reached.
     const EREGISTRY_IS_FULL: u64 = 23;
-    /// Registry operation is currently paused.
-    const EREGISTRY_IS_PAUSED: u64 = 24;
+    /// Task registration is currently disabled.
+    const ETASK_REGISTRATION_DISABLED: u64 = 24;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -1037,7 +1037,7 @@ module supra_framework::automation_registry {
         assert!(vector::is_empty(&aux_data), ENO_AUX_DATA_SUPPORTED);
 
         let automation_registry_config = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
-        assert!(automation_registry_config.registration_enabled, EREGISTRY_IS_PAUSED);
+        assert!(automation_registry_config.registration_enabled, ETASK_REGISTRATION_DISABLED);
 
         // If registry is full, reject task registration
         assert!((get_task_count() as u16) < automation_registry_config.main_config.task_capacity, EREGISTRY_IS_FULL);
@@ -2858,7 +2858,7 @@ module supra_framework::automation_registry {
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
-    #[expected_failure(abort_code = EREGISTRY_IS_PAUSED, location = Self)]
+    #[expected_failure(abort_code = ETASK_REGISTRATION_DISABLED, location = Self)]
     fun test_register_fails_when_registration_disabled(
         framework: &signer, user: &signer
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
