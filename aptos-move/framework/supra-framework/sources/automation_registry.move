@@ -74,6 +74,8 @@ module supra_framework::automation_registry {
     const EREGISTRY_IS_FULL: u64 = 23;
     /// Task registration is currently disabled.
     const ETASK_REGISTRATION_DISABLED: u64 = 24;
+    /// Task index list is empty.
+    const EEMPTY_TASK_INDEXES: u64 = 25;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -232,6 +234,13 @@ module supra_framework::automation_registry {
     /// Event emitted on automation task cancellation by owner.
     struct TaskCancelled has drop, store {
         task_index: u64,
+        owner: address,
+    }
+
+    #[event]
+    /// Event emitted on automation tasks stopped by owner.
+    struct TaskStopped has drop, store {
+        task_indexes: vector<u64>,
         owner: address,
     }
 
@@ -1155,6 +1164,93 @@ module supra_framework::automation_registry {
         automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
 
         event::emit(TaskCancelled { task_index: automation_task_metadata.task_index, owner });
+    }
+
+    /// Immediately stops automation tasks for the specified `task_indexes`.
+    /// Only tasks that exist and are owned by the sender can be stopped.
+    /// If any of the specified tasks are not owned by the sender, the transaction will abort.
+    /// When a task is stopped, the committed gas for the next epoch is reduced
+    /// by the max gas amount of the stopped task. Half of the remaining task fee is refunded.
+    public entry fun stop_tasks(
+        owner_signer: &signer,
+        task_indexes: vector<u64>
+    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationEpochInfo {
+        // Ensure that task indexes are provided
+        assert!(!vector::is_empty(&task_indexes), EEMPTY_TASK_INDEXES);
+
+        let owner = signer::address_of(owner_signer);
+        let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
+        let arc = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework).main_config;
+        let epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
+
+        let tcmg = automation_registry.gas_committed_for_this_epoch;
+
+        // Calculate the automation congestion fee
+        let acf = calculate_automation_congestion_fee(
+            &arc,
+            tcmg,
+            arc.registry_max_gas_cap
+        );
+
+        // Total fee per second (base + congestion fee)
+        let automation_fee_per_sec = acf + (arc.automation_base_fee_in_quants_per_sec as u256);
+        let current_time = timestamp::now_seconds();
+
+        let stopped_task_ids = vector[];
+        let total_refund_fee = 0;
+
+        // Loop through each task index to validate and stop the task
+        vector::for_each(task_indexes, |task_index| {
+            if (enumerable_map::contains(&automation_registry.tasks, task_index)) {
+                // Remove task from registry
+                let task = enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
+                vector::remove_value(&mut automation_registry.epoch_active_task_ids, &task_index);
+
+                // Ensure only the task owner can stop it
+                assert!(task.owner == owner, EUNAUTHORIZED_TASK_OWNER);
+
+                // Prevent underflow in gas committed
+                assert!(
+                    automation_registry.gas_committed_for_next_epoch >= task.max_gas_amount,
+                    EGAS_COMMITTEED_VALUE_UNDERFLOW
+                );
+
+                // Reduce committed gas by the stopped task's max gas
+                automation_registry.gas_committed_for_next_epoch =
+                    automation_registry.gas_committed_for_next_epoch - task.max_gas_amount;
+
+                // Calculate refundable fee for this remaining time task
+                let task_fee = calculate_task_fee(
+                    &arc,
+                    &task,
+                    epoch_info.epoch_interval,
+                    current_time,
+                    automation_fee_per_sec
+                );
+
+                // Refund 50% of the remaining time fee + locked fee for next epoch
+                let task_refund_fee = (task_fee / 2) + task.locked_fee_for_next_epoch;
+
+                total_refund_fee = total_refund_fee + task_refund_fee;
+                vector::push_back(&mut stopped_task_ids, task_index);
+            }
+        });
+
+        // Refund and emit event if any tasks were stopped
+        if (!vector::is_empty(&stopped_task_ids)) {
+            let resource_signer = account::create_signer_with_capability(
+                &automation_registry.registry_fee_address_signer_cap
+            );
+
+            std::debug::print(&total_refund_fee);
+            coin::transfer<SupraCoin>(&resource_signer, owner, total_refund_fee);
+
+            // Emit task stopped event
+            event::emit(TaskStopped {
+                task_indexes: stopped_task_ids,
+                owner
+            });
+        };
     }
 
     /// Update epoch interval in registry while actually update happens in block module
@@ -2876,5 +2972,136 @@ module supra_framework::automation_registry {
             PARENT_HASH,
             AUX_DATA
         );
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    fun check_task_successful_stopped(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+
+        register(user,
+            PAYLOAD,
+            86400,
+            100,
+            200,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+        register(user,
+            PAYLOAD,
+            86400,
+            100,
+            200,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+        register(user,
+            PAYLOAD,
+            86400,
+            100,
+            200,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+        register(user,
+            PAYLOAD,
+            86400,
+            100,
+            200,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+
+        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
+        on_new_epoch();
+        assert!(400 == get_gas_committed_for_next_epoch(), 1);
+        let active_task_ids = get_active_task_ids();
+        let expected_ids = vector<u64>[0, 1, 2, 3];
+        vector::for_each(active_task_ids, |task_index| {
+            assert!(vector::contains(&expected_ids, &task_index), 1);
+        });
+
+        // Stop task 2. and it's removed from active task list immediately
+        stop_tasks(user, vector[2]);
+        let active_task_ids = get_active_task_ids();
+        let expected_ids = vector<u64>[0, 1, 3];
+        vector::for_each(active_task_ids, |task_index| {
+            assert!(vector::contains(&expected_ids, &task_index), 1);
+        });
+        // There is no task with index 2 now.
+        assert!(!has_task_with_id(2), 1);
+        assert!(300 == get_gas_committed_for_next_epoch(), 1);
+
+        // Add and stop the task in the same epoch. Task index will be 4
+        assert!(get_next_task_index() == 4, 1);
+        register(user,
+            PAYLOAD,
+            86400,
+            100,
+            200,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+        stop_tasks(user, vector[4]);
+        let active_task_ids = get_active_task_ids();
+        let expected_ids = vector<u64>[0, 1, 3];
+        vector::for_each(active_task_ids, |task_index| {
+            assert!(vector::contains(&expected_ids, &task_index), 1);
+        });
+        // There is no task with index 4 and the next task index will be 5.
+        assert!(!has_task_with_id(4), 1);
+        assert!(get_next_task_index() == 5, 1);
+        assert!(300 == get_gas_committed_for_next_epoch(), 1);
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe, user2 = @0x1cafa)]
+    #[expected_failure(abort_code = EUNAUTHORIZED_TASK_OWNER, location = Self)]
+    fun check_unauthorized_stopping_task(
+        framework: &signer,
+        user: &signer,
+        user2: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+
+        register(user,
+            PAYLOAD,
+            86400,
+            10,
+            20,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+        stop_tasks(user2, vector[0]);
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    fun check_stopping_of_stopped_task(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+
+        register(user,
+            PAYLOAD,
+            86400,
+            10,
+            20,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+        timestamp::update_global_time_for_test_secs(50);
+        on_new_epoch();
+        // Stop the same task 2 times, second time it will not abort it just skip the task_id if it's not found
+        stop_tasks(user, vector[0]);
+        stop_tasks(user, vector[0]);
     }
 }
