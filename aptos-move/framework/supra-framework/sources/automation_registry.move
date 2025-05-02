@@ -239,9 +239,15 @@ module supra_framework::automation_registry {
 
     #[event]
     /// Event emitted on automation tasks stopped by owner.
-    struct TaskStopped has drop, store {
-        task_indexes: vector<u64>,
+    struct TasksStopped has drop, store {
+        tasks: vector<TaskStopped>,
         owner: address,
+    }
+
+    struct TaskStopped has drop, store {
+        task_index: u64,
+        deposit_refund: u64,
+        epoch_fee_refund: u64,
     }
 
     #[event]
@@ -1231,19 +1237,25 @@ module supra_framework::automation_registry {
                 };
 
                 // Calculate refundable fee for this remaining time task
+                let run_duration = current_time - epoch_info.start_time;
+                let residual_interval = epoch_info.expected_epoch_duration - run_duration;
+
                 let task_fee = calculate_task_fee(
                     &arc,
                     &task,
-                    epoch_info.epoch_interval,
+                    residual_interval,
                     current_time,
                     automation_fee_per_sec
                 );
-
                 // Refund 50% of the remaining time fee + locked fee for next epoch
-                let task_refund_fee = (task_fee / 2) + task.locked_fee_for_next_epoch;
+                let epoch_fee_refund = (task_fee / 2);
 
-                total_refund_fee = total_refund_fee + task_refund_fee;
-                vector::push_back(&mut stopped_task_ids, task_index);
+                total_refund_fee = total_refund_fee + (epoch_fee_refund + task.locked_fee_for_next_epoch);
+
+                vector::push_back(
+                    &mut stopped_task_ids,
+                    TaskStopped { task_index, deposit_refund: task.locked_fee_for_next_epoch, epoch_fee_refund }
+                );
             }
         });
 
@@ -1256,8 +1268,8 @@ module supra_framework::automation_registry {
             coin::transfer<SupraCoin>(&resource_signer, owner, total_refund_fee);
 
             // Emit task stopped event
-            event::emit(TaskStopped {
-                task_indexes: stopped_task_ids,
+            event::emit(TasksStopped {
+                tasks: stopped_task_ids,
                 owner
             });
         };
@@ -2994,7 +3006,7 @@ module supra_framework::automation_registry {
         register(user,
             PAYLOAD,
             86400,
-            100,
+            200,
             200,
             1000,
             PARENT_HASH,
@@ -3003,7 +3015,7 @@ module supra_framework::automation_registry {
         register(user,
             PAYLOAD,
             86400,
-            100,
+            200,
             200,
             1000,
             PARENT_HASH,
@@ -3012,7 +3024,7 @@ module supra_framework::automation_registry {
         register(user,
             PAYLOAD,
             86400,
-            100,
+            200,
             200,
             1000,
             PARENT_HASH,
@@ -3021,21 +3033,25 @@ module supra_framework::automation_registry {
         register(user,
             PAYLOAD,
             86400,
-            100,
+            200,
             200,
             1000,
             PARENT_HASH,
             AUX_DATA
         );
 
-        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
+        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
         on_new_epoch();
-        assert!(400 == get_gas_committed_for_next_epoch(), 1);
+        assert!(800 == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
         let expected_ids = vector<u64>[0, 1, 2, 3];
         vector::for_each(active_task_ids, |task_index| {
             assert!(vector::contains(&expected_ids, &task_index), 1);
         });
+
+        timestamp::update_global_time_for_test_secs(
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS + (EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2)
+        );
 
         // Stop task 2. and it's removed from active task list immediately
         stop_tasks(user, vector[2]);
@@ -3046,14 +3062,14 @@ module supra_framework::automation_registry {
         });
         // There is no task with index 2 now.
         assert!(!has_task_with_id(2), 1);
-        assert!(300 == get_gas_committed_for_next_epoch(), 1);
+        assert!(600 == get_gas_committed_for_next_epoch(), 1);
 
         // Add and stop the task in the same epoch. Task index will be 4
         assert!(get_next_task_index() == 4, 1);
         register(user,
             PAYLOAD,
             86400,
-            100,
+            200,
             200,
             1000,
             PARENT_HASH,
@@ -3068,7 +3084,7 @@ module supra_framework::automation_registry {
         // There is no task with index 4 and the next task index will be 5.
         assert!(!has_task_with_id(4), 1);
         assert!(get_next_task_index() == 5, 1);
-        assert!(300 == get_gas_committed_for_next_epoch(), 1);
+        assert!(600 == get_gas_committed_for_next_epoch(), 1);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe, user2 = @0x1cafa)]

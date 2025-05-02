@@ -18,6 +18,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `TaskEpochFeeWithdraw`](#0x1_automation_registry_TaskEpochFeeWithdraw)
 -  [Struct `TaskFeeRefund`](#0x1_automation_registry_TaskFeeRefund)
 -  [Struct `TaskCancelled`](#0x1_automation_registry_TaskCancelled)
+-  [Struct `TasksStopped`](#0x1_automation_registry_TasksStopped)
 -  [Struct `TaskStopped`](#0x1_automation_registry_TaskStopped)
 -  [Struct `TaskCancelledInsufficentBalance`](#0x1_automation_registry_TaskCancelledInsufficentBalance)
 -  [Struct `TaskCancelledCapacitySurpassed`](#0x1_automation_registry_TaskCancelledCapacitySurpassed)
@@ -622,15 +623,15 @@ Event emitted on automation task cancellation by owner.
 
 </details>
 
-<a id="0x1_automation_registry_TaskStopped"></a>
+<a id="0x1_automation_registry_TasksStopped"></a>
 
-## Struct `TaskStopped`
+## Struct `TasksStopped`
 
 Event emitted on automation tasks stopped by owner.
 
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_TaskStopped">TaskStopped</a> <b>has</b> drop, store
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_TasksStopped">TasksStopped</a> <b>has</b> drop, store
 </code></pre>
 
 
@@ -641,13 +642,52 @@ Event emitted on automation tasks stopped by owner.
 
 <dl>
 <dt>
-<code>task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;</code>
+<code>tasks: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="automation_registry.md#0x1_automation_registry_TaskStopped">automation_registry::TaskStopped</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
 <code>owner: <b>address</b></code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_automation_registry_TaskStopped"></a>
+
+## Struct `TaskStopped`
+
+
+
+<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_TaskStopped">TaskStopped</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>task_index: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>deposit_refund: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>epoch_fee_refund: u64</code>
 </dt>
 <dd>
 
@@ -3094,19 +3134,25 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
             };
 
             // Calculate refundable fee for this remaining time task
+            <b>let</b> run_duration = current_time - epoch_info.start_time;
+            <b>let</b> residual_interval = epoch_info.expected_epoch_duration - run_duration;
+
             <b>let</b> task_fee = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(
                 &arc,
                 &task,
-                epoch_info.epoch_interval,
+                residual_interval,
                 current_time,
                 automation_fee_per_sec
             );
-
             // Refund 50% of the remaining time fee + locked fee for next epoch
-            <b>let</b> task_refund_fee = (task_fee / 2) + task.locked_fee_for_next_epoch;
+            <b>let</b> epoch_fee_refund = (task_fee / 2);
 
-            total_refund_fee = total_refund_fee + task_refund_fee;
-            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> stopped_task_ids, task_index);
+            total_refund_fee = total_refund_fee + (epoch_fee_refund + task.locked_fee_for_next_epoch);
+
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(
+                &<b>mut</b> stopped_task_ids,
+                <a href="automation_registry.md#0x1_automation_registry_TaskStopped">TaskStopped</a> { task_index, deposit_refund: task.locked_fee_for_next_epoch, epoch_fee_refund }
+            );
         }
     });
 
@@ -3119,8 +3165,8 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
         <a href="coin.md#0x1_coin_transfer">coin::transfer</a>&lt;SupraCoin&gt;(&resource_signer, owner, total_refund_fee);
 
         // Emit task stopped <a href="event.md#0x1_event">event</a>
-        <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskStopped">TaskStopped</a> {
-            task_indexes: stopped_task_ids,
+        <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TasksStopped">TasksStopped</a> {
+            tasks: stopped_task_ids,
             owner
         });
     };
