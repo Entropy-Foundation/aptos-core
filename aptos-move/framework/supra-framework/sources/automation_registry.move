@@ -1138,7 +1138,10 @@ module supra_framework::automation_registry {
     ///   - pending, it is removed form the list.
     ///   - cancelled, an error is reported
     /// Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
-    public entry fun cancel_task(owner_signer: &signer, task_index: u64) acquires AutomationRegistry {
+    public entry fun cancel_task(
+        owner_signer: &signer,
+        task_index: u64
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         assert!(enumerable_map::contains(&automation_registry.tasks, task_index), EAUTOMATION_TASK_NOT_FOUND);
 
@@ -1156,12 +1159,17 @@ module supra_framework::automation_registry {
             automation_task_metadata_mut.state = CANCELLED;
         };
 
-        assert!(
-            automation_registry.gas_committed_for_next_epoch >= automation_task_metadata.max_gas_amount,
-            EGAS_COMMITTEED_VALUE_UNDERFLOW
-        );
-        // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
-        automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
+        let epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
+        // This check means the task was expected to be executed in the next epoch, but it has been cancelled.
+        // We need to remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
+        if (automation_task_metadata. expiry_time > (epoch_info.start_time + epoch_info.epoch_interval)) {
+            assert!(
+                automation_registry.gas_committed_for_next_epoch >= automation_task_metadata.max_gas_amount,
+                EGAS_COMMITTEED_VALUE_UNDERFLOW
+            );
+            // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
+            automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
+        };
 
         event::emit(TaskCancelled { task_index: automation_task_metadata.task_index, owner });
     }
@@ -1209,15 +1217,18 @@ module supra_framework::automation_registry {
                 // Ensure only the task owner can stop it
                 assert!(task.owner == owner, EUNAUTHORIZED_TASK_OWNER);
 
-                // Prevent underflow in gas committed
-                assert!(
-                    automation_registry.gas_committed_for_next_epoch >= task.max_gas_amount,
-                    EGAS_COMMITTEED_VALUE_UNDERFLOW
-                );
+                // This check means the task was expected to be executed in the next epoch, but it has been stopped.
+                // We need to remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
+                if (task. expiry_time > (epoch_info.start_time + epoch_info.epoch_interval)) {
+                    // Prevent underflow in gas committed
+                    assert!(
+                        automation_registry.gas_committed_for_next_epoch >= task.max_gas_amount,
+                        EGAS_COMMITTEED_VALUE_UNDERFLOW
+                    );
 
-                // Reduce committed gas by the stopped task's max gas
-                automation_registry.gas_committed_for_next_epoch =
-                    automation_registry.gas_committed_for_next_epoch - task.max_gas_amount;
+                    // Reduce committed gas by the stopped task's max gas
+                    automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - task.max_gas_amount;
+                };
 
                 // Calculate refundable fee for this remaining time task
                 let task_fee = calculate_task_fee(
@@ -1242,7 +1253,6 @@ module supra_framework::automation_registry {
                 &automation_registry.registry_fee_address_signer_cap
             );
 
-            std::debug::print(&total_refund_fee);
             coin::transfer<SupraCoin>(&resource_signer, owner, total_refund_fee);
 
             // Emit task stopped event
@@ -2140,7 +2150,7 @@ module supra_framework::automation_registry {
     fun check_cancellation_of_non_existing_task(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
 
         cancel_task(user, 1);
