@@ -18,6 +18,7 @@ This is the reference documentation of the Supra framework.
 -  [`0x1::aggregator_v2`](aggregator_v2.md#0x1_aggregator_v2)
 -  [`0x1::automation_registry`](automation_registry.md#0x1_automation_registry)
 -  [`0x1::block`](block.md#0x1_block)
+-  [`0x1::bls12381_scalar`](bls12381_scalar.md#0x1_bls12381_scalar)
 -  [`0x1::chain_id`](chain_id.md#0x1_chain_id)
 -  [`0x1::chain_status`](chain_status.md#0x1_chain_status)
 -  [`0x1::code`](code.md#0x1_code)

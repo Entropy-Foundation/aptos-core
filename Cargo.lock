@@ -1757,6 +1757,7 @@ dependencies = [
  "bcs 0.1.4",
  "better_any",
  "blake2-rfc",
+ "blst",
  "bulletproofs",
  "byteorder",
  "claims",
