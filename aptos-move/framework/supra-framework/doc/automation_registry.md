@@ -1146,6 +1146,16 @@ Automation fee capacity for the epoch should not be less than estimated one.
 
 
 
+<a id="0x1_automation_registry_EINSUFFICIENT_BALANCE_FOR_REFUND"></a>
+
+Resource Account does not have sufficient balance to process the refund for the specified task.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINSUFFICIENT_BALANCE_FOR_REFUND">EINSUFFICIENT_BALANCE_FOR_REFUND</a>: u64 = 26;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_EINVALID_EXPIRY_TIME"></a>
 
 Invalid expiry time: it cannot be earlier than the current time
@@ -1302,6 +1312,15 @@ Constants describing task state.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>: u8 = 0;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_REFUND_FRACTION"></a>
+
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>: u64 = 2;
 </code></pre>
 
 
@@ -3045,7 +3064,7 @@ Committed gas-limit is updated by reducing it with the max-gas-amount of the can
     <b>let</b> epoch_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
     // This check means the task was expected <b>to</b> be executed in the next epoch, but it <b>has</b> been cancelled.
     // We need <b>to</b> remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
-    <b>if</b> (automation_task_metadata. expiry_time &gt; (epoch_info.start_time + epoch_info.epoch_interval)) {
+    <b>if</b> (automation_task_metadata.expiry_time &gt; (epoch_info.start_time + epoch_info.epoch_interval)) {
         <b>assert</b>!(
             <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &gt;= automation_task_metadata.max_gas_amount,
             <a href="automation_registry.md#0x1_automation_registry_EGAS_COMMITTEED_VALUE_UNDERFLOW">EGAS_COMMITTEED_VALUE_UNDERFLOW</a>
@@ -3105,24 +3124,34 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
 
     // Total fee per second (base + congestion fee)
     <b>let</b> automation_fee_per_sec = acf + (arc.automation_base_fee_in_quants_per_sec <b>as</b> u256);
-    <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
 
-    <b>let</b> stopped_task_ids = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+    <b>let</b> stopped_task_details = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
     <b>let</b> total_refund_fee = 0;
+
+    // Calculate refundable fee for this remaining time task in current epoch
+    <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
+    <b>let</b> epoch_end_time = epoch_info.expected_epoch_duration + epoch_info.start_time;
+    <b>let</b> residual_interval = <b>if</b> (epoch_end_time &lt;= current_time) {
+        0
+    } <b>else</b> {
+        epoch_end_time - current_time
+    };
 
     // Loop through each task index <b>to</b> validate and stop the task
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(task_indexes, |task_index| {
         <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index)) {
             // Remove task from registry
             <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
-            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_remove_value">vector::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids, &task_index);
 
             // Ensure only the task owner can stop it
             <b>assert</b>!(task.owner == owner, <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OWNER">EUNAUTHORIZED_TASK_OWNER</a>);
 
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_remove_value">vector::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids, &task_index);
+
             // This check means the task was expected <b>to</b> be executed in the next epoch, but it <b>has</b> been stopped.
             // We need <b>to</b> remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
-            <b>if</b> (task. expiry_time &gt; (epoch_info.start_time + epoch_info.epoch_interval)) {
+            // Also it checks that task should not be cancelled.
+            <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a> && task.expiry_time &gt; (epoch_info.start_time + epoch_info.epoch_interval)) {
                 // Prevent underflow in gas committed
                 <b>assert</b>!(
                     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &gt;= task.max_gas_amount,
@@ -3133,40 +3162,42 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
                 <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch - task.max_gas_amount;
             };
 
-            // Calculate refundable fee for this remaining time task
-            <b>let</b> run_duration = current_time - epoch_info.start_time;
-            <b>let</b> residual_interval = epoch_info.expected_epoch_duration - run_duration;
-
-            <b>let</b> task_fee = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(
-                &arc,
-                &task,
-                residual_interval,
-                current_time,
-                automation_fee_per_sec
-            );
-            // Refund 50% of the remaining time fee + locked fee for next epoch
-            <b>let</b> epoch_fee_refund = (task_fee / 2);
+            <b>let</b> epoch_fee_refund = <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
+                <b>let</b> task_fee = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(
+                    &arc,
+                    &task,
+                    residual_interval,
+                    current_time,
+                    automation_fee_per_sec
+                );
+                // Refund <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a> of the remaining time fee
+                task_fee / <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>
+            } <b>else</b> {
+                0
+            };
 
             total_refund_fee = total_refund_fee + (epoch_fee_refund + task.locked_fee_for_next_epoch);
 
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(
-                &<b>mut</b> stopped_task_ids,
+                &<b>mut</b> stopped_task_details,
                 <a href="automation_registry.md#0x1_automation_registry_TaskStopped">TaskStopped</a> { task_index, deposit_refund: task.locked_fee_for_next_epoch, epoch_fee_refund }
             );
         }
     });
 
     // Refund and emit <a href="event.md#0x1_event">event</a> <b>if</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> tasks were stopped
-    <b>if</b> (!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&stopped_task_ids)) {
+    <b>if</b> (!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&stopped_task_details)) {
         <b>let</b> resource_signer = <a href="account.md#0x1_account_create_signer_with_capability">account::create_signer_with_capability</a>(
             &<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address_signer_cap
         );
 
+        <b>let</b> resource_account_balance = <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address);
+        <b>assert</b>!(resource_account_balance &gt;= total_refund_fee, <a href="automation_registry.md#0x1_automation_registry_EINSUFFICIENT_BALANCE_FOR_REFUND">EINSUFFICIENT_BALANCE_FOR_REFUND</a>);
         <a href="coin.md#0x1_coin_transfer">coin::transfer</a>&lt;SupraCoin&gt;(&resource_signer, owner, total_refund_fee);
 
         // Emit task stopped <a href="event.md#0x1_event">event</a>
         <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TasksStopped">TasksStopped</a> {
-            tasks: stopped_task_ids,
+            tasks: stopped_task_details,
             owner
         });
     };
