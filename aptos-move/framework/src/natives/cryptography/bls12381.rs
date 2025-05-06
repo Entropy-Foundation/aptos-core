@@ -27,7 +27,6 @@ use move_vm_types::{
 use rand_core::OsRng;
 use smallvec::{smallvec, SmallVec};
 use std::{collections::VecDeque, convert::TryFrom};
-use blst::blst_scalar;
 
 /// Pops a `Vec<T>` off the argument stack and converts it to a `Vec<Vec<u8>>` by reading the first
 /// field of `T`, which is a `Vec<u8>` field named `bytes`.

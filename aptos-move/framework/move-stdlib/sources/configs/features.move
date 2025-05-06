@@ -687,6 +687,19 @@ module std::features {
         is_enabled(SUPRA_ETH_TRIE)
     }
 
+    /// Whether the APIs related to the bls12381_bulletproofs feature are enabled.
+    ///
+    /// Lifetime: transient
+    const BLS12381_BULLETPROOFS: u64 = 90;
+
+    public fun get_supra_bls12381_bulletproofs_feature(): u64 {
+        BLS12381_BULLETPROOFS
+    }
+
+    public fun supra_bls12381_bulletproofs_enabled(): bool acquires Features {
+        is_enabled(BLS12381_BULLETPROOFS)
+    }
+
     // ============================================================================================
     // Feature Flag Implementation
 

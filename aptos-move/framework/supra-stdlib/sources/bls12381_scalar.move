@@ -1,4 +1,4 @@
-module supra_framework::bls12381_scalar {
+module supra_std::bls12381_scalar {
 
     #[test_only]
     use std::vector;

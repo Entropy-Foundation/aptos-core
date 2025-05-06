@@ -133,6 +133,8 @@ return true.
 -  [Function `supra_native_automation_enabled`](#0x1_features_supra_native_automation_enabled)
 -  [Function `get_supra_eth_trie_feature`](#0x1_features_get_supra_eth_trie_feature)
 -  [Function `supra_eth_trie_enabled`](#0x1_features_supra_eth_trie_enabled)
+-  [Function `get_supra_bls12381_bulletproofs_feature`](#0x1_features_get_supra_bls12381_bulletproofs_feature)
+-  [Function `supra_bls12381_bulletproofs_enabled`](#0x1_features_supra_bls12381_bulletproofs_enabled)
 -  [Function `change_feature_flags`](#0x1_features_change_feature_flags)
 -  [Function `change_feature_flags_internal`](#0x1_features_change_feature_flags_internal)
 -  [Function `change_feature_flags_for_next_epoch`](#0x1_features_change_feature_flags_for_next_epoch)
@@ -281,6 +283,18 @@ Lifetime: transient
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_BLAKE2B_256_NATIVE">BLAKE2B_256_NATIVE</a>: u64 = 8;
+</code></pre>
+
+
+
+<a id="0x1_features_BLS12381_BULLETPROOFS"></a>
+
+Whether the APIs related to the bls12381_bulletproofs feature are enabled.
+
+Lifetime: transient
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_BLS12381_BULLETPROOFS">BLS12381_BULLETPROOFS</a>: u64 = 90;
 </code></pre>
 
 
@@ -3351,6 +3365,54 @@ Lifetime: transient
 
 <pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_eth_trie_enabled">supra_eth_trie_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
     <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_ETH_TRIE">SUPRA_ETH_TRIE</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_get_supra_bls12381_bulletproofs_feature"></a>
+
+## Function `get_supra_bls12381_bulletproofs_feature`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_bls12381_bulletproofs_feature">get_supra_bls12381_bulletproofs_feature</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_bls12381_bulletproofs_feature">get_supra_bls12381_bulletproofs_feature</a>(): u64 {
+    <a href="features.md#0x1_features_BLS12381_BULLETPROOFS">BLS12381_BULLETPROOFS</a>
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_supra_bls12381_bulletproofs_enabled"></a>
+
+## Function `supra_bls12381_bulletproofs_enabled`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_bls12381_bulletproofs_enabled">supra_bls12381_bulletproofs_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_bls12381_bulletproofs_enabled">supra_bls12381_bulletproofs_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_BLS12381_BULLETPROOFS">BLS12381_BULLETPROOFS</a>)
 }
 </code></pre>
 

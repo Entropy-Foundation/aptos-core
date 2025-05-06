@@ -1,3 +1,5 @@
+// Copyright (c) 2024 Supra.
+
 use std::collections::VecDeque;
 use smallvec::{smallvec, SmallVec};
 use blst::blst_scalar;

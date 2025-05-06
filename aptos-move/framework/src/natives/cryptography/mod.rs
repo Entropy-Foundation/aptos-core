@@ -13,3 +13,4 @@ pub mod ristretto255_scalar;
 pub mod secp256k1;
 pub mod eth_trie;
 pub mod bls12381_scalar;
+pub mod bls12381_bulletproofs;
