@@ -9,6 +9,8 @@ use move_core_types::gas_algebra::{NumBytes};
 use move_vm_runtime::native_functions::NativeFunction;
 use move_vm_types::loaded_data::runtime_types::Type;
 use move_vm_types::values::Value;
+use blsttc::Fr;
+use blsttc::group::ff::Field;
 
 /// Native function for computing hash to scalar for BLS12-381.
 ///
@@ -34,12 +36,20 @@ pub fn native_hash_to_scalar(
 
     context.charge(cost)?;
 
-    let result = match blst_scalar::hash_to(&dst, &msg) {
-        Some(scalar) => smallvec![Value::vector_u8(scalar.b.to_vec())],
-        None =>  smallvec![Value::vector_u8(vec![])],
-    };
+    let scalar_fr: Fr;
+    if let Some(scalar) = blst_scalar::hash_to(&msg, &dst){
+        if let Ok(fr_scalar) = scalar.try_into(){
+            scalar_fr = fr_scalar;
+        }
+        else {
+            scalar_fr = Fr::zero();
+        }
+    }
+    else {
+        scalar_fr = Fr::zero();
+    }
 
-    Ok(result)
+    Ok(smallvec![Value::vector_u8(scalar_fr.to_bytes_le())])
 }
 
 pub fn make_all(

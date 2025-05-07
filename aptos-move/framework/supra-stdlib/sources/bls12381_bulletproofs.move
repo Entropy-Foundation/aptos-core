@@ -7,7 +7,7 @@ module supra_std::bls12381_bulletproofs {
     #[test_only]
     use std::option;
     #[test_only]
-    use aptos_std::bls12381_algebra::{Fr, FormatFrLsb, FormatFrMsb};
+    use aptos_std::bls12381_algebra::{Fr, FormatFrLsb};
     #[test_only]
     use aptos_std::crypto_algebra::{deserialize, eq};
     #[test_only]
@@ -140,7 +140,7 @@ module supra_std::bls12381_bulletproofs {
     #[test(fx = @supra_framework)]
     #[expected_failure(abort_code = 0x010003, location = Self)]
     fun test_unsupported_ranges(fx: signer) {
-        features::change_feature_flags_for_testing(&fx, vector[ features::get_bulletproofs_feature() ], vector[]);
+        features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
 
         let comm = deserialize<G1, FormatG1Compr>(&A_COMM);
         let comm = std::option::extract(&mut comm);
@@ -154,11 +154,11 @@ module supra_std::bls12381_bulletproofs {
     #[test(fx = @supra_framework)]
     #[expected_failure(abort_code = 0x010001, location = Self)]
     fun test_empty_range_proof(fx: signer) {
-        features::change_feature_flags_for_testing(&fx, vector[ features::get_bulletproofs_feature() ], vector[]);
+        features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
 
         let proof = &range_proof_from_bytes(vector[ ]);
         let num_bits = 64;
-        let r = deserialize<Fr, FormatFrMsb>(&bls12381_hash_to_scalar(vector[], b"hello random world"));
+        let r =  bls12381_hash_to_scalar(vector[], b"hello random world");
         let r = option::extract(&mut r);
 
         let com = bls12381_pedersen::new_commitment_for_bulletproof(
@@ -172,7 +172,7 @@ module supra_std::bls12381_bulletproofs {
 
     #[test(fx = @supra_framework)]
     fun test_valid_range_proof_verifies_against_comm(fx: signer) {
-        features::change_feature_flags_for_testing(&fx, vector[ features::get_bulletproofs_feature() ], vector[]);
+        features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
 
         let value = deserialize<Fr, FormatFrLsb>(&A_VALUE);
         let value = std::option::extract(&mut value);
