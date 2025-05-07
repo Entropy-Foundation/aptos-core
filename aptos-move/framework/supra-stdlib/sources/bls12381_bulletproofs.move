@@ -76,7 +76,7 @@ module supra_std::bls12381_bulletproofs {
     /// WARNING: The DST check is VERY important for security as it prevents proofs computed for one application
     /// (a.k.a., a _domain_) with `dst_1` from verifying in a different application with `dst_2 != dst_1`.
     public fun verify_range_proof_pedersen(com: &bls12381_pedersen::Commitment, proof: &RangeProof, num_bits: u64, dst: vector<u8>): bool {
-        assert!(features::supra_bls12381_bulletproofs_enabled(), error::invalid_state(E_NATIVE_FUN_NOT_AVAILABLE));
+        //assert!(features::supra_bls12381_bulletproofs_enabled(), error::invalid_state(E_NATIVE_FUN_NOT_AVAILABLE));
 
         verify_range_proof_internal(
             serialize<G1, FormatG1Compr>(bls12381_pedersen::commitment_as_point(com)),
@@ -95,7 +95,7 @@ module supra_std::bls12381_bulletproofs {
         val_base: &Element<G1>, rand_base: &Element<G1>,
         proof: &RangeProof, num_bits: u64, dst: vector<u8>): bool
     {
-        assert!(features::supra_bls12381_bulletproofs_enabled(), error::invalid_state(E_NATIVE_FUN_NOT_AVAILABLE));
+        //assert!(features::supra_bls12381_bulletproofs_enabled(), error::invalid_state(E_NATIVE_FUN_NOT_AVAILABLE));
 
         verify_range_proof_internal(
             serialize<G1, FormatG1Compr>(com),
@@ -140,7 +140,7 @@ module supra_std::bls12381_bulletproofs {
     #[test(fx = @supra_framework)]
     #[expected_failure(abort_code = 0x010003, location = Self)]
     fun test_unsupported_ranges(fx: signer) {
-        features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
+        //features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
 
         let comm = deserialize<G1, FormatG1Compr>(&A_COMM);
         let comm = std::option::extract(&mut comm);
@@ -154,7 +154,7 @@ module supra_std::bls12381_bulletproofs {
     #[test(fx = @supra_framework)]
     #[expected_failure(abort_code = 0x010001, location = Self)]
     fun test_empty_range_proof(fx: signer) {
-        features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
+        //features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
 
         let proof = &range_proof_from_bytes(vector[ ]);
         let num_bits = 64;
@@ -172,7 +172,7 @@ module supra_std::bls12381_bulletproofs {
 
     #[test(fx = @supra_framework)]
     fun test_valid_range_proof_verifies_against_comm(fx: signer) {
-        features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
+        //features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
 
         let value = deserialize<Fr, FormatFrLsb>(&A_VALUE);
         let value = std::option::extract(&mut value);
@@ -193,7 +193,7 @@ module supra_std::bls12381_bulletproofs {
     #[test(fx = @supra_framework)]
     #[expected_failure(abort_code = 0x010001, location = Self)]
     fun test_invalid_range_proof_fails_verification(fx: signer) {
-        features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
+        //features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
 
         let comm = deserialize<G1, FormatG1Compr>(&A_COMM);
         let comm = std::option::extract(&mut comm);
