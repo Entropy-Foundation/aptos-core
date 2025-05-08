@@ -1,6 +1,6 @@
 module supra_std::bls12381_bulletproofs {
-    use std::error;
-    use std::features;
+    //use std::error;
+    //use std::features;
     use aptos_std::bls12381_algebra::{G1, FormatG1Compr};
     use aptos_std::crypto_algebra::{Element, serialize, one};
     use supra_std::bls12381_pedersen;
@@ -137,9 +137,9 @@ module supra_std::bls12381_bulletproofs {
     #[test_only]
     const A_RANGE_PROOF_PEDERSEN: vector<u8> = x"aa76b5a2ea1bffb8f313ebf555040301086f2e77b3b358c994190ba8bf4a38da42f8990559f94bd33c36969c0109dfbf98ef172f88ede0e6c7249d9338b0e8c25ea0ed64112c5f6f71baf8ac7757293d10c11d4300bebae305ba7f45c6db3158843556de10893d5d1666199fd50d53d9d2edeabde9b7cffb91fe4642cb3a7200c511037bdb5205575ec2ae477035439fb508ee2174c2bdce6f204a2fd8b4fc46ba41b94d2a4af283f0e2cfd54301bf5ce44024c34bcf4c6100509d161d4bf56b467e30b2daf356640921d4a483a98104cae587eac88b8c667b0120e8307721556a97a75db6f60fe64170688689190f8cec4a67f6138145237c7d5d950668593a3f389c7d649dc85221aa2de574116dc8d5c845265853cae1d64be5ca08034e1fb6368e5463ef0611bb0b56d06e0abedd016c09c918080fb8264d56b80f75e727415ebfca9e6b55f3ab6c1ee901a331eb91efef2b48004891a2473acf887e34330eb0400ff4022ca0ebb6b7c57a4e4f9524285b9dcc2e16f5e575cab68f021b1c8b7f2f2c599df9d29e4f21e72f85f23574c0ee5ff266267bdd3b207003e1ea09a53e6225c1409b0cee9ef1c7291be170b20c7ec4e151d820e288d041d32185bb7245b24d4ae42f72b86cad7f9a0f1021b7dd7274d65a1916fa99b2deb17e0712947f67f7cbe657bed740f5a5b6b8b7cb978e09cb9fbeb2f7268bd635d809068b6814d2877a57f7ce08eb737bfeb3bb7281cddb9c05d02e0e1139d23af7bdbd74687a94cbbe1c702a7bf08279ac9324f3306174a666e0630480e5c2e462daba6c943a6cc14961e96186cc53e1ebf6ec8ce831dbd6113dfc25f9877d3ce9d7a832359968d96f63074768694bd12a80b6fcad9004ead5303dc4d1efae2e9a1d5375b5c02ad6151419f2c51f3d62b1c47869b8f0ba7e41b7ef452c359af727410fb1aea510d379ca5031d4c2784e241da7a5077f96c62a12ce039c13ea2c85fece58695b6f6a4cbef19bacc710e529af263fa7970daf887d31c7cc389181711777dbe9c199c6812e171dab9b06127fa6df16a40285b25e1c876f5183e6efc93e23c13ae7a767e8ca5226b89e6b5e0bd7d8a9ab5b4d0fd7a3374ce58266ef1beae455a98454f73e3816586843bea84314985afbcf71dabe9b0e4397fd8fbedd973c66";
 
-    #[test(fx = @supra_framework)]
+    #[test(_fx = @supra_framework)]
     #[expected_failure(abort_code = 0x010003, location = Self)]
-    fun test_unsupported_ranges(fx: signer) {
+    fun test_unsupported_ranges(_fx: signer) {
         //features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
 
         let comm = deserialize<G1, FormatG1Compr>(&A_COMM);
@@ -151,9 +151,9 @@ module supra_std::bls12381_bulletproofs {
             &range_proof_from_bytes(A_RANGE_PROOF_PEDERSEN), 10, A_DST), 1);
     }
 
-    #[test(fx = @supra_framework)]
+    #[test(_fx = @supra_framework)]
     #[expected_failure(abort_code = 0x010001, location = Self)]
-    fun test_empty_range_proof(fx: signer) {
+    fun test_empty_range_proof(_fx: signer) {
         //features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
 
         let proof = &range_proof_from_bytes(vector[ ]);
@@ -170,8 +170,8 @@ module supra_std::bls12381_bulletproofs {
         verify_range_proof_pedersen(&com, proof, num_bits, A_DST);
     }
 
-    #[test(fx = @supra_framework)]
-    fun test_valid_range_proof_verifies_against_comm(fx: signer) {
+    #[test(_fx = @supra_framework)]
+    fun test_valid_range_proof_verifies_against_comm(_fx: signer) {
         //features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
 
         let value = deserialize<Fr, FormatFrLsb>(&A_VALUE);
@@ -190,9 +190,9 @@ module supra_std::bls12381_bulletproofs {
             &range_proof_from_bytes(A_RANGE_PROOF_PEDERSEN), MAX_RANGE_BITS, A_DST), 1);
     }
 
-    #[test(fx = @supra_framework)]
+    #[test(_fx = @supra_framework)]
     #[expected_failure(abort_code = 0x010001, location = Self)]
-    fun test_invalid_range_proof_fails_verification(fx: signer) {
+    fun test_invalid_range_proof_fails_verification(_fx: signer) {
         //features::change_feature_flags_for_testing(&fx, vector[ features::get_supra_bls12381_bulletproofs_feature() ], vector[]);
 
         let comm = deserialize<G1, FormatG1Compr>(&A_COMM);

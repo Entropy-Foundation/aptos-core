@@ -18,8 +18,6 @@
 <pre><code><b>use</b> <a href="../../aptos-stdlib/doc/bls12381_algebra.md#0x1_bls12381_algebra">0x1::bls12381_algebra</a>;
 <b>use</b> <a href="bls12381_pedersen.md#0x1_bls12381_pedersen">0x1::bls12381_pedersen</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/crypto_algebra.md#0x1_crypto_algebra">0x1::crypto_algebra</a>;
-<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
-<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
 </code></pre>
 
 
@@ -209,7 +207,7 @@ WARNING: The DST check is VERY important for security as it prevents proofs comp
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="bls12381_bulletproofs.md#0x1_bls12381_bulletproofs_verify_range_proof_pedersen">verify_range_proof_pedersen</a>(com: &<a href="bls12381_pedersen.md#0x1_bls12381_pedersen_Commitment">bls12381_pedersen::Commitment</a>, proof: &<a href="bls12381_bulletproofs.md#0x1_bls12381_bulletproofs_RangeProof">RangeProof</a>, num_bits: u64, dst: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): bool {
-    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_bls12381_bulletproofs_enabled">features::supra_bls12381_bulletproofs_enabled</a>(), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="bls12381_bulletproofs.md#0x1_bls12381_bulletproofs_E_NATIVE_FUN_NOT_AVAILABLE">E_NATIVE_FUN_NOT_AVAILABLE</a>));
+    //<b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_bls12381_bulletproofs_enabled">features::supra_bls12381_bulletproofs_enabled</a>(), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="bls12381_bulletproofs.md#0x1_bls12381_bulletproofs_E_NATIVE_FUN_NOT_AVAILABLE">E_NATIVE_FUN_NOT_AVAILABLE</a>));
 
     <a href="bls12381_bulletproofs.md#0x1_bls12381_bulletproofs_verify_range_proof_internal">verify_range_proof_internal</a>(
         serialize&lt;G1, FormatG1Compr&gt;(<a href="bls12381_pedersen.md#0x1_bls12381_pedersen_commitment_as_point">bls12381_pedersen::commitment_as_point</a>(com)),
@@ -248,7 +246,7 @@ for some randomness <code>r</code>) satisfies <code>v</code> in <code>[0, 2^num_
     val_base: &Element&lt;G1&gt;, rand_base: &Element&lt;G1&gt;,
     proof: &<a href="bls12381_bulletproofs.md#0x1_bls12381_bulletproofs_RangeProof">RangeProof</a>, num_bits: u64, dst: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): bool
 {
-    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_bls12381_bulletproofs_enabled">features::supra_bls12381_bulletproofs_enabled</a>(), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="bls12381_bulletproofs.md#0x1_bls12381_bulletproofs_E_NATIVE_FUN_NOT_AVAILABLE">E_NATIVE_FUN_NOT_AVAILABLE</a>));
+    //<b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_bls12381_bulletproofs_enabled">features::supra_bls12381_bulletproofs_enabled</a>(), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="bls12381_bulletproofs.md#0x1_bls12381_bulletproofs_E_NATIVE_FUN_NOT_AVAILABLE">E_NATIVE_FUN_NOT_AVAILABLE</a>));
 
     <a href="bls12381_bulletproofs.md#0x1_bls12381_bulletproofs_verify_range_proof_internal">verify_range_proof_internal</a>(
         serialize&lt;G1, FormatG1Compr&gt;(com),
