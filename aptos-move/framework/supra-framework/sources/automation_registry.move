@@ -275,7 +275,7 @@ module supra_framework::automation_registry {
     struct ErrorUnlockTaskDepositFee has drop, store {
         task_index: u64,
         total_registered_deposit: u64,
-        potential_locked_deposit: u64
+        locked_deposit: u64
     }
 
     #[event]
@@ -336,8 +336,8 @@ module supra_framework::automation_registry {
     }
 
     #[event]
-    /// Event emitted when on new epoch refunds to be paied is not possible due to insufficient resource account balance.
-    /// Type of the refund can be either depoit payed during registration (0), or caused by the shortenting of the epoch (1)
+    /// Event emitted when on new epoch refunds to be paid is not possible due to insufficient resource account balance.
+    /// Type of the refund can be either deposit paid during registration (0), or caused by the shortening of the epoch (1)
     struct ErrorInsufficientBalanceToRefund has drop, store {
         refund_type: u8,
         task_index: u64,
@@ -392,8 +392,7 @@ module supra_framework::automation_registry {
             epoch_locked_fees,
 
         } = value;
-        coin::deposit(automation_registry.registry_fee_address, coin::extract_all(&mut epoch_locked_fees));
-        coin::destroy_zero(epoch_locked_fees)
+        coin::deposit(automation_registry.registry_fee_address, epoch_locked_fees);
     }
 
     #[view]
@@ -440,7 +439,7 @@ module supra_framework::automation_registry {
 
     #[view]
     /// Get locked balance of the resource account in terms of deposited automation fees.
-    public fun get_locked_deposite_balance(): u64 acquires AutomationRefundBookkeeping {
+    public fun get_locked_deposit_balance(): u64 acquires AutomationRefundBookkeeping {
         let refund_bookkeeping = borrow_global<AutomationRefundBookkeeping>(@supra_framework);
         refund_bookkeeping.total_deposited_automation_fee
     }
@@ -448,7 +447,7 @@ module supra_framework::automation_registry {
     #[view]
     /// Get total locked balance of the resource account.
     public fun get_registry_total_locked_balance(): u64 acquires AutomationRefundBookkeeping, AutomationRegistry {
-        get_epoch_locked_balance() + get_locked_deposite_balance()
+        get_epoch_locked_balance() + get_locked_deposit_balance()
     }
 
     #[view]
@@ -1018,8 +1017,8 @@ module supra_framework::automation_registry {
         (tcmg, removed_tasks)
     }
 
-    fun safe_refund(resource_signer: &signer, resouce_address: address, task_index: u64, task_owner: address, refundable_amount: u64, refund_type: u8):  bool {
-        let balance = coin::balance<SupraCoin>(resouce_address);
+    fun safe_refund(resource_signer: &signer, resource_address: address, task_index: u64, task_owner: address, refundable_amount: u64, refund_type: u8):  bool {
+        let balance = coin::balance<SupraCoin>(resource_address);
         if (balance < refundable_amount) {
             event::emit(
                 ErrorInsufficientBalanceToRefund { refund_type, task_index, owner: task_owner, amount: refundable_amount }
@@ -1033,10 +1032,10 @@ module supra_framework::automation_registry {
 
     fun safe_deposit_refund(rb: &mut AutomationRefundBookkeeping, resource_signer: &signer, resouce_address: address, task_index: u64, task_owner: address, refundable_deposit: u64, locked_deposit: u64):  bool {
         let result = safe_refund(resource_signer, resouce_address, task_index, task_owner, refundable_deposit, DEPOSIT_EPOCH_FEE);
-        event::emit(
-            TaskDepositFeeRefund { task_index, owner: task_owner, amount: refundable_deposit }
-        );
         if (result) {
+            event::emit(
+                TaskDepositFeeRefund { task_index, owner: task_owner, amount: refundable_deposit }
+            );
             safe_unlock_locked_deposit(rb, locked_deposit, task_index)
         };
         result
@@ -1047,7 +1046,7 @@ module supra_framework::automation_registry {
             rb.total_deposited_automation_fee = rb.total_deposited_automation_fee - locked_deposit;
         } else {
             event::emit(
-                ErrorUnlockTaskDepositFee { total_registered_deposit: rb.total_deposited_automation_fee, potential_locked_deposit: locked_deposit, task_index }
+                ErrorUnlockTaskDepositFee { total_registered_deposit: rb.total_deposited_automation_fee, locked_deposit, task_index }
             );
         }
 
@@ -1055,9 +1054,11 @@ module supra_framework::automation_registry {
 
     fun safe_fee_refund(resource_signer: &signer, resouce_address: address, task_index: u64, task_owner: address, refundable_fee: u64):  bool {
         let result = safe_refund(resource_signer, resouce_address, task_index, task_owner, refundable_fee, EPOCH_FEE);
-        event::emit(
-            TaskFeeRefund { task_index, owner: task_owner, amount: refundable_fee }
-        );
+        if (result) {
+            event::emit(
+                TaskFeeRefund { task_index, owner: task_owner, amount: refundable_fee }
+            );
+        };
         result
     }
 
@@ -1070,7 +1071,6 @@ module supra_framework::automation_registry {
         vector::for_each(ids, |task_index| {
             let task = enumerable_map::get_value_ref(&automation_registry.tasks, task_index);
 
-            // Drop or activate task for this current epoch.
             safe_deposit_refund(
                 refund_bookkeeping,
                 &resource_signer,
@@ -1619,7 +1619,7 @@ module supra_framework::automation_registry {
         automation_registry.gas_committed_for_next_epoch = committed_gas;
         let task_index = automation_registry.current_index;
 
-        let deposit_automtion_fee = automation_fee_cap_for_epoch;
+        let deposit_automation_fee = automation_fee_cap_for_epoch;
         let automation_task_metadata = AutomationTaskMetaData {
             task_index,
             owner,
@@ -1632,17 +1632,17 @@ module supra_framework::automation_registry {
             state: PENDING,
             registration_time,
             tx_hash,
-            locked_fee_for_next_epoch: deposit_automtion_fee
+            locked_fee_for_next_epoch: deposit_automation_fee
         };
 
         enumerable_map::add_value(&mut automation_registry.tasks, task_index, automation_task_metadata);
         automation_registry.current_index = automation_registry.current_index + 1;
 
         // Charge flat registration fee from the user at the time of registration and deposit for automation_fee for epoch.
-        let fee = automation_registry_config.main_config.flat_registration_fee_in_quants + deposit_automtion_fee;
+        let fee = automation_registry_config.main_config.flat_registration_fee_in_quants + deposit_automation_fee;
 
         let refund_bookkeeping = borrow_global_mut<AutomationRefundBookkeeping>(@supra_framework);
-        refund_bookkeeping.total_deposited_automation_fee = refund_bookkeeping.total_deposited_automation_fee + deposit_automtion_fee;
+        refund_bookkeeping.total_deposited_automation_fee = refund_bookkeeping.total_deposited_automation_fee + deposit_automation_fee;
 
         coin::transfer<SupraCoin>(owner_signer, automation_registry.registry_fee_address, fee);
 
@@ -1650,7 +1650,7 @@ module supra_framework::automation_registry {
             task_index,
             owner,
             registration_fee: automation_registry_config.main_config.flat_registration_fee_in_quants ,
-            deposit_epoch_fee: deposit_automtion_fee
+            deposit_epoch_fee: deposit_automation_fee
         });
         event::emit(automation_task_metadata);
     }
