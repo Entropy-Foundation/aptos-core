@@ -1171,7 +1171,7 @@ module supra_framework::automation_registry {
         let epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
         // This check means the task was expected to be executed in the next epoch, but it has been cancelled.
         // We need to remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
-        if (automation_task_metadata.expiry_time > (epoch_info.start_time + epoch_info.epoch_interval)) {
+        if (automation_task_metadata.expiry_time > (epoch_info.start_time + epoch_info.expected_epoch_duration)) {
             assert!(
                 automation_registry.gas_committed_for_next_epoch >= automation_task_metadata.max_gas_amount,
                 EGAS_COMMITTEED_VALUE_UNDERFLOW
@@ -1238,7 +1238,7 @@ module supra_framework::automation_registry {
                 // This check means the task was expected to be executed in the next epoch, but it has been stopped.
                 // We need to remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
                 // Also it checks that task should not be cancelled.
-                if (task.state != CANCELLED && task.expiry_time > (epoch_info.start_time + epoch_info.epoch_interval)) {
+                if (task.state != CANCELLED && task.expiry_time > (epoch_info.start_time + epoch_info.expected_epoch_duration)) {
                     // Prevent underflow in gas committed
                     assert!(
                         automation_registry.gas_committed_for_next_epoch >= task.max_gas_amount,
@@ -1263,11 +1263,12 @@ module supra_framework::automation_registry {
                     0
                 };
 
-                total_refund_fee = total_refund_fee + (epoch_fee_refund + task.locked_fee_for_next_epoch);
+                let deposit_refund = task.locked_fee_for_next_epoch / REFUND_FRACTION;
+                total_refund_fee = total_refund_fee + (epoch_fee_refund + deposit_refund);
 
                 vector::push_back(
                     &mut stopped_task_details,
-                    TaskStopped { task_index, deposit_refund: task.locked_fee_for_next_epoch, epoch_fee_refund }
+                    TaskStopped { task_index, deposit_refund, epoch_fee_refund }
                 );
             }
         });

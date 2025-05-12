@@ -3064,7 +3064,7 @@ Committed gas-limit is updated by reducing it with the max-gas-amount of the can
     <b>let</b> epoch_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
     // This check means the task was expected <b>to</b> be executed in the next epoch, but it <b>has</b> been cancelled.
     // We need <b>to</b> remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
-    <b>if</b> (automation_task_metadata.expiry_time &gt; (epoch_info.start_time + epoch_info.epoch_interval)) {
+    <b>if</b> (automation_task_metadata.expiry_time &gt; (epoch_info.start_time + epoch_info.expected_epoch_duration)) {
         <b>assert</b>!(
             <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &gt;= automation_task_metadata.max_gas_amount,
             <a href="automation_registry.md#0x1_automation_registry_EGAS_COMMITTEED_VALUE_UNDERFLOW">EGAS_COMMITTEED_VALUE_UNDERFLOW</a>
@@ -3151,7 +3151,7 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
             // This check means the task was expected <b>to</b> be executed in the next epoch, but it <b>has</b> been stopped.
             // We need <b>to</b> remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
             // Also it checks that task should not be cancelled.
-            <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a> && task.expiry_time &gt; (epoch_info.start_time + epoch_info.epoch_interval)) {
+            <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a> && task.expiry_time &gt; (epoch_info.start_time + epoch_info.expected_epoch_duration)) {
                 // Prevent underflow in gas committed
                 <b>assert</b>!(
                     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &gt;= task.max_gas_amount,
@@ -3176,11 +3176,12 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
                 0
             };
 
-            total_refund_fee = total_refund_fee + (epoch_fee_refund + task.locked_fee_for_next_epoch);
+            <b>let</b> deposit_refund = task.locked_fee_for_next_epoch / <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>;
+            total_refund_fee = total_refund_fee + (epoch_fee_refund + deposit_refund);
 
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(
                 &<b>mut</b> stopped_task_details,
-                <a href="automation_registry.md#0x1_automation_registry_TaskStopped">TaskStopped</a> { task_index, deposit_refund: task.locked_fee_for_next_epoch, epoch_fee_refund }
+                <a href="automation_registry.md#0x1_automation_registry_TaskStopped">TaskStopped</a> { task_index, deposit_refund, epoch_fee_refund }
             );
         }
     });
