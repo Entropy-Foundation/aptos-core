@@ -1249,7 +1249,7 @@ module supra_framework::automation_registry {
                     automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - task.max_gas_amount;
                 };
 
-                let epoch_fee_refund = if (task.state != PENDING) {
+                let (epoch_fee_refund, deposit_refund) = if (task.state != PENDING) {
                     let task_fee = calculate_task_fee(
                         &arc,
                         &task,
@@ -1257,13 +1257,12 @@ module supra_framework::automation_registry {
                         current_time,
                         automation_fee_per_sec
                     );
-                    // Refund REFUND_FRACTION of the remaining time fee
-                    task_fee / REFUND_FRACTION
+                    // Refund full deposit and the half of the remaining run-time fee when task is active or cancelled stage
+                    (task_fee / REFUND_FRACTION, task.locked_fee_for_next_epoch)
                 } else {
-                    0
+                    (0, (task.locked_fee_for_next_epoch / REFUND_FRACTION))
                 };
 
-                let deposit_refund = task.locked_fee_for_next_epoch / REFUND_FRACTION;
                 total_refund_fee = total_refund_fee + (epoch_fee_refund + deposit_refund);
 
                 vector::push_back(

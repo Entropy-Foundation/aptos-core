@@ -3162,7 +3162,7 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
                 <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch - task.max_gas_amount;
             };
 
-            <b>let</b> epoch_fee_refund = <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
+            <b>let</b> (epoch_fee_refund, deposit_refund) = <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
                 <b>let</b> task_fee = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(
                     &arc,
                     &task,
@@ -3170,13 +3170,12 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
                     current_time,
                     automation_fee_per_sec
                 );
-                // Refund <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a> of the remaining time fee
-                task_fee / <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>
+                // Refund full deposit and the half of the remaining run-time fee when task is active or cancelled stage
+                (task_fee / <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>, task.locked_fee_for_next_epoch)
             } <b>else</b> {
-                0
+                (0, (task.locked_fee_for_next_epoch / <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>))
             };
 
-            <b>let</b> deposit_refund = task.locked_fee_for_next_epoch / <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>;
             total_refund_fee = total_refund_fee + (epoch_fee_refund + deposit_refund);
 
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(
