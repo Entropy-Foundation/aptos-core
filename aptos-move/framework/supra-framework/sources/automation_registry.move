@@ -1042,7 +1042,7 @@ module supra_framework::automation_registry {
     }
 
     fun safe_unlock_locked_deposit(rb: &mut AutomationRefundBookkeeping, locked_deposit: u64, task_index: u64) {
-        if (rb.total_deposited_automation_fee > locked_deposit) {
+        if (rb.total_deposited_automation_fee >= locked_deposit) {
             rb.total_deposited_automation_fee = rb.total_deposited_automation_fee - locked_deposit;
         } else {
             event::emit(
@@ -1737,7 +1737,7 @@ module supra_framework::automation_registry {
     public entry fun stop_tasks(
         owner_signer: &signer,
         task_indexes: vector<u64>
-    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationEpochInfo {
+    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationEpochInfo, AutomationRefundBookkeeping {
         // Ensure that task indexes are provided
         assert!(!vector::is_empty(&task_indexes), EEMPTY_TASK_INDEXES);
 
@@ -1745,6 +1745,7 @@ module supra_framework::automation_registry {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let arc = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework).main_config;
         let epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
+        let refund_bookkeeping = borrow_global_mut<AutomationRefundBookkeeping>(@supra_framework);
 
         let tcmg = automation_registry.gas_committed_for_this_epoch;
 
@@ -1808,6 +1809,7 @@ module supra_framework::automation_registry {
                 } else {
                     (0, (task.locked_fee_for_next_epoch / REFUND_FRACTION))
                 };
+                safe_unlock_locked_deposit(refund_bookkeeping, task.locked_fee_for_next_epoch, task.task_index);
 
                 total_refund_fee = total_refund_fee + (epoch_fee_refund + deposit_refund);
 
@@ -3576,7 +3578,7 @@ module supra_framework::automation_registry {
     fun check_task_successful_stopped(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, ToggleNewEpoch {
         initialize_registry_test(framework, user);
 
         register(user,
@@ -3734,7 +3736,7 @@ module supra_framework::automation_registry {
     fun check_stopping_of_stopped_task(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, ToggleNewEpoch {
         initialize_registry_test(framework, user);
 
         register(user,
@@ -3759,7 +3761,7 @@ module supra_framework::automation_registry {
     fun check_stopping_of_cancelled_task(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig , AutomationRefundBookkeeping{
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, ToggleNewEpoch {
         initialize_registry_test(framework, user);
 
         register(user,
