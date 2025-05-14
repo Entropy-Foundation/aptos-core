@@ -13,6 +13,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Resource `AutomationRegistry`](#0x1_automation_registry_AutomationRegistry)
 -  [Resource `AutomationEpochInfo`](#0x1_automation_registry_AutomationEpochInfo)
 -  [Resource `AutomationRefundBookkeeping`](#0x1_automation_registry_AutomationRefundBookkeeping)
+-  [Resource `ToggleNewEpoch`](#0x1_automation_registry_ToggleNewEpoch)
 -  [Resource `AutomationTaskMetaData`](#0x1_automation_registry_AutomationTaskMetaData)
 -  [Struct `TaskRegistrationFeeWithdraw`](#0x1_automation_registry_TaskRegistrationFeeWithdraw)
 -  [Struct `TaskRegistrationDepositFeeWithdraw`](#0x1_automation_registry_TaskRegistrationDepositFeeWithdraw)
@@ -64,6 +65,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `initialize`](#0x1_automation_registry_initialize)
 -  [Function `initialize_refund_bookkeeping_resource`](#0x1_automation_registry_initialize_refund_bookkeeping_resource)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
+-  [Function `on_new_epoch_old`](#0x1_automation_registry_on_new_epoch_old)
 -  [Function `adjust_tasks_epoch_fee_refund`](#0x1_automation_registry_adjust_tasks_epoch_fee_refund)
 -  [Function `refund_tasks_fee`](#0x1_automation_registry_refund_tasks_fee)
 -  [Function `cleanup_and_activate_tasks`](#0x1_automation_registry_cleanup_and_activate_tasks)
@@ -88,6 +90,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `withdraw_automation_task_fees`](#0x1_automation_registry_withdraw_automation_task_fees)
 -  [Function `transfer_fee_to_account_internal`](#0x1_automation_registry_transfer_fee_to_account_internal)
 -  [Function `update_config`](#0x1_automation_registry_update_config)
+-  [Function `toggle_new_epoch`](#0x1_automation_registry_toggle_new_epoch)
 -  [Function `enable_registration`](#0x1_automation_registry_enable_registration)
 -  [Function `disable_registration`](#0x1_automation_registry_disable_registration)
 -  [Function `register`](#0x1_automation_registry_register)
@@ -378,6 +381,34 @@ Automation Deposited fee bookkeeping configs
 <dd>
  Total deposited fee so far which is locked in resource account unless refund of it (fully or partially) is done.
  Independent of refund amount the actual deposited amount is deduced to unlock it from resource account.
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_automation_registry_ToggleNewEpoch"></a>
+
+## Resource `ToggleNewEpoch`
+
+
+
+<pre><code>#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_ToggleNewEpoch">ToggleNewEpoch</a> <b>has</b> <b>copy</b>, key
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>optimized: bool</code>
+</dt>
+<dd>
+
 </dd>
 </dl>
 
@@ -1789,6 +1820,8 @@ Checks whether all required resources are created.
     <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework)
         && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework)
         && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework)
+        && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework)
+    && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ToggleNewEpoch">ToggleNewEpoch</a>&gt;(@supra_framework)
 }
 </code></pre>
 
@@ -2509,6 +2542,9 @@ Initialization of Automation Registry with configuration parameters is expected 
         epoch_interval: epoch_interval_secs,
         start_time: 0,
     });
+    <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_ToggleNewEpoch">ToggleNewEpoch</a> {
+        optimized: <b>false</b>,
+    });
 
     <a href="automation_registry.md#0x1_automation_registry_initialize_refund_bookkeeping_resource">initialize_refund_bookkeeping_resource</a>(supra_framework)
 }
@@ -2548,7 +2584,6 @@ Initialization of Automation Registry with configuration parameters is expected 
 
 ## Function `on_new_epoch`
 
-On new epoch this function will be triggered and update the automation registry state
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>()
@@ -2560,7 +2595,38 @@ On new epoch this function will be triggered and update the automation registry 
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> , <a href="automation_registry.md#0x1_automation_registry_ToggleNewEpoch">ToggleNewEpoch</a>{
+    <b>let</b> toggle_epoch_change = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ToggleNewEpoch">ToggleNewEpoch</a>&gt;(@supra_framework);
+    <b>if</b> (toggle_epoch_change.optimized) {
+        <a href="automation_registry.md#0x1_automation_registry_on_new_epoch_2">on_new_epoch_2</a>()
+    } <b>else</b> {
+        <a href="automation_registry.md#0x1_automation_registry_on_new_epoch_old">on_new_epoch_old</a>()
+    }
+
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_on_new_epoch_old"></a>
+
+## Function `on_new_epoch_old`
+
+On new epoch this function will be triggered and update the automation registry state
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch_old">on_new_epoch_old</a>()
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch_old">on_new_epoch_old</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
     // Unless registry in initialized, registry will not be updated on new epoch.
     // Here we need <b>to</b> be careful <b>as</b> well. If the feature is disabled for the current epoch then
     //  - refund for the previous epoch should be done <b>if</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> charges <b>has</b> been done.
@@ -3910,6 +3976,33 @@ Update Automation Registry Config
     automation_registry_config.next_epoch_registry_max_gas_cap = registry_max_gas_cap;
 
     <a href="event.md#0x1_event_emit">event::emit</a>(new_automation_registry_config);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_toggle_new_epoch"></a>
+
+## Function `toggle_new_epoch`
+
+Enables the registration process in the automation registry.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_toggle_new_epoch">toggle_new_epoch</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, flag: bool)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_toggle_new_epoch">toggle_new_epoch</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, flag: bool) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ToggleNewEpoch">ToggleNewEpoch</a> {
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
+    <b>let</b> toggle_new_epoch = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ToggleNewEpoch">ToggleNewEpoch</a>&gt;(@supra_framework);
+    toggle_new_epoch.optimized = flag;
 }
 </code></pre>
 

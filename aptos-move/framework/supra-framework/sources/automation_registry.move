@@ -189,6 +189,11 @@ module supra_framework::automation_registry {
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
+    struct ToggleNewEpoch has key, copy {
+        optimized: bool
+    }
+
+    #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     #[event]
     /// `AutomationTaskMetaData` represents a single automation task item, containing metadata.
     struct AutomationTaskMetaData has key, copy, store, drop {
@@ -401,6 +406,8 @@ module supra_framework::automation_registry {
         exists<AutomationRegistry>(@supra_framework)
             && exists<AutomationEpochInfo>(@supra_framework)
             && exists<ActiveAutomationRegistryConfig>(@supra_framework)
+            && exists<AutomationRefundBookkeeping>(@supra_framework)
+        && exists<ToggleNewEpoch>(@supra_framework)
     }
 
     #[view]
@@ -661,6 +668,9 @@ module supra_framework::automation_registry {
             epoch_interval: epoch_interval_secs,
             start_time: 0,
         });
+        move_to(supra_framework, ToggleNewEpoch {
+            optimized: false,
+        });
 
         initialize_refund_bookkeeping_resource(supra_framework)
     }
@@ -671,8 +681,17 @@ module supra_framework::automation_registry {
         });
     }
 
+    public(friend) fun on_new_epoch() acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping , ToggleNewEpoch{
+        let toggle_epoch_change = borrow_global<ToggleNewEpoch>(@supra_framework);
+        if (toggle_epoch_change.optimized) {
+            on_new_epoch_2()
+        } else {
+            on_new_epoch_old()
+        }
+
+    }
     /// On new epoch this function will be triggered and update the automation registry state
-    public(friend) fun on_new_epoch() acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    public(friend) fun on_new_epoch_old() acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
         // Unless registry in initialized, registry will not be updated on new epoch.
         // Here we need to be careful as well. If the feature is disabled for the current epoch then
         //  - refund for the previous epoch should be done if any charges has been done.
@@ -1546,6 +1565,13 @@ module supra_framework::automation_registry {
     }
 
     /// Enables the registration process in the automation registry.
+    public fun toggle_new_epoch(supra_framework: &signer, flag: bool) acquires ToggleNewEpoch {
+        system_addresses::assert_supra_framework(supra_framework);
+        let toggle_new_epoch = borrow_global_mut<ToggleNewEpoch>(@supra_framework);
+        toggle_new_epoch.optimized = flag;
+    }
+
+    /// Enables the registration process in the automation registry.
     public fun enable_registration(supra_framework: &signer) acquires ActiveAutomationRegistryConfig {
         system_addresses::assert_supra_framework(supra_framework);
         let automation_registry_config = borrow_global_mut<ActiveAutomationRegistryConfig>(@supra_framework);
@@ -2148,7 +2174,7 @@ module supra_framework::automation_registry {
 
     #[test]
     fun test_on_new_epoch_without_initialization(
-    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, ToggleNewEpoch {
         // Nothing will be attempted if the registry is not initialized.
         on_new_epoch()
     }
@@ -2169,7 +2195,7 @@ module supra_framework::automation_registry {
     #[test(framework = @supra_framework, user = @0x1cafe)]
     fun check_update_config_success_update(
         framework: &signer, user: &signer
-    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, ToggleNewEpoch {
         initialize_registry_test(framework, user);
         register(user,
             PAYLOAD,
@@ -2589,7 +2615,7 @@ module supra_framework::automation_registry {
     fun check_task_activation_on_new_epoch(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, ToggleNewEpoch {
         initialize_registry_test(framework, user);
         register(user,
             PAYLOAD,
@@ -2648,7 +2674,7 @@ module supra_framework::automation_registry {
     fun check_task_successful_cancellation(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, ToggleNewEpoch {
         initialize_registry_test(framework, user);
 
         register(user,
@@ -2771,7 +2797,7 @@ module supra_framework::automation_registry {
     fun check_cancellation_of_cancelled_task(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, ToggleNewEpoch {
         initialize_registry_test(framework, user);
 
         register(user,
@@ -2794,7 +2820,7 @@ module supra_framework::automation_registry {
     fun check_normal_fee_charge_on_new_epoch(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, ToggleNewEpoch {
         initialize_registry_test(framework, user);
 
         register(user,
@@ -2830,7 +2856,7 @@ module supra_framework::automation_registry {
     fun check_congestion_fee_charge_on_new_epoch(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, ToggleNewEpoch {
         initialize_registry_test(framework, user);
 
         register(user,
@@ -2971,7 +2997,7 @@ module supra_framework::automation_registry {
     fun check_automation_task_fee_refund_is_done_with_old_config(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, ToggleNewEpoch {
         initialize_registry_test(framework, user);
         config_buffer::initialize(framework);
         let t1_t2_max_gas = 44_000_000;
@@ -3326,7 +3352,7 @@ module supra_framework::automation_registry {
     fun check_automation_task_fee_withdrawal_on_new_epoch(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, ToggleNewEpoch {
         initialize_registry_test(framework, user);
         let t1_t2_max_gas = 44_000_000;
         let t3_max_gas = 10_000_000;
@@ -3875,7 +3901,7 @@ module supra_framework::automation_registry {
     fun check_task_activation_on_new_epoch_performance(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, ToggleNewEpoch {
         task_registration_performance(framework, user);
 
         timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
