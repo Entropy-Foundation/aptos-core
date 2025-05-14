@@ -3151,7 +3151,7 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
             // This check means the task was expected <b>to</b> be executed in the next epoch, but it <b>has</b> been stopped.
             // We need <b>to</b> remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
             // Also it checks that task should not be cancelled.
-            <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a> && task.expiry_time &gt; (epoch_info.start_time + epoch_info.expected_epoch_duration)) {
+            <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a> && task.expiry_time &gt; epoch_end_time) {
                 // Prevent underflow in gas committed
                 <b>assert</b>!(
                     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &gt;= task.max_gas_amount,

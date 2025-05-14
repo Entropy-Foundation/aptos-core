@@ -1238,7 +1238,7 @@ module supra_framework::automation_registry {
                 // This check means the task was expected to be executed in the next epoch, but it has been stopped.
                 // We need to remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
                 // Also it checks that task should not be cancelled.
-                if (task.state != CANCELLED && task.expiry_time > (epoch_info.start_time + epoch_info.expected_epoch_duration)) {
+                if (task.state != CANCELLED && task.expiry_time > epoch_end_time) {
                     // Prevent underflow in gas committed
                     assert!(
                         automation_registry.gas_committed_for_next_epoch >= task.max_gas_amount,
