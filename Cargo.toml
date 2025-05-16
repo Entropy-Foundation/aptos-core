@@ -716,7 +716,7 @@ ripemd = "0.1.1"
 rlp = "0.5.1"
 
 # ######
-# We want normalize the rocksdb usage in smr-moonshot to reduce unncessary rocksdb build
+# We want normalize the rocksdb usage with smr-moonshot to reduce unncessary rocksdb build
 rocksdb = { version = "0.22.0", default-features = false, features = ["lz4", "snappy"] }
 #########
 
