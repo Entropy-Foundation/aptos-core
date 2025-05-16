@@ -712,7 +712,7 @@ reqwest-retry = "0.2.1"
 ring = { version = "0.16.20", features = ["std"] }
 ripemd = "0.1.1"
 ######
-# Normalize rocksdb version for build
+# Normalized rocksdb version and features set with smr-moonshot
 rocksdb = { version = "0.22.0", default-features = false, features = ["lz4", "snappy"] }
 #####
 
