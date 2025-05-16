@@ -145,27 +145,6 @@ impl UnitTestingConfig {
         }
     }
 
-    /// Create a unit testing config for use with `register_move_unit_tests`
-    pub fn default_with_bound_and_statistics(bound: Option<u64>) -> Self {
-        Self {
-            gas_limit: bound.or(Some(DEFAULT_EXECUTION_BOUND)),
-            filter: None,
-            num_threads: 8,
-            report_statistics: true,
-            report_storage_on_error: false,
-            report_stacktrace_on_abort: false,
-            ignore_compile_warnings: false,
-            source_files: vec![],
-            dep_files: vec![],
-            check_stackless_vm: false,
-            verbose: false,
-            list: false,
-            named_address_values: vec![],
-
-            #[cfg(feature = "evm-backend")]
-            evm: false,
-        }
-    }
     pub fn with_named_addresses(
         mut self,
         named_address_values: BTreeMap<String, NumericalAddress>,
