@@ -28,6 +28,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `TaskCancelledInsufficentBalance`](#0x1_automation_registry_TaskCancelledInsufficentBalance)
 -  [Struct `TaskCancelledCapacitySurpassed`](#0x1_automation_registry_TaskCancelledCapacitySurpassed)
 -  [Struct `RemovedTasks`](#0x1_automation_registry_RemovedTasks)
+-  [Struct `ActiveTasks`](#0x1_automation_registry_ActiveTasks)
 -  [Struct `ErrorTaskDoesNotExist`](#0x1_automation_registry_ErrorTaskDoesNotExist)
 -  [Struct `ErrorTaskDoesNotExistForWithdrawal`](#0x1_automation_registry_ErrorTaskDoesNotExistForWithdrawal)
 -  [Struct `ErrorInsufficientBalanceToRefund`](#0x1_automation_registry_ErrorInsufficientBalanceToRefund)
@@ -1019,6 +1020,35 @@ Event emitted on epoch transition containing removed task indexes.
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]
 <b>struct</b> <a href="automation_registry.md#0x1_automation_registry_RemovedTasks">RemovedTasks</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_automation_registry_ActiveTasks"></a>
+
+## Struct `ActiveTasks`
+
+Event emitted on epoch transition containing active task indexes for the new epoch.
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_ActiveTasks">ActiveTasks</a> <b>has</b> drop, store
 </code></pre>
 
 
@@ -2703,6 +2733,9 @@ On new epoch this function will be triggered and update the automation registry 
     <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_RemovedTasks">RemovedTasks</a> {
         task_indexes: removed_tasks
     });
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_ActiveTasks">ActiveTasks</a> {
+        task_indexes: <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids
+    });
 }
 </code></pre>
 
@@ -2751,6 +2784,9 @@ On new epoch this function will be triggered and update the automation registry 
         &<b>mut</b> removed_tasks,
         <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks));
     <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_RemovedTasks">RemovedTasks</a> { task_indexes: removed_tasks });
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_ActiveTasks">ActiveTasks</a> {
+        task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]
+    });
     <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_clear">enumerable_map::clear</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
 
     automation_epoch_info.start_time = current_time;

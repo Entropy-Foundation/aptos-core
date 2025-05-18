@@ -338,6 +338,13 @@ module supra_framework::automation_registry {
     }
 
     #[event]
+    /// Event emitted on epoch transition containing active task indexes for the new epoch.
+    struct ActiveTasks has drop, store {
+        task_indexes: vector<u64>
+    }
+
+
+    #[event]
     /// Event emitted when on new epoch a task is accessed with index of the task for the expected list
     /// but value does not exist in the map
     struct ErrorTaskDoesNotExist has drop, store {
@@ -755,6 +762,9 @@ module supra_framework::automation_registry {
         event::emit(RemovedTasks {
             task_indexes: removed_tasks
         });
+        event::emit(ActiveTasks {
+            task_indexes: automation_registry.epoch_active_task_ids
+        });
     }
 
     fun finalize_epoch_change_for_feature_disabled_state(
@@ -783,6 +793,9 @@ module supra_framework::automation_registry {
             &mut removed_tasks,
             enumerable_map::get_map_list(&automation_registry.tasks));
         event::emit(RemovedTasks { task_indexes: removed_tasks });
+        event::emit(ActiveTasks {
+            task_indexes: vector[]
+        });
         enumerable_map::clear(&mut automation_registry.tasks);
 
         automation_epoch_info.start_time = current_time;
