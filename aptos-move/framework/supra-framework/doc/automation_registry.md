@@ -78,7 +78,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `safe_refund`](#0x1_automation_registry_safe_refund)
 -  [Function `calculate_task_fee`](#0x1_automation_registry_calculate_task_fee)
 -  [Function `calculate_automation_fee_for_interval`](#0x1_automation_registry_calculate_automation_fee_for_interval)
--  [Function `calculate_automation_fee_multipler_for_epoch`](#0x1_automation_registry_calculate_automation_fee_multipler_for_epoch)
+-  [Function `calculate_automation_fee_multiplier_for_epoch`](#0x1_automation_registry_calculate_automation_fee_multiplier_for_epoch)
 -  [Function `calculate_automation_congestion_fee`](#0x1_automation_registry_calculate_automation_congestion_fee)
 -  [Function `calculate_exponentiation`](#0x1_automation_registry_calculate_exponentiation)
 -  [Function `try_withdraw_task_automation_fees`](#0x1_automation_registry_try_withdraw_task_automation_fees)
@@ -474,7 +474,7 @@ Automation Deposited fee bookkeeping configs
 <dd>
  Deposit fee locked for the task equal to the automation-fee-cap for epoch specified for it.
  It will be refunded fully when active task is expired or cancelled by user
- and partially if a pending task is cancelled by user or an active taks is cancelled by the system due to
+ and partially if a pending task is cancelled by user or an active task is cancelled by the system due to
  insufficient balance to  pay the automation fee for the epoch
 </dd>
 </dl>
@@ -692,8 +692,7 @@ duration paid at the beginning of the epoch due to epoch-duration reduction by g
 
 ## Struct `TaskDepositFeeRefund`
 
-Event emitted when an automation fee is refunded for an automation task at the end of the epoch for excessive
-duration paid at the beginning of the epoch due to epoch-duration reduction by governance.
+Event emitted when a deposit fee is refunded for an automation task.
 
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]
@@ -776,7 +775,7 @@ potential locked deposit for the task.
 
 ## Struct `ErrorUnlockTaskEpochFee`
 
-Event emitted when an task epoch fee is being refunded but locked epoch fees is less than
+Event emitted when a task epoch fee is being refunded but locked epoch fees is less than
 potential requested refund.
 
 
@@ -1134,7 +1133,7 @@ but it does not exist in the list.
 ## Struct `ErrorInsufficientBalanceToRefund`
 
 Event emitted during epoch transition when refunds to be paid is not possible due to insufficient resource account balance.
-Type of the refund can be releated either to the deposit paid during registration (0), or to epoch-fee caused by
+Type of the refund can be related either to the deposit paid during registration (0), or to epoch-fee caused by
 the shortening of the epoch (1)
 
 
@@ -1305,7 +1304,7 @@ Represents the fee charged for an automation task execution and some additional 
 ## Struct `IntermediateState`
 
 Represents intermediate state of the registry on epoch change.
-Deprectead in production, substituted with IntermediateStateWithRemovedTasks.
+Deprecated in production, substituted with <code><a href="automation_registry.md#0x1_automation_registry_IntermediateStateOfEpochChange">IntermediateStateOfEpochChange</a></code>.
 Kept for backward compatible framework upgrade.
 
 
@@ -1525,7 +1524,7 @@ Congestion exponent must be non-zero.
 
 <a id="0x1_automation_registry_EDEPOSIT_REFUND"></a>
 
-Failed to refund deposit for the task. For more deatils see the emitted events
+Failed to unlock/refund deposit for a task. Internal error, for more details see emitted error events.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EDEPOSIT_REFUND">EDEPOSIT_REFUND</a>: u64 = 27;
@@ -1555,7 +1554,7 @@ Task index list is empty.
 
 <a id="0x1_automation_registry_EEPOCH_FEE_REFUND"></a>
 
-Failed to refund deposit for the task. For more deatils see the emitted events
+Failed to unlock/refund epoch fee for a task. Internal error, for more details see emitted error events.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EEPOCH_FEE_REFUND">EEPOCH_FEE_REFUND</a>: u64 = 28;
@@ -2427,7 +2426,7 @@ maximum allowed occupancy for the next epoch.
     <b>let</b> total_committed_max_gas = committed_occupancy + task_occupancy;
 
     // Compute the automation fee multiplier for epoch
-    <b>let</b> automation_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multipler_for_epoch">calculate_automation_fee_multipler_for_epoch</a>(
+    <b>let</b> automation_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multiplier_for_epoch">calculate_automation_fee_multiplier_for_epoch</a>(
         &active_config.main_config,
         (total_committed_max_gas <b>as</b> u256),
         active_config.next_epoch_registry_max_gas_cap);
@@ -2651,7 +2650,7 @@ On new epoch this function will be triggered and update the automation registry 
     ).main_config;
 
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
-    <b>let</b> intermedate_state = <a href="automation_registry.md#0x1_automation_registry_update_state_for_new_epoch">update_state_for_new_epoch</a>(
+    <b>let</b> intermediate_state = <a href="automation_registry.md#0x1_automation_registry_update_state_for_new_epoch">update_state_for_new_epoch</a>(
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
         refund_bookkeeping,
         &automation_registry_config,
@@ -2671,7 +2670,7 @@ On new epoch this function will be triggered and update the automation registry 
             automation_epoch_info,
             refund_bookkeeping,
             current_time,
-            intermedate_state);
+            intermediate_state);
         <b>return</b>
     };
 
@@ -2681,10 +2680,10 @@ On new epoch this function will be triggered and update the automation registry 
         &automation_registry_config,
         automation_epoch_info.epoch_interval,
         current_time,
-        &<b>mut</b> intermedate_state,
+        &<b>mut</b> intermediate_state,
     );
 
-    <a href="automation_registry.md#0x1_automation_registry_finalize_epoch_change">finalize_epoch_change</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>, automation_epoch_info, current_time, intermedate_state);
+    <a href="automation_registry.md#0x1_automation_registry_finalize_epoch_change">finalize_epoch_change</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>, automation_epoch_info, current_time, intermediate_state);
 }
 </code></pre>
 
@@ -2831,7 +2830,7 @@ Cleans the stale tasks and calculates gas-committed for the new epoch.
         <b>let</b> previous_tcmg = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch;
         refund_interval = aei.expected_epoch_duration - previous_epoch_duration;
         // Compute the automation fee multiplier for ended epoch
-        refund_automation_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multipler_for_epoch">calculate_automation_fee_multipler_for_epoch</a>(arc, previous_tcmg, arc.registry_max_gas_cap);
+        refund_automation_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multiplier_for_epoch">calculate_automation_fee_multiplier_for_epoch</a>(arc, previous_tcmg, arc.registry_max_gas_cap);
     };
 
     <b>if</b> (refund_automation_fee_per_sec != 0) {
@@ -2856,8 +2855,8 @@ Cleans the stale tasks and calculates gas-committed for the new epoch.
 
 ## Function `refund_cleanup_and_activate_tasks`
 
-Refunds active tasks of the previeous epoch, cleans up expired and canclelled tasks and activates the pending tasks.
-Also alculates and returns the total committed max gas for the new epoch along with the task indexes
+Refunds active tasks of the previous epoch, cleans up expired and cancelled tasks and activates the pending tasks.
+Also calculates and returns the total committed max gas for the new epoch along with the task indexes
 that have been removed from the registry.
 
 
@@ -2940,8 +2939,8 @@ that have been removed from the registry.
 
 ## Function `cleanup_and_activate_tasks`
 
-Cleans up expired and canclelled tasks and activates the pending tasks.
-Also alculates and returns the total committed max gas for the new epoch along with the task indexes
+Cleans up expired and cancelled tasks and activates the pending tasks.
+Also calculates and returns the total committed max gas for the new epoch along with the task indexes
 that have been removed from the registry.
 
 
@@ -3047,13 +3046,13 @@ Traverses through all existing tasks and refunds deposited fee upon registration
 
 ## Function `safe_deposit_refund`
 
-Refunds specified ammount of deposit to the task ower and unlocks full deposit from registry resource account.
+Refunds specified amount of deposit to the task owner and unlocks full deposit from registry resource account.
 Error events are emitted
 - if the registry resource account does not have enough balance for refund.
 - if the full deposit can not be unlocked.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_safe_deposit_refund">safe_deposit_refund</a>(rb: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">automation_registry::AutomationRefundBookkeeping</a>, resource_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, resouce_address: <b>address</b>, task_index: u64, task_owner: <b>address</b>, refundable_deposit: u64, locked_deposit: u64): bool
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_safe_deposit_refund">safe_deposit_refund</a>(rb: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">automation_registry::AutomationRefundBookkeeping</a>, resource_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, resource_address: <b>address</b>, task_index: u64, task_owner: <b>address</b>, refundable_deposit: u64, locked_deposit: u64): bool
 </code></pre>
 
 
@@ -3065,13 +3064,13 @@ Error events are emitted
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_safe_deposit_refund">safe_deposit_refund</a>(
     rb: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>,
     resource_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    resouce_address: <b>address</b>,
+    resource_address: <b>address</b>,
     task_index: u64,
     task_owner: <b>address</b>,
     refundable_deposit: u64,
     locked_deposit: u64
 ):  bool {
-    // This check will make sure that no more than totally locked deposited will be refunced.
+    // This check will make sure that no more than totally locked deposited will be refunded.
     // If there is an attempt then it means implementation bug.
     <b>let</b> result = <a href="automation_registry.md#0x1_automation_registry_safe_unlock_locked_deposit">safe_unlock_locked_deposit</a>(rb, locked_deposit, task_index);
     <b>if</b> (!result) {
@@ -3080,7 +3079,7 @@ Error events are emitted
 
     <b>let</b> result = <a href="automation_registry.md#0x1_automation_registry_safe_refund">safe_refund</a>(
         resource_signer,
-        resouce_address,
+        resource_address,
         task_index,
         task_owner,
         refundable_deposit,
@@ -3103,8 +3102,8 @@ Error events are emitted
 
 ## Function `safe_unlock_locked_deposit`
 
-Unlocks the deposit paied by the task from internal deposit refund bookkeeping state.
-Error event is emitted if the deposit refund bookkeeping state is inconsistent with the requested unlock ammount.
+Unlocks the deposit paid by the task from internal deposit refund bookkeeping state.
+Error event is emitted if the deposit refund bookkeeping state is inconsistent with the requested unlock amount.
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_safe_unlock_locked_deposit">safe_unlock_locked_deposit</a>(rb: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">automation_registry::AutomationRefundBookkeeping</a>, locked_deposit: u64, task_index: u64): bool
@@ -3142,7 +3141,7 @@ Error event is emitted if the deposit refund bookkeeping state is inconsistent w
 ## Function `safe_unlock_locked_epoch_fee`
 
 Unlocks the locked fee paid by the task for epoch.
-Error event is emitted if the epoch locked fee amount is inconsistent with the requested unlock ammount.
+Error event is emitted if the epoch locked fee amount is inconsistent with the requested unlock amount.
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_safe_unlock_locked_epoch_fee">safe_unlock_locked_epoch_fee</a>(epoch_locked_fees: u64, refundable_fee: u64, task_index: u64): (bool, u64)
@@ -3182,12 +3181,12 @@ Error event is emitted if the epoch locked fee amount is inconsistent with the r
 
 ## Function `safe_fee_refund`
 
-Refunds fee paied by the task for the epoch to the task owner.
+Refunds fee paid by the task for the epoch to the task owner.
 Note that here we do not unlock the fee, as on epoch change locked epoch-fees for the ended epoch are
 automatically unlocked.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_safe_fee_refund">safe_fee_refund</a>(epoch_locked_fees: u64, resource_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, resouce_address: <b>address</b>, task_index: u64, task_owner: <b>address</b>, refundable_fee: u64): (bool, u64)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_safe_fee_refund">safe_fee_refund</a>(epoch_locked_fees: u64, resource_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, resource_address: <b>address</b>, task_index: u64, task_owner: <b>address</b>, refundable_fee: u64): (bool, u64)
 </code></pre>
 
 
@@ -3199,7 +3198,7 @@ automatically unlocked.
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_safe_fee_refund">safe_fee_refund</a>(
     epoch_locked_fees: u64,
     resource_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    resouce_address: <b>address</b>,
+    resource_address: <b>address</b>,
     task_index: u64,
     task_owner: <b>address</b>,
     refundable_fee: u64
@@ -3210,7 +3209,7 @@ automatically unlocked.
     };
     <b>let</b> result = <a href="automation_registry.md#0x1_automation_registry_safe_refund">safe_refund</a>(
         resource_signer,
-        resouce_address,
+        resource_address,
         task_index,
         task_owner,
         refundable_fee,
@@ -3233,7 +3232,7 @@ automatically unlocked.
 ## Function `safe_refund`
 
 Refunds specified amount to the task owner.
-Error event is emitted if the resource account does not have enough balace.
+Error event is emitted if the resource account does not have enough balance.
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_safe_refund">safe_refund</a>(resource_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, resource_address: <b>address</b>, task_index: u64, task_owner: <b>address</b>, refundable_amount: u64, refund_type: u8): bool
@@ -3349,14 +3348,14 @@ This is supposed to be called only after removing expired task and must not be c
 
 </details>
 
-<a id="0x1_automation_registry_calculate_automation_fee_multipler_for_epoch"></a>
+<a id="0x1_automation_registry_calculate_automation_fee_multiplier_for_epoch"></a>
 
-## Function `calculate_automation_fee_multipler_for_epoch`
+## Function `calculate_automation_fee_multiplier_for_epoch`
 
 Calculate automation fee multiplier for epoch. It is measured in quants/sec.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multipler_for_epoch">calculate_automation_fee_multipler_for_epoch</a>(arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, tcmg: u256, registry_max_gas_cap: u64): u256
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multiplier_for_epoch">calculate_automation_fee_multiplier_for_epoch</a>(arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, tcmg: u256, registry_max_gas_cap: u64): u256
 </code></pre>
 
 
@@ -3365,7 +3364,7 @@ Calculate automation fee multiplier for epoch. It is measured in quants/sec.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multipler_for_epoch">calculate_automation_fee_multipler_for_epoch</a>(
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multiplier_for_epoch">calculate_automation_fee_multiplier_for_epoch</a>(
     arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
     tcmg: u256,
     registry_max_gas_cap: u64
@@ -3516,7 +3515,7 @@ Return estimated committed gas for the next epoch, locked automation fee amount 
     intermediate_state: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_IntermediateStateOfEpochChange">IntermediateStateOfEpochChange</a>,
 ) {
     // Compute the automation fee multiplier for epoch
-    <b>let</b> automation_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multipler_for_epoch">calculate_automation_fee_multipler_for_epoch</a>(
+    <b>let</b> automation_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multiplier_for_epoch">calculate_automation_fee_multiplier_for_epoch</a>(
         arc,
         intermediate_state.gas_committed_for_new_epoch,
         arc.registry_max_gas_cap);
@@ -3527,7 +3526,7 @@ Return estimated committed gas for the next epoch, locked automation fee amount 
     );
     <b>let</b> current_epoch_end_time = current_time + epoch_interval;
 
-    // Sort task indexes <b>to</b> charge autoamtion fees in the tasks chronological order
+    // Sort task indexes <b>to</b> charge automation fees in the tasks chronological order
     <a href="automation_registry.md#0x1_automation_registry_sort_vector">sort_vector</a>(&<b>mut</b> task_ids);
 
     // Process each active task and calculate fee for the epoch for the tasks
@@ -4136,7 +4135,7 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
     <b>let</b> tcmg = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch;
 
     // Compute the automation fee multiplier for epoch
-    <b>let</b> automation_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multipler_for_epoch">calculate_automation_fee_multipler_for_epoch</a>(&arc, tcmg, arc.registry_max_gas_cap);
+    <b>let</b> automation_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multiplier_for_epoch">calculate_automation_fee_multiplier_for_epoch</a>(&arc, tcmg, arc.registry_max_gas_cap);
 
     <b>let</b> stopped_task_details = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
     <b>let</b> total_refund_fee = 0;
