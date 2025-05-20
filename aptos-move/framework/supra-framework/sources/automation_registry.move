@@ -108,7 +108,8 @@ module supra_framework::automation_registry {
     const DEPOSIT_EPOCH_FEE: u8 = 0;
     const EPOCH_FEE: u8 = 1;
 
-    /// Defines refund factor for refunds of deposit fees with penalty
+    /// Defines divisor for refunds of deposit fees with penalty
+    /// Factor of `2` suggests that `1/2` of the deposit will be refunded.
     const REFUND_FACTOR: u64 = 2;
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -398,7 +399,7 @@ module supra_framework::automation_registry {
     /// Represents intermediate state of the registry on epoch change.
     struct IntermediateStateOfEpochChange {
         removed_tasks: vector<u64>,
-        gas_committed_for_new_epoch: u256,
+        gas_committed_for_new_epoch: u64,
         gas_committed_for_next_epoch: u64,
         epoch_locked_fees: Coin<SupraCoin>,
     }
@@ -673,6 +674,7 @@ module supra_framework::automation_registry {
     }
 
     public fun initialize_refund_bookkeeping_resource(supra_framework: &signer) {
+        system_addresses::assert_supra_framework(supra_framework);
         move_to(supra_framework, AutomationRefundBookkeeping {
             total_deposited_automation_fee: 0
         });
@@ -752,7 +754,7 @@ module supra_framework::automation_registry {
 
         automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
         automation_registry.epoch_locked_fees = epoch_locked_fees_value;
-        automation_registry.gas_committed_for_this_epoch = gas_committed_for_new_epoch;
+        automation_registry.gas_committed_for_this_epoch = (gas_committed_for_new_epoch as u256);
         automation_registry.epoch_active_task_ids = enumerable_map::get_map_list(&automation_registry.tasks);
 
         automation_epoch_info.start_time = current_time;
@@ -887,7 +889,7 @@ module supra_framework::automation_registry {
                 vector::push_back(&mut removed_tasks, task_index);
             } else {
                 task.state = ACTIVE;
-                tcmg = tcmg + (task.max_gas_amount as u256);
+                tcmg = tcmg + task.max_gas_amount;
             }
         });
         IntermediateStateOfEpochChange {
@@ -930,7 +932,7 @@ module supra_framework::automation_registry {
                 vector::push_back(&mut removed_tasks, task_index);
             } else {
                 task.state = ACTIVE;
-                tcmg = tcmg + (task.max_gas_amount as u256);
+                tcmg = tcmg + task.max_gas_amount;
             }
         });
 
@@ -1226,7 +1228,7 @@ module supra_framework::automation_registry {
         // Compute the automation fee multiplier for epoch
         let automation_fee_per_sec = calculate_automation_fee_multiplier_for_epoch(
             arc,
-            intermediate_state.gas_committed_for_new_epoch,
+            (intermediate_state.gas_committed_for_new_epoch as u256),
             arc.registry_max_gas_cap);
 
         let task_ids = enumerable_map::get_map_list(&automation_registry.tasks);
@@ -3961,7 +3963,7 @@ module supra_framework::automation_registry {
         check_account_balance(get_registry_fee_address(), expected_registry_balance);
         assert!(remaining_epoch_locked_fees == expected_total_locked, 4);
 
-        // Assume there is no enough balance to refund the epoch fee in regiatry account.
+        // Assume there is no enough balance to refund the epoch fee in registry account.
         // No refund but fee is unlocked.
         let epoch_locked_fees = REGISTRY_DEFAULT_BALANCE;
 

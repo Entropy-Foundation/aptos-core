@@ -1365,7 +1365,7 @@ Represents intermediate state of the registry on epoch change.
 
 </dd>
 <dt>
-<code>gas_committed_for_new_epoch: u256</code>
+<code>gas_committed_for_new_epoch: u64</code>
 </dt>
 <dd>
 
@@ -1803,7 +1803,8 @@ Constants describing task state.
 
 <a id="0x1_automation_registry_REFUND_FACTOR"></a>
 
-Defines refund factor for refunds of deposit fees with penalty
+Defines divisor for refunds of deposit fees with penalty
+Factor of <code>2</code> suggests that <code>1/2</code> of the deposit will be refunded.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_REFUND_FACTOR">REFUND_FACTOR</a>: u64 = 2;
@@ -2605,6 +2606,7 @@ Initialization of Automation Registry with configuration parameters is expected 
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize_refund_bookkeeping_resource">initialize_refund_bookkeeping_resource</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
     <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
         total_deposited_automation_fee: 0
     });
@@ -2724,7 +2726,7 @@ On new epoch this function will be triggered and update the automation registry 
 
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees = epoch_locked_fees_value;
-    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch = gas_committed_for_new_epoch;
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch = (gas_committed_for_new_epoch <b>as</b> u256);
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
 
     automation_epoch_info.start_time = current_time;
@@ -2919,7 +2921,7 @@ that have been removed from the registry.
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> removed_tasks, task_index);
         } <b>else</b> {
             task.state = <a href="automation_registry.md#0x1_automation_registry_ACTIVE">ACTIVE</a>;
-            tcmg = tcmg + (task.max_gas_amount <b>as</b> u256);
+            tcmg = tcmg + task.max_gas_amount;
         }
     });
     <a href="automation_registry.md#0x1_automation_registry_IntermediateStateOfEpochChange">IntermediateStateOfEpochChange</a> {
@@ -2982,7 +2984,7 @@ that have been removed from the registry.
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> removed_tasks, task_index);
         } <b>else</b> {
             task.state = <a href="automation_registry.md#0x1_automation_registry_ACTIVE">ACTIVE</a>;
-            tcmg = tcmg + (task.max_gas_amount <b>as</b> u256);
+            tcmg = tcmg + task.max_gas_amount;
         }
     });
 
@@ -3517,7 +3519,7 @@ Return estimated committed gas for the next epoch, locked automation fee amount 
     // Compute the automation fee multiplier for epoch
     <b>let</b> automation_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multiplier_for_epoch">calculate_automation_fee_multiplier_for_epoch</a>(
         arc,
-        intermediate_state.gas_committed_for_new_epoch,
+        (intermediate_state.gas_committed_for_new_epoch <b>as</b> u256),
         arc.registry_max_gas_cap);
 
     <b>let</b> task_ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
