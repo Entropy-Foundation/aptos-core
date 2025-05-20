@@ -868,7 +868,7 @@ task gas parameters in scope of automation registration transaction will pass ga
 Lifetime: transient
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK">SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK</a>: u64 = 88;
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK">SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK</a>: u64 = 90;
 </code></pre>
 
 
