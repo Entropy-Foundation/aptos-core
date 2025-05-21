@@ -1159,7 +1159,7 @@ module supra_framework::automation_registry {
 
         // Calculate congestion threshold surplus for the current epoch
         let threshold_usage = upscale_from_u256(tcmg) * 100 / max_gas_cap;
-        if (threshold_usage < threshold_percentage) 0
+        if (threshold_usage <= threshold_percentage) 0
         else {
             let threshold_surplus_normalized = (threshold_usage - threshold_percentage) / 100;
 
