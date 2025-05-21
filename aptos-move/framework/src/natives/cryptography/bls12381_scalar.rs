@@ -22,7 +22,7 @@ use blsttc::group::ff::Field;
 /// Returns a vector<u8> representing the byte representation of bls12381_scalar
 /// In case an error occurs, an empty vector is returned
 ///
-pub fn native_hash_to_scalar(
+fn native_hash_to_scalar(
     context: &mut SafeNativeContext,
     _ty_args: Vec<Type>,
     mut arguments: VecDeque<Value>,

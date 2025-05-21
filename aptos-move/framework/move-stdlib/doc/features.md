@@ -287,18 +287,6 @@ Lifetime: transient
 
 
 
-<a id="0x1_features_BLS12381_BULLETPROOFS"></a>
-
-Whether the APIs related to the bls12381_bulletproofs feature are enabled.
-
-Lifetime: transient
-
-
-<pre><code><b>const</b> <a href="features.md#0x1_features_BLS12381_BULLETPROOFS">BLS12381_BULLETPROOFS</a>: u64 = 90;
-</code></pre>
-
-
-
 <a id="0x1_features_BLS12_381_STRUCTURES"></a>
 
 Whether the generic algebra implementation for BLS12381 operations are enabled.
@@ -754,6 +742,18 @@ Lifetime: transient
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_PRIMARY_APT_FUNGIBLE_STORE_AT_USER_ADDRESS">PRIMARY_APT_FUNGIBLE_STORE_AT_USER_ADDRESS</a>: u64 = 61;
+</code></pre>
+
+
+
+<a id="0x1_features_PRIVATE_POLL"></a>
+
+Whether the APIs related to the bls12381_bulletproofs feature are enabled.
+
+Lifetime: transient
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_PRIVATE_POLL">PRIVATE_POLL</a>: u64 = 90;
 </code></pre>
 
 
@@ -3388,7 +3388,7 @@ Lifetime: transient
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_bls12381_bulletproofs_feature">get_supra_bls12381_bulletproofs_feature</a>(): u64 {
-    <a href="features.md#0x1_features_BLS12381_BULLETPROOFS">BLS12381_BULLETPROOFS</a>
+    <a href="features.md#0x1_features_PRIVATE_POLL">PRIVATE_POLL</a>
 }
 </code></pre>
 
@@ -3412,7 +3412,7 @@ Lifetime: transient
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_bls12381_bulletproofs_enabled">supra_bls12381_bulletproofs_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
-    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_BLS12381_BULLETPROOFS">BLS12381_BULLETPROOFS</a>)
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_PRIVATE_POLL">PRIVATE_POLL</a>)
 }
 </code></pre>
 
