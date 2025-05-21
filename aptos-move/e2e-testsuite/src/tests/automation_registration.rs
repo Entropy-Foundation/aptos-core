@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use aptos_cached_packages::aptos_framework_sdk_builder;
-use aptos_language_e2e_tests::account::{Account, AccountData};
-use aptos_language_e2e_tests::executor::FakeExecutor;
-use aptos_types::on_chain_config::FeatureFlag;
-use aptos_types::transaction::automation::{AutomationTaskMetaData, RegistrationParams};
-use aptos_types::transaction::{
-    EntryFunction, ExecutionStatus, SignedTransaction, TransactionOutput, TransactionPayload,
-    TransactionStatus,
+use aptos_language_e2e_tests::{
+    account::{Account, AccountData},
+    executor::FakeExecutor,
 };
-use move_core_types::account_address::AccountAddress;
-use move_core_types::value::MoveValue;
-use move_core_types::vm_status::StatusCode;
+use aptos_types::{
+    on_chain_config::FeatureFlag,
+    transaction::{
+        automation::{AutomationTaskMetaData, RegistrationParams},
+        EntryFunction, ExecutionStatus, SignedTransaction, TransactionOutput, TransactionPayload,
+        TransactionStatus,
+    },
+};
+use move_core_types::{account_address::AccountAddress, value::MoveValue, vm_status::StatusCode};
 use std::ops::{Deref, DerefMut};
 
 const TIMESTAMP_NOW_SECONDS: &str = "0x1::timestamp::now_seconds";
@@ -31,6 +33,7 @@ impl AutomationRegistrationTestContext {
     pub(crate) fn sender_account_data(&self) -> &AccountData {
         &self.txn_sender
     }
+
     pub(crate) fn sender_account_address(&self) -> AccountAddress {
         *self.txn_sender.address()
     }
@@ -63,16 +66,12 @@ impl AutomationRegistrationTestContext {
         } else {
             (vec![], flag_value)
         };
-        self.executor.exec(
-            "features",
-            "change_feature_flags_internal",
-            vec![],
-            vec![
+        self.executor
+            .exec("features", "change_feature_flags_internal", vec![], vec![
                 MoveValue::Signer(acc).simple_serialize().unwrap(),
                 bcs::to_bytes(&enabled).unwrap(),
                 bcs::to_bytes(&disabled).unwrap(),
-            ],
-        );
+            ]);
     }
 
     pub(crate) fn new_account_data(&mut self, amount: u64, seq_num: u64) -> AccountData {
@@ -124,6 +123,7 @@ impl AutomationRegistrationTestContext {
             _ => panic!("Unexpected transaction status: {output:?}"),
         }
     }
+
     pub(crate) fn check_discarded_output(
         output: TransactionOutput,
         expected_status_code: StatusCode,
@@ -161,11 +161,10 @@ impl AutomationRegistrationTestContext {
     }
 
     pub(crate) fn account_sequence_number(&mut self, account_address: AccountAddress) -> u64 {
-        let view_output = self.execute_view_function(
-            str::parse(ACCOUNT_SEQ_NUM).unwrap(),
-            vec![],
-            vec![account_address.to_vec()],
-        );
+        let view_output =
+            self.execute_view_function(str::parse(ACCOUNT_SEQ_NUM).unwrap(), vec![], vec![
+                account_address.to_vec(),
+            ]);
         let result = view_output.values.expect("Valid result");
         assert_eq!(result.len(), 1);
         bcs::from_bytes::<u64>(&result[0]).unwrap()
@@ -183,13 +182,12 @@ impl AutomationRegistrationTestContext {
     }
 
     pub(crate) fn get_task_details(&mut self, index: u64) -> AutomationTaskMetaData {
-        let view_output = self.execute_view_function(
-            str::parse(AUTOMATION_TASK_DETAILS).unwrap(),
-            vec![],
-            vec![MoveValue::U64(index)
-                .simple_serialize()
-                .expect("Successful serialization")],
-        );
+        let view_output =
+            self.execute_view_function(str::parse(AUTOMATION_TASK_DETAILS).unwrap(), vec![], vec![
+                MoveValue::U64(index)
+                    .simple_serialize()
+                    .expect("Successful serialization"),
+            ]);
         let result = view_output.values.expect("Valid result");
         assert!(!result.is_empty());
         bcs::from_bytes::<AutomationTaskMetaData>(&result[0])
@@ -237,11 +235,20 @@ fn check_successful_registration() {
     let sender_address = test_context.sender_account_address();
     let sender_seq_num_old = test_context.account_sequence_number(sender_address);
 
-    // when flag is not enabled although registry in initialized, registration will fail.
+    // When the SUPRA_NATIVE_AUTOMATION feature flag is not enabled registration requests must fail
+    // to validate. This ensures that they won't be accepted by the RPC nodes or the Mempool.
+    let validation_result = test_context.validate_transaction(automation_txn.clone());
+    assert_eq!(
+        validation_result.status(),
+        Some(StatusCode::FEATURE_UNDER_GATING)
+    );
+
+    // When the SUPRA_NATIVE_AUTOMATION feature flag is not enabled registration requests must fail
+    // to execute.
     let result = test_context.execute_transaction(automation_txn.clone());
     assert!(matches!(
         result.status().status(),
-        Ok(ExecutionStatus::MoveAbort { .. })
+        Err(StatusCode::FEATURE_UNDER_GATING)
     ));
 
     // enable the supra native automation, registration should succeed.
@@ -288,4 +295,70 @@ fn check_invalid_automation_txn() {
         output,
         StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD,
     );
+}
+
+#[test]
+fn check_invalid_gas_params_of_automation_task() {
+    let mut test_context = AutomationRegistrationTestContext::new();
+    test_context.set_supra_native_automation(true);
+    // Create automation registration transaction with entry-function with invalid arguments.
+    let dest_account = test_context.new_account_data(0, 0);
+    let inner_entry_function =
+        aptos_framework_sdk_builder::supra_coin_mint(dest_account.address().clone(), 100)
+            .into_entry_function();
+    let automation_fee_cap = 100_000;
+    let aux_data = Vec::new();
+    let automation_txn = test_context.create_automation_txn(
+        0,
+        inner_entry_function.clone(),
+        3600,
+        2,
+        100,
+        automation_fee_cap,
+        aux_data.clone(),
+    );
+
+    let output = test_context.execute_transaction(automation_txn.clone());
+    AutomationRegistrationTestContext::check_discarded_output(
+        output,
+        StatusCode::MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS,
+    );
+    let validation_output = test_context.validate_transaction(automation_txn);
+    assert_eq!(validation_output.status(), Some(StatusCode::MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS));
+
+    let automation_txn = test_context.create_automation_txn(
+        0,
+        inner_entry_function.clone(),
+        3600,
+        aptos_global_constants::MAX_GAS_AMOUNT + 1,
+        100,
+        automation_fee_cap,
+        aux_data.clone(),
+    );
+
+    let output = test_context.execute_transaction(automation_txn.clone());
+    AutomationRegistrationTestContext::check_discarded_output(
+        output,
+        StatusCode::MAX_GAS_UNITS_EXCEEDS_MAX_GAS_UNITS_BOUND,
+    );
+    let validation_output = test_context.validate_transaction(automation_txn);
+    assert_eq!(validation_output.status(), Some(StatusCode::MAX_GAS_UNITS_EXCEEDS_MAX_GAS_UNITS_BOUND));
+
+    let automation_txn = test_context.create_automation_txn(
+        0,
+        inner_entry_function.clone(),
+        3600,
+        100,
+        10_000_000_001,
+        automation_fee_cap,
+        aux_data,
+    );
+
+    let output = test_context.execute_transaction(automation_txn.clone());
+    AutomationRegistrationTestContext::check_discarded_output(
+        output,
+        StatusCode::GAS_UNIT_PRICE_ABOVE_MAX_BOUND,
+    );
+    let validation_output = test_context.validate_transaction(automation_txn);
+    assert_eq!(validation_output.status(), Some(StatusCode::GAS_UNIT_PRICE_ABOVE_MAX_BOUND));
 }

@@ -72,6 +72,12 @@ module supra_framework::automation_registry {
     const EREGISTRY_MAX_GAS_CAP_NON_ZERO: u64 = 22;
     /// Registry task capacity has reached.
     const EREGISTRY_IS_FULL: u64 = 23;
+    /// Task registration is currently disabled.
+    const ETASK_REGISTRATION_DISABLED: u64 = 24;
+    /// Task index list is empty.
+    const EEMPTY_TASK_INDEXES: u64 = 25;
+    /// Resource Account does not have sufficient balance to process the refund for the specified task.
+    const EINSUFFICIENT_BALANCE_FOR_REFUND: u64 = 26;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -85,6 +91,7 @@ module supra_framework::automation_registry {
     const DECIMAL: u256 = 100_000_000; // 10^8 Power
     /// 100 Percentage
     const MAX_PERCENTAGE: u8 = 100;
+    const REFUND_FRACTION: u64 = 2;
 
     /// Constants describing task state.
     const PENDING: u8 = 0;
@@ -96,6 +103,9 @@ module supra_framework::automation_registry {
         main_config: AutomationRegistryConfig,
         /// Will be the same as main_config.registry_max_gas_cap, unless updated during the epoch.
         next_epoch_registry_max_gas_cap: u64,
+        /// Flag indicating whether the task registration is enabled or paused.
+        /// If paused a new task registration will fail.
+        registration_enabled: bool,
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -186,7 +196,9 @@ module supra_framework::automation_registry {
         /// Registration timestamp in seconds
         registration_time: u64,
         /// Flag indicating whether the task is active, cancelled or pending.
-        state: u8
+        state: u8,
+        /// Fee locked for the task estimated for the next epoch at the start of the current epoch.
+        locked_fee_for_next_epoch: u64,
     }
 
     #[event]
@@ -229,6 +241,19 @@ module supra_framework::automation_registry {
     }
 
     #[event]
+    /// Event emitted on automation tasks stopped by owner.
+    struct TasksStopped has drop, store {
+        tasks: vector<TaskStopped>,
+        owner: address,
+    }
+
+    struct TaskStopped has drop, store {
+        task_index: u64,
+        deposit_refund: u64,
+        epoch_fee_refund: u64,
+    }
+
+    #[event]
     /// Event emitted when an automation task is cancelled due to insufficient balance.
     struct TaskCancelledInsufficentBalance has drop, store {
         task_index: u64,
@@ -245,11 +270,44 @@ module supra_framework::automation_registry {
         automation_fee_cap: u64,
     }
 
+    #[event]
+    /// Event emitted when on new epoch a task is accessed with index of the task for the expected list
+    /// but value does not exist in the map
+    struct ErrorTaskDoesNotExist has drop, store {
+        task_index: u64,
+    }
+
+    #[event]
+    /// Event emitted when on new epoch a task is accessed with index of the task automation fee withdrawal
+    /// but it does not exist in the list.
+    struct ErrorTaskDoesNotExistForWithdrawal has drop, store {
+        task_index: u64,
+    }
+
+    #[event]
+    /// Emitted when the registration in the automation registry is enabled.
+    struct EnabledRegistrationEvent has drop, store {}
+
+    #[event]
+    /// Emitted when the registration in the automation registry is disabled.
+    struct DisabledRegistrationEvent has drop, store {}
+
     /// Represents the fee charged for an automation task execution and some additional information.
     struct AutomationTaskFee has drop {
         task_index: u64,
         owner: address,
         fee: u64,
+    }
+
+    /// Represents intermediate state of the registry on epoch change.
+    struct IntermediateState has drop {
+        active_task_ids: vector<u64>,
+        gas_committed_for_next_epoch: u64,
+        epoch_locked_fees: u64,
+    }
+
+    fun active_task_ids(intermediate_state: IntermediateState): vector<u64> {
+        intermediate_state.active_task_ids
     }
 
     #[view]
@@ -386,6 +444,12 @@ module supra_framework::automation_registry {
         estimate_automation_fee_with_committed_occupancy_internal(task_occupancy, committed_occupancy, epoch_info, config)
     }
 
+    #[view]
+    /// Returns the current status of the registration in the automation registry.
+    public fun is_registration_enabled(): bool acquires ActiveAutomationRegistryConfig {
+        borrow_global<ActiveAutomationRegistryConfig>(@supra_framework).registration_enabled
+    }
+
     /// Estimates automation fee the next epoch for specified task occupancy for the configured epoch-interval
     /// referencing the current automation registry fee parameters, specified total/committed occupancy and registry
     /// maximum allowed occupancy for the next epoch.
@@ -422,7 +486,7 @@ module supra_framework::automation_registry {
         registry_max_gas_cap: u64,
         congestion_threshold_percentage: u8,
         congestion_exponent: u8,
-    )  {
+    ){
         assert!(congestion_threshold_percentage <= MAX_PERCENTAGE, EMAX_CONGESTION_THRESHOLD);
         assert!(congestion_exponent > 0, ECONGESTION_EXP_NON_ZERO);
         assert!(task_duration_cap_in_secs > epoch_interval_secs, EUNACCEPTABLE_TASK_DURATION_CAP);
@@ -481,9 +545,10 @@ module supra_framework::automation_registry {
                 congestion_threshold_percentage,
                 congestion_base_fee_in_quants_per_sec,
                 congestion_exponent,
-                task_capacity
+                task_capacity,
             },
-            next_epoch_registry_max_gas_cap: registry_max_gas_cap
+            next_epoch_registry_max_gas_cap: registry_max_gas_cap,
+            registration_enabled: true,
         });
 
         move_to(supra_framework, AutomationEpochInfo {
@@ -527,13 +592,15 @@ module supra_framework::automation_registry {
 
         // If feature is not enabled then we are not charging and tasks are cleared.
         if (!features::supra_native_automation_enabled()) {
+
             automation_registry.gas_committed_for_next_epoch = 0;
             automation_registry.epoch_locked_fees = 0;
             automation_registry.gas_committed_for_this_epoch = 0;
-            automation_epoch_info.start_time = current_time;
-            automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
             automation_registry.epoch_active_task_ids = vector[];
             enumerable_map::clear(&mut automation_registry.tasks);
+
+            automation_epoch_info.start_time = current_time;
+            automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
             return
         };
 
@@ -550,17 +617,18 @@ module supra_framework::automation_registry {
             false
         );
 
-        let (gas_committed_for_next_epoch, epoch_locked_fees, epoch_active_task_ids) = try_withdraw_task_automation_fees(
+        let intermediate_state = try_withdraw_task_automation_fees(
             automation_registry,
             tasks_automation_fees,
             current_time,
             automation_epoch_info.epoch_interval
         );
 
-        automation_registry.gas_committed_for_next_epoch = gas_committed_for_next_epoch;
-        automation_registry.epoch_locked_fees = epoch_locked_fees;
+        automation_registry.gas_committed_for_next_epoch = intermediate_state.gas_committed_for_next_epoch;
+        automation_registry.epoch_locked_fees = intermediate_state.epoch_locked_fees;
         automation_registry.gas_committed_for_this_epoch = tcmg;
-        automation_registry.epoch_active_task_ids = move epoch_active_task_ids;
+        automation_registry.epoch_active_task_ids = active_task_ids(intermediate_state);
+
         automation_epoch_info.start_time = current_time;
         automation_epoch_info.expected_epoch_duration = automation_epoch_info.epoch_interval;
     }
@@ -572,7 +640,7 @@ module supra_framework::automation_registry {
         aei: &AutomationEpochInfo,
         current_time: u64
     ) {
-        // If no funds where locked for the previous epoch then there is nothing to refund.
+        // If no funds were locked for the previous epoch then there is nothing to refund.
         // This may happen when feature was disabled, and no automation task was registered and charged for the next epoch.
         if (automation_registry.epoch_locked_fees == 0) {
             return
@@ -621,14 +689,18 @@ module supra_framework::automation_registry {
 
         // Perform clean up and updation of state (we can't use enumerable_map::for_each, as actually we need value as mutable ref)
         vector::for_each(ids, |task_index| {
-            let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, task_index);
-
-            // Drop or activate task for this current epoch.
-            if (task.expiry_time <= current_time || task.state == CANCELLED) {
-                enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
+            if (!enumerable_map::contains(&automation_registry.tasks, task_index)) {
+                event::emit(ErrorTaskDoesNotExist { task_index })
             } else {
-                task.state = ACTIVE;
-                tcmg = tcmg + (task.max_gas_amount as u256);
+                let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, task_index);
+
+                // Drop or activate task for this current epoch.
+                if (task.expiry_time <= current_time || task.state == CANCELLED) {
+                    enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
+                } else {
+                    task.state = ACTIVE;
+                    tcmg = tcmg + (task.max_gas_amount as u256);
+                }
             }
         });
         tcmg
@@ -787,59 +859,76 @@ module supra_framework::automation_registry {
         tasks_automation_fees: vector<AutomationTaskFee>,
         current_time: u64,
         epoch_interval: u64,
-    ): (u64, u64, vector<u64>) {
-        let (gas_committed_for_next_epoch, epoch_locked_fees) = (0, 0);
-        let epoch_active_task_ids = vector[];
+    ): IntermediateState {
+        let intermediate_state = IntermediateState {
+            gas_committed_for_next_epoch: 0,
+            epoch_locked_fees: 0,
+            active_task_ids: vector[]
+        };
 
         sort_by_task_index(&mut tasks_automation_fees);
 
         vector::for_each(tasks_automation_fees, |task| {
             let task: AutomationTaskFee = task;
-            let task_metadata = enumerable_map::get_value(&automation_registry.tasks, task.task_index);
+            if (!enumerable_map::contains(&automation_registry.tasks, task.task_index)) {
+                event::emit(ErrorTaskDoesNotExistForWithdrawal {task_index: task.task_index})
+            } else {
+                try_withdraw_task_automation_fee(automation_registry, task, current_time, epoch_interval, &mut intermediate_state);
+            };
+        });
+        intermediate_state
+    }
 
-            // Remove the automation task if the epoch fee cap is exceeded
-            if (task.fee > task_metadata.automation_fee_cap_for_epoch) {
+    fun try_withdraw_task_automation_fee(
+        automation_registry: &mut AutomationRegistry,
+        task: AutomationTaskFee,
+        current_time: u64,
+        epoch_interval: u64,
+        intermediate_state: &mut IntermediateState) {
+
+        let task_metadata = enumerable_map::get_value(&automation_registry.tasks, task.task_index);
+
+        // Remove the automation task if the epoch fee cap is exceeded
+        if (task.fee > task_metadata.automation_fee_cap_for_epoch) {
+            enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
+            event::emit(TaskCancelledCapacitySurpassed {
+                task_index: task.task_index,
+                owner: task_metadata.owner,
+                fee: task.fee,
+                automation_fee_cap: task_metadata.automation_fee_cap_for_epoch,
+            });
+        } else {
+            let user_balance = coin::balance<SupraCoin>(task_metadata.owner);
+            if (user_balance < task.fee) {
+                // If the user does not have enough balance, remove the task and emit an event
                 enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
-                event::emit(TaskCancelledCapacitySurpassed {
+                event::emit(TaskCancelledInsufficentBalance {
                     task_index: task.task_index,
                     owner: task_metadata.owner,
                     fee: task.fee,
-                    automation_fee_cap: task_metadata.automation_fee_cap_for_epoch,
                 });
             } else {
-                let user_balance = coin::balance<SupraCoin>(task_metadata.owner);
-                if (user_balance < task.fee) {
-                    // If the user does not have enough balance, remove the task and emit an event
-                    enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
-                    event::emit(TaskCancelledInsufficentBalance {
-                        task_index: task.task_index,
-                        owner: task_metadata.owner,
-                        fee: task.fee,
-                    });
-                } else {
-                    // Charge the fee and emit a success event
-                    coin::transfer<SupraCoin>(
-                        &create_signer(task_metadata.owner),
-                        automation_registry.registry_fee_address,
-                        task.fee
-                    );
-                    event::emit(TaskEpochFeeWithdraw {
-                        task_index: task.task_index,
-                        owner: task_metadata.owner,
-                        fee: task.fee,
-                    });
-                    // Total task fees deducted from the user's account
-                    epoch_locked_fees = epoch_locked_fees + task.fee;
-                    vector::push_back(&mut epoch_active_task_ids, task.task_index);
+                // Charge the fee and emit a success event
+                coin::transfer<SupraCoin>(
+                    &create_signer(task_metadata.owner),
+                    automation_registry.registry_fee_address,
+                    task.fee
+                );
+                event::emit(TaskEpochFeeWithdraw {
+                    task_index: task.task_index,
+                    owner: task_metadata.owner,
+                    fee: task.fee,
+                });
+                // Total task fees deducted from the user's account
+                intermediate_state.epoch_locked_fees = intermediate_state.epoch_locked_fees + task.fee;
+                vector::push_back(&mut intermediate_state.active_task_ids, task.task_index);
 
-                    // Calculate gas commitment for the next epoch only for valid active tasks
-                    if (task_metadata.expiry_time > (current_time + epoch_interval)) {
-                        gas_committed_for_next_epoch = gas_committed_for_next_epoch + task_metadata.max_gas_amount;
-                    };
+                // Calculate gas commitment for the next epoch only for valid active tasks
+                if (task_metadata.expiry_time > (current_time + epoch_interval)) {
+                    intermediate_state.gas_committed_for_next_epoch = intermediate_state.gas_committed_for_next_epoch + task_metadata.max_gas_amount;
                 };
-            }
-        });
-        (gas_committed_for_next_epoch, epoch_locked_fees, epoch_active_task_ids)
+            };
+        }
     }
 
     /// The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
@@ -934,6 +1023,22 @@ module supra_framework::automation_registry {
         event::emit(new_automation_registry_config);
     }
 
+    /// Enables the registration process in the automation registry.
+    public fun enable_registration(supra_framework: &signer) acquires ActiveAutomationRegistryConfig {
+        system_addresses::assert_supra_framework(supra_framework);
+        let automation_registry_config = borrow_global_mut<ActiveAutomationRegistryConfig>(@supra_framework);
+        automation_registry_config.registration_enabled = true;
+        event::emit(EnabledRegistrationEvent {});
+    }
+
+    /// Disables the registration process in the automation registry.
+    public fun disable_registration(supra_framework: &signer) acquires ActiveAutomationRegistryConfig {
+        system_addresses::assert_supra_framework(supra_framework);
+        let automation_registry_config = borrow_global_mut<ActiveAutomationRegistryConfig>(@supra_framework);
+        automation_registry_config.registration_enabled = false;
+        event::emit(DisabledRegistrationEvent {});
+    }
+
     /// Registers a new automation task entry.
     fun register(
         owner_signer: &signer,
@@ -950,6 +1055,8 @@ module supra_framework::automation_registry {
         assert!(vector::is_empty(&aux_data), ENO_AUX_DATA_SUPPORTED);
 
         let automation_registry_config = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
+        assert!(automation_registry_config.registration_enabled, ETASK_REGISTRATION_DISABLED);
+
         // If registry is full, reject task registration
         assert!((get_task_count() as u16) < automation_registry_config.main_config.task_capacity, EREGISTRY_IS_FULL);
 
@@ -975,7 +1082,7 @@ module supra_framework::automation_registry {
         assert!(committed_gas <= MAX_U64, EGAS_COMMITTEED_VALUE_OVERFLOW);
 
         let committed_gas = (committed_gas as u64);
-        assert!(committed_gas < automation_registry_config.next_epoch_registry_max_gas_cap, EGAS_AMOUNT_UPPER);
+        assert!(committed_gas <= automation_registry_config.next_epoch_registry_max_gas_cap, EGAS_AMOUNT_UPPER);
 
         // Check the automation fee capacity
         let estimated_automation_fee_for_epoch = estimate_automation_fee_with_committed_occupancy_internal(
@@ -1002,6 +1109,7 @@ module supra_framework::automation_registry {
             state: PENDING,
             registration_time,
             tx_hash,
+            locked_fee_for_next_epoch: 0
         };
 
         enumerable_map::add_value(&mut automation_registry.tasks, task_index, automation_task_metadata);
@@ -1023,7 +1131,7 @@ module supra_framework::automation_registry {
     ) {
         assert!(expiry_time > registration_time, EINVALID_EXPIRY_TIME);
         let task_duration = expiry_time - registration_time;
-        assert!(task_duration < automation_registry_config.task_duration_cap_in_secs, EEXPIRY_TIME_UPPER);
+        assert!(task_duration <= automation_registry_config.task_duration_cap_in_secs, EEXPIRY_TIME_UPPER);
 
         // Check that task is valid at least in the next epoch
         assert!(
@@ -1039,7 +1147,10 @@ module supra_framework::automation_registry {
     ///   - pending, it is removed form the list.
     ///   - cancelled, an error is reported
     /// Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
-    public entry fun cancel_task(owner_signer: &signer, task_index: u64) acquires AutomationRegistry {
+    public entry fun cancel_task(
+        owner_signer: &signer,
+        task_index: u64
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         assert!(enumerable_map::contains(&automation_registry.tasks, task_index), EAUTOMATION_TASK_NOT_FOUND);
 
@@ -1057,14 +1168,126 @@ module supra_framework::automation_registry {
             automation_task_metadata_mut.state = CANCELLED;
         };
 
-        assert!(
-            automation_registry.gas_committed_for_next_epoch >= automation_task_metadata.max_gas_amount,
-            EGAS_COMMITTEED_VALUE_UNDERFLOW
-        );
-        // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
-        automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
+        let epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
+        // This check means the task was expected to be executed in the next epoch, but it has been cancelled.
+        // We need to remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
+        if (automation_task_metadata.expiry_time > (epoch_info.start_time + epoch_info.expected_epoch_duration)) {
+            assert!(
+                automation_registry.gas_committed_for_next_epoch >= automation_task_metadata.max_gas_amount,
+                EGAS_COMMITTEED_VALUE_UNDERFLOW
+            );
+            // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
+            automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
+        };
 
         event::emit(TaskCancelled { task_index: automation_task_metadata.task_index, owner });
+    }
+
+    /// Immediately stops automation tasks for the specified `task_indexes`.
+    /// Only tasks that exist and are owned by the sender can be stopped.
+    /// If any of the specified tasks are not owned by the sender, the transaction will abort.
+    /// When a task is stopped, the committed gas for the next epoch is reduced
+    /// by the max gas amount of the stopped task. Half of the remaining task fee is refunded.
+    public entry fun stop_tasks(
+        owner_signer: &signer,
+        task_indexes: vector<u64>
+    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationEpochInfo {
+        // Ensure that task indexes are provided
+        assert!(!vector::is_empty(&task_indexes), EEMPTY_TASK_INDEXES);
+
+        let owner = signer::address_of(owner_signer);
+        let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
+        let arc = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework).main_config;
+        let epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
+
+        let tcmg = automation_registry.gas_committed_for_this_epoch;
+
+        // Calculate the automation congestion fee
+        let acf = calculate_automation_congestion_fee(
+            &arc,
+            tcmg,
+            arc.registry_max_gas_cap
+        );
+
+        // Total fee per second (base + congestion fee)
+        let automation_fee_per_sec = acf + (arc.automation_base_fee_in_quants_per_sec as u256);
+
+        let stopped_task_details = vector[];
+        let total_refund_fee = 0;
+
+        // Calculate refundable fee for this remaining time task in current epoch
+        let current_time = timestamp::now_seconds();
+        let epoch_end_time = epoch_info.expected_epoch_duration + epoch_info.start_time;
+        let residual_interval = if (epoch_end_time <= current_time) {
+            0
+        } else {
+            epoch_end_time - current_time
+        };
+
+        // Loop through each task index to validate and stop the task
+        vector::for_each(task_indexes, |task_index| {
+            if (enumerable_map::contains(&automation_registry.tasks, task_index)) {
+                // Remove task from registry
+                let task = enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
+
+                // Ensure only the task owner can stop it
+                assert!(task.owner == owner, EUNAUTHORIZED_TASK_OWNER);
+
+                vector::remove_value(&mut automation_registry.epoch_active_task_ids, &task_index);
+
+                // This check means the task was expected to be executed in the next epoch, but it has been stopped.
+                // We need to remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
+                // Also it checks that task should not be cancelled.
+                if (task.state != CANCELLED && task.expiry_time > epoch_end_time) {
+                    // Prevent underflow in gas committed
+                    assert!(
+                        automation_registry.gas_committed_for_next_epoch >= task.max_gas_amount,
+                        EGAS_COMMITTEED_VALUE_UNDERFLOW
+                    );
+
+                    // Reduce committed gas by the stopped task's max gas
+                    automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - task.max_gas_amount;
+                };
+
+                let (epoch_fee_refund, deposit_refund) = if (task.state != PENDING) {
+                    let task_fee = calculate_task_fee(
+                        &arc,
+                        &task,
+                        residual_interval,
+                        current_time,
+                        automation_fee_per_sec
+                    );
+                    // Refund full deposit and the half of the remaining run-time fee when task is active or cancelled stage
+                    (task_fee / REFUND_FRACTION, task.locked_fee_for_next_epoch)
+                } else {
+                    (0, (task.locked_fee_for_next_epoch / REFUND_FRACTION))
+                };
+
+                total_refund_fee = total_refund_fee + (epoch_fee_refund + deposit_refund);
+
+                vector::push_back(
+                    &mut stopped_task_details,
+                    TaskStopped { task_index, deposit_refund, epoch_fee_refund }
+                );
+            }
+        });
+
+        // Refund and emit event if any tasks were stopped
+        if (!vector::is_empty(&stopped_task_details)) {
+            let resource_signer = account::create_signer_with_capability(
+                &automation_registry.registry_fee_address_signer_cap
+            );
+
+            let resource_account_balance = coin::balance<SupraCoin>(automation_registry.registry_fee_address);
+            assert!(resource_account_balance >= total_refund_fee, EINSUFFICIENT_BALANCE_FOR_REFUND);
+            coin::transfer<SupraCoin>(&resource_signer, owner, total_refund_fee);
+
+            // Emit task stopped event
+            event::emit(TasksStopped {
+                tasks: stopped_task_details,
+                owner
+            });
+        };
     }
 
     /// Update epoch interval in registry while actually update happens in block module
@@ -1642,6 +1865,43 @@ module supra_framework::automation_registry {
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = EEXPIRY_TIME_UPPER, location = Self)]
+    fun check_registration_invalid_expiry_time_surpassing_task_duration_cap(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+
+        register(user,
+            PAYLOAD,
+            TTL_UPPER_BOUND_TEST + 1,
+            70,
+            20,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    fun check_registration_valid_expiry_time_matches_task_duration_cap(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+
+        register(user,
+            PAYLOAD,
+            TTL_UPPER_BOUND_TEST,
+            70,
+            20,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
     #[expected_failure(abort_code = EINVALID_GAS_PRICE, location = Self)]
     fun check_registration_invalid_gas_price_cap(
         framework: &signer,
@@ -1917,7 +2177,7 @@ module supra_framework::automation_registry {
     fun check_cancellation_of_non_existing_task(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry {
+    ) acquires AutomationRegistry, AutomationEpochInfo {
         initialize_registry_test(framework, user);
 
         cancel_task(user, 1);
@@ -2718,4 +2978,291 @@ module supra_framework::automation_registry {
         assert!(result == 1039062500, 13); // ~10.39
     }
 
+    #[test(framework = @supra_framework, user = @0x1cafa)]
+    fun test_registration_enable_disable(framework: &signer, user: &signer) acquires ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+        assert!(is_registration_enabled(), 14);
+
+        disable_registration(framework);
+        assert!(!is_registration_enabled(), 15);
+
+        enable_registration(framework);
+        assert!(is_registration_enabled(), 16);
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = ETASK_REGISTRATION_DISABLED, location = Self)]
+    fun test_register_fails_when_registration_disabled(
+        framework: &signer, user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+
+        disable_registration(framework);
+        assert!(!is_registration_enabled(), 17);
+
+        register(user,
+            PAYLOAD,
+            86400,
+            50,
+            20,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    fun check_task_successful_stopped(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+
+        register(user,
+            PAYLOAD,
+            86400,
+            200,
+            200,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+        register(user,
+            PAYLOAD,
+            86400,
+            200,
+            200,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+        register(user,
+            PAYLOAD,
+            86400,
+            200,
+            200,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+        register(user,
+            PAYLOAD,
+            86400,
+            200,
+            200,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+
+        // check user balance after registered new task
+        let registry_fee_address = get_registry_fee_address();
+        let user_account = address_of(user);
+        let expected_current_balance = ACCOUNT_BALANCE - (4 * FLAT_REGISTRATION_FEE_TEST);
+        check_account_balance(user_account, expected_current_balance);
+        check_account_balance(registry_fee_address, REGISTRY_DEFAULT_BALANCE + (4 * FLAT_REGISTRATION_FEE_TEST));
+
+        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+        on_new_epoch();
+        assert!(800 == get_gas_committed_for_next_epoch(), 1);
+        let active_task_ids = get_active_task_ids();
+        let expected_ids = vector<u64>[0, 1, 2, 3];
+        vector::for_each(active_task_ids, |task_index| {
+            assert!(vector::contains(&expected_ids, &task_index), 1);
+        });
+
+        // 0.002 (*4) - automation_epoch_fee_per_second, 7200 epoch duration
+        let expected_automation_fee = 4 * (200 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100000);
+        check_account_balance(user_account, expected_current_balance - expected_automation_fee);
+        check_account_balance(
+            registry_fee_address,
+            REGISTRY_DEFAULT_BALANCE + (4 * FLAT_REGISTRATION_FEE_TEST) + expected_automation_fee
+        );
+
+        timestamp::update_global_time_for_test_secs(
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS + (EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2)
+        );
+
+        // Stop task 2. and it's removed from active task list immediately
+        stop_tasks(user, vector[2]);
+        let active_task_ids = get_active_task_ids();
+        let expected_ids = vector<u64>[0, 1, 3];
+        vector::for_each(active_task_ids, |task_index| {
+            assert!(vector::contains(&expected_ids, &task_index), 1);
+        });
+        // There is no task with index 2 now.
+        assert!(!has_task_with_id(2), 1);
+        assert!(600 == get_gas_committed_for_next_epoch(), 1);
+
+        // Because the on of the task stopped halfway, the user gets a 50% refund for the unused time.
+        // which is equivalent to a 25% refund of the full epoch for single task.
+        let refund_automation_fee = (200 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100000) / 4;
+        check_account_balance(
+            user_account,
+            (expected_current_balance - expected_automation_fee + refund_automation_fee)
+        );
+        check_account_balance(
+            registry_fee_address,
+            REGISTRY_DEFAULT_BALANCE + (4 * FLAT_REGISTRATION_FEE_TEST) + expected_automation_fee - refund_automation_fee
+        );
+
+        // Add and stop the task in the same epoch. Task index will be 4
+        assert!(get_next_task_index() == 4, 1);
+        register(user,
+            PAYLOAD,
+            86400,
+            200,
+            200,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+
+        check_account_balance(
+            user_account,
+            (expected_current_balance - expected_automation_fee + refund_automation_fee - FLAT_REGISTRATION_FEE_TEST)
+        );
+        check_account_balance(
+            registry_fee_address,
+            REGISTRY_DEFAULT_BALANCE + (4 * FLAT_REGISTRATION_FEE_TEST) + expected_automation_fee - refund_automation_fee + FLAT_REGISTRATION_FEE_TEST
+        );
+
+        stop_tasks(user, vector[4]);
+        let active_task_ids = get_active_task_ids();
+        let expected_ids = vector<u64>[0, 1, 3];
+        vector::for_each(active_task_ids, |task_index| {
+            assert!(vector::contains(&expected_ids, &task_index), 1);
+        });
+        // There is no task with index 4 and the next task index will be 5.
+        assert!(!has_task_with_id(4), 1);
+        assert!(get_next_task_index() == 5, 1);
+        assert!(600 == get_gas_committed_for_next_epoch(), 1);
+
+        check_account_balance(
+            user_account,
+            (expected_current_balance - expected_automation_fee + refund_automation_fee - FLAT_REGISTRATION_FEE_TEST)
+        );
+        check_account_balance(
+            registry_fee_address,
+            REGISTRY_DEFAULT_BALANCE + (4 * FLAT_REGISTRATION_FEE_TEST) + expected_automation_fee - refund_automation_fee + FLAT_REGISTRATION_FEE_TEST
+        );
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe, user2 = @0x1cafa)]
+    #[expected_failure(abort_code = EUNAUTHORIZED_TASK_OWNER, location = Self)]
+    fun check_unauthorized_stopping_task(
+        framework: &signer,
+        user: &signer,
+        user2: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+
+        register(user,
+            PAYLOAD,
+            86400,
+            10,
+            20,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+        stop_tasks(user2, vector[0]);
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    fun check_stopping_of_stopped_task(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+
+        register(user,
+            PAYLOAD,
+            86400,
+            10,
+            20,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+        timestamp::update_global_time_for_test_secs(50);
+        on_new_epoch();
+        // Stop the same task 2 times, second time it will not abort it just skip the task_id if it's not found
+        stop_tasks(user, vector[0]);
+        assert!(!has_task_with_id(0), 1);
+
+        stop_tasks(user, vector[0]);
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    fun check_stopping_of_cancelled_task(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig {
+        initialize_registry_test(framework, user);
+
+        register(user,
+            PAYLOAD,
+            86400,
+            2000,
+            200,
+            1000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+        assert!(2000 == get_gas_committed_for_next_epoch(), 1);
+
+        // check user balance after registered new task
+        let registry_fee_address = get_registry_fee_address();
+        let user_account = address_of(user);
+        let expected_current_balance = ACCOUNT_BALANCE - FLAT_REGISTRATION_FEE_TEST;
+        check_account_balance(user_account, expected_current_balance);
+        check_account_balance(registry_fee_address, REGISTRY_DEFAULT_BALANCE + FLAT_REGISTRATION_FEE_TEST);
+
+        // Start new epoch
+        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+        on_new_epoch();
+
+        // 0.002 - automation_epoch_fee_per_second, 7200 epoch duration
+        let expected_automation_fee = 2000 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100000;
+        check_account_balance(user_account, expected_current_balance - expected_automation_fee);
+        check_account_balance(
+            registry_fee_address,
+            REGISTRY_DEFAULT_BALANCE + FLAT_REGISTRATION_FEE_TEST + expected_automation_fee
+        );
+
+        // Task is active state and after cancelling it, status will be update to cancelled
+        cancel_task(user, 0);
+        assert!(has_task_with_id(0), 1);
+        assert!(0 == get_gas_committed_for_next_epoch(), 1);
+
+        // balance is keep remain same
+        let expected_automation_fee = 2000 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100000;
+        check_account_balance(user_account, expected_current_balance - expected_automation_fee);
+        check_account_balance(
+            registry_fee_address,
+            REGISTRY_DEFAULT_BALANCE + FLAT_REGISTRATION_FEE_TEST + expected_automation_fee
+        );
+
+        // After cancelling the task, the user stops it after 50% of the next epoch has passed.
+        timestamp::update_global_time_for_test_secs(
+            EPOCH_INTERVAL_FOR_TEST_IN_SECS + (EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2)
+        );
+
+        stop_tasks(user, vector[0]);
+        assert!(!has_task_with_id(0), 1);
+        assert!(0 == get_gas_committed_for_next_epoch(), 1);
+
+        // Because the on of the task stopped after 50% epoch time passed, the user gets a 50% refund for the unused time.
+        // which is equivalent to a 25% refund of the full epoch for single task.
+        let refund_automation_fee = (2000 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100000) / 4;
+        check_account_balance(
+            user_account,
+            (expected_current_balance - expected_automation_fee + refund_automation_fee)
+        );
+        check_account_balance(
+            registry_fee_address,
+            REGISTRY_DEFAULT_BALANCE + FLAT_REGISTRATION_FEE_TEST + expected_automation_fee - refund_automation_fee
+        );
+    }
 }

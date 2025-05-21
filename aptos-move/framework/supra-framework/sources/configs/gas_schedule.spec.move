@@ -11,7 +11,7 @@ spec supra_framework::gas_schedule {
     /// Requirement: Only the Supra framework account should be allowed to update the gas schedule resource.
     /// Criticality: Critical
     /// Implementation: The gas_schedule::set_gas_schedule function calls the assert_supra_framework function to ensure
-    /// that the signer is the aptos framework account.
+    /// that the signer is the supra framework account.
     /// Enforcement: Formally verified via [high-level-req-2](set_gas_schedule).
     ///
     /// No.: 3
@@ -130,12 +130,12 @@ spec supra_framework::gas_schedule {
         aborts_if false;
     }
 
-    spec set_storage_gas_config(supra_framework: &signer, config: StorageGasConfig) {
+    spec set_storage_gas_config(supra_framework: &signer, config: storage_gas::StorageGasConfig) {
         include system_addresses::AbortsIfNotSupraFramework{ account: supra_framework };
         aborts_if !exists<storage_gas::StorageGasConfig>(@supra_framework);
     }
 
-    spec set_storage_gas_config_for_next_epoch(supra_framework: &signer, config: StorageGasConfig) {
+    spec set_storage_gas_config_for_next_epoch(supra_framework: &signer, config: storage_gas::StorageGasConfig) {
         include system_addresses::AbortsIfNotSupraFramework{ account: supra_framework };
         aborts_if !exists<storage_gas::StorageGasConfig>(@supra_framework);
     }
