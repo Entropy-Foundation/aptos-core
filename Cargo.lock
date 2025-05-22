@@ -5577,7 +5577,7 @@ dependencies = [
 [[package]]
 name = "bulletproofs"
 version = "5.0.0"
-source = "git+ssh://git@github.com/Entropy-Foundation/bulletproofs?rev=15f9d568620a821e4252987b61c9992c1af06e9e#15f9d568620a821e4252987b61c9992c1af06e9e"
+source = "git+ssh://git@github.com/Entropy-Foundation/bulletproofs?tag=v0.1.0#15f9d568620a821e4252987b61c9992c1af06e9e"
 dependencies = [
  "blsttc",
  "byteorder",

@@ -133,8 +133,8 @@ return true.
 -  [Function `supra_native_automation_enabled`](#0x1_features_supra_native_automation_enabled)
 -  [Function `get_supra_eth_trie_feature`](#0x1_features_get_supra_eth_trie_feature)
 -  [Function `supra_eth_trie_enabled`](#0x1_features_supra_eth_trie_enabled)
--  [Function `get_supra_bls12381_bulletproofs_feature`](#0x1_features_get_supra_bls12381_bulletproofs_feature)
--  [Function `supra_bls12381_bulletproofs_enabled`](#0x1_features_supra_bls12381_bulletproofs_enabled)
+-  [Function `get_supra_private_poll_feature`](#0x1_features_get_supra_private_poll_feature)
+-  [Function `supra_private_poll_enabled`](#0x1_features_supra_private_poll_enabled)
 -  [Function `change_feature_flags`](#0x1_features_change_feature_flags)
 -  [Function `change_feature_flags_internal`](#0x1_features_change_feature_flags_internal)
 -  [Function `change_feature_flags_for_next_epoch`](#0x1_features_change_feature_flags_for_next_epoch)
@@ -3372,13 +3372,13 @@ Lifetime: transient
 
 </details>
 
-<a id="0x1_features_get_supra_bls12381_bulletproofs_feature"></a>
+<a id="0x1_features_get_supra_private_poll_feature"></a>
 
-## Function `get_supra_bls12381_bulletproofs_feature`
+## Function `get_supra_private_poll_feature`
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_bls12381_bulletproofs_feature">get_supra_bls12381_bulletproofs_feature</a>(): u64
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_private_poll_feature">get_supra_private_poll_feature</a>(): u64
 </code></pre>
 
 
@@ -3387,7 +3387,7 @@ Lifetime: transient
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_bls12381_bulletproofs_feature">get_supra_bls12381_bulletproofs_feature</a>(): u64 {
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_private_poll_feature">get_supra_private_poll_feature</a>(): u64 {
     <a href="features.md#0x1_features_PRIVATE_POLL">PRIVATE_POLL</a>
 }
 </code></pre>
@@ -3396,13 +3396,13 @@ Lifetime: transient
 
 </details>
 
-<a id="0x1_features_supra_bls12381_bulletproofs_enabled"></a>
+<a id="0x1_features_supra_private_poll_enabled"></a>
 
-## Function `supra_bls12381_bulletproofs_enabled`
+## Function `supra_private_poll_enabled`
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_bls12381_bulletproofs_enabled">supra_bls12381_bulletproofs_enabled</a>(): bool
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_private_poll_enabled">supra_private_poll_enabled</a>(): bool
 </code></pre>
 
 
@@ -3411,7 +3411,7 @@ Lifetime: transient
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_bls12381_bulletproofs_enabled">supra_bls12381_bulletproofs_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_private_poll_enabled">supra_private_poll_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
     <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_PRIVATE_POLL">PRIVATE_POLL</a>)
 }
 </code></pre>
