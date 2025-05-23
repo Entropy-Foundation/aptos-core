@@ -123,7 +123,7 @@ module supra_framework::genesis {
         unlock_period_duration: u64,
     }
 
-    /// Genesis step 1: Initialize aptos framework account and core modules on chain.
+    /// Genesis step 1: Initialize supra framework account and core modules on chain.
     fun initialize(
         gas_schedule: vector<u8>,
         chain_id: u8,
@@ -141,13 +141,13 @@ module supra_framework::genesis {
         voting_power_increase_limit: u64,
         genesis_timestamp_in_microseconds: u64,
     ) {
-        // Initialize the aptos framework account. This is the account where system resources and modules will be
+        // Initialize the supra framework account. This is the account where system resources and modules will be
         // deployed to. This will be entirely managed by on-chain governance and no entities have the key or privileges
         // to use this account.
         let (supra_framework_account, supra_framework_signer_cap) = account::create_framework_reserved_account(
             @supra_framework
         );
-        // Initialize account configs on aptos framework account.
+        // Initialize account configs on supra framework account.
         account::initialize(&supra_framework_account);
 
         transaction_validation::initialize(
@@ -161,7 +161,7 @@ module supra_framework::genesis {
         // Give the decentralized on-chain governance control over the core framework account.
         supra_governance::store_signer_cap(&supra_framework_account, @supra_framework, supra_framework_signer_cap);
 
-        // put reserved framework reserved accounts under aptos governance
+        // put reserved framework reserved accounts under supra governance
         let framework_reserved_addresses = vector<address>[@0x2, @0x3, @0x4, @0x5, @0x6, @0x7, @0x8, @0x9, @0xa];
         while (!vector::is_empty(&framework_reserved_addresses)) {
             let address = vector::pop_back<address>(&mut framework_reserved_addresses);
