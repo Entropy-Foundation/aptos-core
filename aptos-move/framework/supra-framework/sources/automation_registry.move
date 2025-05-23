@@ -3304,7 +3304,7 @@ module supra_framework::automation_registry {
         assert!(r2.fee == expected_fee, 4);
 
         // Now lets assume task as activated and epoch has been kept short, refund for both tasks will be done in the
-        // same manneer according to their exiration time.
+        // same manner according to their expiration time.
         update_task_state(ar, task2, ACTIVE);
 
         let current_time = EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 4;
