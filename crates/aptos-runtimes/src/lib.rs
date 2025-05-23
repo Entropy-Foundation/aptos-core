@@ -43,10 +43,14 @@ where
             let id = atomic_id.fetch_add(1, Ordering::SeqCst);
             format!("{}-{}", thread_name_clone, id)
         })
-        .on_thread_start(on_thread_start)
-        .disable_lifo_slot()
-        // Limit concurrent blocking tasks from spawn_blocking(), in case, for example, too many
-        // Rest API calls overwhelm the node.
+        .on_thread_start(on_thread_start);
+    #[cfg(all(feature = "unstable_tokio", tokio_unstable))]
+    {
+        builder = builder.disable_lifo_slot();
+    }
+    // Limit concurrent blocking tasks from spawn_blocking(), in case, for example, too many
+    // Rest API calls overwhelm the node.
+    builder
         .max_blocking_threads(MAX_BLOCKING_THREADS)
         .enable_all();
     if let Some(num_worker_threads) = num_worker_threads {
