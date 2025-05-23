@@ -1107,14 +1107,15 @@ module supra_framework::automation_registry {
         if (task.expiry_time <= current_time) { return 0 };
         // Subtraction is safe here, as we already excluded expired tasks
         let task_active_timeframe = task.expiry_time - current_time;
-        // If the task is a new task i.e. in Pending state,
-        // and it's a short task - active duration is less than the input potential_fee_timeframe(which is epoch-interval),
-        // then it is task's first and only epoch and we calculate the fee for entire epoch.
+        // If the task is a new task i.e. in Pending state, then it is charged always for
+        // the input potential_fee_timeframe(which is epoch-interval),
+        // For the new tasks which active-timeframe is less than epoch-interval
+        // it would mean it is their first and only epoch and we charge the fee for entire epoch.
         // Note that although the new short tasks are charged for entire epoch, the refunding logic remains the same for
         // them as for the long tasks.
         // This way bad-actors will be discourged to submit small and short tasks with big occupancy by blocking other
         // good-actors register tasks.
-        let actual_fee_timeframe = if (task.state == PENDING && task_active_timeframe < potential_fee_timeframe) {
+        let actual_fee_timeframe = if (task.state == PENDING) {
             potential_fee_timeframe
         } else {
             math64::min(task_active_timeframe, potential_fee_timeframe)
@@ -4108,8 +4109,10 @@ module supra_framework::automation_registry {
         assert!(active_task_ids == vector[], 1);
     }
 
+    #[test_only]
+    // Kept only for performance analysis intentions
     // Register 500 tasks to measure registration time/used-gas
-    #[test(framework = @supra_framework, user = @0x1cafe)]
+    // #[test(framework = @supra_framework, user = @0x1cafe)]
     fun check_task_registration_performance(
         framework: &signer,
         user: &signer
@@ -4117,12 +4120,14 @@ module supra_framework::automation_registry {
         task_registration_performance(framework, user);
     }
 
+    #[test_only]
+    // Kept only for performance analysis intentions
     // Register 500 tasks with 1.5 EPOCH_INTERVAL duration/expiration time
     // And run 3 epochs to check gas-used when
     //  - full epoch passed
     //  - 1/3 of epoch passed to simulate refund, but tasks are still active
     //  - last epoch identifies all tasks are expired
-    #[test(framework = @supra_framework, user = @0x1cafe)]
+    // #[test(framework = @supra_framework, user = @0x1cafe)]
     fun check_task_activation_on_new_epoch_performance(
         framework: &signer,
         user: &signer

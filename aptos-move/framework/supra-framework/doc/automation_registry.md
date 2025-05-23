@@ -59,7 +59,6 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `estimate_automation_fee`](#0x1_automation_registry_estimate_automation_fee)
 -  [Function `estimate_automation_fee_with_committed_occupancy`](#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy)
 -  [Function `is_registration_enabled`](#0x1_automation_registry_is_registration_enabled)
--  [Function `task_active_duration`](#0x1_automation_registry_task_active_duration)
 -  [Function `estimate_automation_fee_with_committed_occupancy_internal`](#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal)
 -  [Function `validate_configuration_parameters_common`](#0x1_automation_registry_validate_configuration_parameters_common)
 -  [Function `create_registry_resource_account`](#0x1_automation_registry_create_registry_resource_account)
@@ -2401,34 +2400,6 @@ Returns the current status of the registration in the automation registry.
 
 </details>
 
-<a id="0x1_automation_registry_task_active_duration"></a>
-
-## Function `task_active_duration`
-
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_task_active_duration">task_active_duration</a>(task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, current_time: u64): u64
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_task_active_duration">task_active_duration</a>(task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a>, current_time: u64): u64 {
-    <b>if</b> (task.expiry_time &lt;= current_time) {
-        0
-    } <b>else</b> {
-        task.expiry_time - current_time
-    }
-}
-</code></pre>
-
-
-
-</details>
-
 <a id="0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal"></a>
 
 ## Function `estimate_automation_fee_with_committed_occupancy_internal`
@@ -3327,14 +3298,15 @@ It returns calculated task fee for the interval the task will be active.
     <b>if</b> (task.expiry_time &lt;= current_time) { <b>return</b> 0 };
     // Subtraction is safe here, <b>as</b> we already excluded expired tasks
     <b>let</b> task_active_timeframe = task.expiry_time - current_time;
-    // If the task is a new task i.e. in Pending state,
-    // and it's a short task - active duration is less than the input potential_fee_timeframe(which is epoch-interval),
-    // then it is task's first and only epoch and we calculate the fee for entire epoch.
+    // If the task is a new task i.e. in Pending state, then it is charged always for
+    // the input potential_fee_timeframe(which is epoch-interval),
+    // For the new tasks which active-timeframe is less than epoch-interval
+    // it would mean it is their first and only epoch and we charge the fee for entire epoch.
     // Note that although the new short tasks are charged for entire epoch, the refunding logic remains the same for
     // them <b>as</b> for the long tasks.
     // This way bad-actors will be discourged <b>to</b> submit small and short tasks <b>with</b> big occupancy by blocking other
     // good-actors register tasks.
-    <b>let</b> actual_fee_timeframe = <b>if</b> (task.state == <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a> && task_active_timeframe &lt; potential_fee_timeframe) {
+    <b>let</b> actual_fee_timeframe = <b>if</b> (task.state == <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
         potential_fee_timeframe
     } <b>else</b> {
         <a href="../../aptos-stdlib/doc/math64.md#0x1_math64_min">math64::min</a>(task_active_timeframe, potential_fee_timeframe)
