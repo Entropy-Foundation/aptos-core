@@ -40,6 +40,16 @@ module supra_std::eth_trie {
         native_verify_proof_eth_trie(root, key, proof)
     }
 
+    public fun verify_proof_eth_trie_clone(
+        root: vector<u8>,
+        key: vector<u8>,
+        proof: vector<vector<u8>>
+    ): (bool, vector<u8>) {
+        assert!(features::supra_eth_trie_enabled(), EETH_TRIE_FEATURE_DISABLED);
+        native_verify_proof_eth_trie(root, key, proof)
+    }
+
+
     //
     // Native functions
     //

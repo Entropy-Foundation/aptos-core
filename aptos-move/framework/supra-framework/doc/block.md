@@ -671,7 +671,7 @@ The runtime always runs this before executing the transactions in a block.
 ) <b>acquires</b> <a href="block.md#0x1_block_BlockResource">BlockResource</a>, <a href="block.md#0x1_block_CommitHistory">CommitHistory</a> {
     <b>let</b> epoch_interval = <a href="block.md#0x1_block_block_prologue_common">block_prologue_common</a>(
         &vm,
-        <a href="../../aptos-stdlib/../move-stdlib/doc/hash.md#0x1_hash">hash</a>,
+        <a href="../../aptos-stdlib/doc/hash.md#0x1_hash">hash</a>,
         epoch,
         round,
         proposer,
@@ -1110,7 +1110,7 @@ The number of new events created does not exceed MAX_U64.
 
 <pre><code><b>schema</b> <a href="block.md#0x1_block_BlockRequirement">BlockRequirement</a> {
     vm: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>;
-    <a href="../../aptos-stdlib/../move-stdlib/doc/hash.md#0x1_hash">hash</a>: <b>address</b>;
+    <a href="../../aptos-stdlib/doc/hash.md#0x1_hash">hash</a>: <b>address</b>;
     epoch: u64;
     round: u64;
     proposer: <b>address</b>;
