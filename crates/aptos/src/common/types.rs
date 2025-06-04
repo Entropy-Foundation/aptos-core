@@ -2208,16 +2208,16 @@ impl ScriptFunctionArguments {
 /// JSON file format for function arguments.
 pub struct ArgWithTypeJSON {
     #[serde(rename = "type")]
-    pub(crate) arg_type: String,
-    pub(crate) value: serde_json::Value,
+    pub arg_type: String,
+    pub value: serde_json::Value,
 }
 
 #[derive(Deserialize, Serialize)]
 /// JSON file format for entry function arguments.
 pub struct EntryFunctionArgumentsJSON {
-    pub(crate) function_id: String,
-    pub(crate) type_args: Vec<String>,
-    pub(crate) args: Vec<ArgWithTypeJSON>,
+    pub function_id: String,
+    pub type_args: Vec<String>,
+    pub args: Vec<ArgWithTypeJSON>,
 }
 
 impl TryInto<EntryFunctionArguments> for EntryFunctionArgumentsJSON {
