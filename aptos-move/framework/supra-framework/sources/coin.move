@@ -382,16 +382,7 @@ module supra_framework::coin {
     public fun coin_to_fungible_asset<CoinType>(
         coin: Coin<CoinType>
     ): FungibleAsset acquires CoinConversionMap, CoinInfo {
-        // TODO: Replace the below code with a call to `coin_to_fungible_asset_internal`
-        // once we fully support `FungibleAsset`s. The below guard is used because we need to
-        // preserve the function signature but want to keep the feature flag active to avoid
-        // breaking the tests. The `else` branch will never be taken in the production code
-        // as this feature is set by default.
-        if (features::coin_to_fungible_asset_migration_feature_enabled()) {
-            abort error::unavailable(ECOIN_TO_FUNGIBLE_ASSET_FEATURE_NOT_ENABLED)
-        } else {
             coin_to_fungible_asset_internal(coin)
-        }
     }
 
     fun coin_to_fungible_asset_internal<CoinType>(
@@ -729,16 +720,7 @@ module supra_framework::coin {
     public entry fun migrate_to_fungible_store<CoinType>(
         account: &signer
     ) acquires CoinStore, CoinConversionMap, CoinInfo {
-        // TODO: Replace the below code with a call to `migrate_to_fungible_store_internal`
-        // once we fully support `FungibleAsset`s. The below guard is used because we need to
-        // preserve the function signature but want to keep the feature flag active to avoid
-        // breaking the tests. The `else` branch will never be taken in the production code
-        // as this feature is set by default.
-        if (features::coin_to_fungible_asset_migration_feature_enabled()) {
-            abort error::unavailable(ECOIN_TO_FUNGIBLE_ASSET_FEATURE_NOT_ENABLED)
-        } else {
             migrate_to_fungible_store_internal<CoinType>(account)
-        }
     }
 
     fun migrate_to_fungible_store_internal<CoinType>(
