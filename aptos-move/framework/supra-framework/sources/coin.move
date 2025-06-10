@@ -319,10 +319,10 @@ module supra_framework::coin {
             assert!(!is_sup || allow_apt_creation, error::invalid_state(EAPT_PAIRING_IS_NOT_ENABLED));
             let metadata_object_cref =
                 if (is_sup) {
-                    object::create_sticky_object_at_address(@supra_framework, @aptos_fungible_asset)
+                    object::create_sticky_object_at_address(@supra_framework, @supra_fungible_asset)
                 } else {
                     object::create_named_object(
-                        &create_signer::create_signer(@aptos_fungible_asset),
+                        &create_signer::create_signer(@supra_fungible_asset),
                         *string::bytes(&type_info::type_name<CoinType>())
                     )
                 };
@@ -2029,7 +2029,7 @@ module supra_framework::coin {
         });
     }
 
-    #[test(account = @supra_framework, aaron = @0xcafe)]
+    #[test(account = @supra_framework, aaron = @0xcafe)] // Case 1 in aip-63
     fun test_balance_with_both_stores(
         account: &signer,
         aaron: &signer
@@ -2057,7 +2057,7 @@ module supra_framework::coin {
         });
     }
 
-    #[test(account = @supra_framework)]
+    #[test(account = @supra_framework)] // Case 2 in aip-63
     fun test_deposit(
         account: &signer,
     ) acquires CoinConversionMap, CoinInfo, CoinStore {
@@ -2198,7 +2198,7 @@ module supra_framework::coin {
         });
     }
 
-    #[test(account = @supra_framework, aaron = @0xaa10, bob = @0xb0b)]
+    #[test(account = @supra_framework, aaron = @0xaa10, bob = @0xb0b)] // Case 5 in aip-63
     fun test_is_account_registered(
         account: &signer,
         aaron: &signer,
@@ -2246,7 +2246,7 @@ module supra_framework::coin {
         });
     }
 
-    #[test(account = @supra_framework, aaron = @0xaa10)]
+    #[test(account = @supra_framework)]
     fun test_migration_with_existing_primary_fungible_store(
         account: &signer,
     ) acquires CoinConversionMap, CoinInfo, CoinStore, PairedCoinType {
