@@ -78,5 +78,6 @@ module 0x2::fungible_asset_tests {
         // [debug] 0x1::object::Object<0x2::fungible_asset_tests::TestToken> {
         // inner: @0x2f81cd9f9c6933b4683404a2a2d2dc60ec682ed4f0f05112c88875fd72b7decb
         // }
+        assert!(object::object_address(&metadata) != object::object_address(&metadata_test) , 0);
     }
 }
