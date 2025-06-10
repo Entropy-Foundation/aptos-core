@@ -215,6 +215,7 @@ module supra_framework::genesis {
     }
 
     /// Genesis step 3: Initialize Supra Native Automation.
+    /// DEPRECATED in favoor of initialize_supra_native_automation_v2. It calls deprectead API.
     public fun initialize_supra_native_automation(
         supra_framework: &signer,
         task_duration_cap_in_secs: u64,
@@ -230,6 +231,33 @@ module supra_framework::genesis {
         automation_registry::initialize(
             supra_framework,
             epoch_interval_secs,
+            task_duration_cap_in_secs,
+            registry_max_gas_cap,
+            automation_base_fee_in_quants_per_sec,
+            flat_registration_fee_in_quants,
+            congestion_threshold_percentage,
+            congestion_base_fee_in_quants_per_sec,
+            congestion_exponent,
+            task_capacity,
+        )
+    }
+
+    /// Genesis step 3: Initialize Supra Native Automation.
+    public fun initialize_supra_native_automation_v2(
+        supra_framework: &signer,
+        task_duration_cap_in_secs: u64,
+        registry_max_gas_cap: u64,
+        automation_base_fee_in_quants_per_sec: u64,
+        flat_registration_fee_in_quants: u64,
+        congestion_threshold_percentage: u8,
+        congestion_base_fee_in_quants_per_sec: u64,
+        congestion_exponent: u8,
+        task_capacity: u16,
+        cycle_duration: u64
+    ) {
+        automation_registry::initialize_v2(
+            supra_framework,
+            cycle_duration,
             task_duration_cap_in_secs,
             registry_max_gas_cap,
             automation_base_fee_in_quants_per_sec,

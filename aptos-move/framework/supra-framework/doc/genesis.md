@@ -16,6 +16,7 @@
 -  [Function `initialize`](#0x1_genesis_initialize)
 -  [Function `initialize_supra_coin`](#0x1_genesis_initialize_supra_coin)
 -  [Function `initialize_supra_native_automation`](#0x1_genesis_initialize_supra_native_automation)
+-  [Function `initialize_supra_native_automation_v2`](#0x1_genesis_initialize_supra_native_automation_v2)
 -  [Function `initialize_core_resources_and_supra_coin`](#0x1_genesis_initialize_core_resources_and_supra_coin)
 -  [Function `create_accounts`](#0x1_genesis_create_accounts)
 -  [Function `create_account`](#0x1_genesis_create_account)
@@ -682,6 +683,7 @@ Genesis step 2: Initialize Supra coin.
 ## Function `initialize_supra_native_automation`
 
 Genesis step 3: Initialize Supra Native Automation.
+DEPRECATED in favoor of initialize_supra_native_automation_v2. It calls deprectead API.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_native_automation">initialize_supra_native_automation</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16)
@@ -708,6 +710,53 @@ Genesis step 3: Initialize Supra Native Automation.
     <a href="automation_registry.md#0x1_automation_registry_initialize">automation_registry::initialize</a>(
         supra_framework,
         epoch_interval_secs,
+        task_duration_cap_in_secs,
+        registry_max_gas_cap,
+        automation_base_fee_in_quants_per_sec,
+        flat_registration_fee_in_quants,
+        congestion_threshold_percentage,
+        congestion_base_fee_in_quants_per_sec,
+        congestion_exponent,
+        task_capacity,
+    )
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_genesis_initialize_supra_native_automation_v2"></a>
+
+## Function `initialize_supra_native_automation_v2`
+
+Genesis step 3: Initialize Supra Native Automation.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_native_automation_v2">initialize_supra_native_automation_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16, cycle_duration: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_native_automation_v2">initialize_supra_native_automation_v2</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    task_duration_cap_in_secs: u64,
+    registry_max_gas_cap: u64,
+    automation_base_fee_in_quants_per_sec: u64,
+    flat_registration_fee_in_quants: u64,
+    congestion_threshold_percentage: u8,
+    congestion_base_fee_in_quants_per_sec: u64,
+    congestion_exponent: u8,
+    task_capacity: u16,
+    cycle_duration: u64
+) {
+    <a href="automation_registry.md#0x1_automation_registry_initialize_v2">automation_registry::initialize_v2</a>(
+        supra_framework,
+        cycle_duration,
         task_duration_cap_in_secs,
         registry_max_gas_cap,
         automation_base_fee_in_quants_per_sec,
