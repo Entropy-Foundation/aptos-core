@@ -90,6 +90,8 @@ pub enum FeatureFlag {
     // Ends up in 11th byte, 0th bit
     SUPRA_NATIVE_AUTOMATION = 88,
     SUPRA_ETH_TRIE= 89,
+    SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK = 90,
+    PRIVATE_POLL = 91,
 }
 
 impl FeatureFlag {
@@ -156,6 +158,8 @@ impl FeatureFlag {
             FeatureFlag::CONCURRENT_FUNGIBLE_BALANCE,
             FeatureFlag::LIMIT_VM_TYPE_SIZE,
             FeatureFlag::ABORT_IF_MULTISIG_PAYLOAD_MISMATCH,
+            FeatureFlag::SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK,
+            FeatureFlag::PRIVATE_POLL,
         ]
     }
 }

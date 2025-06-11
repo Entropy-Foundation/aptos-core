@@ -550,7 +550,7 @@
 
 ## Function `initialize`
 
-Genesis step 1: Initialize aptos framework account and core modules on chain.
+Genesis step 1: Initialize supra framework account and core modules on chain.
 
 
 <pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize">initialize</a>(<a href="gas_schedule.md#0x1_gas_schedule">gas_schedule</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, initial_version: u64, <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="execution_config.md#0x1_execution_config">execution_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="supra_config.md#0x1_supra_config">supra_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, epoch_interval_microsecs: u64, minimum_stake: u64, maximum_stake: u64, recurring_lockup_duration_secs: u64, allow_validator_set_change: bool, rewards_rate: u64, rewards_rate_denominator: u64, voting_power_increase_limit: u64, genesis_timestamp_in_microseconds: u64)
@@ -579,13 +579,13 @@ Genesis step 1: Initialize aptos framework account and core modules on chain.
     voting_power_increase_limit: u64,
     genesis_timestamp_in_microseconds: u64,
 ) {
-    // Initialize the aptos framework <a href="account.md#0x1_account">account</a>. This is the <a href="account.md#0x1_account">account</a> <b>where</b> system resources and modules will be
+    // Initialize the supra framework <a href="account.md#0x1_account">account</a>. This is the <a href="account.md#0x1_account">account</a> <b>where</b> system resources and modules will be
     // deployed <b>to</b>. This will be entirely managed by on-chain governance and no entities have the key or privileges
     // <b>to</b> <b>use</b> this <a href="account.md#0x1_account">account</a>.
     <b>let</b> (supra_framework_account, supra_framework_signer_cap) = <a href="account.md#0x1_account_create_framework_reserved_account">account::create_framework_reserved_account</a>(
         @supra_framework
     );
-    // Initialize <a href="account.md#0x1_account">account</a> configs on aptos framework <a href="account.md#0x1_account">account</a>.
+    // Initialize <a href="account.md#0x1_account">account</a> configs on supra framework <a href="account.md#0x1_account">account</a>.
     <a href="account.md#0x1_account_initialize">account::initialize</a>(&supra_framework_account);
 
     <a href="transaction_validation.md#0x1_transaction_validation_initialize">transaction_validation::initialize</a>(
@@ -599,7 +599,7 @@ Genesis step 1: Initialize aptos framework account and core modules on chain.
     // Give the decentralized on-chain governance control over the core framework <a href="account.md#0x1_account">account</a>.
     <a href="supra_governance.md#0x1_supra_governance_store_signer_cap">supra_governance::store_signer_cap</a>(&supra_framework_account, @supra_framework, supra_framework_signer_cap);
 
-    // put reserved framework reserved accounts under aptos governance
+    // put reserved framework reserved accounts under supra governance
     <b>let</b> framework_reserved_addresses = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;[@0x2, @0x3, @0x4, @0x5, @0x6, @0x7, @0x8, @0x9, @0xa];
     <b>while</b> (!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&framework_reserved_addresses)) {
         <b>let</b> <b>address</b> = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>&lt;<b>address</b>&gt;(&<b>mut</b> framework_reserved_addresses);
