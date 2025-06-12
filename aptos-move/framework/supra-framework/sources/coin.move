@@ -1351,7 +1351,7 @@ module supra_framework::coin {
     }
 
     #[test_only]
-    fun create_coin_store<CoinType>(account: &signer) {
+    public fun create_coin_store<CoinType>(account: &signer) {
         assert!(is_coin_initialized<CoinType>(), error::invalid_argument(ECOIN_INFO_NOT_PUBLISHED));
         if (!exists<CoinStore<CoinType>>(signer::address_of(account))) {
             let coin_store = CoinStore<CoinType> {

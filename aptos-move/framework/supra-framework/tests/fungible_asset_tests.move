@@ -1,56 +1,27 @@
 module 0x2::fungible_asset_tests {
-    use std::string::String;
-    use supra_framework::object;
-    use supra_framework::object::Object;
+    #[test_only]
+    use std::option;
     #[test_only]
     use std::signer;
     #[test_only]
-    use aptos_std::debug;
+    use std::string;
     #[test_only]
     use supra_framework::account;
     #[test_only]
+    use supra_framework::coin;
+    #[test_only]
     use supra_framework::fungible_asset;
     #[test_only]
-    use supra_framework::object::{ConstructorRef};
+    use supra_framework::object;
+    #[test_only]
+    use supra_framework::object::{ConstructorRef, Object};
+    #[test_only]
+    use supra_framework::primary_fungible_store;
+
+    #[test_only]
     struct FakeMoney has key {}
 
-    struct Metadata has key, copy, drop {
-        /// Name of the fungible metadata, i.e., "USDT".
-        name: String,
-        /// Symbol of the fungible metadata, usually a shorter version of the name.
-        /// For example, Singapore Dollar is SGD.
-        symbol: String,
-        /// Number of decimals used for display purposes.
-        /// For example, if `decimals` equals `2`, a balance of `505` coins should
-        /// be displayed to a user as `5.05` (`505 / 10 ** 2`).
-        decimals: u8,
-        /// The Uniform Resource Identifier (uri) pointing to an image that can be used as the icon for this fungible
-        /// asset.
-        icon_uri: String,
-        /// The Uniform Resource Identifier (uri) pointing to the website for the fungible asset.
-        project_uri: String,
-    }
-
-    /// Capability required to mint coins.
-    struct MintCapability<phantom CoinType> has copy, store {}
-
-    /// Capability required to freeze a coin store.
-    struct FreezeCapability<phantom CoinType> has copy, store {}
-
-    /// Capability required to burn coins.
-    struct BurnCapability<phantom CoinType> has copy, store {}
-
-    inline fun borrow_fungible_metadata<T: key>(
-        metadata: &Object<T>
-    ): &Metadata acquires Metadata {
-        let addr = object::object_address(metadata);
-        borrow_global<Metadata>(addr)
-    }
-
-    public fun metadata<T: key>(metadata: Object<T>): Metadata acquires Metadata {
-        *borrow_fungible_metadata(&metadata)
-    }
-
+    #[test_only]
     struct TestToken has key {}
 
     #[test_only]
@@ -70,14 +41,43 @@ module 0x2::fungible_asset_tests {
         let (creator_ref_test, metadata_test) = create_test_token(creator2);
         fungible_asset::init_test_metadata(&creator_ref);
         fungible_asset::init_test_metadata(&creator_ref_test);
-        debug::print(&metadata);
-        // [debug] 0x1::object::Object<0x1::fungible_asset::TestToken> {
-        // inner: @0x37f294d40b6ca58d99537d7c6f4fdfb3f1ff442ac74694a71c15a8fba537cdb2
-        // }
-        debug::print(&metadata_test);
-        // [debug] 0x1::object::Object<0x2::fungible_asset_tests::TestToken> {
-        // inner: @0x2f81cd9f9c6933b4683404a2a2d2dc60ec682ed4f0f05112c88875fd72b7decb
-        // }
         assert!(object::object_address(&metadata) != object::object_address(&metadata_test) , 0);
+    }
+
+    #[test(account = @supra_framework, account2 = @0x2)]
+    fun test_migration_with_existing_primary_fungible_store_two_fakemoney (
+        account: &signer,
+        account2: &signer
+    ) {
+        account::create_account_for_test(signer::address_of(account));
+        let account_addr = signer::address_of(account);
+        account::create_account_for_test(signer::address_of(account2));
+        let (burn_cap, freeze_cap, mint_cap) = coin::initialize_and_register_fake_money(account, 1, true);
+        let (burn_cap_this, freeze_cap_this, mint_cap_this) = coin::initialize<FakeMoney>(account2, string::utf8(b"Fake money"),
+            string::utf8(b"FMD"), 1, true);
+        coin::create_pairing<0x1::coin::FakeMoney>(account);
+        coin::create_pairing<FakeMoney>(account);
+        coin::create_coin_store<FakeMoney>(account);
+
+        let coin = coin::mint<coin::FakeMoney>(50, &mint_cap);
+        let coin_this = coin::mint<FakeMoney>(100, &mint_cap_this);
+
+        primary_fungible_store::deposit(account_addr, coin::coin_to_fungible_asset(coin));
+        primary_fungible_store::deposit(account_addr, coin::coin_to_fungible_asset(coin_this));
+
+        assert!(coin::balance<0x1::coin::FakeMoney>(account_addr) == 50, 0);
+        assert!(coin::balance<FakeMoney>(account_addr) == 100, 0);
+
+        let address = object::object_address(option::borrow(&coin::paired_metadata<0x1::coin::FakeMoney>()));
+        let address_this = object::object_address(option::borrow(&coin::paired_metadata<FakeMoney>()));
+
+        assert!(address != address_this, 0);
+
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_burn_cap(burn_cap_this);
+        coin::destroy_freeze_cap(freeze_cap);
+        coin::destroy_freeze_cap(freeze_cap_this);
+        coin::destroy_mint_cap(mint_cap);
+        coin::destroy_mint_cap(mint_cap_this);
     }
 }
