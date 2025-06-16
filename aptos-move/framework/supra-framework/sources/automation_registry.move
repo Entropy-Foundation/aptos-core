@@ -1807,11 +1807,11 @@ module supra_framework::automation_registry {
     /// Does nothig if SUPRA_NATIVE_AUTOMATION is disabled
     public(friend) fun monitor_cycle_end() {
         // TODO: check is initialized, if not emit error but do not fail.
-        // check if SUPRA_NATIVE_AUTOMATION feature is disabled, do nothing
+        // check if SUPRA_NATIVE_AUTOMATION feature is disabled or cycle state is suspended, do nothing
         // call dummy native function which should be available if SUPRA_NATIVE_AUTOMATION_V2 is enabled.
         //    - It does nothing , if binary is also updated, otherwise VM will panic causing block-prologue to
         //      fail resulting in node failure as well.
-        // Otherwise if cycle_start + cycle_duration >= current time, mark the cycle as finished:
+        // Otherwise if cycle_start + cycle_duration >= current time, mark the cycle as finished and update configs from buffer:
         // on_cycle_end_internal
         assert_cycle_based_automation_registry_management_support();
     }
