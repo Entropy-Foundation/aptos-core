@@ -20,6 +20,8 @@ module supra_framework::coin {
     use supra_framework::primary_fungible_store;
     use aptos_std::type_info::{Self, TypeInfo, type_name};
     use supra_framework::create_signer;
+    #[test_only]
+    use supra_framework::supra_coin::SupraCoin;
 
     friend supra_framework::genesis;
     friend supra_framework::supra_coin;
@@ -2265,6 +2267,25 @@ module supra_framework::coin {
         deposit(account_addr, coin);
         assert!(coin_balance<FakeMoney>(account_addr) == 0, 0);
         assert!(balance<FakeMoney>(account_addr) == 100, 0);
+
+        move_to(account, FakeMoneyCapabilities {
+            burn_cap,
+            freeze_cap,
+            mint_cap,
+        });
+    }
+
+    // Case 3: New user C receives APT, account and CoinStore are created
+    #[test(account = @supra_framework, user_c = @0xC)]
+    public fun test_case_3_new_user_c_apt_receive(account: &signer, user_c: address) acquires CoinConversionMap, CoinInfo, CoinStore {
+        account::create_account_for_test(signer::address_of(account));
+        let account_addr = signer::address_of(account);
+        let (burn_cap, freeze_cap, mint_cap) = initialize_and_register_fake_money(account, 1, true);
+
+        let coin = mint<FakeMoney>(100, &mint_cap);
+        primary_fungible_store::deposit(user_c, coin_to_fungible_asset_internal(coin));
+        assert!(coin_balance<FakeMoney>(user_c) == 0, 0);
+        assert!(balance<FakeMoney>(user_c) == 100, 0);
 
         move_to(account, FakeMoneyCapabilities {
             burn_cap,
