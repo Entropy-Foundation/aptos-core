@@ -3513,7 +3513,7 @@ Lifetime: transient
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_automation_task_sync_feature">get_supra_automation_task_sync_feature</a>(): u64 {
-    <a href="features.md#0x1_features_PRIVATE_POLL">PRIVATE_POLL</a>
+    <a href="features.md#0x1_features_SUPRA_AUTOMATION_TASK_SYNC">SUPRA_AUTOMATION_TASK_SYNC</a>
 }
 </code></pre>
 
@@ -3537,7 +3537,7 @@ Lifetime: transient
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_automation_task_sync_enabled">supra_automation_task_sync_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
-    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_PRIVATE_POLL">PRIVATE_POLL</a>)
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_AUTOMATION_TASK_SYNC">SUPRA_AUTOMATION_TASK_SYNC</a>)
 }
 </code></pre>
 

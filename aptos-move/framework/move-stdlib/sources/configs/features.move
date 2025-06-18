@@ -720,11 +720,11 @@ module std::features {
     const SUPRA_AUTOMATION_TASK_SYNC: u64 = 92;
 
     public fun get_supra_automation_task_sync_feature(): u64 {
-        PRIVATE_POLL
+        SUPRA_AUTOMATION_TASK_SYNC
     }
 
     public fun supra_automation_task_sync_enabled(): bool acquires Features {
-        is_enabled(PRIVATE_POLL)
+        is_enabled(SUPRA_AUTOMATION_TASK_SYNC)
     }
 
     // ============================================================================================
