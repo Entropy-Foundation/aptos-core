@@ -10,6 +10,9 @@ use move_core_types::{
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::str::FromStr;
+use aptos_cached_packages::aptos_stdlib;
+use aptos_language_e2e_tests::account::{Account, TransactionBuilder};
+use aptos_types::on_chain_config::FeatureFlag;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 struct FungibleStore {
@@ -222,4 +225,140 @@ fn test_coin_to_fungible_asset_migration() {
             FUNGIBLE_STORE_TAG.clone()
         )
         .is_some());
+}
+
+#[test]
+fn test_sponsered_tx() {
+    let mut h = MoveHarness::new_with_features(
+        vec![
+            FeatureFlag::GAS_PAYER_ENABLED,
+            FeatureFlag::SPONSORED_AUTOMATIC_ACCOUNT_V1_CREATION,
+        ],
+        vec![],
+    );
+
+    let alice = h.new_account_at(AccountAddress::from_hex_literal("0xcafe").unwrap());
+    // let bob = h.new_account_at(AccountAddress::from_hex_literal("0xface").unwrap());
+    let bob = Account::new();
+    let root = h.aptos_framework_account();
+
+    let mut build_options = aptos_framework::BuildOptions::default();
+    build_options
+        .named_addresses
+        .insert("example_addr".to_string(), *alice.address());
+
+    let result = h.publish_package_with_options(
+        &alice,
+        &common::test_dir_path("../../../move-examples/fungible_asset/managed_fungible_asset"),
+        build_options.clone(),
+    );
+
+    assert_success!(result);
+    let result = h.publish_package_with_options(
+        &alice,
+        &common::test_dir_path("../../../move-examples/fungible_asset/managed_fungible_token"),
+        build_options,
+    );
+    assert_success!(result);
+
+    assert_success!(h.run_entry_function(
+        &root,
+        str::parse(&format!(
+            "0x{}::coin::create_coin_conversion_map",
+            (*root.address()).to_hex()
+        ))
+        .unwrap(),
+        vec![],
+        vec![],
+    ));
+
+    let metadata = h
+        .execute_view_function(
+            str::parse(&format!(
+                "0x{}::managed_fungible_token::get_metadata",
+                (*alice.address()).to_hex()
+            ))
+                .unwrap(),
+            vec![],
+            vec![],
+        )
+        .values
+        .unwrap()
+        .pop()
+        .unwrap();
+    let metadata = bcs::from_bytes::<AccountAddress>(metadata.as_slice()).unwrap();
+
+    let result = h.run_entry_function(
+        &alice,
+        str::parse(&format!(
+            "0x{}::managed_fungible_asset::mint_to_primary_stores",
+            (*alice.address()).to_hex()
+        ))
+            .unwrap(),
+        vec![],
+        vec![
+            bcs::to_bytes(&metadata).unwrap(),
+            bcs::to_bytes(&vec![alice.address()]).unwrap(),
+            bcs::to_bytes(&vec![100u64]).unwrap(), // amount
+        ],
+    );
+    assert_success!(result);
+
+    let payload = aptos_stdlib::supra_account_transfer(*bob.address(), 0);
+    let transaction = TransactionBuilder::new(bob.clone())
+        .fee_payer(alice.clone())
+        .payload(payload)
+        .sequence_number(0)
+        .max_gas_amount(1_000_000)
+        .gas_unit_price(1)
+        .sign_fee_payer();
+    
+    let output = h.run_raw(transaction);
+    assert_success!(*output.status());
+
+    let result = h.run_entry_function(
+        &alice,
+        str::parse(&format!(
+            "0x{}::managed_fungible_asset::transfer_between_primary_stores",
+            (*alice.address()).to_hex()
+        ))
+            .unwrap(),
+        vec![],
+        vec![
+            bcs::to_bytes(&metadata).unwrap(),
+            bcs::to_bytes(&vec![alice.address()]).unwrap(),
+            bcs::to_bytes(&vec![bob.address()]).unwrap(),
+            bcs::to_bytes(&vec![30u64]).unwrap(), // amount
+        ],
+    );
+    
+    assert_success!(result);
+    let token_addr = account_address::create_token_address(
+        *alice.address(),
+        "test collection name",
+        "test token name",
+    );
+    let alice_primary_store_addr =
+        account_address::create_derived_object_address(*alice.address(), token_addr);
+    let bob_primary_store_addr =
+        account_address::create_derived_object_address(*bob.address(), token_addr);
+    
+    // Ensure that the group data can be read
+    let alice_store: FungibleStore = h
+        .read_resource_from_resource_group(
+            &alice_primary_store_addr,
+            OBJ_GROUP_TAG.clone(),
+            FUNGIBLE_STORE_TAG.clone(),
+        )
+        .unwrap();
+    
+    let bob_store: FungibleStore = h
+        .read_resource_from_resource_group(
+            &bob_primary_store_addr,
+            OBJ_GROUP_TAG.clone(),
+            FUNGIBLE_STORE_TAG.clone(),
+        )
+        .unwrap();
+    
+    assert_ne!(alice_store, bob_store);
 }
