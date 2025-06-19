@@ -12,7 +12,9 @@ use serde::Deserialize;
 use std::str::FromStr;
 use aptos_cached_packages::aptos_stdlib;
 use aptos_language_e2e_tests::account::{Account, TransactionBuilder};
+use aptos_types::account_config::AccountResource;
 use aptos_types::on_chain_config::FeatureFlag;
+use move_core_types::move_resource::MoveStructType;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 struct FungibleStore {
@@ -238,7 +240,6 @@ fn test_sponsered_tx() {
     );
 
     let alice = h.new_account_at(AccountAddress::from_hex_literal("0xcafe").unwrap());
-    // let bob = h.new_account_at(AccountAddress::from_hex_literal("0xface").unwrap());
     let bob = Account::new();
     let root = h.aptos_framework_account();
 
@@ -303,8 +304,25 @@ fn test_sponsered_tx() {
         ],
     );
     assert_success!(result);
-
-    let payload = aptos_stdlib::supra_account_transfer(*bob.address(), 0);
+    
+    let sender_address = *bob.address();
+    let sender_hex = sender_address.to_hex();
+    let module_src_string = format!(
+        r#"
+    module 0x{}::test_module {{
+        #[view]
+        public fun return_tuple(): (u64, u64) {{
+            (1, 2)
+        }}
+    }}
+    "#,
+        sender_hex
+    );
+    let module_src = module_src_string.as_str();
+    let payload = aptos_stdlib::publish_module_source(
+        "test_module",
+        module_src
+    );
     let transaction = TransactionBuilder::new(bob.clone())
         .fee_payer(alice.clone())
         .payload(payload)
@@ -315,6 +333,10 @@ fn test_sponsered_tx() {
     
     let output = h.run_raw(transaction);
     assert_success!(*output.status());
+    
+    // Make sure bob's account is created
+    let exists = h.exists_resource(bob.address(), AccountResource::struct_tag());
+    assert!(exists, "Bob's account should exist after the sponsored transaction");
 
     let result = h.run_entry_function(
         &alice,
