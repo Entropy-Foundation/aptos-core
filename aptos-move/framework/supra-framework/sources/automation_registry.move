@@ -84,10 +84,12 @@ module supra_framework::automation_registry {
     const EDEPOSIT_REFUND: u64 = 27;
     /// Failed to unlock/refund epoch fee for a task. Internal error, for more details see emitted error events.
     const EEPOCH_FEE_REFUND: u64 = 28;
-    /// Deprecated function call since SUPRA_NATIVE_AUTOMATION_V2 release.
+    /// Deprecated function call since cycle based automation release.
     const EDEPRECATED_SINCE_V2: u64 = 29;
     /// Automation registry max gas capacity cannot be zero.
     const ECYCLE_DURATION_NON_ZERO: u64 = 30;
+    /// Attempt to do migration to cycle based automation which is already enabled.
+    const EINVALID_MIGRATION_ACTION: u64 = 31;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -181,7 +183,7 @@ module supra_framework::automation_registry {
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
-    /// Epoch state. Deprecated since SUPRA_NATIVE_AUTOMATION_V2 version.
+    /// Epoch state. Deprecated since SUPRA_CYCLE_BASED_AUTOMATION version.
     struct AutomationEpochInfo has key, copy {
         /// Epoch expected duration at the beginning of the new epoch, Based on this and actual
         /// epoch_duration which will be (current_time - last_reconfiguration_time) automation tasks
@@ -720,7 +722,7 @@ module supra_framework::automation_registry {
         });
     }
 
-    /// Initialization of Automation Registry with configuration parameters for SUPRA_NATIVE_AUTOMATION_V2 version.
+    /// Initialization of Automation Registry with configuration parameters for SUPRA_CYCLE_BASED_AUTOMATION version.
     /// Expected to have this function call either at genesis startup or as part of the SUPRA_FRAMEWORK upgrade where
     /// automation feature is being introduced very first time.
     /// In case if framework upgrade is happening on the chain where automation feature is already released and
@@ -796,6 +798,7 @@ module supra_framework::automation_registry {
     public fun migrate_v2(supra_framework: &signer, cycle_duration_secs: u64
         ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationCycleInfo {
         assert_supra_framework(supra_framework);
+        assert!(!features::supra_cycle_based_automation_enabled(), EINVALID_MIGRATION_ACTION);
 
         // Prepare the state for migration
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
@@ -818,7 +821,7 @@ module supra_framework::automation_registry {
         // Start migration by enabling feature, initializing the cycle releated resouces
         features::change_feature_flags_for_next_epoch(
             supra_framework,
-            vector[features::get_supra_native_automation_v2_feature()],
+            vector[features::get_supra_cycle_based_automation_feature()],
             vector[]);
         let id = 0;
         move_to(supra_framework, AutomationCycleInfo {
@@ -831,13 +834,25 @@ module supra_framework::automation_registry {
         on_cycle_end_internal();
     }
 
-    /// On new epoch caused by reconfiguration this function will be triggered and update the automation registry state
+    /// On new epoch caused by reconfiguration this function will be triggered and update the automation registry state.
+    /// If registry is not fully initialized nothing is done. Epoch change can be caused by governance action or by DKG
+    /// finalization. In case of the later case execution should not fail.
+    ///
+    /// If native automation feature is disabled then automation lifecycle is suspended. And detached managment will
+    /// initiate refund and cealnup actions.
+    ///
+    /// If native automation feature is enabled and automation lifecycle has been in suspended state,
+    /// then lifecycle is restarted.
     public(friend) fun on_new_epoch() acquires AutomationCycleInfo, ActiveAutomationRegistryConfig {
+        if (!is_initialized()) {
+            return
+        };
         let cycle_info = borrow_global_mut<AutomationCycleInfo>(@supra_framework);
         if (features::supra_native_automation_enabled()) {
             // If the lifecycle has been suspended and we are recovering from it, then we update config from buffer and
             // then start a new cycle directly
-            if ( cycle_info.state == LIFECYCLE_SUSPENDED) {
+            // TODO: check automation registry to be in empty state, otherwise emit an error event and remain in suspended state.
+            if (cycle_info.state == LIFECYCLE_SUSPENDED) {
                 move_to_started_state(cycle_info);
                 update_config_from_buffer();
             };
@@ -1798,7 +1813,7 @@ module supra_framework::automation_registry {
     }
 
     /// Update epoch interval in registry while actually update happens in block module
-    /// Deprecated since SUPRA_NATIVE_AUTOMATION_V2 feature release in favor of monitor_cycle_end
+    /// Deprecated since SUPRA_CYCLE_BASED_AUTOMATION feature release in favor of monitor_cycle_end
     public(friend) fun update_epoch_interval_in_registry(_epoch_interval_microsecs: u64) {
         assert!(false, EDEPRECATED_SINCE_V2);
     }
@@ -1808,7 +1823,7 @@ module supra_framework::automation_registry {
     public(friend) fun monitor_cycle_end() {
         // TODO: check is initialized, if not emit error but do not fail.
         // check if SUPRA_NATIVE_AUTOMATION feature is disabled or cycle state is suspended, do nothing
-        // call dummy native function which should be available if SUPRA_NATIVE_AUTOMATION_V2 is enabled.
+        // call dummy native function which should be available if SUPRA_CYCLE_BASED_AUTOMATION is enabled.
         //    - It does nothing , if binary is also updated, otherwise VM will panic causing block-prologue to
         //      fail resulting in node failure as well.
         // Otherwise if cycle_start + cycle_duration >= current time, mark the cycle as finished and update configs from buffer:
@@ -1841,10 +1856,10 @@ module supra_framework::automation_registry {
 
     fun downscale_to_u256(value: u256): u256 { value / DECIMAL }
 
-    /// If SUPRA_NATIVE_AUTOMATION_V2 is enabled then call native function to assert full support of cycle based
+    /// If SUPRA_CYCLE_BASED_AUTOMATION is enabled then call native function to assert full support of cycle based
     /// automation registry management.
     fun assert_cycle_based_automation_registry_management_support() {
-        if (features::supra_native_automation_v2_enabled()) {
+        if (features::supra_cycle_based_automation_enabled()) {
             native_cycle_based_automation_registry_management_support();
         }
     }
