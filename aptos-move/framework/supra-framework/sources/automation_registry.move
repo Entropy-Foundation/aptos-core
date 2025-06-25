@@ -229,7 +229,7 @@ module supra_framework::automation_registry {
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
-    /// Epoch state. Deprecated since SUPRA_CYCLE_BASED_AUTOMATION version.
+    /// Epoch state. Deprecated since SUPRA_AUTOMATION_CYCLE version.
     struct AutomationEpochInfo has key, copy {
         /// Epoch expected duration at the beginning of the new epoch, Based on this and actual
         /// epoch_duration which will be (current_time - last_reconfiguration_time) automation tasks
@@ -982,7 +982,7 @@ module supra_framework::automation_registry {
     public fun migrate_v2(supra_framework: &signer, cycle_duration_secs: u64
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationCycleDetails {
         assert_supra_framework(supra_framework);
-        assert!(!features::supra_cycle_based_automation_enabled(), EINVALID_MIGRATION_ACTION);
+        assert!(!features::supra_automation_cycle_enabled(), EINVALID_MIGRATION_ACTION);
 
         // Prepare the state for migration
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
@@ -1005,7 +1005,7 @@ module supra_framework::automation_registry {
         // Start migration by enabling feature, initializing the cycle releated resouces
         features::change_feature_flags_for_next_epoch(
             supra_framework,
-            vector[features::get_supra_cycle_based_automation_feature()],
+            vector[features::get_supra_automation_cycle_feature()],
             vector[]);
         let id = 0;
         move_to(supra_framework, AutomationCycleDetails {
@@ -1020,7 +1020,7 @@ module supra_framework::automation_registry {
             return
         };
         // Emit cycle end which will lead the native layer to start preparation to the new cycle.
-        assert_cycle_based_automation_registry_management_support();
+        assert_automation_cycle_management_support();
         let cycle_info = borrow_global_mut<AutomationCycleDetails>(@supra_framework);
         on_cycle_end_internal(cycle_info)
     }
@@ -1044,7 +1044,7 @@ module supra_framework::automation_registry {
         assert!(false, EDEPRECATED_SINCE_V2);
     }
 
-    /// Initialization of Automation Registry with configuration parameters for SUPRA_CYCLE_BASED_AUTOMATION version.
+    /// Initialization of Automation Registry with configuration parameters for SUPRA_AUTOMATION_CYCLE version.
     /// Expected to have this function call either at genesis startup or as part of the SUPRA_FRAMEWORK upgrade where
     /// automation feature is being introduced very first time.
     /// In case if framework upgrade is happening on the chain where automation feature is already released and
@@ -1099,7 +1099,7 @@ module supra_framework::automation_registry {
             registration_enabled: true,
         });
 
-        let (cycle_state, cycle_id) = if (features::supra_cycle_based_automation_enabled()) {
+        let (cycle_state, cycle_id) = if (features::supra_automation_cycle_enabled()) {
             (CYCLE_STARTED, 1)
         } else {
             (READY_TO_START_NEW_CYCLE, 0)
@@ -1123,7 +1123,7 @@ module supra_framework::automation_registry {
         if (!is_feature_enabled_and_initialized()) {
             return
         };
-        assert_cycle_based_automation_registry_management_support();
+        assert_automation_cycle_management_support();
         let cycle_info = borrow_global_mut<AutomationCycleDetails>(@supra_framework);
         if (cycle_info.state != CYCLE_STARTED
             || cycle_info.start_time + cycle_info.duration_secs < timestamp::now_seconds()) {
@@ -1180,7 +1180,7 @@ module supra_framework::automation_registry {
     }
 
     /// Update epoch interval in registry while actually update happens in block module
-    /// Deprecated since SUPRA_CYCLE_BASED_AUTOMATION feature release in favor of monitor_cycle_end
+    /// Deprecated since SUPRA_AUTOMATION_CYCLE feature release in favor of monitor_cycle_end
     public(friend) fun update_epoch_interval_in_registry(_epoch_interval_microsecs: u64) {
         assert!(false, EDEPRECATED_SINCE_V2);
     }
@@ -1286,7 +1286,7 @@ module supra_framework::automation_registry {
         // Operational constraint: can only be invoked by the VM
         system_addresses::assert_vm(&vm);
         if (vector::is_empty(&task_indexes)) {
-            return;
+            return
         };
 
         let cycle_info = borrow_global_mut<AutomationCycleDetails>(@supra_framework);
@@ -2322,15 +2322,15 @@ module supra_framework::automation_registry {
 
     fun downscale_to_u256(value: u256): u256 { value / DECIMAL }
 
-    /// If SUPRA_CYCLE_BASED_AUTOMATION is enabled then call native function to assert full support of cycle based
+    /// If SUPRA_AUTOMATION_CYCLE is enabled then call native function to assert full support of cycle based
     /// automation registry management.
-    fun assert_cycle_based_automation_registry_management_support() {
-        if (features::supra_cycle_based_automation_enabled()) {
-            native_cycle_based_automation_registry_management_support();
+    fun assert_automation_cycle_management_support() {
+        if (features::supra_automation_cycle_enabled()) {
+            native_automation_cycle_management_support();
         }
     }
 
-    native fun native_cycle_based_automation_registry_management_support(): bool;
+    native fun native_automation_cycle_management_support(): bool;
 
     #[test_only]
     const AUTOMATION_MAX_GAS_TEST: u64 = 100_000_000;

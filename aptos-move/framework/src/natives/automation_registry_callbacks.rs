@@ -21,7 +21,7 @@ use std::{collections::VecDeque};
  * gas cost: 0
  *
  **************************************************************************************************/
-fn native_cycle_based_automation_registry_management_support(
+fn native_automation_cycle_management_support(
     _context: &mut SafeNativeContext,
     _ty_args: Vec<Type>,
     _arguments: VecDeque<Value>,
@@ -37,7 +37,7 @@ pub fn make_all(
     builder: &SafeNativeBuilder,
 ) -> impl Iterator<Item = (String, NativeFunction)> + '_ {
     let natives = [
-        ("native_cycle_based_automation_registry_management_support", native_cycle_based_automation_registry_management_support),
+        ("native_automation_cycle_management_support", native_automation_cycle_management_support),
     ];
 
     builder.make_named_natives(natives)

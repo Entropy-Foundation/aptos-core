@@ -127,8 +127,8 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `upscale_from_u256`](#0x1_automation_registry_upscale_from_u256)
 -  [Function `downscale_to_u64`](#0x1_automation_registry_downscale_to_u64)
 -  [Function `downscale_to_u256`](#0x1_automation_registry_downscale_to_u256)
--  [Function `assert_cycle_based_automation_registry_management_support`](#0x1_automation_registry_assert_cycle_based_automation_registry_management_support)
--  [Function `native_cycle_based_automation_registry_management_support`](#0x1_automation_registry_native_cycle_based_automation_registry_management_support)
+-  [Function `assert_automation_cycle_management_support`](#0x1_automation_registry_assert_automation_cycle_management_support)
+-  [Function `native_automation_cycle_management_support`](#0x1_automation_registry_native_automation_cycle_management_support)
 
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
@@ -407,7 +407,7 @@ It tracks entries both pending and completed, organized by unique indices.
 
 ## Resource `AutomationEpochInfo`
 
-Epoch state. Deprecated since SUPRA_CYCLE_BASED_AUTOMATION version.
+Epoch state. Deprecated since SUPRA_AUTOMATION_CYCLE version.
 
 
 <pre><code>#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
@@ -3413,7 +3413,7 @@ thus not causing any inconcistensy in the chain
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_migrate_v2">migrate_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, cycle_duration_secs: u64
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> {
     assert_supra_framework(supra_framework);
-    <b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_cycle_based_automation_enabled">features::supra_cycle_based_automation_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EINVALID_MIGRATION_ACTION">EINVALID_MIGRATION_ACTION</a>);
+    <b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_automation_cycle_enabled">features::supra_automation_cycle_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EINVALID_MIGRATION_ACTION">EINVALID_MIGRATION_ACTION</a>);
 
     // Prepare the state for migration
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
@@ -3436,7 +3436,7 @@ thus not causing any inconcistensy in the chain
     // Start migration by enabling feature, initializing the cycle releated resouces
     <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_change_feature_flags_for_next_epoch">features::change_feature_flags_for_next_epoch</a>(
         supra_framework,
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_get_supra_cycle_based_automation_feature">features::get_supra_cycle_based_automation_feature</a>()],
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_get_supra_automation_cycle_feature">features::get_supra_automation_cycle_feature</a>()],
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]);
     <b>let</b> id = 0;
     <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> {
@@ -3451,7 +3451,7 @@ thus not causing any inconcistensy in the chain
         <b>return</b>
     };
     // Emit cycle end which will lead the <b>native</b> layer <b>to</b> start preparation <b>to</b> the new cycle.
-    <a href="automation_registry.md#0x1_automation_registry_assert_cycle_based_automation_registry_management_support">assert_cycle_based_automation_registry_management_support</a>();
+    <a href="automation_registry.md#0x1_automation_registry_assert_automation_cycle_management_support">assert_automation_cycle_management_support</a>();
     <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
     <a href="automation_registry.md#0x1_automation_registry_on_cycle_end_internal">on_cycle_end_internal</a>(cycle_info)
 }
@@ -3502,7 +3502,7 @@ Deprecated in favor of initialize_v2
 
 ## Function `initialize_v2`
 
-Initialization of Automation Registry with configuration parameters for SUPRA_CYCLE_BASED_AUTOMATION version.
+Initialization of Automation Registry with configuration parameters for SUPRA_AUTOMATION_CYCLE version.
 Expected to have this function call either at genesis startup or as part of the SUPRA_FRAMEWORK upgrade where
 automation feature is being introduced very first time.
 In case if framework upgrade is happening on the chain where automation feature is already released and
@@ -3568,7 +3568,7 @@ is in ongoing state, then migrate_v2 function should be utilized instead.
         registration_enabled: <b>true</b>,
     });
 
-    <b>let</b> (cycle_state, cycle_id) = <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_cycle_based_automation_enabled">features::supra_cycle_based_automation_enabled</a>()) {
+    <b>let</b> (cycle_state, cycle_id) = <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_automation_cycle_enabled">features::supra_automation_cycle_enabled</a>()) {
         (<a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>, 1)
     } <b>else</b> {
         (<a href="automation_registry.md#0x1_automation_registry_READY_TO_START_NEW_CYCLE">READY_TO_START_NEW_CYCLE</a>, 0)
@@ -3612,7 +3612,7 @@ Does nothig if SUPRA_NATIVE_AUTOMATION is disabled
     <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled_and_initialized">is_feature_enabled_and_initialized</a>()) {
         <b>return</b>
     };
-    <a href="automation_registry.md#0x1_automation_registry_assert_cycle_based_automation_registry_management_support">assert_cycle_based_automation_registry_management_support</a>();
+    <a href="automation_registry.md#0x1_automation_registry_assert_automation_cycle_management_support">assert_automation_cycle_management_support</a>();
     <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
     <b>if</b> (cycle_info.state != <a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>
         || cycle_info.start_time + cycle_info.duration_secs &lt; <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>()) {
@@ -3698,7 +3698,7 @@ then lifecycle is restarted.
 ## Function `update_epoch_interval_in_registry`
 
 Update epoch interval in registry while actually update happens in block module
-Deprecated since SUPRA_CYCLE_BASED_AUTOMATION feature release in favor of monitor_cycle_end
+Deprecated since SUPRA_AUTOMATION_CYCLE feature release in favor of monitor_cycle_end
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_epoch_interval_in_registry">update_epoch_interval_in_registry</a>(_epoch_interval_microsecs: u64)
@@ -5691,15 +5691,15 @@ Insertion sort implementation for vector
 
 </details>
 
-<a id="0x1_automation_registry_assert_cycle_based_automation_registry_management_support"></a>
+<a id="0x1_automation_registry_assert_automation_cycle_management_support"></a>
 
-## Function `assert_cycle_based_automation_registry_management_support`
+## Function `assert_automation_cycle_management_support`
 
-If SUPRA_CYCLE_BASED_AUTOMATION is enabled then call native function to assert full support of cycle based
+If SUPRA_AUTOMATION_CYCLE is enabled then call native function to assert full support of cycle based
 automation registry management.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_assert_cycle_based_automation_registry_management_support">assert_cycle_based_automation_registry_management_support</a>()
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_assert_automation_cycle_management_support">assert_automation_cycle_management_support</a>()
 </code></pre>
 
 
@@ -5708,9 +5708,9 @@ automation registry management.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_assert_cycle_based_automation_registry_management_support">assert_cycle_based_automation_registry_management_support</a>() {
-    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_cycle_based_automation_enabled">features::supra_cycle_based_automation_enabled</a>()) {
-        <a href="automation_registry.md#0x1_automation_registry_native_cycle_based_automation_registry_management_support">native_cycle_based_automation_registry_management_support</a>();
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_assert_automation_cycle_management_support">assert_automation_cycle_management_support</a>() {
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_automation_cycle_enabled">features::supra_automation_cycle_enabled</a>()) {
+        <a href="automation_registry.md#0x1_automation_registry_native_automation_cycle_management_support">native_automation_cycle_management_support</a>();
     }
 }
 </code></pre>
@@ -5719,13 +5719,13 @@ automation registry management.
 
 </details>
 
-<a id="0x1_automation_registry_native_cycle_based_automation_registry_management_support"></a>
+<a id="0x1_automation_registry_native_automation_cycle_management_support"></a>
 
-## Function `native_cycle_based_automation_registry_management_support`
+## Function `native_automation_cycle_management_support`
 
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_native_cycle_based_automation_registry_management_support">native_cycle_based_automation_registry_management_support</a>(): bool
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_native_automation_cycle_management_support">native_automation_cycle_management_support</a>(): bool
 </code></pre>
 
 
@@ -5734,7 +5734,7 @@ automation registry management.
 <summary>Implementation</summary>
 
 
-<pre><code><b>native</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_native_cycle_based_automation_registry_management_support">native_cycle_based_automation_registry_management_support</a>(): bool;
+<pre><code><b>native</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_native_automation_cycle_management_support">native_automation_cycle_management_support</a>(): bool;
 </code></pre>
 
 
