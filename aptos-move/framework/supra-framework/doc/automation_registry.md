@@ -11,13 +11,14 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Resource `ActiveAutomationRegistryConfig`](#0x1_automation_registry_ActiveAutomationRegistryConfig)
 -  [Resource `AutomationRegistryConfig`](#0x1_automation_registry_AutomationRegistryConfig)
 -  [Resource `AutomationRegistry`](#0x1_automation_registry_AutomationRegistry)
+-  [Resource `TransitionState`](#0x1_automation_registry_TransitionState)
 -  [Resource `AutomationEpochInfo`](#0x1_automation_registry_AutomationEpochInfo)
 -  [Struct `AutomationCycleDuration`](#0x1_automation_registry_AutomationCycleDuration)
 -  [Resource `AutomationCycleInfo`](#0x1_automation_registry_AutomationCycleInfo)
+-  [Resource `AutomationCycleEvent`](#0x1_automation_registry_AutomationCycleEvent)
+-  [Resource `AutomationCycleDetails`](#0x1_automation_registry_AutomationCycleDetails)
 -  [Resource `AutomationRefundBookkeeping`](#0x1_automation_registry_AutomationRefundBookkeeping)
 -  [Resource `AutomationTaskMetaData`](#0x1_automation_registry_AutomationTaskMetaData)
--  [Struct `AutomationCycleFinished`](#0x1_automation_registry_AutomationCycleFinished)
--  [Struct `AutomationCycleStarted`](#0x1_automation_registry_AutomationCycleStarted)
 -  [Struct `TaskRegistrationFeeWithdraw`](#0x1_automation_registry_TaskRegistrationFeeWithdraw)
 -  [Struct `TaskRegistrationDepositFeeWithdraw`](#0x1_automation_registry_TaskRegistrationDepositFeeWithdraw)
 -  [Struct `RegistryFeeWithdraw`](#0x1_automation_registry_RegistryFeeWithdraw)
@@ -36,6 +37,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `ErrorTaskDoesNotExist`](#0x1_automation_registry_ErrorTaskDoesNotExist)
 -  [Struct `ErrorTaskDoesNotExistForWithdrawal`](#0x1_automation_registry_ErrorTaskDoesNotExistForWithdrawal)
 -  [Struct `ErrorInsufficientBalanceToRefund`](#0x1_automation_registry_ErrorInsufficientBalanceToRefund)
+-  [Struct `ErrorInconsistentSuspendedState`](#0x1_automation_registry_ErrorInconsistentSuspendedState)
 -  [Struct `EnabledRegistrationEvent`](#0x1_automation_registry_EnabledRegistrationEvent)
 -  [Struct `DisabledRegistrationEvent`](#0x1_automation_registry_DisabledRegistrationEvent)
 -  [Struct `AutomationTaskFeeMeta`](#0x1_automation_registry_AutomationTaskFeeMeta)
@@ -43,6 +45,9 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `IntermediateStateOfEpochChange`](#0x1_automation_registry_IntermediateStateOfEpochChange)
 -  [Struct `AutomationTaskFee`](#0x1_automation_registry_AutomationTaskFee)
 -  [Constants](#@Constants_0)
+-  [Function `is_transition_finalized`](#0x1_automation_registry_is_transition_finalized)
+-  [Function `is_transition_in_progress`](#0x1_automation_registry_is_transition_in_progress)
+-  [Function `update_processed_tasks`](#0x1_automation_registry_update_processed_tasks)
 -  [Function `is_initialized`](#0x1_automation_registry_is_initialized)
 -  [Function `is_feature_enabled_and_initialized`](#0x1_automation_registry_is_feature_enabled_and_initialized)
 -  [Function `get_next_task_index`](#0x1_automation_registry_get_next_task_index)
@@ -66,18 +71,36 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `is_registration_enabled`](#0x1_automation_registry_is_registration_enabled)
 -  [Function `get_cycle_duration`](#0x1_automation_registry_get_cycle_duration)
 -  [Function `get_cycle_info`](#0x1_automation_registry_get_cycle_info)
+-  [Function `withdraw_automation_task_fees`](#0x1_automation_registry_withdraw_automation_task_fees)
+-  [Function `update_config`](#0x1_automation_registry_update_config)
+-  [Function `update_config_v2`](#0x1_automation_registry_update_config_v2)
+-  [Function `enable_registration`](#0x1_automation_registry_enable_registration)
+-  [Function `disable_registration`](#0x1_automation_registry_disable_registration)
+-  [Function `cancel_task`](#0x1_automation_registry_cancel_task)
+-  [Function `stop_tasks`](#0x1_automation_registry_stop_tasks)
+-  [Function `initialize_refund_bookkeeping_resource`](#0x1_automation_registry_initialize_refund_bookkeeping_resource)
+-  [Function `migrate_v2`](#0x1_automation_registry_migrate_v2)
+-  [Function `initialize`](#0x1_automation_registry_initialize)
+-  [Function `initialize_v2`](#0x1_automation_registry_initialize_v2)
+-  [Function `monitor_cycle_end`](#0x1_automation_registry_monitor_cycle_end)
+-  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
+-  [Function `update_epoch_interval_in_registry`](#0x1_automation_registry_update_epoch_interval_in_registry)
+-  [Function `register`](#0x1_automation_registry_register)
+-  [Function `on_drop`](#0x1_automation_registry_on_drop)
+-  [Function `on_charge`](#0x1_automation_registry_on_charge)
+-  [Function `on_refund_and_cleanup`](#0x1_automation_registry_on_refund_and_cleanup)
+-  [Function `into_automation_cycle_info`](#0x1_automation_registry_into_automation_cycle_info)
+-  [Function `update_cycle_transition_state_from_suspended`](#0x1_automation_registry_update_cycle_transition_state_from_suspended)
+-  [Function `update_cycle_transition_state_from_finished`](#0x1_automation_registry_update_cycle_transition_state_from_finished)
 -  [Function `estimate_automation_fee_with_committed_occupancy_internal`](#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal)
 -  [Function `validate_configuration_parameters_common`](#0x1_automation_registry_validate_configuration_parameters_common)
 -  [Function `create_registry_resource_account`](#0x1_automation_registry_create_registry_resource_account)
--  [Function `initialize`](#0x1_automation_registry_initialize)
--  [Function `initialize_refund_bookkeeping_resource`](#0x1_automation_registry_initialize_refund_bookkeeping_resource)
--  [Function `initialize_v2`](#0x1_automation_registry_initialize_v2)
--  [Function `migrate_v2`](#0x1_automation_registry_migrate_v2)
--  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
+-  [Function `on_cycle_start_internal`](#0x1_automation_registry_on_cycle_start_internal)
 -  [Function `on_cycle_end_internal`](#0x1_automation_registry_on_cycle_end_internal)
--  [Function `move_to_finished_state`](#0x1_automation_registry_move_to_finished_state)
--  [Function `move_to_suspended_state`](#0x1_automation_registry_move_to_suspended_state)
+-  [Function `update_cycle_state_to`](#0x1_automation_registry_update_cycle_state_to)
+-  [Function `move_to_ready_state`](#0x1_automation_registry_move_to_ready_state)
 -  [Function `move_to_started_state`](#0x1_automation_registry_move_to_started_state)
+-  [Function `move_to_suspended_state`](#0x1_automation_registry_move_to_suspended_state)
 -  [Function `update_state_for_migration`](#0x1_automation_registry_update_state_for_migration)
 -  [Function `refund_fee`](#0x1_automation_registry_refund_fee)
 -  [Function `safe_deposit_refund_all`](#0x1_automation_registry_safe_deposit_refund_all)
@@ -91,22 +114,13 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `calculate_automation_fee_multiplier_for_epoch`](#0x1_automation_registry_calculate_automation_fee_multiplier_for_epoch)
 -  [Function `calculate_automation_congestion_fee`](#0x1_automation_registry_calculate_automation_congestion_fee)
 -  [Function `calculate_exponentiation`](#0x1_automation_registry_calculate_exponentiation)
+-  [Function `try_charge_tasks_automation_fees`](#0x1_automation_registry_try_charge_tasks_automation_fees)
 -  [Function `try_withdraw_task_automation_fees`](#0x1_automation_registry_try_withdraw_task_automation_fees)
 -  [Function `try_withdraw_task_automation_fee`](#0x1_automation_registry_try_withdraw_task_automation_fee)
 -  [Function `update_config_from_buffer`](#0x1_automation_registry_update_config_from_buffer)
--  [Function `withdraw_automation_task_fees`](#0x1_automation_registry_withdraw_automation_task_fees)
 -  [Function `transfer_fee_to_account_internal`](#0x1_automation_registry_transfer_fee_to_account_internal)
--  [Function `update_config`](#0x1_automation_registry_update_config)
--  [Function `update_config_v2`](#0x1_automation_registry_update_config_v2)
 -  [Function `update_registration_config_internal`](#0x1_automation_registry_update_registration_config_internal)
--  [Function `enable_registration`](#0x1_automation_registry_enable_registration)
--  [Function `disable_registration`](#0x1_automation_registry_disable_registration)
--  [Function `register`](#0x1_automation_registry_register)
 -  [Function `check_registration_task_duration`](#0x1_automation_registry_check_registration_task_duration)
--  [Function `cancel_task`](#0x1_automation_registry_cancel_task)
--  [Function `stop_tasks`](#0x1_automation_registry_stop_tasks)
--  [Function `update_epoch_interval_in_registry`](#0x1_automation_registry_update_epoch_interval_in_registry)
--  [Function `monitor_cycle_end`](#0x1_automation_registry_monitor_cycle_end)
 -  [Function `sort_vector`](#0x1_automation_registry_sort_vector)
 -  [Function `upscale_from_u8`](#0x1_automation_registry_upscale_from_u8)
 -  [Function `upscale_from_u64`](#0x1_automation_registry_upscale_from_u64)
@@ -125,6 +139,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/math64.md#0x1_math64">0x1::math64</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
 <b>use</b> <a href="supra_coin.md#0x1_supra_coin">0x1::supra_coin</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
@@ -322,11 +337,77 @@ It tracks entries both pending and completed, organized by unique indices.
 
 </details>
 
+<a id="0x1_automation_registry_TransitionState"></a>
+
+## Resource `TransitionState`
+
+It tracks entries both pending and completed, organized by unique indices.
+
+
+<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a> <b>has</b> <b>copy</b>, drop, store, key
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>new_cycle_duration: u64</code>
+</dt>
+<dd>
+ Duration of the new cycle.
+</dd>
+<dt>
+<code>automation_fee_per_sec: u64</code>
+</dt>
+<dd>
+ Calculated automation fee per second for the new cycle.
+</dd>
+<dt>
+<code>gas_committed_for_this_cycle: u64</code>
+</dt>
+<dd>
+ Gas committed for the new cycle being transitioned.
+</dd>
+<dt>
+<code>gas_committed_for_next_cycle: u64</code>
+</dt>
+<dd>
+ Gas committed for next cycle
+</dd>
+<dt>
+<code>locked_fees: u64</code>
+</dt>
+<dd>
+ Total fee charged to users during the cycle, which is not withdrawable
+</dd>
+<dt>
+<code>expected_tasks_to_be_processed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;</code>
+</dt>
+<dd>
+ Number of the tasks to be processed during transition.
+</dd>
+<dt>
+<code>actual_processed_tasks: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;</code>
+</dt>
+<dd>
+ So far processed tasks during transition
+ In case if transition spans between multiple blocks then
+ upon recovery execution component will know the breaking point and can recover from it.
+</dd>
+</dl>
+
+
+</details>
+
 <a id="0x1_automation_registry_AutomationEpochInfo"></a>
 
 ## Resource `AutomationEpochInfo`
 
-Epoch state. Deprecated since SUPRA_NATIVE_AUTOMATION_V2 version.
+Epoch state. Deprecated since SUPRA_CYCLE_BASED_AUTOMATION version.
 
 
 <pre><code>#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
@@ -402,8 +483,7 @@ Epoch state. Deprecated since SUPRA_NATIVE_AUTOMATION_V2 version.
 Cycle state.
 
 
-<pre><code>#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> <b>has</b> <b>copy</b>, key
+<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> <b>has</b> <b>copy</b>, drop, store, key
 </code></pre>
 
 
@@ -423,8 +503,7 @@ Cycle state.
 <code>state: u8</code>
 </dt>
 <dd>
- State of the current cycle, CYCLE_FINISHED, CYCLE_STARTED. If state is FINISHED, means transition to the next cycle
- is in progress.
+ State of the current cycle.
 </dd>
 <dt>
 <code>start_time: u64</code>
@@ -437,6 +516,100 @@ Cycle state.
 </dt>
 <dd>
  Automation cycle duration in seconds.
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_automation_registry_AutomationCycleEvent"></a>
+
+## Resource `AutomationCycleEvent`
+
+Event emitted in the cycle-state.
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleEvent">AutomationCycleEvent</a> <b>has</b> <b>copy</b>, drop, store, key
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>cycle_state_info: <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">automation_registry::AutomationCycleInfo</a></code>
+</dt>
+<dd>
+ Updated cycle state information.
+</dd>
+<dt>
+<code>old_state: u8</code>
+</dt>
+<dd>
+ The state transitioned from
+</dd>
+<dt>
+<code>event_time: u64</code>
+</dt>
+<dd>
+ Timestamp of the state transition event registration
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_automation_registry_AutomationCycleDetails"></a>
+
+## Resource `AutomationCycleDetails`
+
+Cycle state.
+
+
+<pre><code>#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> <b>has</b> <b>copy</b>, drop, store, key
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>index: u64</code>
+</dt>
+<dd>
+ Cycle index corresponding to the current state. Incremented when a transition to the new cycle is finalized.
+</dd>
+<dt>
+<code>state: u8</code>
+</dt>
+<dd>
+ State of the current cycle.
+</dd>
+<dt>
+<code>start_time: u64</code>
+</dt>
+<dd>
+ Current cycle start time which is updated with the current chain time when a cycle is increamented.
+</dd>
+<dt>
+<code>duration_secs: u64</code>
+</dt>
+<dd>
+ Automation cycle duration in seconds.
+</dd>
+<dt>
+<code>transition_state: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="automation_registry.md#0x1_automation_registry_TransitionState">automation_registry::TransitionState</a>&gt;</code>
+</dt>
+<dd>
+ Intermediate state of cycle transition to next one or suspended state.
 </dd>
 </dl>
 
@@ -567,70 +740,6 @@ Automation Deposited fee bookkeeping configs
  It will be refunded fully when active task is expired or cancelled by user
  and partially if a pending task is cancelled by user or an active task is cancelled by the system due to
  insufficient balance to  pay the automation fee for the epoch
-</dd>
-</dl>
-
-
-</details>
-
-<a id="0x1_automation_registry_AutomationCycleFinished"></a>
-
-## Struct `AutomationCycleFinished`
-
-Event emitted at automation cycle end.
-
-
-<pre><code>#[<a href="event.md#0x1_event">event</a>]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleFinished">AutomationCycleFinished</a> <b>has</b> drop, store
-</code></pre>
-
-
-
-<details>
-<summary>Fields</summary>
-
-
-<dl>
-<dt>
-<code>cycle_id: u64</code>
-</dt>
-<dd>
- Finished Cycle id.
-</dd>
-</dl>
-
-
-</details>
-
-<a id="0x1_automation_registry_AutomationCycleStarted"></a>
-
-## Struct `AutomationCycleStarted`
-
-Event emitted at automation cycle end.
-
-
-<pre><code>#[<a href="event.md#0x1_event">event</a>]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleStarted">AutomationCycleStarted</a> <b>has</b> drop, store
-</code></pre>
-
-
-
-<details>
-<summary>Fields</summary>
-
-
-<dl>
-<dt>
-<code>cycle_id: u64</code>
-</dt>
-<dd>
- Started Cycle id.
-</dd>
-<dt>
-<code><a href="timestamp.md#0x1_timestamp">timestamp</a>: u64</code>
-</dt>
-<dd>
- Cycle start timestamp.
 </dd>
 </dl>
 
@@ -1332,6 +1441,36 @@ the shortening of the epoch (1)
 
 </details>
 
+<a id="0x1_automation_registry_ErrorInconsistentSuspendedState"></a>
+
+## Struct `ErrorInconsistentSuspendedState`
+
+Event emitted when on new epoch inconsistent state of the registry has been identified.
+When automation is in suspended state, there are no tasks expected.
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_ErrorInconsistentSuspendedState">ErrorInconsistentSuspendedState</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>dummy_field: bool</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
 <a id="0x1_automation_registry_EnabledRegistrationEvent"></a>
 
 ## Struct `EnabledRegistrationEvent`
@@ -1629,19 +1768,31 @@ Insufficient balance in the resource wallet for withdrawal
 
 <a id="0x1_automation_registry_CYCLE_FINISHED"></a>
 
-Constants describing CYCLE state.
+Triggered when cycle end is identified.
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_CYCLE_FINISHED">CYCLE_FINISHED</a>: u8 = 0;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_CYCLE_FINISHED">CYCLE_FINISHED</a>: u8 = 2;
 </code></pre>
 
 
 
 <a id="0x1_automation_registry_CYCLE_STARTED"></a>
 
+Triggered eigther when SUPRA_NATIVE_AUTOMATION feature is enabled or by autoamtion cycle manager in native layer.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>: u8 = 1;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_CYCLE_SUSPENDED"></a>
+
+State describing the entire lifecycle of automation being suspended.
+Triggered when SUPRA_NATIVE_AUTOMATION feature is disabled.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_CYCLE_SUSPENDED">CYCLE_SUSPENDED</a>: u8 = 3;
 </code></pre>
 
 
@@ -1706,6 +1857,16 @@ Automation registry max gas capacity cannot be zero.
 
 
 
+<a id="0x1_automation_registry_ECYCLE_TRANSITION_IN_PROGRESS"></a>
+
+Attempt to register an automation task while cycle transition is in progress.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ECYCLE_TRANSITION_IN_PROGRESS">ECYCLE_TRANSITION_IN_PROGRESS</a>: u64 = 32;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_EDEPOSIT_REFUND"></a>
 
 Failed to unlock/refund deposit for a task. Internal error, for more details see emitted error events.
@@ -1718,7 +1879,7 @@ Failed to unlock/refund deposit for a task. Internal error, for more details see
 
 <a id="0x1_automation_registry_EDEPRECATED_SINCE_V2"></a>
 
-Deprecated function call since SUPRA_NATIVE_AUTOMATION_V2 release.
+Deprecated function call since cycle based automation release.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EDEPRECATED_SINCE_V2">EDEPRECATED_SINCE_V2</a>: u64 = 29;
@@ -1826,6 +1987,16 @@ Resource Account does not have sufficient balance to process the refund for the 
 
 
 
+<a id="0x1_automation_registry_EINVALID_CHARGE_ACTION"></a>
+
+Attempt to run charge action with inconsistent input values compared to internal state.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_CHARGE_ACTION">EINVALID_CHARGE_ACTION</a>: u64 = 34;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_EINVALID_EXPIRY_TIME"></a>
 
 Invalid expiry time: it cannot be earlier than the current time
@@ -1852,6 +2023,26 @@ Invalid max gas amount for automated task: it cannot be zero
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_MAX_GAS_AMOUNT">EINVALID_MAX_GAS_AMOUNT</a>: u64 = 5;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_EINVALID_MIGRATION_ACTION"></a>
+
+Attempt to do migration to cycle based automation which is already enabled.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_MIGRATION_ACTION">EINVALID_MIGRATION_ACTION</a>: u64 = 31;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_EINVALID_REGISTRY_STATE"></a>
+
+Attempt to run operation in invalid registry state.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>: u64 = 33;
 </code></pre>
 
 
@@ -1965,15 +2156,6 @@ Unauthorized access: the caller is not the owner of the task
 
 
 
-<a id="0x1_automation_registry_LIFECYCLE_SUSPENDED"></a>
-
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_LIFECYCLE_SUSPENDED">LIFECYCLE_SUSPENDED</a>: u8 = 2;
-</code></pre>
-
-
-
 <a id="0x1_automation_registry_MAX_PERCENTAGE"></a>
 
 100 Percentage
@@ -2000,6 +2182,21 @@ Constants describing task state.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>: u8 = 0;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_READY_TO_START_NEW_CYCLE"></a>
+
+Constants describing CYCLE state.
+State transition flaw is:
+READY_TO_START -> CYCLE_STARTED
+CYCLE_STARTED -> { CYCLE_FINISHED, CYCLE_SUSPENDED }
+CYCLE_FINISHED ->  { CYCLE_STARTED}
+CYCLE_SUSPENDED ->  {READY_TO_START, STARTED}
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_READY_TO_START_NEW_CYCLE">READY_TO_START_NEW_CYCLE</a>: u8 = 0;
 </code></pre>
 
 
@@ -2044,6 +2241,78 @@ The length of the transaction hash.
 
 
 
+<a id="0x1_automation_registry_is_transition_finalized"></a>
+
+## Function `is_transition_finalized`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_transition_finalized">is_transition_finalized</a>(state: &<a href="automation_registry.md#0x1_automation_registry_TransitionState">automation_registry::TransitionState</a>): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_transition_finalized">is_transition_finalized</a>(state: &<a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a>): bool {
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&state.expected_tasks_to_be_processed) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&state.actual_processed_tasks)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_is_transition_in_progress"></a>
+
+## Function `is_transition_in_progress`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_transition_in_progress">is_transition_in_progress</a>(state: &<a href="automation_registry.md#0x1_automation_registry_TransitionState">automation_registry::TransitionState</a>): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_transition_in_progress">is_transition_in_progress</a>(state: &<a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a>): bool {
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&state.actual_processed_tasks) != 0
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_update_processed_tasks"></a>
+
+## Function `update_processed_tasks`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_processed_tasks">update_processed_tasks</a>(state: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_TransitionState">automation_registry::TransitionState</a>, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_processed_tasks">update_processed_tasks</a>(state: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a>, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;) {
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_append">vector::append</a>(&<b>mut</b> state.actual_processed_tasks, task_indexes);
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_automation_registry_is_initialized"></a>
 
 ## Function `is_initialized`
@@ -2065,7 +2334,7 @@ Checks whether all required resources are created.
     <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework)
         && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework)
         && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework)
-        && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>&gt;(@supra_framework)
+        && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework)
 }
 </code></pre>
 
@@ -2569,7 +2838,7 @@ occupancy for the next epoch.
 
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee">estimate_automation_fee</a>(
     task_occupancy: u64
-): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     <b>let</b> registry = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy">estimate_automation_fee_with_committed_occupancy</a>(task_occupancy, registry.gas_committed_for_next_epoch)
 }
@@ -2601,8 +2870,8 @@ maximum allowed occupancy for the next epoch.
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy">estimate_automation_fee_with_committed_occupancy</a>(
     task_occupancy: u64,
     committed_occupancy: u64
-): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
-    <b>let</b> cycle_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>&gt;(@supra_framework);
+): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+    <b>let</b> cycle_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
     <b>let</b> config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
     <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal">estimate_automation_fee_with_committed_occupancy_internal</a>(
         task_occupancy,
@@ -2660,8 +2929,8 @@ Returns the current duration of the automation cycle.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_cycle_duration">get_cycle_duration</a>(): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> {
-    <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>&gt;(@supra_framework).duration_secs
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_cycle_duration">get_cycle_duration</a>(): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> {
+    <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework).duration_secs
 }
 </code></pre>
 
@@ -2686,8 +2955,1231 @@ Returns the current status of the registration in the automation registry.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_cycle_info">get_cycle_info</a>(): <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> {
-    *<b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>&gt;(@supra_framework)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_cycle_info">get_cycle_info</a>(): <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> {
+    <b>let</b> details = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
+    <a href="automation_registry.md#0x1_automation_registry_into_automation_cycle_info">into_automation_cycle_info</a>(details)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_withdraw_automation_task_fees"></a>
+
+## Function `withdraw_automation_task_fees`
+
+Withdraw accumulated automation task fees from the resource account - access by admin
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_withdraw_automation_task_fees">withdraw_automation_task_fees</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <b>to</b>: <b>address</b>, amount: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_withdraw_automation_task_fees">withdraw_automation_task_fees</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    <b>to</b>: <b>address</b>,
+    amount: u64
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> , <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
+    <a href="automation_registry.md#0x1_automation_registry_transfer_fee_to_account_internal">transfer_fee_to_account_internal</a>(<b>to</b>, amount);
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_RegistryFeeWithdraw">RegistryFeeWithdraw</a> { <b>to</b>, amount });
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_update_config"></a>
+
+## Function `update_config`
+
+Update Automation Registry Config
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    task_duration_cap_in_secs: u64,
+    registry_max_gas_cap: u64,
+    automation_base_fee_in_quants_per_sec: u64,
+    flat_registration_fee_in_quants: u64,
+    congestion_threshold_percentage: u8,
+    congestion_base_fee_in_quants_per_sec: u64,
+    congestion_exponent: u8,
+    task_capacity: u16,
+) {
+    <b>assert</b>!(<b>false</b>, <a href="automation_registry.md#0x1_automation_registry_EDEPRECATED_SINCE_V2">EDEPRECATED_SINCE_V2</a>);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_update_config_v2"></a>
+
+## Function `update_config_v2`
+
+Update Automation Registry Config along with cycle duration.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_v2">update_config_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16, cycle_duration_secs: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_v2">update_config_v2</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    task_duration_cap_in_secs: u64,
+    registry_max_gas_cap: u64,
+    automation_base_fee_in_quants_per_sec: u64,
+    flat_registration_fee_in_quants: u64,
+    congestion_threshold_percentage: u8,
+    congestion_base_fee_in_quants_per_sec: u64,
+    congestion_exponent: u8,
+    task_capacity: u16,
+    cycle_duration_secs: u64,
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
+
+
+    <a href="automation_registry.md#0x1_automation_registry_update_registration_config_internal">update_registration_config_internal</a>(
+        supra_framework,
+        task_duration_cap_in_secs,
+        registry_max_gas_cap,
+        automation_base_fee_in_quants_per_sec,
+        flat_registration_fee_in_quants,
+        congestion_threshold_percentage,
+        congestion_base_fee_in_quants_per_sec,
+        congestion_exponent,
+        task_capacity,
+        cycle_duration_secs,
+    );
+
+    // Update cycle duration in buffer
+    <b>assert</b>!(cycle_duration_secs &gt; 0, <a href="automation_registry.md#0x1_automation_registry_ECYCLE_DURATION_NON_ZERO">ECYCLE_DURATION_NON_ZERO</a>);
+    <b>let</b> new_cycle_duration = <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDuration">AutomationCycleDuration</a> {
+        duration_secs: cycle_duration_secs
+    };
+    <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(<b>copy</b> new_cycle_duration);
+    <a href="event.md#0x1_event_emit">event::emit</a>(new_cycle_duration);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_enable_registration"></a>
+
+## Function `enable_registration`
+
+Enables the registration process in the automation registry.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_enable_registration">enable_registration</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_enable_registration">enable_registration</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
+    <b>let</b> automation_registry_config = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
+    automation_registry_config.registration_enabled = <b>true</b>;
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_EnabledRegistrationEvent">EnabledRegistrationEvent</a> {});
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_disable_registration"></a>
+
+## Function `disable_registration`
+
+Disables the registration process in the automation registry.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_disable_registration">disable_registration</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_disable_registration">disable_registration</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
+    <b>let</b> automation_registry_config = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
+    automation_registry_config.registration_enabled = <b>false</b>;
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_DisabledRegistrationEvent">DisabledRegistrationEvent</a> {});
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_cancel_task"></a>
+
+## Function `cancel_task`
+
+Cancel Automation task with specified task_index.
+Only existing task, which is PENDING or ACTIVE, can be cancelled and only by task owner.
+If the task is
+- active, its state is updated to be CANCELLED.
+- pending, it is removed form the list.
+- cancelled, an error is reported
+Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_cancel_task">cancel_task</a>(owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_index: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_cancel_task">cancel_task</a>(
+    owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    task_index: u64
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>{
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>);
+    <b>let</b> cycle_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
+    <b>assert</b>!(cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>, <a href="automation_registry.md#0x1_automation_registry_ECYCLE_TRANSITION_IN_PROGRESS">ECYCLE_TRANSITION_IN_PROGRESS</a>);
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <b>let</b> refund_bookkeeping = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework);
+    <b>assert</b>!(<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index), <a href="automation_registry.md#0x1_automation_registry_EAUTOMATION_TASK_NOT_FOUND">EAUTOMATION_TASK_NOT_FOUND</a>);
+
+    <b>let</b> automation_task_metadata = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
+    <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
+    <b>assert</b>!(automation_task_metadata.owner == owner, <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OWNER">EUNAUTHORIZED_TASK_OWNER</a>);
+    <b>assert</b>!(automation_task_metadata.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a>, <a href="automation_registry.md#0x1_automation_registry_EALREADY_CANCELLED">EALREADY_CANCELLED</a>);
+    <b>if</b> (automation_task_metadata.state == <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
+        <b>let</b> resource_signer = <a href="account.md#0x1_account_create_signer_with_capability">account::create_signer_with_capability</a>(
+            &<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address_signer_cap
+        );
+        // When Pending tasks are cancelled, refund of the deposit fee is done <b>with</b> penalty
+        <b>let</b> result = <a href="automation_registry.md#0x1_automation_registry_safe_deposit_refund">safe_deposit_refund</a>(
+            refund_bookkeeping,
+            &resource_signer,
+            <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address,
+            automation_task_metadata.task_index,
+            owner,
+            automation_task_metadata.locked_fee_for_next_epoch / <a href="automation_registry.md#0x1_automation_registry_REFUND_FACTOR">REFUND_FACTOR</a>,
+            automation_task_metadata.locked_fee_for_next_epoch);
+        <b>assert</b>!(result, <a href="automation_registry.md#0x1_automation_registry_EDEPOSIT_REFUND">EDEPOSIT_REFUND</a>);
+        <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
+    } <b>else</b> { // it is safe not <b>to</b> check the state <b>as</b> above, the cancelled tasks are already rejected.
+        // Active tasks will be refunded the deposited amount fully at the end of the epoch
+        <b>let</b> automation_task_metadata_mut = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_mut">enumerable_map::get_value_mut</a>(
+            &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks,
+            task_index
+        );
+        automation_task_metadata_mut.state = <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a>;
+    };
+
+    // This check means the task was expected <b>to</b> be executed in the next cycle, but it <b>has</b> been cancelled.
+    // We need <b>to</b> remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
+    <b>if</b> (automation_task_metadata.expiry_time &gt; (cycle_info.start_time + cycle_info.duration_secs)) {
+        <b>assert</b>!(
+            <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &gt;= automation_task_metadata.max_gas_amount,
+            <a href="automation_registry.md#0x1_automation_registry_EGAS_COMMITTEED_VALUE_UNDERFLOW">EGAS_COMMITTEED_VALUE_UNDERFLOW</a>
+        );
+        // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
+    };
+
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskCancelled">TaskCancelled</a> { task_index: automation_task_metadata.task_index, owner });
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_stop_tasks"></a>
+
+## Function `stop_tasks`
+
+Immediately stops automation tasks for the specified <code>task_indexes</code>.
+Only tasks that exist and are owned by the sender can be stopped.
+If any of the specified tasks are not owned by the sender, the transaction will abort.
+When a task is stopped, the committed gas for the next epoch is reduced
+by the max gas amount of the stopped task. Half of the remaining task fee is refunded.
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_stop_tasks">stop_tasks</a>(owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_stop_tasks">stop_tasks</a>(
+    owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>);
+    <b>let</b> cycle_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
+    <b>assert</b>!(cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>, <a href="automation_registry.md#0x1_automation_registry_ECYCLE_TRANSITION_IN_PROGRESS">ECYCLE_TRANSITION_IN_PROGRESS</a>);
+    // Ensure that task indexes are provided
+    <b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&task_indexes), <a href="automation_registry.md#0x1_automation_registry_EEMPTY_TASK_INDEXES">EEMPTY_TASK_INDEXES</a>);
+
+    <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <b>let</b> arc = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework).main_config;
+    <b>let</b> refund_bookkeeping = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework);
+
+    <b>let</b> tcmg = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch;
+
+    // Compute the automation fee multiplier for epoch
+    <b>let</b> automation_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multiplier_for_epoch">calculate_automation_fee_multiplier_for_epoch</a>(&arc, tcmg, arc.registry_max_gas_cap);
+
+    <b>let</b> stopped_task_details = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+    <b>let</b> total_refund_fee = 0;
+    <b>let</b> epoch_locked_fees = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees;
+
+    // Calculate refundable fee for this remaining time task in current epoch
+    <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
+    <b>let</b> cycle_end_time = cycle_info.duration_secs + cycle_info.start_time;
+    <b>let</b> residual_interval = <b>if</b> (cycle_end_time &lt;= current_time) {
+        0
+    } <b>else</b> {
+        cycle_end_time - current_time
+    };
+
+    // Loop through each task index <b>to</b> validate and stop the task
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(task_indexes, |task_index| {
+        <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index)) {
+            // Remove task from registry
+            <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
+
+            // Ensure only the task owner can stop it
+            <b>assert</b>!(task.owner == owner, <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OWNER">EUNAUTHORIZED_TASK_OWNER</a>);
+
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_remove_value">vector::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids, &task_index);
+
+            // This check means the task was expected <b>to</b> be executed in the next epoch, but it <b>has</b> been stopped.
+            // We need <b>to</b> remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
+            // Also it checks that task should not be cancelled.
+            <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a> && task.expiry_time &gt; cycle_end_time) {
+                // Prevent underflow in gas committed
+                <b>assert</b>!(
+                    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &gt;= task.max_gas_amount,
+                    <a href="automation_registry.md#0x1_automation_registry_EGAS_COMMITTEED_VALUE_UNDERFLOW">EGAS_COMMITTEED_VALUE_UNDERFLOW</a>
+                );
+
+                // Reduce committed gas by the stopped task's max gas
+                <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch - task.max_gas_amount;
+            };
+
+            <b>let</b> (epoch_fee_refund, deposit_refund) = <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
+                <b>let</b> task_fee = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(
+                    &arc,
+                    &task,
+                    residual_interval,
+                    current_time,
+                    automation_fee_per_sec
+                );
+                // Refund full deposit and the half of the remaining run-time fee when task is active or cancelled stage
+                (task_fee / <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>, task.locked_fee_for_next_epoch)
+            } <b>else</b> {
+                (0, (task.locked_fee_for_next_epoch / <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>))
+            };
+            <b>let</b> result = <a href="automation_registry.md#0x1_automation_registry_safe_unlock_locked_deposit">safe_unlock_locked_deposit</a>(
+                refund_bookkeeping,
+                task.locked_fee_for_next_epoch,
+                task.task_index);
+            <b>assert</b>!(result, <a href="automation_registry.md#0x1_automation_registry_EDEPOSIT_REFUND">EDEPOSIT_REFUND</a>);
+            <b>let</b> (result, remaining_epoch_locked_fees) = <a href="automation_registry.md#0x1_automation_registry_safe_unlock_locked_epoch_fee">safe_unlock_locked_epoch_fee</a>(
+                epoch_locked_fees,
+                epoch_fee_refund,
+                task.task_index);
+            <b>assert</b>!(result, <a href="automation_registry.md#0x1_automation_registry_EEPOCH_FEE_REFUND">EEPOCH_FEE_REFUND</a>);
+            epoch_locked_fees = remaining_epoch_locked_fees;
+
+            total_refund_fee = total_refund_fee + (epoch_fee_refund + deposit_refund);
+
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(
+                &<b>mut</b> stopped_task_details,
+                <a href="automation_registry.md#0x1_automation_registry_TaskStopped">TaskStopped</a> { task_index, deposit_refund, epoch_fee_refund }
+            );
+        }
+    });
+
+    // Refund and emit <a href="event.md#0x1_event">event</a> <b>if</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> tasks were stopped
+    <b>if</b> (!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&stopped_task_details)) {
+        <b>let</b> resource_signer = <a href="account.md#0x1_account_create_signer_with_capability">account::create_signer_with_capability</a>(
+            &<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address_signer_cap
+        );
+
+        <b>let</b> resource_account_balance = <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address);
+        <b>assert</b>!(resource_account_balance &gt;= total_refund_fee, <a href="automation_registry.md#0x1_automation_registry_EINSUFFICIENT_BALANCE_FOR_REFUND">EINSUFFICIENT_BALANCE_FOR_REFUND</a>);
+        <a href="coin.md#0x1_coin_transfer">coin::transfer</a>&lt;SupraCoin&gt;(&resource_signer, owner, total_refund_fee);
+
+        // Emit task stopped <a href="event.md#0x1_event">event</a>
+        <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TasksStopped">TasksStopped</a> {
+            tasks: stopped_task_details,
+            owner
+        });
+    };
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_initialize_refund_bookkeeping_resource"></a>
+
+## Function `initialize_refund_bookkeeping_resource`
+
+Public entry function to initialize bookeeping resource when feature enabling automation deposit fee charges is released.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize_refund_bookkeeping_resource">initialize_refund_bookkeeping_resource</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize_refund_bookkeeping_resource">initialize_refund_bookkeeping_resource</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
+    <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
+        total_deposited_automation_fee: 0
+    });
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_migrate_v2"></a>
+
+## Function `migrate_v2`
+
+API to gracfully migrate from automation feature v1 inplementation to v2 where bookkeeping of the tasks is
+detached from epoch-change.
+IMPORTANT: Should alwasy be followed by supra_governance::reconfiguration otherwise registry/chain will
+end-up in inconsistent state.
+
+monitor_cycle_end (block_prologue->automation_registry::monitor_cycle_end) which will lead to panic and node will stop
+thus not causing any inconcistensy in the chain
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_migrate_v2">migrate_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, cycle_duration_secs: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_migrate_v2">migrate_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, cycle_duration_secs: u64
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> {
+    assert_supra_framework(supra_framework);
+    <b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_cycle_based_automation_enabled">features::supra_cycle_based_automation_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EINVALID_MIGRATION_ACTION">EINVALID_MIGRATION_ACTION</a>);
+
+    // Prepare the state for migration
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <b>let</b> automation_epoch_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
+
+    <b>let</b> automation_registry_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(
+        @supra_framework
+    ).main_config;
+
+    <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
+    // Refund the epoch fees <b>as</b> epoch will be cut short and on_new_epoch will be dummy due <b>to</b> migration,
+    // so this is the only place <b>to</b> do the refunds
+    <a href="automation_registry.md#0x1_automation_registry_update_state_for_migration">update_state_for_migration</a>(
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
+        &automation_registry_config,
+        automation_epoch_info,
+        current_time
+    );
+
+    // Start migration by enabling feature, initializing the cycle releated resouces
+    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_change_feature_flags_for_next_epoch">features::change_feature_flags_for_next_epoch</a>(
+        supra_framework,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_get_supra_cycle_based_automation_feature">features::get_supra_cycle_based_automation_feature</a>()],
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]);
+    <b>let</b> id = 0;
+    <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> {
+        start_time: current_time,
+        index: id,
+        duration_secs: cycle_duration_secs,
+        state: <a href="automation_registry.md#0x1_automation_registry_READY_TO_START_NEW_CYCLE">READY_TO_START_NEW_CYCLE</a>,
+        transition_state: std::option::none()
+    });
+    // Remain in READY_TO_START statey <b>if</b> feature is not enabled or registry is not fully initialized
+    <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled_and_initialized">is_feature_enabled_and_initialized</a>()) {
+        <b>return</b>
+    };
+    // Emit cycle end which will lead the <b>native</b> layer <b>to</b> start preparation <b>to</b> the new cycle.
+    <a href="automation_registry.md#0x1_automation_registry_assert_cycle_based_automation_registry_management_support">assert_cycle_based_automation_registry_management_support</a>();
+    <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
+    <a href="automation_registry.md#0x1_automation_registry_on_cycle_end_internal">on_cycle_end_internal</a>(cycle_info)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_initialize"></a>
+
+## Function `initialize`
+
+Initialization of Automation Registry with configuration parameters is expected metrics.
+Deprecated in favor of initialize_v2
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    epoch_interval_secs: u64,
+    task_duration_cap_in_secs: u64,
+    registry_max_gas_cap: u64,
+    automation_base_fee_in_quants_per_sec: u64,
+    flat_registration_fee_in_quants: u64,
+    congestion_threshold_percentage: u8,
+    congestion_base_fee_in_quants_per_sec: u64,
+    congestion_exponent: u8,
+    task_capacity: u16,
+) {
+    <b>assert</b>!(<b>false</b>, <a href="automation_registry.md#0x1_automation_registry_EDEPRECATED_SINCE_V2">EDEPRECATED_SINCE_V2</a>);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_initialize_v2"></a>
+
+## Function `initialize_v2`
+
+Initialization of Automation Registry with configuration parameters for SUPRA_CYCLE_BASED_AUTOMATION version.
+Expected to have this function call either at genesis startup or as part of the SUPRA_FRAMEWORK upgrade where
+automation feature is being introduced very first time.
+In case if framework upgrade is happening on the chain where automation feature is already released and
+is in ongoing state, then migrate_v2 function should be utilized instead.
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize_v2">initialize_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, cycle_duration_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize_v2">initialize_v2</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    cycle_duration_secs: u64,
+    task_duration_cap_in_secs: u64,
+    registry_max_gas_cap: u64,
+    automation_base_fee_in_quants_per_sec: u64,
+    flat_registration_fee_in_quants: u64,
+    congestion_threshold_percentage: u8,
+    congestion_base_fee_in_quants_per_sec: u64,
+    congestion_exponent: u8,
+    task_capacity: u16,
+) {
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
+    <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(
+        cycle_duration_secs,
+        task_duration_cap_in_secs,
+        registry_max_gas_cap,
+        congestion_threshold_percentage,
+        congestion_exponent);
+
+    <b>let</b> (registry_fee_resource_signer, registry_fee_address_signer_cap) = <a href="automation_registry.md#0x1_automation_registry_create_registry_resource_account">create_registry_resource_account</a>(
+        supra_framework
+    );
+
+    <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+        tasks: <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_new_map">enumerable_map::new_map</a>(),
+        current_index: 0,
+        gas_committed_for_next_epoch: 0,
+        epoch_locked_fees: 0,
+        gas_committed_for_this_epoch: 0,
+        registry_fee_address: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&registry_fee_resource_signer),
+        registry_fee_address_signer_cap,
+        epoch_active_task_ids: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[],
+    });
+
+    <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+        main_config: <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
+            task_duration_cap_in_secs,
+            registry_max_gas_cap,
+            automation_base_fee_in_quants_per_sec,
+            flat_registration_fee_in_quants,
+            congestion_threshold_percentage,
+            congestion_base_fee_in_quants_per_sec,
+            congestion_exponent,
+            task_capacity,
+        },
+        next_epoch_registry_max_gas_cap: registry_max_gas_cap,
+        registration_enabled: <b>true</b>,
+    });
+
+    <b>let</b> (cycle_state, cycle_id) = <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_cycle_based_automation_enabled">features::supra_cycle_based_automation_enabled</a>()) {
+        (<a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>, 1)
+    } <b>else</b> {
+        (<a href="automation_registry.md#0x1_automation_registry_READY_TO_START_NEW_CYCLE">READY_TO_START_NEW_CYCLE</a>, 0)
+    };
+
+    <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> {
+        start_time: <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>(),
+        index: cycle_id,
+        duration_secs: cycle_duration_secs,
+        state: cycle_state,
+        transition_state: std::option::none&lt;<a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a>&gt;(),
+    });
+
+    <a href="automation_registry.md#0x1_automation_registry_initialize_refund_bookkeeping_resource">initialize_refund_bookkeeping_resource</a>(supra_framework);
+
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_monitor_cycle_end"></a>
+
+## Function `monitor_cycle_end`
+
+Checks the cycle end and emit an event on it.
+Does nothig if SUPRA_NATIVE_AUTOMATION is disabled
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_monitor_cycle_end">monitor_cycle_end</a>()
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_monitor_cycle_end">monitor_cycle_end</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+    <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled_and_initialized">is_feature_enabled_and_initialized</a>()) {
+        <b>return</b>
+    };
+    <a href="automation_registry.md#0x1_automation_registry_assert_cycle_based_automation_registry_management_support">assert_cycle_based_automation_registry_management_support</a>();
+    <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
+    <b>if</b> (cycle_info.state != <a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>
+        || cycle_info.start_time + cycle_info.duration_secs &lt; <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>()) {
+        <b>return</b>
+    };
+    <a href="automation_registry.md#0x1_automation_registry_on_cycle_end_internal">on_cycle_end_internal</a>(cycle_info)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_on_new_epoch"></a>
+
+## Function `on_new_epoch`
+
+On new epoch caused by reconfiguration this function will be triggered and update the automation registry state.
+If registry is not fully initialized nothing is done. Epoch change can be caused by governance action or by DKG
+finalization. In case of the later case execution should not fail.
+
+If native automation feature is disabled then automation lifecycle is suspended. And detached managment will
+initiate refund and cealnup actions.
+
+If native automation feature is enabled and automation lifecycle has been in suspended state,
+then lifecycle is restarted.
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>()
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+    <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>()) {
+        <b>return</b>
+    };
+    <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
+    <b>let</b> registry_data = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>()) {
+        // If the lifecycle <b>has</b> been suspended and we are recovering from it, then we <b>update</b> config from buffer and
+        // then start a new cycle directly.
+        // Unless we are in READY_TO_START state feature flag being enabled will not have <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> effect.
+        // All the other states mean that we are in the middle of previous transition, which should end
+        // before reenabling the feature.
+        <b>if</b> (cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_READY_TO_START_NEW_CYCLE">READY_TO_START_NEW_CYCLE</a>) {
+            <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_length">enumerable_map::length</a>(&registry_data.tasks) != 0) {
+                <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_ErrorInconsistentSuspendedState">ErrorInconsistentSuspendedState</a> {});
+                <b>return</b>
+            };
+            <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>(cycle_info);
+            <a href="automation_registry.md#0x1_automation_registry_move_to_started_state">move_to_started_state</a>(cycle_info);
+        };
+        <b>return</b>
+    };
+    // We do not <b>update</b> config here, <b>as</b> due <b>to</b> feature being disabled, cycle ends early so it is expected
+    // that <b>native</b> layer will detect this state and generate refund transactions for a cycle that <b>has</b> been kept short.
+    // So the confing should remain intact.
+    <b>if</b> (cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>) {
+        <a href="automation_registry.md#0x1_automation_registry_move_to_suspended_state">move_to_suspended_state</a>(registry_data, cycle_info);
+    } <b>else</b> <b>if</b> (cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_FINISHED">CYCLE_FINISHED</a> && std::option::is_some(&cycle_info.transition_state)) {
+        <b>let</b> trasition_state = std::option::borrow(&cycle_info.transition_state);
+        <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_transition_in_progress">is_transition_in_progress</a>(trasition_state)) {
+            // Just entered cycle-end phase, and meanwhile also feature <b>has</b> been disabled so it is safe <b>to</b> <b>move</b> <b>to</b> suspended state.
+            <a href="automation_registry.md#0x1_automation_registry_move_to_suspended_state">move_to_suspended_state</a>(registry_data, cycle_info);
+        }
+        // Otherwise wait of the cycle transition <b>to</b> end and then feature flag value will be taken into <a href="account.md#0x1_account">account</a>.
+    }
+    // If in already SUSPENED state or in READY state then do nothing.
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_update_epoch_interval_in_registry"></a>
+
+## Function `update_epoch_interval_in_registry`
+
+Update epoch interval in registry while actually update happens in block module
+Deprecated since SUPRA_CYCLE_BASED_AUTOMATION feature release in favor of monitor_cycle_end
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_epoch_interval_in_registry">update_epoch_interval_in_registry</a>(_epoch_interval_microsecs: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_epoch_interval_in_registry">update_epoch_interval_in_registry</a>(_epoch_interval_microsecs: u64) {
+    <b>assert</b>!(<b>false</b>, <a href="automation_registry.md#0x1_automation_registry_EDEPRECATED_SINCE_V2">EDEPRECATED_SINCE_V2</a>);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_register"></a>
+
+## Function `register`
+
+Registers a new automation task entry.
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register">register</a>(owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, expiry_time: u64, max_gas_amount: u64, gas_price_cap: u64, automation_fee_cap_for_epoch: u64, tx_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register">register</a>(
+    owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    expiry_time: u64,
+    max_gas_amount: u64,
+    gas_price_cap: u64,
+    automation_fee_cap_for_epoch: u64,
+    tx_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
+    // Guarding registration <b>if</b> feature is not enabled.
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>);
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&aux_data), <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>);
+
+    <b>let</b> automation_registry_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
+    <b>let</b> automation_cycle_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
+    <b>assert</b>!(automation_registry_config.registration_enabled, <a href="automation_registry.md#0x1_automation_registry_ETASK_REGISTRATION_DISABLED">ETASK_REGISTRATION_DISABLED</a>);
+    <b>assert</b>!(automation_cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>, <a href="automation_registry.md#0x1_automation_registry_ECYCLE_TRANSITION_IN_PROGRESS">ECYCLE_TRANSITION_IN_PROGRESS</a>);
+
+    // If registry is full, reject task registration
+    <b>assert</b>!((<a href="automation_registry.md#0x1_automation_registry_get_task_count">get_task_count</a>() <b>as</b> u16) &lt; automation_registry_config.main_config.task_capacity, <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_IS_FULL">EREGISTRY_IS_FULL</a>);
+
+    <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+
+    //Well-formedness check of payload_tx is done in <b>native</b> layer beforehand.
+
+    <b>let</b> registration_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
+    <a href="automation_registry.md#0x1_automation_registry_check_registration_task_duration">check_registration_task_duration</a>(
+        expiry_time,
+        registration_time,
+        &automation_registry_config.main_config,
+        automation_cycle_info
+    );
+
+    <b>assert</b>!(gas_price_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EINVALID_GAS_PRICE">EINVALID_GAS_PRICE</a>);
+    <b>assert</b>!(max_gas_amount &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EINVALID_MAX_GAS_AMOUNT">EINVALID_MAX_GAS_AMOUNT</a>);
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&tx_hash) == <a href="automation_registry.md#0x1_automation_registry_TXN_HASH_LENGTH">TXN_HASH_LENGTH</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_TXN_HASH">EINVALID_TXN_HASH</a>);
+
+    <b>let</b> committed_gas = (<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch <b>as</b> u128) + (max_gas_amount <b>as</b> u128);
+    <b>assert</b>!(committed_gas &lt;= <a href="automation_registry.md#0x1_automation_registry_MAX_U64">MAX_U64</a>, <a href="automation_registry.md#0x1_automation_registry_EGAS_COMMITTEED_VALUE_OVERFLOW">EGAS_COMMITTEED_VALUE_OVERFLOW</a>);
+
+    <b>let</b> committed_gas = (committed_gas <b>as</b> u64);
+    <b>assert</b>!(committed_gas &lt;= automation_registry_config.next_epoch_registry_max_gas_cap, <a href="automation_registry.md#0x1_automation_registry_EGAS_AMOUNT_UPPER">EGAS_AMOUNT_UPPER</a>);
+
+    // Check the automation fee capacity
+    <b>let</b> estimated_automation_fee_for_epoch = <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal">estimate_automation_fee_with_committed_occupancy_internal</a>(
+        max_gas_amount,
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch,
+        automation_cycle_info.duration_secs,
+        automation_registry_config);
+    <b>assert</b>!(automation_fee_cap_for_epoch &gt;= estimated_automation_fee_for_epoch,
+        <a href="automation_registry.md#0x1_automation_registry_EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH">EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH</a>
+    );
+
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = committed_gas;
+    <b>let</b> task_index = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index;
+
+    <b>let</b> automation_task_metadata = <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a> {
+        task_index,
+        owner,
+        payload_tx,
+        expiry_time,
+        max_gas_amount,
+        gas_price_cap,
+        automation_fee_cap_for_epoch,
+        aux_data,
+        state: <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>,
+        registration_time,
+        tx_hash,
+        locked_fee_for_next_epoch: automation_fee_cap_for_epoch
+    };
+
+    <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_add_value">enumerable_map::add_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index, automation_task_metadata);
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index + 1;
+
+    // Charge flat registration fee from the user at the time of registration and deposit for automation_fee for epoch.
+    <b>let</b> fee = automation_registry_config.main_config.flat_registration_fee_in_quants + automation_fee_cap_for_epoch;
+
+    <b>let</b> refund_bookkeeping = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework);
+    refund_bookkeeping.total_deposited_automation_fee = refund_bookkeeping.total_deposited_automation_fee + automation_fee_cap_for_epoch;
+
+    <a href="coin.md#0x1_coin_transfer">coin::transfer</a>&lt;SupraCoin&gt;(owner_signer, <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address, fee);
+
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskRegistrationDepositFeeWithdraw">TaskRegistrationDepositFeeWithdraw</a> {
+        task_index,
+        owner,
+        registration_fee: automation_registry_config.main_config.flat_registration_fee_in_quants ,
+        locked_deposit_fee: automation_fee_cap_for_epoch
+    });
+    <a href="event.md#0x1_event_emit">event::emit</a>(automation_task_metadata);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_on_drop"></a>
+
+## Function `on_drop`
+
+Called by MoveVm on <code>AutomationBookkeepingAction::Drop</code> action emitted by native layer ahead of cycle transition
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_drop">on_drop</a>(vm: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_drop">on_drop</a>(vm: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt; ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
+    // Operational constraint: can only be invoked by the VM
+    <a href="system_addresses.md#0x1_system_addresses_assert_vm">system_addresses::assert_vm</a>(&vm);
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&task_indexes)) {
+        <b>return</b>;
+    };
+
+    <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
+    <b>assert</b>!(cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_FINISHED">CYCLE_FINISHED</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
+    <b>assert</b>!(std::option::is_some(&cycle_info.transition_state), <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
+
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <b>let</b> refund_bookkeeping = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework);
+    <b>let</b> resource_signer = <a href="account.md#0x1_account_create_signer_with_capability">account::create_signer_with_capability</a>(
+        &<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address_signer_cap
+    );
+
+    <b>let</b> removed_tasks = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(task_indexes, |task_index| {
+        <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index)) {
+            <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
+
+            <a href="automation_registry.md#0x1_automation_registry_safe_deposit_refund">safe_deposit_refund</a>(
+                refund_bookkeeping,
+                &resource_signer,
+                <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address,
+                task_index,
+                task.owner,
+                task.locked_fee_for_next_epoch,
+                task.locked_fee_for_next_epoch);
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> removed_tasks, task_index);
+        };
+    });
+
+    <a href="automation_registry.md#0x1_automation_registry_update_cycle_transition_state_from_finished">update_cycle_transition_state_from_finished</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>, cycle_info, removed_tasks);
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_RemovedTasks">RemovedTasks</a> {
+        task_indexes: removed_tasks
+    });
+
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_on_charge"></a>
+
+## Function `on_charge`
+
+Called by MoveVm on <code>AutomationBookkeepingAction::Charge</code> action emitted by native layer ahead of cycle transition
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_charge">on_charge</a>(vm: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, automation_fee_per_sec: u64, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, gas_committed_for_new_cycle: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_charge">on_charge</a>(vm: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, automation_fee_per_sec: u64, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, gas_committed_for_new_cycle: u64)
+<b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+    // Operational constraint: can only be invoked by the VM
+    <a href="system_addresses.md#0x1_system_addresses_assert_vm">system_addresses::assert_vm</a>(&vm);
+
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&task_indexes)) {
+        <b>return</b>
+    };
+
+    <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
+    <b>assert</b>!(cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_FINISHED">CYCLE_FINISHED</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
+    <b>assert</b>!(std::option::is_some(&cycle_info.transition_state), <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
+
+    <b>let</b> transition_state = std::option::borrow_mut(&<b>mut</b> cycle_info.transition_state);
+    <b>if</b> (transition_state.gas_committed_for_this_cycle == 0) {
+        transition_state.gas_committed_for_this_cycle = gas_committed_for_new_cycle;
+        transition_state.automation_fee_per_sec = automation_fee_per_sec;
+    } <b>else</b> {
+        <b>assert</b>!(transition_state.gas_committed_for_this_cycle == gas_committed_for_new_cycle, <a href="automation_registry.md#0x1_automation_registry_EINVALID_CHARGE_ACTION">EINVALID_CHARGE_ACTION</a>);
+        <b>assert</b>!(transition_state.automation_fee_per_sec == automation_fee_per_sec, <a href="automation_registry.md#0x1_automation_registry_EINVALID_CHARGE_ACTION">EINVALID_CHARGE_ACTION</a>);
+    };
+
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <b>let</b> refund_bookkeeping = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework);
+    <b>let</b> automation_registry_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
+    <b>let</b> intermedate_result = <a href="automation_registry.md#0x1_automation_registry_IntermediateStateOfEpochChange">IntermediateStateOfEpochChange</a> {
+        removed_tasks: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[],
+        gas_committed_for_new_epoch: gas_committed_for_new_cycle,
+        gas_committed_for_next_epoch: 0,
+        epoch_locked_fees: <a href="coin.md#0x1_coin_zero">coin::zero</a>()
+    };
+
+    <b>let</b> processed_tasks = <a href="automation_registry.md#0x1_automation_registry_try_charge_tasks_automation_fees">try_charge_tasks_automation_fees</a>(
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
+        refund_bookkeeping,
+        &automation_registry_config.main_config,
+        (automation_fee_per_sec <b>as</b> u256),
+    transition_state.new_cycle_duration,
+    <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>(),
+        task_indexes,
+        &<b>mut</b> intermedate_result
+    );
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry_IntermediateStateOfEpochChange">IntermediateStateOfEpochChange</a> {
+        removed_tasks,
+        gas_committed_for_new_epoch,
+        gas_committed_for_next_epoch,
+        epoch_locked_fees
+    } = intermedate_result;
+
+    transition_state.locked_fees = transition_state.locked_fees + <a href="coin.md#0x1_coin_value">coin::value</a>(&epoch_locked_fees);
+    transition_state.gas_committed_for_next_cycle = transition_state.gas_committed_for_next_cycle + gas_committed_for_next_epoch;
+    <a href="coin.md#0x1_coin_deposit">coin::deposit</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address, epoch_locked_fees);
+
+    <a href="automation_registry.md#0x1_automation_registry_update_cycle_transition_state_from_finished">update_cycle_transition_state_from_finished</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>, cycle_info, processed_tasks);
+
+    <b>if</b> (!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&removed_tasks)) {
+        <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_RemovedTasks">RemovedTasks</a>{
+            task_indexes: removed_tasks
+        })
+    }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_on_refund_and_cleanup"></a>
+
+## Function `on_refund_and_cleanup`
+
+Called by MoveVm on <code>AutomationBookkeepingAction::RefundAndCleanup</code> action.
+Action from native layer will be tiggered by move layer when automation registy cycle is updated to SUSPENDED.
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_refund_and_cleanup">on_refund_and_cleanup</a>(vm: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, duration: u64, automation_fee_per_sec: u64, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_refund_and_cleanup">on_refund_and_cleanup</a>(vm: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, duration: u64, automation_fee_per_sec: u64, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt; )
+<b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+    // Operational constraint: can only be invoked by the VM
+    <a href="system_addresses.md#0x1_system_addresses_assert_vm">system_addresses::assert_vm</a>(&vm);
+
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&task_indexes)) {
+        <b>return</b>
+    };
+
+    <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
+    <b>assert</b>!(cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_SUSPENDED">CYCLE_SUSPENDED</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
+    <b>assert</b>!(std::option::is_some(&cycle_info.transition_state), <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
+
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <b>let</b> refund_bookkeeping = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework);
+    <b>let</b> arc = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
+    <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
+
+    <b>let</b> resource_signer = <a href="account.md#0x1_account_create_signer_with_capability">account::create_signer_with_capability</a>(
+        &<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address_signer_cap
+    );
+    <b>let</b> removed_tasks = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+    <b>let</b> epoch_locked_fees = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees;
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(task_indexes, |task_index| {
+        <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index)) {
+            <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
+
+            <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
+                <b>let</b> refund = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(
+                    &arc.main_config,
+                    &task,
+                    duration,
+                    current_time,
+                    (automation_fee_per_sec <b>as</b> u256));
+                <b>let</b> (_, remaining_epoch_locked_fees) = <a href="automation_registry.md#0x1_automation_registry_safe_fee_refund">safe_fee_refund</a>(
+                    epoch_locked_fees,
+                    &resource_signer,
+                    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address,
+                    task.task_index,
+                    task.owner,
+                    refund);
+                epoch_locked_fees = remaining_epoch_locked_fees;
+            };
+
+            <a href="automation_registry.md#0x1_automation_registry_safe_deposit_refund">safe_deposit_refund</a>(
+                refund_bookkeeping,
+                &resource_signer,
+                <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address,
+                task.task_index,
+                task.owner,
+                task.locked_fee_for_next_epoch,
+                task.locked_fee_for_next_epoch);
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> removed_tasks, task_index);
+        };
+    });
+
+    <a href="automation_registry.md#0x1_automation_registry_update_cycle_transition_state_from_suspended">update_cycle_transition_state_from_suspended</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>, cycle_info, removed_tasks);
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_RemovedTasks">RemovedTasks</a> {
+        task_indexes: removed_tasks
+    });
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_into_automation_cycle_info"></a>
+
+## Function `into_automation_cycle_info`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_into_automation_cycle_info">into_automation_cycle_info</a>(details: &<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">automation_registry::AutomationCycleDetails</a>): <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">automation_registry::AutomationCycleInfo</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_into_automation_cycle_info">into_automation_cycle_info</a>(details: &<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>): <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> {
+    <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> {
+        index: details.index,
+        state: details.state,
+        start_time: details.start_time,
+        duration_secs: details.duration_secs
+    }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_update_cycle_transition_state_from_suspended"></a>
+
+## Function `update_cycle_transition_state_from_suspended`
+
+Updates the transition state with newly processed tasks and if transition is identified to be finalized, then
+moves to the next state.
+As transition happens from suspended state and while transition was in progress the feature was enabled back,
+then the transition will happend direclty to starated state, otherwise the transition will be done to the ready state.
+In both cases config will be updated. In this case we will make sure to keep the consistency of state when transition to ready state happens
+through path Started -> Suspended -> Ready or Started-> {Finished, Suspended} -> Ready or Started -> Finished -> {Started, Suspended}
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_cycle_transition_state_from_suspended">update_cycle_transition_state_from_suspended</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">automation_registry::AutomationCycleDetails</a>, processed_tasks: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_cycle_transition_state_from_suspended">update_cycle_transition_state_from_suspended</a>(
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>,
+    cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>,
+    processed_tasks: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;) <b>acquires</b>  <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>  {
+    <b>assert</b>!(std::option::is_some(&cycle_info.transition_state), <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
+    <b>let</b> transition_state = std::option::borrow_mut(&<b>mut</b> cycle_info.transition_state);
+    <a href="automation_registry.md#0x1_automation_registry_update_processed_tasks">update_processed_tasks</a>(transition_state, processed_tasks);
+
+    <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_transition_finalized">is_transition_finalized</a>(transition_state)) {
+        <b>return</b>
+    };
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = 0;
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch = 0;
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees = 0;
+
+    <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>(cycle_info);
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>()) {
+        <a href="automation_registry.md#0x1_automation_registry_move_to_started_state">move_to_started_state</a>(cycle_info)
+    } <b>else</b> {
+        <a href="automation_registry.md#0x1_automation_registry_move_to_ready_state">move_to_ready_state</a>(cycle_info)
+    }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_update_cycle_transition_state_from_finished"></a>
+
+## Function `update_cycle_transition_state_from_finished`
+
+Updates the transition state with newly processed tasks and if transition is identified to be finalized, then
+moves to the next state.
+First it moves to the next cycle. But if happened so that there was a suspension during cycle transition which was ignored,
+then immediately cycle state is updated to suspended.
+Expectation will be that native layer catches this double transition and will issue refunds for the new cycle
+which will not proceeded farther in any case.
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_cycle_transition_state_from_finished">update_cycle_transition_state_from_finished</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">automation_registry::AutomationCycleDetails</a>, processed_tasks: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_cycle_transition_state_from_finished">update_cycle_transition_state_from_finished</a>(
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>,
+    cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>,
+    processed_tasks: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;
+) {
+    <b>assert</b>!(std::option::is_some(&cycle_info.transition_state), <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
+
+    <b>let</b> transition_state = std::option::borrow_mut(&<b>mut</b> cycle_info.transition_state);
+    // TODO maybe do this via <b>native</b> function <b>where</b> duplicates will be avoided
+    <a href="automation_registry.md#0x1_automation_registry_update_processed_tasks">update_processed_tasks</a>(transition_state, processed_tasks);
+    <b>let</b> transition_finalized = <a href="automation_registry.md#0x1_automation_registry_is_transition_finalized">is_transition_finalized</a>(transition_state);
+
+    <b>if</b> (transition_finalized) {
+        <a href="automation_registry.md#0x1_automation_registry_on_cycle_start_internal">on_cycle_start_internal</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>, cycle_info);
+    };
+    <b>if</b> (transition_finalized  && !<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>()) {
+        <a href="automation_registry.md#0x1_automation_registry_move_to_suspended_state">move_to_suspended_state</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>, cycle_info)
+    }
 }
 </code></pre>
 
@@ -2806,15 +4298,13 @@ Note it is expected that committed_occupancy does not include currnet task's occ
 
 </details>
 
-<a id="0x1_automation_registry_initialize"></a>
+<a id="0x1_automation_registry_on_cycle_start_internal"></a>
 
-## Function `initialize`
-
-Initialization of Automation Registry with configuration parameters is expected metrics.
-Deprecated in favor of initialize_v2
+## Function `on_cycle_start_internal`
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_interval_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16)
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_cycle_start_internal">on_cycle_start_internal</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">automation_registry::AutomationCycleDetails</a>)
 </code></pre>
 
 
@@ -2823,235 +4313,27 @@ Deprecated in favor of initialize_v2
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize">initialize</a>(
-    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    epoch_interval_secs: u64,
-    task_duration_cap_in_secs: u64,
-    registry_max_gas_cap: u64,
-    automation_base_fee_in_quants_per_sec: u64,
-    flat_registration_fee_in_quants: u64,
-    congestion_threshold_percentage: u8,
-    congestion_base_fee_in_quants_per_sec: u64,
-    congestion_exponent: u8,
-    task_capacity: u16,
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_cycle_start_internal">on_cycle_start_internal</a>(
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>,
+    cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>
 ) {
-    <b>assert</b>!(<b>false</b>, <a href="automation_registry.md#0x1_automation_registry_EDEPRECATED_SINCE_V2">EDEPRECATED_SINCE_V2</a>);
-}
-</code></pre>
+    // Indicates that moving <b>to</b> cycle start from transition state.
+    <b>assert</b>!(std::option::is_some(&cycle_info.transition_state), <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
+    <b>let</b> transition_state = std::option::borrow_mut(&<b>mut</b> cycle_info.transition_state);
 
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = transition_state.gas_committed_for_next_cycle;
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch = (transition_state.gas_committed_for_this_cycle <b>as</b> u256);
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees = transition_state.locked_fees;
 
-
-</details>
-
-<a id="0x1_automation_registry_initialize_refund_bookkeeping_resource"></a>
-
-## Function `initialize_refund_bookkeeping_resource`
-
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize_refund_bookkeeping_resource">initialize_refund_bookkeeping_resource</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize_refund_bookkeeping_resource">initialize_refund_bookkeeping_resource</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
-    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
-    <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
-        total_deposited_automation_fee: 0
-    });
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_initialize_v2"></a>
-
-## Function `initialize_v2`
-
-Initialization of Automation Registry with configuration parameters for SUPRA_NATIVE_AUTOMATION_V2 version.
-Expected to have this function call either at genesis startup or as part of the SUPRA_FRAMEWORK upgrade where
-automation feature is being introduced very first time.
-In case if framework upgrade is happening on the chain where automation feature is already released and
-is in ongoing state, then migrate_v2 function should be utilized instead.
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize_v2">initialize_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, cycle_duration_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_initialize_v2">initialize_v2</a>(
-    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    cycle_duration_secs: u64,
-    task_duration_cap_in_secs: u64,
-    registry_max_gas_cap: u64,
-    automation_base_fee_in_quants_per_sec: u64,
-    flat_registration_fee_in_quants: u64,
-    congestion_threshold_percentage: u8,
-    congestion_base_fee_in_quants_per_sec: u64,
-    congestion_exponent: u8,
-    task_capacity: u16,
-) {
-    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
-    <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(
-        cycle_duration_secs,
-        task_duration_cap_in_secs,
-        registry_max_gas_cap,
-        congestion_threshold_percentage,
-        congestion_exponent);
-
-    <b>let</b> (registry_fee_resource_signer, registry_fee_address_signer_cap) = <a href="automation_registry.md#0x1_automation_registry_create_registry_resource_account">create_registry_resource_account</a>(
-        supra_framework
-    );
-
-    <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
-        tasks: <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_new_map">enumerable_map::new_map</a>(),
-        current_index: 0,
-        gas_committed_for_next_epoch: 0,
-        epoch_locked_fees: 0,
-        gas_committed_for_this_epoch: 0,
-        registry_fee_address: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&registry_fee_resource_signer),
-        registry_fee_address_signer_cap,
-        epoch_active_task_ids: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[],
-    });
-
-    <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
-        main_config: <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
-            task_duration_cap_in_secs,
-            registry_max_gas_cap,
-            automation_base_fee_in_quants_per_sec,
-            flat_registration_fee_in_quants,
-            congestion_threshold_percentage,
-            congestion_base_fee_in_quants_per_sec,
-            congestion_exponent,
-            task_capacity,
-        },
-        next_epoch_registry_max_gas_cap: registry_max_gas_cap,
-        registration_enabled: <b>true</b>,
-    });
-
-    <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> {
-        start_time: 0,
-        index: 0,
-        duration_secs: cycle_duration_secs,
-        state: <a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>
-    });
-
-    <a href="automation_registry.md#0x1_automation_registry_initialize_refund_bookkeeping_resource">initialize_refund_bookkeeping_resource</a>(supra_framework)
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_migrate_v2"></a>
-
-## Function `migrate_v2`
-
-API to gracfully migrate from automation feature v1 inplementation to v2 where bookkeeping of the tasks is
-detached from epoch-change.
-IMPORTANT: Should alwasy be followed by supra_governance::reconfiguration otherwise registry/chain will
-end-up in inconsistent state.
-
-TODO: Think of having native fucntion as means to identify that binary is not updated and lets have it called from
-monitor_cycle_end (block_prologue->automation_registry::monitor_cycle_end) which will lead to panic and node will stop
-thus not causing any inconcistensy in the chain
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_migrate_v2">migrate_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, cycle_duration_secs: u64)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_migrate_v2">migrate_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, cycle_duration_secs: u64
-    ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> {
-    assert_supra_framework(supra_framework);
-
-    // Prepare the state for migration
-    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
-    <b>let</b> automation_epoch_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
-
-    <b>let</b> automation_registry_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(
-        @supra_framework
-    ).main_config;
-
-    <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
-    // Refund the epoch fees <b>as</b> epoch will be cut short and on_new_epoch will be dummy due <b>to</b> migration,
-    // so this is the only place <b>to</b> do the refunds
-    <a href="automation_registry.md#0x1_automation_registry_update_state_for_migration">update_state_for_migration</a>(
-        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
-        &automation_registry_config,
-        automation_epoch_info,
-        current_time
-    );
-
-    // Start migration by enabling feature, initializing the cycle releated resouces
-    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_change_feature_flags_for_next_epoch">features::change_feature_flags_for_next_epoch</a>(
-        supra_framework,
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_get_supra_native_automation_v2_feature">features::get_supra_native_automation_v2_feature</a>()],
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]);
-    <b>let</b> id = 0;
-    <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> {
-        start_time: current_time,
-        index: id,
-        duration_secs: cycle_duration_secs,
-        state: <a href="automation_registry.md#0x1_automation_registry_CYCLE_FINISHED">CYCLE_FINISHED</a>
-    });
-    // Emit cycle end which will lead the <b>native</b> layer <b>to</b> start preparation <b>to</b> the new cycle.
-    <a href="automation_registry.md#0x1_automation_registry_on_cycle_end_internal">on_cycle_end_internal</a>();
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_on_new_epoch"></a>
-
-## Function `on_new_epoch`
-
-On new epoch caused by reconfiguration this function will be triggered and update the automation registry state
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>()
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
-    <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>&gt;(@supra_framework);
-    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>()) {
-        // If the lifecycle <b>has</b> been suspended and we are recovering from it, then we <b>update</b> config from buffer and
-        // then start a new cycle directly
-        <b>if</b> ( cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_LIFECYCLE_SUSPENDED">LIFECYCLE_SUSPENDED</a>) {
-            <a href="automation_registry.md#0x1_automation_registry_move_to_started_state">move_to_started_state</a>(cycle_info);
-            <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>();
-        };
-        <b>return</b>
-    };
-    // We do not <b>update</b> config here, <b>as</b> due <b>to</b> feature being disabled, cycle ends early so it is expected
-    // that <b>native</b> layer will detect this state and generate refund transactions for a cycle that <b>has</b> been kept short.
-    // So the confing should remain intact.
-    <a href="automation_registry.md#0x1_automation_registry_move_to_suspended_state">move_to_suspended_state</a>(cycle_info);
+    // Set current <a href="timestamp.md#0x1_timestamp">timestamp</a> <b>as</b> cycle start_time
+    // Increase cycle and <b>update</b> the state <b>to</b> Started
+    <a href="automation_registry.md#0x1_automation_registry_move_to_started_state">move_to_started_state</a>(cycle_info);
+    <b>if</b> (!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids)) {
+        <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_ActiveTasks">ActiveTasks</a> {
+            task_indexes: <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids
+        });
+    }
 }
 </code></pre>
 
@@ -3065,7 +4347,7 @@ On new epoch caused by reconfiguration this function will be triggered and updat
 
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_cycle_end_internal">on_cycle_end_internal</a>()
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_cycle_end_internal">on_cycle_end_internal</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">automation_registry::AutomationCycleDetails</a>)
 </code></pre>
 
 
@@ -3074,9 +4356,22 @@ On new epoch caused by reconfiguration this function will be triggered and updat
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_cycle_end_internal">on_cycle_end_internal</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
-    <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>();
-    <a href="automation_registry.md#0x1_automation_registry_move_to_finished_state">move_to_finished_state</a>()
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_cycle_end_internal">on_cycle_end_internal</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
+    <b>let</b> transition_state = <a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a> {
+        new_cycle_duration: cycle_info.duration_secs,
+        automation_fee_per_sec: 0,
+        gas_committed_for_this_cycle: 0,
+        gas_committed_for_next_cycle: 0,
+        locked_fees: 0,
+        expected_tasks_to_be_processed: <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks),
+        actual_processed_tasks: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]
+    };
+    cycle_info.transition_state = std::option::some(transition_state);
+    <a href="automation_registry.md#0x1_automation_registry_update_cycle_state_to">update_cycle_state_to</a>(cycle_info, <a href="automation_registry.md#0x1_automation_registry_CYCLE_FINISHED">CYCLE_FINISHED</a>);
+    // During cycle transition we <b>update</b> config only after transition state is created in order <b>to</b> have new cycle
+    // duration <b>as</b> transition parameter.
+    <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>(cycle_info);
 }
 </code></pre>
 
@@ -3084,13 +4379,13 @@ On new epoch caused by reconfiguration this function will be triggered and updat
 
 </details>
 
-<a id="0x1_automation_registry_move_to_finished_state"></a>
+<a id="0x1_automation_registry_update_cycle_state_to"></a>
 
-## Function `move_to_finished_state`
+## Function `update_cycle_state_to`
 
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_move_to_finished_state">move_to_finished_state</a>()
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_cycle_state_to">update_cycle_state_to</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">automation_registry::AutomationCycleDetails</a>, state: u8)
 </code></pre>
 
 
@@ -3099,12 +4394,15 @@ On new epoch caused by reconfiguration this function will be triggered and updat
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_move_to_finished_state">move_to_finished_state</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> {
-    <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>&gt;(@supra_framework);
-    cycle_info.state = <a href="automation_registry.md#0x1_automation_registry_CYCLE_FINISHED">CYCLE_FINISHED</a>;
-    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_AutomationCycleFinished">AutomationCycleFinished</a> {
-        cycle_id: cycle_info.index,
-    });
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_cycle_state_to">update_cycle_state_to</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, state: u8) {
+    <b>let</b> old_state = cycle_info.state;
+    cycle_info.state = state;
+    <b>let</b> <a href="event.md#0x1_event">event</a> = <a href="automation_registry.md#0x1_automation_registry_AutomationCycleEvent">AutomationCycleEvent</a> {
+        cycle_state_info: <a href="automation_registry.md#0x1_automation_registry_into_automation_cycle_info">into_automation_cycle_info</a>(cycle_info),
+        old_state,
+        event_time: <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>(),
+    };
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="event.md#0x1_event">event</a>)
 }
 </code></pre>
 
@@ -3112,13 +4410,13 @@ On new epoch caused by reconfiguration this function will be triggered and updat
 
 </details>
 
-<a id="0x1_automation_registry_move_to_suspended_state"></a>
+<a id="0x1_automation_registry_move_to_ready_state"></a>
 
-## Function `move_to_suspended_state`
+## Function `move_to_ready_state`
 
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_move_to_suspended_state">move_to_suspended_state</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">automation_registry::AutomationCycleInfo</a>)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_move_to_ready_state">move_to_ready_state</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">automation_registry::AutomationCycleDetails</a>)
 </code></pre>
 
 
@@ -3127,11 +4425,9 @@ On new epoch caused by reconfiguration this function will be triggered and updat
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_move_to_suspended_state">move_to_suspended_state</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>) {
-    cycle_info.state = <a href="automation_registry.md#0x1_automation_registry_LIFECYCLE_SUSPENDED">LIFECYCLE_SUSPENDED</a>;
-    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_AutomationCycleFinished">AutomationCycleFinished</a> {
-        cycle_id: cycle_info.index,
-    });
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_move_to_ready_state">move_to_ready_state</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>) {
+    cycle_info.transition_state = std::option::none&lt;<a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a>&gt;();
+    <a href="automation_registry.md#0x1_automation_registry_update_cycle_state_to">update_cycle_state_to</a>(cycle_info, <a href="automation_registry.md#0x1_automation_registry_READY_TO_START_NEW_CYCLE">READY_TO_START_NEW_CYCLE</a>)
 }
 </code></pre>
 
@@ -3145,7 +4441,7 @@ On new epoch caused by reconfiguration this function will be triggered and updat
 
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_move_to_started_state">move_to_started_state</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">automation_registry::AutomationCycleInfo</a>)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_move_to_started_state">move_to_started_state</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">automation_registry::AutomationCycleDetails</a>)
 </code></pre>
 
 
@@ -3154,14 +4450,59 @@ On new epoch caused by reconfiguration this function will be triggered and updat
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_move_to_started_state">move_to_started_state</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>) {
-    cycle_info.state = <a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>;
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_move_to_started_state">move_to_started_state</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>) {
     cycle_info.index = cycle_info.index + 1;
     cycle_info.start_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
-    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_AutomationCycleStarted">AutomationCycleStarted</a> {
-        cycle_id: cycle_info.index,
-        <a href="timestamp.md#0x1_timestamp">timestamp</a>: cycle_info.start_time
-    });
+    <b>if</b> (std::option::is_some(&cycle_info.transition_state)) {
+        <b>let</b> transition_state = std::option::extract(&<b>mut</b> cycle_info.transition_state);
+        cycle_info.duration_secs = transition_state.new_cycle_duration;
+    };
+    <a href="automation_registry.md#0x1_automation_registry_update_cycle_state_to">update_cycle_state_to</a>(cycle_info, <a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_move_to_suspended_state"></a>
+
+## Function `move_to_suspended_state`
+
+Transition to suspended state is expected
+a) when cycle is active and in progress
+- here we do simply move to suspended state so native layer can start requesting refunds and cleanup actions
+b) when cycle has just finished and there was another transaction causing feature suspension
+- as this both events happen in scope of the same block, then we will simply update the state to suspended
+and the native layer should identify this and request refund and cleanup with 0 fee and 0 duration,
+which will lead to simply deposit refund and cleanup.
+c) when cycle transition was in progress and there was a feature suspension, but it could not be applied,
+and postponed till the cycle transition concluded
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_move_to_suspended_state">move_to_suspended_state</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">automation_registry::AutomationCycleDetails</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_move_to_suspended_state">move_to_suspended_state</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>) {
+    <b>if</b> (std::option::is_none(&cycle_info.transition_state)) {
+        <b>let</b> transition_state = <a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a> {
+            new_cycle_duration: cycle_info.duration_secs,
+            automation_fee_per_sec: 0,
+            gas_committed_for_this_cycle: 0,
+            gas_committed_for_next_cycle: 0,
+            locked_fees: 0,
+            expected_tasks_to_be_processed: <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks),
+            actual_processed_tasks: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]
+        };
+        cycle_info.transition_state = std::option::some(transition_state);
+    };
+    <a href="automation_registry.md#0x1_automation_registry_update_cycle_state_to">update_cycle_state_to</a>(cycle_info, <a href="automation_registry.md#0x1_automation_registry_CYCLE_SUSPENDED">CYCLE_SUSPENDED</a>)
 }
 </code></pre>
 
@@ -3771,6 +5112,87 @@ would allow the congestion fee to increase in a non-linear fashion.
 
 </details>
 
+<a id="0x1_automation_registry_try_charge_tasks_automation_fees"></a>
+
+## Function `try_charge_tasks_automation_fees`
+
+Processes automation task fees by checking user balances and task's commitment on automation-fee, i.e. automation-fee-cap
+- If the user has sufficient balance, deducts the fee and emits a success event.
+- If the balance is insufficient, removes the task and emits a cancellation event.
+- If calculated fee for the epoch surpasses task's automation-fee-cap task is removed and cancellation event is emitted.
+Return estimated committed gas for the next epoch, locked automation fee amount for this epoch, and list of active task indexes
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_try_charge_tasks_automation_fees">try_charge_tasks_automation_fees</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, refund_bookkeeping: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">automation_registry::AutomationRefundBookkeeping</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, automation_fee_per_sec: u256, cycle_duration: u64, current_time: u64, task_ids: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, intermediate_state: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_IntermediateStateOfEpochChange">automation_registry::IntermediateStateOfEpochChange</a>): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_try_charge_tasks_automation_fees">try_charge_tasks_automation_fees</a>(
+    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>,
+    refund_bookkeeping: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>,
+    arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
+    automation_fee_per_sec: u256,
+    cycle_duration: u64,
+    current_time: u64,
+    task_ids: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
+    intermediate_state: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_IntermediateStateOfEpochChange">IntermediateStateOfEpochChange</a>,
+): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt; {
+    <b>let</b> processed_tasks = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+
+    <b>let</b> resource_signer = <a href="account.md#0x1_account_create_signer_with_capability">account::create_signer_with_capability</a>(
+        &<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address_signer_cap
+    );
+    <b>let</b> current_cycle_end_time = current_time + cycle_duration;
+
+    // Sort task indexes <b>to</b> charge automation fees in the tasks chronological order
+    <a href="automation_registry.md#0x1_automation_registry_sort_vector">sort_vector</a>(&<b>mut</b> task_ids);
+
+    // Process each active task and calculate fee for the epoch for the tasks
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(task_ids, |task_index| {
+        <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index)) {
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> processed_tasks, task_index);
+            <b>let</b> task = {
+                <b>let</b> task_meta = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_mut">enumerable_map::get_value_mut</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
+                <b>let</b> fee= <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(arc, task_meta, cycle_duration, current_time, automation_fee_per_sec);
+                // If the task reached this phase that means it is valid active task for the new epoch.
+                // During cleanup all expired tasks <b>has</b> been removed from the registry but the state of the tasks is not updated.
+                // As here we need <b>to</b> distinguish new tasks from already existing active tasks,
+                // <b>as</b> the fee calculation for them will be different based on their active duration in the epoch.
+                // For more details see calculate_task_fee function.
+                task_meta.state = <a href="automation_registry.md#0x1_automation_registry_ACTIVE">ACTIVE</a>;
+                <a href="automation_registry.md#0x1_automation_registry_AutomationTaskFeeMeta">AutomationTaskFeeMeta</a> {
+                    task_index,
+                    owner: task_meta.owner,
+                    fee,
+                    expiry_time: task_meta.expiry_time,
+                    automation_fee_cap: task_meta.automation_fee_cap_for_epoch,
+                    max_gas_amount: task_meta.max_gas_amount,
+                    locked_deposit_fee: task_meta.locked_fee_for_next_epoch,
+                }
+            };
+            <a href="automation_registry.md#0x1_automation_registry_try_withdraw_task_automation_fee">try_withdraw_task_automation_fee</a>(
+                <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
+                refund_bookkeeping,
+                &resource_signer,
+                task,
+                current_cycle_end_time,
+                intermediate_state
+            );
+        };
+    });
+    processed_tasks
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_automation_registry_try_withdraw_task_automation_fees"></a>
 
 ## Function `try_withdraw_task_automation_fees`
@@ -3941,7 +5363,7 @@ Return estimated committed gas for the next epoch, locked automation fee amount 
 The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>()
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">automation_registry::AutomationCycleDetails</a>)
 </code></pre>
 
 
@@ -3950,7 +5372,7 @@ The function updates the ActiveAutomationRegistryConfig structure with values ex
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> {
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;()) {
         <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;();
         <b>let</b> automation_registry_config = &<b>mut</b> <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(
@@ -3967,42 +5389,13 @@ The function updates the ActiveAutomationRegistryConfig structure with values ex
     };
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDuration">AutomationCycleDuration</a>&gt;()) {
         <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDuration">AutomationCycleDuration</a>&gt;();
-        <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>&gt;(
-            @supra_framework
-        );
-        cycle_info.duration_secs = buffer.duration_secs;
+        <b>if</b> (std::option::is_some(&cycle_info.transition_state)) {
+            <b>let</b> transition_state = std::option::borrow_mut(&<b>mut</b> cycle_info.transition_state);
+            transition_state.new_cycle_duration = buffer.duration_secs;
+        } <b>else</b> {
+            cycle_info.duration_secs = buffer.duration_secs;
+        }
     };
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_withdraw_automation_task_fees"></a>
-
-## Function `withdraw_automation_task_fees`
-
-Withdraw accumulated automation task fees from the resource account - access by admin
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_withdraw_automation_task_fees">withdraw_automation_task_fees</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <b>to</b>: <b>address</b>, amount: u64)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_withdraw_automation_task_fees">withdraw_automation_task_fees</a>(
-    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    <b>to</b>: <b>address</b>,
-    amount: u64
-) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> , <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
-    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
-    <a href="automation_registry.md#0x1_automation_registry_transfer_fee_to_account_internal">transfer_fee_to_account_internal</a>(<b>to</b>, amount);
-    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_RegistryFeeWithdraw">RegistryFeeWithdraw</a> { <b>to</b>, amount });
 }
 </code></pre>
 
@@ -4041,99 +5434,6 @@ Transfers the specified fee amount from the resource account to the target accou
         &<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address_signer_cap
     );
     <a href="coin.md#0x1_coin_transfer">coin::transfer</a>&lt;SupraCoin&gt;(&resource_signer, <b>to</b>, amount);
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_update_config"></a>
-
-## Function `update_config`
-
-Update Automation Registry Config
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config">update_config</a>(
-    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    task_duration_cap_in_secs: u64,
-    registry_max_gas_cap: u64,
-    automation_base_fee_in_quants_per_sec: u64,
-    flat_registration_fee_in_quants: u64,
-    congestion_threshold_percentage: u8,
-    congestion_base_fee_in_quants_per_sec: u64,
-    congestion_exponent: u8,
-    task_capacity: u16,
-) {
-    <b>assert</b>!(<b>false</b>, <a href="automation_registry.md#0x1_automation_registry_EDEPRECATED_SINCE_V2">EDEPRECATED_SINCE_V2</a>);
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_update_config_v2"></a>
-
-## Function `update_config_v2`
-
-Update Automation Registry Config along with cycle duration.
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_v2">update_config_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16, cycle_duration_secs: u64)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_v2">update_config_v2</a>(
-    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    task_duration_cap_in_secs: u64,
-    registry_max_gas_cap: u64,
-    automation_base_fee_in_quants_per_sec: u64,
-    flat_registration_fee_in_quants: u64,
-    congestion_threshold_percentage: u8,
-    congestion_base_fee_in_quants_per_sec: u64,
-    congestion_exponent: u8,
-    task_capacity: u16,
-    cycle_duration_secs: u64,
-) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
-    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
-
-
-    <a href="automation_registry.md#0x1_automation_registry_update_registration_config_internal">update_registration_config_internal</a>(
-        supra_framework,
-        task_duration_cap_in_secs,
-        registry_max_gas_cap,
-        automation_base_fee_in_quants_per_sec,
-        flat_registration_fee_in_quants,
-        congestion_threshold_percentage,
-        congestion_base_fee_in_quants_per_sec,
-        congestion_exponent,
-        task_capacity,
-        cycle_duration_secs,
-    );
-
-    // Update cycle duration in buffer
-    <b>assert</b>!(cycle_duration_secs &gt; 0, <a href="automation_registry.md#0x1_automation_registry_ECYCLE_DURATION_NON_ZERO">ECYCLE_DURATION_NON_ZERO</a>);
-    <b>let</b> new_cycle_duration = <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDuration">AutomationCycleDuration</a> {
-        duration_secs: cycle_duration_secs
-    };
-    <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(<b>copy</b> new_cycle_duration);
-    <a href="event.md#0x1_event_emit">event::emit</a>(new_cycle_duration);
 }
 </code></pre>
 
@@ -4209,182 +5509,13 @@ Update Automation Registry Config releated to registration.
 
 </details>
 
-<a id="0x1_automation_registry_enable_registration"></a>
-
-## Function `enable_registration`
-
-Enables the registration process in the automation registry.
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_enable_registration">enable_registration</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_enable_registration">enable_registration</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
-    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
-    <b>let</b> automation_registry_config = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
-    automation_registry_config.registration_enabled = <b>true</b>;
-    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_EnabledRegistrationEvent">EnabledRegistrationEvent</a> {});
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_disable_registration"></a>
-
-## Function `disable_registration`
-
-Disables the registration process in the automation registry.
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_disable_registration">disable_registration</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_disable_registration">disable_registration</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
-    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
-    <b>let</b> automation_registry_config = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
-    automation_registry_config.registration_enabled = <b>false</b>;
-    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_DisabledRegistrationEvent">DisabledRegistrationEvent</a> {});
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_register"></a>
-
-## Function `register`
-
-Registers a new automation task entry.
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register">register</a>(owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, expiry_time: u64, max_gas_amount: u64, gas_price_cap: u64, automation_fee_cap_for_epoch: u64, tx_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register">register</a>(
-    owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    expiry_time: u64,
-    max_gas_amount: u64,
-    gas_price_cap: u64,
-    automation_fee_cap_for_epoch: u64,
-    tx_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
-) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
-    // Guarding registration <b>if</b> feature is not enabled.
-    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>);
-    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&aux_data), <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>);
-
-    <b>let</b> automation_registry_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
-    <b>assert</b>!(automation_registry_config.registration_enabled, <a href="automation_registry.md#0x1_automation_registry_ETASK_REGISTRATION_DISABLED">ETASK_REGISTRATION_DISABLED</a>);
-
-    // If registry is full, reject task registration
-    <b>assert</b>!((<a href="automation_registry.md#0x1_automation_registry_get_task_count">get_task_count</a>() <b>as</b> u16) &lt; automation_registry_config.main_config.task_capacity, <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_IS_FULL">EREGISTRY_IS_FULL</a>);
-
-    <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
-    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
-    <b>let</b> automation_cycle_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>&gt;(@supra_framework);
-
-    //Well-formedness check of payload_tx is done in <b>native</b> layer beforehand.
-
-    <b>let</b> registration_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
-    <a href="automation_registry.md#0x1_automation_registry_check_registration_task_duration">check_registration_task_duration</a>(
-        expiry_time,
-        registration_time,
-        &automation_registry_config.main_config,
-        automation_cycle_info
-    );
-
-    <b>assert</b>!(gas_price_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EINVALID_GAS_PRICE">EINVALID_GAS_PRICE</a>);
-    <b>assert</b>!(max_gas_amount &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EINVALID_MAX_GAS_AMOUNT">EINVALID_MAX_GAS_AMOUNT</a>);
-    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&tx_hash) == <a href="automation_registry.md#0x1_automation_registry_TXN_HASH_LENGTH">TXN_HASH_LENGTH</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_TXN_HASH">EINVALID_TXN_HASH</a>);
-
-    <b>let</b> committed_gas = (<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch <b>as</b> u128) + (max_gas_amount <b>as</b> u128);
-    <b>assert</b>!(committed_gas &lt;= <a href="automation_registry.md#0x1_automation_registry_MAX_U64">MAX_U64</a>, <a href="automation_registry.md#0x1_automation_registry_EGAS_COMMITTEED_VALUE_OVERFLOW">EGAS_COMMITTEED_VALUE_OVERFLOW</a>);
-
-    <b>let</b> committed_gas = (committed_gas <b>as</b> u64);
-    <b>assert</b>!(committed_gas &lt;= automation_registry_config.next_epoch_registry_max_gas_cap, <a href="automation_registry.md#0x1_automation_registry_EGAS_AMOUNT_UPPER">EGAS_AMOUNT_UPPER</a>);
-
-    // Check the automation fee capacity
-    <b>let</b> estimated_automation_fee_for_epoch = <a href="automation_registry.md#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal">estimate_automation_fee_with_committed_occupancy_internal</a>(
-        max_gas_amount,
-        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch,
-        automation_cycle_info.duration_secs,
-        automation_registry_config);
-    <b>assert</b>!(automation_fee_cap_for_epoch &gt;= estimated_automation_fee_for_epoch,
-        <a href="automation_registry.md#0x1_automation_registry_EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH">EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH</a>
-    );
-
-    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = committed_gas;
-    <b>let</b> task_index = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index;
-
-    <b>let</b> automation_task_metadata = <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a> {
-        task_index,
-        owner,
-        payload_tx,
-        expiry_time,
-        max_gas_amount,
-        gas_price_cap,
-        automation_fee_cap_for_epoch,
-        aux_data,
-        state: <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>,
-        registration_time,
-        tx_hash,
-        locked_fee_for_next_epoch: automation_fee_cap_for_epoch
-    };
-
-    <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_add_value">enumerable_map::add_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index, automation_task_metadata);
-    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index + 1;
-
-    // Charge flat registration fee from the user at the time of registration and deposit for automation_fee for epoch.
-    <b>let</b> fee = automation_registry_config.main_config.flat_registration_fee_in_quants + automation_fee_cap_for_epoch;
-
-    <b>let</b> refund_bookkeeping = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework);
-    refund_bookkeeping.total_deposited_automation_fee = refund_bookkeeping.total_deposited_automation_fee + automation_fee_cap_for_epoch;
-
-    <a href="coin.md#0x1_coin_transfer">coin::transfer</a>&lt;SupraCoin&gt;(owner_signer, <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address, fee);
-
-    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskRegistrationDepositFeeWithdraw">TaskRegistrationDepositFeeWithdraw</a> {
-        task_index,
-        owner,
-        registration_fee: automation_registry_config.main_config.flat_registration_fee_in_quants ,
-        locked_deposit_fee: automation_fee_cap_for_epoch
-    });
-    <a href="event.md#0x1_event_emit">event::emit</a>(automation_task_metadata);
-}
-</code></pre>
-
-
-
-</details>
-
 <a id="0x1_automation_registry_check_registration_task_duration"></a>
 
 ## Function `check_registration_task_duration`
 
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_check_registration_task_duration">check_registration_task_duration</a>(expiry_time: u64, registration_time: u64, automation_registry_config: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, automation_cycle_info: &<a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">automation_registry::AutomationCycleInfo</a>)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_check_registration_task_duration">check_registration_task_duration</a>(expiry_time: u64, registration_time: u64, automation_registry_config: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, automation_cycle_info: &<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">automation_registry::AutomationCycleDetails</a>)
 </code></pre>
 
 
@@ -4397,7 +5528,7 @@ Registers a new automation task entry.
     expiry_time: u64,
     registration_time: u64,
     automation_registry_config: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
-    automation_cycle_info: &<a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>
+    automation_cycle_info: &<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>
 ) {
     <b>assert</b>!(expiry_time &gt; registration_time, <a href="automation_registry.md#0x1_automation_registry_EINVALID_EXPIRY_TIME">EINVALID_EXPIRY_TIME</a>);
     <b>let</b> task_duration = expiry_time - registration_time;
@@ -4408,276 +5539,6 @@ Registers a new automation task entry.
         expiry_time &gt; (automation_cycle_info.start_time + automation_cycle_info.duration_secs),
         <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_BEFORE_NEXT_CYCLE">EEXPIRY_BEFORE_NEXT_CYCLE</a>
     );
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_cancel_task"></a>
-
-## Function `cancel_task`
-
-Cancel Automation task with specified task_index.
-Only existing task, which is PENDING or ACTIVE, can be cancelled and only by task owner.
-If the task is
-- active, its state is updated to be CANCELLED.
-- pending, it is removed form the list.
-- cancelled, an error is reported
-Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
-
-
-<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_cancel_task">cancel_task</a>(owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_index: u64)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_cancel_task">cancel_task</a>(
-    owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    task_index: u64
-) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> , <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>{
-    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
-    <b>let</b> refund_bookkeeping = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework);
-    <b>assert</b>!(<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index), <a href="automation_registry.md#0x1_automation_registry_EAUTOMATION_TASK_NOT_FOUND">EAUTOMATION_TASK_NOT_FOUND</a>);
-
-    <b>let</b> automation_task_metadata = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
-    <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
-    <b>assert</b>!(automation_task_metadata.owner == owner, <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OWNER">EUNAUTHORIZED_TASK_OWNER</a>);
-    <b>assert</b>!(automation_task_metadata.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a>, <a href="automation_registry.md#0x1_automation_registry_EALREADY_CANCELLED">EALREADY_CANCELLED</a>);
-    <b>if</b> (automation_task_metadata.state == <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
-        <b>let</b> resource_signer = <a href="account.md#0x1_account_create_signer_with_capability">account::create_signer_with_capability</a>(
-            &<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address_signer_cap
-        );
-        // When Pending tasks are cancelled, refund of the deposit fee is done <b>with</b> penalty
-        <b>let</b> result = <a href="automation_registry.md#0x1_automation_registry_safe_deposit_refund">safe_deposit_refund</a>(
-            refund_bookkeeping,
-            &resource_signer,
-            <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address,
-            automation_task_metadata.task_index,
-            owner,
-            automation_task_metadata.locked_fee_for_next_epoch / <a href="automation_registry.md#0x1_automation_registry_REFUND_FACTOR">REFUND_FACTOR</a>,
-        automation_task_metadata.locked_fee_for_next_epoch);
-        <b>assert</b>!(result, <a href="automation_registry.md#0x1_automation_registry_EDEPOSIT_REFUND">EDEPOSIT_REFUND</a>);
-        <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
-    } <b>else</b> { // it is safe not <b>to</b> check the state <b>as</b> above, the cancelled tasks are already rejected.
-        // Active tasks will be refunded the deposited amount fully at the end of the epoch
-        <b>let</b> automation_task_metadata_mut = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_mut">enumerable_map::get_value_mut</a>(
-            &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks,
-            task_index
-        );
-        automation_task_metadata_mut.state = <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a>;
-    };
-
-    <b>let</b> cycle_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>&gt;(@supra_framework);
-    // This check means the task was expected <b>to</b> be executed in the next cycle, but it <b>has</b> been cancelled.
-    // We need <b>to</b> remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
-    <b>if</b> (automation_task_metadata.expiry_time &gt; (cycle_info.start_time + cycle_info.duration_secs)) {
-        <b>assert</b>!(
-            <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &gt;= automation_task_metadata.max_gas_amount,
-            <a href="automation_registry.md#0x1_automation_registry_EGAS_COMMITTEED_VALUE_UNDERFLOW">EGAS_COMMITTEED_VALUE_UNDERFLOW</a>
-        );
-        // Adjust the gas committed for the next epoch by subtracting the gas amount of the cancelled task
-        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
-    };
-
-    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskCancelled">TaskCancelled</a> { task_index: automation_task_metadata.task_index, owner });
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_stop_tasks"></a>
-
-## Function `stop_tasks`
-
-Immediately stops automation tasks for the specified <code>task_indexes</code>.
-Only tasks that exist and are owned by the sender can be stopped.
-If any of the specified tasks are not owned by the sender, the transaction will abort.
-When a task is stopped, the committed gas for the next epoch is reduced
-by the max gas amount of the stopped task. Half of the remaining task fee is refunded.
-
-
-<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_stop_tasks">stop_tasks</a>(owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_stop_tasks">stop_tasks</a>(
-    owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;
-) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
-    // Ensure that task indexes are provided
-    <b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&task_indexes), <a href="automation_registry.md#0x1_automation_registry_EEMPTY_TASK_INDEXES">EEMPTY_TASK_INDEXES</a>);
-
-    <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
-    <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
-    <b>let</b> arc = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework).main_config;
-    <b>let</b> cycle_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a>&gt;(@supra_framework);
-    <b>let</b> refund_bookkeeping = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework);
-
-    <b>let</b> tcmg = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch;
-
-    // Compute the automation fee multiplier for epoch
-    <b>let</b> automation_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multiplier_for_epoch">calculate_automation_fee_multiplier_for_epoch</a>(&arc, tcmg, arc.registry_max_gas_cap);
-
-    <b>let</b> stopped_task_details = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
-    <b>let</b> total_refund_fee = 0;
-    <b>let</b> epoch_locked_fees = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees;
-
-    // Calculate refundable fee for this remaining time task in current epoch
-    <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
-    <b>let</b> cycle_end_time = cycle_info.duration_secs + cycle_info.start_time;
-    <b>let</b> residual_interval = <b>if</b> (cycle_end_time &lt;= current_time) {
-        0
-    } <b>else</b> {
-        cycle_end_time - current_time
-    };
-
-    // Loop through each task index <b>to</b> validate and stop the task
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(task_indexes, |task_index| {
-        <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index)) {
-            // Remove task from registry
-            <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
-
-            // Ensure only the task owner can stop it
-            <b>assert</b>!(task.owner == owner, <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OWNER">EUNAUTHORIZED_TASK_OWNER</a>);
-
-            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_remove_value">vector::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids, &task_index);
-
-            // This check means the task was expected <b>to</b> be executed in the next epoch, but it <b>has</b> been stopped.
-            // We need <b>to</b> remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
-            // Also it checks that task should not be cancelled.
-            <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a> && task.expiry_time &gt; cycle_end_time) {
-                // Prevent underflow in gas committed
-                <b>assert</b>!(
-                    <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch &gt;= task.max_gas_amount,
-                    <a href="automation_registry.md#0x1_automation_registry_EGAS_COMMITTEED_VALUE_UNDERFLOW">EGAS_COMMITTEED_VALUE_UNDERFLOW</a>
-                );
-
-                // Reduce committed gas by the stopped task's max gas
-                <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch - task.max_gas_amount;
-            };
-
-            <b>let</b> (epoch_fee_refund, deposit_refund) = <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
-                <b>let</b> task_fee = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(
-                    &arc,
-                    &task,
-                    residual_interval,
-                    current_time,
-                    automation_fee_per_sec
-                );
-                // Refund full deposit and the half of the remaining run-time fee when task is active or cancelled stage
-                (task_fee / <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>, task.locked_fee_for_next_epoch)
-            } <b>else</b> {
-                (0, (task.locked_fee_for_next_epoch / <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>))
-            };
-            <b>let</b> result = <a href="automation_registry.md#0x1_automation_registry_safe_unlock_locked_deposit">safe_unlock_locked_deposit</a>(
-                refund_bookkeeping,
-                task.locked_fee_for_next_epoch,
-                task.task_index);
-            <b>assert</b>!(result, <a href="automation_registry.md#0x1_automation_registry_EDEPOSIT_REFUND">EDEPOSIT_REFUND</a>);
-            <b>let</b> (result, remaining_epoch_locked_fees) = <a href="automation_registry.md#0x1_automation_registry_safe_unlock_locked_epoch_fee">safe_unlock_locked_epoch_fee</a>(
-                epoch_locked_fees,
-                epoch_fee_refund,
-                task.task_index);
-            <b>assert</b>!(result, <a href="automation_registry.md#0x1_automation_registry_EEPOCH_FEE_REFUND">EEPOCH_FEE_REFUND</a>);
-            epoch_locked_fees = remaining_epoch_locked_fees;
-
-            total_refund_fee = total_refund_fee + (epoch_fee_refund + deposit_refund);
-
-            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(
-                &<b>mut</b> stopped_task_details,
-                <a href="automation_registry.md#0x1_automation_registry_TaskStopped">TaskStopped</a> { task_index, deposit_refund, epoch_fee_refund }
-            );
-        }
-    });
-
-    // Refund and emit <a href="event.md#0x1_event">event</a> <b>if</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> tasks were stopped
-    <b>if</b> (!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&stopped_task_details)) {
-        <b>let</b> resource_signer = <a href="account.md#0x1_account_create_signer_with_capability">account::create_signer_with_capability</a>(
-            &<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address_signer_cap
-        );
-
-        <b>let</b> resource_account_balance = <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address);
-        <b>assert</b>!(resource_account_balance &gt;= total_refund_fee, <a href="automation_registry.md#0x1_automation_registry_EINSUFFICIENT_BALANCE_FOR_REFUND">EINSUFFICIENT_BALANCE_FOR_REFUND</a>);
-        <a href="coin.md#0x1_coin_transfer">coin::transfer</a>&lt;SupraCoin&gt;(&resource_signer, owner, total_refund_fee);
-
-        // Emit task stopped <a href="event.md#0x1_event">event</a>
-        <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TasksStopped">TasksStopped</a> {
-            tasks: stopped_task_details,
-            owner
-        });
-    };
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_update_epoch_interval_in_registry"></a>
-
-## Function `update_epoch_interval_in_registry`
-
-Update epoch interval in registry while actually update happens in block module
-Deprecated since SUPRA_NATIVE_AUTOMATION_V2 feature release in favor of monitor_cycle_end
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_epoch_interval_in_registry">update_epoch_interval_in_registry</a>(_epoch_interval_microsecs: u64)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_epoch_interval_in_registry">update_epoch_interval_in_registry</a>(_epoch_interval_microsecs: u64) {
-    <b>assert</b>!(<b>false</b>, <a href="automation_registry.md#0x1_automation_registry_EDEPRECATED_SINCE_V2">EDEPRECATED_SINCE_V2</a>);
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_monitor_cycle_end"></a>
-
-## Function `monitor_cycle_end`
-
-Checks the cycle end and emit an event on it.
-Does nothig if SUPRA_NATIVE_AUTOMATION is disabled
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_monitor_cycle_end">monitor_cycle_end</a>()
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_monitor_cycle_end">monitor_cycle_end</a>() {
-    // TODO: check is initialized, <b>if</b> not emit <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">error</a> but do not fail.
-    // check <b>if</b> SUPRA_NATIVE_AUTOMATION feature is disabled, do nothing
-    // call dummy <b>native</b> function which should be available <b>if</b> SUPRA_NATIVE_AUTOMATION_V2 is enabled.
-    //    - It does nothing , <b>if</b> binary is also updated, otherwise VM will panic causing <a href="block.md#0x1_block">block</a>-prologue <b>to</b>
-    //      fail resulting in node failure <b>as</b> well.
-    // Otherwise <b>if</b> cycle_start + cycle_duration &gt;= current time, mark the cycle <b>as</b> finished:
-    // on_cycle_end_internal
-    <a href="automation_registry.md#0x1_automation_registry_assert_cycle_based_automation_registry_management_support">assert_cycle_based_automation_registry_management_support</a>();
 }
 </code></pre>
 
@@ -4834,7 +5695,7 @@ Insertion sort implementation for vector
 
 ## Function `assert_cycle_based_automation_registry_management_support`
 
-If SUPRA_NATIVE_AUTOMATION_V2 is enabled then call native function to assert full support of cycle based
+If SUPRA_CYCLE_BASED_AUTOMATION is enabled then call native function to assert full support of cycle based
 automation registry management.
 
 
@@ -4848,7 +5709,7 @@ automation registry management.
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_assert_cycle_based_automation_registry_management_support">assert_cycle_based_automation_registry_management_support</a>() {
-    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_v2_enabled">features::supra_native_automation_v2_enabled</a>()) {
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_cycle_based_automation_enabled">features::supra_cycle_based_automation_enabled</a>()) {
         <a href="automation_registry.md#0x1_automation_registry_native_cycle_based_automation_registry_management_support">native_cycle_based_automation_registry_management_support</a>();
     }
 }
