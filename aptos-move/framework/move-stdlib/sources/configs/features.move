@@ -727,6 +727,20 @@ module std::features {
         is_enabled(SUPRA_AUTOMATION_TASK_SYNC)
     }
 
+    /// Whether Supra cycle based automation is enabled. Once enabled, the native automation feature with detached cycle
+    /// based registry management feature will be activated.
+    ///
+    /// Lifetime: transient
+    const SUPRA_AUTOMATION_CYCLE: u64 = 93;
+
+    public fun get_supra_automation_cycle_feature(): u64 {
+        SUPRA_AUTOMATION_CYCLE
+    }
+
+    public fun supra_automation_cycle_enabled(): bool acquires Features {
+        is_enabled(SUPRA_AUTOMATION_CYCLE)
+    }
+
     // ============================================================================================
     // Feature Flag Implementation
 
