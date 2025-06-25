@@ -93,7 +93,7 @@ pub enum FeatureFlag {
     SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK = 90,
     PRIVATE_POLL = 91,
     SUPRA_AUTOMATION_TASK_SYNC = 92,
-    SUPRA_CYCLE_BASED_AUTOMATION = 93,
+    SUPRA_AUTOMATION_CYCLE = 93,
 }
 
 impl FeatureFlag {
@@ -163,7 +163,7 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK,
             FeatureFlag::PRIVATE_POLL,
             FeatureFlag::SUPRA_AUTOMATION_TASK_SYNC,
-            FeatureFlag::SUPRA_CYCLE_BASED_AUTOMATION,
+            FeatureFlag::SUPRA_AUTOMATION_CYCLE,
         ]
     }
 }
