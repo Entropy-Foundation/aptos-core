@@ -318,7 +318,7 @@ module supra_framework::coin {
         let type = type_info::type_of<CoinType>();
         if (!table::contains(&map.coin_to_fungible_asset_map, type)) {
             let is_sup = is_sup<CoinType>();
-            assert!(!is_sup || allow_apt_creation, error::invalid_state(EAPT_PAIRING_IS_NOT_ENABLED));
+            assert!(!is_sup || allow_apt_creation, error::invalid_state(ESUPRA_PAIRING_IS_NOT_ENABLED));
             let metadata_object_cref =
                 if (is_sup) {
                     object::create_sticky_object_at_address(@supra_framework, @supra_fungible_asset)

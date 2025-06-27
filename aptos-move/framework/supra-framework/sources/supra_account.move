@@ -436,7 +436,7 @@ module supra_framework::supra_account {
 
         supra_coin::ensure_initialized_with_sup_fa_metadata_for_test();
 
-        let apt_metadata = object::address_to_object<Metadata>(@supra_fungible_asset);
+        let sup_metadata = object::address_to_object<Metadata>(@supra_fungible_asset);
         let user_addr = signer::address_of(user);
         assert!(primary_fungible_store_address(user_addr) == primary_fungible_store::primary_store_address(user_addr, apt_metadata), 1);
 
