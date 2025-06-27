@@ -865,8 +865,8 @@ module supra_framework::genesis {
         let core_resources = account::create_account(@core_resources);
         supra_account::register_supra(&core_resources); // registers SUPRA store
 
-        let apt_metadata = object::address_to_object<Metadata>(@supra_fungible_asset);
-        assert!(primary_fungible_store::primary_store_exists(@core_resources, apt_metadata), 2);
+        let sup_metadata = object::address_to_object<Metadata>(@supra_fungible_asset);
+        assert!(primary_fungible_store::primary_store_exists(@core_resources, sup_metadata), 2);
 
         supra_coin::configure_accounts_for_test(supra_framework, &core_resources, mint_cap);
         coin::destroy_burn_cap(burn_cap);

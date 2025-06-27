@@ -306,7 +306,7 @@ module supra_framework::coin {
         type_info::type_name<CoinType>() == string::utf8(b"0x1::supra_coin::SupraCoin")
     }
 
-    inline fun create_and_return_paired_metadata_if_not_exist<CoinType>(allow_apt_creation: bool): Object<Metadata> {
+    inline fun create_and_return_paired_metadata_if_not_exist<CoinType>(allow_sup_creation: bool): Object<Metadata> {
         assert!(
             features::coin_to_fungible_asset_migration_feature_enabled(),
             error::invalid_state(EMIGRATION_FRAMEWORK_NOT_ENABLED)
@@ -316,7 +316,7 @@ module supra_framework::coin {
         let type = type_info::type_of<CoinType>();
         if (!table::contains(&map.coin_to_fungible_asset_map, type)) {
             let is_sup = is_sup<CoinType>();
-            assert!(!is_sup || allow_apt_creation, error::invalid_state(ESUP_PAIRING_IS_NOT_ENABLED));
+            assert!(!is_sup || allow_sup_creation, error::invalid_state(ESUP_PAIRING_IS_NOT_ENABLED));
             let metadata_object_cref =
                 if (is_sup) {
                     object::create_sticky_object_at_address(@supra_framework, @supra_fungible_asset)
@@ -2273,9 +2273,9 @@ module supra_framework::coin {
         });
     }
 
-    // Case 3: New user C receives APT, account and CoinStore are created
+    // Case 3: New user C receives SUP, account and CoinStore are created
     #[test(account = @supra_framework, user_c = @0xC)]
-    public fun test_case_3_new_user_c_apt_receive(account: &signer, user_c: address) acquires CoinConversionMap, CoinInfo, CoinStore {
+    public fun test_case_3_new_user_c_sup_receive(account: &signer, user_c: address) acquires CoinConversionMap, CoinInfo, CoinStore {
         account::create_account_for_test(signer::address_of(account));
         let (burn_cap, freeze_cap, mint_cap) = initialize_and_register_fake_money(account, 1, true);
 
