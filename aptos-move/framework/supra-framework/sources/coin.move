@@ -20,8 +20,6 @@ module supra_framework::coin {
     use supra_framework::primary_fungible_store;
     use aptos_std::type_info::{Self, TypeInfo, type_name};
     use supra_framework::create_signer;
-    #[test_only]
-    use supra_framework::supra_coin::SupraCoin;
 
     friend supra_framework::genesis;
     friend supra_framework::supra_coin;
@@ -107,7 +105,7 @@ module supra_framework::coin {
     const ECOIN_CONVERSION_MAP_NOT_FOUND: u64 = 27;
 
     /// SUPRA pairing is not eanbled yet.
-    const EAPT_PAIRING_IS_NOT_ENABLED: u64 = 28;
+    const ESUP_PAIRING_IS_NOT_ENABLED: u64 = 28;
 
     //
     // Constants
@@ -318,7 +316,7 @@ module supra_framework::coin {
         let type = type_info::type_of<CoinType>();
         if (!table::contains(&map.coin_to_fungible_asset_map, type)) {
             let is_sup = is_sup<CoinType>();
-            assert!(!is_sup || allow_apt_creation, error::invalid_state(ESUPRA_PAIRING_IS_NOT_ENABLED));
+            assert!(!is_sup || allow_apt_creation, error::invalid_state(ESUP_PAIRING_IS_NOT_ENABLED));
             let metadata_object_cref =
                 if (is_sup) {
                     object::create_sticky_object_at_address(@supra_framework, @supra_fungible_asset)
@@ -2279,7 +2277,6 @@ module supra_framework::coin {
     #[test(account = @supra_framework, user_c = @0xC)]
     public fun test_case_3_new_user_c_apt_receive(account: &signer, user_c: address) acquires CoinConversionMap, CoinInfo, CoinStore {
         account::create_account_for_test(signer::address_of(account));
-        let account_addr = signer::address_of(account);
         let (burn_cap, freeze_cap, mint_cap) = initialize_and_register_fake_money(account, 1, true);
 
         let coin = mint<FakeMoney>(100, &mint_cap);

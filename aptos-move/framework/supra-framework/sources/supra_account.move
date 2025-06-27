@@ -438,9 +438,9 @@ module supra_framework::supra_account {
 
         let sup_metadata = object::address_to_object<Metadata>(@supra_fungible_asset);
         let user_addr = signer::address_of(user);
-        assert!(primary_fungible_store_address(user_addr) == primary_fungible_store::primary_store_address(user_addr, apt_metadata), 1);
+        assert!(primary_fungible_store_address(user_addr) == primary_fungible_store::primary_store_address(user_addr, sup_metadata), 1);
 
         ensure_primary_fungible_store_exists(user_addr);
-        assert!(primary_fungible_store::primary_store_exists(user_addr, apt_metadata), 2);
+        assert!(primary_fungible_store::primary_store_exists(user_addr, sup_metadata), 2);
     }
 }
