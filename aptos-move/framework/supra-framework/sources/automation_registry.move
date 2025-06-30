@@ -1,4 +1,5 @@
-/// Supra Automation tegistry
+/// Copywrite (c) -- 2025 Supra
+/// Supra Automation Registry
 ///
 /// This contract is part of the Supra Framework and is designed to manage automated task entries
 module supra_framework::automation_registry {
@@ -96,6 +97,8 @@ module supra_framework::automation_registry {
     const EINVALID_REGISTRY_STATE: u64 = 33;
     /// Attempt to run charge action with inconsistent input values compared to internal state.
     const EINVALID_CHARGE_ACTION: u64 = 34;
+    /// Attempt to run refund action with duration more than cycle duration is.
+    const EINVALID_REFUND_DURATION: u64 = 35;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -119,11 +122,11 @@ module supra_framework::automation_registry {
 
     /// Constants describing CYCLE state.
     /// State transition flaw is:
-    /// READY_TO_START -> CYCLE_STARTED
+    /// CYCLE_READY -> CYCLE_STARTED
     /// CYCLE_STARTED -> { CYCLE_FINISHED, CYCLE_SUSPENDED }
     /// CYCLE_FINISHED ->  { CYCLE_STARTED}
-    /// CYCLE_SUSPENDED ->  {READY_TO_START, STARTED}
-    const READY_TO_START_NEW_CYCLE: u8 = 0;
+    /// CYCLE_SUSPENDED ->  {CYCLE_READY, STARTED}
+    const CYCLE_READY: u8 = 0;
     /// Triggered eigther when SUPRA_NATIVE_AUTOMATION feature is enabled or by autoamtion cycle manager in native layer.
     const CYCLE_STARTED: u8 = 1;
     /// Triggered when cycle end is identified.
@@ -198,7 +201,7 @@ module supra_framework::automation_registry {
     }
 
     /// It tracks entries both pending and completed, organized by unique indices.
-    struct TransitionState has key, copy, drop, store {
+    struct TransitionState has copy, drop, store {
         /// Duration of the new cycle.
         new_cycle_duration: u64,
         /// Calculated automation fee per second for the new cycle.
@@ -230,7 +233,7 @@ module supra_framework::automation_registry {
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     /// Epoch state. Deprecated since SUPRA_AUTOMATION_CYCLE version.
-    struct AutomationEpochInfo has key, copy {
+    struct AutomationEpochInfo has key, copy, drop {
         /// Epoch expected duration at the beginning of the new epoch, Based on this and actual
         /// epoch_duration which will be (current_time - last_reconfiguration_time) automation tasks
         /// refunds will be calculated.
@@ -251,7 +254,7 @@ module supra_framework::automation_registry {
     }
 
     /// Cycle state.
-    struct AutomationCycleInfo has key, copy, drop, store {
+    struct AutomationCycleInfo has copy, drop, store {
         /// Current cycle id. Incremented when a start of the new cycle is processed.
         index: u64,
         /// State of the current cycle.
@@ -264,7 +267,7 @@ module supra_framework::automation_registry {
 
     #[event]
     /// Event emitted in the cycle-state.
-    struct AutomationCycleEvent has key, copy, drop, store {
+    struct AutomationCycleEvent has copy, drop, store {
         /// Updated cycle state information.
         cycle_state_info: AutomationCycleInfo,
         /// The state transitioned from
@@ -275,7 +278,7 @@ module supra_framework::automation_registry {
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     /// Cycle state.
-    struct AutomationCycleDetails has key, copy, drop, store {
+    struct AutomationCycleDetails has key, copy, drop {
         /// Cycle index corresponding to the current state. Incremented when a transition to the new cycle is finalized.
         index: u64,
         /// State of the current cycle.
@@ -748,6 +751,13 @@ module supra_framework::automation_registry {
     ) acquires AutomationRegistry, ActiveAutomationRegistryConfig {
         system_addresses::assert_supra_framework(supra_framework);
 
+        // Update cycle duration in buffer
+        assert!(cycle_duration_secs > 0, ECYCLE_DURATION_NON_ZERO);
+        let new_cycle_duration = AutomationCycleDuration {
+            duration_secs: cycle_duration_secs
+        };
+        config_buffer::upsert(copy new_cycle_duration);
+        event::emit(new_cycle_duration);
 
         update_registration_config_internal(
             supra_framework,
@@ -762,13 +772,6 @@ module supra_framework::automation_registry {
             cycle_duration_secs,
         );
 
-        // Update cycle duration in buffer
-        assert!(cycle_duration_secs > 0, ECYCLE_DURATION_NON_ZERO);
-        let new_cycle_duration = AutomationCycleDuration {
-            duration_secs: cycle_duration_secs
-        };
-        config_buffer::upsert(copy new_cycle_duration);
-        event::emit(new_cycle_duration);
     }
 
     /// Enables the registration process in the automation registry.
@@ -973,12 +976,13 @@ module supra_framework::automation_registry {
     }
 
     /// API to gracfully migrate from automation feature v1 inplementation to v2 where bookkeeping of the tasks is
-    /// detached from epoch-change.
-    /// IMPORTANT: Should alwasy be followed by supra_governance::reconfiguration otherwise registry/chain will
-    /// end-up in inconsistent state.
+    /// detached from epoch-change and cycle based lifecycle of the automation registry is enabled.
+    /// IMPORTANT: Should alwasy be followed by `SUPRA_AUTOMATION_CYCLE` feature flag being enabled and
+    /// supra_governance::reconfiguration otherwise registry/chain will end-up in inconsistent state.
     ///
     /// monitor_cycle_end (block_prologue->automation_registry::monitor_cycle_end) which will lead to panic and node will stop
     /// thus not causing any inconcistensy in the chain
+    ///
     public fun migrate_v2(supra_framework: &signer, cycle_duration_secs: u64
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationCycleDetails {
         assert_supra_framework(supra_framework);
@@ -986,7 +990,7 @@ module supra_framework::automation_registry {
 
         // Prepare the state for migration
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
-        let automation_epoch_info = borrow_global<AutomationEpochInfo>(@supra_framework);
+        let automation_epoch_info = move_from<AutomationEpochInfo>(@supra_framework);
 
         let automation_registry_config = borrow_global<ActiveAutomationRegistryConfig>(
             @supra_framework
@@ -998,31 +1002,27 @@ module supra_framework::automation_registry {
         update_state_for_migration(
             automation_registry,
             &automation_registry_config,
-            automation_epoch_info,
+            &automation_epoch_info,
             current_time
         );
 
         // Start migration by enabling feature, initializing the cycle releated resouces
-        features::change_feature_flags_for_next_epoch(
-            supra_framework,
-            vector[features::get_supra_automation_cycle_feature()],
-            vector[]);
         let id = 0;
         move_to(supra_framework, AutomationCycleDetails {
             start_time: current_time,
             index: id,
             duration_secs: cycle_duration_secs,
-            state: READY_TO_START_NEW_CYCLE,
+            state: CYCLE_READY,
             transition_state: std::option::none()
         });
-        // Remain in READY_TO_START statey if feature is not enabled or registry is not fully initialized
+        // Remain in CYCLE_READY statey if feature is not enabled or registry is not fully initialized
         if (!is_feature_enabled_and_initialized()) {
             return
         };
         // Emit cycle end which will lead the native layer to start preparation to the new cycle.
-        assert_automation_cycle_management_support();
         let cycle_info = borrow_global_mut<AutomationCycleDetails>(@supra_framework);
-        on_cycle_end_internal(cycle_info)
+        on_cycle_end_internal(cycle_info);
+
     }
 
     // Public friend api
@@ -1102,7 +1102,7 @@ module supra_framework::automation_registry {
         let (cycle_state, cycle_id) = if (features::supra_automation_cycle_enabled()) {
             (CYCLE_STARTED, 1)
         } else {
-            (READY_TO_START_NEW_CYCLE, 0)
+            (CYCLE_READY, 0)
         };
 
         move_to(supra_framework, AutomationCycleDetails {
@@ -1118,9 +1118,9 @@ module supra_framework::automation_registry {
     }
 
     /// Checks the cycle end and emit an event on it.
-    /// Does nothig if SUPRA_NATIVE_AUTOMATION is disabled
+    /// Does nothig if SUPRA_NATIVE_AUTOMATION or SUPRA_AUTOMATION_CYCLE is disabled.
     public(friend) fun monitor_cycle_end() acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry {
-        if (!is_feature_enabled_and_initialized()) {
+        if (!is_feature_enabled_and_initialized() || !features::supra_automation_cycle_enabled()) {
             return
         };
         assert_automation_cycle_management_support();
@@ -1150,10 +1150,10 @@ module supra_framework::automation_registry {
         if (features::supra_native_automation_enabled()) {
             // If the lifecycle has been suspended and we are recovering from it, then we update config from buffer and
             // then start a new cycle directly.
-            // Unless we are in READY_TO_START state feature flag being enabled will not have any effect.
+            // Unless we are in CYCLE_READY state, the feature flag being enabled will not have any effect.
             // All the other states mean that we are in the middle of previous transition, which should end
             // before reenabling the feature.
-            if (cycle_info.state == READY_TO_START_NEW_CYCLE) {
+            if (cycle_info.state == CYCLE_READY) {
                 if (enumerable_map::length(&registry_data.tasks) != 0) {
                     event::emit(ErrorInconsistentSuspendedState {});
                     return
@@ -1163,6 +1163,7 @@ module supra_framework::automation_registry {
             };
             return
         };
+
         // We do not update config here, as due to feature being disabled, cycle ends early so it is expected
         // that native layer will detect this state and generate refund transactions for a cycle that has been kept short.
         // So the confing should remain intact.
@@ -1400,6 +1401,7 @@ module supra_framework::automation_registry {
         let cycle_info = borrow_global_mut<AutomationCycleDetails>(@supra_framework);
         assert!(cycle_info.state == CYCLE_SUSPENDED, EINVALID_REGISTRY_STATE);
         assert!(std::option::is_some(&cycle_info.transition_state), EINVALID_REGISTRY_STATE);
+        assert!(cycle_info.duration_secs >= duration, EINVALID_REFUND_DURATION);
 
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let refund_bookkeeping = borrow_global_mut<AutomationRefundBookkeeping>(@supra_framework);
@@ -1622,7 +1624,7 @@ module supra_framework::automation_registry {
 
     fun move_to_ready_state(cycle_info: &mut AutomationCycleDetails) {
         cycle_info.transition_state = std::option::none<TransitionState>();
-        update_cycle_state_to(cycle_info, READY_TO_START_NEW_CYCLE)
+        update_cycle_state_to(cycle_info, CYCLE_READY)
     }
 
     fun move_to_started_state(cycle_info: &mut AutomationCycleDetails) {
@@ -2325,9 +2327,7 @@ module supra_framework::automation_registry {
     /// If SUPRA_AUTOMATION_CYCLE is enabled then call native function to assert full support of cycle based
     /// automation registry management.
     fun assert_automation_cycle_management_support() {
-        if (features::supra_automation_cycle_enabled()) {
-            native_automation_cycle_management_support();
-        }
+        native_automation_cycle_management_support();
     }
 
     native fun native_automation_cycle_management_support(): bool;

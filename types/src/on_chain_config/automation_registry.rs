@@ -13,7 +13,7 @@ const DEFAULT_CONGESTION_THRESHOLD_PERCENTAGE: u8 = 80;
 const DEFAULT_CONGESTION_BASE_FEE_IN_QUANTS_PER_SEC: u64 = 100;
 const DEFAULT_CONGESTION_EXPONENT: u8 = 6;
 const DEFAULT_TASK_CAPACITY: u16 = 500;
-const DEFAULT_CYCLE_DURATION_SECS: u64 = 600;
+const DEFAULT_CYCLE_DURATION_SECS: u64 = 1200;
 
 /// Initial version of configuration parameters for Supra native automation feature
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Eq)]

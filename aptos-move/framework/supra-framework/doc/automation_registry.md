@@ -3,7 +3,8 @@
 
 # Module `0x1::automation_registry`
 
-Supra Automation tegistry
+Copywrite (c) -- 2025 Supra
+Supra Automation Registry
 
 This contract is part of the Supra Framework and is designed to manage automated task entries
 
@@ -11,11 +12,11 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Resource `ActiveAutomationRegistryConfig`](#0x1_automation_registry_ActiveAutomationRegistryConfig)
 -  [Resource `AutomationRegistryConfig`](#0x1_automation_registry_AutomationRegistryConfig)
 -  [Resource `AutomationRegistry`](#0x1_automation_registry_AutomationRegistry)
--  [Resource `TransitionState`](#0x1_automation_registry_TransitionState)
+-  [Struct `TransitionState`](#0x1_automation_registry_TransitionState)
 -  [Resource `AutomationEpochInfo`](#0x1_automation_registry_AutomationEpochInfo)
 -  [Struct `AutomationCycleDuration`](#0x1_automation_registry_AutomationCycleDuration)
--  [Resource `AutomationCycleInfo`](#0x1_automation_registry_AutomationCycleInfo)
--  [Resource `AutomationCycleEvent`](#0x1_automation_registry_AutomationCycleEvent)
+-  [Struct `AutomationCycleInfo`](#0x1_automation_registry_AutomationCycleInfo)
+-  [Struct `AutomationCycleEvent`](#0x1_automation_registry_AutomationCycleEvent)
 -  [Resource `AutomationCycleDetails`](#0x1_automation_registry_AutomationCycleDetails)
 -  [Resource `AutomationRefundBookkeeping`](#0x1_automation_registry_AutomationRefundBookkeeping)
 -  [Resource `AutomationTaskMetaData`](#0x1_automation_registry_AutomationTaskMetaData)
@@ -339,12 +340,12 @@ It tracks entries both pending and completed, organized by unique indices.
 
 <a id="0x1_automation_registry_TransitionState"></a>
 
-## Resource `TransitionState`
+## Struct `TransitionState`
 
 It tracks entries both pending and completed, organized by unique indices.
 
 
-<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a> <b>has</b> <b>copy</b>, drop, store, key
+<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a> <b>has</b> <b>copy</b>, drop, store
 </code></pre>
 
 
@@ -411,7 +412,7 @@ Epoch state. Deprecated since SUPRA_AUTOMATION_CYCLE version.
 
 
 <pre><code>#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> <b>has</b> <b>copy</b>, key
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> <b>has</b> <b>copy</b>, drop, key
 </code></pre>
 
 
@@ -478,12 +479,12 @@ Epoch state. Deprecated since SUPRA_AUTOMATION_CYCLE version.
 
 <a id="0x1_automation_registry_AutomationCycleInfo"></a>
 
-## Resource `AutomationCycleInfo`
+## Struct `AutomationCycleInfo`
 
 Cycle state.
 
 
-<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> <b>has</b> <b>copy</b>, drop, store, key
+<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> <b>has</b> <b>copy</b>, drop, store
 </code></pre>
 
 
@@ -524,13 +525,13 @@ Cycle state.
 
 <a id="0x1_automation_registry_AutomationCycleEvent"></a>
 
-## Resource `AutomationCycleEvent`
+## Struct `AutomationCycleEvent`
 
 Event emitted in the cycle-state.
 
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleEvent">AutomationCycleEvent</a> <b>has</b> <b>copy</b>, drop, store, key
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleEvent">AutomationCycleEvent</a> <b>has</b> <b>copy</b>, drop, store
 </code></pre>
 
 
@@ -571,7 +572,7 @@ Cycle state.
 
 
 <pre><code>#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> <b>has</b> <b>copy</b>, drop, store, key
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> <b>has</b> <b>copy</b>, drop, key
 </code></pre>
 
 
@@ -1776,6 +1777,21 @@ Triggered when cycle end is identified.
 
 
 
+<a id="0x1_automation_registry_CYCLE_READY"></a>
+
+Constants describing CYCLE state.
+State transition flaw is:
+CYCLE_READY -> CYCLE_STARTED
+CYCLE_STARTED -> { CYCLE_FINISHED, CYCLE_SUSPENDED }
+CYCLE_FINISHED ->  { CYCLE_STARTED}
+CYCLE_SUSPENDED ->  {CYCLE_READY, STARTED}
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_CYCLE_READY">CYCLE_READY</a>: u8 = 0;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_CYCLE_STARTED"></a>
 
 Triggered eigther when SUPRA_NATIVE_AUTOMATION feature is enabled or by autoamtion cycle manager in native layer.
@@ -2037,6 +2053,16 @@ Attempt to do migration to cycle based automation which is already enabled.
 
 
 
+<a id="0x1_automation_registry_EINVALID_REFUND_DURATION"></a>
+
+Attempt to run refund action with duration more than cycle duration is.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_REFUND_DURATION">EINVALID_REFUND_DURATION</a>: u64 = 35;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_EINVALID_REGISTRY_STATE"></a>
 
 Attempt to run operation in invalid registry state.
@@ -2182,21 +2208,6 @@ Constants describing task state.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>: u8 = 0;
-</code></pre>
-
-
-
-<a id="0x1_automation_registry_READY_TO_START_NEW_CYCLE"></a>
-
-Constants describing CYCLE state.
-State transition flaw is:
-READY_TO_START -> CYCLE_STARTED
-CYCLE_STARTED -> { CYCLE_FINISHED, CYCLE_SUSPENDED }
-CYCLE_FINISHED ->  { CYCLE_STARTED}
-CYCLE_SUSPENDED ->  {READY_TO_START, STARTED}
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_READY_TO_START_NEW_CYCLE">READY_TO_START_NEW_CYCLE</a>: u8 = 0;
 </code></pre>
 
 
@@ -3061,6 +3072,13 @@ Update Automation Registry Config along with cycle duration.
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
+    // Update cycle duration in buffer
+    <b>assert</b>!(cycle_duration_secs &gt; 0, <a href="automation_registry.md#0x1_automation_registry_ECYCLE_DURATION_NON_ZERO">ECYCLE_DURATION_NON_ZERO</a>);
+    <b>let</b> new_cycle_duration = <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDuration">AutomationCycleDuration</a> {
+        duration_secs: cycle_duration_secs
+    };
+    <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(<b>copy</b> new_cycle_duration);
+    <a href="event.md#0x1_event_emit">event::emit</a>(new_cycle_duration);
 
     <a href="automation_registry.md#0x1_automation_registry_update_registration_config_internal">update_registration_config_internal</a>(
         supra_framework,
@@ -3075,13 +3093,6 @@ Update Automation Registry Config along with cycle duration.
         cycle_duration_secs,
     );
 
-    // Update cycle duration in buffer
-    <b>assert</b>!(cycle_duration_secs &gt; 0, <a href="automation_registry.md#0x1_automation_registry_ECYCLE_DURATION_NON_ZERO">ECYCLE_DURATION_NON_ZERO</a>);
-    <b>let</b> new_cycle_duration = <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDuration">AutomationCycleDuration</a> {
-        duration_secs: cycle_duration_secs
-    };
-    <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(<b>copy</b> new_cycle_duration);
-    <a href="event.md#0x1_event_emit">event::emit</a>(new_cycle_duration);
 }
 </code></pre>
 
@@ -3393,9 +3404,9 @@ Public entry function to initialize bookeeping resource when feature enabling au
 ## Function `migrate_v2`
 
 API to gracfully migrate from automation feature v1 inplementation to v2 where bookkeeping of the tasks is
-detached from epoch-change.
-IMPORTANT: Should alwasy be followed by supra_governance::reconfiguration otherwise registry/chain will
-end-up in inconsistent state.
+detached from epoch-change and cycle based lifecycle of the automation registry is enabled.
+IMPORTANT: Should alwasy be followed by <code>SUPRA_AUTOMATION_CYCLE</code> feature flag being enabled and
+supra_governance::reconfiguration otherwise registry/chain will end-up in inconsistent state.
 
 monitor_cycle_end (block_prologue->automation_registry::monitor_cycle_end) which will lead to panic and node will stop
 thus not causing any inconcistensy in the chain
@@ -3417,7 +3428,7 @@ thus not causing any inconcistensy in the chain
 
     // Prepare the state for migration
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
-    <b>let</b> automation_epoch_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
+    <b>let</b> automation_epoch_info = <b>move_from</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
 
     <b>let</b> automation_registry_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(
         @supra_framework
@@ -3429,31 +3440,27 @@ thus not causing any inconcistensy in the chain
     <a href="automation_registry.md#0x1_automation_registry_update_state_for_migration">update_state_for_migration</a>(
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
         &automation_registry_config,
-        automation_epoch_info,
+        &automation_epoch_info,
         current_time
     );
 
     // Start migration by enabling feature, initializing the cycle releated resouces
-    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_change_feature_flags_for_next_epoch">features::change_feature_flags_for_next_epoch</a>(
-        supra_framework,
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_get_supra_automation_cycle_feature">features::get_supra_automation_cycle_feature</a>()],
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]);
     <b>let</b> id = 0;
     <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> {
         start_time: current_time,
         index: id,
         duration_secs: cycle_duration_secs,
-        state: <a href="automation_registry.md#0x1_automation_registry_READY_TO_START_NEW_CYCLE">READY_TO_START_NEW_CYCLE</a>,
+        state: <a href="automation_registry.md#0x1_automation_registry_CYCLE_READY">CYCLE_READY</a>,
         transition_state: std::option::none()
     });
-    // Remain in READY_TO_START statey <b>if</b> feature is not enabled or registry is not fully initialized
+    // Remain in <a href="automation_registry.md#0x1_automation_registry_CYCLE_READY">CYCLE_READY</a> statey <b>if</b> feature is not enabled or registry is not fully initialized
     <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled_and_initialized">is_feature_enabled_and_initialized</a>()) {
         <b>return</b>
     };
     // Emit cycle end which will lead the <b>native</b> layer <b>to</b> start preparation <b>to</b> the new cycle.
-    <a href="automation_registry.md#0x1_automation_registry_assert_automation_cycle_management_support">assert_automation_cycle_management_support</a>();
     <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
-    <a href="automation_registry.md#0x1_automation_registry_on_cycle_end_internal">on_cycle_end_internal</a>(cycle_info)
+    <a href="automation_registry.md#0x1_automation_registry_on_cycle_end_internal">on_cycle_end_internal</a>(cycle_info);
+
 }
 </code></pre>
 
@@ -3571,7 +3578,7 @@ is in ongoing state, then migrate_v2 function should be utilized instead.
     <b>let</b> (cycle_state, cycle_id) = <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_automation_cycle_enabled">features::supra_automation_cycle_enabled</a>()) {
         (<a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>, 1)
     } <b>else</b> {
-        (<a href="automation_registry.md#0x1_automation_registry_READY_TO_START_NEW_CYCLE">READY_TO_START_NEW_CYCLE</a>, 0)
+        (<a href="automation_registry.md#0x1_automation_registry_CYCLE_READY">CYCLE_READY</a>, 0)
     };
 
     <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> {
@@ -3596,7 +3603,7 @@ is in ongoing state, then migrate_v2 function should be utilized instead.
 ## Function `monitor_cycle_end`
 
 Checks the cycle end and emit an event on it.
-Does nothig if SUPRA_NATIVE_AUTOMATION is disabled
+Does nothig if SUPRA_NATIVE_AUTOMATION or SUPRA_AUTOMATION_CYCLE is disabled.
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_monitor_cycle_end">monitor_cycle_end</a>()
@@ -3609,7 +3616,7 @@ Does nothig if SUPRA_NATIVE_AUTOMATION is disabled
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_monitor_cycle_end">monitor_cycle_end</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
-    <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled_and_initialized">is_feature_enabled_and_initialized</a>()) {
+    <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled_and_initialized">is_feature_enabled_and_initialized</a>() || !<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_automation_cycle_enabled">features::supra_automation_cycle_enabled</a>()) {
         <b>return</b>
     };
     <a href="automation_registry.md#0x1_automation_registry_assert_automation_cycle_management_support">assert_automation_cycle_management_support</a>();
@@ -3659,10 +3666,10 @@ then lifecycle is restarted.
     <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>()) {
         // If the lifecycle <b>has</b> been suspended and we are recovering from it, then we <b>update</b> config from buffer and
         // then start a new cycle directly.
-        // Unless we are in READY_TO_START state feature flag being enabled will not have <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> effect.
+        // Unless we are in <a href="automation_registry.md#0x1_automation_registry_CYCLE_READY">CYCLE_READY</a> state, the feature flag being enabled will not have <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> effect.
         // All the other states mean that we are in the middle of previous transition, which should end
         // before reenabling the feature.
-        <b>if</b> (cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_READY_TO_START_NEW_CYCLE">READY_TO_START_NEW_CYCLE</a>) {
+        <b>if</b> (cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_READY">CYCLE_READY</a>) {
             <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_length">enumerable_map::length</a>(&registry_data.tasks) != 0) {
                 <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_ErrorInconsistentSuspendedState">ErrorInconsistentSuspendedState</a> {});
                 <b>return</b>
@@ -3672,6 +3679,7 @@ then lifecycle is restarted.
         };
         <b>return</b>
     };
+
     // We do not <b>update</b> config here, <b>as</b> due <b>to</b> feature being disabled, cycle ends early so it is expected
     // that <b>native</b> layer will detect this state and generate refund transactions for a cycle that <b>has</b> been kept short.
     // So the confing should remain intact.
@@ -3853,7 +3861,7 @@ Called by MoveVm on <code>AutomationBookkeepingAction::Drop</code> action emitte
     // Operational constraint: can only be invoked by the VM
     <a href="system_addresses.md#0x1_system_addresses_assert_vm">system_addresses::assert_vm</a>(&vm);
     <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&task_indexes)) {
-        <b>return</b>;
+        <b>return</b>
     };
 
     <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
@@ -4007,6 +4015,7 @@ Action from native layer will be tiggered by move layer when automation registy 
     <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
     <b>assert</b>!(cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_SUSPENDED">CYCLE_SUSPENDED</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
     <b>assert</b>!(std::option::is_some(&cycle_info.transition_state), <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
+    <b>assert</b>!(cycle_info.duration_secs &gt;= duration, <a href="automation_registry.md#0x1_automation_registry_EINVALID_REFUND_DURATION">EINVALID_REFUND_DURATION</a>);
 
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
     <b>let</b> refund_bookkeeping = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework);
@@ -4427,7 +4436,7 @@ Note it is expected that committed_occupancy does not include currnet task's occ
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_move_to_ready_state">move_to_ready_state</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>) {
     cycle_info.transition_state = std::option::none&lt;<a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a>&gt;();
-    <a href="automation_registry.md#0x1_automation_registry_update_cycle_state_to">update_cycle_state_to</a>(cycle_info, <a href="automation_registry.md#0x1_automation_registry_READY_TO_START_NEW_CYCLE">READY_TO_START_NEW_CYCLE</a>)
+    <a href="automation_registry.md#0x1_automation_registry_update_cycle_state_to">update_cycle_state_to</a>(cycle_info, <a href="automation_registry.md#0x1_automation_registry_CYCLE_READY">CYCLE_READY</a>)
 }
 </code></pre>
 
@@ -5709,9 +5718,7 @@ automation registry management.
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_assert_automation_cycle_management_support">assert_automation_cycle_management_support</a>() {
-    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_automation_cycle_enabled">features::supra_automation_cycle_enabled</a>()) {
-        <a href="automation_registry.md#0x1_automation_registry_native_automation_cycle_management_support">native_automation_cycle_management_support</a>();
-    }
+    <a href="automation_registry.md#0x1_automation_registry_native_automation_cycle_management_support">native_automation_cycle_management_support</a>();
 }
 </code></pre>
 
