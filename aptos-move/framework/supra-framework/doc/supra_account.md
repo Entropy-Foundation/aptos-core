@@ -17,6 +17,7 @@
 -  [Function `deposit_coins`](#0x1_supra_account_deposit_coins)
 -  [Function `assert_account_exists`](#0x1_supra_account_assert_account_exists)
 -  [Function `assert_account_is_registered_for_apt`](#0x1_supra_account_assert_account_is_registered_for_apt)
+-  [Function `assert_account_is_registered_for_supra`](#0x1_supra_account_assert_account_is_registered_for_supra)
 -  [Function `set_allow_direct_coin_transfers`](#0x1_supra_account_set_allow_direct_coin_transfers)
 -  [Function `can_receive_direct_coin_transfers`](#0x1_supra_account_can_receive_direct_coin_transfers)
 -  [Function `register_supra`](#0x1_supra_account_register_supra)
@@ -35,7 +36,7 @@
     -  [Function `transfer_coins`](#@Specification_1_transfer_coins)
     -  [Function `deposit_coins`](#@Specification_1_deposit_coins)
     -  [Function `assert_account_exists`](#@Specification_1_assert_account_exists)
-    -  [Function `assert_account_is_registered_for_apt`](#@Specification_1_assert_account_is_registered_for_apt)
+    -  [Function `assert_account_is_registered_for_supra`](#@Specification_1_assert_account_is_registered_for_supra)
     -  [Function `set_allow_direct_coin_transfers`](#@Specification_1_set_allow_direct_coin_transfers)
     -  [Function `can_receive_direct_coin_transfers`](#@Specification_1_can_receive_direct_coin_transfers)
     -  [Function `register_supra`](#@Specification_1_register_supra)
@@ -192,12 +193,12 @@ Account does not exist.
 
 
 
-<a id="0x1_supra_account_EACCOUNT_NOT_REGISTERED_FOR_APT"></a>
+<a id="0x1_supra_account_EACCOUNT_NOT_REGISTERED_FOR_SUPRA"></a>
 
 Account is not registered to receive SUPRA.
 
 
-<pre><code><b>const</b> <a href="supra_account.md#0x1_supra_account_EACCOUNT_NOT_REGISTERED_FOR_APT">EACCOUNT_NOT_REGISTERED_FOR_APT</a>: u64 = 2;
+<pre><code><b>const</b> <a href="supra_account.md#0x1_supra_account_EACCOUNT_NOT_REGISTERED_FOR_SUPRA">EACCOUNT_NOT_REGISTERED_FOR_SUPRA</a>: u64 = 2;
 </code></pre>
 
 
@@ -453,8 +454,32 @@ This would create the recipient account first and register it to receive the Coi
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="supra_account.md#0x1_supra_account_assert_account_is_registered_for_apt">assert_account_is_registered_for_apt</a>(addr: <b>address</b>) {
+    <a href="supra_account.md#0x1_supra_account_assert_account_is_registered_for_supra">assert_account_is_registered_for_supra</a>(addr)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_supra_account_assert_account_is_registered_for_supra"></a>
+
+## Function `assert_account_is_registered_for_supra`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="supra_account.md#0x1_supra_account_assert_account_is_registered_for_supra">assert_account_is_registered_for_supra</a>(addr: <b>address</b>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="supra_account.md#0x1_supra_account_assert_account_is_registered_for_supra">assert_account_is_registered_for_supra</a>(addr: <b>address</b>) {
     <a href="supra_account.md#0x1_supra_account_assert_account_exists">assert_account_exists</a>(addr);
-    <b>assert</b>!(<a href="coin.md#0x1_coin_is_account_registered">coin::is_account_registered</a>&lt;SupraCoin&gt;(addr), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="supra_account.md#0x1_supra_account_EACCOUNT_NOT_REGISTERED_FOR_APT">EACCOUNT_NOT_REGISTERED_FOR_APT</a>));
+    <b>assert</b>!(<a href="coin.md#0x1_coin_is_account_registered">coin::is_account_registered</a>&lt;SupraCoin&gt;(addr), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="supra_account.md#0x1_supra_account_EACCOUNT_NOT_REGISTERED_FOR_SUPRA">EACCOUNT_NOT_REGISTERED_FOR_SUPRA</a>));
 }
 </code></pre>
 
@@ -1048,12 +1073,12 @@ Limit the address of auth_key is not @vm_reserved / @supra_framework / @aptos_to
 
 
 
-<a id="@Specification_1_assert_account_is_registered_for_apt"></a>
+<a id="@Specification_1_assert_account_is_registered_for_supra"></a>
 
-### Function `assert_account_is_registered_for_apt`
+### Function `assert_account_is_registered_for_supra`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="supra_account.md#0x1_supra_account_assert_account_is_registered_for_apt">assert_account_is_registered_for_apt</a>(addr: <b>address</b>)
+<pre><code><b>public</b> <b>fun</b> <a href="supra_account.md#0x1_supra_account_assert_account_is_registered_for_supra">assert_account_is_registered_for_supra</a>(addr: <b>address</b>)
 </code></pre>
 
 

@@ -4,7 +4,7 @@
 /// On-chain governance of the Supra network also uses Multisig Voting.
 ///
 /// The Multisig voting flow:
-/// 1. The Multisig Voting module can be deployed at a known address (e.g. 0x1 for Aptos on-chain governance)
+/// 1. The Multisig Voting module can be deployed at a known address (e.g. 0x1 for Supra on-chain governance)
 /// 2. The governance module, e.g. SupraGovernance, can be deployed later and define a GovernanceProposal resource type
 /// that can also contain other information such as Capability resource for authorization.
 /// 3. The governance module's owner can then register the ProposalType with Multisig Voting. This also hosts the proposal list
@@ -289,7 +289,7 @@ module supra_framework::multisig_voting {
     ): u64 acquires VotingForum {
 
         // Make sure the execution script's hash is not empty.
-        assert!(vector::length(&execution_hash) > 0, error::invalid_argument(EPROPOSAL_EMPTY_EXECUTION_HASH));
+        assert!(vector::length(&execution_hash) != 0, error::invalid_argument(EPROPOSAL_EMPTY_EXECUTION_HASH));
 
         assert!(min_vote_threshold > 1, error::invalid_argument(ETHRESHOLD_MUST_BE_GREATER_THAN_ONE));
 

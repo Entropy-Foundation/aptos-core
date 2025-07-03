@@ -106,15 +106,15 @@ module supra_framework::staking_config {
         validate_required_stake(minimum_stake, maximum_stake);
 
         assert!(
-            recurring_lockup_duration_secs > 0,
+            recurring_lockup_duration_secs != 0,
             error::invalid_argument(EZERO_LOCKUP_DURATION)
         );
         assert!(
-            rewards_rate_denominator > 0,
+            rewards_rate_denominator != 0,
             error::invalid_argument(EZERO_REWARDS_RATE_DENOMINATOR)
         );
         assert!(
-            voting_power_increase_limit > 0 && voting_power_increase_limit <= 50,
+            voting_power_increase_limit != 0 && voting_power_increase_limit <= 50,
             error::invalid_argument(EINVALID_VOTING_POWER_INCREASE_LIMIT)
         );
 
@@ -304,12 +304,12 @@ module supra_framework::staking_config {
     }
 
     /// Update the recurring lockup duration.
-    /// Can only be called as part of the Aptos governance proposal process established by the AptosGovernance module.
+    /// Can only be called as part of the Supra governance proposal process established by the SupraGovernance module.
     public fun update_recurring_lockup_duration_secs(
         supra_framework: &signer, new_recurring_lockup_duration_secs: u64
     ) acquires StakingConfig {
         assert!(
-            new_recurring_lockup_duration_secs > 0,
+            new_recurring_lockup_duration_secs != 0,
             error::invalid_argument(EZERO_LOCKUP_DURATION)
         );
         system_addresses::assert_supra_framework(supra_framework);
@@ -320,7 +320,7 @@ module supra_framework::staking_config {
 
     /// DEPRECATING
     /// Update the rewards rate.
-    /// Can only be called as part of the Aptos governance proposal process established by the AptosGovernance module.
+    /// Can only be called as part of the Supra governance proposal process established by the SupraGovernance module.
     public fun update_rewards_rate(
         supra_framework: &signer,
         new_rewards_rate: u64,
@@ -332,7 +332,7 @@ module supra_framework::staking_config {
         );
         system_addresses::assert_supra_framework(supra_framework);
         assert!(
-            new_rewards_rate_denominator > 0,
+            new_rewards_rate_denominator != 0,
             error::invalid_argument(EZERO_REWARDS_RATE_DENOMINATOR)
         );
         // `rewards_rate` which is the numerator is limited to be `<= MAX_REWARDS_RATE` in order to avoid the arithmetic
@@ -395,13 +395,13 @@ module supra_framework::staking_config {
     }
 
     /// Update the joining limit %.
-    /// Can only be called as part of the Aptos governance proposal process established by the AptosGovernance module.
+    /// Can only be called as part of the Supra governance proposal process established by the SupraGovernance module.
     public fun update_voting_power_increase_limit(
         supra_framework: &signer, new_voting_power_increase_limit: u64
     ) acquires StakingConfig {
         system_addresses::assert_supra_framework(supra_framework);
         assert!(
-            new_voting_power_increase_limit > 0
+            new_voting_power_increase_limit != 0
                 && new_voting_power_increase_limit <= 50,
             error::invalid_argument(EINVALID_VOTING_POWER_INCREASE_LIMIT)
         );
@@ -412,7 +412,7 @@ module supra_framework::staking_config {
 
     fun validate_required_stake(minimum_stake: u64, maximum_stake: u64) {
         assert!(
-            minimum_stake <= maximum_stake && maximum_stake > 0,
+            minimum_stake <= maximum_stake && maximum_stake != 0,
             error::invalid_argument(EINVALID_STAKE_RANGE)
         );
     }
@@ -440,7 +440,7 @@ module supra_framework::staking_config {
         // This field, rewards_rate_period_in_secs must be greater than 0.
         // TODO: rewards_rate_period_in_secs should be longer than the epoch duration but reading epoch duration causes a circular dependency.
         assert!(
-            rewards_rate_period_in_secs > 0,
+            rewards_rate_period_in_secs != 0,
             error::invalid_argument(EINVALID_REWARDS_RATE_PERIOD)
         );
     }

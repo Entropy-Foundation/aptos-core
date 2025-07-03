@@ -25,8 +25,7 @@ use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
     on_chain_config::{
-        Features, GasScheduleV2, OnChainConsensusConfig, OnChainExecutionConfig,
-        OnChainJWKConsensusConfig, OnChainRandomnessConfig,
+        Features, GasScheduleV2, OnChainConsensusConfig, OnChainEvmConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig
     },
     transaction::Transaction,
     waypoint::Waypoint,
@@ -34,6 +33,7 @@ use aptos_types::{
 use aptos_vm::AptosVM;
 use aptos_vm_genesis::Validator;
 use std::convert::TryInto;
+use aptos_types::on_chain_config::AutomationRegistryConfig;
 
 /// Holder object for all pieces needed to generate a genesis transaction
 #[derive(Clone)]
@@ -81,6 +81,7 @@ pub struct GenesisInfo {
     pub initial_features_override: Option<Features>,
     pub randomness_config_override: Option<OnChainRandomnessConfig>,
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
+    pub automation_registry_config: Option<AutomationRegistryConfig>,
 }
 
 impl GenesisInfo {
@@ -122,6 +123,7 @@ impl GenesisInfo {
             initial_features_override: genesis_config.initial_features_override.clone(),
             randomness_config_override: genesis_config.randomness_config_override.clone(),
             jwk_consensus_config_override: genesis_config.jwk_consensus_config_override.clone(),
+            automation_registry_config: genesis_config.automation_registry_config.clone(),
         })
     }
 
@@ -135,9 +137,12 @@ impl GenesisInfo {
     }
 
     fn generate_genesis_txn(&self) -> Transaction {
-        aptos_vm_genesis::encode_genesis_transaction(
+        aptos_vm_genesis::encode_genesis_transaction_for_testnet(
             self.root_key.clone(),
             &self.validators,
+            None,
+            0,
+            &[],
             &[],
             &[],
             &self.framework,
@@ -161,6 +166,7 @@ impl GenesisInfo {
                 randomness_config_override: self.randomness_config_override.clone(),
                 jwk_consensus_config_override: self.jwk_consensus_config_override.clone(),
                 genesis_timestamp_in_microseconds: self.genesis_timestamp_in_microseconds,
+                automation_registry_config: self.automation_registry_config.clone(),
             },
             &self.consensus_config,
             &self.execution_config,

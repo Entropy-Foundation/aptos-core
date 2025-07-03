@@ -45,7 +45,7 @@ module supra_framework::vesting {
     use aptos_std::simple_map::{Self, SimpleMap};
 
     use supra_framework::account::{Self, SignerCapability, new_event_handle};
-    use supra_framework::supra_account::{Self, assert_account_is_registered_for_apt};
+    use supra_framework::supra_account::{Self, assert_account_is_registered_for_supra};
     use supra_framework::supra_coin::SupraCoin;
     use supra_framework::coin::{Self, Coin};
     use supra_framework::event::{EventHandle, emit, emit_event};
@@ -507,8 +507,8 @@ module supra_framework::vesting {
         start_timestamp_secs: u64,
         period_duration: u64,
     ): VestingSchedule {
-        assert!(vector::length(&schedule) > 0, error::invalid_argument(EEMPTY_VESTING_SCHEDULE));
-        assert!(period_duration > 0, error::invalid_argument(EZERO_VESTING_SCHEDULE_PERIOD));
+        assert!(vector::length(&schedule) != 0, error::invalid_argument(EEMPTY_VESTING_SCHEDULE));
+        assert!(period_duration != 0, error::invalid_argument(EZERO_VESTING_SCHEDULE_PERIOD));
         assert!(
             start_timestamp_secs >= timestamp::now_seconds(),
             error::invalid_argument(EVESTING_START_TOO_SOON),
@@ -539,8 +539,8 @@ module supra_framework::vesting {
             !system_addresses::is_reserved_address(withdrawal_address),
             error::invalid_argument(EINVALID_WITHDRAWAL_ADDRESS),
         );
-        assert_account_is_registered_for_apt(withdrawal_address);
-        assert!(vector::length(shareholders) > 0, error::invalid_argument(ENO_SHAREHOLDERS));
+        assert_account_is_registered_for_supra(withdrawal_address);
+        assert!(vector::length(shareholders) != 0, error::invalid_argument(ENO_SHAREHOLDERS));
         assert!(
             simple_map::length(&buy_ins) == vector::length(shareholders),
             error::invalid_argument(ESHARES_LENGTH_MISMATCH),
@@ -562,7 +562,7 @@ module supra_framework::vesting {
             );
             grant_amount = grant_amount + buy_in_amount;
         });
-        assert!(grant_amount > 0, error::invalid_argument(EZERO_GRANT));
+        assert!(grant_amount != 0, error::invalid_argument(EZERO_GRANT));
 
         // If this is the first time this admin account has created a vesting contract, initialize the admin store.
         let admin_address = signer::address_of(admin);
@@ -755,7 +755,7 @@ module supra_framework::vesting {
         });
 
         // Send any remaining "dust" (leftover due to rounding error) to the withdrawal address.
-        if (coin::value(&coins) > 0) {
+        if (coin::value(&coins) != 0) {
             supra_account::deposit_coins(vesting_contract.withdrawal_address, coins);
         } else {
             coin::destroy_zero(coins);
@@ -1000,7 +1000,7 @@ module supra_framework::vesting {
     ) acquires VestingContract {
         // Verify that the beneficiary account is set up to receive SUPRA. This is a requirement so distribute() wouldn't
         // fail and block all other accounts from receiving SUPRA if one beneficiary is not registered.
-        assert_account_is_registered_for_apt(new_beneficiary);
+        assert_account_is_registered_for_supra(new_beneficiary);
 
         let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
         verify_admin(admin, vesting_contract);

@@ -1,11 +1,9 @@
 /// Maintains protocol configuation settings specific to Supra. The config is stored in a
-/// may be updated by root.
+/// Reconfiguration, and may be updated by root.
 module supra_framework::supra_config {
     use std::error;
     use std::vector;
-    use supra_framework::chain_status;
     use supra_framework::config_buffer;
-    use supra_framework::reconfiguration;
     use supra_framework::system_addresses;
 
     friend supra_framework::genesis;
@@ -21,7 +19,7 @@ module supra_framework::supra_config {
     /// Publishes the SupraConfig config.
     public(friend) fun initialize(supra_framework: &signer, config: vector<u8>) {
         system_addresses::assert_supra_framework(supra_framework);
-        assert!(vector::length(&config) > 0, error::invalid_argument(EINVALID_CONFIG));
+        assert!(vector::length(&config) != 0, error::invalid_argument(EINVALID_CONFIG));
         move_to(supra_framework, SupraConfig { config });
     }
 
@@ -33,7 +31,7 @@ module supra_framework::supra_config {
     /// ```
     public fun set_for_next_epoch(account: &signer, config: vector<u8>) {
         system_addresses::assert_supra_framework(account);
-        assert!(vector::length(&config) > 0, error::invalid_argument(EINVALID_CONFIG));
+        assert!(vector::length(&config) != 0, error::invalid_argument(EINVALID_CONFIG));
         std::config_buffer::upsert<SupraConfig>(SupraConfig {config});
     }
 

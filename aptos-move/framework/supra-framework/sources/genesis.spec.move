@@ -1,7 +1,7 @@
 spec supra_framework::genesis {
     /// <high-level-req>
     /// No.: 1
-    /// Requirement: All the core resources and modules should be created during genesis and owned by the Aptos framework
+    /// Requirement: All the core resources and modules should be created during genesis and owned by the Supra framework
     /// account.
     /// Criticality: Critical
     /// Implementation: Resources created during genesis initialization: GovernanceResponsbility, ConsensusConfig,
@@ -9,11 +9,11 @@ spec supra_framework::genesis {
     /// StorageGasConfig, StorageGas, GasScheduleV2, AggregatorFactory, SupplyConfig, ChainId, Configuration,
     /// BlockResource, StateStorageUsage, CurrentTimeMicroseconds. If some of the resources were to be owned by a
     /// malicious account, it could lead to the compromise of the chain, as these are core resources. It should be
-    /// formally verified by a post condition to ensure that all the critical resources are owned by the Aptos framework.
+    /// formally verified by a post condition to ensure that all the critical resources are owned by the Supra framework.
     /// Enforcement: Formally verified via [high-level-req-1](initialize).
     ///
     /// No.: 2
-    /// Requirement: Addresses ranging from 0x0 - 0xa should be reserved for the framework and part of aptos governance.
+    /// Requirement: Addresses ranging from 0x0 - 0xa should be reserved for the framework and part of supra governance.
     /// Criticality: Critical
     /// Implementation: The function genesis::initialize calls account::create_framework_reserved_account for addresses
     /// 0x0, 0x2, 0x3, 0x4, ..., 0xa which creates an account and authentication_key for them. This should be formally
@@ -22,11 +22,11 @@ spec supra_framework::genesis {
     /// Enforcement: Formally verified via [high-level-req-2](initialize).
     ///
     /// No.: 3
-    /// Requirement: The Aptos coin should be initialized during genesis and only the Aptos framework account should own
+    /// Requirement: The Supra coin should be initialized during genesis and only the Supra framework account should own
     /// the mint and burn capabilities for the SUPRA token.
     /// Criticality: Critical
     /// Implementation: Both mint and burn capabilities are wrapped inside the stake::SupraCoinCapabilities and
-    /// transaction_fee::SupraCoinCapabilities resources which are stored under the aptos framework account.
+    /// transaction_fee::SupraCoinCapabilities resources which are stored under the supra framework account.
     /// Enforcement: Formally verified via [high-level-req-3](initialize_supra_coin).
     ///
     /// No.: 4
@@ -51,7 +51,7 @@ spec supra_framework::genesis {
         pragma aborts_if_is_partial;
         include InitalizeRequires;
 
-        // property 2: Addresses ranging from 0x0 - 0xa should be reserved for the framework and part of aptos governance.
+        // property 2: Addresses ranging from 0x0 - 0xa should be reserved for the framework and part of supra governance.
         // 0x1's pre and post conditions are written in requires schema and the following group of ensures.
         /// [high-level-req-2]
         aborts_if exists<account::Account>(@0x0);
@@ -75,7 +75,7 @@ spec supra_framework::genesis {
         ensures exists<account::Account>(@0x9);
         ensures exists<account::Account>(@0xa);
 
-        // property 1: All the core resources and modules should be created during genesis and owned by the Aptos framework account.
+        // property 1: All the core resources and modules should be created during genesis and owned by the Supra framework account.
         /// [high-level-req-1]
         ensures exists<supra_governance::GovernanceResponsbility>(@supra_framework);
         ensures exists<consensus_config::ConsensusConfig>(@supra_framework);
@@ -100,7 +100,7 @@ spec supra_framework::genesis {
     }
 
     spec initialize_supra_coin {
-        // property 3: The Aptos coin should be initialized during genesis and only the Aptos framework account should
+        // property 3: The Supra coin should be initialized during genesis and only the Supra framework account should
         // own the mint and burn capabilities for the SUPRA token.
         /// [high-level-req-3]
         requires !exists<stake::SupraCoinCapabilities>(@supra_framework);

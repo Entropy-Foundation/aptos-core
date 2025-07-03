@@ -1,3 +1,4 @@
+// Copyright (c) 2024 Supra.
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
@@ -67,6 +68,8 @@ use std::{
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use thiserror::Error;
+use aptos_crypto::hash::HashValueParseError;
+use supra_aptos::ApiVersion;
 
 pub const USER_AGENT: &str = concat!("aptos-cli/", env!("CARGO_PKG_VERSION"));
 const US_IN_SECS: u64 = 1_000_000;
@@ -116,6 +119,8 @@ pub enum CliError {
     SimulationError(String),
     #[error("Coverage failed with status: {0}")]
     CoverageError(String),
+    #[error("Failed to parse hash {1} with error: {0}")]
+    HashError(#[source] HashValueParseError, String),
 }
 
 impl CliError {
@@ -136,6 +141,7 @@ impl CliError {
             CliError::UnexpectedError(_) => "UnexpectedError",
             CliError::SimulationError(_) => "SimulationError",
             CliError::CoverageError(_) => "CoverageError",
+            CliError::HashError(..) => "HashError",
         }
     }
 }
@@ -972,7 +978,7 @@ pub struct RestOptions {
     ///
     /// Defaults to the URL in the `default` profile
     #[clap(long)]
-    pub(crate) url: Option<reqwest::Url>,
+    pub(crate) rpc_url: Option<reqwest::Url>,
 
     /// Connection timeout in seconds, used for the REST endpoint of the fullnode
     #[clap(long, default_value_t = DEFAULT_EXPIRATION_SECS, alias = "connection-timeout-s")]
@@ -983,20 +989,23 @@ pub struct RestOptions {
     /// environment variable.
     #[clap(long, env)]
     pub node_api_key: Option<String>,
+    #[clap(long, default_value_t = ApiVersion::V3)]
+    pub(crate) api_version: ApiVersion,
 }
 
 impl RestOptions {
     pub fn new(url: Option<reqwest::Url>, connection_timeout_secs: Option<u64>) -> Self {
         RestOptions {
-            url,
+            rpc_url: url,
             connection_timeout_secs: connection_timeout_secs.unwrap_or(DEFAULT_EXPIRATION_SECS),
             node_api_key: None,
+            api_version: ApiVersion::default(),
         }
     }
 
     /// Retrieve the URL from the profile or the command line
     pub fn url(&self, profile: &ProfileOptions) -> CliTypedResult<reqwest::Url> {
-        if let Some(ref url) = self.url {
+        if let Some(ref url) = self.rpc_url {
             Ok(url.clone())
         } else if let Some(Some(url)) = CliConfig::load_profile(
             profile.profile_name(),
@@ -1375,6 +1384,18 @@ impl From<&Transaction> for TransactionSummary {
                 timestamp_us: Some(txn.timestamp().0),
                 version: Some(txn.transaction_info().version.0),
                 vm_status: Some(txn.transaction_info().vm_status.clone()),
+            },
+            Transaction::AutomatedTransaction(txn) => TransactionSummary {
+                transaction_hash: txn.info.hash,
+                sender: Some(*txn.meta.sender.inner()),
+                gas_used: Some(txn.info.gas_used.0),
+                gas_unit_price: Some(txn.meta.gas_unit_price.0),
+                success: Some(txn.info.success),
+                version: Some(txn.info.version.0),
+                vm_status: Some(txn.info.vm_status.clone()),
+                sequence_number: Some(txn.meta.index.0),
+                timestamp_us: Some(txn.timestamp.0),
+                pending: None,
             },
         }
     }
@@ -1921,6 +1942,12 @@ pub struct MultisigAccount {
     pub(crate) multisig_address: AccountAddress,
 }
 
+impl MultisigAccount {
+    pub fn multisig_address(&self) -> AccountAddress {
+        self.multisig_address
+    }
+}
+
 #[derive(Clone, Debug, Parser, Serialize)]
 pub struct MultisigAccountWithSequenceNumber {
     #[clap(flatten)]
@@ -1930,7 +1957,17 @@ pub struct MultisigAccountWithSequenceNumber {
     pub(crate) sequence_number: u64,
 }
 
-#[derive(Debug, Parser)]
+impl MultisigAccountWithSequenceNumber {
+    pub fn multisig_account(&self) -> &MultisigAccount {
+        &self.multisig_account
+    }
+
+    pub fn sequence_number(&self) -> u64 {
+        self.sequence_number
+    }
+}
+
+#[derive(Clone, Debug, Parser)]
 pub struct TypeArgVec {
     /// TypeTag arguments separated by spaces.
     ///
@@ -2038,7 +2075,7 @@ impl TryInto<Vec<serde_json::Value>> for ArgWithTypeVec {
 }
 
 /// Common options for constructing an entry function transaction payload.
-#[derive(Debug, Parser)]
+#[derive(Clone, Debug, Parser)]
 pub struct EntryFunctionArguments {
     /// Function name as `<ADDRESS>::<MODULE_ID>::<FUNCTION_NAME>`
     ///

@@ -2,11 +2,11 @@
 /// This is the general Voting module that can be used as part of a DAO Governance. Voting is designed to be used by
 /// standalone governance modules, who has full control over the voting flow and is responsible for voting power
 /// calculation and including proper capabilities when creating the proposal so resolution can go through.
-/// On-chain governance of the Aptos network also uses Voting.
+/// On-chain governance of the Supra network also uses Voting.
 ///
 /// The voting flow:
-/// 1. The Voting module can be deployed at a known address (e.g. 0x1 for Aptos on-chain governance)
-/// 2. The governance module, e.g. AptosGovernance, can be deployed later and define a GovernanceProposal resource type
+/// 1. The Voting module can be deployed at a known address (e.g. 0x1 for Supra on-chain governance)
+/// 2. The governance module, e.g. SupraGovernance, can be deployed later and define a GovernanceProposal resource type
 /// that can also contain other information such as Capability resource for authorization.
 /// 3. The governance module's owner can then register the ProposalType with Voting. This also hosts the proposal list
 /// (forum) on the calling account.
@@ -288,7 +288,7 @@ module supra_framework::voting {
             );
         };
         // Make sure the execution script's hash is not empty.
-        assert!(vector::length(&execution_hash) > 0, error::invalid_argument(EPROPOSAL_EMPTY_EXECUTION_HASH));
+        assert!(vector::length(&execution_hash) != 0, error::invalid_argument(EPROPOSAL_EMPTY_EXECUTION_HASH));
 
         let voting_forum = borrow_global_mut<VotingForum<ProposalType>>(voting_forum_address);
         let proposal_id = voting_forum.next_proposal_id;

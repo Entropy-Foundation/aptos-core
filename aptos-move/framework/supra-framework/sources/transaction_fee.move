@@ -150,7 +150,7 @@ module supra_framework::transaction_fee {
             assume burn_percentage * collected_amount <= MAX_U64;
         };
         let amount_to_burn = (burn_percentage as u64) * collected_amount / 100;
-        if (amount_to_burn > 0) {
+        if (amount_to_burn != 0) {
             let coin_to_burn = coin::extract(coin, amount_to_burn);
             coin::burn(
                 coin_to_burn,
@@ -365,7 +365,7 @@ module supra_framework::transaction_fee {
         supra_account::create_account(alice_addr);
         supra_account::create_account(bob_addr);
         supra_account::create_account(carol_addr);
-        assert!(object::object_address(&coin::ensure_paired_metadata<SupraCoin>()) == @aptos_fungible_asset, 0);
+        assert!(object::object_address(&coin::ensure_paired_metadata<SupraCoin>()) == @supra_fungible_asset, 0);
         coin::deposit(alice_addr, coin::mint(10000, &mint_cap));
         coin::deposit(bob_addr, coin::mint(10000, &mint_cap));
         coin::deposit(carol_addr, coin::mint(10000, &mint_cap));
