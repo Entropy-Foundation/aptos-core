@@ -382,7 +382,10 @@ module supra_framework::coin {
     public fun coin_to_fungible_asset<CoinType>(
         coin: Coin<CoinType>
     ): FungibleAsset acquires CoinConversionMap, CoinInfo {
-            coin_to_fungible_asset_internal(coin)
+        if (!features::coin_to_fungible_asset_migration_feature_enabled()) {
+            abort error::unavailable(ECOIN_TO_FUNGIBLE_ASSET_FEATURE_NOT_ENABLED)
+        };
+        coin_to_fungible_asset_internal(coin)
     }
 
     fun coin_to_fungible_asset_internal<CoinType>(
@@ -398,6 +401,9 @@ module supra_framework::coin {
     public fun coin_to_fungible_asset_for_test<CoinType>(
         coin: Coin<CoinType>
     ): FungibleAsset acquires CoinConversionMap, CoinInfo {
+        if (!features::coin_to_fungible_asset_migration_feature_enabled()) {
+            abort error::unavailable(ECOIN_TO_FUNGIBLE_ASSET_FEATURE_NOT_ENABLED)
+        };
         coin_to_fungible_asset_internal(coin)
     }
 
@@ -720,7 +726,10 @@ module supra_framework::coin {
     public entry fun migrate_to_fungible_store<CoinType>(
         account: &signer
     ) acquires CoinStore, CoinConversionMap, CoinInfo {
-            migrate_to_fungible_store_internal<CoinType>(account)
+        if (!features::coin_to_fungible_asset_migration_feature_enabled()) {
+            abort error::unavailable(ECOIN_TO_FUNGIBLE_ASSET_FEATURE_NOT_ENABLED)
+        };
+        migrate_to_fungible_store_internal<CoinType>(account)
     }
 
     fun migrate_to_fungible_store_internal<CoinType>(
