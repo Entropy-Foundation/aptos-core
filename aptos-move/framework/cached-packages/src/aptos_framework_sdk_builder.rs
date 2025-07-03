@@ -158,6 +158,15 @@ pub enum EntryFunctionCall {
         task_index: u64,
     },
 
+    /// Immediately stops automation tasks for the specified `task_indexes`.
+    /// Only tasks that exist and are owned by the sender can be stopped.
+    /// If any of the specified tasks are not owned by the sender, the transaction will abort.
+    /// When a task is stopped, the committed gas for the next epoch is reduced
+    /// by the max gas amount of the stopped task. Half of the remaining task fee is refunded.
+    AutomationRegistryStopTasks {
+        task_indexes: Vec<u64>,
+    },
+
     /// Same as `publish_package` but as an entry function which can be called as a transaction. Because
     /// of current restrictions for txn parameters, the metadata needs to be passed in serialized form.
     CodePublishPackageTxn {
@@ -1173,6 +1182,13 @@ pub enum EntryFunctionCall {
         role_holder: AccountAddress,
     },
 
+    VestingWithoutStakingSetVestingSchedule {
+        contract_address: AccountAddress,
+        vesting_numerators: Vec<u64>,
+        vesting_denominator: u64,
+        period_duration: u64,
+    },
+
     /// Terminate the vesting contract and send all funds back to the withdrawal address.
     VestingWithoutStakingTerminateVestingContract {
         contract_address: AccountAddress,
@@ -1255,6 +1271,9 @@ impl EntryFunctionCall {
             ),
             AutomationRegistryCancelTask { task_index } => {
                 automation_registry_cancel_task(task_index)
+            },
+            AutomationRegistryStopTasks { task_indexes } => {
+                automation_registry_stop_tasks(task_indexes)
             },
             CodePublishPackageTxn {
                 metadata_serialized,
@@ -1981,6 +2000,17 @@ impl EntryFunctionCall {
                 role,
                 role_holder,
             } => vesting_without_staking_set_management_role(contract_address, role, role_holder),
+            VestingWithoutStakingSetVestingSchedule {
+                contract_address,
+                vesting_numerators,
+                vesting_denominator,
+                period_duration,
+            } => vesting_without_staking_set_vesting_schedule(
+                contract_address,
+                vesting_numerators,
+                vesting_denominator,
+                period_duration,
+            ),
             VestingWithoutStakingTerminateVestingContract { contract_address } => {
                 vesting_without_staking_terminate_vesting_contract(contract_address)
             },
@@ -2277,6 +2307,26 @@ pub fn automation_registry_cancel_task(task_index: u64) -> TransactionPayload {
         ident_str!("cancel_task").to_owned(),
         vec![],
         vec![bcs::to_bytes(&task_index).unwrap()],
+    ))
+}
+
+/// Immediately stops automation tasks for the specified `task_indexes`.
+/// Only tasks that exist and are owned by the sender can be stopped.
+/// If any of the specified tasks are not owned by the sender, the transaction will abort.
+/// When a task is stopped, the committed gas for the next epoch is reduced
+/// by the max gas amount of the stopped task. Half of the remaining task fee is refunded.
+pub fn automation_registry_stop_tasks(task_indexes: Vec<u64>) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("automation_registry").to_owned(),
+        ),
+        ident_str!("stop_tasks").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&task_indexes).unwrap()],
     ))
 }
 
@@ -5408,6 +5458,31 @@ pub fn vesting_without_staking_set_management_role(
     ))
 }
 
+pub fn vesting_without_staking_set_vesting_schedule(
+    contract_address: AccountAddress,
+    vesting_numerators: Vec<u64>,
+    vesting_denominator: u64,
+    period_duration: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("vesting_without_staking").to_owned(),
+        ),
+        ident_str!("set_vesting_schedule").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&contract_address).unwrap(),
+            bcs::to_bytes(&vesting_numerators).unwrap(),
+            bcs::to_bytes(&vesting_denominator).unwrap(),
+            bcs::to_bytes(&period_duration).unwrap(),
+        ],
+    ))
+}
+
 /// Terminate the vesting contract and send all funds back to the withdrawal address.
 pub fn vesting_without_staking_terminate_vesting_contract(
     contract_address: AccountAddress,
@@ -5590,6 +5665,18 @@ mod decoder {
         if let TransactionPayload::EntryFunction(script) = payload {
             Some(EntryFunctionCall::AutomationRegistryCancelTask {
                 task_index: bcs::from_bytes(script.args().get(0)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn automation_registry_stop_tasks(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::AutomationRegistryStopTasks {
+                task_indexes: bcs::from_bytes(script.args().get(0)?).ok()?,
             })
         } else {
             None
@@ -7438,6 +7525,21 @@ mod decoder {
         }
     }
 
+    pub fn vesting_without_staking_set_vesting_schedule(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::VestingWithoutStakingSetVestingSchedule {
+                contract_address: bcs::from_bytes(script.args().get(0)?).ok()?,
+                vesting_numerators: bcs::from_bytes(script.args().get(1)?).ok()?,
+                vesting_denominator: bcs::from_bytes(script.args().get(2)?).ok()?,
+                period_duration: bcs::from_bytes(script.args().get(3)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn vesting_without_staking_terminate_vesting_contract(
         payload: &TransactionPayload,
     ) -> Option<EntryFunctionCall> {
@@ -7527,6 +7629,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "automation_registry_cancel_task".to_string(),
             Box::new(decoder::automation_registry_cancel_task),
+        );
+        map.insert(
+            "automation_registry_stop_tasks".to_string(),
+            Box::new(decoder::automation_registry_stop_tasks),
         );
         map.insert(
             "code_publish_package_txn".to_string(),
@@ -8090,6 +8196,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "vesting_without_staking_set_management_role".to_string(),
             Box::new(decoder::vesting_without_staking_set_management_role),
+        );
+        map.insert(
+            "vesting_without_staking_set_vesting_schedule".to_string(),
+            Box::new(decoder::vesting_without_staking_set_vesting_schedule),
         );
         map.insert(
             "vesting_without_staking_terminate_vesting_contract".to_string(),

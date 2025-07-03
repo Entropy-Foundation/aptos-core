@@ -3,6 +3,7 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::automated_transaction_processor::AutomatedTransactionProcessor;
 use crate::{
     block_executor::{AptosTransactionOutput, BlockAptosVM},
     counters::*,
@@ -109,7 +110,6 @@ use std::{
     marker::Sync,
     sync::Arc,
 };
-use crate::automated_transaction_processor::AutomatedTransactionProcessor;
 
 static EXECUTION_CONCURRENCY_LEVEL: OnceCell<usize> = OnceCell::new();
 static NUM_EXECUTION_SHARD: OnceCell<usize> = OnceCell::new();
@@ -153,6 +153,7 @@ macro_rules! unwrap_or_discard {
 }
 
 pub(crate) use unwrap_or_discard;
+use crate::gas::check_automation_task_gas;
 
 pub(crate) fn get_system_transaction_output(
     session: SessionExt,
@@ -491,7 +492,10 @@ impl AptosVM {
         }
     }
 
-    pub(crate) fn inject_abort_info_if_available(&self, status: ExecutionStatus) -> ExecutionStatus {
+    pub(crate) fn inject_abort_info_if_available(
+        &self,
+        status: ExecutionStatus,
+    ) -> ExecutionStatus {
         match status {
             ExecutionStatus::MoveAbort {
                 location: AbortLocation::Module(module),
@@ -925,7 +929,7 @@ impl AptosVM {
                 traversal_context,
                 txn_data.sender(),
                 registration_params,
-                txn_data
+                txn_data,
             )
         })?;
 
@@ -1733,11 +1737,16 @@ impl AptosVM {
         // Check if the native automation feature is active. We do this here so that the check
         // is executed during verification at the RPC node and mempool as well as during execution.
         if let TransactionPayload::AutomationRegistration(_) = transaction.payload() {
-            if !self.features().is_enabled(FeatureFlag::SUPRA_NATIVE_AUTOMATION) {
+            if !self
+                .features()
+                .is_enabled(FeatureFlag::SUPRA_NATIVE_AUTOMATION)
+            {
                 return Err(VMStatus::Error {
                     status_code: StatusCode::FEATURE_UNDER_GATING,
                     sub_status: None,
-                    message: Some("The Supra Native Automation feature is currently inactive.".to_string()),
+                    message: Some(
+                        "The Supra Native Automation feature is currently inactive.".to_string(),
+                    ),
                 });
             }
         }
@@ -1938,7 +1947,6 @@ impl AptosVM {
             )
         })
     }
-
 
     /// Main entrypoint for executing a user transaction that also allows the customization of the
     /// gas meter to be used.
@@ -2433,14 +2441,27 @@ impl AptosVM {
         )?;
 
         match payload {
-            TransactionPayload::Script(_)
-            | TransactionPayload::EntryFunction(_)
-            | TransactionPayload::AutomationRegistration(_) => {
+            TransactionPayload::Script(_) | TransactionPayload::EntryFunction(_) => {
                 transaction_validation::run_script_prologue(
                     session,
                     txn_data,
                     log_context,
                     traversal_context,
+                )
+            },
+            TransactionPayload::AutomationRegistration(task_registration_params) => {
+                transaction_validation::run_script_prologue(
+                    session,
+                    txn_data,
+                    log_context,
+                    traversal_context,
+                )?;
+                check_automation_task_gas(
+                    get_or_vm_startup_failure(&self.gas_params, log_context)?,
+                    self.gas_feature_version,
+                    self.features(),
+                    task_registration_params,
+                    log_context,
                 )
             },
             TransactionPayload::Multisig(multisig_payload) => {
@@ -2613,9 +2634,8 @@ impl AptosVM {
                     self.process_validator_transaction(resolver, txn.clone(), log_context)?;
                 (vm_status, output)
             },
-            Transaction::AutomatedTransaction(txn) => {
-                AutomatedTransactionProcessor::new(self).execute_transaction(resolver, txn, log_context)
-            },
+            Transaction::AutomatedTransaction(txn) => AutomatedTransactionProcessor::new(self)
+                .execute_transaction(resolver, txn, log_context),
         })
     }
 
@@ -2624,7 +2644,7 @@ impl AptosVM {
     }
 
     pub(crate) fn move_vm(&self) -> &MoveVmExt {
-       &self.move_vm
+        &self.move_vm
     }
 
     pub(crate) fn gas_feature_version(&self) -> u64 {
