@@ -310,6 +310,7 @@ module supra_framework::vesting_without_staking {
         result
     }
 
+
     /// Create a vesting schedule with the given schedule of distributions, a vesting start time and period duration.
     public fun create_vesting_schedule(
         schedule: vector<FixedPoint32>, start_timestamp_secs: u64, period_duration: u64
@@ -677,7 +678,9 @@ module supra_framework::vesting_without_staking {
 
         let periods_fast_forward = 0;
 
-        if (last_completed_period >= next_period_to_vest && vesting_record.left_amount != 0 && fixed_point32::less(total_vesting_fraction, one)) {
+        if (last_completed_period >= next_period_to_vest && vesting_record.left_amount != 0 
+        && fixed_point32::less(total_vesting_fraction, one)
+        ) {
             let final_fraction = *vector::borrow(schedule, vector::length(schedule) - 1);
             // Determine how many periods is needed based on the left_amount
             periods_fast_forward = last_completed_period - next_period_to_vest + 1;
@@ -695,7 +698,6 @@ module supra_framework::vesting_without_staking {
             total_vesting_fraction,
             one,
         );
-
         // We don't need to check vesting_record.left_amount > 0 because vest_transfer will handle that.
         let transfer_happened = vest_transfer(
             vesting_record, signer_cap, beneficiary, total_vesting_fraction
@@ -3525,4 +3527,79 @@ module supra_framework::vesting_without_staking {
         let shareholder_balance = coin::balance<SupraCoin>(shareholder_address);
         assert!(shareholder_balance == vested_amount, vested_amount);
     }
+    
+    #[test(supra_framework = @0x1, admin = @0x1111, shareholder_1 = @0x2222, shareholder_2 = @0x3333, withdrawal = @0x1111)]
+    public entry fun test_full_vesting_after_7_months(
+        supra_framework: &signer,
+        admin: &signer,
+        shareholder_1: &signer,
+        shareholder_2: &signer,
+        withdrawal: &signer
+    ) acquires AdminStore, VestingContract {
+        let admin_address = signer::address_of(admin);
+        let withdrawal_address = signer::address_of(withdrawal);
+        let shareholder_1_address = signer::address_of(shareholder_1);
+        let shareholder_2_address = signer::address_of(shareholder_2);
+    
+        // Amounts for shareholders
+        let shareholder_1_share = 1000000000000000; // 10^15
+        let shareholder_2_share = 10000000000000000; // 10^16
+    
+        let shareholders = vector[shareholder_1_address, shareholder_2_address];
+        let shares = vector[shareholder_1_share, shareholder_2_share];
+    
+        // Setup accounts and mint coins
+        setup(
+            supra_framework,
+            vector[
+                admin_address,
+                withdrawal_address,
+                shareholder_1_address,
+                shareholder_2_address
+            ],
+        );
+        stake::mint(admin, shareholder_1_share + shareholder_2_share);
+    
+        let numerators:vector<u64> = vector[1];
+        // Create vesting contract with period_duration = 1, vesting_numerators = [1], vesting_denominator = 1
+        let contract_address = setup_vesting_contract_with_amount_with_schedule(
+            admin,
+            shareholders,
+            shares,
+            withdrawal_address,
+            numerators,
+            1,
+        );
+        set_vesting_schedule(
+            admin,
+            contract_address,
+            numerators,
+            1, // Denominators
+            1, // Period duration in seconds
+        );
+    
+        // Fast forward time by 7 months (approx 7 * 30 * 24 * 60 * 60 seconds)
+        let seven_months_secs = 7 * 30 * 24 * 60 * 60;
+        timestamp::update_global_time_for_test_secs(
+            vesting_start_secs(contract_address) + seven_months_secs
+        );
+    
+        // Both shareholders vest individually
+        vest_individual(contract_address, shareholder_1_address);
+        vest_individual(contract_address, shareholder_2_address);
+    
+        // Assert both shareholders have received their full original amount
+        let (init_amount_1, left_amount_1, _) = get_vesting_record(contract_address, shareholder_1_address);
+        let (init_amount_2, left_amount_2, _) = get_vesting_record(contract_address, shareholder_2_address);
+    
+        assert!(left_amount_1 == 0, left_amount_1);
+        assert!(left_amount_2 == 0, left_amount_2);
+    
+        let balance_1 = coin::balance<SupraCoin>(shareholder_1_address);
+        let balance_2 = coin::balance<SupraCoin>(shareholder_2_address);
+    
+        assert!(balance_1 == shareholder_1_share, balance_1);
+        assert!(balance_2 == shareholder_2_share, balance_2);
+    }
+    
 }
