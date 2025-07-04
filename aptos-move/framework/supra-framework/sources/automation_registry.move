@@ -8,7 +8,6 @@ module supra_framework::automation_registry {
     use std::signer;
     use std::vector;
     use aptos_std::math64;
-    use supra_framework::automation_registry;
     use supra_framework::system_addresses::assert_supra_framework;
     use supra_framework::coin::Coin;
 
@@ -25,6 +24,8 @@ module supra_framework::automation_registry {
 
     #[test_only]
     use std::signer::address_of;
+    #[test_only]
+    use aptos_std::debug::print;
     #[test_only]
     use supra_framework::timestamp::update_global_time_for_test_secs;
 
@@ -208,7 +209,7 @@ module supra_framework::automation_registry {
     /// It tracks entries both pending and completed, organized by unique indices.
     struct TransitionState has copy, drop, store {
         /// Remaining duration if cycle was kept short. Actual only in case of suspention.
-        remaining_cycle_duration: u64,
+        refund_duration: u64,
         /// Duration of the new cycle.
         new_cycle_duration: u64,
         /// Calculated automation fee per second for the new cycle.
@@ -1048,6 +1049,7 @@ module supra_framework::automation_registry {
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, AutomationCycleDetails {
         assert_supra_framework(supra_framework);
         assert!(!features::supra_automation_cycle_enabled(), EINVALID_MIGRATION_ACTION);
+        assert!(exists<AutomationEpochInfo>(@supra_framework), EINVALID_MIGRATION_ACTION);
 
         // Prepare the state for migration
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
@@ -1083,7 +1085,6 @@ module supra_framework::automation_registry {
         // Emit cycle end which will lead the native layer to start preparation to the new cycle.
         let cycle_info = borrow_global_mut<AutomationCycleDetails>(@supra_framework);
         on_cycle_end_internal(cycle_info);
-
     }
 
     // Public friend api
@@ -1160,11 +1161,12 @@ module supra_framework::automation_registry {
             registration_enabled: true,
         });
 
-        let (cycle_state, cycle_id) = if (features::supra_automation_cycle_enabled()) {
-            (CYCLE_STARTED, 1)
-        } else {
-            (CYCLE_READY, 0)
-        };
+        let (cycle_state, cycle_id) =
+            if (features::supra_automation_cycle_enabled() && features::supra_native_automation_enabled()) {
+                (CYCLE_STARTED, 1)
+            } else {
+                (CYCLE_READY, 0)
+            };
 
         move_to(supra_framework, AutomationCycleDetails {
             start_time: timestamp::now_seconds(),
@@ -1229,12 +1231,12 @@ module supra_framework::automation_registry {
         // that native layer will detect this state and generate refund transactions for a cycle that has been kept short.
         // So the confing should remain intact.
         if (cycle_info.state == CYCLE_STARTED) {
-            move_to_suspended_state(registry_data, cycle_info);
+            try_move_to_suspended_state(registry_data, cycle_info);
         } else if (cycle_info.state == CYCLE_FINISHED && std::option::is_some(&cycle_info.transition_state)) {
             let trasition_state = std::option::borrow(&cycle_info.transition_state);
             if (!is_transition_in_progress(trasition_state)) {
                 // Just entered cycle-end phase, and meanwhile also feature has been disabled so it is safe to move to suspended state.
-                move_to_suspended_state(registry_data, cycle_info);
+                try_move_to_suspended_state(registry_data, cycle_info);
             }
             // Otherwise wait of the cycle transition to end and then feature flag value will be taken into account.
         }
@@ -1343,55 +1345,24 @@ module supra_framework::automation_registry {
         event::emit(automation_task_metadata);
     }
 
-    /// Called by MoveVm on `AutomationBookkeepingAction::Drop` action emitted by native layer ahead of cycle transition
-    fun on_drop(vm: signer, task_indexes: vector<u64>
+
+    /// Called by MoveVm on `AutomationBookkeepingAction::Process` action emitted by native layer ahead of cycle transition
+    fun process_tasks(vm: signer, task_indexes: vector<u64>
     ) acquires AutomationCycleDetails, AutomationRegistry, AutomationRefundBookkeeping, ActiveAutomationRegistryConfig {
         // Operational constraint: can only be invoked by the VM
         system_addresses::assert_vm(&vm);
-        if (vector::is_empty(&task_indexes)) {
+        let cycle_info = borrow_global<AutomationCycleDetails>(@supra_framework);
+        if (cycle_info.state == CYCLE_FINISHED) {
+            on_cycle_transition(vm, task_indexes);
             return
         };
-
-        let cycle_info = borrow_global_mut<AutomationCycleDetails>(@supra_framework);
-        assert!(cycle_info.state == CYCLE_FINISHED, EINVALID_REGISTRY_STATE);
-        assert!(std::option::is_some(&cycle_info.transition_state), EINVALID_REGISTRY_STATE);
-
-        let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
-        let refund_bookkeeping = borrow_global_mut<AutomationRefundBookkeeping>(@supra_framework);
-        let resource_signer = account::create_signer_with_capability(
-            &automation_registry.registry_fee_address_signer_cap
-        );
-
-        let current_time = timestamp::now_seconds();
-        let transaction_state = std::option::borrow_mut(&mut cycle_info.transition_state);
-        let removed_tasks = vector[];
-        vector::for_each(task_indexes, |task_index| {
-            if (enumerable_map::contains(&automation_registry.tasks, task_index)) {
-                let task = enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
-                assert!(task.state == CANCELLED || task.expiry_time <= current_time , EINVALID_DROP_ACTION);
-
-                safe_deposit_refund(
-                    refund_bookkeeping,
-                    &resource_signer,
-                    automation_registry.registry_fee_address,
-                    task_index,
-                    task.owner,
-                    task.locked_fee_for_next_epoch,
-                    task.locked_fee_for_next_epoch);
-                vector::push_back(&mut removed_tasks, task_index);
-                append_processed_task(transaction_state, task_index);
-            };
-        });
-
-        update_cycle_transition_state_from_finished(automation_registry, cycle_info);
-        event::emit(RemovedTasks {
-            task_indexes: removed_tasks
-        });
-
+        assert!(cycle_info.state == CYCLE_SUSPENDED, EINVALID_REGISTRY_STATE);
+        on_cycle_suspend(vm, task_indexes);
     }
 
-    /// Called by MoveVm on `AutomationBookkeepingAction::Charge` action emitted by native layer ahead of cycle transition
-    fun on_charge(vm: signer, task_indexes: vector<u64>)
+    // Private helper functions
+
+    fun on_cycle_transition(vm: signer, task_indexes: vector<u64>)
     acquires AutomationCycleDetails, AutomationRefundBookkeeping, AutomationRegistry, ActiveAutomationRegistryConfig {
         // Operational constraint: can only be invoked by the VM
         system_addresses::assert_vm(&vm);
@@ -1416,18 +1387,13 @@ module supra_framework::automation_registry {
             epoch_locked_fees: coin::zero()
         };
 
-        let charge_duration = transition_state.new_cycle_duration;
-        let automation_fee_per_sec = (transition_state.automation_fee_per_sec as u256);
-
-        try_charge_tasks_automation_fees(
+        drop_or_charge_tasks(
+            task_indexes,
             automation_registry,
             refund_bookkeeping,
             transition_state,
             &automation_registry_config.main_config,
-            automation_fee_per_sec,
-        charge_duration,
-        timestamp::now_seconds(),
-            task_indexes,
+            timestamp::now_seconds(),
             &mut intermedate_result
         );
         let IntermediateStateOfEpochChange {
@@ -1450,9 +1416,7 @@ module supra_framework::automation_registry {
         }
     }
 
-    /// Called by MoveVm on `AutomationBookkeepingAction::RefundAndCleanup` action.
-    /// Action from native layer will be tiggered by move layer when automation registy cycle is updated to SUSPENDED.
-    fun on_refund_and_cleanup(vm: signer, task_indexes: vector<u64> )
+    fun on_cycle_suspend(vm: signer, task_indexes: vector<u64> )
     acquires AutomationCycleDetails, AutomationRefundBookkeeping, AutomationRegistry, ActiveAutomationRegistryConfig {
         // Operational constraint: can only be invoked by the VM
         system_addresses::assert_vm(&vm);
@@ -1482,11 +1446,11 @@ module supra_framework::automation_registry {
                 let task = enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
 
                 // Do not attempt fee refund if remaining duration is 0
-                if (task.state != PENDING && transition_state.remaining_cycle_duration != 0) {
+                if (task.state != PENDING && transition_state.refund_duration != 0) {
                     let refund = calculate_task_fee(
                         &arc.main_config,
                         &task,
-                        transition_state.remaining_cycle_duration,
+                        transition_state.refund_duration,
                         current_time,
                         (transition_state.automation_fee_per_sec as u256));
                     let (_, remaining_epoch_locked_fees) = safe_fee_refund(
@@ -1518,7 +1482,115 @@ module supra_framework::automation_registry {
         });
     }
 
-    // Private helper functions
+    /// Traverses all input task indexes and either drops or tries to charge automation fee if possible.
+    fun drop_or_charge_tasks(
+        task_ids: vector<u64>,
+        automation_registry: &mut AutomationRegistry,
+        refund_bookkeeping: &mut AutomationRefundBookkeeping,
+        transition_state: &mut TransitionState,
+        arc: &AutomationRegistryConfig,
+        current_time: u64,
+        intermediate_state: &mut IntermediateStateOfEpochChange,
+    ) {
+
+        let resource_signer = account::create_signer_with_capability(
+            &automation_registry.registry_fee_address_signer_cap
+        );
+        let current_cycle_end_time = current_time + transition_state.new_cycle_duration;
+
+        // Sort task indexes to charge automation fees in the tasks chronological order
+        sort_vector(&mut task_ids);
+
+        // Process each active task and calculate fee for the epoch for the tasks
+        vector::for_each(task_ids, |task_index| {
+            drop_or_charge_task(
+                task_index,
+                automation_registry,
+                refund_bookkeeping,
+                arc,
+                transition_state,
+                &resource_signer,
+                current_time,
+                current_cycle_end_time,
+                intermediate_state
+            )
+        });
+    }
+
+    /// Drops or charges the input task.
+    fun drop_or_charge_task(
+        task_index: u64,
+        automation_registry: &mut AutomationRegistry,
+        refund_bookkeeping: &mut AutomationRefundBookkeeping,
+        arc: &AutomationRegistryConfig,
+        transition_state: &mut TransitionState,
+        resource_signer: &signer,
+        current_time: u64,
+        current_cycle_end_time: u64,
+        intermediate_state: &mut IntermediateStateOfEpochChange,
+    )
+    {
+        if (already_processed(transition_state,task_index) || !enumerable_map::contains(&automation_registry.tasks, task_index)) {
+            return
+        };
+        append_processed_task(transition_state, task_index);
+        let task_meta = enumerable_map::get_value_mut(&mut automation_registry.tasks, task_index);
+        if (task_meta.state == CANCELLED || task_meta.expiry_time <= current_time) {
+            refund_deposit_and_drop(task_index, automation_registry, refund_bookkeeping, resource_signer, &mut intermediate_state.removed_tasks);
+            return
+        };
+
+        let fee= calculate_task_fee(
+            arc,
+            task_meta,
+            transition_state.new_cycle_duration,
+            current_time,
+            (transition_state.automation_fee_per_sec as u256));
+        // If the task reached this phase that means it is valid active task for the new epoch.
+        // During cleanup all expired tasks has been removed from the registry but the state of the tasks is not updated.
+        // As here we need to distinguish new tasks from already existing active tasks,
+        // as the fee calculation for them will be different based on their active duration in the epoch.
+        // For more details see calculate_task_fee function.
+        task_meta.state = ACTIVE;
+        let task = AutomationTaskFeeMeta {
+            task_index,
+            owner: task_meta.owner,
+            fee,
+            expiry_time: task_meta.expiry_time,
+            automation_fee_cap: task_meta.automation_fee_cap_for_epoch,
+            max_gas_amount: task_meta.max_gas_amount,
+            locked_deposit_fee: task_meta.locked_fee_for_next_epoch,
+        };
+        try_withdraw_task_automation_fee(
+            automation_registry,
+            refund_bookkeeping,
+            resource_signer,
+            task,
+            current_cycle_end_time,
+            intermediate_state
+        );
+    }
+
+    /// Refunds the deposit fee of the task and removes from registry.
+    fun refund_deposit_and_drop(
+        task_index: u64,
+        automation_registry: &mut AutomationRegistry,
+        refund_bookkeeping: &mut AutomationRefundBookkeeping,
+        resource_signer: &signer,
+        removed_tasks: &mut vector<u64>
+
+    )  {
+        let task = enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
+        safe_deposit_refund(
+            refund_bookkeeping,
+            resource_signer,
+            automation_registry.registry_fee_address,
+            task_index,
+            task.owner,
+            task.locked_fee_for_next_epoch,
+            task.locked_fee_for_next_epoch);
+        vector::push_back(removed_tasks, task_index);
+    }
 
     fun into_automation_cycle_info(details: &AutomationCycleDetails): AutomationCycleInfo {
         AutomationCycleInfo {
@@ -1589,7 +1661,7 @@ module supra_framework::automation_registry {
             }
         };
         if (transition_finalized  && !features::supra_native_automation_enabled()) {
-            move_to_suspended_state(automation_registry, cycle_info)
+            try_move_to_suspended_state(automation_registry, cycle_info)
         }
     }
 
@@ -1654,7 +1726,7 @@ module supra_framework::automation_registry {
             return
         };
         let transition_state = TransitionState {
-            remaining_cycle_duration: 0,
+            refund_duration: 0,
             new_cycle_duration: cycle_info.duration_secs,
             automation_fee_per_sec: 0,
             gas_committed_for_new_cycle: automation_registry.gas_committed_for_next_epoch,
@@ -1700,16 +1772,21 @@ module supra_framework::automation_registry {
         update_cycle_state_to(cycle_info, CYCLE_STARTED)
     }
 
-    /// Transition to suspended state is expected
+    /// Transition to suspended state is expected to be called
     ///   a) when cycle is active and in progress
-    ///     - here we do simply move to suspended state so native layer can start requesting refunds and cleanup actions
+    ///     - here we do simply move to suspended state so native layer can start requesting tasks processing
+    ///       which will end up in  refunds and cleanup. Note that refund will be done based on total gas-committed
+    ///       for the current cycle defined at the begining for the cycle, and using current automation fee parameters
     ///   b) when cycle has just finished and there was another transaction causing feature suspension
     ///     - as this both events happen in scope of the same block, then we will simply update the state to suspended
-    ///       and the native layer should identify this and request refund and cleanup with 0 fee and 0 duration,
-    ///       which will lead to simply deposit refund and cleanup.
+    ///       and the native layer should identify the transition and request processing of the all available tasks.
+    ///       Note that in this case automation fee refund will not be expected and suspention and cycle end matched and
+    ///       no fee was yet charged to be refunded.
+    ///       So the duration for refund and automation-fee-per-second for refund will be 0
     ///   c) when cycle transition was in progress and there was a feature suspension, but it could not be applied,
-    ///      and postponed till the cycle transition concluded
-    fun move_to_suspended_state(automation_registry: &AutomationRegistry, cycle_info: &mut AutomationCycleDetails
+    ///      and postponed till the cycle transition concludes
+    /// In all cases if there are no tasks in registry the state will be updated directly to CYCLE_READY state.
+    fun try_move_to_suspended_state(automation_registry: &AutomationRegistry, cycle_info: &mut AutomationCycleDetails
     ) acquires  ActiveAutomationRegistryConfig {
         if (enumerable_map::length(&automation_registry.tasks) == 0) {
             // Registry is empty move to ready state directly
@@ -1721,7 +1798,7 @@ module supra_framework::automation_registry {
             assert!(cycle_info.state == CYCLE_STARTED, EINVALID_REGISTRY_STATE);
             let active_config = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
             let transition_state = TransitionState {
-                remaining_cycle_duration: cycle_info.duration_secs + cycle_info.start_time - timestamp::now_seconds(),
+                refund_duration: cycle_info.duration_secs + cycle_info.start_time - timestamp::now_seconds(),
                 new_cycle_duration: cycle_info.duration_secs,
                 automation_fee_per_sec: calculate_automation_fee_multiplier_for_current_cycle_internal(active_config, automation_registry),
                 gas_committed_for_new_cycle: 0,
@@ -1734,16 +1811,18 @@ module supra_framework::automation_registry {
         } else {
             assert!(cycle_info.state == CYCLE_FINISHED, EINVALID_REGISTRY_STATE);
             let transition_state = std::option::borrow_mut(&mut cycle_info.transition_state);
+            assert!(!is_transition_in_progress(transition_state), EINVALID_REGISTRY_STATE);
             // Did not manage to charge cycle fee, so automation_fee_per_sec be 0 along with remaining duration
             // So the tasks sent for refund, will get only deposit refunded.
-            transition_state.remaining_cycle_duration = 0;
+            transition_state.refund_duration = 0;
             transition_state.automation_fee_per_sec = 0;
             transition_state.gas_committed_for_new_cycle = 0;
         };
         update_cycle_state_to(cycle_info, CYCLE_SUSPENDED)
     }
 
-    /// Checks all tasks for epoch fee refunds.
+    /// Refunds automation fee for epoch for all eligible tasks and clears automation registry state in terms of
+    /// fee primitives.
     fun update_state_for_migration(
         automation_registry: &mut AutomationRegistry,
         arc: &AutomationRegistryConfig,
@@ -1761,14 +1840,14 @@ module supra_framework::automation_registry {
             // Compute the automation fee multiplier for ended epoch
             refund_automation_fee_per_sec = calculate_automation_fee_multiplier_for_epoch(arc, previous_tcmg, arc.registry_max_gas_cap);
         };
-        refund_fee(automation_registry, arc, refund_automation_fee_per_sec, refund_interval, current_time);
+        refund_tasks_fees(automation_registry, arc, refund_automation_fee_per_sec, refund_interval, current_time);
 
-        automation_registry.gas_committed_for_next_epoch = 0;
         automation_registry.epoch_locked_fees = 0;
         automation_registry.gas_committed_for_this_epoch = 0;
     }
 
-    fun refund_fee(
+    /// Refunds automation fee for epoch for all eligible tasks.
+    fun refund_tasks_fees(
         automation_registry: &AutomationRegistry,
         arc: &AutomationRegistryConfig,
         refund_automation_fee_per_sec: u256,
@@ -1803,29 +1882,6 @@ module supra_framework::automation_registry {
                     refund);
                 epoch_locked_fees = remaining_epoch_locked_fees;
             };
-        });
-    }
-
-    /// Traverses through all existing tasks and refunds deposited fee upon registration fully.
-    fun safe_deposit_refund_all(
-        automation_registry: &AutomationRegistry,
-        refund_bookkeeping: &mut AutomationRefundBookkeeping) {
-        let ids = enumerable_map::get_map_list(&automation_registry.tasks);
-
-        let resource_signer = account::create_signer_with_capability(
-            &automation_registry.registry_fee_address_signer_cap
-        );
-        vector::for_each(ids, |task_index| {
-            let task = enumerable_map::get_value_ref(&automation_registry.tasks, task_index);
-
-            safe_deposit_refund(
-                refund_bookkeeping,
-                &resource_signer,
-                automation_registry.registry_fee_address,
-                task.task_index,
-                task.owner,
-                task.locked_fee_for_next_epoch,
-                task.locked_fee_for_next_epoch);
         });
     }
 
@@ -2098,100 +2154,30 @@ module supra_framework::automation_registry {
         result - one_scaled
     }
 
-    /// Processes automation task fees by checking user balances and task's commitment on automation-fee, i.e. automation-fee-cap
-    /// - If the user has sufficient balance, deducts the fee and emits a success event.
-    /// - If the balance is insufficient, removes the task and emits a cancellation event.
-    /// - If calculated fee for the epoch surpasses task's automation-fee-cap task is removed and cancellation event is emitted.
-    /// Return estimated committed gas for the next epoch, locked automation fee amount for this epoch, and list of active task indexes
-    fun try_charge_tasks_automation_fees(
-        automation_registry: &mut AutomationRegistry,
-        refund_bookkeeping: &mut AutomationRefundBookkeeping,
-        transition_state: &mut TransitionState,
-        arc: &AutomationRegistryConfig,
-        automation_fee_per_sec: u256,
-        cycle_duration: u64,
-        current_time: u64,
-        task_ids: vector<u64>,
-        intermediate_state: &mut IntermediateStateOfEpochChange,
-    ) {
-
-        let resource_signer = account::create_signer_with_capability(
-            &automation_registry.registry_fee_address_signer_cap
-        );
-        let current_cycle_end_time = current_time + cycle_duration;
-
-        // Sort task indexes to charge automation fees in the tasks chronological order
-        sort_vector(&mut task_ids);
-
-        // Process each active task and calculate fee for the epoch for the tasks
-        vector::for_each(task_ids, |task_index| {
-            if (!already_processed(transition_state, task_index) && enumerable_map::contains(&automation_registry.tasks, task_index)) {
-                append_processed_task(transition_state, task_index);
-                let task = {
-                    let task_meta = enumerable_map::get_value_mut(&mut automation_registry.tasks, task_index);
-                    assert!(task_meta.state != CANCELLED, EINVALID_CHARGE_ACTION);
-                    let fee= calculate_task_fee(arc, task_meta, cycle_duration, current_time, automation_fee_per_sec);
-                    // If the task reached this phase that means it is valid active task for the new epoch.
-                    // During cleanup all expired tasks has been removed from the registry but the state of the tasks is not updated.
-                    // As here we need to distinguish new tasks from already existing active tasks,
-                    // as the fee calculation for them will be different based on their active duration in the epoch.
-                    // For more details see calculate_task_fee function.
-                    task_meta.state = ACTIVE;
-                    AutomationTaskFeeMeta {
-                        task_index,
-                        owner: task_meta.owner,
-                        fee,
-                        expiry_time: task_meta.expiry_time,
-                        automation_fee_cap: task_meta.automation_fee_cap_for_epoch,
-                        max_gas_amount: task_meta.max_gas_amount,
-                        locked_deposit_fee: task_meta.locked_fee_for_next_epoch,
-                    }
-                };
-                try_withdraw_task_automation_fee(
-                    automation_registry,
-                    refund_bookkeeping,
-                    &resource_signer,
-                    task,
-                    current_time,
-                    current_cycle_end_time,
-                    intermediate_state
-                );
-            };
-        });
-    }
-
     fun try_withdraw_task_automation_fee(
         automation_registry: &mut AutomationRegistry,
         refund_bookkeeping: &mut AutomationRefundBookkeeping,
         resource_signer: &signer,
         task: AutomationTaskFeeMeta,
-        current_time: u64,
         current_epoch_end_time: u64,
         intermediate_state: &mut IntermediateStateOfEpochChange) {
         // Remove the automation task if the epoch fee cap is exceeded
         // It might happen that task has been expired by the time charging is being done.
         // This may be caused by the fact that bookkeeping transactions has been withheld due to epoch transition.
-        let is_task_expired = task.expiry_time <= current_time;
-        if (task.fee > task.automation_fee_cap || is_task_expired) {
-            safe_deposit_refund(
+        if (task.fee > task.automation_fee_cap) {
+            refund_deposit_and_drop(
+                task.task_index,
+                automation_registry,
                 refund_bookkeeping,
                 resource_signer,
-                automation_registry.registry_fee_address,
-                task.task_index,
-                task.owner,
-                task.locked_deposit_fee,
-                task.locked_deposit_fee
+                &mut intermediate_state.removed_tasks
             );
-            enumerable_map::remove_value(&mut automation_registry.tasks, task.task_index);
-            vector::push_back(&mut intermediate_state.removed_tasks, task.task_index);
-            if (!is_task_expired) {
-                event::emit(TaskCancelledCapacitySurpassed {
-                    task_index: task.task_index,
-                    owner: task.owner,
-                    fee: task.fee,
-                    automation_fee_cap: task.automation_fee_cap,
-                });
-            };
+            event::emit(TaskCancelledCapacitySurpassed {
+                task_index: task.task_index,
+                owner: task.owner,
+                fee: task.fee,
+                automation_fee_cap: task.automation_fee_cap,
+            });
             return
         };
         let user_balance = coin::balance<SupraCoin>(task.owner);
@@ -2356,7 +2342,7 @@ module supra_framework::automation_registry {
 
 
     #[test_only]
-    /// Initializes registry without enabling SUPRA_NATIVE_AUTOMATION feature flag
+    /// Initializes registry without enabling SUPRA_NATIVE_AUTOMATION and SUPRA_AUTOMATION_CYCLE feature flags
     fun initialize_registry_test_partially(supra_framework: &signer, user: &signer) {
         use supra_framework::coin;
         use supra_framework::supra_coin::{Self, SupraCoin};
@@ -2386,7 +2372,8 @@ module supra_framework::automation_registry {
         supra_coin::mint(supra_framework, get_registry_fee_address(), REGISTRY_DEFAULT_BALANCE);
         coin::destroy_burn_cap(burn_cap);
         coin::destroy_mint_cap(mint_cap);
-        toggle_custom_feature_flags(supra_framework, vector[features::get_supra_automation_cycle_feature()], true);
+
+        config_buffer::initialize(supra_framework);
     }
 
     #[test_only]
@@ -2443,8 +2430,8 @@ module supra_framework::automation_registry {
     #[test_only]
     /// Initializes registry. enables SUPRA_NATIVE_AUTOMATION feature flag and initialize config-buffer
     fun initialize_registry_test(supra_framework: &signer, user: &signer) {
-        config_buffer::initialize(supra_framework);
         toggle_feature_flag(supra_framework, true);
+        toggle_custom_feature_flags(supra_framework, vector[features::get_supra_automation_cycle_feature()], true);
         initialize_registry_test_partially(supra_framework, user);
     }
 
@@ -3482,7 +3469,7 @@ module supra_framework::automation_registry {
 
         timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
         monitor_cycle_end();
-        on_charge(create_signer(@vm_reserved), vector[0]);
+        process_tasks(create_signer(@vm_reserved), vector[0]);
 
         // 10 - automation_epoch_fee_per_second, 7200 epoch duration
         let expected_automation_fee = 10 * EPOCH_INTERVAL_FOR_TEST_IN_SECS;
@@ -3523,7 +3510,7 @@ module supra_framework::automation_registry {
 
         timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
         monitor_cycle_end();
-        on_charge(create_signer(@vm_reserved), vector[0]);
+        process_tasks(create_signer(@vm_reserved), vector[0]);
 
         has_task_with_id(0);
 
@@ -3540,7 +3527,7 @@ module supra_framework::automation_registry {
     }
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
-    fun check_successful_on_drop_execution(
+    fun check_successful_drop_execution(
         framework: &signer,
         user: &signer
     ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
@@ -3574,11 +3561,6 @@ module supra_framework::automation_registry {
         let expected_registry_current_balance = REGISTRY_DEFAULT_BALANCE + 3 * (FLAT_REGISTRATION_FEE_TEST + automation_fee_cap);
 
 
-        // // 44/100 * 1000 = 440 - automation_epoch_fee_per_second, 7200 epoch duration
-        // let expected_automation_fee_per_task = EPOCH_INTERVAL_FOR_TEST_IN_SECS * 440;
-        // // 8% surpasses the threshold, ((1+(8/100))^exponent-1) * 100 = 58 congestion base fee, occupancy 44/100, 7200 epoch duration
-        // let expected_congestion_fee_per_task = 58 * 44 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
-
         let fwk_address = address_of(framework);
         let user_address = address_of(user);
 
@@ -3592,7 +3574,7 @@ module supra_framework::automation_registry {
             assert!(cycle_details.state == CYCLE_FINISHED, 0);
         };
         // Make sure that we attempt to drop only cancelled and expired tasks, to avoid any asserts in this scenario
-        on_drop(create_signer(@vm_reserved), vector[task2, task3]);
+        process_tasks(create_signer(@vm_reserved), vector[task2, task3]);
 
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
@@ -3616,7 +3598,7 @@ module supra_framework::automation_registry {
     }
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
-    fun check_successful_on_drop_even_if_refund_fails(
+    fun check_successful_drop_even_if_refund_fails(
         framework: &signer,
         user: &signer
     ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
@@ -3647,7 +3629,7 @@ module supra_framework::automation_registry {
         // Make sure we are in FINISHED state
         monitor_cycle_end();
         // Make sure that we attempt to drop only cancelled and expired tasks, to avoid any asserts in this scenario
-        on_drop(create_signer(@vm_reserved), vector[task1]);
+        process_tasks(create_signer(@vm_reserved), vector[task1]);
 
         let ar = borrow_global<AutomationRegistry>(fwk_address);
         let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
@@ -3665,7 +3647,7 @@ module supra_framework::automation_registry {
     }
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
-    fun check_successful_on_drop_even_input_is_empty_or_non_existent(
+    fun check_successful_process_tasks_even_input_is_empty_or_non_existent(
         framework: &signer,
         user: &signer
     ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
@@ -3690,8 +3672,8 @@ module supra_framework::automation_registry {
         // Make sure we are in FINISHED state
         monitor_cycle_end();
         // Make sure that we attempt to drop only cancelled and expired tasks, to avoid any asserts in this scenario
-        on_drop(create_signer(@vm_reserved), vector[]);
-        on_drop(create_signer(@vm_reserved), vector[5]);
+        process_tasks(create_signer(@vm_reserved), vector[]);
+        process_tasks(create_signer(@vm_reserved), vector[5]);
 
         let ar = borrow_global<AutomationRegistry>(fwk_address);
         let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
@@ -3710,33 +3692,8 @@ module supra_framework::automation_registry {
     }
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
-    #[expected_failure(abort_code = EINVALID_DROP_ACTION, location = Self)]
-    fun check_on_drop_fails_if_task_is_not_cancelled_or_expired(
-        framework: &signer,
-        user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
-        initialize_registry_test(framework, user);
-        let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
-        let automation_fee_cap = 100_000_000;
-
-        let task1 = register_with_state(
-            framework,
-            user,
-            44_000_000,
-            automation_fee_cap,
-            task_exipry_time,
-            ACTIVE);
-
-        update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
-        // Make sure we are in FINISHED state
-        monitor_cycle_end();
-        // Attempt to drop a task that is still active and not expired
-        on_drop(create_signer(@vm_reserved), vector[task1]);
-    }
-
-    #[test(framework = @supra_framework, user = @0x1cafa)]
     #[expected_failure(abort_code = EINVALID_REGISTRY_STATE, location = Self)]
-    fun check_on_drop_fails_on_started_state(
+    fun check_process_tasks_fails_on_started_state(
         framework: &signer,
         user: &signer
     ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
@@ -3752,35 +3709,12 @@ module supra_framework::automation_registry {
             task_exipry_time,
             ACTIVE);
         // Attempt to drop in STARTED state
-        on_drop(create_signer(@vm_reserved), vector[task1]);
+        process_tasks(create_signer(@vm_reserved), vector[task1]);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
     #[expected_failure(abort_code = EINVALID_REGISTRY_STATE, location = Self)]
-    fun check_on_drop_fails_on_suspended_state(
-        framework: &signer,
-        user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
-        initialize_registry_test(framework, user);
-        let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
-        let automation_fee_cap = 100_000_000;
-        let task1 = register_with_state(
-            framework,
-            user,
-            44_000_000,
-            automation_fee_cap,
-            task_exipry_time,
-            ACTIVE);
-        // feature is disabled in started state moves registry in suspended state
-        toggle_feature_flag(framework, false);
-        on_new_epoch();
-        // Attempt to drop in suspended
-        on_drop(create_signer(@vm_reserved), vector[task1]);
-    }
-
-    #[test(framework = @supra_framework, user = @0x1cafa)]
-    #[expected_failure(abort_code = EINVALID_REGISTRY_STATE, location = Self)]
-    fun check_on_drop_fails_on_ready_state(
+    fun check_process_tasks_fails_on_ready_state(
         framework: &signer,
         user: &signer
     ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
@@ -3788,12 +3722,12 @@ module supra_framework::automation_registry {
         // feature is disabled in started state, when registry is empty, moves registry in ready state
         toggle_feature_flag(framework, false);
         on_new_epoch();
-        on_drop(create_signer(@vm_reserved), vector[0]);
+        process_tasks(create_signer(@vm_reserved), vector[0]);
     }
 
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
-    fun check_successful_on_charge_execution(
+    fun check_successful_charge_execution(
         framework: &signer,
         user: &signer
     ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
@@ -3852,9 +3786,9 @@ module supra_framework::automation_registry {
             // Check that we are still in finished state and processed-task are only task2 and task3
             assert!(cycle_details.state == CYCLE_FINISHED, 0);
         };
-        on_charge(create_signer(@vm_reserved), vector[task1, task2]);
+        process_tasks(create_signer(@vm_reserved), vector[task1, task2]);
         // Also check that processed tasks are ignored and charging is done only once
-        on_charge(create_signer(@vm_reserved), vector[task1, task2]);
+        process_tasks(create_signer(@vm_reserved), vector[task1, task2]);
 
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
@@ -3878,7 +3812,7 @@ module supra_framework::automation_registry {
             check_task_state(ar, task1, exists, ACTIVE);
         };
 
-        on_charge(create_signer(@vm_reserved), vector[task3]);
+        process_tasks(create_signer(@vm_reserved), vector[task3]);
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
             let refund_bookkeeping = borrow_global<AutomationRefundBookkeeping>(fwk_address);
@@ -3906,7 +3840,7 @@ module supra_framework::automation_registry {
     }
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
-    fun check_successful_on_charge_for_tasks_to_be_dropped(
+    fun check_successful_charge_for_tasks_to_be_dropped_due_to_limitations(
         framework: &signer,
         user: &signer
     ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
@@ -3979,7 +3913,7 @@ module supra_framework::automation_registry {
             // Check that we are still in finished state and processed-task are only task2 and task3
             assert!(cycle_details.state == CYCLE_FINISHED, 0);
         };
-        on_charge(create_signer(@vm_reserved), vector[task1, task2, task3]);
+        process_tasks(create_signer(@vm_reserved), vector[task1, task2, task3]);
 
         {
             // Check there are no tasks
@@ -4012,136 +3946,7 @@ module supra_framework::automation_registry {
     }
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
-    fun check_successful_on_charge_even_input_is_empty_or_non_existent(
-        framework: &signer,
-        user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
-        initialize_registry_test(framework, user);
-        let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
-        let automation_fee_cap = 100_000_000;
-
-        let task1 = register_with_state(
-            framework,
-            user,
-            44_000_000,
-            automation_fee_cap,
-            task_exipry_time,
-            CANCELLED);
-        let expected_user_current_balance = ACCOUNT_BALANCE - (FLAT_REGISTRATION_FEE_TEST + automation_fee_cap);
-        let expected_registry_current_balance = REGISTRY_DEFAULT_BALANCE + (FLAT_REGISTRATION_FEE_TEST + automation_fee_cap);
-
-        let fwk_address = address_of(framework);
-        let user_address = address_of(user);
-
-        update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
-        // Make sure we are in FINISHED state
-        monitor_cycle_end();
-        // Make sure that we attempt to drop only cancelled and expired tasks, to avoid any asserts in this scenario
-        on_charge(create_signer(@vm_reserved), vector[]);
-        on_charge(create_signer(@vm_reserved), vector[5]);
-
-        let ar = borrow_global<AutomationRegistry>(fwk_address);
-        let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
-
-        // As long as there was a single task in the registry registry will move to started state
-        assert!(cycle_details.state == CYCLE_FINISHED, 0);
-        let transition_state = std::option::borrow(&cycle_details.transition_state);
-        assert!(vector::is_empty(&transition_state.actual_processed_tasks), 1);
-
-        // Check that no refund has happened
-        check_account_balance(user_address, expected_user_current_balance);
-        check_account_balance(ar.registry_fee_address, expected_registry_current_balance);
-
-        // Check that task has been removed from registry
-        assert!(has_task_with_id(task1), 2);
-    }
-
-
-
-    #[test(framework = @supra_framework, user = @0x1cafa)]
-    #[expected_failure(abort_code = EINVALID_CHARGE_ACTION, location = Self)]
-    fun check_on_charge_fails_if_task_is_cancelled(
-        framework: &signer,
-        user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
-        initialize_registry_test(framework, user);
-        let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
-        let automation_fee_cap = 100_000_000;
-
-        let task1 = register_with_state(
-            framework,
-            user,
-            44_000_000,
-            automation_fee_cap,
-            task_exipry_time,
-            CANCELLED);
-
-        update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
-        // Make sure we are in FINISHED state
-        monitor_cycle_end();
-        // Attempt to charge a task that is cancelled
-        on_charge(create_signer(@vm_reserved), vector[task1]);
-    }
-
-    #[test(framework = @supra_framework, user = @0x1cafa)]
-    #[expected_failure(abort_code = EINVALID_REGISTRY_STATE, location = Self)]
-    fun check_on_charge_fails_on_started_state(
-        framework: &signer,
-        user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
-        initialize_registry_test(framework, user);
-        let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
-        let automation_fee_cap = 100_000_000;
-
-        let task1 = register_with_state(
-            framework,
-            user,
-            44_000_000,
-            automation_fee_cap,
-            task_exipry_time,
-            ACTIVE);
-        // Attempt to charge in STARTED state
-        on_charge(create_signer(@vm_reserved), vector[task1]);
-    }
-
-    #[test(framework = @supra_framework, user = @0x1cafa)]
-    #[expected_failure(abort_code = EINVALID_REGISTRY_STATE, location = Self)]
-    fun check_on_charge_fails_on_suspended_state(
-        framework: &signer,
-        user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
-        initialize_registry_test(framework, user);
-        let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
-        let automation_fee_cap = 100_000_000;
-        let task1 = register_with_state(
-            framework,
-            user,
-            44_000_000,
-            automation_fee_cap,
-            task_exipry_time,
-            ACTIVE);
-        // feature is disabled in started state moves registry in suspended state
-        toggle_feature_flag(framework, false);
-        on_new_epoch();
-        // Attempt to charge in suspended
-        on_charge(create_signer(@vm_reserved), vector[task1]);
-    }
-
-    #[test(framework = @supra_framework, user = @0x1cafa)]
-    #[expected_failure(abort_code = EINVALID_REGISTRY_STATE, location = Self)]
-    fun check_on_charge_fails_on_ready_state(
-        framework: &signer,
-        user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
-        initialize_registry_test(framework, user);
-        // feature is disabled in started state, when registry is empty, moves registry in ready state
-        toggle_feature_flag(framework, false);
-        on_new_epoch();
-        on_charge(create_signer(@vm_reserved), vector[0]);
-    }
-
-    #[test(framework = @supra_framework, user = @0x1cafa)]
-    fun check_successful_on_refund_and_cleanup_execution(
+    fun check_successful_refund_and_cleanup_execution(
         framework: &signer,
         user: &signer
     ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
@@ -4194,14 +3999,14 @@ module supra_framework::automation_registry {
             // Check that we are still in finished state and processed-task are only task2 and task3
             assert!(cycle_details.state == CYCLE_SUSPENDED, 0);
             let transition_state = std::option::borrow(&cycle_details.transition_state);
-            assert!(transition_state.remaining_cycle_duration == expected_remaining_time, 1);
+            assert!(transition_state.refund_duration == expected_remaining_time, 1);
             assert!(transition_state.automation_fee_per_sec == expected_automation_fee_multiplier, 1);
 
         };
 
         // set enough cycle fee to be able to refund
         set_locked_fee(framework, 10_000_000_000);
-        on_refund_and_cleanup(create_signer(@vm_reserved),  vector[task1, task2]);
+        process_tasks(create_signer(@vm_reserved),  vector[task1, task2]);
 
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
@@ -4228,12 +4033,12 @@ module supra_framework::automation_registry {
         };
 
         // Empty input does not cause issues
-        on_refund_and_cleanup(create_signer(@vm_reserved),  vector[]);
+        process_tasks(create_signer(@vm_reserved),  vector[]);
 
         // Non existing item does not cause issues
-        on_refund_and_cleanup(create_signer(@vm_reserved),  vector[10, 12]);
+        process_tasks(create_signer(@vm_reserved),  vector[10, 12]);
 
-        on_refund_and_cleanup(create_signer(@vm_reserved),  vector[task1, task2, task3]);
+        process_tasks(create_signer(@vm_reserved),  vector[task1, task2, task3]);
 
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
@@ -4261,7 +4066,7 @@ module supra_framework::automation_registry {
     }
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
-    fun check_successful_on_refund_and_cleanup_even_if_refund_fails(
+    fun check_successful_refund_and_cleanup_even_if_refund_fails(
         framework: &signer,
         user: &signer
     ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
@@ -4307,12 +4112,12 @@ module supra_framework::automation_registry {
             // Check that we are still in finished state and processed-task are only task2 and task3
             assert!(cycle_details.state == CYCLE_SUSPENDED, 0);
             let transition_state = std::option::borrow(&cycle_details.transition_state);
-            assert!(transition_state.remaining_cycle_duration == expected_remaining_time, 1);
+            assert!(transition_state.refund_duration == expected_remaining_time, 1);
             assert!(transition_state.automation_fee_per_sec == expected_automation_fee_multiplier, 2);
 
         };
 
-        on_refund_and_cleanup(create_signer(@vm_reserved),  vector[task1, task2]);
+        process_tasks(create_signer(@vm_reserved),  vector[task1, task2]);
 
         let ar = borrow_global<AutomationRegistry>(fwk_address);
         let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
@@ -4336,7 +4141,7 @@ module supra_framework::automation_registry {
     }
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
-    fun check_successful_on_refund_and_cleanup_transitioned_from_finished_state(
+    fun check_successful_refund_and_cleanup_transitioned_from_finished_state(
         framework: &signer,
         user: &signer
     ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
@@ -4375,12 +4180,12 @@ module supra_framework::automation_registry {
             let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
             assert!(cycle_details.state == CYCLE_SUSPENDED, 0);
             let transition_state = std::option::borrow(&cycle_details.transition_state);
-            assert!(transition_state.remaining_cycle_duration == 0, 1);
+            assert!(transition_state.refund_duration == 0, 1);
             assert!(transition_state.automation_fee_per_sec == 0, 1);
 
         };
 
-        on_refund_and_cleanup(create_signer(@vm_reserved),  vector[task1, task2]);
+        process_tasks(create_signer(@vm_reserved),  vector[task1, task2]);
 
         let ar = borrow_global<AutomationRegistry>(fwk_address);
         let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
@@ -4402,63 +4207,6 @@ module supra_framework::automation_registry {
         assert!(!has_task_with_id(task1), 5);
         assert!(!has_task_with_id(task2), 6);
 
-    }
-
-    #[test(framework = @supra_framework, user = @0x1cafa)]
-    #[expected_failure(abort_code = EINVALID_REGISTRY_STATE, location = Self)]
-    fun check_on_refund_and_cleanup_fails_on_started_state(
-        framework: &signer,
-        user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
-        initialize_registry_test(framework, user);
-        let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
-        let automation_fee_cap = 100_000_000;
-
-        let task1 = register_with_state(
-            framework,
-            user,
-            44_000_000,
-            automation_fee_cap,
-            task_exipry_time,
-            ACTIVE);
-        // Attempt to refund in STARTED state
-        on_refund_and_cleanup(create_signer(@vm_reserved), vector[task1]);
-    }
-
-    #[test(framework = @supra_framework, user = @0x1cafa)]
-    #[expected_failure(abort_code = EINVALID_REGISTRY_STATE, location = Self)]
-    fun check_on_refund_and_cleanup_fails_on_finished_state(
-        framework: &signer,
-        user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
-        initialize_registry_test(framework, user);
-        let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
-        let automation_fee_cap = 100_000_000;
-        let task1 = register_with_state(
-            framework,
-            user,
-            44_000_000,
-            automation_fee_cap,
-            task_exipry_time,
-            ACTIVE);
-        // feature is disabled in started state moves registry in suspended state
-        update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
-        monitor_cycle_end();
-        // Attempt to refund in finished state
-        on_refund_and_cleanup(create_signer(@vm_reserved), vector[task1]);
-    }
-
-    #[test(framework = @supra_framework, user = @0x1cafa)]
-    #[expected_failure(abort_code = EINVALID_REGISTRY_STATE, location = Self)]
-    fun check_on_refund_and_cleanup_fails_on_ready_state(
-        framework: &signer,
-        user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
-        initialize_registry_test(framework, user);
-        // feature is disabled in started state, when registry is empty, moves registry in ready state
-        toggle_feature_flag(framework, false);
-        on_new_epoch();
-        on_refund_and_cleanup(create_signer(@vm_reserved), vector[0]);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafb)]
@@ -4518,7 +4266,7 @@ module supra_framework::automation_registry {
             assert!(cycle_details.duration_secs == expected_cycle_duration, 3);
 
             let transition_state = std::option::borrow(&cycle_details.transition_state);
-            assert!(transition_state.remaining_cycle_duration  == EPOCH_INTERVAL_FOR_TEST_IN_SECS, 4);
+            assert!(transition_state.refund_duration == EPOCH_INTERVAL_FOR_TEST_IN_SECS, 4);
             let expected_fee_per_sec = calculate_automation_fee_multiplier_for_epoch(
                 &config.main_config,
                 (2 * t1_t2_max_gas as u256),
@@ -4666,7 +4414,7 @@ module supra_framework::automation_registry {
         let total_committed_gas_for_new_cycle = t1_t2_max_gas + t3_max_gas;
         let automation_fee_per_sec_for_new_cycle = calculate_automation_fee_multiplier_for_committed_occupancy(total_committed_gas_for_new_cycle);
         // Drop one task to mark transition initiated
-        on_drop(create_signer(@vm_reserved), vector[t2]);
+        process_tasks(create_signer(@vm_reserved), vector[t2]);
         // Disable feature and call on new epoch to check that when transition to suspened state from started no config is updated
         let expected_cycle_duration =
         {
@@ -4758,7 +4506,7 @@ module supra_framework::automation_registry {
             assert!(std::option::is_some(&cycle_details.transition_state), 2);
         };
 
-        on_refund_and_cleanup(create_signer(@vm_reserved), vector[0]);
+        process_tasks(create_signer(@vm_reserved), vector[0]);
         {
             let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
             assert!(cycle_details.state == CYCLE_READY, 3);
@@ -5129,7 +4877,7 @@ module supra_framework::automation_registry {
         let committed_gas_for_new_cycle = 2 * t1_t2_max_gas + t3_max_gas;
 
         // Not only charges will be applied but also state will be updated to STARTED as all expected tasks will be processed.
-        on_charge(create_signer(@vm_reserved), vector[t1, t2, t3]);
+        process_tasks(create_signer(@vm_reserved), vector[t1, t2, t3]);
 
         let tcmg = (committed_gas_for_new_cycle as u256);
         let user_address = address_of(user);
@@ -5357,7 +5105,7 @@ module supra_framework::automation_registry {
         let committed_gas_for_new_cycle = 4 * max_gas_amount;
 
         // Not only charges will be applied but also state will be updated to STARTED as all expected tasks will be processed.
-        on_charge(create_signer(@vm_reserved), vector[t1, t2, t3, t4]);
+        process_tasks(create_signer(@vm_reserved), vector[t1, t2, t3, t4]);
 
         assert!(committed_gas_for_new_cycle == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
@@ -5509,7 +5257,7 @@ module supra_framework::automation_registry {
         // Start new cycle
         timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
         monitor_cycle_end();
-        on_charge(create_signer(@vm_reserved), vector[0]);
+        process_tasks(create_signer(@vm_reserved), vector[0]);
 
         // 0.002 - automation_epoch_fee_per_second, 7200 epoch duration
         let expected_automation_fee = 2000 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100000;
@@ -5837,7 +5585,7 @@ module supra_framework::automation_registry {
             assert!(cycle_details.state == CYCLE_FINISHED, 0);
         };
         // Make sure that we attempt to drop only cancelled and expired tasks, to avoid any asserts in this scenario
-        on_drop(create_signer(@vm_reserved), vector[task1]);
+        process_tasks(create_signer(@vm_reserved), vector[task1]);
 
         toggle_feature_flag(framework, false);
         on_new_epoch();
@@ -5848,7 +5596,7 @@ module supra_framework::automation_registry {
         };
 
         // Make sure that we attempt to drop only cancelled and expired tasks, to avoid any asserts in this scenario
-        on_drop(create_signer(@vm_reserved), vector[task2]);
+        process_tasks(create_signer(@vm_reserved), vector[task2]);
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
             assert!(ar.gas_committed_for_next_epoch == 0, 1);
@@ -5865,10 +5613,280 @@ module supra_framework::automation_registry {
         };
     }
 
+    #[test_only]
+    fun check_cycle_state(state: u8, index: u64, start_time: u64, cycle_duration: u64) acquires  AutomationCycleDetails {
+        let cycle_details = borrow_global<AutomationCycleDetails>(@supra_framework);
+        // Check that we are still in finished state and processed-task are only task2 and task3
+        assert!(cycle_details.state == state, (cycle_details.state as u64));
+        assert!(cycle_details.index == index, cycle_details.index);
+        assert!(cycle_details.start_time == start_time, cycle_details.start_time);
+        assert!(cycle_details.duration_secs == cycle_duration, cycle_details.duration_secs);
+        if (state == CYCLE_FINISHED || state == CYCLE_SUSPENDED) {
+            assert!(std::option::is_some(&cycle_details.transition_state), (state as  u64));
+        }
+    }
 
-    #[test]
-    fun check_monitor_cycle_end() acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry {
-        monitor_cycle_end()
+
+    #[test(framework = @supra_framework, user = @0x1cafa)]
+    fun check_monitor_cycle_end_when_feature_flags_are_disabled(framework: &signer, user: &signer)
+    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry {
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], false);
+        initialize_registry_test_partially(framework, user);
+        check_cycle_state(CYCLE_READY, 0, 0, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+
+        // Updating the time which should cause cycle end if in proper state
+        update_global_time_for_test_secs(2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+
+        // Both SUPRA_NATIVE_AUTOMATION and SUPRA_AUTOMATION_CYCLE are disabled
+        monitor_cycle_end();
+        check_cycle_state(CYCLE_READY, 0, 0, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+
+        //Enable feature
+        toggle_feature_flag(framework, true);
+        monitor_cycle_end();
+        check_cycle_state(CYCLE_READY, 0, 0, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+
+        //Disable feature enable automation cycle
+        toggle_feature_flag(framework, false);
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], true);
+        monitor_cycle_end();
+        check_cycle_state(CYCLE_READY, 0, 0, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+
+        //Both enabled feature and automation cycle,
+        // but as long as registry is not in STARTED state no transistion will happen even if cycle duration passed
+        toggle_feature_flag(framework, true);
+        monitor_cycle_end();
+        check_cycle_state(CYCLE_READY, 0, 0, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafa)]
+    fun check_monitor_cycle_end_from_started_state(framework: &signer, user: &signer)
+    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationRefundBookkeeping {
+        initialize_registry_test(framework, user);
+        check_cycle_state(CYCLE_STARTED, 1, 0, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+
+        // Updating the time which should cause cycle end if in proper state
+        update_global_time_for_test_secs(2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+
+        // SUPRA_AUTOMATION_CYCLE is disabled
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], false);
+        monitor_cycle_end();
+        check_cycle_state(CYCLE_STARTED, 1, 0, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+
+        // Both feature flags are enabled, but as long as registry is empty we will only progress
+        // in cycle and remain in started state.
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], true);
+        monitor_cycle_end();
+        let recent_chain_time = timestamp::now_seconds();
+        check_cycle_state(CYCLE_STARTED, 2, recent_chain_time, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+
+        // Register a task to move to FINISHED state if cycle end is identified
+        register(user,
+            PAYLOAD,
+            86400,
+            2000,
+            200,
+            100_000_000,
+            PARENT_HASH,
+            AUX_DATA
+        );
+
+        // Chain time remains the same, so no transition will happen
+        monitor_cycle_end();
+        check_cycle_state(CYCLE_STARTED, 2, recent_chain_time, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+
+        // Chain time updated but epoch end was not reached
+        update_global_time_for_test_secs(recent_chain_time + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
+        monitor_cycle_end();
+        check_cycle_state(CYCLE_STARTED, 2, recent_chain_time, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+
+        // Chain time remains the same, so no transition will happen
+        update_global_time_for_test_secs(recent_chain_time + EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+        monitor_cycle_end();
+        check_cycle_state(CYCLE_FINISHED, 2, recent_chain_time, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+
+        // Process the single task which will lead to the state to be updated to STARTED again
+        recent_chain_time = timestamp::now_seconds();
+        process_tasks(create_signer(@vm_reserved), vector[0]);
+        check_cycle_state(CYCLE_STARTED, 3, recent_chain_time, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+    }
+
+    #[test_only]
+    fun swap_cycle_details_with_epoch(framework: &signer) acquires AutomationCycleDetails {
+        let cycle_details = move_from<AutomationCycleDetails>(@supra_framework);
+        let epoch_info = AutomationEpochInfo {
+            expected_epoch_duration: cycle_details.duration_secs,
+            epoch_interval: cycle_details.duration_secs,
+            start_time: cycle_details.start_time,
+        };
+        move_to(framework, epoch_info)
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafa)]
+    fun check_migration(framework: &signer, user: &signer)
+    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationRefundBookkeeping, AutomationEpochInfo {
+        initialize_registry_test(framework, user);
+
+        let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
+        let automation_fee_cap = 100_000_000;
+        let task_exists = true;
+        let t1_t2_max_gas_amount = 44_000_000;
+        let t3_max_gas_amount = 11_000_000;
+
+        let task1 = register_with_state(
+            framework,
+            user,
+            t1_t2_max_gas_amount,
+            automation_fee_cap,
+            task_exipry_time,
+            ACTIVE);
+        let task2 = register_with_state(
+            framework,
+            user,
+            t1_t2_max_gas_amount,
+            automation_fee_cap,
+            task_exipry_time,
+            CANCELLED);
+        let task3 = register_with_state(
+            framework,
+            user,
+            11_000_000,
+            automation_fee_cap,
+            task_exipry_time,
+            PENDING);
+        let expected_user_current_balance = ACCOUNT_BALANCE - 3 * (FLAT_REGISTRATION_FEE_TEST + automation_fee_cap);
+        let expected_registry_current_balance = REGISTRY_DEFAULT_BALANCE + 3 * (FLAT_REGISTRATION_FEE_TEST + automation_fee_cap);
+
+
+        // 44/100 * 1000 = 440 - automation_epoch_fee_per_second, 7200 epoch duration
+        let expected_automation_fee_per_task_1_2 = EPOCH_INTERVAL_FOR_TEST_IN_SECS * 440;
+        // 8% surpasses the threshold, ((1+(8/100))^exponent-1) * 100 = 58 congestion base fee, occupancy 44/100, 7200 epoch duration
+        let expected_congestion_fee_per_task_1_2 = 58 * 44 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100;
+
+        // 11/100 * 1000 = 110 - automation_epoch_fee_per_second, 7200 epoch duration (PENDING tasks are charge for the first cycle fully)
+        let expected_automation_fee_per_task_3 = EPOCH_INTERVAL_FOR_TEST_IN_SECS * 110;
+
+        let fwk_address = address_of(framework);
+        let user_address = address_of(user);
+
+        swap_cycle_details_with_epoch(framework);
+        assert!(exists<AutomationEpochInfo>(@supra_framework), 0);
+        assert!(!exists<AutomationCycleDetails>(@supra_framework), 1);
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], false);
+        // Simulate that half of the epoch passed, when migration was requested
+        update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
+        // set enough cycle fee to be able to refund
+        set_locked_fee(framework, 10_000_000_000);
+
+        migrate_v2(framework, EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
+
+        assert!(!exists<AutomationEpochInfo>(@supra_framework), 0);
+        assert!(exists<AutomationCycleDetails>(@supra_framework), 1);
+        assert!(is_feature_enabled_and_initialized(), 2);
+        check_cycle_state(CYCLE_FINISHED, 0, timestamp::now_seconds(), EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
+
+        {
+            // Check refunds have been done for both task1 and task2 only
+            let ar = borrow_global<AutomationRegistry>(fwk_address);
+            let total_expected_fee_refunds_task_1_2 = expected_automation_fee_per_task_1_2 + expected_congestion_fee_per_task_1_2;
+            expected_user_current_balance = expected_user_current_balance + total_expected_fee_refunds_task_1_2;
+            expected_registry_current_balance = expected_registry_current_balance - total_expected_fee_refunds_task_1_2;
+            check_account_balance(user_address, expected_user_current_balance);
+            check_account_balance(ar.registry_fee_address, expected_registry_current_balance);
+
+            check_task_state(ar, task1, task_exists, ACTIVE);
+            check_task_state(ar, task2, task_exists, CANCELLED);
+            check_task_state(ar, task3, task_exists, PENDING);
+
+        };
+
+        // after epoch change we are still in the same state and waiting for actions from native layer to have tasks processed for the new cycle
+        on_new_epoch();
+        check_cycle_state(CYCLE_FINISHED, 0, timestamp::now_seconds(), EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
+
+        {
+            // Check refunds have been done for both task1 and task2 only
+            let ar = borrow_global<AutomationRegistry>(fwk_address);
+            check_account_balance(user_address, expected_user_current_balance);
+            check_account_balance(ar.registry_fee_address, expected_registry_current_balance);
+
+            check_task_state(ar, task1, task_exists, ACTIVE);
+            check_task_state(ar, task2, task_exists, CANCELLED);
+            check_task_state(ar, task3, task_exists, PENDING);
+
+        };
+
+        // Process tasks and check the registry state after it
+        let total_committed_gas_for_new_cycle = t1_t2_max_gas_amount + t3_max_gas_amount; // task 2 was cancelled.
+        process_tasks(create_signer(@vm_reserved), vector[task1, task2, task3]);
+        check_cycle_state(CYCLE_STARTED, 1, timestamp::now_seconds(), EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
+
+        {
+            // Check charges are done only for task 1 and task3 and task 3 was refunded with deposit fee.
+            let ar = borrow_global<AutomationRegistry>(fwk_address);
+
+            // As cycle duration is half of the previous epoch duration, and these values are calculated for epoch duraton.
+            let total_expected_fee_charges_task_1_3 = (expected_automation_fee_per_task_1_2 + expected_automation_fee_per_task_3) / 2;
+
+            check_account_balance(user_address, expected_user_current_balance - total_expected_fee_charges_task_1_3 + automation_fee_cap);
+            check_account_balance(ar.registry_fee_address, expected_registry_current_balance + total_expected_fee_charges_task_1_3 - automation_fee_cap);
+
+            assert!(ar.gas_committed_for_this_epoch == (total_committed_gas_for_new_cycle as u256), 3);
+            assert!(ar.gas_committed_for_next_epoch == total_committed_gas_for_new_cycle, 4);
+            assert!(ar.epoch_locked_fees == total_expected_fee_charges_task_1_3, 5);
+            assert!(vector::contains(&ar.epoch_active_task_ids, &task1), 6);
+            assert!(vector::contains(&ar.epoch_active_task_ids, &task3), 7);
+            assert!(!vector::contains(&ar.epoch_active_task_ids, &task2), 7);
+
+            check_task_state(ar, task1, task_exists, ACTIVE);
+            check_task_state(ar, task3, task_exists, ACTIVE);
+            assert!(!has_task_with_id(task2), 9);
+        };
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafa)]
+    #[expected_failure(abort_code = EINVALID_MIGRATION_ACTION, location = Self)]
+    fun check_migration_fails_on_second_round_even_if_automation_cycle_is_not_enabled(framework: &signer, user: &signer)
+    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationEpochInfo {
+        initialize_registry_test(framework, user);
+
+        swap_cycle_details_with_epoch(framework);
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], false);
+        // Simulate that half of the epoch passed, when migration was requested
+        update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
+
+        migrate_v2(framework, EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
+
+        assert!(!exists<AutomationEpochInfo>(@supra_framework), 0);
+        assert!(exists<AutomationCycleDetails>(@supra_framework), 1);
+        assert!(is_feature_enabled_and_initialized(), 2);
+        check_cycle_state(CYCLE_STARTED, 1, timestamp::now_seconds(), EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
+
+        migrate_v2(framework, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafa)]
+    #[expected_failure(abort_code = EINVALID_MIGRATION_ACTION, location = Self)]
+    fun check_migration_fails_on_second_round(framework: &signer, user: &signer)
+    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationEpochInfo {
+        initialize_registry_test(framework, user);
+
+        swap_cycle_details_with_epoch(framework);
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], false);
+        // Simulate that half of the epoch passed, when migration was requested
+        update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
+
+        migrate_v2(framework, EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], true);
+        on_new_epoch();
+
+        assert!(!exists<AutomationEpochInfo>(@supra_framework), 0);
+        assert!(exists<AutomationCycleDetails>(@supra_framework), 1);
+        assert!(is_feature_enabled_and_initialized(), 2);
+
+        check_cycle_state(CYCLE_STARTED, 1, timestamp::now_seconds(), EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
+
+        migrate_v2(framework, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
     }
 
     #[test]
