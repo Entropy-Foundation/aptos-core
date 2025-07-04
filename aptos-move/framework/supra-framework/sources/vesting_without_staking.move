@@ -663,7 +663,6 @@ module supra_framework::vesting_without_staking {
         // Index is 0-based while period is 1-based so we need to subtract 1.
         let total_vesting_fraction = fixed_point32::create_from_rational(0, 1);
         while (last_completed_period >= next_period_to_vest
-            && vesting_record.left_amount != 0
             && next_period_to_vest <= vector::length(schedule)) {
             let schedule_index = next_period_to_vest - 1;
             let vesting_fraction = *vector::borrow(schedule, schedule_index);
@@ -687,8 +686,14 @@ module supra_framework::vesting_without_staking {
             total_vesting_fraction = fixed_point32::add(
                 total_vesting_fraction, added_fraction
             );
-
         };
+
+        // Make sure the total vesting fraction is not greater than 1.
+        total_vesting_fraction = fixed_point32::min(
+            total_vesting_fraction,
+            fixed_point32::create_from_rational(1, 1),
+        );
+
         // We don't need to check vesting_record.left_amount > 0 because vest_transfer will handle that.
         let transfer_happened = vest_transfer(
             vesting_record, signer_cap, beneficiary, total_vesting_fraction
