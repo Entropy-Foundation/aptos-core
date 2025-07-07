@@ -214,32 +214,20 @@ module supra_framework::genesis {
         transaction_fee::store_supra_coin_mint_cap(supra_framework, mint_cap);
     }
 
-    /// Genesis step 3: Initialize Supra Native Automation.
-    /// DEPRECATED in favoor of initialize_supra_native_automation_v2. It calls deprectead API.
+    /// DEPRECATED
+    ///
+    /// Deprecated in favoor of initialize_supra_native_automation_v2.
     public fun initialize_supra_native_automation(
-        supra_framework: &signer,
-        task_duration_cap_in_secs: u64,
-        registry_max_gas_cap: u64,
-        automation_base_fee_in_quants_per_sec: u64,
-        flat_registration_fee_in_quants: u64,
-        congestion_threshold_percentage: u8,
-        congestion_base_fee_in_quants_per_sec: u64,
-        congestion_exponent: u8,
-        task_capacity: u16,
+        _supra_framework: &signer,
+        _task_duration_cap_in_secs: u64,
+        _registry_max_gas_cap: u64,
+        _automation_base_fee_in_quants_per_sec: u64,
+        _flat_registration_fee_in_quants: u64,
+        _congestion_threshold_percentage: u8,
+        _congestion_base_fee_in_quants_per_sec: u64,
+        _congestion_exponent: u8,
+        _task_capacity: u16,
     ) {
-        let epoch_interval_secs = block::get_epoch_interval_secs();
-        automation_registry::initialize(
-            supra_framework,
-            epoch_interval_secs,
-            task_duration_cap_in_secs,
-            registry_max_gas_cap,
-            automation_base_fee_in_quants_per_sec,
-            flat_registration_fee_in_quants,
-            congestion_threshold_percentage,
-            congestion_base_fee_in_quants_per_sec,
-            congestion_exponent,
-            task_capacity,
-        )
     }
 
     /// Genesis step 3: Initialize Supra Native Automation.
@@ -255,7 +243,7 @@ module supra_framework::genesis {
         task_capacity: u16,
         cycle_duration: u64
     ) {
-        automation_registry::initialize_v2(
+        automation_registry::initialize(
             supra_framework,
             cycle_duration,
             task_duration_cap_in_secs,
