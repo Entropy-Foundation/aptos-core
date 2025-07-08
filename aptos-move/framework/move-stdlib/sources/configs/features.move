@@ -687,6 +687,46 @@ module std::features {
         is_enabled(SUPRA_ETH_TRIE)
     }
 
+    /// Whether gas check of automation-task during registration is enabled. Once enabled, the inner payload along with
+    /// task gas parameters in scope of automation registration transaction will pass gas check.
+    ///
+    /// Lifetime: transient
+    const SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK: u64 = 90;
+
+    public fun get_supra_automation_payload_gas_check_feature(): u64 {
+        SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK
+    }
+
+    public fun supra_automation_payload_gas_check_enabled(): bool acquires Features {
+        is_enabled(SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK)
+    }
+
+    /// Whether the APIs related to the bls12381_bulletproofs feature are enabled.
+    ///
+    /// Lifetime: transient
+    const PRIVATE_POLL: u64 = 91;
+
+    public fun get_supra_private_poll_feature(): u64 {
+        PRIVATE_POLL
+    }
+
+    public fun supra_private_poll_enabled(): bool acquires Features {
+        is_enabled(PRIVATE_POLL)
+    }
+
+    /// Whether the automation task sync on block basis is enabled.
+    ///
+    /// Lifetime: transient
+    const SUPRA_AUTOMATION_TASK_SYNC: u64 = 92;
+
+    public fun get_supra_automation_task_sync_feature(): u64 {
+        SUPRA_AUTOMATION_TASK_SYNC
+    }
+
+    public fun supra_automation_task_sync_enabled(): bool acquires Features {
+        is_enabled(SUPRA_AUTOMATION_TASK_SYNC)
+    }
+
     // ============================================================================================
     // Feature Flag Implementation
 

@@ -16,6 +16,10 @@ use aptos_types::{
 };
 use move_core_types::{account_address::AccountAddress, value::MoveValue, vm_status::StatusCode};
 use std::ops::{Deref, DerefMut};
+use std::time::Instant;
+use aptos_language_e2e_tests::data_store::FakeDataStore;
+use aptos_vm::aptos_vm_viewer::AptosVMViewer;
+use crate::tests::vm_viewer::to_view_function;
 
 const TIMESTAMP_NOW_SECONDS: &str = "0x1::timestamp::now_seconds";
 const ACCOUNT_BALANCE: &str = "0x1::coin::balance";
@@ -23,6 +27,7 @@ const SUPRA_COIN: &str = "0x1::supra_coin::SupraCoin";
 const ACCOUNT_SEQ_NUM: &str = "0x1::account::get_sequence_number";
 const AUTOMATION_NEXT_TASK_ID: &str = "0x1::automation_registry::get_next_task_index";
 const AUTOMATION_TASK_DETAILS: &str = "0x1::automation_registry::get_task_details";
+const AUTOMATION_TASK_DETAILS_BULK: &str = "0x1::automation_registry::get_task_details_bulk";
 
 pub(crate) struct AutomationRegistrationTestContext {
     executor: FakeExecutor,
@@ -56,8 +61,13 @@ impl AutomationRegistrationTestContext {
     }
 
     pub(crate) fn set_supra_native_automation(&mut self, enable: bool) {
+        self.set_feature_flag(FeatureFlag::SUPRA_NATIVE_AUTOMATION, enable);
+    }
+
+
+    pub(crate) fn set_feature_flag(&mut self, flag: FeatureFlag, enable: bool) {
         let acc = AccountAddress::ONE;
-        let flag_value = [FeatureFlag::SUPRA_NATIVE_AUTOMATION]
+        let flag_value = [flag]
             .into_iter()
             .map(|f| f as u64)
             .collect::<Vec<_>>();
@@ -73,6 +83,8 @@ impl AutomationRegistrationTestContext {
                 bcs::to_bytes(&disabled).unwrap(),
             ]);
     }
+
+
 
     pub(crate) fn new_account_data(&mut self, amount: u64, seq_num: u64) -> AccountData {
         let new_account_data = self.create_raw_account_data(amount, seq_num);
@@ -193,6 +205,32 @@ impl AutomationRegistrationTestContext {
         bcs::from_bytes::<AutomationTaskMetaData>(&result[0])
             .expect("Successful deserialization of AutomationTaskMetaData")
     }
+
+    pub(crate) fn get_task_details_with_vm_viewer(index: u64, vm_viewer: &AptosVMViewer<FakeDataStore>) -> AutomationTaskMetaData {
+        let view_output =
+            vm_viewer.execute_view_function(to_view_function(str::parse(AUTOMATION_TASK_DETAILS).unwrap(), vec![], vec![
+                MoveValue::U64(index)
+                    .simple_serialize()
+                    .expect("Successful serialization"),
+            ]), 50_000);
+        let result = view_output.values.expect("Valid result");
+        assert!(!result.is_empty());
+        bcs::from_bytes::<AutomationTaskMetaData>(&result[0])
+            .expect("Successful deserialization of AutomationTaskMetaData")
+    }
+
+    pub(crate) fn get_task_details_bulk(indexes: Vec<u64>, vm_viewer: &AptosVMViewer<FakeDataStore>) -> Vec<AutomationTaskMetaData> {
+        let view_output =
+            vm_viewer.execute_view_function(to_view_function(str::parse(AUTOMATION_TASK_DETAILS_BULK).unwrap(), vec![], vec![
+                MoveValue::Vector(indexes.into_iter().map(MoveValue::U64).collect())
+                    .simple_serialize()
+                    .expect("Successful serialization"),
+            ]), 50_000);
+        let result = view_output.values.expect("Valid result");
+        assert!(!result.is_empty());
+        bcs::from_bytes::<Vec<AutomationTaskMetaData>>(&result[0])
+            .expect("Successful deserialization of Vec<AutomationTaskMetaData>")
+    }
 }
 
 impl Deref for AutomationRegistrationTestContext {
@@ -311,7 +349,7 @@ fn check_invalid_gas_params_of_automation_task() {
     let automation_txn = test_context.create_automation_txn(
         0,
         inner_entry_function.clone(),
-        3600,
+        14400,
         2,
         100,
         automation_fee_cap,
@@ -321,15 +359,15 @@ fn check_invalid_gas_params_of_automation_task() {
     let output = test_context.execute_transaction(automation_txn.clone());
     AutomationRegistrationTestContext::check_discarded_output(
         output,
-        StatusCode::MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS,
+        StatusCode::AUTOMATION_TASK_MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS,
     );
     let validation_output = test_context.validate_transaction(automation_txn);
-    assert_eq!(validation_output.status(), Some(StatusCode::MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS));
+    assert_eq!(validation_output.status(), Some(StatusCode::AUTOMATION_TASK_MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS));
 
     let automation_txn = test_context.create_automation_txn(
         0,
         inner_entry_function.clone(),
-        3600,
+        14400,
         aptos_global_constants::MAX_GAS_AMOUNT + 1,
         100,
         automation_fee_cap,
@@ -339,15 +377,15 @@ fn check_invalid_gas_params_of_automation_task() {
     let output = test_context.execute_transaction(automation_txn.clone());
     AutomationRegistrationTestContext::check_discarded_output(
         output,
-        StatusCode::MAX_GAS_UNITS_EXCEEDS_MAX_GAS_UNITS_BOUND,
+        StatusCode::AUTOMATION_TASK_MAX_GAS_UNITS_EXCEEDS_MAX_GAS_UNITS_BOUND,
     );
     let validation_output = test_context.validate_transaction(automation_txn);
-    assert_eq!(validation_output.status(), Some(StatusCode::MAX_GAS_UNITS_EXCEEDS_MAX_GAS_UNITS_BOUND));
+    assert_eq!(validation_output.status(), Some(StatusCode::AUTOMATION_TASK_MAX_GAS_UNITS_EXCEEDS_MAX_GAS_UNITS_BOUND));
 
     let automation_txn = test_context.create_automation_txn(
         0,
         inner_entry_function.clone(),
-        3600,
+        14400,
         100,
         10_000_000_001,
         automation_fee_cap,
@@ -357,8 +395,71 @@ fn check_invalid_gas_params_of_automation_task() {
     let output = test_context.execute_transaction(automation_txn.clone());
     AutomationRegistrationTestContext::check_discarded_output(
         output,
-        StatusCode::GAS_UNIT_PRICE_ABOVE_MAX_BOUND,
+        StatusCode::AUTOMATION_TASK_GAS_PRICE_CAP_ABOVE_MAX_BOUND,
     );
+    let validation_output = test_context.validate_transaction(automation_txn.clone());
+    assert_eq!(validation_output.status(), Some(StatusCode::AUTOMATION_TASK_GAS_PRICE_CAP_ABOVE_MAX_BOUND));
+
+    // Check the gas check of inner payload is skipped if feature flag is not enabled
+    test_context.set_feature_flag(FeatureFlag::SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK, false);
+
+    let output = test_context.execute_transaction(automation_txn.clone());
+    let status = output.status().status().unwrap();
+    assert!(matches!(status, ExecutionStatus::Success), "{status:?}");
     let validation_output = test_context.validate_transaction(automation_txn);
-    assert_eq!(validation_output.status(), Some(StatusCode::GAS_UNIT_PRICE_ABOVE_MAX_BOUND));
+    assert!(validation_output.status().is_none());
+}
+
+#[test]
+fn check_task_retrieval_performance() {
+    // Register 500 tasks
+    let mut test_context = AutomationRegistrationTestContext::new();
+    test_context.set_supra_native_automation(true);
+    let task_count = 500;
+    let expiration_time = test_context.chain_time_now() + 4000;
+    for i in 0..task_count {
+        // Prepare inner-entry-function to be automated.
+        let dest_account = test_context.new_account_data(0, 0);
+        let inner_entry_function =
+            aptos_framework_sdk_builder::supra_coin_mint(dest_account.address().clone(), (i + 1) * 10)
+                .into_entry_function();
+
+        let automation_fee_cap = 1000;
+        let aux_data = Vec::new();
+        let automation_txn = test_context.create_automation_txn(
+            i,
+            inner_entry_function.clone(),
+            expiration_time,
+            25,
+            100,
+            automation_fee_cap,
+            aux_data,
+        );
+        let output = test_context.execute_and_apply(automation_txn);
+        assert_eq!(
+            output.status(),
+            &TransactionStatus::Keep(ExecutionStatus::Success),
+            "{output:?}"
+        );
+    }
+
+    let vm_viewer = AptosVMViewer::new(test_context.data_store());
+
+    let step_by_step = Instant::now();
+
+    for i in 0..task_count {
+        AutomationRegistrationTestContext::get_task_details_with_vm_viewer(i, &vm_viewer);
+    }
+
+    println!("Step by Step load time: {:?}", step_by_step.elapsed());
+
+    let bulk_load = Instant::now();
+    let mut i = 0;
+    let step: u64 = 25;
+    while i < task_count {
+        AutomationRegistrationTestContext::get_task_details_bulk((i .. i + step).collect(), &vm_viewer);
+        i = i + step ;
+    }
+    println!("Bulk load time: {:?}", bulk_load.elapsed());
+
 }
