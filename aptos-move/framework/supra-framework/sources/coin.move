@@ -299,6 +299,9 @@ module supra_framework::coin {
         supra_framework: &signer
     ) acquires CoinConversionMap, CoinInfo {
         system_addresses::assert_supra_framework(supra_framework);
+        if (!features::coin_to_fungible_asset_migration_feature_enabled()) {
+            abort error::unavailable(ECOIN_TO_FUNGIBLE_ASSET_FEATURE_NOT_ENABLED)
+        };
         create_and_return_paired_metadata_if_not_exist<CoinType>(true);
     }
 
