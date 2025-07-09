@@ -572,7 +572,7 @@ Provides information of the current cycle state.
 <code>start_time: u64</code>
 </dt>
 <dd>
- Current cycle start time which is updated with the current chain time when a cycle is increamented.
+ Current cycle start time which is updated with the current chain time when a cycle is incremented.
 </dd>
 <dt>
 <code>duration_secs: u64</code>
@@ -627,8 +627,7 @@ Event emitted for cycle state transition.
 Cycle state.
 
 
-<pre><code>#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> <b>has</b> <b>copy</b>, drop, key
+<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> <b>has</b> <b>copy</b>, drop, key
 </code></pre>
 
 
@@ -654,7 +653,7 @@ Cycle state.
 <code>start_time: u64</code>
 </dt>
 <dd>
- Current cycle start time which is updated with the current chain time when a cycle is increamented.
+ Current cycle start time which is updated with the current chain time when a cycle is incremented.
 </dd>
 <dt>
 <code>duration_secs: u64</code>
@@ -2075,6 +2074,16 @@ Invalid gas price: it cannot be zero
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_GAS_PRICE">EINVALID_GAS_PRICE</a>: u64 = 4;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_EINVALID_INPUT_CYCLE_INDEX"></a>
+
+The tasks are requested to be processed from invalid cycle.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_INPUT_CYCLE_INDEX">EINVALID_INPUT_CYCLE_INDEX</a>: u64 = 34;
 </code></pre>
 
 
@@ -3769,7 +3778,7 @@ then lifecycle is restarted.
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_new_epoch">on_new_epoch</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a> {
-    <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>()) {
+    <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_initialized">is_initialized</a>() || !<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_automation_cycle_enabled">features::supra_automation_cycle_enabled</a>()) {
         <b>return</b>
     };
     <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
@@ -3960,7 +3969,7 @@ Registers a new automation task entry.
 Called by MoveVm on <code>AutomationBookkeepingAction::Process</code> action emitted by native layer ahead of cycle transition
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_process_tasks">process_tasks</a>(vm: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_process_tasks">process_tasks</a>(vm: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, cycle_index: u64, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
 </code></pre>
 
 
@@ -3969,17 +3978,20 @@ Called by MoveVm on <code>AutomationBookkeepingAction::Process</code> action emi
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_process_tasks">process_tasks</a>(vm: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_process_tasks">process_tasks</a>(
+    vm: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    cycle_index: u64,
+    task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     // Operational constraint: can only be invoked by the VM
     <a href="system_addresses.md#0x1_system_addresses_assert_vm">system_addresses::assert_vm</a>(&vm);
     <b>let</b> cycle_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
     <b>if</b> (cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_FINISHED">CYCLE_FINISHED</a>) {
-        <a href="automation_registry.md#0x1_automation_registry_on_cycle_transition">on_cycle_transition</a>(task_indexes);
+        <a href="automation_registry.md#0x1_automation_registry_on_cycle_transition">on_cycle_transition</a>(cycle_index, task_indexes);
         <b>return</b>
     };
     <b>assert</b>!(cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_SUSPENDED">CYCLE_SUSPENDED</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
-    <a href="automation_registry.md#0x1_automation_registry_on_cycle_suspend">on_cycle_suspend</a>(task_indexes);
+    <a href="automation_registry.md#0x1_automation_registry_on_cycle_suspend">on_cycle_suspend</a>(cycle_index, task_indexes);
 }
 </code></pre>
 
@@ -3992,7 +4004,9 @@ Called by MoveVm on <code>AutomationBookkeepingAction::Process</code> action emi
 ## Function `on_cycle_transition`
 
 Traverses the list of the tasks and based on the task state and expiry information either charges or drops
-the task after refunding eligable fees
+the task after refunding eligable fees.
+
+Input cycle index corresponds to the new cycle to which the transition is being done.
 
 Tasks are cheked not to be processed more than once.
 This function should be called only if registry is in CYCLE_FINISHED state, meaning a normal cycle transition is
@@ -4005,7 +4019,7 @@ In case if transition end is detected a start of the new cycle is given
 (if during trasition period suspention is not requested) and corresponding event is emitted.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_cycle_transition">on_cycle_transition</a>(task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_cycle_transition">on_cycle_transition</a>(cycle_index: u64, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
 </code></pre>
 
 
@@ -4014,7 +4028,7 @@ In case if transition end is detected a start of the new cycle is given
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_cycle_transition">on_cycle_transition</a>(task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_cycle_transition">on_cycle_transition</a>(cycle_index: u64, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&task_indexes)) {
         <b>return</b>
@@ -4023,6 +4037,7 @@ In case if transition end is detected a start of the new cycle is given
     <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
     <b>assert</b>!(cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_FINISHED">CYCLE_FINISHED</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
     <b>assert</b>!(std::option::is_some(&cycle_info.transition_state), <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
+    <b>assert</b>!(cycle_info.index + 1 == cycle_index, <a href="automation_registry.md#0x1_automation_registry_EINVALID_INPUT_CYCLE_INDEX">EINVALID_INPUT_CYCLE_INDEX</a>);
 
     <b>let</b> transition_state = std::option::borrow_mut(&<b>mut</b> cycle_info.transition_state);
 
@@ -4077,13 +4092,15 @@ In case if transition end is detected a start of the new cycle is given
 Traverses the list of the tasks and refunds automation(if not PENDING) and depoist fees for all tasks
 and removes from registry.
 
+Input cycle index corresponds to the cycle being suspended.
+
 This function is called only if automation feature is disabled, i.e. CYCLE_SUSPENDED state.
 
 After processing input set of tasks the end of suspention process is checked(i.e. all expected tasks has been processed).
 In case if end is identified the registry state is update to CYCLE_READY and corresponding event is emitted.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_cycle_suspend">on_cycle_suspend</a>(task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_cycle_suspend">on_cycle_suspend</a>(cycle_index: u64, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
 </code></pre>
 
 
@@ -4092,7 +4109,7 @@ In case if end is identified the registry state is update to CYCLE_READY and cor
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_cycle_suspend">on_cycle_suspend</a>(task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt; )
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_on_cycle_suspend">on_cycle_suspend</a>(cycle_index: u64, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt; )
 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
 
     <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&task_indexes)) {
@@ -4102,6 +4119,7 @@ In case if end is identified the registry state is update to CYCLE_READY and cor
     <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
     <b>assert</b>!(cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_SUSPENDED">CYCLE_SUSPENDED</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
     <b>assert</b>!(std::option::is_some(&cycle_info.transition_state), <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
+    <b>assert</b>!(cycle_info.index == cycle_index, <a href="automation_registry.md#0x1_automation_registry_EINVALID_INPUT_CYCLE_INDEX">EINVALID_INPUT_CYCLE_INDEX</a>);
     <b>let</b> transition_state = std::option::borrow_mut(&<b>mut</b> cycle_info.transition_state);
 
 

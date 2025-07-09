@@ -3,12 +3,12 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::transaction::AutomationRegistrationParamsV1;
 use crate::{
     transaction::{
-        BlockEpilogueTransaction, DecodedTableData, DeleteModule,
-        DeleteResource, DeleteTableItem, DeletedTableData, MultisigPayload,
-        MultisigTransactionPayload, StateCheckpointTransaction, UserTransactionRequestInner,
-        WriteModule, WriteResource, WriteTableItem,
+        BlockEpilogueTransaction, DecodedTableData, DeleteModule, DeleteResource, DeleteTableItem,
+        DeletedTableData, MultisigPayload, MultisigTransactionPayload, StateCheckpointTransaction,
+        UserTransactionRequestInner, WriteModule, WriteResource, WriteTableItem,
     },
     view::{ViewFunction, ViewRequest},
     Address, Bytecode, DirectWriteSet, EntryFunctionId, EntryFunctionPayload, Event,
@@ -24,6 +24,7 @@ use aptos_logger::{sample, sample::SampleRate};
 use aptos_resource_viewer::AptosValueAnnotator;
 use aptos_storage_interface::DbReader;
 use aptos_types::transaction::automation::RegistrationParams;
+use aptos_types::transaction::Transaction::AutomationRegistryTransaction;
 use aptos_types::{
     access_path::{AccessPath, Path},
     chain_id::ChainId,
@@ -58,7 +59,6 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use crate::transaction::AutomationRegistrationParamsV1;
 
 const OBJECT_MODULE: &IdentStr = ident_str!("object");
 const OBJECT_STRUCT: &IdentStr = ident_str!("Object");
@@ -242,6 +242,9 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                 let payload = self.try_into_transaction_payload(automated_txn.payload().clone())?;
                 (&automated_txn, info, payload, events, timestamp).into()
             },
+            AutomationRegistryTransaction(automated_txn) => {
+                unreachable!("Automation registry transactions exposure to api is not supported ");
+            },
         })
     }
 
@@ -314,8 +317,14 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                 let Some(params_v1) = maybe_params_v1 else {
                     bail!("Unsupported automation registration parameters.");
                 };
-                let (inner_payload, max_gas_amount, gas_price_cap, expiration_timestamp_secs, automation_fee_cap, aux_data) =
-                    params_v1.into_inner();
+                let (
+                    inner_payload,
+                    max_gas_amount,
+                    gas_price_cap,
+                    expiration_timestamp_secs,
+                    automation_fee_cap,
+                    aux_data,
+                ) = params_v1.into_inner();
                 let auto_payload = AutomationRegistrationParamsV1 {
                     automated_function: self.try_into_entry_function_payload(inner_payload)?,
                     expiration_timestamp_secs,
@@ -693,7 +702,9 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                     automated_function,
                     expiration_timestamp_secs,
                     max_gas_amount,
-                    gas_price_cap, automation_fee_cap, aux_data,
+                    gas_price_cap,
+                    automation_fee_cap,
+                    aux_data,
                 } = params_v1;
                 let core_automated_function =
                     self.try_into_supra_core_entry_function(automated_function)?;
