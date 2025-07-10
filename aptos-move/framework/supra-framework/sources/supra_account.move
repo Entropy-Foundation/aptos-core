@@ -237,16 +237,12 @@ module supra_framework::supra_account {
 
     /// Ensure that SUPRA Primary FungibleStore exists (and create if it doesn't)
     inline fun ensure_primary_fungible_store_exists(owner: address): address {
-        // TODO(fa_migration)
-        /*
         let store_addr = primary_fungible_store_address(owner);
         if (fungible_asset::store_exists(store_addr)) {
             store_addr
         } else {
             object::object_address(&primary_fungible_store::create_primary_store(owner, object::address_to_object<Metadata>(@supra_fungible_asset)))
         }
-        */
-        object::object_address(&primary_fungible_store::create_primary_store(owner, object::address_to_object<Metadata>(@aptos_fungible_asset)))
     }
 
     /// Address of SUPRA Primary Fungible Store

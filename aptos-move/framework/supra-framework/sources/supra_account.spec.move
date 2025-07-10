@@ -332,4 +332,8 @@ spec supra_framework::supra_account {
         ensures coin_store_source.coin.value - amount == p_coin_store_source.coin.value;
         ensures if_exist_account && if_exist_coin ==> coin_store_to.coin.value + amount == p_coin_store_to.coin.value;
     }
+
+    spec assert_account_is_registered_for_apt {
+        pragma aborts_if_is_strict = false;
+    }
 }
