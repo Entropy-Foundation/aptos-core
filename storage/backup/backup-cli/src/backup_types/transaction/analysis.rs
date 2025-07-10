@@ -120,6 +120,7 @@ impl TransactionAnalysis {
             | BlockMetadataExt(_)
             | StateCheckpoint(_)
             | BlockEpilogue(_)
+            | AutomationRegistryTransaction(_)
             | ValidatorTransaction(_) => bcs::serialized_size(txn).expect("Txn should serialize"),
         }
     }
