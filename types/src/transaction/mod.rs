@@ -1,3 +1,4 @@
+// Copyright (c) 2024 Supra.
 // Copyright © Aptos Foundation
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -42,6 +43,8 @@ use std::{
 
 pub mod analyzed_transaction;
 pub mod authenticator;
+pub mod automated_transaction;
+pub mod automation;
 pub mod block_epilogue;
 mod block_output;
 mod change_set;
@@ -53,8 +56,12 @@ pub mod user_transaction_context;
 pub mod webauthn;
 
 pub use self::block_epilogue::{BlockEndInfo, BlockEpiloguePayload};
+use crate::move_utils::MemberId;
+use crate::serde_helper::vec_bytes;
 #[cfg(any(test, feature = "fuzzing"))]
 use crate::state_store::create_empty_sharded_state_updates;
+use crate::transaction::automated_transaction::AutomatedTransaction;
+use crate::transaction::automation::RegistrationParams;
 use crate::{
     block_metadata_ext::BlockMetadataExt, contract_event::TransactionEvent, executable::ModulePath,
     fee_statement::FeeStatement, proof::accumulator::InMemoryEventAccumulator,
@@ -63,6 +70,8 @@ use crate::{
 pub use block_output::BlockOutput;
 pub use change_set::ChangeSet;
 pub use module::{Module, ModuleBundle};
+use move_core_types::identifier::{IdentStr, Identifier};
+use move_core_types::language_storage::{ModuleId, TypeTag};
 pub use move_core_types::transaction_argument::TransactionArgument;
 use move_core_types::vm_status::AbortLocation;
 use move_vm_types::delayed_values::delayed_field_id::{
@@ -195,6 +204,27 @@ impl RawTransaction {
             sender,
             sequence_number,
             payload: TransactionPayload::Multisig(multisig),
+            max_gas_amount,
+            gas_unit_price,
+            expiration_timestamp_secs,
+            chain_id,
+        }
+    }
+
+    /// Create a new `RawTransaction` of automation type.
+    pub fn new_automation(
+        sender: AccountAddress,
+        sequence_number: u64,
+        entry_function: RegistrationParams,
+        max_gas_amount: u64,
+        gas_unit_price: u64,
+        expiration_timestamp_secs: u64,
+        chain_id: ChainId,
+    ) -> Self {
+        RawTransaction {
+            sender,
+            sequence_number,
+            payload: TransactionPayload::AutomationRegistration(entry_function),
             max_gas_amount,
             gas_unit_price,
             expiration_timestamp_secs,
@@ -358,6 +388,20 @@ impl RawTransaction {
     pub fn signing_message(&self) -> Result<Vec<u8>, CryptoMaterialError> {
         signing_message(self)
     }
+
+    /// Calculates size in bytes for the raw transaction with input payload.
+    pub fn estimate_size_in_bytes(payload: TransactionPayload) -> usize {
+        let mocked_txn = RawTransaction::new(
+            AccountAddress::ZERO,
+            0,
+            payload,
+            0,
+            0,
+            0,
+            ChainId::default(),
+        );
+        bcs::serialized_size(&mocked_txn).expect("RawTransaction should successfully serialize")
+    }
 }
 
 #[derive(
@@ -419,6 +463,8 @@ pub enum TransactionPayload {
     /// A multisig transaction that allows an owner of a multisig account to execute a pre-approved
     /// transaction as the multisig account.
     Multisig(Multisig),
+    /// An automation registration transaction payload to register an automation task.
+    AutomationRegistration(RegistrationParams),
 }
 
 impl TransactionPayload {
@@ -1966,6 +2012,11 @@ pub enum Transaction {
     /// The hash value inside is unique block id which can generate unique hash of state checkpoint transaction
     /// Replaces StateCheckpoint, with optionally having more data.
     BlockEpilogue(BlockEpiloguePayload),
+
+    /// Transaction corresponding to automation tasks from automation registry.
+    /// Verification is skipped for this type of transaction as it is auto-generated from state
+    /// and is considered as `SignatureVerifiedTransaction::Valid` by default
+    AutomatedTransaction(AutomatedTransaction),
 }
 
 impl From<BlockMetadataExt> for Transaction {
@@ -2006,6 +2057,13 @@ impl Transaction {
         }
     }
 
+    pub fn try_as_automated_txn(&self) -> Option<&AutomatedTransaction> {
+        match self {
+            Transaction::AutomatedTransaction(txn) => Some(txn),
+            _ => None,
+        }
+    }
+
     pub fn type_name(&self) -> &'static str {
         match self {
             Transaction::UserTransaction(_) => "user_transaction",
@@ -2015,6 +2073,7 @@ impl Transaction {
             Transaction::BlockEpilogue(_) => "block_epilogue",
             Transaction::ValidatorTransaction(vt) => vt.type_name(),
             Transaction::BlockMetadataExt(_) => "block_metadata_ext",
+            Transaction::AutomatedTransaction(_) => "automated_transaction",
         }
     }
 
@@ -2030,6 +2089,7 @@ impl Transaction {
             | Transaction::GenesisTransaction(_)
             | Transaction::BlockMetadata(_)
             | Transaction::BlockMetadataExt(_)
+            | Transaction::AutomatedTransaction(_)
             | Transaction::ValidatorTransaction(_) => false,
         }
     }
@@ -2087,6 +2147,68 @@ pub trait BlockExecutableTransaction: Sync + Send + Clone + 'static {
     fn user_txn_bytes_len(&self) -> usize;
 }
 
+/// Call a Move view function.
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ViewFunction {
+    module: ModuleId,
+    function: Identifier,
+    ty_args: Vec<TypeTag>,
+    #[serde(with = "vec_bytes")]
+    args: Vec<Vec<u8>>,
+}
+
+impl ViewFunction {
+    pub fn from_function_name_and_args(
+        function_ref: &'static str,
+        ty_args: Vec<TypeTag>,
+        args: Vec<Vec<u8>>,
+    ) -> Result<Self> {
+        let MemberId {
+            module_id,
+            member_id,
+        } = str::parse(function_ref)?;
+        Ok(Self {
+            module: module_id,
+            function: member_id,
+            ty_args,
+            args,
+        })
+    }
+
+    pub fn new(
+        module: ModuleId,
+        function: Identifier,
+        ty_args: Vec<TypeTag>,
+        args: Vec<Vec<u8>>,
+    ) -> Self {
+        Self {
+            module,
+            function,
+            ty_args,
+            args,
+        }
+    }
+
+    pub fn module(&self) -> &ModuleId {
+        &self.module
+    }
+
+    pub fn function(&self) -> &IdentStr {
+        &self.function
+    }
+
+    pub fn ty_args(&self) -> &[TypeTag] {
+        &self.ty_args
+    }
+
+    pub fn args(&self) -> &[Vec<u8>] {
+        &self.args
+    }
+
+    pub fn into_inner(self) -> (ModuleId, Identifier, Vec<TypeTag>, Vec<Vec<u8>>) {
+        (self.module, self.function, self.ty_args, self.args)
+    }
+}
 pub struct ViewFunctionOutput {
     pub values: Result<Vec<Vec<u8>>>,
     pub gas_used: u64,

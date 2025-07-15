@@ -1,3 +1,4 @@
+// Copyright (c) 2024 Supra.
 // Copyright (c) The Diem Core Contributors
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
@@ -592,6 +593,22 @@ pub enum StatusCode {
     RESERVED_VALIDATION_ERROR_7 = 42,
     RESERVED_VALIDATION_ERROR_8 = 43,
     RESERVED_VALIDATION_ERROR_9 = 44,
+    // Failed to identify active automated task by provided index/sequence-number
+    NO_ACTIVE_AUTOMATED_TASK = 45,
+    // Length of program field of automation payload in raw transaction exceeded max length
+    AUTOMATION_PAYLOAD_EXCEEDED_MAX_TRANSACTION_SIZE = 46,
+    // Max gas units submitted with for automation-task exceeds max gas units bound
+    // in VM
+    AUTOMATION_TASK_MAX_GAS_UNITS_EXCEEDS_MAX_GAS_UNITS_BOUND = 47,
+    // Max gas units submitted for the automation-task not enough to cover the
+    // intrinsic cost of the transaction.
+    AUTOMATION_TASK_MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS = 48,
+    // Gas unit price capacity submitted for the automation-task is below minimum gas price
+    // set in the VM.
+    AUTOMATION_TASK_GAS_PRICE_CAP_BELOW_MIN_BOUND = 49,
+    // Gas unit price capacity submitted for the automation-task is above the maximum
+    // gas price set in the VM.
+    AUTOMATION_TASK_GAS_PRICE_CAP_ABOVE_MAX_BOUND = 50,
 
     // When a code module/script is published it is verified. These are the
     // possible errors that can arise from the verification process.
@@ -728,6 +745,11 @@ pub enum StatusCode {
     RESERVED_VERIFICATION_ERROR_3 = 1129,
     RESERVED_VERIFICATION_ERROR_4 = 1130,
     RESERVED_VERIFICATION_ERROR_5 = 1131,
+    // Verification errors related to automation registration transaction
+    // Validation of the entry function to be automated failed.
+    INVALID_AUTOMATION_INNER_PAYLOAD = 1132,
+    // Automated transaction validation failures
+    INVALID_AUTOMATED_PAYLOAD = 1133,
 
 
     // These are errors that the VM might raise if a violation of internal
@@ -770,6 +792,9 @@ pub enum StatusCode {
     RESERVED_INVARIANT_VIOLATION_ERROR_3 = 2028,
     RESERVED_INVARIANT_VIOLATION_ERROR_4 = 2039,
     RESERVED_INVARIANT_VIOLATION_ERROR_5 = 2040,
+
+    // Supra specific invariant violation errors
+    MISSING_NATIVE_FUNCTION = 2100,
 
     // Errors that can arise from binary decoding (deserialization)
     // Deserialization Errors: 3000-3999
