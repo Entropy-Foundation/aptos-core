@@ -4,12 +4,14 @@
 use crate::tests::automation_registration::AutomationRegistrationTestContext;
 use aptos_cached_packages::aptos_framework_sdk_builder;
 use aptos_crypto::HashValue;
-use aptos_types::chain_id::ChainId;
-use aptos_types::on_chain_config::AutomationCycleState;
-use aptos_types::transaction::automated_transaction::{
-    AutomatedTransaction, AutomatedTransactionBuilder, BuilderResult,
+use aptos_types::{
+    chain_id::ChainId,
+    on_chain_config::AutomationCycleState,
+    transaction::{
+        automated_transaction::{AutomatedTransaction, AutomatedTransactionBuilder, BuilderResult},
+        ExecutionStatus, Transaction, TransactionStatus,
+    },
 };
-use aptos_types::transaction::{ExecutionStatus, Transaction, TransactionStatus};
 use move_core_types::vm_status::StatusCode;
 
 #[test]
@@ -152,8 +154,10 @@ fn check_automated_transaction_successful_execution() {
     // Execute registry action to charge and activate the task
     let cycle_info = test_context.get_cycle_info();
     assert_eq!(cycle_info.state, AutomationCycleState::FINISHED);
-    let registry_action = test_context.create_automation_registry_transaction(cycle_info.index + 1, 1, vec![0]);
-    test_context.execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(registry_action));
+    let registry_action =
+        test_context.create_automation_registry_transaction(0, cycle_info.index + 1, 1, vec![0]);
+    test_context
+        .execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     let cycle_info = test_context.get_cycle_info();
     assert_eq!(cycle_info.state, AutomationCycleState::STARTED);
 

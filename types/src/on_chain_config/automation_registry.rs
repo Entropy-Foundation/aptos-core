@@ -5,6 +5,7 @@ use move_core_types::account_address::AccountAddress;
 use move_core_types::value::{serialize_values, MoveValue};
 use serde::{Deserialize, Serialize};
 use crate::on_chain_config::OnChainConfig;
+use move_core_types::{ident_str, identifier::IdentStr, move_resource::MoveStructType};
 
 const ONE_MONTH_IN_SECS: u64 = 2_626_560;
 const DEFAULT_REGISTRY_MAX_GAS_CAP: u64 = 100_000_000;
@@ -135,16 +136,17 @@ impl From<AutomationRegistryConfigV1> for AutomationRegistryConfig {
 }
 
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[repr(u8)]
 pub enum AutomationCycleState {
+    #[default]
     READY = 0,
     STARTED,
     FINISHED,
     SUSPENDED
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct AutomationCycleInfo {
     /// Current cycle id. Incremented when a start of a new cycle is given.
     pub index: u64,
@@ -161,9 +163,14 @@ pub struct AutomationCycleEvent {
     /// Updated cycle state information.
     pub cycle_state_info: AutomationCycleInfo,
     /// The state transitioned from
-    pub old_state: u8,
+    pub old_state: AutomationCycleState,
     /// Timestamp of the state transition event registration
     pub event_time: u64,
+}
+
+impl MoveStructType for AutomationCycleEvent {
+    const MODULE_NAME: &'static IdentStr = ident_str!("automation_registry");
+    const STRUCT_NAME: &'static IdentStr = ident_str!("AutomationCycleEvent");
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -201,6 +208,17 @@ pub struct AutomationCycleDetails {
     pub duration_secs: u64,
     /// Intermediate state of cycle transition to next one or suspended state.
     pub transition_state: Option<AutomationCycleTransitionState>,
+}
+
+impl From<AutomationCycleDetails> for AutomationCycleInfo {
+    fn from(details: AutomationCycleDetails) -> Self {
+        Self {
+            index: details.index,
+            state: details.state,
+            start_time: details.start_time,
+            duration_secs: details.duration_secs,
+        }
+    }
 }
 
 impl OnChainConfig for AutomationCycleDetails {

@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::transaction::{EntryFunction, Transaction};
+use aptos_crypto::HashValue;
 use move_core_types::account_address::AccountAddress;
 use move_core_types::identifier::{IdentStr, Identifier};
 use move_core_types::language_storage::{ModuleId, TypeTag, CORE_CODE_ADDRESS};
 use move_core_types::value::{serialize_values, MoveValue};
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 #[cfg(any(test, feature = "fuzzing"))]
 use proptest_derive::Arbitrary;
-use aptos_crypto::HashValue;
+use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 
 struct AutomationTransactionEntryRef {
     module_id: ModuleId,
@@ -352,7 +353,9 @@ impl AutomationRegistryAction {
     }
 
     pub fn process_task(task_index: u64) -> Self {
-        AutomationRegistryAction::Process { task_indexes: vec![task_index] }
+        AutomationRegistryAction::Process {
+            task_indexes: vec![task_index],
+        }
     }
 
     pub fn as_move_value(&self) -> MoveValue {
@@ -362,6 +365,15 @@ impl AutomationRegistryAction {
             .map(|v| MoveValue::U64(*v))
             .collect::<Vec<_>>();
         MoveValue::Vector(value_indexes)
+    }
+
+    /// Returns a tuple of min and mox task indexes included in the action.
+    pub fn task_range(&self) -> (u64, u64) {
+        let AutomationRegistryAction::Process { task_indexes } = self;
+        (
+            task_indexes.iter().min().copied().unwrap_or(u64::MAX),
+            task_indexes.iter().max().copied().unwrap_or(u64::MAX),
+        )
     }
 
     /// Module id containing automation registry target function.
@@ -384,6 +396,8 @@ impl AutomationRegistryAction {
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "fuzzing"), derive(Arbitrary))]
 pub struct AutomationRegistryRecord {
+    /// Index of the record. Should be unique in set of the records shceduled in scope of the same block.
+    index: u64,
     /// Index of the new cycle to be moved to.
     cycle_id: u64,
     /// Height of the block in scope of which registry action is requested/scheduled.
@@ -392,14 +406,31 @@ pub struct AutomationRegistryRecord {
     action: AutomationRegistryAction,
 }
 
-impl AutomationRegistryRecord {
+impl PartialOrd<Self> for AutomationRegistryRecord {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let this_range = self.action.task_range();
+        let other_range = other.action.task_range();
+        this_range.partial_cmp(&other_range)
+    }
+}
 
+impl Ord for AutomationRegistryRecord {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let this_range = self.action.task_range();
+        let other_range = other.action.task_range();
+        this_range.cmp(&other_range)
+    }
+}
+
+impl AutomationRegistryRecord {
     pub fn new(
+        record_index: u64,
         cycle_id: u64,
         block_height: u64,
         action: AutomationRegistryAction,
     ) -> AutomationRegistryRecord {
         Self {
+            index: record_index,
             cycle_id,
             block_height,
             action,
@@ -417,10 +448,9 @@ impl AutomationRegistryRecord {
 
     pub fn hash(&self) -> HashValue {
         HashValue::keccak_256_of(
-            &bcs::to_bytes(self)
-                .expect("AutomationRegistryRecord serialization should never fail"))
+            &bcs::to_bytes(self).expect("AutomationRegistryRecord serialization should never fail"),
+        )
     }
-
 
     /// Module id containing automation registry target function.
     pub fn module_id(&self) -> &ModuleId {
@@ -436,6 +466,22 @@ impl AutomationRegistryRecord {
     pub fn ty_args(&self) -> Vec<TypeTag> {
         self.action.ty_args()
     }
+
+    pub fn index(&self) -> u64 {
+        self.index
+    }
+
+    pub fn cycle_id(&self) -> u64 {
+        self.cycle_id
+    }
+
+    pub fn block_height(&self) -> u64 {
+        self.block_height
+    }
+
+    pub fn action(&self) -> &AutomationRegistryAction {
+        &self.action
+    }
 }
 
 impl From<AutomationRegistryRecord> for Transaction {
@@ -444,8 +490,9 @@ impl From<AutomationRegistryRecord> for Transaction {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AutomationRegistryRecordBuilder {
+    record_index: Option<u64>,
     action: Option<AutomationRegistryAction>,
     cycle_id: Option<u64>,
     block_height: Option<u64>,
@@ -456,8 +503,21 @@ impl AutomationRegistryRecordBuilder {
         Self {
             action: None,
             cycle_id: Some(cycle_id),
+            record_index: None,
             block_height: None,
         }
+    }
+
+    pub fn task_range(&self) -> (u64, u64) {
+        if self.action.is_none() {
+            return (u64::MAX, u64::MAX);
+        }
+        self.action.as_ref().unwrap().task_range()
+    }
+
+    pub fn with_record_index(mut self, record_index: u64) -> Self {
+        self.record_index = Some(record_index);
+        self
     }
 
     pub fn with_action(mut self, action: AutomationRegistryAction) -> Self {
@@ -484,6 +544,7 @@ impl AutomationRegistryRecordBuilder {
                 .into_iter()
                 .map(AutomationRegistryAction::process_task)
                 .map(|action| Self {
+                    record_index: None,
                     action: Some(action),
                     cycle_id: self.cycle_id,
                     block_height: self.block_height,
@@ -502,7 +563,11 @@ impl AutomationRegistryRecordBuilder {
         let Some(block_height) = self.block_height else {
             return Err("AutomationRegistryRecordBuilder must have a block height".to_string());
         };
+        let Some(record_index) = self.record_index else {
+            return Err("AutomationRegistryRecordBuilder must have a block height".to_string());
+        };
         Ok(AutomationRegistryRecord::new(
+            record_index,
             cycle_id,
             block_height,
             action,

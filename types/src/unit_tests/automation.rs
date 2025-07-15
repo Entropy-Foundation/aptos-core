@@ -4,7 +4,10 @@
 use crate::chain_id::ChainId;
 use crate::move_utils::MemberId;
 use crate::transaction::automated_transaction::{AutomatedTransactionBuilder, BuilderResult};
-use crate::transaction::automation::{AutomationTaskMetaData, RegistrationParams};
+use crate::transaction::automation::{
+    AutomationRegistryAction, AutomationRegistryRecordBuilder, AutomationTaskMetaData,
+    RegistrationParams,
+};
 use crate::transaction::{EntryFunction, TransactionPayload};
 use aptos_crypto::HashValue;
 use move_core_types::account_address::AccountAddress;
@@ -208,4 +211,59 @@ fn automated_txn_build() {
         builder_with_no_expiry_time.clone().build(),
         BuilderResult::MissingValue(_)
     ));
+}
+
+#[test]
+fn check_automation_registry_record() {
+    let r_builder = AutomationRegistryRecordBuilder::new(1);
+    assert!(r_builder.clone().build().is_err());
+
+    let r_builder = r_builder.with_record_index(2);
+    assert!(r_builder.clone().build().is_err());
+
+    let r_builder = r_builder.with_block_height(42);
+    assert!(r_builder.clone().build().is_err());
+
+    let action = AutomationRegistryAction::process(vec![12, 36, 45]);
+
+    let r_builder = r_builder.with_action(action);
+    let record = r_builder.clone().build().unwrap();
+    assert_eq!(record.index(), 2);
+    assert_eq!(record.cycle_id(), 1);
+    assert_eq!(record.action().task_range(), (12, 45));
+
+    let split_builders = r_builder.split();
+    assert_eq!(split_builders.len(), 3);
+
+    // Fails as the record index is reset, but cycle_id and block height is reserved
+    split_builders.iter().for_each(|builder| {
+        assert!(builder.clone().build().is_err());
+    });
+    split_builders
+        .into_iter()
+        .enumerate()
+        .for_each(|(i, builder)| {
+            let builder = builder.with_record_index(i as u64);
+            let single_task_record = builder.build().unwrap();
+            assert_eq!(single_task_record.cycle_id(), record.cycle_id());
+            assert_eq!(single_task_record.block_height(), record.block_height());
+            let task_range = single_task_record.action().task_range();
+            assert_eq!(task_range.0, task_range.1);
+        });
+
+    let mut task_indexes = vec![50, 68, 12, 36, 45];
+    let r_builder = AutomationRegistryRecordBuilder::new(2)
+        .with_action(AutomationRegistryAction::process(task_indexes.clone()));
+    assert_eq!(r_builder.task_range(), (12, 68));
+
+    let mut split_builders = r_builder.split();
+    split_builders.sort_by_key(|b| b.task_range());
+    task_indexes.sort();
+    split_builders
+        .into_iter()
+        .enumerate()
+        .for_each(|(idx, builder)| {
+            let task_index = task_indexes[idx];
+            assert_eq!(builder.task_range(), (task_index, task_index));
+        });
 }

@@ -3,29 +3,35 @@
 
 use crate::tests::vm_viewer::to_view_function;
 use aptos_cached_packages::aptos_framework_sdk_builder;
-use aptos_language_e2e_tests::data_store::FakeDataStore;
 use aptos_language_e2e_tests::{
     account::{Account, AccountData},
+    data_store::FakeDataStore,
     executor::FakeExecutor,
 };
-use aptos_types::on_chain_config::{AutomationCycleDetails, AutomationCycleInfo, AutomationCycleState, OnChainConfig};
-use aptos_types::transaction::automation::{AutomationRegistryAction, AutomationRegistryRecord};
-use aptos_types::transaction::Transaction;
 use aptos_types::{
-    on_chain_config::FeatureFlag,
+    on_chain_config::{
+        AutomationCycleDetails, AutomationCycleInfo, AutomationCycleState, FeatureFlag,
+        OnChainConfig,
+    },
     transaction::{
-        automation::{AutomationTaskMetaData, RegistrationParams},
-        EntryFunction, ExecutionStatus, SignedTransaction, TransactionOutput, TransactionPayload,
-        TransactionStatus,
+        automation::{
+            AutomationRegistryAction, AutomationRegistryRecord, AutomationTaskMetaData,
+            RegistrationParams,
+        },
+        EntryFunction, ExecutionStatus, SignedTransaction, Transaction, TransactionOutput,
+        TransactionPayload, TransactionStatus,
     },
 };
 use aptos_vm::aptos_vm_viewer::AptosVMViewer;
 use move_core_types::{
-    account_address::AccountAddress, value::serialize_values, value::MoveValue,
+    account_address::AccountAddress,
+    value::{serialize_values, MoveValue},
     vm_status::StatusCode,
 };
-use std::ops::{Deref, DerefMut};
-use std::time::Instant;
+use std::{
+    ops::{Deref, DerefMut},
+    time::Instant,
+};
 
 const TIMESTAMP_NOW_SECONDS: &str = "0x1::timestamp::now_seconds";
 const ACCOUNT_BALANCE: &str = "0x1::coin::balance";
@@ -82,16 +88,12 @@ impl AutomationRegistrationTestContext {
         } else {
             (vec![], flag_value)
         };
-        self.executor.exec(
-            "features",
-            "change_feature_flags_internal",
-            vec![],
-            vec![
+        self.executor
+            .exec("features", "change_feature_flags_internal", vec![], vec![
                 MoveValue::Signer(acc).simple_serialize().unwrap(),
                 bcs::to_bytes(&enabled).unwrap(),
                 bcs::to_bytes(&disabled).unwrap(),
-            ],
-        );
+            ]);
     }
 
     pub(crate) fn toggle_feature_with_registry_reconfig(
@@ -111,11 +113,13 @@ impl AutomationRegistrationTestContext {
 
     pub(crate) fn create_automation_registry_transaction(
         &self,
+        record_index: u64,
         cycle_id: u64,
         block_height: u64,
         task_indexes: Vec<u64>,
     ) -> AutomationRegistryRecord {
         AutomationRegistryRecord::new(
+            record_index,
             cycle_id,
             block_height,
             AutomationRegistryAction::process(task_indexes),
@@ -210,11 +214,10 @@ impl AutomationRegistrationTestContext {
     }
 
     pub(crate) fn account_sequence_number(&mut self, account_address: AccountAddress) -> u64 {
-        let view_output = self.execute_view_function(
-            str::parse(ACCOUNT_SEQ_NUM).unwrap(),
-            vec![],
-            vec![account_address.to_vec()],
-        );
+        let view_output =
+            self.execute_view_function(str::parse(ACCOUNT_SEQ_NUM).unwrap(), vec![], vec![
+                account_address.to_vec(),
+            ]);
         let result = view_output.values.expect("Valid result");
         assert_eq!(result.len(), 1);
         bcs::from_bytes::<u64>(&result[0]).unwrap()
@@ -232,13 +235,12 @@ impl AutomationRegistrationTestContext {
     }
 
     pub(crate) fn get_task_details(&mut self, index: u64) -> AutomationTaskMetaData {
-        let view_output = self.execute_view_function(
-            str::parse(AUTOMATION_TASK_DETAILS).unwrap(),
-            vec![],
-            vec![MoveValue::U64(index)
-                .simple_serialize()
-                .expect("Successful serialization")],
-        );
+        let view_output =
+            self.execute_view_function(str::parse(AUTOMATION_TASK_DETAILS).unwrap(), vec![], vec![
+                MoveValue::U64(index)
+                    .simple_serialize()
+                    .expect("Successful serialization"),
+            ]);
         let result = view_output.values.expect("Valid result");
         assert!(!result.is_empty());
         bcs::from_bytes::<AutomationTaskMetaData>(&result[0])
@@ -250,13 +252,11 @@ impl AutomationRegistrationTestContext {
         vm_viewer: &AptosVMViewer<FakeDataStore>,
     ) -> AutomationTaskMetaData {
         let view_output = vm_viewer.execute_view_function(
-            to_view_function(
-                str::parse(AUTOMATION_TASK_DETAILS).unwrap(),
-                vec![],
-                vec![MoveValue::U64(index)
+            to_view_function(str::parse(AUTOMATION_TASK_DETAILS).unwrap(), vec![], vec![
+                MoveValue::U64(index)
                     .simple_serialize()
-                    .expect("Successful serialization")],
-            ),
+                    .expect("Successful serialization"),
+            ]),
             50_000,
         );
         let result = view_output.values.expect("Valid result");
@@ -609,18 +609,15 @@ fn check_automation_registry_actions_on_cycle_transition() {
 
     test_context.advance_chain_time_in_secs(600);
     // Any task processing request in started state will fail
-    let registry_action = test_context.create_automation_registry_transaction(1, 1, vec![0]);
+    let registry_action = test_context.create_automation_registry_transaction(0, 1, 1, vec![0]);
     let result = test_context
         .execute_tagged_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     let status = result.status().status().expect("Expected execution status");
-    assert!(matches!(
-        status,
-        ExecutionStatus::MoveAbort {
-            location: _,
-            code: _,
-            info: _
-        }
-    ));
+    assert!(matches!(status, ExecutionStatus::MoveAbort {
+        location: _,
+        code: _,
+        info: _
+    }));
 
     test_context.advance_chain_time_in_secs(600);
 
@@ -628,7 +625,7 @@ fn check_automation_registry_actions_on_cycle_transition() {
     let cycle_info = test_context.get_cycle_info();
     assert_eq!(cycle_info.state, AutomationCycleState::FINISHED);
     let registry_action =
-        test_context.create_automation_registry_transaction(cycle_info.index + 1, 2, vec![0, 1]);
+        test_context.create_automation_registry_transaction(0, cycle_info.index + 1, 2, vec![0, 1]);
     test_context
         .execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     let cycle_info = test_context.get_cycle_info();
@@ -643,17 +640,21 @@ fn check_automation_registry_actions_on_cycle_transition() {
     let cycle_info = test_context.get_cycle_info();
     assert_eq!(cycle_info.state, AutomationCycleState::FINISHED);
     let registry_action =
-        test_context.create_automation_registry_transaction(cycle_info.index + 1, 1, vec![0]);
+        test_context.create_automation_registry_transaction(0, cycle_info.index + 1, 1, vec![0]);
     test_context
         .execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     let cycle_info = test_context.get_cycle_info();
     assert_eq!(cycle_info.state, AutomationCycleState::FINISHED);
-    let cycle_details = AutomationCycleDetails::fetch_config(test_context.data_store()).expect("Expected a cycle details");
-    let transition_state = cycle_details.transition_state.as_ref().expect("Transition state");
+    let cycle_details = AutomationCycleDetails::fetch_config(test_context.data_store())
+        .expect("Expected a cycle details");
+    let transition_state = cycle_details
+        .transition_state
+        .as_ref()
+        .expect("Transition state");
     assert!(transition_state.actual_processed_tasks.contains(&0));
 
     let registry_action =
-        test_context.create_automation_registry_transaction(cycle_info.index + 1, 1, vec![1]);
+        test_context.create_automation_registry_transaction(1, cycle_info.index + 1, 1, vec![1]);
     test_context
         .execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     let cycle_info = test_context.get_cycle_info();
@@ -700,7 +701,7 @@ fn check_automation_registry_actions_on_cycle_suspension() {
     let cycle_info = test_context.get_cycle_info();
     assert_eq!(cycle_info.state, AutomationCycleState::FINISHED);
     let registry_action =
-        test_context.create_automation_registry_transaction(cycle_info.index + 1, 1, vec![0]);
+        test_context.create_automation_registry_transaction(0, cycle_info.index + 1, 1, vec![0]);
     test_context
         .execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     let cycle_info = test_context.get_cycle_info();
@@ -716,7 +717,7 @@ fn check_automation_registry_actions_on_cycle_suspension() {
     let cycle_info = test_context.get_cycle_info();
     assert_eq!(cycle_info.state, AutomationCycleState::SUSPENDED);
     let registry_action =
-        test_context.create_automation_registry_transaction(cycle_info.index, 2, vec![0]);
+        test_context.create_automation_registry_transaction(0, cycle_info.index, 2, vec![0]);
     test_context
         .execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     let cycle_info = test_context.get_cycle_info();
@@ -726,19 +727,16 @@ fn check_automation_registry_actions_on_cycle_suspension() {
 
     // Any task processing request in READY state will fail
     let registry_action =
-        test_context.create_automation_registry_transaction(cycle_info.index, 2, vec![0]);
+        test_context.create_automation_registry_transaction(0, cycle_info.index, 2, vec![0]);
     let result = test_context
         .execute_tagged_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     let status = result.status().status().expect("Expected execution status");
 
-    assert!(matches!(
-        status,
-        ExecutionStatus::MoveAbort {
-            location: _,
-            code: _,
-            info: _
-        }
-    ));
+    assert!(matches!(status, ExecutionStatus::MoveAbort {
+        location: _,
+        code: _,
+        info: _
+    }));
 }
 
 #[test]
@@ -748,7 +746,7 @@ fn check_automation_registry_actions_when_automation_cycle_disabled() {
     test_context.set_supra_native_automation(true);
     // Disable feature and check that no automation registry action is processed.
     test_context.toggle_feature_with_registry_reconfig(FeatureFlag::SUPRA_AUTOMATION_CYCLE, false);
-    let registry_action = test_context.create_automation_registry_transaction(1, 1, vec![0]);
+    let registry_action = test_context.create_automation_registry_transaction(0, 1, 1, vec![0]);
     let result = test_context
         .execute_tagged_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     assert!(matches!(
