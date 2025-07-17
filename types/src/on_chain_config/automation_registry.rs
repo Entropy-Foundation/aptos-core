@@ -164,8 +164,6 @@ pub struct AutomationCycleEvent {
     pub cycle_state_info: AutomationCycleInfo,
     /// The state transitioned from
     pub old_state: AutomationCycleState,
-    /// Timestamp of the state transition event registration
-    pub event_time: u64,
 }
 
 impl MoveStructType for AutomationCycleEvent {
