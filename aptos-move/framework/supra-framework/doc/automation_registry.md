@@ -562,12 +562,6 @@ Event emitted for cycle state transition.
 <dd>
  The state transitioned from
 </dd>
-<dt>
-<code>event_time: u64</code>
-</dt>
-<dd>
- Timestamp of the state transition event registration
-</dd>
 </dl>
 
 
@@ -4617,7 +4611,6 @@ Note it is expected that committed_occupancy does not include currnet task's occ
     <b>let</b> <a href="event.md#0x1_event">event</a> = <a href="automation_registry.md#0x1_automation_registry_AutomationCycleEvent">AutomationCycleEvent</a> {
         cycle_state_info: <a href="automation_registry.md#0x1_automation_registry_into_automation_cycle_info">into_automation_cycle_info</a>(cycle_info),
         old_state,
-        event_time: <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>(),
     };
     <a href="event.md#0x1_event_emit">event::emit</a>(<a href="event.md#0x1_event">event</a>)
 }

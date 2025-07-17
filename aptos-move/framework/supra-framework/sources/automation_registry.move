@@ -278,8 +278,6 @@ module supra_framework::automation_registry {
         cycle_state_info: AutomationCycleInfo,
         /// The state transitioned from
         old_state: u8,
-        /// Timestamp of the state transition event registration
-        event_time: u64,
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -1758,7 +1756,6 @@ module supra_framework::automation_registry {
         let event = AutomationCycleEvent {
             cycle_state_info: into_automation_cycle_info(cycle_info),
             old_state,
-            event_time: timestamp::now_seconds(),
         };
         event::emit(event)
     }
