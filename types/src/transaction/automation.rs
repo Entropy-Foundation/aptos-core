@@ -367,7 +367,7 @@ impl AutomationRegistryAction {
         MoveValue::Vector(value_indexes)
     }
 
-    /// Returns a tuple of min and mox task indexes included in the action.
+    /// Returns a tuple of min and max task indexes included in the action.
     pub fn task_range(&self) -> (u64, u64) {
         let AutomationRegistryAction::Process { task_indexes } = self;
         (
