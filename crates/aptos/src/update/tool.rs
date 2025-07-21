@@ -11,7 +11,7 @@ use clap::Subcommand;
 /// Update the CLI or other tools it depends on.
 #[derive(Subcommand)]
 pub enum UpdateTool {
-    Aptos(AptosUpdateTool),
+    // Aptos(AptosUpdateTool),
     Revela(RevelaUpdateTool),
     Movefmt(FormatterUpdateTool),
 }
@@ -19,7 +19,7 @@ pub enum UpdateTool {
 impl UpdateTool {
     pub async fn execute(self) -> CliResult {
         match self {
-            UpdateTool::Aptos(tool) => tool.execute_serialized().await,
+            // UpdateTool::Aptos(tool) => tool.execute_serialized().await,
             UpdateTool::Revela(tool) => tool.execute_serialized().await,
             UpdateTool::Movefmt(tool) => tool.execute_serialized().await,
         }

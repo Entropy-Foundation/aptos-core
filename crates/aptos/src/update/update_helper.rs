@@ -95,7 +95,7 @@ pub fn get_path(name: &str, exe_env: &str, binary_name: &str, exe: &str) -> Resu
     Err(anyhow!(
         "Cannot locate the {} executable. \
             Environment variable `{}` is not set, and `{}` is not in the PATH. \
-            Try running `aptos update {}` to download it and then \
+            Try running `supra update {}` to download it and then \
             updating the environment variable `{}` or adding the executable to PATH",
         name,
         exe_env,
