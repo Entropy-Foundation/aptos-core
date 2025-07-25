@@ -11,10 +11,10 @@ This contract is part of the Supra Framework and is designed to manage automated
 
 -  [Resource `ActiveAutomationRegistryConfig`](#0x1_automation_registry_ActiveAutomationRegistryConfig)
 -  [Resource `AutomationRegistryConfig`](#0x1_automation_registry_AutomationRegistryConfig)
+-  [Struct `AutomationRegistryConfigV2`](#0x1_automation_registry_AutomationRegistryConfigV2)
 -  [Resource `AutomationRegistry`](#0x1_automation_registry_AutomationRegistry)
 -  [Struct `TransitionState`](#0x1_automation_registry_TransitionState)
 -  [Resource `AutomationEpochInfo`](#0x1_automation_registry_AutomationEpochInfo)
--  [Struct `AutomationCycleDuration`](#0x1_automation_registry_AutomationCycleDuration)
 -  [Struct `AutomationCycleInfo`](#0x1_automation_registry_AutomationCycleInfo)
 -  [Struct `AutomationCycleEvent`](#0x1_automation_registry_AutomationCycleEvent)
 -  [Resource `AutomationCycleDetails`](#0x1_automation_registry_AutomationCycleDetails)
@@ -120,6 +120,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `calculate_automation_congestion_fee`](#0x1_automation_registry_calculate_automation_congestion_fee)
 -  [Function `calculate_exponentiation`](#0x1_automation_registry_calculate_exponentiation)
 -  [Function `try_withdraw_task_automation_fee`](#0x1_automation_registry_try_withdraw_task_automation_fee)
+-  [Function `update_config_from_buffer_for_migration`](#0x1_automation_registry_update_config_from_buffer_for_migration)
 -  [Function `update_config_from_buffer`](#0x1_automation_registry_update_config_from_buffer)
 -  [Function `transfer_fee_to_account_internal`](#0x1_automation_registry_transfer_fee_to_account_internal)
 -  [Function `check_registration_task_duration`](#0x1_automation_registry_check_registration_task_duration)
@@ -262,6 +263,87 @@ Automation registry configuration parameters
 </dt>
 <dd>
  Maximum number of tasks that registry can hold.
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_automation_registry_AutomationRegistryConfigV2"></a>
+
+## Struct `AutomationRegistryConfigV2`
+
+Automation registry configuration parameters
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfigV2">AutomationRegistryConfigV2</a> <b>has</b> <b>copy</b>, drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>task_duration_cap_in_secs: u64</code>
+</dt>
+<dd>
+ Maximum allowable duration (in seconds) from the registration time that an automation task can run.
+ If the expiration time exceeds this duration, the task registration will fail.
+</dd>
+<dt>
+<code>registry_max_gas_cap: u64</code>
+</dt>
+<dd>
+ Maximum gas allocation for automation tasks per epoch
+ Exceeding this limit during task registration will cause failure and is used in fee calculation.
+</dd>
+<dt>
+<code>automation_base_fee_in_quants_per_sec: u64</code>
+</dt>
+<dd>
+ Base fee per second for the full capacity of the automation registry, measured in quants/sec.
+ The capacity is considered full if the total committed gas of all registered tasks equals registry_max_gas_cap.
+</dd>
+<dt>
+<code>flat_registration_fee_in_quants: u64</code>
+</dt>
+<dd>
+ Flat registration fee charged by default for each task.
+</dd>
+<dt>
+<code>congestion_threshold_percentage: u8</code>
+</dt>
+<dd>
+ Ratio (in the range [0;100]) representing the acceptable upper limit of committed gas amount
+ relative to registry_max_gas_cap. Beyond this threshold, congestion fees apply.
+</dd>
+<dt>
+<code>congestion_base_fee_in_quants_per_sec: u64</code>
+</dt>
+<dd>
+ Base fee per second for the full capacity of the automation registry when the congestion threshold is exceeded.
+</dd>
+<dt>
+<code>congestion_exponent: u8</code>
+</dt>
+<dd>
+ The congestion fee increases exponentially based on this value, ensuring higher fees as the registry approaches full capacity.
+</dd>
+<dt>
+<code>task_capacity: u16</code>
+</dt>
+<dd>
+ Maximum number of tasks that registry can hold.
+</dd>
+<dt>
+<code>cycle_duration_secs: u64</code>
+</dt>
+<dd>
+ Automation cycle duration in secods
 </dd>
 </dl>
 
@@ -420,7 +502,7 @@ Epoch state. Deprecated since SUPRA_AUTOMATION_CYCLE version.
 
 
 <pre><code>#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> <b>has</b> <b>copy</b>, drop, key
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> <b>has</b> <b>copy</b>, key
 </code></pre>
 
 
@@ -451,35 +533,6 @@ Epoch state. Deprecated since SUPRA_AUTOMATION_CYCLE version.
 </dt>
 <dd>
  Current epoch start time which is the same as last_reconfiguration_time
-</dd>
-</dl>
-
-
-</details>
-
-<a id="0x1_automation_registry_AutomationCycleDuration"></a>
-
-## Struct `AutomationCycleDuration`
-
-Cycle Duration wrapper to store in the config-buffer.
-
-
-<pre><code>#[<a href="event.md#0x1_event">event</a>]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDuration">AutomationCycleDuration</a> <b>has</b> <b>copy</b>, drop, store
-</code></pre>
-
-
-
-<details>
-<summary>Fields</summary>
-
-
-<dl>
-<dt>
-<code>duration_secs: u64</code>
-</dt>
-<dd>
- Automation cycle duration in seconds.
 </dd>
 </dl>
 
@@ -3154,13 +3207,6 @@ Update Automation Registry Config along with cycle duration.
         congestion_threshold_percentage,
         congestion_exponent);
 
-    // Update cycle duration in buffer
-    <b>let</b> new_cycle_duration = <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDuration">AutomationCycleDuration</a> {
-        duration_secs: cycle_duration_secs
-    };
-    <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(<b>copy</b> new_cycle_duration);
-    <a href="event.md#0x1_event_emit">event::emit</a>(new_cycle_duration);
-
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
 
     <b>assert</b>!(
@@ -3168,7 +3214,7 @@ Update Automation Registry Config along with cycle duration.
         <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_AUTOMATION_GAS_LIMIT">EUNACCEPTABLE_AUTOMATION_GAS_LIMIT</a>
     );
 
-    <b>let</b> new_automation_registry_config = <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
+    <b>let</b> new_automation_registry_config = <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfigV2">AutomationRegistryConfigV2</a> {
         task_duration_cap_in_secs,
         registry_max_gas_cap,
         automation_base_fee_in_quants_per_sec,
@@ -3176,16 +3222,16 @@ Update Automation Registry Config along with cycle duration.
         congestion_threshold_percentage,
         congestion_base_fee_in_quants_per_sec,
         congestion_exponent,
-        task_capacity
+        task_capacity,
+        cycle_duration_secs
     };
     <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(<b>copy</b> new_automation_registry_config);
 
-    // next_epoch_registry_max_gas_cap will be <b>update</b> instantly
+    // next cyle registry max gas cap will be <b>update</b> instantly
     <b>let</b> automation_registry_config = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
     automation_registry_config.next_epoch_registry_max_gas_cap = registry_max_gas_cap;
 
     <a href="event.md#0x1_event_emit">event::emit</a>(new_automation_registry_config);
-
 }
 </code></pre>
 
@@ -3534,7 +3580,7 @@ thus not causing any inconcistensy in the chain
     <a href="automation_registry.md#0x1_automation_registry_update_state_for_migration">update_state_for_migration</a>(
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
         &automation_registry_config,
-        &automation_epoch_info,
+        automation_epoch_info,
         current_time
     );
 
@@ -3553,6 +3599,8 @@ thus not causing any inconcistensy in the chain
     };
     // Emit cycle end which will lead the <b>native</b> layer <b>to</b> start preparation <b>to</b> the new cycle.
     <b>let</b> cycle_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
+    // Update the config <b>to</b> start the cycle <b>with</b> new config.
+    <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer_for_migration">update_config_from_buffer_for_migration</a>(cycle_info);
     <a href="automation_registry.md#0x1_automation_registry_on_cycle_end_internal">on_cycle_end_internal</a>(cycle_info);
 }
 </code></pre>
@@ -4320,7 +4368,7 @@ Refunds the deposit fee of the task and removes from registry.
 Updates the cycle state if the transition is identified to be finalized.
 
 As transition happens from suspended state and while transition was in progress
-- if the feature was enabled back, then the transition will happend direclty to starated state,
+- if the feature was enabled back, then the transition will happen direclty to starated state,
 - otherwise the transition will be done to the ready state.
 
 In both cases config will be updated. In this case we will make sure to keep the consistency of state
@@ -4354,8 +4402,10 @@ when transition to ready state happens through paths
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees = 0;
 
-    <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>(cycle_info);
     <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>()) {
+        // Update the config in case <b>if</b> transition flow is STARTED -&gt; SUSPENDED-&gt; STARTED.
+        // <b>to</b> reflect new configs for the new cycle <b>if</b> it <b>has</b> been updated during SUSPENDED state processing
+        <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>(cycle_info);
         <a href="automation_registry.md#0x1_automation_registry_move_to_started_state">move_to_started_state</a>(cycle_info)
     } <b>else</b> {
         <a href="automation_registry.md#0x1_automation_registry_move_to_ready_state">move_to_ready_state</a>(cycle_info)
@@ -4636,7 +4686,28 @@ Note it is expected that committed_occupancy does not include currnet task's occ
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_move_to_ready_state">move_to_ready_state</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>) {
-    cycle_info.transition_state = std::option::none&lt;<a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a>&gt;();
+    // If the cycle duration updated <b>has</b> been identified during transtion, then the transition state is kept
+    // <b>with</b> reset values <b>except</b> new cycle duration <b>to</b> have it properly set for the next new cycle.
+    // This may happen in case of cycle was ended and feature-flag <b>has</b> been disbaled before <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> task <b>has</b>
+    // been processed for the cycle transition.
+    // Note that we want <b>to</b> have consistent data in ready state which says that the cycle pointed in the ready state
+    // <b>has</b> been finished/summerized, and we are ready <b>to</b> start the next new cycle. and all the cycle inforamation should
+    // match the finalized/summerized cycle since its start, including cycle duration
+    <b>if</b> (std::option::is_some(&cycle_info.transition_state)) {
+        <b>let</b> transition_state = std::option::borrow_mut(&<b>mut</b> cycle_info.transition_state);
+        <b>if</b> (transition_state.new_cycle_duration == cycle_info.duration_secs) {
+            cycle_info.transition_state = std::option::none&lt;<a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a>&gt;();
+        } <b>else</b> {
+            // Reset all <b>except</b> new cycle duration
+            transition_state.refund_duration = 0;
+            transition_state.automation_fee_per_sec = 0;
+            transition_state.gas_committed_for_new_cycle = 0;
+            transition_state.gas_committed_for_next_cycle = 0;
+            transition_state.locked_fees = 0;
+            transition_state.expected_tasks_to_be_processed = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+            transition_state.actual_processed_tasks = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+        }
+    };
     <a href="automation_registry.md#0x1_automation_registry_update_cycle_state_to">update_cycle_state_to</a>(cycle_info, <a href="automation_registry.md#0x1_automation_registry_CYCLE_READY">CYCLE_READY</a>)
 }
 </code></pre>
@@ -4708,6 +4779,7 @@ In all cases if there are no tasks in registry the state will be updated directl
 ) <b>acquires</b>  <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_length">enumerable_map::length</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks) == 0) {
         // Registry is empty <b>move</b> <b>to</b> ready state directly
+        // <a href="automation_registry.md#0x1_automation_registry_move_to_ready_state">move_to_ready_state</a>(cycle_info);
         <a href="automation_registry.md#0x1_automation_registry_update_cycle_state_to">update_cycle_state_to</a>(cycle_info, <a href="automation_registry.md#0x1_automation_registry_CYCLE_READY">CYCLE_READY</a>);
         <b>return</b>
     };
@@ -4764,7 +4836,7 @@ Refunds automation fee for epoch for all eligible tasks and clears automation re
 fee primitives.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_state_for_migration">update_state_for_migration</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, aei: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">automation_registry::AutomationEpochInfo</a>, current_time: u64)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_state_for_migration">update_state_for_migration</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, aei: <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">automation_registry::AutomationEpochInfo</a>, current_time: u64)
 </code></pre>
 
 
@@ -4776,17 +4848,23 @@ fee primitives.
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_state_for_migration">update_state_for_migration</a>(
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>,
     arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
-    aei: &<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>,
+    aei: <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>,
     current_time: u64
 ) {
-    <b>let</b> previous_epoch_duration = current_time - aei.start_time;
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a> {
+        start_time,
+        epoch_interval: _,
+        expected_epoch_duration,
+
+    } = aei;
+    <b>let</b> previous_epoch_duration = current_time - start_time;
     <b>let</b> refund_interval = 0;
     <b>let</b> refund_automation_fee_per_sec = 0;
 
     // If epoch actual duration is greater or equal <b>to</b> expected epoch-duration then there is nothing <b>to</b> refund.
-    <b>if</b> (<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees != 0 && previous_epoch_duration &lt; aei.expected_epoch_duration) {
+    <b>if</b> (<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees != 0 && previous_epoch_duration &lt; expected_epoch_duration) {
         <b>let</b> previous_tcmg = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch;
-        refund_interval = aei.expected_epoch_duration - previous_epoch_duration;
+        refund_interval = expected_epoch_duration - previous_epoch_duration;
         // Compute the automation fee multiplier for ended epoch
         refund_automation_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multiplier_for_epoch">calculate_automation_fee_multiplier_for_epoch</a>(arc, previous_tcmg, arc.registry_max_gas_cap);
     };
@@ -5429,6 +5507,47 @@ would allow the congestion fee to increase in a non-linear fashion.
 
 </details>
 
+<a id="0x1_automation_registry_update_config_from_buffer_for_migration"></a>
+
+## Function `update_config_from_buffer_for_migration`
+
+The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
+This function will be called only during migration and can be removed in subsequent releases
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer_for_migration">update_config_from_buffer_for_migration</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">automation_registry::AutomationCycleDetails</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer_for_migration">update_config_from_buffer_for_migration</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+    <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;()) {
+        <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;();
+        <b>let</b> automation_registry_config = &<b>mut</b> <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(
+            @supra_framework
+        ).main_config;
+        automation_registry_config.task_duration_cap_in_secs = buffer.task_duration_cap_in_secs;
+        automation_registry_config.registry_max_gas_cap = buffer.registry_max_gas_cap;
+        automation_registry_config.automation_base_fee_in_quants_per_sec = buffer.automation_base_fee_in_quants_per_sec;
+        automation_registry_config.flat_registration_fee_in_quants = buffer.flat_registration_fee_in_quants;
+        automation_registry_config.congestion_threshold_percentage = buffer.congestion_threshold_percentage;
+        automation_registry_config.congestion_base_fee_in_quants_per_sec = buffer.congestion_base_fee_in_quants_per_sec;
+        automation_registry_config.congestion_exponent = buffer.congestion_exponent;
+        automation_registry_config.task_capacity = buffer.task_capacity;
+    };
+    // In case <b>if</b> between supra-framework <b>update</b> and migration step the config <b>has</b> been updated using the new API.
+    <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>(cycle_info)
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_automation_registry_update_config_from_buffer"></a>
 
 ## Function `update_config_from_buffer`
@@ -5446,29 +5565,28 @@ The function updates the ActiveAutomationRegistryConfig structure with values ex
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
-    <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;()) {
-        <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;();
-        <b>let</b> automation_registry_config = &<b>mut</b> <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(
-            @supra_framework
-        ).main_config;
-        automation_registry_config.task_duration_cap_in_secs = buffer.task_duration_cap_in_secs;
-        automation_registry_config.registry_max_gas_cap = buffer.registry_max_gas_cap;
-        automation_registry_config.automation_base_fee_in_quants_per_sec = buffer.automation_base_fee_in_quants_per_sec;
-        automation_registry_config.flat_registration_fee_in_quants = buffer.flat_registration_fee_in_quants;
-        automation_registry_config.congestion_threshold_percentage = buffer.congestion_threshold_percentage;
-        automation_registry_config.congestion_base_fee_in_quants_per_sec = buffer.congestion_base_fee_in_quants_per_sec;
-        automation_registry_config.congestion_exponent = buffer.congestion_exponent;
-        automation_registry_config.task_capacity = buffer.task_capacity;
+    <b>if</b> (!<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfigV2">AutomationRegistryConfigV2</a>&gt;()) {
+        <b>return</b>
     };
-    <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDuration">AutomationCycleDuration</a>&gt;()) {
-        <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDuration">AutomationCycleDuration</a>&gt;();
-        <b>if</b> (std::option::is_some(&cycle_info.transition_state)) {
-            <b>let</b> transition_state = std::option::borrow_mut(&<b>mut</b> cycle_info.transition_state);
-            transition_state.new_cycle_duration = buffer.duration_secs;
-        } <b>else</b> {
-            cycle_info.duration_secs = buffer.duration_secs;
-        }
-    };
+    <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfigV2">AutomationRegistryConfigV2</a>&gt;();
+    <b>let</b> automation_registry_config = &<b>mut</b> <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(
+        @supra_framework
+    ).main_config;
+    automation_registry_config.task_duration_cap_in_secs = buffer.task_duration_cap_in_secs;
+    automation_registry_config.registry_max_gas_cap = buffer.registry_max_gas_cap;
+    automation_registry_config.automation_base_fee_in_quants_per_sec = buffer.automation_base_fee_in_quants_per_sec;
+    automation_registry_config.flat_registration_fee_in_quants = buffer.flat_registration_fee_in_quants;
+    automation_registry_config.congestion_threshold_percentage = buffer.congestion_threshold_percentage;
+    automation_registry_config.congestion_base_fee_in_quants_per_sec = buffer.congestion_base_fee_in_quants_per_sec;
+    automation_registry_config.congestion_exponent = buffer.congestion_exponent;
+    automation_registry_config.task_capacity = buffer.task_capacity;
+
+    <b>if</b> (std::option::is_some(&cycle_info.transition_state)) {
+        <b>let</b> transition_state = std::option::borrow_mut(&<b>mut</b> cycle_info.transition_state);
+        transition_state.new_cycle_duration = buffer.cycle_duration_secs;
+    } <b>else</b> {
+        cycle_info.duration_secs = buffer.cycle_duration_secs;
+    }
 }
 </code></pre>
 

@@ -177,6 +177,33 @@ module supra_framework::automation_registry {
         task_capacity: u16,
     }
 
+    #[event]
+    /// Automation registry configuration parameters
+    struct AutomationRegistryConfigV2 has store, drop, copy {
+        /// Maximum allowable duration (in seconds) from the registration time that an automation task can run.
+        /// If the expiration time exceeds this duration, the task registration will fail.
+        task_duration_cap_in_secs: u64,
+        /// Maximum gas allocation for automation tasks per epoch
+        /// Exceeding this limit during task registration will cause failure and is used in fee calculation.
+        registry_max_gas_cap: u64,
+        /// Base fee per second for the full capacity of the automation registry, measured in quants/sec.
+        /// The capacity is considered full if the total committed gas of all registered tasks equals registry_max_gas_cap.
+        automation_base_fee_in_quants_per_sec: u64,
+        /// Flat registration fee charged by default for each task.
+        flat_registration_fee_in_quants: u64,
+        /// Ratio (in the range [0;100]) representing the acceptable upper limit of committed gas amount
+        /// relative to registry_max_gas_cap. Beyond this threshold, congestion fees apply.
+        congestion_threshold_percentage: u8,
+        /// Base fee per second for the full capacity of the automation registry when the congestion threshold is exceeded.
+        congestion_base_fee_in_quants_per_sec: u64,
+        /// The congestion fee increases exponentially based on this value, ensuring higher fees as the registry approaches full capacity.
+        congestion_exponent: u8,
+        /// Maximum number of tasks that registry can hold.
+        task_capacity: u16,
+        /// Automation cycle duration in secods
+        cycle_duration_secs: u64,
+    }
+
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     /// It tracks entries both pending and completed, organized by unique indices.
     struct AutomationRegistry has key, store {
@@ -239,7 +266,7 @@ module supra_framework::automation_registry {
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     /// Epoch state. Deprecated since SUPRA_AUTOMATION_CYCLE version.
-    struct AutomationEpochInfo has key, copy, drop {
+    struct AutomationEpochInfo has key, copy {
         /// Epoch expected duration at the beginning of the new epoch, Based on this and actual
         /// epoch_duration which will be (current_time - last_reconfiguration_time) automation tasks
         /// refunds will be calculated.
@@ -250,13 +277,6 @@ module supra_framework::automation_registry {
         epoch_interval: u64,
         /// Current epoch start time which is the same as last_reconfiguration_time
         start_time: u64,
-    }
-
-    #[event]
-    /// Cycle Duration wrapper to store in the config-buffer.
-    struct AutomationCycleDuration has drop, store, copy {
-        /// Automation cycle duration in seconds.
-        duration_secs: u64,
     }
 
     /// Provides information of the current cycle state.
@@ -789,13 +809,6 @@ module supra_framework::automation_registry {
             congestion_threshold_percentage,
             congestion_exponent);
 
-        // Update cycle duration in buffer
-        let new_cycle_duration = AutomationCycleDuration {
-            duration_secs: cycle_duration_secs
-        };
-        config_buffer::upsert(copy new_cycle_duration);
-        event::emit(new_cycle_duration);
-
         let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
 
         assert!(
@@ -803,7 +816,7 @@ module supra_framework::automation_registry {
             EUNACCEPTABLE_AUTOMATION_GAS_LIMIT
         );
 
-        let new_automation_registry_config = AutomationRegistryConfig {
+        let new_automation_registry_config = AutomationRegistryConfigV2 {
             task_duration_cap_in_secs,
             registry_max_gas_cap,
             automation_base_fee_in_quants_per_sec,
@@ -811,16 +824,16 @@ module supra_framework::automation_registry {
             congestion_threshold_percentage,
             congestion_base_fee_in_quants_per_sec,
             congestion_exponent,
-            task_capacity
+            task_capacity,
+            cycle_duration_secs
         };
         config_buffer::upsert(copy new_automation_registry_config);
 
-        // next_epoch_registry_max_gas_cap will be update instantly
+        // next cyle registry max gas cap will be update instantly
         let automation_registry_config = borrow_global_mut<ActiveAutomationRegistryConfig>(@supra_framework);
         automation_registry_config.next_epoch_registry_max_gas_cap = registry_max_gas_cap;
 
         event::emit(new_automation_registry_config);
-
     }
 
     /// Enables the registration process in the automation registry.
@@ -1052,7 +1065,7 @@ module supra_framework::automation_registry {
         update_state_for_migration(
             automation_registry,
             &automation_registry_config,
-            &automation_epoch_info,
+            automation_epoch_info,
             current_time
         );
 
@@ -1071,6 +1084,8 @@ module supra_framework::automation_registry {
         };
         // Emit cycle end which will lead the native layer to start preparation to the new cycle.
         let cycle_info = borrow_global_mut<AutomationCycleDetails>(@supra_framework);
+        // Update the config to start the cycle with new config.
+        update_config_from_buffer_for_migration(cycle_info);
         on_cycle_end_internal(cycle_info);
     }
 
@@ -1596,7 +1611,7 @@ module supra_framework::automation_registry {
     /// Updates the cycle state if the transition is identified to be finalized.
     ///
     /// As transition happens from suspended state and while transition was in progress
-    ///    - if the feature was enabled back, then the transition will happend direclty to starated state,
+    ///    - if the feature was enabled back, then the transition will happen direclty to starated state,
     ///    - otherwise the transition will be done to the ready state.
     ///
     /// In both cases config will be updated. In this case we will make sure to keep the consistency of state
@@ -1619,8 +1634,10 @@ module supra_framework::automation_registry {
         automation_registry.epoch_active_task_ids = vector[];
         automation_registry.epoch_locked_fees = 0;
 
-        update_config_from_buffer(cycle_info);
         if (features::supra_native_automation_enabled()) {
+            // Update the config in case if transition flow is STARTED -> SUSPENDED-> STARTED.
+            // to reflect new configs for the new cycle if it has been updated during SUSPENDED state processing
+            update_config_from_buffer(cycle_info);
             move_to_started_state(cycle_info)
         } else {
             move_to_ready_state(cycle_info)
@@ -1761,7 +1778,28 @@ module supra_framework::automation_registry {
     }
 
     fun move_to_ready_state(cycle_info: &mut AutomationCycleDetails) {
-        cycle_info.transition_state = std::option::none<TransitionState>();
+        // If the cycle duration updated has been identified during transtion, then the transition state is kept
+        // with reset values except new cycle duration to have it properly set for the next new cycle.
+        // This may happen in case of cycle was ended and feature-flag has been disbaled before any task has
+        // been processed for the cycle transition.
+        // Note that we want to have consistent data in ready state which says that the cycle pointed in the ready state
+        // has been finished/summerized, and we are ready to start the next new cycle. and all the cycle inforamation should
+        // match the finalized/summerized cycle since its start, including cycle duration
+        if (std::option::is_some(&cycle_info.transition_state)) {
+            let transition_state = std::option::borrow_mut(&mut cycle_info.transition_state);
+            if (transition_state.new_cycle_duration == cycle_info.duration_secs) {
+                cycle_info.transition_state = std::option::none<TransitionState>();
+            } else {
+                // Reset all except new cycle duration
+                transition_state.refund_duration = 0;
+                transition_state.automation_fee_per_sec = 0;
+                transition_state.gas_committed_for_new_cycle = 0;
+                transition_state.gas_committed_for_next_cycle = 0;
+                transition_state.locked_fees = 0;
+                transition_state.expected_tasks_to_be_processed = vector[];
+                transition_state.actual_processed_tasks = vector[];
+            }
+        };
         update_cycle_state_to(cycle_info, CYCLE_READY)
     }
 
@@ -1793,6 +1831,7 @@ module supra_framework::automation_registry {
     ) acquires  ActiveAutomationRegistryConfig {
         if (enumerable_map::length(&automation_registry.tasks) == 0) {
             // Registry is empty move to ready state directly
+            // move_to_ready_state(cycle_info);
             update_cycle_state_to(cycle_info, CYCLE_READY);
             return
         };
@@ -1841,17 +1880,23 @@ module supra_framework::automation_registry {
     fun update_state_for_migration(
         automation_registry: &mut AutomationRegistry,
         arc: &AutomationRegistryConfig,
-        aei: &AutomationEpochInfo,
+        aei: AutomationEpochInfo,
         current_time: u64
     ) {
-        let previous_epoch_duration = current_time - aei.start_time;
+        let AutomationEpochInfo {
+            start_time,
+            epoch_interval: _,
+            expected_epoch_duration,
+
+        } = aei;
+        let previous_epoch_duration = current_time - start_time;
         let refund_interval = 0;
         let refund_automation_fee_per_sec = 0;
 
         // If epoch actual duration is greater or equal to expected epoch-duration then there is nothing to refund.
-        if (automation_registry.epoch_locked_fees != 0 && previous_epoch_duration < aei.expected_epoch_duration) {
+        if (automation_registry.epoch_locked_fees != 0 && previous_epoch_duration < expected_epoch_duration) {
             let previous_tcmg = automation_registry.gas_committed_for_this_epoch;
-            refund_interval = aei.expected_epoch_duration - previous_epoch_duration;
+            refund_interval = expected_epoch_duration - previous_epoch_duration;
             // Compute the automation fee multiplier for ended epoch
             refund_automation_fee_per_sec = calculate_automation_fee_multiplier_for_epoch(arc, previous_tcmg, arc.registry_max_gas_cap);
         };
@@ -2231,7 +2276,8 @@ module supra_framework::automation_registry {
     }
 
     /// The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
-    fun update_config_from_buffer(cycle_info: &mut AutomationCycleDetails) acquires ActiveAutomationRegistryConfig {
+    /// This function will be called only during migration and can be removed in subsequent releases
+    fun update_config_from_buffer_for_migration(cycle_info: &mut AutomationCycleDetails) acquires ActiveAutomationRegistryConfig {
         if (config_buffer::does_exist<AutomationRegistryConfig>()) {
             let buffer = config_buffer::extract<AutomationRegistryConfig>();
             let automation_registry_config = &mut borrow_global_mut<ActiveAutomationRegistryConfig>(
@@ -2246,15 +2292,34 @@ module supra_framework::automation_registry {
             automation_registry_config.congestion_exponent = buffer.congestion_exponent;
             automation_registry_config.task_capacity = buffer.task_capacity;
         };
-        if (config_buffer::does_exist<AutomationCycleDuration>()) {
-            let buffer = config_buffer::extract<AutomationCycleDuration>();
-            if (std::option::is_some(&cycle_info.transition_state)) {
-                let transition_state = std::option::borrow_mut(&mut cycle_info.transition_state);
-                transition_state.new_cycle_duration = buffer.duration_secs;
-            } else {
-                cycle_info.duration_secs = buffer.duration_secs;
-            }
+        // In case if between supra-framework update and migration step the config has been updated using the new API.
+        update_config_from_buffer(cycle_info)
+    }
+
+    /// The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
+    fun update_config_from_buffer(cycle_info: &mut AutomationCycleDetails) acquires ActiveAutomationRegistryConfig {
+        if (!config_buffer::does_exist<AutomationRegistryConfigV2>()) {
+            return
         };
+        let buffer = config_buffer::extract<AutomationRegistryConfigV2>();
+        let automation_registry_config = &mut borrow_global_mut<ActiveAutomationRegistryConfig>(
+            @supra_framework
+        ).main_config;
+        automation_registry_config.task_duration_cap_in_secs = buffer.task_duration_cap_in_secs;
+        automation_registry_config.registry_max_gas_cap = buffer.registry_max_gas_cap;
+        automation_registry_config.automation_base_fee_in_quants_per_sec = buffer.automation_base_fee_in_quants_per_sec;
+        automation_registry_config.flat_registration_fee_in_quants = buffer.flat_registration_fee_in_quants;
+        automation_registry_config.congestion_threshold_percentage = buffer.congestion_threshold_percentage;
+        automation_registry_config.congestion_base_fee_in_quants_per_sec = buffer.congestion_base_fee_in_quants_per_sec;
+        automation_registry_config.congestion_exponent = buffer.congestion_exponent;
+        automation_registry_config.task_capacity = buffer.task_capacity;
+
+        if (std::option::is_some(&cycle_info.transition_state)) {
+            let transition_state = std::option::borrow_mut(&mut cycle_info.transition_state);
+            transition_state.new_cycle_duration = buffer.cycle_duration_secs;
+        } else {
+            cycle_info.duration_secs = buffer.cycle_duration_secs;
+        }
     }
 
     /// Transfers the specified fee amount from the resource account to the target account.
@@ -5961,7 +6026,139 @@ module supra_framework::automation_registry {
         migrate_v2(framework, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
     }
 
-    #[test]
+    #[test(framework = @supra_framework, user = @0x1cafa)]
+    fun check_transitions_to_ready_from_suspended(framework: &signer, user: &signer)
+    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationRefundBookkeeping {
+        initialize_registry_test(framework, user);
+        let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
+        let automation_fee_cap = 100_000_000;
+        let task_exists = true;
+        let t1_t2_max_gas_amount = 44_000_000;
+        let t3_max_gas_amount = 11_000_000;
+        let fwk_address = address_of(framework);
+
+        let task1 = register_with_state(
+            framework,
+            user,
+            t1_t2_max_gas_amount,
+            automation_fee_cap,
+            task_exipry_time,
+            ACTIVE);
+
+        let new_cycle_duration = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS;
+        update_config_v2(
+            framework,
+            3 * EPOCH_INTERVAL_FOR_TEST_IN_SECS ,
+            AUTOMATION_MAX_GAS_TEST,
+            AUTOMATION_BASE_FEE_TEST,
+            FLAT_REGISTRATION_FEE_TEST,
+            CONGESTION_THRESHOLD_TEST,
+            CONGESTION_BASE_FEE_TEST,
+            CONGESTION_EXPONENT_TEST,
+            TASK_CAPACITY_TEST,
+            new_cycle_duration
+        );
+
+        let expected_cycle_duration = {
+            let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
+            assert!(cycle_details.state == CYCLE_STARTED, 1);
+            cycle_details.duration_secs
+        };
+        toggle_feature_flag(framework, false);
+        on_new_epoch();
+        {
+            let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
+            let config = borrow_global<ActiveAutomationRegistryConfig>(fwk_address);
+            assert!(cycle_details.state == CYCLE_SUSPENDED, 2);
+            assert!(std::option::is_some(&cycle_details.transition_state), 3);
+            assert!(cycle_details.duration_secs == expected_cycle_duration, 4);
+            let transition_state = std::option::borrow<TransitionState>(&cycle_details.transition_state);
+            assert!(transition_state.new_cycle_duration == expected_cycle_duration, 5);
+            // updated configs are not read from buffer
+            assert!(config_buffer::does_exist<AutomationRegistryConfigV2>(), 6);
+        };
+
+        // Process tasks to transition to ready state;
+        process_tasks(create_signer(@vm_reserved), vector[task1]);
+        {
+            let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
+            let config = borrow_global<ActiveAutomationRegistryConfig>(fwk_address);
+            assert!(cycle_details.state == CYCLE_READY, 7);
+            assert!(std::option::is_none(&cycle_details.transition_state), 8);
+            // still, updated configs are not read from buffer
+            assert!(config_buffer::does_exist<AutomationRegistryConfigV2>(), 9);
+
+        };
+
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafa)]
+    fun check_transitions_to_ready_from_finished_suspended(framework: &signer, user: &signer)
+    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationRefundBookkeeping {
+        initialize_registry_test(framework, user);
+        let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
+        let automation_fee_cap = 100_000_000;
+        let task_exists = true;
+        let t1_t2_max_gas_amount = 44_000_000;
+        let t3_max_gas_amount = 11_000_000;
+        let fwk_address = address_of(framework);
+
+        let task1 = register_with_state(
+            framework,
+            user,
+            t1_t2_max_gas_amount,
+            automation_fee_cap,
+            task_exipry_time,
+            CANCELLED);
+
+        let task2 = register_with_state(
+            framework,
+            user,
+            t1_t2_max_gas_amount,
+            automation_fee_cap,
+            task_exipry_time,
+            CANCELLED);
+
+        let new_cycle_duration = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS;
+        update_config_v2(
+            framework,
+            3 * EPOCH_INTERVAL_FOR_TEST_IN_SECS ,
+            AUTOMATION_MAX_GAS_TEST,
+            AUTOMATION_BASE_FEE_TEST,
+            FLAT_REGISTRATION_FEE_TEST,
+            CONGESTION_THRESHOLD_TEST,
+            CONGESTION_BASE_FEE_TEST,
+            CONGESTION_EXPONENT_TEST,
+            TASK_CAPACITY_TEST,
+            new_cycle_duration
+        );
+        timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+        monitor_cycle_end();
+        toggle_feature_flag(framework, false);
+        on_new_epoch();
+
+        let expected_cycle_duration = {
+            let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
+            assert!(cycle_details.state == CYCLE_SUSPENDED, 1);
+            cycle_details.duration_secs
+        };
+
+        // Process tasks to transition to ready state;
+        process_tasks(create_signer(@vm_reserved), vector[task1, task2]);
+        {
+            let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
+            let config = borrow_global<ActiveAutomationRegistryConfig>(fwk_address);
+            assert!(cycle_details.state == CYCLE_READY, 6);
+            assert!(std::option::is_some(&cycle_details.transition_state), 7);
+            assert!(cycle_details.duration_secs == expected_cycle_duration, 8);
+            let transition_state = std::option::borrow<TransitionState>(&cycle_details.transition_state);
+            assert!(transition_state.new_cycle_duration == new_cycle_duration, 9);
+            assert!(vector::is_empty(&transition_state.expected_tasks_to_be_processed), 10);
+        };
+
+    }
+
+    #[test_only]
     fun check_vector_contains_perform() {
         let tvector = vector[];
         let count = 0;
