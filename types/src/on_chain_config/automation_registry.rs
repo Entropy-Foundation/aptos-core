@@ -1,7 +1,6 @@
 // Copyright (c) 2025 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::on_chain_config::OnChainConfig;
 use move_core_types::account_address::AccountAddress;
 use move_core_types::value::{serialize_values, MoveValue};
 use serde::{Deserialize, Serialize};
@@ -14,6 +13,7 @@ const DEFAULT_CONGESTION_THRESHOLD_PERCENTAGE: u8 = 80;
 const DEFAULT_CONGESTION_BASE_FEE_IN_QUANTS_PER_SEC: u64 = 100;
 const DEFAULT_CONGESTION_EXPONENT: u8 = 6;
 const DEFAULT_TASK_CAPACITY: u16 = 500;
+const DEFAULT_CYCLE_DURATION_SECS: u64 = 1200;
 
 /// Initial version of configuration parameters for Supra native automation feature
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Eq)]
@@ -38,6 +38,8 @@ pub struct AutomationRegistryConfigV1 {
     congestion_exponent: u8,
     /// Maximum number of tasks that registry can hold.
     task_capacity: u16,
+    /// Cycle duration in seconds
+    cycle_duration_secs: u64,
 }
 
 impl Default for AutomationRegistryConfigV1 {
@@ -51,6 +53,7 @@ impl Default for AutomationRegistryConfigV1 {
             congestion_base_fee_in_quants_per_sec: DEFAULT_CONGESTION_BASE_FEE_IN_QUANTS_PER_SEC,
             congestion_exponent: DEFAULT_CONGESTION_EXPONENT,
             task_capacity: DEFAULT_TASK_CAPACITY,
+            cycle_duration_secs: DEFAULT_CYCLE_DURATION_SECS,
         }
     }
 }
@@ -85,6 +88,10 @@ impl AutomationRegistryConfigV1 {
     pub fn task_capacity(&self) -> u16 {
         self.task_capacity
     }
+
+    pub fn cycle_duration_secs(&self) -> u64 {
+        self.cycle_duration_secs
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Eq)]
@@ -114,6 +121,7 @@ impl AutomationRegistryConfig {
             MoveValue::U64(config.congestion_base_fee_in_quants_per_sec()),
             MoveValue::U8(config.congestion_exponent()),
             MoveValue::U16(config.task_capacity()),
+            MoveValue::U64(config.cycle_duration_secs()),
         ];
         serialize_values(&arguments)
     }
@@ -123,9 +131,4 @@ impl From<AutomationRegistryConfigV1> for AutomationRegistryConfig {
     fn from(config: AutomationRegistryConfigV1) -> Self {
         Self::V1(config)
     }
-}
-
-impl OnChainConfig for AutomationRegistryConfig {
-    const MODULE_IDENTIFIER: &'static str = "automation_registry";
-    const TYPE_IDENTIFIER: &'static str = "AutomationRegistryConfig";
 }

@@ -579,7 +579,7 @@ fn initialize_supra_native_automation(
     exec_function(
         session,
         GENESIS_MODULE_NAME,
-        "initialize_supra_native_automation",
+        "initialize_supra_native_automation_v2",
         vec![],
         config.serialize_into_move_values_with_signer(CORE_CODE_ADDRESS),
     );
