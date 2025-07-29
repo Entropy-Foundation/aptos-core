@@ -21,6 +21,7 @@ use crate::{
     move_tool::{
         bytecode::{Decompile, Disassemble},
         coverage::SummaryCoverage,
+        fmt::Fmt,
         manifest::{Dependency, ManifestNamedAddress, MovePackageManifest, PackageInfo},
     },
     CliCommand, CliResult,
@@ -72,6 +73,7 @@ use url::Url;
 mod aptos_debug_natives;
 mod bytecode;
 pub mod coverage;
+pub mod fmt;
 mod manifest;
 pub mod package_hooks;
 mod show;
@@ -109,6 +111,7 @@ pub enum MoveTool {
     VerifyPackage(VerifyPackage),
     View(ViewFunction),
     Replay(Replay),
+    Fmt(Fmt),
 }
 
 impl MoveTool {
@@ -141,6 +144,7 @@ impl MoveTool {
             MoveTool::VerifyPackage(tool) => tool.execute_serialized().await,
             MoveTool::View(tool) => tool.execute_serialized().await,
             MoveTool::Replay(tool) => tool.execute_serialized().await,
+            MoveTool::Fmt(tool) => tool.execute_serialized().await,
         }
     }
 }
@@ -644,7 +648,7 @@ pub struct IncludedArtifactsArgs {
     /// is the size of bytecode alone; `sparse` is roughly 2 times as much; and `all` 3-4
     /// as much.
     #[clap(long, default_value_t = IncludedArtifacts::Sparse)]
-    pub(crate) included_artifacts: IncludedArtifacts,
+    pub included_artifacts: IncludedArtifacts,
 }
 
 /// Publishes the modules in a Move package to the Aptos blockchain
@@ -756,7 +760,7 @@ impl FromStr for IncludedArtifacts {
 }
 
 impl IncludedArtifacts {
-    pub(crate) fn build_options(
+    pub fn build_options(
         self,
         dev: bool,
         skip_fetch_latest_git_deps: bool,
