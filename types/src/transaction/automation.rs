@@ -555,16 +555,16 @@ impl AutomationRegistryRecordBuilder {
 
     pub fn build(self) -> Result<AutomationRegistryRecord, String> {
         let Some(action) = self.action else {
-            return Err("AutomationRegistryRecordBuilder must have an action".to_string());
+            return Err("AutomationRegistryRecord must have an action".to_string());
         };
         let Some(cycle_id) = self.cycle_id else {
-            return Err("AutomationRegistryRecordBuilder must have a cycle id".to_string());
+            return Err("AutomationRegistryRecord must have a cycle id".to_string());
         };
         let Some(block_height) = self.block_height else {
-            return Err("AutomationRegistryRecordBuilder must have a block height".to_string());
+            return Err("AutomationRegistryRecord must have a block height".to_string());
         };
         let Some(record_index) = self.record_index else {
-            return Err("AutomationRegistryRecordBuilder must have a block height".to_string());
+            return Err("AutomationRegistryRecord must have an index ".to_string());
         };
         Ok(AutomationRegistryRecord::new(
             record_index,

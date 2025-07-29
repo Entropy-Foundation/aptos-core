@@ -87,7 +87,6 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `initialize`](#0x1_automation_registry_initialize)
 -  [Function `monitor_cycle_end`](#0x1_automation_registry_monitor_cycle_end)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
--  [Function `update_epoch_interval_in_registry`](#0x1_automation_registry_update_epoch_interval_in_registry)
 -  [Function `register`](#0x1_automation_registry_register)
 -  [Function `process_tasks`](#0x1_automation_registry_process_tasks)
 -  [Function `on_cycle_transition`](#0x1_automation_registry_on_cycle_transition)
@@ -3815,32 +3814,6 @@ then lifecycle is restarted.
         // Otherwise wait of the cycle transition <b>to</b> end and then feature flag value will be taken into <a href="account.md#0x1_account">account</a>.
     }
     // If in already SUSPENED state or in READY state then do nothing.
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_update_epoch_interval_in_registry"></a>
-
-## Function `update_epoch_interval_in_registry`
-
-Update epoch interval in registry while actually update happens in block module
-Deprecated since SUPRA_AUTOMATION_CYCLE feature release in favor of monitor_cycle_end
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_epoch_interval_in_registry">update_epoch_interval_in_registry</a>(_epoch_interval_microsecs: u64)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_epoch_interval_in_registry">update_epoch_interval_in_registry</a>(_epoch_interval_microsecs: u64) {
-    <b>assert</b>!(<b>false</b>, <a href="automation_registry.md#0x1_automation_registry_EDEPRECATED_SINCE_V2">EDEPRECATED_SINCE_V2</a>);
 }
 </code></pre>
 

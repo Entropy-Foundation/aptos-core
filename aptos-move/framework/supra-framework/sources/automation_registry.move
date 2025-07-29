@@ -1238,12 +1238,6 @@ module supra_framework::automation_registry {
         // If in already SUSPENED state or in READY state then do nothing.
     }
 
-    /// Update epoch interval in registry while actually update happens in block module
-    /// Deprecated since SUPRA_AUTOMATION_CYCLE feature release in favor of monitor_cycle_end
-    public(friend) fun update_epoch_interval_in_registry(_epoch_interval_microsecs: u64) {
-        assert!(false, EDEPRECATED_SINCE_V2);
-    }
-
     // Private Native VM referenced api
 
     /// Registers a new automation task entry.
@@ -6092,7 +6086,7 @@ module supra_framework::automation_registry {
         };
 
         // Process tasks to transition to ready state;
-        process_tasks(create_signer(@vm_reserved), vector[task1]);
+        process_tasks(create_signer(@vm_reserved), 1, vector[task1]);
         {
             let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
             let config = borrow_global<ActiveAutomationRegistryConfig>(fwk_address);
@@ -6157,7 +6151,7 @@ module supra_framework::automation_registry {
         };
 
         // Process tasks to transition to ready state;
-        process_tasks(create_signer(@vm_reserved), vector[task1, task2]);
+        process_tasks(create_signer(@vm_reserved), 1, vector[task1, task2]);
         {
             let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
             let config = borrow_global<ActiveAutomationRegistryConfig>(fwk_address);
