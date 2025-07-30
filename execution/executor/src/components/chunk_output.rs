@@ -336,6 +336,7 @@ pub fn update_counters_for_processed_chunk<T, O>(
             Some(Transaction::BlockEpilogue(_)) => "block_epilogue",
             Some(Transaction::ValidatorTransaction(_)) => "validator_transaction",
             Some(Transaction::AutomatedTransaction(_)) => "automated_transaction",
+            Some(Transaction::AutomationRegistryTransaction(_)) => "automation_registry_transaction",
             None => "unknown",
         };
 

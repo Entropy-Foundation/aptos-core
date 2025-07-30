@@ -61,7 +61,7 @@ use crate::serde_helper::vec_bytes;
 #[cfg(any(test, feature = "fuzzing"))]
 use crate::state_store::create_empty_sharded_state_updates;
 use crate::transaction::automated_transaction::AutomatedTransaction;
-use crate::transaction::automation::RegistrationParams;
+use crate::transaction::automation::{AutomationRegistryRecord, RegistrationParams};
 use crate::{
     block_metadata_ext::BlockMetadataExt, contract_event::TransactionEvent, executable::ModulePath,
     fee_statement::FeeStatement, proof::accumulator::InMemoryEventAccumulator,
@@ -2017,6 +2017,9 @@ pub enum Transaction {
     /// Verification is skipped for this type of transaction as it is auto-generated from state
     /// and is considered as `SignatureVerifiedTransaction::Valid` by default
     AutomatedTransaction(AutomatedTransaction),
+
+    /// An automation registry function/action to be executed on cycle state transition.
+    AutomationRegistryTransaction(AutomationRegistryRecord),
 }
 
 impl From<BlockMetadataExt> for Transaction {
@@ -2074,6 +2077,7 @@ impl Transaction {
             Transaction::ValidatorTransaction(vt) => vt.type_name(),
             Transaction::BlockMetadataExt(_) => "block_metadata_ext",
             Transaction::AutomatedTransaction(_) => "automated_transaction",
+            Transaction::AutomationRegistryTransaction(_) => "automation_registry_transaction",
         }
     }
 
@@ -2090,6 +2094,7 @@ impl Transaction {
             | Transaction::BlockMetadata(_)
             | Transaction::BlockMetadataExt(_)
             | Transaction::AutomatedTransaction(_)
+            | Transaction::AutomationRegistryTransaction(_)
             | Transaction::ValidatorTransaction(_) => false,
         }
     }

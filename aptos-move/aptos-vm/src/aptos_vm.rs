@@ -152,8 +152,9 @@ macro_rules! unwrap_or_discard {
     };
 }
 
-pub(crate) use unwrap_or_discard;
+use crate::automation_registry_transaction_processor::AutomationRegistryTransactionProcessor;
 use crate::gas::check_automation_task_gas;
+pub(crate) use unwrap_or_discard;
 
 pub(crate) fn get_system_transaction_output(
     session: SessionExt,
@@ -2636,6 +2637,13 @@ impl AptosVM {
             },
             Transaction::AutomatedTransaction(txn) => AutomatedTransactionProcessor::new(self)
                 .execute_transaction(resolver, txn, log_context),
+            Transaction::AutomationRegistryTransaction(txn) => {
+                AutomationRegistryTransactionProcessor::new(self).execute_transaction(
+                    resolver,
+                    txn,
+                    log_context,
+                )?
+            },
         })
     }
 

@@ -4,6 +4,8 @@
 use move_core_types::account_address::AccountAddress;
 use move_core_types::value::{serialize_values, MoveValue};
 use serde::{Deserialize, Serialize};
+use crate::on_chain_config::OnChainConfig;
+use move_core_types::{ident_str, identifier::IdentStr, move_resource::MoveStructType};
 
 const ONE_MONTH_IN_SECS: u64 = 2_626_560;
 const DEFAULT_REGISTRY_MAX_GAS_CAP: u64 = 100_000_000;
@@ -132,3 +134,93 @@ impl From<AutomationRegistryConfigV1> for AutomationRegistryConfig {
         Self::V1(config)
     }
 }
+
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[repr(u8)]
+pub enum AutomationCycleState {
+    #[default]
+    READY = 0,
+    STARTED,
+    FINISHED,
+    SUSPENDED
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct AutomationCycleInfo {
+    /// Current cycle id. Incremented when a start of a new cycle is given.
+    pub index: u64,
+    /// State of the current cycle.
+    pub state: AutomationCycleState,
+    /// Current cycle start time which is updated with the current chain time when a cycle is incremented.
+    pub start_time: u64,
+    /// Automation cycle duration in seconds.
+    pub duration_secs: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AutomationCycleEvent {
+    /// Updated cycle state information.
+    pub cycle_state_info: AutomationCycleInfo,
+    /// The state transitioned from
+    pub old_state: AutomationCycleState,
+}
+
+impl MoveStructType for AutomationCycleEvent {
+    const MODULE_NAME: &'static IdentStr = ident_str!("automation_registry");
+    const STRUCT_NAME: &'static IdentStr = ident_str!("AutomationCycleEvent");
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AutomationCycleTransitionState {
+    /// Refund duration of automation fees when automation feature/cycle is suspended.
+    pub refund_duration: u64,
+    /// Duration of the new cycle to charge fees for.
+    pub new_cycle_duration: u64,
+    /// Calculated automation fee per second for a new cycle or for refund period.
+    pub automation_fee_per_sec: u64,
+    /// Gas committed for the new cycle being transitioned.
+    pub gas_committed_for_new_cycle: u64,
+    /// Gas committed for the next cycle.
+    pub gas_committed_for_next_cycle: u64,
+    /// Total fee charged from users for the new cycle, which is not withdrawable.
+    pub locked_fees: u64,
+    /// List of the tasks to be processed during transition.
+    pub expected_tasks_to_be_processed: Vec<u64>,
+    /// So far processed tasks during transition
+    /// In case if transition spans between multiple blocks then
+    /// upon recovery execution component will know the breaking point and can recover from it.
+    pub actual_processed_tasks: Vec<u64>
+}
+
+/// On-chain Automation Cycle Details.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AutomationCycleDetails {
+    /// Cycle index corresponding to the current state. Incremented when a transition to the new cycle is finalized.
+    pub index: u64,
+    /// State of the current cycle.
+    pub state: AutomationCycleState,
+    /// Current cycle start time which is updated with the current chain time when a cycle is incremented.
+    pub start_time: u64,
+    /// Automation cycle duration in seconds for the current cycle.
+    pub duration_secs: u64,
+    /// Intermediate state of cycle transition to next one or suspended state.
+    pub transition_state: Option<AutomationCycleTransitionState>,
+}
+
+impl From<AutomationCycleDetails> for AutomationCycleInfo {
+    fn from(details: AutomationCycleDetails) -> Self {
+        Self {
+            index: details.index,
+            state: details.state,
+            start_time: details.start_time,
+            duration_secs: details.duration_secs,
+        }
+    }
+}
+
+impl OnChainConfig for AutomationCycleDetails {
+    const MODULE_IDENTIFIER: &'static str = "automation_registry";
+    const TYPE_IDENTIFIER: &'static str = "AutomationCycleDetails";
+}
+

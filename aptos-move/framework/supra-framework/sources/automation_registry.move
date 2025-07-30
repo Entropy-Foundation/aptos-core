@@ -97,6 +97,8 @@ module supra_framework::automation_registry {
     const ECYCLE_TRANSITION_IN_PROGRESS: u64 = 32;
     /// Attempt to run operation in invalid registry state.
     const EINVALID_REGISTRY_STATE: u64 = 33;
+    /// The tasks are requested to be processed from invalid cycle.
+    const EINVALID_INPUT_CYCLE_INDEX: u64 = 34;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -285,7 +287,7 @@ module supra_framework::automation_registry {
         index: u64,
         /// State of the current cycle.
         state: u8,
-        /// Current cycle start time which is updated with the current chain time when a cycle is increamented.
+        /// Current cycle start time which is updated with the current chain time when a cycle is incremented.
         start_time: u64,
         /// Automation cycle duration in seconds.
         duration_secs: u64,
@@ -300,14 +302,15 @@ module supra_framework::automation_registry {
         old_state: u8,
     }
 
-    #[resource_group_member(group = supra_framework::object::ObjectGroup)]
+    // Unless we provide view API to get the details, it should not be part of any resouce group to be
+    // able to fetch via OnChainConfig API
     /// Cycle state.
     struct AutomationCycleDetails has key, copy, drop {
         /// Cycle index corresponding to the current state. Incremented when a transition to the new cycle is finalized.
         index: u64,
         /// State of the current cycle.
         state: u8,
-        /// Current cycle start time which is updated with the current chain time when a cycle is increamented.
+        /// Current cycle start time which is updated with the current chain time when a cycle is incremented.
         start_time: u64,
         /// Automation cycle duration in seconds for the current cycle.
         duration_secs: u64,
@@ -1196,7 +1199,7 @@ module supra_framework::automation_registry {
     /// If native automation feature is enabled and automation lifecycle has been in CYCLE_READY state,
     /// then lifecycle is restarted.
     public(friend) fun on_new_epoch() acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry {
-        if (!is_initialized()) {
+        if (!is_initialized() || !features::supra_automation_cycle_enabled()) {
             return
         };
         let cycle_info = borrow_global_mut<AutomationCycleDetails>(@supra_framework);
@@ -1233,12 +1236,6 @@ module supra_framework::automation_registry {
             // Otherwise wait of the cycle transition to end and then feature flag value will be taken into account.
         }
         // If in already SUSPENED state or in READY state then do nothing.
-    }
-
-    /// Update epoch interval in registry while actually update happens in block module
-    /// Deprecated since SUPRA_AUTOMATION_CYCLE feature release in favor of monitor_cycle_end
-    public(friend) fun update_epoch_interval_in_registry(_epoch_interval_microsecs: u64) {
-        assert!(false, EDEPRECATED_SINCE_V2);
     }
 
     // Private Native VM referenced api
@@ -1339,23 +1336,28 @@ module supra_framework::automation_registry {
 
 
     /// Called by MoveVm on `AutomationBookkeepingAction::Process` action emitted by native layer ahead of cycle transition
-    fun process_tasks(vm: signer, task_indexes: vector<u64>
+    fun process_tasks(
+        vm: signer,
+        cycle_index: u64,
+        task_indexes: vector<u64>
     ) acquires AutomationCycleDetails, AutomationRegistry, AutomationRefundBookkeeping, ActiveAutomationRegistryConfig {
         // Operational constraint: can only be invoked by the VM
         system_addresses::assert_vm(&vm);
         let cycle_info = borrow_global<AutomationCycleDetails>(@supra_framework);
         if (cycle_info.state == CYCLE_FINISHED) {
-            on_cycle_transition(task_indexes);
+            on_cycle_transition(cycle_index, task_indexes);
             return
         };
         assert!(cycle_info.state == CYCLE_SUSPENDED, EINVALID_REGISTRY_STATE);
-        on_cycle_suspend(task_indexes);
+        on_cycle_suspend(cycle_index, task_indexes);
     }
 
     // Private helper functions
 
     /// Traverses the list of the tasks and based on the task state and expiry information either charges or drops
-    /// the task after refunding eligable fees
+    /// the task after refunding eligable fees.
+    ///
+    /// Input cycle index corresponds to the new cycle to which the transition is being done.
     ///
     /// Tasks are cheked not to be processed more than once.
     /// This function should be called only if registry is in CYCLE_FINISHED state, meaning a normal cycle transition is
@@ -1366,7 +1368,7 @@ module supra_framework::automation_registry {
     ///
     /// In case if transition end is detected a start of the new cycle is given
     /// (if during trasition period suspention is not requested) and corresponding event is emitted.
-    fun on_cycle_transition(task_indexes: vector<u64>)
+    fun on_cycle_transition(cycle_index: u64, task_indexes: vector<u64>)
     acquires AutomationCycleDetails, AutomationRefundBookkeeping, AutomationRegistry, ActiveAutomationRegistryConfig {
         if (vector::is_empty(&task_indexes)) {
             return
@@ -1375,6 +1377,7 @@ module supra_framework::automation_registry {
         let cycle_info = borrow_global_mut<AutomationCycleDetails>(@supra_framework);
         assert!(cycle_info.state == CYCLE_FINISHED, EINVALID_REGISTRY_STATE);
         assert!(std::option::is_some(&cycle_info.transition_state), EINVALID_REGISTRY_STATE);
+        assert!(cycle_info.index + 1 == cycle_index, EINVALID_INPUT_CYCLE_INDEX);
 
         let transition_state = std::option::borrow_mut(&mut cycle_info.transition_state);
 
@@ -1420,11 +1423,13 @@ module supra_framework::automation_registry {
     /// Traverses the list of the tasks and refunds automation(if not PENDING) and depoist fees for all tasks
     /// and removes from registry.
     ///
+    /// Input cycle index corresponds to the cycle being suspended.
+    ///
     /// This function is called only if automation feature is disabled, i.e. CYCLE_SUSPENDED state.
     ///
     /// After processing input set of tasks the end of suspention process is checked(i.e. all expected tasks has been processed).
     /// In case if end is identified the registry state is update to CYCLE_READY and corresponding event is emitted.
-    fun on_cycle_suspend(task_indexes: vector<u64> )
+    fun on_cycle_suspend(cycle_index: u64, task_indexes: vector<u64> )
     acquires AutomationCycleDetails, AutomationRefundBookkeeping, AutomationRegistry, ActiveAutomationRegistryConfig {
 
         if (vector::is_empty(&task_indexes)) {
@@ -1434,6 +1439,7 @@ module supra_framework::automation_registry {
         let cycle_info = borrow_global_mut<AutomationCycleDetails>(@supra_framework);
         assert!(cycle_info.state == CYCLE_SUSPENDED, EINVALID_REGISTRY_STATE);
         assert!(std::option::is_some(&cycle_info.transition_state), EINVALID_REGISTRY_STATE);
+        assert!(cycle_info.index == cycle_index, EINVALID_INPUT_CYCLE_INDEX);
         let transition_state = std::option::borrow_mut(&mut cycle_info.transition_state);
 
 
@@ -3578,7 +3584,7 @@ module supra_framework::automation_registry {
 
         timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
         monitor_cycle_end();
-        process_tasks(create_signer(@vm_reserved), vector[0]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[0]);
 
         // 10 - automation_epoch_fee_per_second, 7200 epoch duration
         let expected_automation_fee = 10 * EPOCH_INTERVAL_FOR_TEST_IN_SECS;
@@ -3619,7 +3625,7 @@ module supra_framework::automation_registry {
 
         timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
         monitor_cycle_end();
-        process_tasks(create_signer(@vm_reserved), vector[0]);
+        process_tasks(create_signer(@vm_reserved),2, vector[0]);
 
         has_task_with_id(0);
 
@@ -3683,7 +3689,7 @@ module supra_framework::automation_registry {
             assert!(cycle_details.state == CYCLE_FINISHED, 0);
         };
         // Make sure that we attempt to drop only cancelled and expired tasks, to avoid any asserts in this scenario
-        process_tasks(create_signer(@vm_reserved), vector[task2, task3]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[task2, task3]);
 
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
@@ -3738,7 +3744,7 @@ module supra_framework::automation_registry {
         // Make sure we are in FINISHED state
         monitor_cycle_end();
         // Make sure that we attempt to drop only cancelled and expired tasks, to avoid any asserts in this scenario
-        process_tasks(create_signer(@vm_reserved), vector[task1]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[task1]);
 
         let ar = borrow_global<AutomationRegistry>(fwk_address);
         let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
@@ -3781,8 +3787,8 @@ module supra_framework::automation_registry {
         // Make sure we are in FINISHED state
         monitor_cycle_end();
         // Make sure that we attempt to drop only cancelled and expired tasks, to avoid any asserts in this scenario
-        process_tasks(create_signer(@vm_reserved), vector[]);
-        process_tasks(create_signer(@vm_reserved), vector[5]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[5]);
 
         let ar = borrow_global<AutomationRegistry>(fwk_address);
         let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
@@ -3818,7 +3824,7 @@ module supra_framework::automation_registry {
             task_exipry_time,
             ACTIVE);
         // Attempt to drop in STARTED state
-        process_tasks(create_signer(@vm_reserved), vector[task1]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[task1]);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
@@ -3831,7 +3837,7 @@ module supra_framework::automation_registry {
         // feature is disabled in started state, when registry is empty, moves registry in ready state
         toggle_feature_flag(framework, false);
         on_new_epoch();
-        process_tasks(create_signer(@vm_reserved), vector[0]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[0]);
     }
 
 
@@ -3895,9 +3901,9 @@ module supra_framework::automation_registry {
             // Check that we are still in finished state and processed-task are only task2 and task3
             assert!(cycle_details.state == CYCLE_FINISHED, 0);
         };
-        process_tasks(create_signer(@vm_reserved), vector[task1, task2]);
+        process_tasks(create_signer(@vm_reserved), 2,vector[task1, task2]);
         // Also check that processed tasks are ignored and charging is done only once
-        process_tasks(create_signer(@vm_reserved), vector[task1, task2]);
+        process_tasks(create_signer(@vm_reserved), 2,vector[task1, task2]);
 
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
@@ -3921,7 +3927,7 @@ module supra_framework::automation_registry {
             check_task_state(ar, task1, exists, ACTIVE);
         };
 
-        process_tasks(create_signer(@vm_reserved), vector[task3]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[task3]);
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
             let refund_bookkeeping = borrow_global<AutomationRefundBookkeeping>(fwk_address);
@@ -4022,7 +4028,7 @@ module supra_framework::automation_registry {
             // Check that we are still in finished state and processed-task are only task2 and task3
             assert!(cycle_details.state == CYCLE_FINISHED, 0);
         };
-        process_tasks(create_signer(@vm_reserved), vector[task1, task2, task3]);
+        process_tasks(create_signer(@vm_reserved),2,  vector[task1, task2, task3]);
 
         {
             // Check there are no tasks
@@ -4115,7 +4121,7 @@ module supra_framework::automation_registry {
 
         // set enough cycle fee to be able to refund
         set_locked_fee(framework, 10_000_000_000);
-        process_tasks(create_signer(@vm_reserved),  vector[task1, task2]);
+        process_tasks(create_signer(@vm_reserved),  1, vector[task1, task2]);
 
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
@@ -4142,12 +4148,12 @@ module supra_framework::automation_registry {
         };
 
         // Empty input does not cause issues
-        process_tasks(create_signer(@vm_reserved),  vector[]);
+        process_tasks(create_signer(@vm_reserved),  1, vector[]);
 
         // Non existing item does not cause issues
-        process_tasks(create_signer(@vm_reserved),  vector[10, 12]);
+        process_tasks(create_signer(@vm_reserved),  1, vector[10, 12]);
 
-        process_tasks(create_signer(@vm_reserved),  vector[task1, task2, task3]);
+        process_tasks(create_signer(@vm_reserved),  1, vector[task1, task2, task3]);
 
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
@@ -4226,7 +4232,7 @@ module supra_framework::automation_registry {
 
         };
 
-        process_tasks(create_signer(@vm_reserved),  vector[task1, task2]);
+        process_tasks(create_signer(@vm_reserved),  1, vector[task1, task2]);
 
         let ar = borrow_global<AutomationRegistry>(fwk_address);
         let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
@@ -4294,7 +4300,7 @@ module supra_framework::automation_registry {
 
         };
 
-        process_tasks(create_signer(@vm_reserved),  vector[task1, task2]);
+        process_tasks(create_signer(@vm_reserved),  1, vector[task1, task2]);
 
         let ar = borrow_global<AutomationRegistry>(fwk_address);
         let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
@@ -4523,7 +4529,7 @@ module supra_framework::automation_registry {
         let total_committed_gas_for_new_cycle = t1_t2_max_gas + t3_max_gas;
         let automation_fee_per_sec_for_new_cycle = calculate_automation_fee_multiplier_for_committed_occupancy(total_committed_gas_for_new_cycle);
         // Drop one task to mark transition initiated
-        process_tasks(create_signer(@vm_reserved), vector[t2]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[t2]);
         // Disable feature and call on new epoch to check that when transition to suspened state from started no config is updated
         let expected_cycle_duration =
         {
@@ -4615,7 +4621,7 @@ module supra_framework::automation_registry {
             assert!(std::option::is_some(&cycle_details.transition_state), 2);
         };
 
-        process_tasks(create_signer(@vm_reserved), vector[0]);
+        process_tasks(create_signer(@vm_reserved), 1, vector[0]);
         {
             let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
             assert!(cycle_details.state == CYCLE_READY, 3);
@@ -4986,7 +4992,7 @@ module supra_framework::automation_registry {
         let committed_gas_for_new_cycle = 2 * t1_t2_max_gas + t3_max_gas;
 
         // Not only charges will be applied but also state will be updated to STARTED as all expected tasks will be processed.
-        process_tasks(create_signer(@vm_reserved), vector[t1, t2, t3]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[t1, t2, t3]);
 
         let tcmg = (committed_gas_for_new_cycle as u256);
         let user_address = address_of(user);
@@ -5214,7 +5220,7 @@ module supra_framework::automation_registry {
         let committed_gas_for_new_cycle = 4 * max_gas_amount;
 
         // Not only charges will be applied but also state will be updated to STARTED as all expected tasks will be processed.
-        process_tasks(create_signer(@vm_reserved), vector[t1, t2, t3, t4]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[t1, t2, t3, t4]);
 
         assert!(committed_gas_for_new_cycle == get_gas_committed_for_next_epoch(), 1);
         let active_task_ids = get_active_task_ids();
@@ -5366,7 +5372,7 @@ module supra_framework::automation_registry {
         // Start new cycle
         timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
         monitor_cycle_end();
-        process_tasks(create_signer(@vm_reserved), vector[0]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[0]);
 
         // 0.002 - automation_epoch_fee_per_second, 7200 epoch duration
         let expected_automation_fee = 2000 * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100000;
@@ -5643,6 +5649,7 @@ module supra_framework::automation_registry {
     //  - last epoch identifies all tasks are expired
     // #[test(framework = @supra_framework, user = @0x1cafe)]
     fun process_tasks_in_batch_performance(
+        cycle_index:u64,
     ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails {
         let task_indexes = get_task_ids();
         let count = vector::length(&task_indexes);
@@ -5651,7 +5658,7 @@ module supra_framework::automation_registry {
         while (i < count) {
             let vm_signer = create_signer(@vm_reserved);
             let task_partition = vector::range(i, i + batch);
-            process_tasks(vm_signer, task_partition);
+            process_tasks(vm_signer, cycle_index, task_partition);
             i = i + batch;
         };
     }
@@ -5672,17 +5679,17 @@ module supra_framework::automation_registry {
 
         timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
         monitor_cycle_end();
-        process_tasks_in_batch_performance();
+        process_tasks_in_batch_performance(2);
 
         timestamp::update_global_time_for_test_secs(
             EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS
         );
         monitor_cycle_end();
-        process_tasks_in_batch_performance();
+        process_tasks_in_batch_performance(3);
 
         timestamp::update_global_time_for_test_secs(3 * EPOCH_INTERVAL_FOR_TEST_IN_SECS);
         monitor_cycle_end();
-        process_tasks_in_batch_performance();
+        process_tasks_in_batch_performance(4);
     }
 
 
@@ -5722,7 +5729,7 @@ module supra_framework::automation_registry {
             assert!(cycle_details.state == CYCLE_FINISHED, 0);
         };
         // Make sure that we attempt to drop only cancelled and expired tasks, to avoid any asserts in this scenario
-        process_tasks(create_signer(@vm_reserved), vector[task1]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[task1]);
 
         toggle_feature_flag(framework, false);
         on_new_epoch();
@@ -5733,7 +5740,7 @@ module supra_framework::automation_registry {
         };
 
         // Make sure that we attempt to drop only cancelled and expired tasks, to avoid any asserts in this scenario
-        process_tasks(create_signer(@vm_reserved), vector[task2]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[task2]);
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
             assert!(ar.gas_committed_for_next_epoch == 0, 1);
@@ -5844,7 +5851,7 @@ module supra_framework::automation_registry {
 
         // Process the single task which will lead to the state to be updated to STARTED again
         recent_chain_time = timestamp::now_seconds();
-        process_tasks(create_signer(@vm_reserved), vector[0]);
+        process_tasks(create_signer(@vm_reserved), 3, vector[0]);
         check_cycle_state(CYCLE_STARTED, 3, recent_chain_time, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
     }
 
@@ -5955,7 +5962,7 @@ module supra_framework::automation_registry {
 
         // Process tasks and check the registry state after it
         let total_committed_gas_for_new_cycle = t1_t2_max_gas_amount + t3_max_gas_amount; // task 2 was cancelled.
-        process_tasks(create_signer(@vm_reserved), vector[task1, task2, task3]);
+        process_tasks(create_signer(@vm_reserved), 1, vector[task1, task2, task3]);
         check_cycle_state(CYCLE_STARTED, 1, timestamp::now_seconds(), EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
 
         {
@@ -6079,7 +6086,7 @@ module supra_framework::automation_registry {
         };
 
         // Process tasks to transition to ready state;
-        process_tasks(create_signer(@vm_reserved), vector[task1]);
+        process_tasks(create_signer(@vm_reserved), 1, vector[task1]);
         {
             let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
             let config = borrow_global<ActiveAutomationRegistryConfig>(fwk_address);
@@ -6144,7 +6151,7 @@ module supra_framework::automation_registry {
         };
 
         // Process tasks to transition to ready state;
-        process_tasks(create_signer(@vm_reserved), vector[task1, task2]);
+        process_tasks(create_signer(@vm_reserved), 1, vector[task1, task2]);
         {
             let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
             let config = borrow_global<ActiveAutomationRegistryConfig>(fwk_address);
