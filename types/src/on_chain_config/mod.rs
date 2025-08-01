@@ -65,7 +65,7 @@ pub use self::{
     timestamp::CurrentTimeMicroseconds,
     transaction_fee::TransactionFeeBurnCap,
     validator_set::{ConsensusScheme, ValidatorSet},
-    evm_genesis_config::OnChainEvmGenesisConfig,
+    evm_genesis_config::{OnChainEvmGenesisConfig, GenesisEvmContract, GenesisEvmEOA},
     automation_registry::{AutomationRegistryConfig, AutomationRegistryConfigV1}
 };
 

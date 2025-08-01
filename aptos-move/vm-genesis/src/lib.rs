@@ -248,6 +248,7 @@ pub fn encode_genesis_transaction_for_testnet(
     execution_config: &OnChainExecutionConfig,
     gas_schedule: &GasScheduleV2,
     supra_config_bytes: Vec<u8>,
+    evm_genesis_config: Option<OnChainEvmGenesisConfig>,
 ) -> Transaction {
     Transaction::GenesisTransaction(WriteSetPayload::Direct(
         encode_genesis_change_set_for_testnet(
@@ -267,6 +268,7 @@ pub fn encode_genesis_transaction_for_testnet(
             execution_config,
             gas_schedule,
             supra_config_bytes,
+            evm_genesis_config,
         ),
     ))
 }
@@ -288,7 +290,7 @@ pub fn encode_genesis_change_set_for_testnet(
     execution_config: &OnChainExecutionConfig,
     gas_schedule: &GasScheduleV2,
     supra_config_bytes: Vec<u8>,
-    evm_genesis_config: OnChainEvmGenesisConfig,
+    evm_genesis_config: Option<OnChainEvmGenesisConfig>,
 ) -> ChangeSet {
     validate_genesis_config(genesis_config);
 
@@ -338,7 +340,10 @@ pub fn encode_genesis_change_set_for_testnet(
     initialize_randomness_resources(&mut session);
     initialize_on_chain_governance(&mut session, genesis_config);
 
-    initialize_evm_genesis_config(&mut session, &evm_genesis_config);
+    if let Some(evm_genesis_config) = evm_genesis_config {
+        initialize_evm_genesis_config(&mut session, &evm_genesis_config);
+    }
+
     create_accounts(&mut session, accounts);
 
     if let Some(owner_group) = owner_group {
@@ -1243,6 +1248,7 @@ pub fn generate_test_genesis(
         &OnChainExecutionConfig::default_for_genesis(),
         &default_gas_schedule(),
         b"test".to_vec(),
+        None,
     );
     (genesis, test_validators)
 }
@@ -1273,6 +1279,7 @@ pub fn generate_mainnet_genesis(
         &OnChainExecutionConfig::default_for_genesis(),
         &default_gas_schedule(),
         b"test".to_vec(),
+        None,
     );
     (genesis, test_validators)
 }

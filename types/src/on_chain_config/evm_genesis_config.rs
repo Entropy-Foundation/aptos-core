@@ -12,13 +12,13 @@ pub struct OnChainEvmGenesisConfig {
     /// The EVM chain ID, derived from the Move chain ID.
     chain_id: u64,
     /// The EOA configurations for pre-funding at genesis.
-    eoas: Vec<GenesisEOA>,
+    eoas: Vec<GenesisEvmEOA>,
     /// The contract configurations for deployment at genesis.
-    contracts: Vec<GenesisContract>,
+    contracts: Vec<GenesisEvmContract>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct GenesisEOA {
+pub struct GenesisEvmEOA {
     /// The address of the EOA to be funded
     pub address: String,
     /// The amount of native token to fund the EOA with.
@@ -27,7 +27,7 @@ pub struct GenesisEOA {
 
 /// The Creator address and nonce determines the contract' deployment address.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct GenesisContract {
+pub struct GenesisEvmContract {
     /// The creator address of the contract.
     pub creator: String,
     /// The nonce of the creator.
@@ -40,7 +40,7 @@ pub struct GenesisContract {
 
 impl OnChainEvmGenesisConfig {
     /// Create a new OnChainEvmGenesisConfig with the given parameters.
-    pub fn new(chain_id: ChainId, eoas: Vec<GenesisEOA>, contracts: Vec<GenesisContract>) -> Self {
+    pub fn new(chain_id: ChainId, eoas: Vec<GenesisEvmEOA>, contracts: Vec<GenesisEvmContract>) -> Self {
         let chain_id = Self::derive_evm_chain_id_from_move_chain_id(chain_id);
 
         Self {
@@ -48,6 +48,10 @@ impl OnChainEvmGenesisConfig {
             eoas,
             contracts,
         }
+    }
+
+    pub fn chain_id(&self) -> u64 {
+        self.chain_id
     }
 
     /// Derive the EVM chain ID from the Move chain ID.
