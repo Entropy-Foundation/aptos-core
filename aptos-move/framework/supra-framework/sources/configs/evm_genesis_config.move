@@ -29,6 +29,7 @@ module supra_framework::evm_genesis_config {
         system_addresses::assert_supra_framework(supra_framework);
         assert!(!vector::is_empty(&config), error::invalid_argument(EINVALID_CONFIG));
         move_to(supra_framework, EvmGenesisConfig { config });
+        event::emit(EvmGenesisEvent {});
     }
 
     /// This can be called by on-chain governance to update on-chain evm configs for the next epoch.

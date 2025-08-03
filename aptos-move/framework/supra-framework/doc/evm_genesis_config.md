@@ -118,6 +118,7 @@ Publishes the EvmGenesisConfig config.
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
     <b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&config), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_genesis_config.md#0x1_evm_genesis_config_EINVALID_CONFIG">EINVALID_CONFIG</a>));
     <b>move_to</b>(supra_framework, <a href="evm_genesis_config.md#0x1_evm_genesis_config_EvmGenesisConfig">EvmGenesisConfig</a> { config });
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="evm_genesis_config.md#0x1_evm_genesis_config_EvmGenesisEvent">EvmGenesisEvent</a> {});
 }
 </code></pre>
 
