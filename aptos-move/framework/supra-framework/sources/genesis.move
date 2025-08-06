@@ -787,7 +787,6 @@ module supra_framework::genesis {
             1,
             30,
             0,
-            x"15",
         )
     }
 
