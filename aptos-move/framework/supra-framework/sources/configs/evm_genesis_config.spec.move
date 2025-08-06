@@ -13,4 +13,8 @@ spec supra_framework::evm_genesis_config {
         include config_buffer::OnNewEpochRequirement<EvmGenesisConfig>;
         aborts_if false;
     }
+
+    spec initialize(supra_framework: &signer, config: vector<u8>) {
+        pragma aborts_if_is_strict = false;
+    }
 }
