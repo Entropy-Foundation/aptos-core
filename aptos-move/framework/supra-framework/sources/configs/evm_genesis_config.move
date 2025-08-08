@@ -15,8 +15,8 @@ module supra_framework::evm_genesis_config {
         config: vector<u8>
     }
 
-    // This event can be used to signal that the EVM genesis config has been initialized or updated.
     #[event]
+    /// Event to signal EVM genesis config has been initialized or updated.
     struct EvmGenesisEvent has drop, store {}
 
     /// The provided on chain config bytes are empty or invalid
