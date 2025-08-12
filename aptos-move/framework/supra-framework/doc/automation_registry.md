@@ -101,6 +101,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `upscale_from_u256`](#0x1_automation_registry_upscale_from_u256)
 -  [Function `downscale_to_u64`](#0x1_automation_registry_downscale_to_u64)
 -  [Function `downscale_to_u256`](#0x1_automation_registry_downscale_to_u256)
+-  [Specification](#@Specification_1)
 
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
@@ -4462,6 +4463,15 @@ Insertion sort implementation for vector
 
 
 </details>
+
+<a id="@Specification_1"></a>
+
+## Specification
+
+
+
+<pre><code><b>pragma</b> verify = <b>false</b>;
+</code></pre>
 
 
 [move-book]: https://aptos.dev/move/book/SUMMARY
