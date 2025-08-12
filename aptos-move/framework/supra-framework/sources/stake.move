@@ -23,9 +23,9 @@ module supra_framework::stake {
     use std::option::{Self, Option};
     use std::signer;
     use std::vector;
-    use aptos_std::ed25519;
     use aptos_std::math64::min;
     use aptos_std::table::{Self, Table};
+    use supra_std::consensus_key;
     use supra_framework::supra_coin::SupraCoin;
     use supra_framework::account;
     use supra_framework::coin::{Self, Coin, MintCapability};
@@ -586,8 +586,9 @@ module supra_framework::stake {
         network_addresses: vector<u8>,
         fullnode_addresses: vector<u8>,
     ) acquires AllowedValidators {
+
         // Checks the public key is valid to prevent rogue-key attacks.
-        let valid_public_key = ed25519::new_validated_public_key_from_bytes(consensus_pubkey);
+        let valid_public_key = consensus_key::consensus_public_key_from_bytes(consensus_pubkey);
         assert!(option::is_some(&valid_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
 
         initialize_owner(account);
@@ -822,11 +823,11 @@ module supra_framework::stake {
         let old_consensus_pubkey = validator_info.consensus_pubkey;
         // Checks the public key is valid to prevent rogue-key attacks.
         if (!genesis) {
-            let validated_public_key = ed25519::new_validated_public_key_from_bytes(new_consensus_pubkey);
-            assert!(option::is_some(&validated_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+            let valid_public_key = consensus_key::consensus_public_key_from_bytes(new_consensus_pubkey);
+            assert!(option::is_some(&valid_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
         } else {
-            let validated_public_key = ed25519::new_validated_public_key_from_bytes(new_consensus_pubkey);
-            assert!(option::is_some(&validated_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+            let valid_public_key = consensus_key::consensus_public_key_from_bytes(new_consensus_pubkey);
+            assert!(option::is_some(&valid_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
         };
         validator_info.consensus_pubkey = new_consensus_pubkey;
 
@@ -1811,12 +1812,12 @@ module supra_framework::stake {
 
     #[test_only]
     public fun join_validator_set_for_test(
-        pk: &ed25519::UnvalidatedPublicKey,
+        pk: &consensus_key::ConsensusPublicKey,
         operator: &signer,
         pool_address: address,
         should_end_epoch: bool,
     ) acquires SupraCoinCapabilities, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
-        let pk_bytes = ed25519::unvalidated_public_key_to_bytes(pk);
+        let pk_bytes = consensus_key::public_key_to_bytes(pk);
         rotate_consensus_key(operator, pool_address, pk_bytes);
         join_validator_set(operator, pool_address);
         if (should_end_epoch) {
@@ -1889,7 +1890,7 @@ module supra_framework::stake {
 
     #[test_only]
     public fun initialize_test_validator(
-        public_key: &ed25519::UnvalidatedPublicKey,
+        public_key: &consensus_key::ConsensusPublicKey,
         validator: &signer,
         amount: u64,
         should_join_validator_set: bool,
@@ -1900,7 +1901,7 @@ module supra_framework::stake {
             account::create_account_for_test(validator_address);
         };
 
-        let pk_bytes = ed25519::unvalidated_public_key_to_bytes(public_key);
+        let pk_bytes = consensus_key::public_key_to_bytes(public_key);
         initialize_validator(validator, pk_bytes, vector::empty(), vector::empty());
 
         if (amount > 0) {
@@ -1919,7 +1920,7 @@ module supra_framework::stake {
     public fun create_validator_set(
         supra_framework: &signer,
         active_validator_addresses: vector<address>,
-        public_keys: vector<ed25519::UnvalidatedPublicKey>,
+        public_keys: vector<consensus_key::ConsensusPublicKey>,
     ) {
         let active_validators = vector::empty<ValidatorInfo>();
         let i = 0;
@@ -1930,7 +1931,7 @@ module supra_framework::stake {
                 addr: *validator_address,
                 voting_power: 0,
                 config: ValidatorConfig {
-                    consensus_pubkey: ed25519::unvalidated_public_key_to_bytes(pk),
+                    consensus_pubkey: consensus_key::public_key_to_bytes(pk),
                     network_addresses: b"",
                     fullnode_addresses: b"",
                     validator_index: 0,
@@ -1977,10 +1978,9 @@ module supra_framework::stake {
     }
 
     #[test_only]
-    public fun generate_identity(): (ed25519::SecretKey, ed25519::UnvalidatedPublicKey) {
-        let (sk, validated_pub_key) = ed25519::generate_keys();
-        let unvalidated_pk = ed25519::public_key_to_unvalidated(&validated_pub_key);
-        (sk, unvalidated_pk)
+    public fun generate_identity(): (consensus_key::SecretKey, consensus_key::ConsensusPublicKey) {
+        let (sk, pk) = consensus_key::generate_keys();
+        (sk, pk)
     }
 
     #[test(supra_framework = @supra_framework, validator = @0x123)]
@@ -2570,7 +2570,7 @@ module supra_framework::stake {
 
         initialize_for_test_custom(supra_framework, 100, 10000, LOCKUP_CYCLE_SECONDS, true, 1, 100, 100);
         let (_sk_1, pk_1) = generate_identity();
-        let pk_1_bytes = ed25519::unvalidated_public_key_to_bytes(&pk_1);
+        let pk_1_bytes = consensus_key::public_key_to_bytes(&pk_1);
         let (_sk_2, pk_2) = generate_identity();
         let (_sk_3, pk_3) = generate_identity();
         initialize_test_validator(&pk_1, validator_1, 100, false, false);
@@ -2597,7 +2597,7 @@ module supra_framework::stake {
 
         // Validator 1 rotates consensus key. Validator 2 leaves. Validator 3 joins.
         let (_sk_1b, pk_1b) = generate_identity();
-        let pk_1b_bytes = ed25519::unvalidated_public_key_to_bytes(&pk_1b);
+        let pk_1b_bytes = consensus_key::public_key_to_bytes(&pk_1b);
         rotate_consensus_key(validator_1, validator_1_address, pk_1b_bytes);
         leave_validator_set(validator_2, validator_2_address);
         join_validator_set(validator_3, validator_3_address);
@@ -2686,7 +2686,7 @@ module supra_framework::stake {
 
         // Operator can separately rotate consensus key.
         let (_sk_new, pk_new) = generate_identity();
-        let pk_new_bytes = ed25519::unvalidated_public_key_to_bytes(&pk_new);
+        let pk_new_bytes = consensus_key::public_key_to_bytes(&pk_new);
         rotate_consensus_key(validator, pool_address, pk_new_bytes);
         let validator_config = borrow_global<ValidatorConfig>(pool_address);
         assert!(validator_config.consensus_pubkey == pk_new_bytes, 2);
@@ -3059,7 +3059,7 @@ module supra_framework::stake {
         // Initialize validator config.
         let validator_address = signer::address_of(validator);
         let (_sk_new, pk_new) = generate_identity();
-        let pk_new_bytes = ed25519::unvalidated_public_key_to_bytes(&pk_new);
+        let pk_new_bytes = consensus_key::public_key_to_bytes(&pk_new);
         rotate_consensus_key(validator, validator_address, pk_new_bytes);
 
         // Join the validator set with enough stake. This now wouldn't fail since the validator config already exists.
