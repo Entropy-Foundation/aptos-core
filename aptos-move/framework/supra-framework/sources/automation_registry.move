@@ -6,8 +6,14 @@ module supra_framework::automation_registry {
 
     use std::features;
     use std::signer;
+    use std::string;
+    use std::string::String;
     use std::vector;
     use aptos_std::math64;
+    use aptos_std::simple_map;
+    use aptos_std::simple_map::SimpleMap;
+    use aptos_std::table;
+    use aptos_std::table::Table;
     use supra_framework::system_addresses::assert_supra_framework;
     use supra_framework::coin::Coin;
 
@@ -103,6 +109,10 @@ module supra_framework::automation_registry {
     const EINCONSISTENT_TRANSITION_STATE: u64 = 35;
     /// The out of order task processing has been identified during transition.
     const EOUT_OF_ORDER_TASK_PROCESSING_REQUEST: u64 = 36;
+    /// Unsupported runtime parameter key to update.
+    const EINVALID_RUNTIME_PARAMETER_KEY: u64 = 37;
+    /// Number of runtime parameter keys do not much the input values.
+    const EINCONSISTENT_RUNTIME_PARAMETERS: u64 = 38;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -297,15 +307,6 @@ module supra_framework::automation_registry {
         duration_secs: u64,
     }
 
-    #[event]
-    /// Event emitted for cycle state transition.
-    struct AutomationCycleEvent has copy, drop, store {
-        /// Updated cycle state information.
-        cycle_state_info: AutomationCycleInfo,
-        /// The state transitioned from
-        old_state: u8,
-    }
-
     // Unless we provide view API to get the details, it should not be part of any resouce group to be
     // able to fetch via OnChainConfig API
     /// Cycle state.
@@ -329,7 +330,19 @@ module supra_framework::automation_registry {
         /// Total deposited fee so far which is locked in resource account unless refund of it (fully or partially) is done.
         /// Regardless of the refunded amount the actual deposited amount is deduced to unlock it from the resource account.
         total_deposited_automation_fee: u64
-        // TODO here we can have also configuration parameter like REFUND_FACTOR
+    }
+
+    /// Encloses runtime parameters similar to control automation registry operations and prevent
+    /// defined limit breatches.
+    /// The key is the name of the parameter, and the value is the integer representation of the runtime parameter
+    /// The updated values will be stored in config buffer and will be reflected on cycle change.
+    struct RuntimeParameter has key {
+        parameters: Table<String, u64>
+    }
+
+    /// Represent RuntimeParameters in config-buffer
+    struct RuntimeParametersInBuffer has drop, store {
+        parameters: SimpleMap<String, u64>
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -520,6 +533,15 @@ module supra_framework::automation_registry {
     /// Emitted when the registration in the automation registry is disabled.
     struct DisabledRegistrationEvent has drop, store {}
 
+    #[event]
+    /// Event emitted for cycle state transition.
+    struct AutomationCycleEvent has copy, drop, store {
+        /// Updated cycle state information.
+        cycle_state_info: AutomationCycleInfo,
+        /// The state transitioned from
+        old_state: u8,
+    }
+
     /// Represents the fee charged for an automation task execution and some additional information.
     struct AutomationTaskFeeMeta has drop {
         task_index: u64,
@@ -555,6 +577,7 @@ module supra_framework::automation_registry {
             && exists<AutomationRefundBookkeeping>(@supra_framework)
             && exists<ActiveAutomationRegistryConfig>(@supra_framework)
             && exists<AutomationCycleDetails>(@supra_framework)
+            && exists<RuntimeParameter>(@supra_framework)
     }
 
     #[view]
@@ -722,7 +745,7 @@ module supra_framework::automation_registry {
     }
 
     #[view]
-    /// Calculates automation fee per second for the specified task occupancy
+    /// Calculates automation fee per second for the specified total task occupancy
     /// referencing the current automation registry fee parameters, specified total/committed occupancy and current registry
     /// maximum allowed occupancy.
     public fun calculate_automation_fee_multiplier_for_committed_occupancy(
@@ -793,6 +816,22 @@ module supra_framework::automation_registry {
         _task_capacity: u16,
     ) {
         assert!(false, EDEPRECATED_SINCE_V2);
+    }
+
+    /// Stores the key values in buffer, which will be set to on next cycle/epoch
+    public fun set_runtime_parameter(supra_framework: &signer, keys: vector<String>, values: vector<u64>)  acquires RuntimeParameter {
+        system_addresses::assert_supra_framework(supra_framework);
+        assert!(vector::length(&keys) == vector::length(&values), EINCONSISTENT_RUNTIME_PARAMETERS);
+        // check that all input keys are subset of the supported RuntimeParameters.keys
+        let runtime_params = borrow_global<RuntimeParameter>(@supra_framework);
+        let all_supported_keys = vector::all(&keys, |key| table::contains(&runtime_params.parameters, *key));
+        assert!(all_supported_keys, EINVALID_RUNTIME_PARAMETER_KEY);
+        // create a simple map and instance of RuntimeParametersInBuffer and store in config_buffer
+        let new_parameters = simple_map::new_from(keys, values);
+        let runtime_params_in_buffer = RuntimeParametersInBuffer {
+            parameters: new_parameters
+        };
+        config_buffer::upsert(runtime_params_in_buffer)
     }
 
     /// Update Automation Registry Config along with cycle duration.
@@ -1059,6 +1098,9 @@ module supra_framework::automation_registry {
         assert!(!features::supra_automation_cycle_enabled(), EINVALID_MIGRATION_ACTION);
         assert!(exists<AutomationEpochInfo>(@supra_framework), EINVALID_MIGRATION_ACTION);
 
+        // Initialize runtime parameters holding max-tasks count to be processed.
+        initialize_runtime_parameters(supra_framework);
+
         // Prepare the state for migration
         let automation_registry = borrow_global_mut<AutomationRegistry>(@supra_framework);
         let automation_epoch_info = move_from<AutomationEpochInfo>(@supra_framework);
@@ -1169,6 +1211,8 @@ module supra_framework::automation_registry {
             transition_state: std::option::none<TransitionState>(),
         });
 
+        initialize_runtime_parameters(supra_framework);
+
         initialize_refund_bookkeeping_resource(supra_framework);
 
     }
@@ -1203,10 +1247,12 @@ module supra_framework::automation_registry {
     ///
     /// If native automation feature is enabled and automation lifecycle has been in CYCLE_READY state,
     /// then lifecycle is restarted.
-    public(friend) fun on_new_epoch() acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry {
+    public(friend) fun on_new_epoch() acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, RuntimeParameter {
         if (!is_initialized() || !features::supra_automation_cycle_enabled()) {
             return
         };
+        // Runtime parameters are updated despite registry state.
+        update_runtime_parameters_from_buffer();
         let cycle_info = borrow_global_mut<AutomationCycleDetails>(@supra_framework);
         let registry_data = borrow_global<AutomationRegistry>(@supra_framework);
         if (features::supra_native_automation_enabled()) {
@@ -1244,6 +1290,19 @@ module supra_framework::automation_registry {
     }
 
     // Private Native VM referenced api
+
+    /// Creates and initializes automation registry runtime parameters
+    /// Supported:
+    ///    - max_task_count_to_process
+    fun initialize_runtime_parameters(supra_framework: &signer) {
+        system_addresses::assert_supra_framework(supra_framework);
+        let parameters = table::new<String, u64>();
+        table::add(&mut parameters, string::utf8(b"max_task_count_to_process"), 25);
+        move_to(supra_framework, RuntimeParameter {
+            parameters
+        });
+    }
+
 
     /// Registers a new automation task entry.
     fun register(
@@ -2339,6 +2398,17 @@ module supra_framework::automation_registry {
         }
     }
 
+    fun update_runtime_parameters_from_buffer() acquires RuntimeParameter {
+        if (!config_buffer::does_exist<RuntimeParametersInBuffer>()) {
+            return
+        };
+        let buffer = config_buffer::extract<RuntimeParametersInBuffer>();
+        let runtime = borrow_global_mut<RuntimeParameter>( @supra_framework);
+        let (keys, values) =
+        simple_map::to_vec_pair(buffer.parameters);
+        vector::zip(keys, values, |k, v| table::upsert(&mut runtime.parameters, k, v));
+    }
+
     /// Transfers the specified fee amount from the resource account to the target account.
     fun transfer_fee_to_account_internal(to: address, amount: u64) acquires AutomationRegistry, AutomationRefundBookkeeping {
         let automation_registry = borrow_global<AutomationRegistry>(@supra_framework);
@@ -3314,7 +3384,7 @@ module supra_framework::automation_registry {
     fun check_task_activation_on_new_epoch(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails {
+    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails, RuntimeParameter {
         initialize_registry_test(framework, user);
         register(user,
             PAYLOAD,
@@ -3853,7 +3923,7 @@ module supra_framework::automation_registry {
     fun check_tasks_processing_out_of_order_fails_in_suspended_state(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, RuntimeParameter {
         initialize_registry_test(framework, user);
         let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
         let automation_fee_cap = 100_000_000;
@@ -3904,7 +3974,7 @@ module supra_framework::automation_registry {
     fun check_process_tasks_fails_on_ready_state(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, RuntimeParameter {
         initialize_registry_test(framework, user);
         // feature is disabled in started state, when registry is empty, moves registry in ready state
         toggle_feature_flag(framework, false);
@@ -4133,7 +4203,7 @@ module supra_framework::automation_registry {
     fun check_successful_refund_and_cleanup_execution(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, RuntimeParameter {
         initialize_registry_test(framework, user);
         let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
         let automation_fee_cap = 100_000_000;
@@ -4252,7 +4322,7 @@ module supra_framework::automation_registry {
     fun check_successful_refund_and_cleanup_even_if_refund_fails(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, RuntimeParameter{
         initialize_registry_test(framework, user);
         let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
         let automation_fee_cap = 100_000_000;
@@ -4327,7 +4397,7 @@ module supra_framework::automation_registry {
     fun check_successful_refund_and_cleanup_transitioned_from_finished_state(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, RuntimeParameter {
         initialize_registry_test(framework, user);
         let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
         let automation_fee_cap = 100_000_000;
@@ -4396,7 +4466,7 @@ module supra_framework::automation_registry {
     fun check_config_updated_from_start_to_suspended_state(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails {
+    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails, RuntimeParameter {
         let fwk_address = address_of(framework);
         initialize_registry_test(framework, user);
         let t1_t2_max_gas = 44_000_000;
@@ -4474,7 +4544,7 @@ module supra_framework::automation_registry {
     fun check_config_updated_from_finished_suspended_state(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails {
+    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails, RuntimeParameter {
         let fwk_address = address_of(framework);
         initialize_registry_test(framework, user);
         let t1_t2_max_gas = 44_000_000;
@@ -4550,7 +4620,7 @@ module supra_framework::automation_registry {
     fun check_config_updated_from_transition_suspended_state(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails {
+    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails, RuntimeParameter {
         let fwk_address = address_of(framework);
         initialize_registry_test(framework, user);
         let t1_t2_max_gas = 44_000_000;
@@ -4634,7 +4704,7 @@ module supra_framework::automation_registry {
     fun check_feature_enable_in_suspended_state(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails {
+    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails, RuntimeParameter {
         let fwk_address = address_of(framework);
         initialize_registry_test(framework, user);
         let t1_max_gas = 44_000_000;
@@ -4667,7 +4737,7 @@ module supra_framework::automation_registry {
     fun check_feature_enable_in_ready_state(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails {
+    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails, RuntimeParameter {
         let fwk_address = address_of(framework);
         initialize_registry_test(framework, user);
         let t1_max_gas = 44_000_000;
@@ -5389,7 +5459,7 @@ module supra_framework::automation_registry {
     fun check_stopping_of_stopped_task(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails {
+    ) acquires AutomationRegistry, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, AutomationCycleDetails, RuntimeParameter {
         initialize_registry_test(framework, user);
 
         register(user,
@@ -5765,7 +5835,7 @@ module supra_framework::automation_registry {
     fun check_successful_transition_from_finished_to_ready(
         framework: &signer,
         user: &signer
-    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping, RuntimeParameter {
         initialize_registry_test(framework, user);
         let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
         let automation_fee_cap = 100_000_000;
@@ -5924,19 +5994,26 @@ module supra_framework::automation_registry {
     }
 
     #[test_only]
-    fun swap_cycle_details_with_epoch(framework: &signer) acquires AutomationCycleDetails {
+    fun prepare_for_migration_check(framework: &signer) acquires AutomationCycleDetails, RuntimeParameter {
+        // Swap cycle info with epoch
         let cycle_details = move_from<AutomationCycleDetails>(@supra_framework);
         let epoch_info = AutomationEpochInfo {
             expected_epoch_duration: cycle_details.duration_secs,
             epoch_interval: cycle_details.duration_secs,
             start_time: cycle_details.start_time,
         };
-        move_to(framework, epoch_info)
+        move_to(framework, epoch_info);
+
+        // Remove runtime-parameters
+        let RuntimeParameter {
+            parameters
+        } = move_from<RuntimeParameter>(@supra_framework);
+        table::drop_unchecked(parameters);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
     fun check_migration(framework: &signer, user: &signer)
-    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationRefundBookkeeping, AutomationEpochInfo {
+    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationRefundBookkeeping, AutomationEpochInfo, RuntimeParameter {
         initialize_registry_test(framework, user);
 
         let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
@@ -5981,7 +6058,7 @@ module supra_framework::automation_registry {
         let fwk_address = address_of(framework);
         let user_address = address_of(user);
 
-        swap_cycle_details_with_epoch(framework);
+        prepare_for_migration_check(framework);
         assert!(exists<AutomationEpochInfo>(@supra_framework), 0);
         assert!(!exists<AutomationCycleDetails>(@supra_framework), 1);
         toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], false);
@@ -6059,10 +6136,10 @@ module supra_framework::automation_registry {
     #[test(framework = @supra_framework, user = @0x1cafa)]
     #[expected_failure(abort_code = EINVALID_MIGRATION_ACTION, location = Self)]
     fun check_migration_fails_on_second_round_even_if_automation_cycle_is_not_enabled(framework: &signer, user: &signer)
-    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationEpochInfo {
+    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationEpochInfo, RuntimeParameter {
         initialize_registry_test(framework, user);
 
-        swap_cycle_details_with_epoch(framework);
+        prepare_for_migration_check(framework);
         toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], false);
         // Simulate that half of the epoch passed, when migration was requested
         update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
@@ -6080,10 +6157,10 @@ module supra_framework::automation_registry {
     #[test(framework = @supra_framework, user = @0x1cafa)]
     #[expected_failure(abort_code = EINVALID_MIGRATION_ACTION, location = Self)]
     fun check_migration_fails_on_second_round(framework: &signer, user: &signer)
-    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationEpochInfo {
+    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationEpochInfo, RuntimeParameter {
         initialize_registry_test(framework, user);
 
-        swap_cycle_details_with_epoch(framework);
+        prepare_for_migration_check(framework);
         toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], false);
         // Simulate that half of the epoch passed, when migration was requested
         update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
@@ -6103,7 +6180,7 @@ module supra_framework::automation_registry {
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
     fun check_transitions_to_ready_from_suspended(framework: &signer, user: &signer)
-    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationRefundBookkeeping {
+    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationRefundBookkeeping, RuntimeParameter {
         initialize_registry_test(framework, user);
         let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
         let automation_fee_cap = 100_000_000;
@@ -6165,7 +6242,7 @@ module supra_framework::automation_registry {
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
     fun check_transitions_to_ready_from_finished_suspended(framework: &signer, user: &signer)
-    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationRefundBookkeeping {
+    acquires AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRegistry, AutomationRefundBookkeeping, RuntimeParameter {
         initialize_registry_test(framework, user);
         let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
         let automation_fee_cap = 100_000_000;

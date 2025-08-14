@@ -16,7 +16,6 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `TransitionState`](#0x1_automation_registry_TransitionState)
 -  [Resource `AutomationEpochInfo`](#0x1_automation_registry_AutomationEpochInfo)
 -  [Struct `AutomationCycleInfo`](#0x1_automation_registry_AutomationCycleInfo)
--  [Struct `AutomationCycleEvent`](#0x1_automation_registry_AutomationCycleEvent)
 -  [Resource `AutomationCycleDetails`](#0x1_automation_registry_AutomationCycleDetails)
 -  [Resource `AutomationRefundBookkeeping`](#0x1_automation_registry_AutomationRefundBookkeeping)
 -  [Resource `AutomationTaskMetaData`](#0x1_automation_registry_AutomationTaskMetaData)
@@ -41,6 +40,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `ErrorInconsistentSuspendedState`](#0x1_automation_registry_ErrorInconsistentSuspendedState)
 -  [Struct `EnabledRegistrationEvent`](#0x1_automation_registry_EnabledRegistrationEvent)
 -  [Struct `DisabledRegistrationEvent`](#0x1_automation_registry_DisabledRegistrationEvent)
+-  [Struct `AutomationCycleEvent`](#0x1_automation_registry_AutomationCycleEvent)
 -  [Struct `AutomationTaskFeeMeta`](#0x1_automation_registry_AutomationTaskFeeMeta)
 -  [Struct `IntermediateState`](#0x1_automation_registry_IntermediateState)
 -  [Struct `IntermediateStateOfEpochChange`](#0x1_automation_registry_IntermediateStateOfEpochChange)
@@ -579,41 +579,6 @@ Provides information of the current cycle state.
 </dt>
 <dd>
  Automation cycle duration in seconds.
-</dd>
-</dl>
-
-
-</details>
-
-<a id="0x1_automation_registry_AutomationCycleEvent"></a>
-
-## Struct `AutomationCycleEvent`
-
-Event emitted for cycle state transition.
-
-
-<pre><code>#[<a href="event.md#0x1_event">event</a>]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleEvent">AutomationCycleEvent</a> <b>has</b> <b>copy</b>, drop, store
-</code></pre>
-
-
-
-<details>
-<summary>Fields</summary>
-
-
-<dl>
-<dt>
-<code>cycle_state_info: <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">automation_registry::AutomationCycleInfo</a></code>
-</dt>
-<dd>
- Updated cycle state information.
-</dd>
-<dt>
-<code>old_state: u8</code>
-</dt>
-<dd>
- The state transitioned from
 </dd>
 </dl>
 
@@ -1579,6 +1544,41 @@ Emitted when the registration in the automation registry is disabled.
 </dt>
 <dd>
 
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_automation_registry_AutomationCycleEvent"></a>
+
+## Struct `AutomationCycleEvent`
+
+Event emitted for cycle state transition.
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleEvent">AutomationCycleEvent</a> <b>has</b> <b>copy</b>, drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>cycle_state_info: <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">automation_registry::AutomationCycleInfo</a></code>
+</dt>
+<dd>
+ Updated cycle state information.
+</dd>
+<dt>
+<code>old_state: u8</code>
+</dt>
+<dd>
+ The state transitioned from
 </dd>
 </dl>
 
@@ -2969,7 +2969,7 @@ maximum allowed occupancy for the next epoch.
 
 ## Function `calculate_automation_fee_multiplier_for_committed_occupancy`
 
-Calculates automation fee per second for the specified task occupancy
+Calculates automation fee per second for the specified total task occupancy
 referencing the current automation registry fee parameters, specified total/committed occupancy and current registry
 maximum allowed occupancy.
 

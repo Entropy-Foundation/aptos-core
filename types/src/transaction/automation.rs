@@ -396,9 +396,9 @@ impl AutomationRegistryAction {
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "fuzzing"), derive(Arbitrary))]
 pub struct AutomationRegistryRecord {
-    /// Index of the record. Should be unique in set of the records shceduled in scope of the same block.
+    /// Index of the record. Should be unique in set of the records scheduled in scope of the same block.
     index: u64,
-    /// Index of the new cycle to be moved to.
+    /// Index of the cycle for which the record is created.
     cycle_id: u64,
     /// Height of the block in scope of which registry action is requested/scheduled.
     block_height: u64,
