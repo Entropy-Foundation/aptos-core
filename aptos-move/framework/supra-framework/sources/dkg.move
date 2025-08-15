@@ -3,6 +3,7 @@ module supra_framework::dkg {
     use std::error;
     use std::option;
     use std::option::Option;
+    use std::vector;
     use supra_framework::event::emit;
     use supra_framework::randomness_config::RandomnessConfig;
     use supra_framework::system_addresses;
@@ -13,6 +14,7 @@ module supra_framework::dkg {
 
     const EDKG_IN_PROGRESS: u64 = 1;
     const EDKG_NOT_IN_PROGRESS: u64 = 2;
+    const EDKG_INVALID_TRIBE_SIZE: u64 = 3;
 
     /// This can be considered as the public input of DKG.
     struct DKGSessionMetadata has copy, drop, store {
@@ -117,5 +119,32 @@ module supra_framework::dkg {
     /// Return the dealer epoch of a `DKGSessionState`.
     public fun session_dealer_epoch(session: &DKGSessionState): u64 {
         session.metadata.dealer_epoch
+    }
+
+    fun get_clan_committee_indices(tribe_size: u32, seed: vector<u8>): vector<u32>{
+        let clan_indices = native_get_clan_committee_indices(tribe_size, seed);
+        assert!(vector::length(&clan_indices) > 0, EDKG_INVALID_TRIBE_SIZE);
+        clan_indices
+    }
+
+    fun get_family_committee_indices(tribe_size: u32, seed: vector<u8>): vector<u32>{
+        let family_indices = native_get_family_committee_indices(tribe_size, seed);
+        assert!(vector::length(&family_indices) > 0, EDKG_INVALID_TRIBE_SIZE);
+        family_indices
+    }
+
+    native fun native_get_family_committee_indices(tribe_size: u32, seed: vector<u8>): vector<u32>;
+    native fun native_get_clan_committee_indices(tribe_size: u32, seed: vector<u8>): vector<u32>;
+
+    #[test]
+    public fun test_clan_committee_indices(){
+        let clan_committee = get_clan_committee_indices(10, vector[1, 2, 3]);
+        assert!(vector::length(&clan_committee) > 0, 1);
+    }
+    
+    #[test]
+    public fun test_family_committee_indices(){
+        let family_committee = get_family_committee_indices(10, vector[1, 2, 3]);
+        assert!(vector::length(&family_committee) > 0, 1);
     }
 }
