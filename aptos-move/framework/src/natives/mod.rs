@@ -21,6 +21,7 @@ pub mod string_utils;
 pub mod transaction_context;
 pub mod type_info;
 pub mod util;
+pub mod dkg;
 
 use crate::natives::cryptography::multi_ed25519;
 use aggregator_natives::{aggregator, aggregator_factory, aggregator_v2};
@@ -80,6 +81,10 @@ pub fn all_natives(
     add_natives_from_module!(
         "class_groups",
         cryptography::class_groups::make_all(builder)
+    );
+    add_natives_from_module!(
+        "dkg",
+        dkg::make_all(builder)
     );
     add_natives_from_module!(
         "transaction_context",
