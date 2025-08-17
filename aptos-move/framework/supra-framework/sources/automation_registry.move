@@ -148,6 +148,19 @@ module supra_framework::automation_registry {
     /// Factor of `2` suggests that `1/2` of the deposit will be refunded.
     const REFUND_FACTOR: u64 = 2;
 
+    /// Constants defining single task processing maximum limits
+    /// Single task processing execution gas.
+    /// max_execution_gas is defined 920_000_000, where scaling factor is 1_000_000.
+    const TASK_EXECUTION_GAS: u64 = 4_000_000;
+    /// Single task processing IO gas.
+    const TASK_IO_GAS: u64 = 10_000_000;
+    /// Max storage fee per task.
+    const TASK_STORAGE_FEE: u64 = 1000;
+    /// Max write operation per task.
+    const TASK_WRITE_OPS: u64 = 10;
+    /// Task support factor in percentage.
+    const TASK_SUPPORT_FACTOR: u64 = 80;
+
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct ActiveAutomationRegistryConfig has key {
         main_config: AutomationRegistryConfig,
@@ -767,6 +780,21 @@ module supra_framework::automation_registry {
         let details = borrow_global<AutomationCycleDetails>(@supra_framework);
         into_automation_cycle_info(details)
     }
+
+    #[view]
+    /// Returns the maximum number of the tasks that can be processed in scope of single bookkeeping transaction.
+    fun get_record_max_task_count(max_execution_gas: u64, max_io_gas: u64, max_storage_fee: u64, max_write_op: u64): u64 {
+        let task_count_by_exec_gas = max_execution_gas / TASK_EXECUTION_GAS;
+        let task_count_by_io_gas = max_io_gas / TASK_IO_GAS;
+        let task_count_by_storage_fee = max_storage_fee / TASK_STORAGE_FEE;
+        let task_count_by_write_op = max_write_op / TASK_WRITE_OPS;
+
+        let task_count = math64::min(task_count_by_exec_gas, task_count_by_io_gas);
+        task_count = math64::min(task_count, task_count_by_storage_fee);
+        task_count = math64::min(task_count, task_count_by_write_op);
+        task_count * 100 / TASK_SUPPORT_FACTOR
+    }
+
 
     // Public entry functions
 
