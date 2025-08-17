@@ -417,6 +417,21 @@ impl AptosVM {
         )
     }
 
+    pub(crate) fn fee_statement_from_gas_meter_for_gas(
+        max_gas: Gas,
+        gas_meter: &impl AptosGasMeter,
+        storage_fee_refund: u64,
+    ) -> FeeStatement {
+        let gas_used = Self::gas_used(max_gas, gas_meter);
+        FeeStatement::new(
+            gas_used,
+            u64::from(gas_meter.execution_gas_used()),
+            u64::from(gas_meter.io_gas_used()),
+            u64::from(gas_meter.storage_fee_used()),
+            storage_fee_refund,
+        )
+    }
+
     pub(crate) fn failed_transaction_cleanup(
         &self,
         prologue_change_set: VMChangeSet,
