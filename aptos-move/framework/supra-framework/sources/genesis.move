@@ -262,8 +262,6 @@ module supra_framework::genesis {
     }
 
     /// Initialize the EVM genesis config.
-    /// Only called for devnet and e2e tests at genesis.
-    /// Testnet/Mainnet should be handled by governance.
     fun initialize_evm_genesis_config(
         supra_framework: &signer,
         evm_genesis_config: vector<u8>,
