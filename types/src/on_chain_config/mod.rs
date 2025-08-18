@@ -46,7 +46,7 @@ pub use self::{
     },
     automation_registry::{
         AutomationCycleDetails, AutomationCycleEvent, AutomationCycleInfo, AutomationCycleState,
-        AutomationRegistryConfig, AutomationRegistryConfigV1, AutomationCycleTransitionState
+        AutomationRegistryConfig, AutomationRegistryConfigV1, AutomationRegistryConfigV2, AutomationCycleTransitionState
     },
     commit_history::CommitHistoryResource,
     consensus_config::{

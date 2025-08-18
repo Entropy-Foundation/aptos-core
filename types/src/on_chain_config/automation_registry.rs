@@ -1,6 +1,7 @@
 // Copyright (c) 2025 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
+use std::ops::Deref;
 use move_core_types::account_address::AccountAddress;
 use move_core_types::value::{serialize_values, MoveValue};
 use serde::{Deserialize, Serialize};
@@ -40,8 +41,7 @@ pub struct AutomationRegistryConfigV1 {
     congestion_exponent: u8,
     /// Maximum number of tasks that registry can hold.
     task_capacity: u16,
-    /// Cycle duration in seconds
-    cycle_duration_secs: u64,
+
 }
 
 impl Default for AutomationRegistryConfigV1 {
@@ -55,12 +55,35 @@ impl Default for AutomationRegistryConfigV1 {
             congestion_base_fee_in_quants_per_sec: DEFAULT_CONGESTION_BASE_FEE_IN_QUANTS_PER_SEC,
             congestion_exponent: DEFAULT_CONGESTION_EXPONENT,
             task_capacity: DEFAULT_TASK_CAPACITY,
-            cycle_duration_secs: DEFAULT_CYCLE_DURATION_SECS,
         }
     }
 }
 
 impl AutomationRegistryConfigV1 {
+
+    pub fn new(
+        task_duration_cap_in_secs: u64,
+        registry_max_gas_cap: u64,
+        automation_base_fee_in_quants_per_sec: u64,
+        flat_registration_fee_in_quants: u64,
+        congestion_threshold_percentage: u8,
+        congestion_base_fee_in_quants_per_sec: u64,
+        congestion_exponent: u8,
+        task_capacity: u16,
+
+    ) -> Self {
+        Self {
+            task_duration_cap_in_secs,
+            registry_max_gas_cap,
+            automation_base_fee_in_quants_per_sec,
+            flat_registration_fee_in_quants,
+            congestion_threshold_percentage,
+            congestion_base_fee_in_quants_per_sec,
+            congestion_exponent,
+            task_capacity,
+        }
+    }
+
     pub fn task_duration_cap_in_secs(&self) -> u64 {
         self.task_duration_cap_in_secs
     }
@@ -91,14 +114,83 @@ impl AutomationRegistryConfigV1 {
         self.task_capacity
     }
 
+}
+
+/// Extended version of configuration parameters for Supra native automation feature supporting cycle-duration.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Eq)]
+pub struct AutomationRegistryConfigV2 {
+    #[serde(flatten)]
+    v1: AutomationRegistryConfigV1,
+    /// Cycle duration in seconds
+    cycle_duration_secs: u64,
+}
+
+
+impl Default for AutomationRegistryConfigV2 {
+    fn default() -> Self {
+        Self {
+            v1: Default::default(),
+            cycle_duration_secs: DEFAULT_CYCLE_DURATION_SECS,
+        }
+    }
+}
+
+impl AutomationRegistryConfigV2 {
     pub fn cycle_duration_secs(&self) -> u64 {
         self.cycle_duration_secs
     }
+
+    pub fn new(
+        task_duration_cap_in_secs: u64,
+        registry_max_gas_cap: u64,
+        automation_base_fee_in_quants_per_sec: u64,
+        flat_registration_fee_in_quants: u64,
+        congestion_threshold_percentage: u8,
+        congestion_base_fee_in_quants_per_sec: u64,
+        congestion_exponent: u8,
+        task_capacity: u16,
+        cycle_duration_secs: u64,
+
+    ) -> Self {
+        let v1= AutomationRegistryConfigV1::new(
+            task_duration_cap_in_secs,
+            registry_max_gas_cap,
+            automation_base_fee_in_quants_per_sec,
+            flat_registration_fee_in_quants,
+            congestion_threshold_percentage,
+            congestion_base_fee_in_quants_per_sec,
+            congestion_exponent,
+            task_capacity,
+        );
+        Self {
+            v1,
+            cycle_duration_secs,
+        }
+    }
 }
+
+impl Deref for AutomationRegistryConfigV2 {
+    type Target = AutomationRegistryConfigV1;
+
+    fn deref(&self) -> &Self::Target {
+        &self.v1
+    }
+}
+
+impl From<AutomationRegistryConfigV1> for AutomationRegistryConfigV2 {
+    fn from(v1: AutomationRegistryConfigV1) -> Self {
+        Self {
+            v1,
+            cycle_duration_secs: DEFAULT_CYCLE_DURATION_SECS,
+        }
+    }
+}
+
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Eq)]
 pub enum AutomationRegistryConfig {
     V1(AutomationRegistryConfigV1),
+    V2(AutomationRegistryConfigV2),
 }
 
 impl Default for AutomationRegistryConfig {
@@ -112,19 +204,36 @@ impl AutomationRegistryConfig {
         &self,
         signer_address: AccountAddress,
     ) -> Vec<Vec<u8>> {
-        let AutomationRegistryConfig::V1(config) = self;
-        let arguments = vec![
-            MoveValue::Signer(signer_address),
-            MoveValue::U64(config.task_duration_cap_in_secs()),
-            MoveValue::U64(config.registry_max_gas_cap()),
-            MoveValue::U64(config.automation_base_fee_in_quants_per_sec()),
-            MoveValue::U64(config.flat_registration_fee_in_quants()),
-            MoveValue::U8(config.congestion_threshold_percentage()),
-            MoveValue::U64(config.congestion_base_fee_in_quants_per_sec()),
-            MoveValue::U8(config.congestion_exponent()),
-            MoveValue::U16(config.task_capacity()),
-            MoveValue::U64(config.cycle_duration_secs()),
-        ];
+        let arguments = match self {
+            AutomationRegistryConfig::V1(config) => {
+                vec![
+                    MoveValue::Signer(signer_address),
+                    MoveValue::U64(config.task_duration_cap_in_secs()),
+                    MoveValue::U64(config.registry_max_gas_cap()),
+                    MoveValue::U64(config.automation_base_fee_in_quants_per_sec()),
+                    MoveValue::U64(config.flat_registration_fee_in_quants()),
+                    MoveValue::U8(config.congestion_threshold_percentage()),
+                    MoveValue::U64(config.congestion_base_fee_in_quants_per_sec()),
+                    MoveValue::U8(config.congestion_exponent()),
+                    MoveValue::U16(config.task_capacity()),
+                    MoveValue::U64(DEFAULT_CYCLE_DURATION_SECS),
+                ]
+            }
+            AutomationRegistryConfig::V2(config) => {
+                vec![
+                    MoveValue::Signer(signer_address),
+                    MoveValue::U64(config.task_duration_cap_in_secs()),
+                    MoveValue::U64(config.registry_max_gas_cap()),
+                    MoveValue::U64(config.automation_base_fee_in_quants_per_sec()),
+                    MoveValue::U64(config.flat_registration_fee_in_quants()),
+                    MoveValue::U8(config.congestion_threshold_percentage()),
+                    MoveValue::U64(config.congestion_base_fee_in_quants_per_sec()),
+                    MoveValue::U8(config.congestion_exponent()),
+                    MoveValue::U16(config.task_capacity()),
+                    MoveValue::U64(config.cycle_duration_secs()),
+                ]
+            }
+        };
         serialize_values(&arguments)
     }
 }
@@ -135,6 +244,11 @@ impl From<AutomationRegistryConfigV1> for AutomationRegistryConfig {
     }
 }
 
+impl From<AutomationRegistryConfigV2> for AutomationRegistryConfig {
+    fn from(config: AutomationRegistryConfigV2) -> Self {
+        Self::V2(config)
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[repr(u8)]
