@@ -792,7 +792,7 @@ module supra_framework::automation_registry {
         let task_count = math64::min(task_count_by_exec_gas, task_count_by_io_gas);
         task_count = math64::min(task_count, task_count_by_storage_fee);
         task_count = math64::min(task_count, task_count_by_write_op);
-        task_count * 100 / TASK_SUPPORT_FACTOR
+        task_count * TASK_SUPPORT_FACTOR / 100
     }
 
 
