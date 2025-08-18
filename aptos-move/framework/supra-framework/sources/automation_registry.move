@@ -26,6 +26,7 @@ module supra_framework::automation_registry {
     use std::signer::address_of;
     #[test_only]
     use supra_framework::timestamp::update_global_time_for_test_secs;
+    use supra_std::vector_utils::sort_vector_u64;
 
     friend supra_framework::block;
     friend supra_framework::genesis;
@@ -1459,7 +1460,7 @@ module supra_framework::automation_registry {
         let removed_tasks = vector[];
         let epoch_locked_fees = automation_registry.epoch_locked_fees;
         // Sort task indexes as order is important
-        sort_vector(&mut task_indexes);
+        task_indexes = sort_vector_u64(task_indexes);
         vector::for_each(task_indexes, |task_index| {
             if (enumerable_map::contains(&automation_registry.tasks, task_index)) {
                 let task = enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
@@ -1518,7 +1519,7 @@ module supra_framework::automation_registry {
         let current_cycle_end_time = current_time + transition_state.new_cycle_duration;
 
         // Sort task indexes to charge automation fees in the tasks chronological order
-        sort_vector(&mut task_ids);
+        task_ids = sort_vector_u64(task_ids);
 
         // Process each active task and calculate fee for the epoch for the tasks
         vector::for_each(task_ids, |task_index| {
@@ -1758,7 +1759,7 @@ module supra_framework::automation_registry {
             return
         };
         let expected_tasks_to_be_processed = enumerable_map::get_map_list(&automation_registry.tasks);
-        sort_vector(&mut expected_tasks_to_be_processed);
+        expected_tasks_to_be_processed = sort_vector_u64(expected_tasks_to_be_processed);
         let transition_state = TransitionState {
             refund_duration: 0,
             new_cycle_duration: cycle_info.duration_secs,
@@ -1867,7 +1868,7 @@ module supra_framework::automation_registry {
             assert!(cycle_info.state == CYCLE_STARTED, EINVALID_REGISTRY_STATE);
             let active_config = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
             let expected_tasks_to_be_processed = enumerable_map::get_map_list(&automation_registry.tasks);
-            sort_vector(&mut expected_tasks_to_be_processed);
+            expected_tasks_to_be_processed = sort_vector_u64(expected_tasks_to_be_processed);
             let transition_state = TransitionState {
                 refund_duration: cycle_end_time - current_time,
                 new_cycle_duration: cycle_info.duration_secs,
@@ -2372,21 +2373,6 @@ module supra_framework::automation_registry {
             expiry_time > (automation_cycle_info.start_time + automation_cycle_info.duration_secs),
             EEXPIRY_BEFORE_NEXT_CYCLE
         );
-    }
-
-    /// Insertion sort implementation for vector
-    fun sort_vector(input: &mut vector<u64>) {
-        let len = vector::length(input);
-        let i = 1;
-        while (i < len) {
-            let j = i;
-            let to_be_sorted = *vector::borrow(input, j);
-            while (j > 0 && to_be_sorted < *vector::borrow(input, j - 1)) {
-                vector::swap(input, j, j - 1);
-                j = j - 1;
-            };
-            i = i + 1;
-        };
     }
 
     fun upscale_from_u8(value: u8): u256 { (value as u256) * DECIMAL }
@@ -5175,7 +5161,7 @@ module supra_framework::automation_registry {
     #[test]
     fun check_sort_vector() {
         let task_fee_vec = vector[5, 3, 1, 4, 2];
-        sort_vector(&mut task_fee_vec);
+        task_fee_vec = sort_vector_u64(task_fee_vec);
         let i = 0;
         while (i < 5) {
             let item = vector::borrow(&task_fee_vec, i);

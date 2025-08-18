@@ -122,7 +122,6 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `update_config_from_buffer`](#0x1_automation_registry_update_config_from_buffer)
 -  [Function `transfer_fee_to_account_internal`](#0x1_automation_registry_transfer_fee_to_account_internal)
 -  [Function `check_registration_task_duration`](#0x1_automation_registry_check_registration_task_duration)
--  [Function `sort_vector`](#0x1_automation_registry_sort_vector)
 -  [Function `upscale_from_u8`](#0x1_automation_registry_upscale_from_u8)
 -  [Function `upscale_from_u64`](#0x1_automation_registry_upscale_from_u64)
 -  [Function `upscale_from_u256`](#0x1_automation_registry_upscale_from_u256)
@@ -146,6 +145,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="timestamp.md#0x1_timestamp">0x1::timestamp</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
+<b>use</b> <a href="../../supra-stdlib/doc/vector_utils.md#0x1_vector_utils">0x1::vector_utils</a>;
 </code></pre>
 
 
@@ -4106,7 +4106,7 @@ In case if end is identified the registry state is update to CYCLE_READY and cor
     <b>let</b> removed_tasks = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
     <b>let</b> epoch_locked_fees = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees;
     // Sort task indexes <b>as</b> order is important
-    <a href="automation_registry.md#0x1_automation_registry_sort_vector">sort_vector</a>(&<b>mut</b> task_indexes);
+    task_indexes = sort_vector_u64(task_indexes);
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(task_indexes, |task_index| {
         <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index)) {
             <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
@@ -4185,7 +4185,7 @@ Traverses all input task indexes and either drops or tries to charge automation 
     <b>let</b> current_cycle_end_time = current_time + transition_state.new_cycle_duration;
 
     // Sort task indexes <b>to</b> charge automation fees in the tasks chronological order
-    <a href="automation_registry.md#0x1_automation_registry_sort_vector">sort_vector</a>(&<b>mut</b> task_ids);
+    task_ids = sort_vector_u64(task_ids);
 
     // Process each active task and calculate fee for the epoch for the tasks
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(task_ids, |task_index| {
@@ -4605,7 +4605,7 @@ Note it is expected that committed_occupancy does not include currnet task's occ
         <b>return</b>
     };
     <b>let</b> expected_tasks_to_be_processed = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
-    <a href="automation_registry.md#0x1_automation_registry_sort_vector">sort_vector</a>(&<b>mut</b> expected_tasks_to_be_processed);
+    expected_tasks_to_be_processed = sort_vector_u64(expected_tasks_to_be_processed);
     <b>let</b> transition_state = <a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a> {
         refund_duration: 0,
         new_cycle_duration: cycle_info.duration_secs,
@@ -4794,7 +4794,7 @@ In all cases if there are no tasks in registry the state will be updated directl
         <b>assert</b>!(cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
         <b>let</b> active_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
         <b>let</b> expected_tasks_to_be_processed = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
-        <a href="automation_registry.md#0x1_automation_registry_sort_vector">sort_vector</a>(&<b>mut</b> expected_tasks_to_be_processed);
+        expected_tasks_to_be_processed = sort_vector_u64(expected_tasks_to_be_processed);
         <b>let</b> transition_state = <a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a> {
             refund_duration: cycle_end_time - current_time,
             new_cycle_duration: cycle_info.duration_secs,
@@ -5658,41 +5658,6 @@ Transfers the specified fee amount from the resource account to the target accou
         expiry_time &gt; (automation_cycle_info.start_time + automation_cycle_info.duration_secs),
         <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_BEFORE_NEXT_CYCLE">EEXPIRY_BEFORE_NEXT_CYCLE</a>
     );
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_sort_vector"></a>
-
-## Function `sort_vector`
-
-Insertion sort implementation for vector
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_sort_vector">sort_vector</a>(input: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_sort_vector">sort_vector</a>(input: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;) {
-    <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(input);
-    <b>let</b> i = 1;
-    <b>while</b> (i &lt; len) {
-        <b>let</b> j = i;
-        <b>let</b> to_be_sorted = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(input, j);
-        <b>while</b> (j &gt; 0 && to_be_sorted &lt; *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(input, j - 1)) {
-            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_swap">vector::swap</a>(input, j, j - 1);
-            j = j - 1;
-        };
-        i = i + 1;
-    };
 }
 </code></pre>
 
