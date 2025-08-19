@@ -2342,7 +2342,7 @@ Max storage fee per task.
 
 <a id="0x1_automation_registry_TASK_SUPPORT_FACTOR"></a>
 
-Task support factor in percentage.
+Task support factor in percentage. It should not exceed 100.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_TASK_SUPPORT_FACTOR">TASK_SUPPORT_FACTOR</a>: u64 = 80;
@@ -3190,7 +3190,7 @@ Returns the maximum number of the tasks that can be processed in scope of single
     <b>let</b> task_count = <a href="../../aptos-stdlib/doc/math64.md#0x1_math64_min">math64::min</a>(task_count_by_exec_gas, task_count_by_io_gas);
     task_count = <a href="../../aptos-stdlib/doc/math64.md#0x1_math64_min">math64::min</a>(task_count, task_count_by_storage_fee);
     task_count = <a href="../../aptos-stdlib/doc/math64.md#0x1_math64_min">math64::min</a>(task_count, task_count_by_write_op);
-    task_count * 100 / <a href="automation_registry.md#0x1_automation_registry_TASK_SUPPORT_FACTOR">TASK_SUPPORT_FACTOR</a>
+    task_count * <a href="automation_registry.md#0x1_automation_registry_TASK_SUPPORT_FACTOR">TASK_SUPPORT_FACTOR</a> / 100
 }
 </code></pre>
 

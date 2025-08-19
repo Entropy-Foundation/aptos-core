@@ -158,7 +158,7 @@ module supra_framework::automation_registry {
     const TASK_STORAGE_FEE: u64 = 1000;
     /// Max write operation per task.
     const TASK_WRITE_OPS: u64 = 10;
-    /// Task support factor in percentage.
+    /// Task support factor in percentage. It should not exceed 100.
     const TASK_SUPPORT_FACTOR: u64 = 80;
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
