@@ -119,9 +119,9 @@ impl AutomationRegistryConfigV1 {
 /// Extended version of configuration parameters for Supra native automation feature supporting cycle-duration.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Eq)]
 pub struct AutomationRegistryConfigV2 {
-    #[serde(flatten)]
-    v1: AutomationRegistryConfigV1,
-    /// Cycle duration in seconds
+    /// Main user task registration related parameters.
+    main: AutomationRegistryConfigV1,
+    /// Cycle duration in seconds.
     cycle_duration_secs: u64,
 }
 
@@ -129,7 +129,7 @@ pub struct AutomationRegistryConfigV2 {
 impl Default for AutomationRegistryConfigV2 {
     fn default() -> Self {
         Self {
-            v1: Default::default(),
+            main: Default::default(),
             cycle_duration_secs: DEFAULT_CYCLE_DURATION_SECS,
         }
     }
@@ -163,7 +163,7 @@ impl AutomationRegistryConfigV2 {
             task_capacity,
         );
         Self {
-            v1,
+            main: v1,
             cycle_duration_secs,
         }
     }
@@ -173,14 +173,14 @@ impl Deref for AutomationRegistryConfigV2 {
     type Target = AutomationRegistryConfigV1;
 
     fn deref(&self) -> &Self::Target {
-        &self.v1
+        &self.main
     }
 }
 
 impl From<AutomationRegistryConfigV1> for AutomationRegistryConfigV2 {
     fn from(v1: AutomationRegistryConfigV1) -> Self {
         Self {
-            v1,
+            main: v1,
             cycle_duration_secs: DEFAULT_CYCLE_DURATION_SECS,
         }
     }
