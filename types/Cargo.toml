@@ -63,6 +63,8 @@ serde_yaml = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 thiserror = { workspace = true }
+derive-getters = { workspace = true }
+derive_more = { workspace = true }
 
 [dev-dependencies]
 ahash = { workspace = true }
