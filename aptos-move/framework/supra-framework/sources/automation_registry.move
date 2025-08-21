@@ -26,6 +26,7 @@ module supra_framework::automation_registry {
     use std::signer::address_of;
     #[test_only]
     use supra_framework::timestamp::update_global_time_for_test_secs;
+    use supra_std::vector_utils::sort_vector_u64;
 
     friend supra_framework::block;
     friend supra_framework::genesis;
@@ -97,8 +98,12 @@ module supra_framework::automation_registry {
     const ECYCLE_TRANSITION_IN_PROGRESS: u64 = 32;
     /// Attempt to run operation in invalid registry state.
     const EINVALID_REGISTRY_STATE: u64 = 33;
-    /// The tasks are requested to be processed from invalid cycle.
+    /// The tasks are requested to be processed for invalid cycle.
     const EINVALID_INPUT_CYCLE_INDEX: u64 = 34;
+    /// Attempt to process a task when expected list of the tasks has been alrady processed.
+    const EINCONSISTENT_TRANSITION_STATE: u64 = 35;
+    /// The out of order task processing has been identified during transition.
+    const EOUT_OF_ORDER_TASK_PROCESSING_REQUEST: u64 = 36;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -243,27 +248,27 @@ module supra_framework::automation_registry {
         /// Total fee charged from users for the new cycle, which is not withdrawable.
         locked_fees: u64,
         /// List of the tasks to be processed during transition.
+        /// This list is sorted in ascending order.
+        /// The requirement is that all tasks are processed in the order of their registration. Which should be true
+        /// especially for cycle fee charges before new cycle start.
         expected_tasks_to_be_processed: vector<u64>,
-        /// So far processed tasks during transition
-        /// In case if transition spans between multiple blocks then
-        /// upon recovery execution component will know the breaking point and can recover from it.
-        actual_processed_tasks: vector<u64>
+        /// Position of the task index in the expected_tasks_to_be_processed to be processed next.
+        /// It is incremented when an expected task is successfully processed.
+        next_task_index_position: u64
     }
 
     fun is_transition_finalized(state: &TransitionState): bool {
-        vector::length(&state.expected_tasks_to_be_processed) == vector::length(&state.actual_processed_tasks)
+        vector::length(&state.expected_tasks_to_be_processed) == state.next_task_index_position
     }
     fun is_transition_in_progress(state: &TransitionState): bool {
-        vector::length(&state.actual_processed_tasks) != 0
+        state.next_task_index_position != 0
     }
 
-    fun append_processed_task(state: &mut TransitionState, task_index: u64) {
-        vector::push_back(&mut state.actual_processed_tasks, task_index);
-    }
-
-    fun already_processed(state: &TransitionState, task_index: u64): bool {
-        // TODO: maybe use native function if too expensive
-        vector::contains(&state.actual_processed_tasks, &task_index)
+    fun mark_task_processed(state: &mut TransitionState, task_index: u64) {
+        assert!(state.next_task_index_position < vector::length(&state.expected_tasks_to_be_processed), EINCONSISTENT_TRANSITION_STATE);
+        let expected_task = vector::borrow(&state.expected_tasks_to_be_processed, state.next_task_index_position);
+        assert!(expected_task == &task_index, EOUT_OF_ORDER_TASK_PROCESSING_REQUEST);
+        state.next_task_index_position = state.next_task_index_position + 1;
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -502,6 +507,7 @@ module supra_framework::automation_registry {
         owner: address,
         amount: u64,
     }
+
     #[event]
     /// Event emitted when on new epoch inconsistent state of the registry has been identified.
     /// When automation is in suspended state, there are no tasks expected.
@@ -1493,6 +1499,8 @@ module supra_framework::automation_registry {
         );
         let removed_tasks = vector[];
         let epoch_locked_fees = automation_registry.epoch_locked_fees;
+        // Sort task indexes as order is important
+        task_indexes = sort_vector_u64(task_indexes);
         vector::for_each(task_indexes, |task_index| {
             if (enumerable_map::contains(&automation_registry.tasks, task_index)) {
                 let task = enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
@@ -1524,7 +1532,7 @@ module supra_framework::automation_registry {
                     task.locked_fee_for_next_epoch,
                     task.locked_fee_for_next_epoch);
                 vector::push_back(&mut removed_tasks, task_index);
-                append_processed_task(transition_state, task_index);
+                mark_task_processed(transition_state, task_index);
             };
         });
 
@@ -1551,7 +1559,7 @@ module supra_framework::automation_registry {
         let current_cycle_end_time = current_time + transition_state.new_cycle_duration;
 
         // Sort task indexes to charge automation fees in the tasks chronological order
-        sort_vector(&mut task_ids);
+        task_ids = sort_vector_u64(task_ids);
 
         // Process each active task and calculate fee for the epoch for the tasks
         vector::for_each(task_ids, |task_index| {
@@ -1583,10 +1591,10 @@ module supra_framework::automation_registry {
         intermediate_state: &mut IntermediateStateOfEpochChange,
     )
     {
-        if (already_processed(transition_state,task_index) || !enumerable_map::contains(&automation_registry.tasks, task_index)) {
+        if (!enumerable_map::contains(&automation_registry.tasks, task_index)) {
             return
         };
-        append_processed_task(transition_state, task_index);
+        mark_task_processed(transition_state, task_index);
         let task_meta = enumerable_map::get_value_mut(&mut automation_registry.tasks, task_index);
         if (task_meta.state == CANCELLED || task_meta.expiry_time <= current_time) {
             refund_deposit_and_drop(task_index, automation_registry, refund_bookkeeping, resource_signer, &mut intermediate_state.removed_tasks);
@@ -1790,6 +1798,8 @@ module supra_framework::automation_registry {
             move_to_started_state(cycle_info);
             return
         };
+        let expected_tasks_to_be_processed = enumerable_map::get_map_list(&automation_registry.tasks);
+        expected_tasks_to_be_processed = sort_vector_u64(expected_tasks_to_be_processed);
         let transition_state = TransitionState {
             refund_duration: 0,
             new_cycle_duration: cycle_info.duration_secs,
@@ -1797,8 +1807,8 @@ module supra_framework::automation_registry {
             gas_committed_for_new_cycle: automation_registry.gas_committed_for_next_epoch,
             gas_committed_for_next_cycle: 0,
             locked_fees: 0,
-            expected_tasks_to_be_processed: enumerable_map::get_map_list(&automation_registry.tasks),
-            actual_processed_tasks: vector[]
+            expected_tasks_to_be_processed,
+            next_task_index_position: 0
         };
         cycle_info.transition_state = std::option::some(transition_state);
         // During cycle transition we update config only after transition state is created in order to have new cycle
@@ -1843,7 +1853,7 @@ module supra_framework::automation_registry {
                 transition_state.gas_committed_for_next_cycle = 0;
                 transition_state.locked_fees = 0;
                 transition_state.expected_tasks_to_be_processed = vector[];
-                transition_state.actual_processed_tasks = vector[];
+                transition_state.next_task_index_position = 0;
             }
         };
         update_cycle_state_to(cycle_info, CYCLE_READY)
@@ -1897,6 +1907,8 @@ module supra_framework::automation_registry {
             assert!(current_time < cycle_end_time, EINVALID_REGISTRY_STATE);
             assert!(cycle_info.state == CYCLE_STARTED, EINVALID_REGISTRY_STATE);
             let active_config = borrow_global<ActiveAutomationRegistryConfig>(@supra_framework);
+            let expected_tasks_to_be_processed = enumerable_map::get_map_list(&automation_registry.tasks);
+            expected_tasks_to_be_processed = sort_vector_u64(expected_tasks_to_be_processed);
             let transition_state = TransitionState {
                 refund_duration: cycle_end_time - current_time,
                 new_cycle_duration: cycle_info.duration_secs,
@@ -1904,8 +1916,8 @@ module supra_framework::automation_registry {
                 gas_committed_for_new_cycle: 0,
                 gas_committed_for_next_cycle: 0,
                 locked_fees: 0,
-                expected_tasks_to_be_processed: enumerable_map::get_map_list(&automation_registry.tasks),
-                actual_processed_tasks: vector[]
+                expected_tasks_to_be_processed,
+                next_task_index_position: 0
             };
             cycle_info.transition_state = std::option::some(transition_state);
         } else {
@@ -2401,21 +2413,6 @@ module supra_framework::automation_registry {
             expiry_time > (automation_cycle_info.start_time + automation_cycle_info.duration_secs),
             EEXPIRY_BEFORE_NEXT_CYCLE
         );
-    }
-
-    /// Insertion sort implementation for vector
-    fun sort_vector(input: &mut vector<u64>) {
-        let len = vector::length(input);
-        let i = 1;
-        while (i < len) {
-            let j = i;
-            let to_be_sorted = *vector::borrow(input, j);
-            while (j > 0 && to_be_sorted < *vector::borrow(input, j - 1)) {
-                vector::swap(input, j, j - 1);
-                j = j - 1;
-            };
-            i = i + 1;
-        };
     }
 
     fun upscale_from_u8(value: u8): u256 { (value as u256) * DECIMAL }
@@ -3696,8 +3693,8 @@ module supra_framework::automation_registry {
             user,
             44_000_000,
             automation_fee_cap,
-            task_exipry_time,
-            PENDING);
+            task_exipry_time / 2,
+            ACTIVE);
         let task2 = register_with_state(
             framework,
             user,
@@ -3710,8 +3707,8 @@ module supra_framework::automation_registry {
             user,
             11_000_000,
             automation_fee_cap,
-            task_exipry_time / 2,
-            ACTIVE);
+            task_exipry_time,
+            PENDING);
         let expected_user_current_balance = ACCOUNT_BALANCE - 3 * (FLAT_REGISTRATION_FEE_TEST + automation_fee_cap);
         let expected_registry_current_balance = REGISTRY_DEFAULT_BALANCE + 3 * (FLAT_REGISTRATION_FEE_TEST + automation_fee_cap);
 
@@ -3719,7 +3716,7 @@ module supra_framework::automation_registry {
         let fwk_address = address_of(framework);
         let user_address = address_of(user);
 
-        // Update time so task3 is expired.
+        // Update time so task1 is expired.
         update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
         // Make sure we are in FINISHED state
         monitor_cycle_end();
@@ -3729,7 +3726,7 @@ module supra_framework::automation_registry {
             assert!(cycle_details.state == CYCLE_FINISHED, 0);
         };
         // Make sure that we attempt to drop only cancelled and expired tasks, to avoid any asserts in this scenario
-        process_tasks(create_signer(@vm_reserved), 2, vector[task2, task3]);
+        process_tasks(create_signer(@vm_reserved), 2, vector[task1, task2]);
 
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
@@ -3738,17 +3735,16 @@ module supra_framework::automation_registry {
             // Check that we are still in finished state and processed-task are only task2 and task3
             assert!(cycle_details.state == CYCLE_FINISHED, 0);
             let transition_state = std::option::borrow(&cycle_details.transition_state);
-            assert!(vector::contains(&transition_state.actual_processed_tasks, &task2), 1);
-            assert!(vector::contains(&transition_state.actual_processed_tasks, &task3), 2);
+            assert!(transition_state.next_task_index_position == 2, 1);
 
             // Check that both tasks have been refunded with depoit fee only
             let expected_total_deposit_refund = 2 * automation_fee_cap;
             check_account_balance(user_address, expected_user_current_balance + expected_total_deposit_refund);
             check_account_balance(ar.registry_fee_address, expected_registry_current_balance - expected_total_deposit_refund);
-            // Check that only task1 still exists in pending state
-            check_task_state(ar, task1, exists, PENDING);
-            assert!(!has_task_with_id(task2), 3);
-            assert!(!has_task_with_id(task3), 4);
+            // Check that only task3 still exists in pending state
+            check_task_state(ar, task3, exists, PENDING);
+            assert!(!has_task_with_id(task1), 3);
+            assert!(!has_task_with_id(task2), 4);
         };
     }
 
@@ -3836,7 +3832,7 @@ module supra_framework::automation_registry {
         // As long as there was a single task in the registry registry will move to started state
         assert!(cycle_details.state == CYCLE_FINISHED, 0);
         let transition_state = std::option::borrow(&cycle_details.transition_state);
-        assert!(vector::is_empty(&transition_state.actual_processed_tasks), 1);
+        assert!(transition_state.next_task_index_position == 0, 1);
 
         // Check that no refund has happened
         check_account_balance(user_address, expected_user_current_balance);
@@ -3844,6 +3840,68 @@ module supra_framework::automation_registry {
 
         // Check that task has been removed from registry
         assert!(has_task_with_id(task1), 2);
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafa)]
+    #[expected_failure(abort_code = EOUT_OF_ORDER_TASK_PROCESSING_REQUEST, location = Self)]
+    fun check_tasks_processing_out_of_order_fails_in_finished_state(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+        initialize_registry_test(framework, user);
+        let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
+        let automation_fee_cap = 100_000_000;
+
+        let _task1 = register_with_state(
+            framework,
+            user,
+            44_000_000,
+            automation_fee_cap,
+            task_exipry_time,
+            CANCELLED);
+        let task2 = register_with_state(
+            framework,
+            user,
+            44_000_000,
+            automation_fee_cap,
+            task_exipry_time,
+            CANCELLED);
+
+        update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+        // Make sure we are in FINISHED state
+        monitor_cycle_end();
+        // Start processing from task 2
+        process_tasks(create_signer(@vm_reserved), 2, vector[task2]);
+    }
+
+    #[test(framework = @supra_framework, user = @0x1cafa)]
+    #[expected_failure(abort_code = EOUT_OF_ORDER_TASK_PROCESSING_REQUEST, location = Self)]
+    fun check_tasks_processing_out_of_order_fails_in_suspended_state(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistry, AutomationCycleDetails, ActiveAutomationRegistryConfig, AutomationRefundBookkeeping {
+        initialize_registry_test(framework, user);
+        let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
+        let automation_fee_cap = 100_000_000;
+
+        let _task1 = register_with_state(
+            framework,
+            user,
+            44_000_000,
+            automation_fee_cap,
+            task_exipry_time,
+            CANCELLED);
+        let task2 = register_with_state(
+            framework,
+            user,
+            44_000_000,
+            automation_fee_cap,
+            task_exipry_time,
+            CANCELLED);
+
+        toggle_feature_flag(framework, false);
+        on_new_epoch();
+        process_tasks(create_signer(@vm_reserved), 1, vector[task2]);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafa)]
@@ -3942,8 +4000,6 @@ module supra_framework::automation_registry {
             assert!(cycle_details.state == CYCLE_FINISHED, 0);
         };
         process_tasks(create_signer(@vm_reserved), 2,vector[task1, task2]);
-        // Also check that processed tasks are ignored and charging is done only once
-        process_tasks(create_signer(@vm_reserved), 2,vector[task1, task2]);
 
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
@@ -3952,8 +4008,7 @@ module supra_framework::automation_registry {
             // Check that we are still in finished state and processed-task are only task2 and task3
             assert!(cycle_details.state == CYCLE_FINISHED, 0);
             let transition_state = std::option::borrow(&cycle_details.transition_state);
-            assert!(vector::contains(&transition_state.actual_processed_tasks, &task1), 1);
-            assert!(vector::contains(&transition_state.actual_processed_tasks, &task2), 2);
+            assert!(transition_state.next_task_index_position == 2, 1);
 
             // Check that both tasks have been refunded with depoit fee only
             let expected_total_charge = 2 * (expected_automation_fee_per_task_1_2 + expected_congestion_fee_per_task_1_2);
@@ -4170,8 +4225,7 @@ module supra_framework::automation_registry {
             // Check that we are still in finished state and processed-task are only task2 and task3
             assert!(cycle_details.state == CYCLE_SUSPENDED, 0);
             let transition_state = std::option::borrow(&cycle_details.transition_state);
-            assert!(vector::contains(&transition_state.actual_processed_tasks, &task1), 1);
-            assert!(vector::contains(&transition_state.actual_processed_tasks, &task2), 2);
+            assert!(transition_state.next_task_index_position == 2, 1);
 
             // Check that both tasks have been refunded with depoit fee and remaining cycle fee only
             let expected_total_deposit_refund = 2 * automation_fee_cap;
@@ -4193,7 +4247,7 @@ module supra_framework::automation_registry {
         // Non existing item does not cause issues
         process_tasks(create_signer(@vm_reserved),  1, vector[10, 12]);
 
-        process_tasks(create_signer(@vm_reserved),  1, vector[task1, task2, task3]);
+        process_tasks(create_signer(@vm_reserved),  1, vector[task3]);
 
         {
             let ar = borrow_global<AutomationRegistry>(fwk_address);
@@ -4430,7 +4484,7 @@ module supra_framework::automation_registry {
             assert!(transition_state.gas_committed_for_new_cycle == 0, 5);
             assert!(transition_state.gas_committed_for_next_cycle  == 0, 6);
             assert!(transition_state.new_cycle_duration  == expected_cycle_duration, 7);
-            assert!(vector::is_empty(&transition_state.actual_processed_tasks), 8);
+            assert!(transition_state.next_task_index_position == 0, 8);
             assert!(vector::length(&transition_state.expected_tasks_to_be_processed) == 3, 9);
 
 
@@ -4506,7 +4560,7 @@ module supra_framework::automation_registry {
             assert!(transition_state.gas_committed_for_new_cycle == 0, 5);
             assert!(transition_state.gas_committed_for_next_cycle  == 0, 6);
             assert!(transition_state.new_cycle_duration  == EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2, 7);
-            assert!(vector::is_empty(&transition_state.actual_processed_tasks), 8);
+            assert!(transition_state.next_task_index_position == 0, 8);
             assert!(vector::length(&transition_state.expected_tasks_to_be_processed) == 3, 9);
 
 
@@ -4529,13 +4583,13 @@ module supra_framework::automation_registry {
         let t3_max_gas = 11_000_000;
         let automation_fee_cap = 100_000_000;
 
-        let _t1 = register_with_state(
+        let t1 = register_with_state(
             framework,
             user,
             t1_t2_max_gas,
             automation_fee_cap,
             2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS, ACTIVE);
-        let t2 = register_with_state(
+        let _t2 = register_with_state(
             framework,
             user,
             t1_t2_max_gas,
@@ -4568,8 +4622,8 @@ module supra_framework::automation_registry {
         // Expected new cylce gas and automation_fee_per_sec. Calculate now to make sure that config update was done.
         let total_committed_gas_for_new_cycle = t1_t2_max_gas + t3_max_gas;
         let automation_fee_per_sec_for_new_cycle = calculate_automation_fee_multiplier_for_committed_occupancy(total_committed_gas_for_new_cycle);
-        // Drop one task to mark transition initiated
-        process_tasks(create_signer(@vm_reserved), 2, vector[t2]);
+        // Process one task to mark transition initiated
+        process_tasks(create_signer(@vm_reserved), 2, vector[t1]);
         // Disable feature and call on new epoch to check that when transition to suspened state from started no config is updated
         let expected_cycle_duration =
         {
@@ -4588,9 +4642,9 @@ module supra_framework::automation_registry {
             let transition_state = std::option::borrow(&cycle_details.transition_state);
             assert!(transition_state.automation_fee_per_sec  == automation_fee_per_sec_for_new_cycle, 4);
             assert!(transition_state.gas_committed_for_new_cycle == total_committed_gas_for_new_cycle, 5);
-            assert!(transition_state.gas_committed_for_next_cycle  == 0, 6);
+            assert!(transition_state.gas_committed_for_next_cycle  == t1_t2_max_gas, 6);
             assert!(transition_state.new_cycle_duration  == EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2, 7);
-            assert!(vector::length(&transition_state.actual_processed_tasks) == 1, 8);
+            assert!(transition_state.next_task_index_position == 1, 8);
             assert!(vector::length(&transition_state.expected_tasks_to_be_processed) == 3, 9);
 
 
@@ -5147,7 +5201,7 @@ module supra_framework::automation_registry {
     #[test]
     fun check_sort_vector() {
         let task_fee_vec = vector[5, 3, 1, 4, 2];
-        sort_vector(&mut task_fee_vec);
+        task_fee_vec = sort_vector_u64(task_fee_vec);
         let i = 0;
         while (i < 5) {
             let item = vector::borrow(&task_fee_vec, i);
@@ -6079,9 +6133,7 @@ module supra_framework::automation_registry {
         initialize_registry_test(framework, user);
         let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
         let automation_fee_cap = 100_000_000;
-        let task_exists = true;
         let t1_t2_max_gas_amount = 44_000_000;
-        let t3_max_gas_amount = 11_000_000;
         let fwk_address = address_of(framework);
 
         let task1 = register_with_state(
@@ -6115,7 +6167,6 @@ module supra_framework::automation_registry {
         on_new_epoch();
         {
             let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
-            let config = borrow_global<ActiveAutomationRegistryConfig>(fwk_address);
             assert!(cycle_details.state == CYCLE_SUSPENDED, 2);
             assert!(std::option::is_some(&cycle_details.transition_state), 3);
             assert!(cycle_details.duration_secs == expected_cycle_duration, 4);
@@ -6129,7 +6180,6 @@ module supra_framework::automation_registry {
         process_tasks(create_signer(@vm_reserved), 1, vector[task1]);
         {
             let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
-            let config = borrow_global<ActiveAutomationRegistryConfig>(fwk_address);
             assert!(cycle_details.state == CYCLE_READY, 7);
             assert!(std::option::is_none(&cycle_details.transition_state), 8);
             // still, updated configs are not read from buffer
@@ -6145,9 +6195,7 @@ module supra_framework::automation_registry {
         initialize_registry_test(framework, user);
         let task_exipry_time = 2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS + EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2;
         let automation_fee_cap = 100_000_000;
-        let task_exists = true;
         let t1_t2_max_gas_amount = 44_000_000;
-        let t3_max_gas_amount = 11_000_000;
         let fwk_address = address_of(framework);
 
         let task1 = register_with_state(
@@ -6194,7 +6242,6 @@ module supra_framework::automation_registry {
         process_tasks(create_signer(@vm_reserved), 1, vector[task1, task2]);
         {
             let cycle_details = borrow_global<AutomationCycleDetails>(fwk_address);
-            let config = borrow_global<ActiveAutomationRegistryConfig>(fwk_address);
             assert!(cycle_details.state == CYCLE_READY, 6);
             assert!(std::option::is_some(&cycle_details.transition_state), 7);
             assert!(cycle_details.duration_secs == expected_cycle_duration, 8);

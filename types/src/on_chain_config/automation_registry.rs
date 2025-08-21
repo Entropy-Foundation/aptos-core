@@ -185,12 +185,14 @@ pub struct AutomationCycleTransitionState {
     pub gas_committed_for_next_cycle: u64,
     /// Total fee charged from users for the new cycle, which is not withdrawable.
     pub locked_fees: u64,
-    /// List of the tasks to be processed during transition.
+    /// List of the tasks still to be processed during transition.
+    /// This list should be sorted in ascending order.
+    /// The requirement is that all tasks are processed in the order of their registration. Which should be true
+    /// especially for cycle fee charges before new cycle start.
     pub expected_tasks_to_be_processed: Vec<u64>,
-    /// So far processed tasks during transition
-    /// In case if transition spans between multiple blocks then
-    /// upon recovery execution component will know the breaking point and can recover from it.
-    pub actual_processed_tasks: Vec<u64>
+    /// Position of the task index in the expected_tasks_to_be_processed to be processed next.
+    /// It is incremented when an expected task is successfully processed.
+    pub next_task_index_position: u64
 }
 
 /// On-chain Automation Cycle Details.

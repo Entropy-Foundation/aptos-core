@@ -639,10 +639,25 @@ fn check_automation_registry_actions_on_cycle_transition() {
     // Execute registry actions to have tasks activated
     let cycle_info = test_context.get_cycle_info();
     assert_eq!(cycle_info.state, AutomationCycleState::FINISHED);
-    let registry_action =
+    let registry_action_for_task1 =
+        test_context.create_automation_registry_transaction(0, cycle_info.index + 1, 1, vec![1]);
+
+    let registry_action_for_task0 =
         test_context.create_automation_registry_transaction(0, cycle_info.index + 1, 1, vec![0]);
+
+    // Check that out of order execution will fail
+    let result = test_context
+        .execute_tagged_transaction(Transaction::AutomationRegistryTransaction(registry_action_for_task1.clone()));
+    let status = result.status().status().expect("Expected execution status");
+
+    assert!(matches!(status, ExecutionStatus::MoveAbort {
+        location: _,
+        code: _,
+        info: _
+    }));
+
     test_context
-        .execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(registry_action));
+        .execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(registry_action_for_task0));
     let cycle_info = test_context.get_cycle_info();
     assert_eq!(cycle_info.state, AutomationCycleState::FINISHED);
     let cycle_details = AutomationCycleDetails::fetch_config(test_context.data_store())
@@ -651,12 +666,10 @@ fn check_automation_registry_actions_on_cycle_transition() {
         .transition_state
         .as_ref()
         .expect("Transition state");
-    assert!(transition_state.actual_processed_tasks.contains(&0));
+    assert_eq!(transition_state.next_task_index_position, 1);
 
-    let registry_action =
-        test_context.create_automation_registry_transaction(1, cycle_info.index + 1, 1, vec![1]);
     test_context
-        .execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(registry_action));
+        .execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(registry_action_for_task1));
     let cycle_info = test_context.get_cycle_info();
     assert_eq!(cycle_info.state, AutomationCycleState::STARTED);
 

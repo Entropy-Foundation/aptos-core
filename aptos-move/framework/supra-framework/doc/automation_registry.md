@@ -48,8 +48,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Constants](#@Constants_0)
 -  [Function `is_transition_finalized`](#0x1_automation_registry_is_transition_finalized)
 -  [Function `is_transition_in_progress`](#0x1_automation_registry_is_transition_in_progress)
--  [Function `append_processed_task`](#0x1_automation_registry_append_processed_task)
--  [Function `already_processed`](#0x1_automation_registry_already_processed)
+-  [Function `mark_task_processed`](#0x1_automation_registry_mark_task_processed)
 -  [Function `is_initialized`](#0x1_automation_registry_is_initialized)
 -  [Function `is_feature_enabled_and_initialized`](#0x1_automation_registry_is_feature_enabled_and_initialized)
 -  [Function `get_next_task_index`](#0x1_automation_registry_get_next_task_index)
@@ -125,7 +124,6 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `update_config_from_buffer`](#0x1_automation_registry_update_config_from_buffer)
 -  [Function `transfer_fee_to_account_internal`](#0x1_automation_registry_transfer_fee_to_account_internal)
 -  [Function `check_registration_task_duration`](#0x1_automation_registry_check_registration_task_duration)
--  [Function `sort_vector`](#0x1_automation_registry_sort_vector)
 -  [Function `upscale_from_u8`](#0x1_automation_registry_upscale_from_u8)
 -  [Function `upscale_from_u64`](#0x1_automation_registry_upscale_from_u64)
 -  [Function `upscale_from_u256`](#0x1_automation_registry_upscale_from_u256)
@@ -150,6 +148,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="timestamp.md#0x1_timestamp">0x1::timestamp</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
+<b>use</b> <a href="../../supra-stdlib/doc/vector_utils.md#0x1_vector_utils">0x1::vector_utils</a>;
 </code></pre>
 
 
@@ -482,14 +481,16 @@ Holds intermediate state data of the automation cycle transition from END->START
 </dt>
 <dd>
  List of the tasks to be processed during transition.
+ This list is sorted in ascending order.
+ The requirement is that all tasks are processed in the order of their registration. Which should be true
+ especially for cycle fee charges before new cycle start.
 </dd>
 <dt>
-<code>actual_processed_tasks: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;</code>
+<code>next_task_index_position: u64</code>
 </dt>
 <dd>
- So far processed tasks during transition
- In case if transition spans between multiple blocks then
- upon recovery execution component will know the breaking point and can recover from it.
+ Position of the task index in the expected_tasks_to_be_processed to be processed next.
+ It is incremented when an expected task is successfully processed.
 </dd>
 </dl>
 
@@ -2040,6 +2041,16 @@ The gas committed for next epoch value is underflow after remove old max gas
 
 
 
+<a id="0x1_automation_registry_EINCONSISTENT_TRANSITION_STATE"></a>
+
+Attempt to process a task when expected list of the tasks has been alrady processed.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINCONSISTENT_TRANSITION_STATE">EINCONSISTENT_TRANSITION_STATE</a>: u64 = 35;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_EINSUFFICIENT_AUTOMATION_FEE_CAP_FOR_EPOCH"></a>
 
 Automation fee capacity for the epoch should not be less than estimated one.
@@ -2082,7 +2093,7 @@ Invalid gas price: it cannot be zero
 
 <a id="0x1_automation_registry_EINVALID_INPUT_CYCLE_INDEX"></a>
 
-The tasks are requested to be processed from invalid cycle.
+The tasks are requested to be processed for invalid cycle.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_INPUT_CYCLE_INDEX">EINVALID_INPUT_CYCLE_INDEX</a>: u64 = 34;
@@ -2146,6 +2157,16 @@ Auxiliary data during registration is not supported
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ENO_AUX_DATA_SUPPORTED">ENO_AUX_DATA_SUPPORTED</a>: u64 = 14;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_EOUT_OF_ORDER_TASK_PROCESSING_REQUEST"></a>
+
+The out of order task processing has been identified during transition.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EOUT_OF_ORDER_TASK_PROCESSING_REQUEST">EOUT_OF_ORDER_TASK_PROCESSING_REQUEST</a>: u64 = 36;
 </code></pre>
 
 
@@ -2315,7 +2336,7 @@ The length of the transaction hash.
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_transition_finalized">is_transition_finalized</a>(state: &<a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a>): bool {
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&state.expected_tasks_to_be_processed) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&state.actual_processed_tasks)
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&state.expected_tasks_to_be_processed) == state.next_task_index_position
 }
 </code></pre>
 
@@ -2339,7 +2360,7 @@ The length of the transaction hash.
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_transition_in_progress">is_transition_in_progress</a>(state: &<a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a>): bool {
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&state.actual_processed_tasks) != 0
+    state.next_task_index_position != 0
 }
 </code></pre>
 
@@ -2347,13 +2368,13 @@ The length of the transaction hash.
 
 </details>
 
-<a id="0x1_automation_registry_append_processed_task"></a>
+<a id="0x1_automation_registry_mark_task_processed"></a>
 
-## Function `append_processed_task`
+## Function `mark_task_processed`
 
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_append_processed_task">append_processed_task</a>(state: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_TransitionState">automation_registry::TransitionState</a>, task_index: u64)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_mark_task_processed">mark_task_processed</a>(state: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_TransitionState">automation_registry::TransitionState</a>, task_index: u64)
 </code></pre>
 
 
@@ -2362,33 +2383,11 @@ The length of the transaction hash.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_append_processed_task">append_processed_task</a>(state: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a>, task_index: u64) {
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> state.actual_processed_tasks, task_index);
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_already_processed"></a>
-
-## Function `already_processed`
-
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_already_processed">already_processed</a>(state: &<a href="automation_registry.md#0x1_automation_registry_TransitionState">automation_registry::TransitionState</a>, task_index: u64): bool
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_already_processed">already_processed</a>(state: &<a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a>, task_index: u64): bool {
-    // TODO: maybe <b>use</b> <b>native</b> function <b>if</b> too expensive
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&state.actual_processed_tasks, &task_index)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_mark_task_processed">mark_task_processed</a>(state: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a>, task_index: u64) {
+    <b>assert</b>!(state.next_task_index_position &lt; <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&state.expected_tasks_to_be_processed), <a href="automation_registry.md#0x1_automation_registry_EINCONSISTENT_TRANSITION_STATE">EINCONSISTENT_TRANSITION_STATE</a>);
+    <b>let</b> expected_task = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&state.expected_tasks_to_be_processed, state.next_task_index_position);
+    <b>assert</b>!(expected_task == &task_index, <a href="automation_registry.md#0x1_automation_registry_EOUT_OF_ORDER_TASK_PROCESSING_REQUEST">EOUT_OF_ORDER_TASK_PROCESSING_REQUEST</a>);
+    state.next_task_index_position = state.next_task_index_position + 1;
 }
 </code></pre>
 
@@ -4189,6 +4188,8 @@ In case if end is identified the registry state is update to CYCLE_READY and cor
     );
     <b>let</b> removed_tasks = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
     <b>let</b> epoch_locked_fees = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees;
+    // Sort task indexes <b>as</b> order is important
+    task_indexes = sort_vector_u64(task_indexes);
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(task_indexes, |task_index| {
         <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index)) {
             <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
@@ -4220,7 +4221,7 @@ In case if end is identified the registry state is update to CYCLE_READY and cor
                 task.locked_fee_for_next_epoch,
                 task.locked_fee_for_next_epoch);
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> removed_tasks, task_index);
-            <a href="automation_registry.md#0x1_automation_registry_append_processed_task">append_processed_task</a>(transition_state, task_index);
+            <a href="automation_registry.md#0x1_automation_registry_mark_task_processed">mark_task_processed</a>(transition_state, task_index);
         };
     });
 
@@ -4267,7 +4268,7 @@ Traverses all input task indexes and either drops or tries to charge automation 
     <b>let</b> current_cycle_end_time = current_time + transition_state.new_cycle_duration;
 
     // Sort task indexes <b>to</b> charge automation fees in the tasks chronological order
-    <a href="automation_registry.md#0x1_automation_registry_sort_vector">sort_vector</a>(&<b>mut</b> task_ids);
+    task_ids = sort_vector_u64(task_ids);
 
     // Process each active task and calculate fee for the epoch for the tasks
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(task_ids, |task_index| {
@@ -4319,10 +4320,10 @@ If the task is already processed or missing from the registry then nothing is do
     intermediate_state: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_IntermediateStateOfEpochChange">IntermediateStateOfEpochChange</a>,
 )
 {
-    <b>if</b> (<a href="automation_registry.md#0x1_automation_registry_already_processed">already_processed</a>(transition_state,task_index) || !<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index)) {
+    <b>if</b> (!<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index)) {
         <b>return</b>
     };
-    <a href="automation_registry.md#0x1_automation_registry_append_processed_task">append_processed_task</a>(transition_state, task_index);
+    <a href="automation_registry.md#0x1_automation_registry_mark_task_processed">mark_task_processed</a>(transition_state, task_index);
     <b>let</b> task_meta = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_mut">enumerable_map::get_value_mut</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
     <b>if</b> (task_meta.state == <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a> || task_meta.expiry_time &lt;= current_time) {
         <a href="automation_registry.md#0x1_automation_registry_refund_deposit_and_drop">refund_deposit_and_drop</a>(task_index, <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>, refund_bookkeeping, resource_signer, &<b>mut</b> intermediate_state.removed_tasks);
@@ -4686,6 +4687,8 @@ Note it is expected that committed_occupancy does not include currnet task's occ
         <a href="automation_registry.md#0x1_automation_registry_move_to_started_state">move_to_started_state</a>(cycle_info);
         <b>return</b>
     };
+    <b>let</b> expected_tasks_to_be_processed = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
+    expected_tasks_to_be_processed = sort_vector_u64(expected_tasks_to_be_processed);
     <b>let</b> transition_state = <a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a> {
         refund_duration: 0,
         new_cycle_duration: cycle_info.duration_secs,
@@ -4693,8 +4696,8 @@ Note it is expected that committed_occupancy does not include currnet task's occ
         gas_committed_for_new_cycle: <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch,
         gas_committed_for_next_cycle: 0,
         locked_fees: 0,
-        expected_tasks_to_be_processed: <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks),
-        actual_processed_tasks: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]
+        expected_tasks_to_be_processed,
+        next_task_index_position: 0
     };
     cycle_info.transition_state = std::option::some(transition_state);
     // During cycle transition we <b>update</b> config only after transition state is created in order <b>to</b> have new cycle
@@ -4779,7 +4782,7 @@ Note it is expected that committed_occupancy does not include currnet task's occ
             transition_state.gas_committed_for_next_cycle = 0;
             transition_state.locked_fees = 0;
             transition_state.expected_tasks_to_be_processed = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
-            transition_state.actual_processed_tasks = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+            transition_state.next_task_index_position = 0;
         }
     };
     <a href="automation_registry.md#0x1_automation_registry_update_cycle_state_to">update_cycle_state_to</a>(cycle_info, <a href="automation_registry.md#0x1_automation_registry_CYCLE_READY">CYCLE_READY</a>)
@@ -4873,6 +4876,8 @@ In all cases if there are no tasks in registry the state will be updated directl
         <b>assert</b>!(current_time &lt; cycle_end_time, <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
         <b>assert</b>!(cycle_info.state == <a href="automation_registry.md#0x1_automation_registry_CYCLE_STARTED">CYCLE_STARTED</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_REGISTRY_STATE">EINVALID_REGISTRY_STATE</a>);
         <b>let</b> active_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
+        <b>let</b> expected_tasks_to_be_processed = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
+        expected_tasks_to_be_processed = sort_vector_u64(expected_tasks_to_be_processed);
         <b>let</b> transition_state = <a href="automation_registry.md#0x1_automation_registry_TransitionState">TransitionState</a> {
             refund_duration: cycle_end_time - current_time,
             new_cycle_duration: cycle_info.duration_secs,
@@ -4880,8 +4885,8 @@ In all cases if there are no tasks in registry the state will be updated directl
             gas_committed_for_new_cycle: 0,
             gas_committed_for_next_cycle: 0,
             locked_fees: 0,
-            expected_tasks_to_be_processed: <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks),
-            actual_processed_tasks: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]
+            expected_tasks_to_be_processed,
+            next_task_index_position: 0
         };
         cycle_info.transition_state = std::option::some(transition_state);
     } <b>else</b> {
@@ -5736,41 +5741,6 @@ Transfers the specified fee amount from the resource account to the target accou
         expiry_time &gt; (automation_cycle_info.start_time + automation_cycle_info.duration_secs),
         <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_BEFORE_NEXT_CYCLE">EEXPIRY_BEFORE_NEXT_CYCLE</a>
     );
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_automation_registry_sort_vector"></a>
-
-## Function `sort_vector`
-
-Insertion sort implementation for vector
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_sort_vector">sort_vector</a>(input: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_sort_vector">sort_vector</a>(input: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;) {
-    <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(input);
-    <b>let</b> i = 1;
-    <b>while</b> (i &lt; len) {
-        <b>let</b> j = i;
-        <b>let</b> to_be_sorted = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(input, j);
-        <b>while</b> (j &gt; 0 && to_be_sorted &lt; *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(input, j - 1)) {
-            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_swap">vector::swap</a>(input, j, j - 1);
-            j = j - 1;
-        };
-        i = i + 1;
-    };
 }
 </code></pre>
 
