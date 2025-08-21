@@ -241,7 +241,10 @@ module supra_framework::genesis {
         congestion_base_fee_in_quants_per_sec: u64,
         congestion_exponent: u8,
         task_capacity: u16,
-        cycle_duration: u64
+        cycle_duration: u64,
+        sys_task_duration_cap_in_secs: u64,
+        sys_registry_max_gas_cap: u64,
+        sys_task_capacity: u16,
     ) {
         automation_registry::initialize(
             supra_framework,
@@ -254,6 +257,9 @@ module supra_framework::genesis {
             congestion_base_fee_in_quants_per_sec,
             congestion_exponent,
             task_capacity,
+            sys_task_duration_cap_in_secs,
+            sys_registry_max_gas_cap,
+            sys_task_capacity,
         )
     }
 

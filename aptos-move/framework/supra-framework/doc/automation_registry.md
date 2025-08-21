@@ -10,9 +10,12 @@ This contract is part of the Supra Framework and is designed to manage automated
 
 
 -  [Resource `ActiveAutomationRegistryConfig`](#0x1_automation_registry_ActiveAutomationRegistryConfig)
+-  [Resource `ActiveAutomationRegistryConfigV2`](#0x1_automation_registry_ActiveAutomationRegistryConfigV2)
 -  [Resource `AutomationRegistryConfig`](#0x1_automation_registry_AutomationRegistryConfig)
+-  [Resource `RegistryConfigForSystemTasks`](#0x1_automation_registry_RegistryConfigForSystemTasks)
 -  [Struct `AutomationRegistryConfigV2`](#0x1_automation_registry_AutomationRegistryConfigV2)
 -  [Resource `AutomationRegistry`](#0x1_automation_registry_AutomationRegistry)
+-  [Resource `RegistryStateForSystemTasks`](#0x1_automation_registry_RegistryStateForSystemTasks)
 -  [Struct `TransitionState`](#0x1_automation_registry_TransitionState)
 -  [Resource `AutomationEpochInfo`](#0x1_automation_registry_AutomationEpochInfo)
 -  [Struct `AutomationCycleInfo`](#0x1_automation_registry_AutomationCycleInfo)
@@ -99,6 +102,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `update_cycle_transition_state_from_finished`](#0x1_automation_registry_update_cycle_transition_state_from_finished)
 -  [Function `estimate_automation_fee_with_committed_occupancy_internal`](#0x1_automation_registry_estimate_automation_fee_with_committed_occupancy_internal)
 -  [Function `validate_configuration_parameters_common`](#0x1_automation_registry_validate_configuration_parameters_common)
+-  [Function `validate_system_configuration_parameters_common`](#0x1_automation_registry_validate_system_configuration_parameters_common)
 -  [Function `create_registry_resource_account`](#0x1_automation_registry_create_registry_resource_account)
 -  [Function `on_cycle_end_internal`](#0x1_automation_registry_on_cycle_end_internal)
 -  [Function `update_cycle_state_to`](#0x1_automation_registry_update_cycle_state_to)
@@ -123,6 +127,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `update_config_from_buffer`](#0x1_automation_registry_update_config_from_buffer)
 -  [Function `transfer_fee_to_account_internal`](#0x1_automation_registry_transfer_fee_to_account_internal)
 -  [Function `check_registration_task_duration`](#0x1_automation_registry_check_registration_task_duration)
+-  [Function `migrate_active_config`](#0x1_automation_registry_migrate_active_config)
 -  [Function `upscale_from_u8`](#0x1_automation_registry_upscale_from_u8)
 -  [Function `upscale_from_u64`](#0x1_automation_registry_upscale_from_u64)
 -  [Function `upscale_from_u256`](#0x1_automation_registry_upscale_from_u256)
@@ -192,6 +197,59 @@ This contract is part of the Supra Framework and is designed to manage automated
 
 </details>
 
+<a id="0x1_automation_registry_ActiveAutomationRegistryConfigV2"></a>
+
+## Resource `ActiveAutomationRegistryConfigV2`
+
+
+
+<pre><code>#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a> <b>has</b> key
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>main_config: <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a></code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>next_cycle_registry_max_gas_cap: u64</code>
+</dt>
+<dd>
+ Will be the same as main_config.registry_max_gas_cap, unless updated during the cycle transiation.
+</dd>
+<dt>
+<code>registration_enabled: bool</code>
+</dt>
+<dd>
+ Flag indicating whether the task registration is enabled or paused.
+ If paused a new task registration will fail.
+</dd>
+<dt>
+<code>system_task_config: <a href="automation_registry.md#0x1_automation_registry_RegistryConfigForSystemTasks">automation_registry::RegistryConfigForSystemTasks</a></code>
+</dt>
+<dd>
+ Configuration parameters for system tasks
+</dd>
+<dt>
+<code>next_cycle_sys_registry_max_gas_cap: u64</code>
+</dt>
+<dd>
+ Will be the same as system_task_config.registry_max_gas_cap, unless updated during the cycle transition.
+</dd>
+</dl>
+
+
+</details>
+
 <a id="0x1_automation_registry_AutomationRegistryConfig"></a>
 
 ## Resource `AutomationRegistryConfig`
@@ -222,7 +280,7 @@ Automation registry configuration parameters
 <code>registry_max_gas_cap: u64</code>
 </dt>
 <dd>
- Maximum gas allocation for automation tasks per epoch
+ Maximum gas allocation for automation tasks per cycle
  Exceeding this limit during task registration will cause failure and is used in fee calculation.
 </dd>
 <dt>
@@ -262,6 +320,50 @@ Automation registry configuration parameters
 </dt>
 <dd>
  Maximum number of tasks that registry can hold.
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_automation_registry_RegistryConfigForSystemTasks"></a>
+
+## Resource `RegistryConfigForSystemTasks`
+
+Automation registry configuration parameters for governance/system submitted tasks
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_RegistryConfigForSystemTasks">RegistryConfigForSystemTasks</a> <b>has</b> <b>copy</b>, drop, store, key
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>task_duration_cap_in_secs: u64</code>
+</dt>
+<dd>
+ Maximum allowable duration (in seconds) from the registration time that an system automation task can run.
+ If the expiration time exceeds this duration, the task registration will fail.
+</dd>
+<dt>
+<code>registry_max_gas_cap: u64</code>
+</dt>
+<dd>
+ Maximum gas allocation for system automation tasks per cycle
+ Exceeding this limit during task registration will cause failure and is used in fee calculation.
+</dd>
+<dt>
+<code>task_capacity: u16</code>
+</dt>
+<dd>
+ Maximum number of system tasks that registry can hold.
 </dd>
 </dl>
 
@@ -344,6 +446,26 @@ Automation registry configuration parameters
 <dd>
  Automation cycle duration in secods
 </dd>
+<dt>
+<code>sys_task_duration_cap_in_secs: u64</code>
+</dt>
+<dd>
+ Maximum allowable duration (in seconds) from the registration time that an system automation task can run.
+ If the expiration time exceeds this duration, the task registration will fail.
+</dd>
+<dt>
+<code>sys_registry_max_gas_cap: u64</code>
+</dt>
+<dd>
+ Maximum gas allocation for system automation tasks per cycle
+ Exceeding this limit during task registration will cause failure and is used in fee calculation.
+</dd>
+<dt>
+<code>sys_task_capacity: u16</code>
+</dt>
+<dd>
+ Maximum number of system tasks that registry can hold.
+</dd>
 </dl>
 
 
@@ -414,6 +536,53 @@ It tracks entries both pending and completed, organized by unique indices.
 </dt>
 <dd>
  Cached active task indexes for the current epoch.
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_automation_registry_RegistryStateForSystemTasks"></a>
+
+## Resource `RegistryStateForSystemTasks`
+
+It tracks entries both pending and completed, organized by unique indices.
+
+
+<pre><code>#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_RegistryStateForSystemTasks">RegistryStateForSystemTasks</a> <b>has</b> store, key
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>gas_committed_for_next_cycle: u64</code>
+</dt>
+<dd>
+ Gas committed for next cycle
+</dd>
+<dt>
+<code>gas_committed_for_this_cycle: u256</code>
+</dt>
+<dd>
+ Total committed max gas amount at the beginning of the current cycle.
+</dd>
+<dt>
+<code>task_ids: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;</code>
+</dt>
+<dd>
+ Cached system task indexes
+</dd>
+<dt>
+<code>authorized_accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;</code>
+</dt>
+<dd>
+ Authorized accounts to registry system tasks
 </dd>
 </dl>
 
@@ -2198,6 +2367,16 @@ Automation registry max gas capacity cannot be zero.
 
 
 
+<a id="0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO_SYS"></a>
+
+Automation registry max gas capacity for system tasks cannot be zero.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO_SYS">EREGISTRY_MAX_GAS_CAP_NON_ZERO_SYS</a>: u64 = 37;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_EREQUEST_EXCEEDS_LOCKED_BALANCE"></a>
 
 Requested amount exceeds the locked balance
@@ -2224,6 +2403,16 @@ Current committed gas amount is greater than the automation gas limit.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_AUTOMATION_GAS_LIMIT">EUNACCEPTABLE_AUTOMATION_GAS_LIMIT</a>: u64 = 10;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_EUNACCEPTABLE_SYS_TASK_DURATION_CAP"></a>
+
+Current automation cycle interval is greater than specified system task duration cap.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_SYS_TASK_DURATION_CAP">EUNACCEPTABLE_SYS_TASK_DURATION_CAP</a>: u64 = 18;
 </code></pre>
 
 
@@ -2467,6 +2656,7 @@ Checks whether all required resources are created.
         && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework)
         && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework)
         && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework)
+        && <b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_RegistryStateForSystemTasks">RegistryStateForSystemTasks</a>&gt;(@supra_framework)
 }
 </code></pre>
 
@@ -3271,7 +3461,7 @@ Update Automation Registry Config
 Update Automation Registry Config along with cycle duration.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_v2">update_config_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16, cycle_duration_secs: u64)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_v2">update_config_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16, cycle_duration_secs: u64, sys_task_duration_cap_in_secs: u64, sys_registry_max_gas_cap: u64, sys_task_capacity: u16)
 </code></pre>
 
 
@@ -3291,6 +3481,9 @@ Update Automation Registry Config along with cycle duration.
     congestion_exponent: u8,
     task_capacity: u16,
     cycle_duration_secs: u64,
+    sys_task_duration_cap_in_secs: u64,
+    sys_registry_max_gas_cap: u64,
+    sys_task_capacity: u16,
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
@@ -3317,7 +3510,10 @@ Update Automation Registry Config along with cycle duration.
         congestion_base_fee_in_quants_per_sec,
         congestion_exponent,
         task_capacity,
-        cycle_duration_secs
+        cycle_duration_secs,
+        sys_task_duration_cap_in_secs,
+        sys_registry_max_gas_cap,
+        sys_task_capacity
     };
     <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(<b>copy</b> new_automation_registry_config);
 
@@ -3645,7 +3841,7 @@ monitor_cycle_end (block_prologue->automation_registry::monitor_cycle_end) which
 thus not causing any inconcistensy in the chain
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_migrate_v2">migrate_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, cycle_duration_secs: u64)
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_migrate_v2">migrate_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, cycle_duration_secs: u64, sys_task_duration_cap_in_secs: u64, sys_registry_max_gas_cap: u64, sys_task_capacity: u16)
 </code></pre>
 
 
@@ -3654,11 +3850,15 @@ thus not causing any inconcistensy in the chain
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_migrate_v2">migrate_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, cycle_duration_secs: u64
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_migrate_v2">migrate_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, cycle_duration_secs: u64,
+    sys_task_duration_cap_in_secs: u64,
+    sys_registry_max_gas_cap: u64,
+    sys_task_capacity: u16
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> {
     assert_supra_framework(supra_framework);
     <b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_automation_cycle_enabled">features::supra_automation_cycle_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EINVALID_MIGRATION_ACTION">EINVALID_MIGRATION_ACTION</a>);
     <b>assert</b>!(<b>exists</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework), <a href="automation_registry.md#0x1_automation_registry_EINVALID_MIGRATION_ACTION">EINVALID_MIGRATION_ACTION</a>);
+    <a href="automation_registry.md#0x1_automation_registry_validate_system_configuration_parameters_common">validate_system_configuration_parameters_common</a>(cycle_duration_secs, sys_task_duration_cap_in_secs, sys_registry_max_gas_cap);
 
     // Prepare the state for migration
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>&gt;(@supra_framework);
@@ -3687,6 +3887,17 @@ thus not causing any inconcistensy in the chain
         state: <a href="automation_registry.md#0x1_automation_registry_CYCLE_READY">CYCLE_READY</a>,
         transition_state: std::option::none()
     });
+
+    <a href="automation_registry.md#0x1_automation_registry_migrate_active_config">migrate_active_config</a>(supra_framework, sys_task_duration_cap_in_secs,  sys_registry_max_gas_cap, sys_task_capacity);
+
+    // Initialize registry state for system tasks
+    <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_RegistryStateForSystemTasks">RegistryStateForSystemTasks</a> {
+        gas_committed_for_this_cycle: 0,
+        gas_committed_for_next_cycle: 0,
+        authorized_accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[],
+        task_ids: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[],
+    });
+
     // Remain in <a href="automation_registry.md#0x1_automation_registry_CYCLE_READY">CYCLE_READY</a> state <b>if</b> feature is not enabled or registry is not fully initialized
     <b>if</b> (!<a href="automation_registry.md#0x1_automation_registry_is_feature_enabled_and_initialized">is_feature_enabled_and_initialized</a>()) {
         <b>return</b>
@@ -4632,6 +4843,35 @@ Note it is expected that committed_occupancy does not include currnet task's occ
     <b>assert</b>!(congestion_exponent &gt; 0, <a href="automation_registry.md#0x1_automation_registry_ECONGESTION_EXP_NON_ZERO">ECONGESTION_EXP_NON_ZERO</a>);
     <b>assert</b>!(task_duration_cap_in_secs &gt; cycle_duration_secs, <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_TASK_DURATION_CAP">EUNACCEPTABLE_TASK_DURATION_CAP</a>);
     <b>assert</b>!(registry_max_gas_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO">EREGISTRY_MAX_GAS_CAP_NON_ZERO</a>);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_validate_system_configuration_parameters_common"></a>
+
+## Function `validate_system_configuration_parameters_common`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_validate_system_configuration_parameters_common">validate_system_configuration_parameters_common</a>(cycle_duration_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_validate_system_configuration_parameters_common">validate_system_configuration_parameters_common</a>(
+    cycle_duration_secs: u64,
+    task_duration_cap_in_secs: u64,
+    registry_max_gas_cap: u64,
+) {
+    <b>assert</b>!(task_duration_cap_in_secs &gt; cycle_duration_secs, <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_SYS_TASK_DURATION_CAP">EUNACCEPTABLE_SYS_TASK_DURATION_CAP</a>);
+    <b>assert</b>!(registry_max_gas_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO_SYS">EREGISTRY_MAX_GAS_CAP_NON_ZERO_SYS</a>);
 }
 </code></pre>
 
@@ -5745,6 +5985,54 @@ Transfers the specified fee amount from the resource account to the target accou
         expiry_time &gt; (automation_cycle_info.start_time + automation_cycle_info.duration_secs),
         <a href="automation_registry.md#0x1_automation_registry_EEXPIRY_BEFORE_NEXT_CYCLE">EEXPIRY_BEFORE_NEXT_CYCLE</a>
     );
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_migrate_active_config"></a>
+
+## Function `migrate_active_config`
+
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_migrate_active_config">migrate_active_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, sys_task_duration_cap_in_secs: u64, sys_registry_max_gas_cap: u64, sys_task_capacity: u16)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_migrate_active_config">migrate_active_config</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    sys_task_duration_cap_in_secs: u64,
+    sys_registry_max_gas_cap: u64,
+    sys_task_capacity: u16
+
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+    <b>let</b> current_active_config = <b>move_from</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(@supra_framework);
+    <b>let</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+        main_config,
+        next_epoch_registry_max_gas_cap,
+        registration_enabled
+    } = current_active_config;
+    <b>let</b> system_task_config =  <a href="automation_registry.md#0x1_automation_registry_RegistryConfigForSystemTasks">RegistryConfigForSystemTasks</a> {
+        task_duration_cap_in_secs: sys_task_duration_cap_in_secs,
+        registry_max_gas_cap: sys_registry_max_gas_cap,
+        task_capacity: sys_task_capacity
+    };
+    <b>let</b> new_active_config = <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a> {
+        main_config,
+        next_cycle_registry_max_gas_cap: next_epoch_registry_max_gas_cap,
+        next_cycle_sys_registry_max_gas_cap: sys_registry_max_gas_cap,
+        registration_enabled,
+        system_task_config,
+    };
+    <b>move_to</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>&gt;(supra_framework, new_active_config);
 }
 </code></pre>
 
