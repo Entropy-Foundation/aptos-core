@@ -407,7 +407,15 @@ impl AptosVM {
         gas_meter: &impl AptosGasMeter,
         storage_fee_refund: u64,
     ) -> FeeStatement {
-        let gas_used = Self::gas_used(txn_data.max_gas_amount(), gas_meter);
+        Self::fee_statement_from_gas_meter_for_gas(txn_data.max_gas_amount, gas_meter, storage_fee_refund)
+    }
+
+    pub(crate) fn fee_statement_from_gas_meter_for_gas(
+        max_gas: Gas,
+        gas_meter: &impl AptosGasMeter,
+        storage_fee_refund: u64,
+    ) -> FeeStatement {
+        let gas_used = Self::gas_used(max_gas, gas_meter);
         FeeStatement::new(
             gas_used,
             u64::from(gas_meter.execution_gas_used()),

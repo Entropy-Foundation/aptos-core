@@ -17,8 +17,8 @@ use aptos_vm_types::storage::change_set_configs::ChangeSetConfigs;
 use move_binary_format::errors::VMError;
 use move_core_types::vm_status::{StatusCode, VMStatus};
 use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
-use move_vm_types::gas::UnmeteredGasMeter;
 use std::ops::Deref;
+use crate::gas::make_prod_gas_meter;
 
 pub struct AutomationRegistryTransactionProcessor<'m> {
     aptos_vm: &'m AptosVM,
@@ -60,7 +60,18 @@ impl<'m> AutomationRegistryTransactionProcessor<'m> {
                 discarded_output(StatusCode::FEATURE_UNDER_GATING),
             ));
         }
-        let mut gas_meter = UnmeteredGasMeter;
+        let gas_params =
+            get_or_vm_startup_failure(&self.gas_params_internal(), log_context)?
+                .vm
+                .clone();
+        let max_gas_amount = gas_params.txn.maximum_number_of_gas_units;
+        let mut gas_meter = make_prod_gas_meter(
+            self.gas_feature_version(),
+            gas_params,
+            get_or_vm_startup_failure(&self.storage_gas_params, log_context)?.clone(),
+            false,
+            max_gas_amount,
+        );
         let mut session = self.new_session(
             resolver,
             SessionId::automation_registry_action(action_record),
@@ -82,11 +93,12 @@ impl<'m> AutomationRegistryTransactionProcessor<'m> {
             .map(|_return_vals| ());
         SYSTEM_TRANSACTIONS_EXECUTED.inc();
 
+        let fee_statement = AptosVM::fee_statement_from_gas_meter_for_gas(max_gas_amount.into(), &gas_meter, 0);
         match result {
             Ok(_) => {
                 let output = get_system_transaction_output(
                     session,
-                    FeeStatement::zero(),
+                    fee_statement,
                     ExecutionStatus::Success,
                     &get_or_vm_startup_failure(&self.storage_gas_params, log_context)?
                         .change_set_configs,
@@ -97,6 +109,7 @@ impl<'m> AutomationRegistryTransactionProcessor<'m> {
                 session,
                 &get_or_vm_startup_failure(&self.storage_gas_params, log_context)?
                     .change_set_configs,
+                fee_statement,
                 vm_err,
             ),
         }
@@ -106,6 +119,7 @@ impl<'m> AutomationRegistryTransactionProcessor<'m> {
         &self,
         session: SessionExt,
         change_set_configs: &ChangeSetConfigs,
+        fee_statement: FeeStatement,
         vm_err: VMError,
     ) -> Result<(VMStatus, VMOutput), VMStatus> {
         let vm_status = VMStatus::from(vm_err);
@@ -114,7 +128,7 @@ impl<'m> AutomationRegistryTransactionProcessor<'m> {
 
         let change_set = session.finish(change_set_configs)?;
 
-        let output = VMOutput::new(change_set, FeeStatement::zero(), txn_status, aux_data);
+        let output = VMOutput::new(change_set, fee_statement, txn_status, aux_data);
         Ok((vm_status, output))
     }
 }

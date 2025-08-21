@@ -74,6 +74,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `is_registration_enabled`](#0x1_automation_registry_is_registration_enabled)
 -  [Function `get_cycle_duration`](#0x1_automation_registry_get_cycle_duration)
 -  [Function `get_cycle_info`](#0x1_automation_registry_get_cycle_info)
+-  [Function `get_record_max_task_count`](#0x1_automation_registry_get_record_max_task_count)
 -  [Function `withdraw_automation_task_fees`](#0x1_automation_registry_withdraw_automation_task_fees)
 -  [Function `update_config`](#0x1_automation_registry_update_config)
 -  [Function `update_config_v2`](#0x1_automation_registry_update_config_v2)
@@ -2307,6 +2308,58 @@ Registry resource creation seed
 
 
 
+<a id="0x1_automation_registry_TASK_EXECUTION_GAS"></a>
+
+Constants defining single task processing maximum limits
+Single task processing execution gas.
+max_execution_gas is defined 920_000_000, where scaling factor is 1_000_000.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_TASK_EXECUTION_GAS">TASK_EXECUTION_GAS</a>: u64 = 4000000;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_TASK_IO_GAS"></a>
+
+Single task processing IO gas.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_TASK_IO_GAS">TASK_IO_GAS</a>: u64 = 10000000;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_TASK_STORAGE_FEE"></a>
+
+Max storage fee per task.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_TASK_STORAGE_FEE">TASK_STORAGE_FEE</a>: u64 = 1000;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_TASK_SUPPORT_FACTOR"></a>
+
+Task support factor in percentage. It should not exceed 100.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_TASK_SUPPORT_FACTOR">TASK_SUPPORT_FACTOR</a>: u64 = 80;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_TASK_WRITE_OPS"></a>
+
+Max write operation per task.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_TASK_WRITE_OPS">TASK_WRITE_OPS</a>: u64 = 10;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_TXN_HASH_LENGTH"></a>
 
 The length of the transaction hash.
@@ -3104,6 +3157,40 @@ Returns the current cycle info.
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_cycle_info">get_cycle_info</a>(): <a href="automation_registry.md#0x1_automation_registry_AutomationCycleInfo">AutomationCycleInfo</a> <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a> {
     <b>let</b> details = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
     <a href="automation_registry.md#0x1_automation_registry_into_automation_cycle_info">into_automation_cycle_info</a>(details)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_get_record_max_task_count"></a>
+
+## Function `get_record_max_task_count`
+
+Returns the maximum number of the tasks that can be processed in scope of single bookkeeping transaction.
+
+
+<pre><code>#[view]
+<b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_record_max_task_count">get_record_max_task_count</a>(max_execution_gas: u64, max_io_gas: u64, max_storage_fee: u64, max_write_op: u64): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_record_max_task_count">get_record_max_task_count</a>(max_execution_gas: u64, max_io_gas: u64, max_storage_fee: u64, max_write_op: u64): u64 {
+    <b>let</b> task_count_by_exec_gas = max_execution_gas / <a href="automation_registry.md#0x1_automation_registry_TASK_EXECUTION_GAS">TASK_EXECUTION_GAS</a>;
+    <b>let</b> task_count_by_io_gas = max_io_gas / <a href="automation_registry.md#0x1_automation_registry_TASK_IO_GAS">TASK_IO_GAS</a>;
+    <b>let</b> task_count_by_storage_fee = max_storage_fee / <a href="automation_registry.md#0x1_automation_registry_TASK_STORAGE_FEE">TASK_STORAGE_FEE</a>;
+    <b>let</b> task_count_by_write_op = max_write_op / <a href="automation_registry.md#0x1_automation_registry_TASK_WRITE_OPS">TASK_WRITE_OPS</a>;
+
+    <b>let</b> task_count = <a href="../../aptos-stdlib/doc/math64.md#0x1_math64_min">math64::min</a>(task_count_by_exec_gas, task_count_by_io_gas);
+    task_count = <a href="../../aptos-stdlib/doc/math64.md#0x1_math64_min">math64::min</a>(task_count, task_count_by_storage_fee);
+    task_count = <a href="../../aptos-stdlib/doc/math64.md#0x1_math64_min">math64::min</a>(task_count, task_count_by_write_op);
+    task_count * <a href="automation_registry.md#0x1_automation_registry_TASK_SUPPORT_FACTOR">TASK_SUPPORT_FACTOR</a> / 100
 }
 </code></pre>
 
