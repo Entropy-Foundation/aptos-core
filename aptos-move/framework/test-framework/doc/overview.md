@@ -1,10 +1,11 @@
 
-<a id="@Supra_Framework_0"></a>
+<a id="@Test_Supra_Framework_0"></a>
 
-# Supra Framework
+# Test Supra Framework
 
 
-This is the reference documentation of the Test Supra framework. This should never be included in the production framework.
+This is the reference documentation of the Test Supra framework.
+This defines modules used for testing. It should never be deployed to production.
 
 
 <a id="@Index_1"></a>
