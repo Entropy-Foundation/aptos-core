@@ -15,7 +15,11 @@ use move_binary_format::{
     errors::{PartialVMError, PartialVMResult},
     file_format::{AbilitySet, Bytecode, CompiledModule, FunctionDefinitionIndex, Visibility},
 };
-use move_core_types::{identifier::Identifier, language_storage::ModuleId, vm_status::StatusCode};
+use move_core_types::{
+    identifier::Identifier,
+    language_storage::{ModuleId, CORE_CODE_ADDRESS},
+    vm_status::StatusCode,
+};
 use move_vm_types::loaded_data::{
     runtime_access_specifier::AccessSpecifier,
     runtime_types::{StructIdentifier, Type},
@@ -260,8 +264,17 @@ impl Function {
 
     pub(crate) fn get_native(&self) -> PartialVMResult<&UnboxedNativeFunction> {
         self.native.as_deref().ok_or_else(|| {
-            PartialVMError::new(StatusCode::MISSING_NATIVE_FUNCTION)
-                .with_message(format!("Missing Native Function `{}`", self.name))
+            let status_code = match &self.scope {
+                Scope::Module(module_id) if module_id.address() == &CORE_CODE_ADDRESS => {
+                    StatusCode::MISSING_NATIVE_FUNCTION
+                },
+                _ => StatusCode::MISSING_DEPENDENCY,
+            };
+
+            PartialVMError::new(status_code).with_message(format!(
+                "Missing Native Function `{}` at {:?}",
+                self.name, self.scope
+            ))
         })
     }
 }
