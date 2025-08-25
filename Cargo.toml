@@ -808,6 +808,7 @@ ureq = { version = "1.5.4", features = [
   "native-tls",
 ], default_features = false }
 url = { version = "2.4.0", features = ["serde"] }
+utoipa = { version = "5.3.1", features = ["preserve_order", "yaml"] }
 uuid = { version = "1.0.0", features = ["v4", "serde"] }
 variant_count = "1.1.0"
 walkdir = "2.3.3"

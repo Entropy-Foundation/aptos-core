@@ -19,7 +19,14 @@ env:
   APTOS_BIN: ~/.local/bin/aptos
   SCRYPTO_BIN: ~/.cargo/bin/scrypto
 jobs:
-  build:
+  check:
+    runs-on: ghr-elastic-supra-aptos-core-runner
+    timeout-minutes: 10
+    steps:
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v4
+      - run: cargo check --workspace
+  test:
     runs-on: ghr-elastic-supra-aptos-core-runner
     timeout-minutes: 90
     steps:

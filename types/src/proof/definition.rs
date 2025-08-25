@@ -32,12 +32,34 @@ use std::{any::type_name, marker::PhantomData};
 /// example, both `LedgerInfoToTransactionInfoProof` and `TransactionInfoToEventProof` can be
 /// constructed on top of this structure.
 #[derive(Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "rest_api_schema",
+    derive(utoipa::ToSchema),
+    schema(bound = "")
+)]
 pub struct AccumulatorProof<H> {
     /// All siblings in this proof, including the default ones. Siblings are ordered from the bottom
     /// level to the root level.
+    #[cfg_attr(feature = "rest_api_schema",schema(value_type = String))]
     siblings: Vec<HashValue>,
-
+    #[serde(skip)]
+    #[cfg_attr(feature = "rest_api_schema", schema(ignore))]
     phantom: PhantomData<H>,
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(feature = "rest_api_schema")]
+    #[test]
+    fn feature() {
+        use crate::proof::{AccumulatorProof, TransactionAccumulatorHasher};
+
+        #[derive(utoipa::ToSchema)]
+        pub struct TransactionInclusionProof {
+            #[schema(value_type = AccumulatorProof<u64>)]
+            pub proof: AccumulatorProof<TransactionAccumulatorHasher>,
+        }
+    }
 }
 
 /// Because leaves can only take half the space in the tree, any numbering of the tree leaves must
