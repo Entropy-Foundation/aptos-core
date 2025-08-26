@@ -198,6 +198,31 @@ impl RegistrationParamsV1 {
     }
 }
 
+/// Type of the automation task.
+// The order of the entries is important, a new one should be appended at the end.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum AutomationTaskType {
+    // System authorized automation task
+    System = 0,
+    // User submitted automation task
+    User,
+}
+
+impl From<AutomationTaskType> for Vec<u8> {
+    fn from(value: AutomationTaskType) -> Self {
+        bcs::to_bytes(&value).unwrap()
+    }
+}
+
+impl TryFrom<&[u8]> for AutomationTaskType {
+    type Error = String;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        bcs::from_bytes::<Self>(value).map_err(|e| e.to_string())
+    }
+}
+
 /// Rust representation of the Automation task meta information in Move.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AutomationTaskMetaData {
@@ -328,6 +353,14 @@ impl AutomationTaskMetaData {
 
     pub fn locked_fee_for_next_epoch(&self) -> u64 {
         self.locked_fee_for_next_epoch
+    }
+
+    pub fn get_task_type(&self) -> Result<AutomationTaskType, String> {
+        if self.aux_data.is_empty() {
+            // For the old tasks registered in scope of the automation v1 feature.
+            return Ok(AutomationTaskType::User)
+        }
+        AutomationTaskType::try_from(self.aux_data[0].as_slice())
     }
 }
 

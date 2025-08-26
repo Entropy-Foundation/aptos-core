@@ -18,6 +18,8 @@ const DEFAULT_CONGESTION_BASE_FEE_IN_QUANTS_PER_SEC: u64 = 100;
 const DEFAULT_CONGESTION_EXPONENT: u8 = 6;
 const DEFAULT_TASK_CAPACITY: u16 = 500;
 const DEFAULT_CYCLE_DURATION_SECS: u64 = 1200;
+const DEFAULT_SYSTEM_TASK_CAPACITY: u16 = 100;
+const DEFAULT_SYSTEM_TASKS_MAX_GAS_CAP: u64 = 200_000;
 
 /// Initial version of configuration parameters for Supra native automation feature
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Eq, Getters, Constructor)]
@@ -84,6 +86,14 @@ pub struct AutomationRegistryConfigV2 {
     task_capacity: u16,
     /// Cycle duration in seconds.
     cycle_duration_secs: u64,
+    /// Maximum allowable duration (in seconds) from the registration time that a system automation task can run.
+    /// If the expiration time exceeds this duration, the task registration will fail.
+    system_task_duration_cap_in_secs: u64,
+    /// Maximum gas allocation for system automation tasks per epoch
+    /// Exceeding this limit during task registration will cause failure and is used in fee calculation.
+    system_tasks_max_gas_cap: u64,
+    /// Maximum number of system tasks that registry can hold.
+    system_task_capacity: u16,
 }
 
 impl Default for AutomationRegistryConfigV2 {
@@ -98,6 +108,9 @@ impl Default for AutomationRegistryConfigV2 {
             congestion_exponent: DEFAULT_CONGESTION_EXPONENT,
             task_capacity: DEFAULT_TASK_CAPACITY,
             cycle_duration_secs: DEFAULT_CYCLE_DURATION_SECS,
+            system_task_duration_cap_in_secs: ONE_MONTH_IN_SECS * 2,
+            system_tasks_max_gas_cap: DEFAULT_SYSTEM_TASKS_MAX_GAS_CAP,
+            system_task_capacity: DEFAULT_SYSTEM_TASK_CAPACITY,
         }
     }
 }
@@ -124,6 +137,9 @@ impl From<AutomationRegistryConfigV1> for AutomationRegistryConfigV2 {
             congestion_exponent,
             task_capacity,
             cycle_duration_secs: DEFAULT_CYCLE_DURATION_SECS,
+            system_task_duration_cap_in_secs: ONE_MONTH_IN_SECS * 2,
+            system_tasks_max_gas_cap: DEFAULT_SYSTEM_TASKS_MAX_GAS_CAP,
+            system_task_capacity: DEFAULT_SYSTEM_TASK_CAPACITY,
         }
     }
 }
@@ -158,6 +174,9 @@ impl AutomationRegistryConfig {
                     MoveValue::U8(*config.congestion_exponent()),
                     MoveValue::U16(*config.task_capacity()),
                     MoveValue::U64(DEFAULT_CYCLE_DURATION_SECS),
+                    MoveValue::U64(ONE_MONTH_IN_SECS * 2),
+                    MoveValue::U64(DEFAULT_SYSTEM_TASKS_MAX_GAS_CAP),
+                    MoveValue::U16(DEFAULT_SYSTEM_TASK_CAPACITY),
                 ]
             },
             AutomationRegistryConfig::V2(config) => {
@@ -172,6 +191,9 @@ impl AutomationRegistryConfig {
                     MoveValue::U8(*config.congestion_exponent()),
                     MoveValue::U16(*config.task_capacity()),
                     MoveValue::U64(*config.cycle_duration_secs()),
+                    MoveValue::U64(*config.system_task_duration_cap_in_secs()),
+                    MoveValue::U64(*config.system_tasks_max_gas_cap()),
+                    MoveValue::U16(*config.system_task_capacity()),
                 ]
             },
         };
@@ -236,8 +258,10 @@ pub struct AutomationCycleTransitionState {
     pub automation_fee_per_sec: u64,
     /// Gas committed for the new cycle being transitioned.
     pub gas_committed_for_new_cycle: u64,
-    /// Gas committed for the next cycle.
+    /// Gas committed for the next cycle by user submitted tasks.
     pub gas_committed_for_next_cycle: u64,
+    /// Gas committed for the next cycle by system tasks.
+    pub system_gas_committed_for_next_cycle: u64,
     /// Total fee charged from users for the new cycle, which is not withdrawable.
     pub locked_fees: u64,
     /// List of the tasks still to be processed during transition.

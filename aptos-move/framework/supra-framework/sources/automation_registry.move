@@ -118,6 +118,8 @@ module supra_framework::automation_registry {
     const ESYSTEM_AUTOMATION_TASK_NOT_FOUND: u64 = 42;
     /// Type of the registered task does not match the expected one.
     const EREGISTERED_TASK_INVALID_TYPE: u64 = 43;
+    /// Attempt to run an action for a task which is not authorized.
+    const EUNAUTHORIZED_TASK_OPERATION: u64 = 44;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -1070,6 +1072,7 @@ module supra_framework::automation_registry {
 
         let automation_task_metadata = enumerable_map::get_value(&mut automation_registry.tasks, task_index);
         let owner = signer::address_of(owner_signer);
+        assert!(is_of_type(&automation_task_metadata, UST), EUNAUTHORIZED_TASK_OPERATION);
         assert!(automation_task_metadata.owner == owner, EUNAUTHORIZED_TASK_OWNER);
         assert!(automation_task_metadata.state != CANCELLED, EALREADY_CANCELLED);
         if (automation_task_metadata.state == PENDING) {
@@ -1153,6 +1156,7 @@ module supra_framework::automation_registry {
             if (enumerable_map::contains(&automation_registry.tasks, task_index)) {
                 // Remove task from registry
                 let task = enumerable_map::remove_value(&mut automation_registry.tasks, task_index);
+                assert!(is_of_type(&task, UST), EUNAUTHORIZED_TASK_OPERATION);
 
                 // Ensure only the task owner can stop it
                 assert!(task.owner == owner, EUNAUTHORIZED_TASK_OWNER);
@@ -1256,7 +1260,7 @@ module supra_framework::automation_registry {
 
                 // Ensure only the task owner can stop it
                 assert!(task.owner == owner, EUNAUTHORIZED_TASK_OWNER);
-                assert!(is_of_type(&task, GST), EREGISTERED_TASK_INVALID_TYPE);
+                assert!(is_of_type(&task, GST), EUNAUTHORIZED_TASK_OPERATION);
 
                 vector::remove_value(&mut automation_registry.main.epoch_active_task_ids, &task_index);
                 vector::remove_value(&mut automation_registry.system_tasks_state.task_ids, &task_index);
@@ -1314,7 +1318,7 @@ module supra_framework::automation_registry {
         assert!(enumerable_map::contains(&automation_registry.main.tasks, task_index), EAUTOMATION_TASK_NOT_FOUND);
 
         let automation_task_metadata = enumerable_map::get_value(&mut automation_registry.main.tasks, task_index);
-        assert!(is_of_type(&automation_task_metadata, GST), EREGISTERED_TASK_INVALID_TYPE);
+        assert!(is_of_type(&automation_task_metadata, GST), EUNAUTHORIZED_TASK_OPERATION);
 
         let owner = signer::address_of(owner_signer);
         assert!(automation_task_metadata.owner == owner, EUNAUTHORIZED_TASK_OWNER);
@@ -1683,7 +1687,7 @@ module supra_framework::automation_registry {
 
     /// Registers a new system automation task entry.
     /// Note, system tasks are not charged registration and deposit fee.
-    public fun register_system_task(
+    fun register_system_task(
         owner_signer: &signer,
         payload_tx: vector<u8>,
         expiry_time: u64,
