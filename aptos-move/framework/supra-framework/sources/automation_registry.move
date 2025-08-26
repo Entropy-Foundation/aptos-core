@@ -619,6 +619,18 @@ module supra_framework::automation_registry {
     /// Emitted when the registration in the automation registry is disabled.
     struct DisabledRegistrationEvent has drop, store {}
 
+    #[event]
+    /// Emitted when the account is authroized to submit system automation tasks
+    struct AuthorizationGranted has drop, store {
+        account: address
+    }
+
+    #[event]
+    /// Emitted when the account authorizationis revoked to submit system automation tasks
+    struct AuthorizationRevoked has drop, store {
+        account: address
+    }
+
     /// Represents the fee charged for an automation task execution and some additional information.
     struct AutomationTaskFeeMeta has drop {
         task_index: u64,
@@ -897,6 +909,19 @@ module supra_framework::automation_registry {
         task_count * TASK_SUPPORT_FACTOR / 100
     }
 
+    #[view]
+    /// List of system registered tasks
+    public fun get_system_task_indexes(): vector<u64> acquires AutomationRegistryV2 {
+        let registry = borrow_global<AutomationRegistryV2>(@supra_framework);
+        registry.system_tasks_state.task_ids
+    }
+
+    #[view]
+    /// Get committed gas for the next cycle by system tasks.
+    public fun get_committed_system_gas_for_next_cycle(): u64 acquires AutomationRegistryV2 {
+        let registry = borrow_global<AutomationRegistryV2>(@supra_framework);
+        registry.system_tasks_state.gas_committed_for_next_cycle
+    }
 
     // Public entry functions
 
@@ -996,6 +1021,33 @@ module supra_framework::automation_registry {
         let automation_registry_config = borrow_global_mut<ActiveAutomationRegistryConfigV2>(@supra_framework);
         automation_registry_config.registration_enabled = false;
         event::emit(DisabledRegistrationEvent {});
+    }
+
+    /// Grants authorization to the input account to submit system automation tasks.
+    public fun grant_authorization(supra_framework: &signer, account: address) acquires AutomationRegistryV2 {
+        system_addresses::assert_supra_framework(supra_framework);
+        let system_tasks_state = &mut borrow_global_mut<AutomationRegistryV2>(@supra_framework).system_tasks_state;
+        if (vector::contains(&system_tasks_state.authorized_accounts, &account)) {
+            return;
+        };
+        // TODO: Clarify, should the account be checked to be an existing multisig account ?
+        vector::push_back(&mut system_tasks_state.authorized_accounts, account);
+        event::emit(AuthorizationGranted {
+            account
+        })
+    }
+
+    /// Revoke authorization from the input account to submit system automation tasks.
+    public fun revoke_authorization(supra_framework: &signer, account: address) acquires AutomationRegistryV2 {
+        system_addresses::assert_supra_framework(supra_framework);
+        let system_tasks_state = &mut borrow_global_mut<AutomationRegistryV2>(@supra_framework).system_tasks_state;
+        if (vector::contains(&system_tasks_state.authorized_accounts, &account)) {
+            return;
+        };
+        vector::remove_value(&mut system_tasks_state.authorized_accounts, &account);
+        event::emit(AuthorizationRevoked {
+            account
+        })
     }
 
     /// Cancel Automation task with specified task_index.
@@ -1171,80 +1223,6 @@ module supra_framework::automation_registry {
                 owner
             });
         };
-    }
-
-    /// Registers a new system automation task entry.
-    public fun register_system_task(
-        owner_signer: &signer,
-        payload_tx: vector<u8>,
-        expiry_time: u64,
-        max_gas_amount: u64,
-        tx_hash: vector<u8>,
-        aux_data: vector<vector<u8>>
-    ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
-        // Guarding registration if feature is not enabled.
-        assert!(features::supra_native_automation_enabled(), EDISABLED_AUTOMATION_FEATURE);
-        validate_aux_data(&aux_data, GST);
-
-        let automation_registry_config = borrow_global<ActiveAutomationRegistryConfigV2>(@supra_framework);
-        let automation_cycle_info = borrow_global<AutomationCycleDetails>(@supra_framework);
-        assert!(automation_registry_config.registration_enabled, ETASK_REGISTRATION_DISABLED);
-        assert!(automation_cycle_info.state == CYCLE_STARTED, ECYCLE_TRANSITION_IN_PROGRESS);
-
-        // If registry is full, reject task registration
-        assert!((get_system_task_count() as u16) < automation_registry_config.system_task_config.task_capacity, EREGISTRY_IS_FULL);
-
-        let automation_registry = borrow_global_mut<AutomationRegistryV2>(@supra_framework);
-
-        let owner = signer::address_of(owner_signer);
-        assert!(vector::contains(&automation_registry.system_tasks_state.authorized_accounts, &owner), ENON_AUTHORIZED_SYSTEM_ACCOUNT);
-
-        //Well-formedness check of payload_tx is done in native layer beforehand.
-
-        let registration_time = timestamp::now_seconds();
-        validate_task_duration(
-            expiry_time,
-            registration_time,
-            automation_registry_config,
-            automation_cycle_info,
-            GST
-        );
-
-        assert!(max_gas_amount > 0, EINVALID_MAX_GAS_AMOUNT);
-        assert!(vector::length(&tx_hash) == TXN_HASH_LENGTH, EINVALID_TXN_HASH);
-
-        let committed_gas = (automation_registry.system_tasks_state.gas_committed_for_next_cycle as u128) + (max_gas_amount as u128);
-        assert!(committed_gas <= MAX_U64, EGAS_COMMITTEED_VALUE_OVERFLOW);
-
-        let committed_gas = (committed_gas as u64);
-        assert!(committed_gas <= automation_registry_config.next_cycle_sys_registry_max_gas_cap, EGAS_AMOUNT_UPPER);
-
-        automation_registry.system_tasks_state.gas_committed_for_next_cycle = committed_gas;
-        let task_index = automation_registry.main.current_index;
-
-        let automation_task_metadata = AutomationTaskMetaData {
-            task_index,
-            owner,
-            payload_tx,
-            expiry_time,
-            max_gas_amount,
-            // No max gas price, as system tasks are not charged
-            gas_price_cap: 0,
-            // No Automation fee cap, as system tasks are not charged
-            automation_fee_cap_for_epoch: 0,
-            aux_data,
-            state: PENDING,
-            registration_time,
-            tx_hash,
-            // No deposit fee as system tasks are not charged
-            locked_fee_for_next_epoch: 0
-        };
-
-        enumerable_map::add_value(&mut automation_registry.main.tasks, task_index, automation_task_metadata);
-        automation_registry.main.current_index = automation_registry.main.current_index + 1;
-        vector::push_back(&mut automation_registry.system_tasks_state.task_ids, task_index);
-
-        event::emit(automation_task_metadata);
     }
 
     /// Immediately stops automation tasks for the specified `task_indexes`.
@@ -1700,6 +1678,81 @@ module supra_framework::automation_registry {
             registration_fee: automation_registry_config.main_config.flat_registration_fee_in_quants ,
             locked_deposit_fee: automation_fee_cap_for_epoch
         });
+        event::emit(automation_task_metadata);
+    }
+
+    /// Registers a new system automation task entry.
+    /// Note, system tasks are not charged registration and deposit fee.
+    public fun register_system_task(
+        owner_signer: &signer,
+        payload_tx: vector<u8>,
+        expiry_time: u64,
+        max_gas_amount: u64,
+        tx_hash: vector<u8>,
+        aux_data: vector<vector<u8>>
+    ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
+        // Guarding registration if feature is not enabled.
+        assert!(features::supra_native_automation_enabled(), EDISABLED_AUTOMATION_FEATURE);
+        validate_aux_data(&aux_data, GST);
+
+        let automation_registry_config = borrow_global<ActiveAutomationRegistryConfigV2>(@supra_framework);
+        let automation_cycle_info = borrow_global<AutomationCycleDetails>(@supra_framework);
+        assert!(automation_registry_config.registration_enabled, ETASK_REGISTRATION_DISABLED);
+        assert!(automation_cycle_info.state == CYCLE_STARTED, ECYCLE_TRANSITION_IN_PROGRESS);
+
+        // If registry is full, reject task registration
+        assert!((get_system_task_count() as u16) < automation_registry_config.system_task_config.task_capacity, EREGISTRY_IS_FULL);
+
+        let automation_registry = borrow_global_mut<AutomationRegistryV2>(@supra_framework);
+
+        let owner = signer::address_of(owner_signer);
+        assert!(vector::contains(&automation_registry.system_tasks_state.authorized_accounts, &owner), ENON_AUTHORIZED_SYSTEM_ACCOUNT);
+
+        //Well-formedness check of payload_tx is done in native layer beforehand.
+
+        let registration_time = timestamp::now_seconds();
+        validate_task_duration(
+            expiry_time,
+            registration_time,
+            automation_registry_config,
+            automation_cycle_info,
+            GST
+        );
+
+        assert!(max_gas_amount > 0, EINVALID_MAX_GAS_AMOUNT);
+        assert!(vector::length(&tx_hash) == TXN_HASH_LENGTH, EINVALID_TXN_HASH);
+
+        let committed_gas = (automation_registry.system_tasks_state.gas_committed_for_next_cycle as u128) + (max_gas_amount as u128);
+        assert!(committed_gas <= MAX_U64, EGAS_COMMITTEED_VALUE_OVERFLOW);
+
+        let committed_gas = (committed_gas as u64);
+        assert!(committed_gas <= automation_registry_config.next_cycle_sys_registry_max_gas_cap, EGAS_AMOUNT_UPPER);
+
+        automation_registry.system_tasks_state.gas_committed_for_next_cycle = committed_gas;
+        let task_index = automation_registry.main.current_index;
+
+        let automation_task_metadata = AutomationTaskMetaData {
+            task_index,
+            owner,
+            payload_tx,
+            expiry_time,
+            max_gas_amount,
+            // No max gas price, as system tasks are not charged
+            gas_price_cap: 0,
+            // No Automation fee cap, as system tasks are not charged
+            automation_fee_cap_for_epoch: 0,
+            aux_data,
+            state: PENDING,
+            registration_time,
+            tx_hash,
+            // No deposit fee as system tasks are not charged
+            locked_fee_for_next_epoch: 0
+        };
+
+        enumerable_map::add_value(&mut automation_registry.main.tasks, task_index, automation_task_metadata);
+        automation_registry.main.current_index = automation_registry.main.current_index + 1;
+        vector::push_back(&mut automation_registry.system_tasks_state.task_ids, task_index);
+
         event::emit(automation_task_metadata);
     }
 
