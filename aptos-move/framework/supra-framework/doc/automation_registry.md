@@ -85,7 +85,9 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `get_cycle_info`](#0x1_automation_registry_get_cycle_info)
 -  [Function `get_record_max_task_count`](#0x1_automation_registry_get_record_max_task_count)
 -  [Function `get_system_task_indexes`](#0x1_automation_registry_get_system_task_indexes)
--  [Function `get_committed_system_gas_for_next_cycle`](#0x1_automation_registry_get_committed_system_gas_for_next_cycle)
+-  [Function `get_system_gas_committed_for_next_cycle`](#0x1_automation_registry_get_system_gas_committed_for_next_cycle)
+-  [Function `get_system_gas_committed_for_current_cycle`](#0x1_automation_registry_get_system_gas_committed_for_current_cycle)
+-  [Function `is_authorized_account`](#0x1_automation_registry_is_authorized_account)
 -  [Function `withdraw_automation_task_fees`](#0x1_automation_registry_withdraw_automation_task_fees)
 -  [Function `update_config`](#0x1_automation_registry_update_config)
 -  [Function `update_config_v2`](#0x1_automation_registry_update_config_v2)
@@ -2511,16 +2513,6 @@ Congestion threshold should not exceed 100.
 
 
 
-<a id="0x1_automation_registry_ENON_AUTHORIZED_SYSTEM_ACCOUNT"></a>
-
-Attempt to register a system task with unauthorized account.
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_ENON_AUTHORIZED_SYSTEM_ACCOUNT">ENON_AUTHORIZED_SYSTEM_ACCOUNT</a>: u64 = 41;
-</code></pre>
-
-
-
 <a id="0x1_automation_registry_EOUT_OF_ORDER_TASK_PROCESSING_REQUEST"></a>
 
 The out of order task processing has been identified during transition.
@@ -2580,6 +2572,16 @@ Automation registry max gas capacity for system tasks cannot be zero.
 
 
 
+<a id="0x1_automation_registry_EREGISTRY_SYSTEM_MAX_GAS_CAP_NON_ZERO"></a>
+
+Automation registry max gas capacity for  system tasks cannot be zero.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_SYSTEM_MAX_GAS_CAP_NON_ZERO">EREGISTRY_SYSTEM_MAX_GAS_CAP_NON_ZERO</a>: u64 = 46;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_EREQUEST_EXCEEDS_LOCKED_BALANCE"></a>
 
 Requested amount exceeds the locked balance
@@ -2620,6 +2622,16 @@ Current committed gas amount is greater than the automation gas limit.
 
 
 
+<a id="0x1_automation_registry_EUNACCEPTABLE_SYSTEM_AUTOMATION_GAS_LIMIT"></a>
+
+Current committed gas amount by system tasks is greater than the new system automation gas limit.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_SYSTEM_AUTOMATION_GAS_LIMIT">EUNACCEPTABLE_SYSTEM_AUTOMATION_GAS_LIMIT</a>: u64 = 45;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_EUNACCEPTABLE_SYS_TASK_DURATION_CAP"></a>
 
 Current automation cycle interval is greater than specified system task duration cap.
@@ -2640,12 +2652,12 @@ Current automation cycle interval is greater than specified task duration cap.
 
 
 
-<a id="0x1_automation_registry_EUNAUTHORIZED_TASK_OPERATION"></a>
+<a id="0x1_automation_registry_EUNAUTHORIZED_SYSTEM_ACCOUNT"></a>
 
-Attempt to run an action for a task which is not authorized.
+Attempt to register a system task with unauthorized account.
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OPERATION">EUNAUTHORIZED_TASK_OPERATION</a>: u64 = 44;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_SYSTEM_ACCOUNT">EUNAUTHORIZED_SYSTEM_ACCOUNT</a>: u64 = 41;
 </code></pre>
 
 
@@ -2656,6 +2668,16 @@ Unauthorized access: the caller is not the owner of the task
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OWNER">EUNAUTHORIZED_TASK_OWNER</a>: u64 = 8;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_EUNSUPPORTED_TASK_OPERATION"></a>
+
+Attempt to run an unsupported action for a task.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EUNSUPPORTED_TASK_OPERATION">EUNSUPPORTED_TASK_OPERATION</a>: u64 = 44;
 </code></pre>
 
 
@@ -2735,7 +2757,7 @@ Registry resource creation seed
 Value deinfed in seconds
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_SYS_TASK_DURATION_CAP_IN_SECS">SYS_TASK_DURATION_CAP_IN_SECS</a>: u64 = 7200;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_SYS_TASK_DURATION_CAP_IN_SECS">SYS_TASK_DURATION_CAP_IN_SECS</a>: u64 = 1626560;
 </code></pre>
 
 
@@ -3721,15 +3743,15 @@ List of system registered tasks
 
 </details>
 
-<a id="0x1_automation_registry_get_committed_system_gas_for_next_cycle"></a>
+<a id="0x1_automation_registry_get_system_gas_committed_for_next_cycle"></a>
 
-## Function `get_committed_system_gas_for_next_cycle`
+## Function `get_system_gas_committed_for_next_cycle`
 
 Get committed gas for the next cycle by system tasks.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_committed_system_gas_for_next_cycle">get_committed_system_gas_for_next_cycle</a>(): u64
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_system_gas_committed_for_next_cycle">get_system_gas_committed_for_next_cycle</a>(): u64
 </code></pre>
 
 
@@ -3738,9 +3760,63 @@ Get committed gas for the next cycle by system tasks.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_committed_system_gas_for_next_cycle">get_committed_system_gas_for_next_cycle</a>(): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a> {
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_system_gas_committed_for_next_cycle">get_system_gas_committed_for_next_cycle</a>(): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a> {
     <b>let</b> registry = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>&gt;(@supra_framework);
     registry.system_tasks_state.gas_committed_for_next_cycle
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_get_system_gas_committed_for_current_cycle"></a>
+
+## Function `get_system_gas_committed_for_current_cycle`
+
+Get committed gas for the current cycle by system tasks.
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_system_gas_committed_for_current_cycle">get_system_gas_committed_for_current_cycle</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_system_gas_committed_for_current_cycle">get_system_gas_committed_for_current_cycle</a>(): u64 <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a> {
+    <b>let</b> registry = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>&gt;(@supra_framework);
+    registry.system_tasks_state.gas_committed_for_this_cycle
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_is_authorized_account"></a>
+
+## Function `is_authorized_account`
+
+Checks whether the input account address is authorized.
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_authorized_account">is_authorized_account</a>(<a href="account.md#0x1_account">account</a>: <b>address</b>): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_authorized_account">is_authorized_account</a>(<a href="account.md#0x1_account">account</a>: <b>address</b>): bool <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a> {
+    <b>let</b> registry = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>&gt;(@supra_framework);
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&registry.system_tasks_state.authorized_accounts, &<a href="account.md#0x1_account">account</a>)
 }
 </code></pre>
 
@@ -3850,7 +3926,9 @@ Update Automation Registry Config along with cycle duration.
     <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(
         cycle_duration_secs,
         task_duration_cap_in_secs,
+        sys_task_duration_cap_in_secs,
         registry_max_gas_cap,
+        sys_registry_max_gas_cap,
         congestion_threshold_percentage,
         congestion_exponent);
 
@@ -3859,6 +3937,11 @@ Update Automation Registry Config along with cycle duration.
     <b>assert</b>!(
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.main.gas_committed_for_next_epoch &lt;= registry_max_gas_cap,
         <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_AUTOMATION_GAS_LIMIT">EUNACCEPTABLE_AUTOMATION_GAS_LIMIT</a>
+    );
+
+    <b>assert</b>!(
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.system_tasks_state.gas_committed_for_next_cycle &lt;= sys_registry_max_gas_cap,
+        <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_SYSTEM_AUTOMATION_GAS_LIMIT">EUNACCEPTABLE_SYSTEM_AUTOMATION_GAS_LIMIT</a>
     );
 
     <b>let</b> new_automation_registry_config = <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfigV2">AutomationRegistryConfigV2</a> {
@@ -3966,7 +4049,7 @@ Grants authorization to the input account to submit system automation tasks.
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
     <b>let</b> system_tasks_state = &<b>mut</b> <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>&gt;(@supra_framework).system_tasks_state;
     <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&system_tasks_state.authorized_accounts, &<a href="account.md#0x1_account">account</a>)) {
-        <b>return</b>;
+        <b>return</b>
     };
     // TODO: Clarify, should the <a href="account.md#0x1_account">account</a> be checked <b>to</b> be an existing multisig <a href="account.md#0x1_account">account</a> ?
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> system_tasks_state.authorized_accounts, <a href="account.md#0x1_account">account</a>);
@@ -4000,7 +4083,7 @@ Revoke authorization from the input account to submit system automation tasks.
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
     <b>let</b> system_tasks_state = &<b>mut</b> <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>&gt;(@supra_framework).system_tasks_state;
     <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&system_tasks_state.authorized_accounts, &<a href="account.md#0x1_account">account</a>)) {
-        <b>return</b>;
+        <b>return</b>
     };
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_remove_value">vector::remove_value</a>(&<b>mut</b> system_tasks_state.authorized_accounts, &<a href="account.md#0x1_account">account</a>);
     <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_AuthorizationRevoked">AuthorizationRevoked</a> {
@@ -4048,7 +4131,7 @@ Committed gas-limit is updated by reducing it with the max-gas-amount of the can
 
     <b>let</b> automation_task_metadata = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
     <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
-    <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(&automation_task_metadata, <a href="automation_registry.md#0x1_automation_registry_UST">UST</a>), <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OPERATION">EUNAUTHORIZED_TASK_OPERATION</a>);
+    <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(&automation_task_metadata, <a href="automation_registry.md#0x1_automation_registry_UST">UST</a>), <a href="automation_registry.md#0x1_automation_registry_EUNSUPPORTED_TASK_OPERATION">EUNSUPPORTED_TASK_OPERATION</a>);
     <b>assert</b>!(automation_task_metadata.owner == owner, <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OWNER">EUNAUTHORIZED_TASK_OWNER</a>);
     <b>assert</b>!(automation_task_metadata.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a>, <a href="automation_registry.md#0x1_automation_registry_EALREADY_CANCELLED">EALREADY_CANCELLED</a>);
     <b>if</b> (automation_task_metadata.state == <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
@@ -4152,15 +4235,15 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
         <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index)) {
             // Remove task from registry
             <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
-            <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(&task, <a href="automation_registry.md#0x1_automation_registry_UST">UST</a>), <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OPERATION">EUNAUTHORIZED_TASK_OPERATION</a>);
+            <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(&task, <a href="automation_registry.md#0x1_automation_registry_UST">UST</a>), <a href="automation_registry.md#0x1_automation_registry_EUNSUPPORTED_TASK_OPERATION">EUNSUPPORTED_TASK_OPERATION</a>);
 
             // Ensure only the task owner can stop it
             <b>assert</b>!(task.owner == owner, <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OWNER">EUNAUTHORIZED_TASK_OWNER</a>);
 
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_remove_value">vector::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_active_task_ids, &task_index);
 
-            // This check means the task was expected <b>to</b> be executed in the next epoch, but it <b>has</b> been stopped.
-            // We need <b>to</b> remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
+            // This check means the task was expected <b>to</b> be executed in the next cycle, but it <b>has</b> been stopped.
+            // We need <b>to</b> remove its gas commitment from `gas_committed_for_next_cycle` for this particular task.
             // Also it checks that task should not be cancelled.
             <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a> && task.expiry_time &gt; cycle_end_time) {
                 // Prevent underflow in gas committed
@@ -4234,7 +4317,7 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
 
 ## Function `stop_system_tasks`
 
-Immediately stops automation tasks for the specified <code>task_indexes</code>.
+Immediately stops system automation tasks for the specified <code>task_indexes</code>.
 Only tasks that exist and are owned by the sender can be stopped.
 If any of the specified tasks are not owned by the sender, the transaction will abort.
 When a task is stopped, the committed gas for the next epoch is reduced
@@ -4276,13 +4359,13 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
 
             // Ensure only the task owner can stop it
             <b>assert</b>!(task.owner == owner, <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OWNER">EUNAUTHORIZED_TASK_OWNER</a>);
-            <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(&task, <a href="automation_registry.md#0x1_automation_registry_GST">GST</a>), <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OPERATION">EUNAUTHORIZED_TASK_OPERATION</a>);
+            <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(&task, <a href="automation_registry.md#0x1_automation_registry_GST">GST</a>), <a href="automation_registry.md#0x1_automation_registry_EUNSUPPORTED_TASK_OPERATION">EUNSUPPORTED_TASK_OPERATION</a>);
 
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_remove_value">vector::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.main.epoch_active_task_ids, &task_index);
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_remove_value">vector::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.system_tasks_state.task_ids, &task_index);
 
-            // This check means the task was expected <b>to</b> be executed in the next epoch, but it <b>has</b> been stopped.
-            // We need <b>to</b> remove its gas commitment from `gas_committed_for_next_epoch` for this particular task.
+            // This check means the task was expected <b>to</b> be executed in the next cycle, but it <b>has</b> been stopped.
+            // We need <b>to</b> remove its gas commitment from `gas_committed_for_next_cycle` for this particular task.
             // Also it checks that task should not be cancelled.
             <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a> && task.expiry_time &gt; cycle_end_time) {
                 // Prevent underflow in gas committed
@@ -4354,7 +4437,7 @@ Committed gas-limit is updated by reducing it with the max-gas-amount of the can
     <b>assert</b>!(<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.main.tasks, task_index), <a href="automation_registry.md#0x1_automation_registry_EAUTOMATION_TASK_NOT_FOUND">EAUTOMATION_TASK_NOT_FOUND</a>);
 
     <b>let</b> automation_task_metadata = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.main.tasks, task_index);
-    <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(&automation_task_metadata, <a href="automation_registry.md#0x1_automation_registry_GST">GST</a>), <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OPERATION">EUNAUTHORIZED_TASK_OPERATION</a>);
+    <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(&automation_task_metadata, <a href="automation_registry.md#0x1_automation_registry_GST">GST</a>), <a href="automation_registry.md#0x1_automation_registry_EUNSUPPORTED_TASK_OPERATION">EUNSUPPORTED_TASK_OPERATION</a>);
 
     <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
     <b>assert</b>!(automation_task_metadata.owner == owner, <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OWNER">EUNAUTHORIZED_TASK_OWNER</a>);
@@ -4537,7 +4620,9 @@ already released and is in ongoing state, then <code>migrate_v2</code> function 
     <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(
         cycle_duration_secs,
         task_duration_cap_in_secs,
+        sys_task_duration_cap_in_secs,
         registry_max_gas_cap,
+        sys_registry_max_gas_cap,
         congestion_threshold_percentage,
         congestion_exponent);
 
@@ -4879,7 +4964,9 @@ Note, system tasks are not charged registration and deposit fee.
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>&gt;(@supra_framework);
 
     <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
-    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.system_tasks_state.authorized_accounts, &owner), <a href="automation_registry.md#0x1_automation_registry_ENON_AUTHORIZED_SYSTEM_ACCOUNT">ENON_AUTHORIZED_SYSTEM_ACCOUNT</a>);
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.system_tasks_state.authorized_accounts, &owner),
+        <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_SYSTEM_ACCOUNT">EUNAUTHORIZED_SYSTEM_ACCOUNT</a>
+    );
 
     //Well-formedness check of payload_tx is done in <b>native</b> layer beforehand.
 
@@ -5239,6 +5326,7 @@ If the task is already processed or missing from the registry then nothing is do
     } <b>else</b> <b>if</b> (<a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(task_meta, <a href="automation_registry.md#0x1_automation_registry_GST">GST</a>)) {
         // Governance submitted tasks are not charged
         intermediate_state.sys_gas_committed_for_next_cycle = intermediate_state.sys_gas_committed_for_next_cycle + task_meta.max_gas_amount;
+        task_meta.state = <a href="automation_registry.md#0x1_automation_registry_ACTIVE">ACTIVE</a>;
         <b>return</b>
     };
 
@@ -5624,7 +5712,7 @@ Note it is expected that committed_occupancy does not include currnet task's occ
 
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(cycle_duration_secs: u64, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, congestion_threshold_percentage: u8, congestion_exponent: u8)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(cycle_duration_secs: u64, task_duration_cap_in_secs: u64, sys_task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, sys_registry_max_gas_cap: u64, congestion_threshold_percentage: u8, congestion_exponent: u8)
 </code></pre>
 
 
@@ -5636,7 +5724,9 @@ Note it is expected that committed_occupancy does not include currnet task's occ
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_validate_configuration_parameters_common">validate_configuration_parameters_common</a>(
     cycle_duration_secs: u64,
     task_duration_cap_in_secs: u64,
+    sys_task_duration_cap_in_secs: u64,
     registry_max_gas_cap: u64,
+    sys_registry_max_gas_cap: u64,
     congestion_threshold_percentage: u8,
     congestion_exponent: u8,
 ) {
@@ -5644,7 +5734,9 @@ Note it is expected that committed_occupancy does not include currnet task's occ
     <b>assert</b>!(congestion_threshold_percentage &lt;= <a href="automation_registry.md#0x1_automation_registry_MAX_PERCENTAGE">MAX_PERCENTAGE</a>, <a href="automation_registry.md#0x1_automation_registry_EMAX_CONGESTION_THRESHOLD">EMAX_CONGESTION_THRESHOLD</a>);
     <b>assert</b>!(congestion_exponent &gt; 0, <a href="automation_registry.md#0x1_automation_registry_ECONGESTION_EXP_NON_ZERO">ECONGESTION_EXP_NON_ZERO</a>);
     <b>assert</b>!(task_duration_cap_in_secs &gt; cycle_duration_secs, <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_TASK_DURATION_CAP">EUNACCEPTABLE_TASK_DURATION_CAP</a>);
+    <b>assert</b>!(sys_task_duration_cap_in_secs &gt; cycle_duration_secs, <a href="automation_registry.md#0x1_automation_registry_EUNACCEPTABLE_SYS_TASK_DURATION_CAP">EUNACCEPTABLE_SYS_TASK_DURATION_CAP</a>);
     <b>assert</b>!(registry_max_gas_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_MAX_GAS_CAP_NON_ZERO">EREGISTRY_MAX_GAS_CAP_NON_ZERO</a>);
+    <b>assert</b>!(sys_registry_max_gas_cap &gt; 0, <a href="automation_registry.md#0x1_automation_registry_EREGISTRY_SYSTEM_MAX_GAS_CAP_NON_ZERO">EREGISTRY_SYSTEM_MAX_GAS_CAP_NON_ZERO</a>);
 }
 </code></pre>
 

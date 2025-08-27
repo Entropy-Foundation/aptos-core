@@ -169,7 +169,7 @@ pub enum EntryFunctionCall {
         task_index: u64,
     },
 
-    /// Immediately stops automation tasks for the specified `task_indexes`.
+    /// Immediately stops system automation tasks for the specified `task_indexes`.
     /// Only tasks that exist and are owned by the sender can be stopped.
     /// If any of the specified tasks are not owned by the sender, the transaction will abort.
     /// When a task is stopped, the committed gas for the next epoch is reduced
@@ -2358,7 +2358,7 @@ pub fn automation_registry_cancel_task(task_index: u64) -> TransactionPayload {
     ))
 }
 
-/// Immediately stops automation tasks for the specified `task_indexes`.
+/// Immediately stops system automation tasks for the specified `task_indexes`.
 /// Only tasks that exist and are owned by the sender can be stopped.
 /// If any of the specified tasks are not owned by the sender, the transaction will abort.
 /// When a task is stopped, the committed gas for the next epoch is reduced
