@@ -2643,7 +2643,9 @@ impl AptosVM {
                     self.process_validator_transaction(resolver, txn.clone(), log_context)?;
                 (vm_status, output)
             },
-            Transaction::AutomatedTransaction(txn) => AutomatedTransactionProcessor::new(self)
+            Transaction::AutomatedTransaction(txn) => AutomatedTransactionProcessor::new(self, false)
+                .execute_transaction(resolver, txn, log_context),
+            Transaction::SystemAutomatedTransaction(txn) => AutomatedTransactionProcessor::new(self, true)
                 .execute_transaction(resolver, txn, log_context),
             Transaction::AutomationRegistryTransaction(txn) => {
                 AutomationRegistryTransactionProcessor::new(self).execute_transaction(

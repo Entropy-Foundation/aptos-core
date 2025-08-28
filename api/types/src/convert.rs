@@ -24,7 +24,7 @@ use aptos_logger::{sample, sample::SampleRate};
 use aptos_resource_viewer::AptosValueAnnotator;
 use aptos_storage_interface::DbReader;
 use aptos_types::transaction::automation::RegistrationParams;
-use aptos_types::transaction::Transaction::AutomationRegistryTransaction;
+use aptos_types::transaction::Transaction::{AutomationRegistryTransaction, SystemAutomatedTransaction};
 use aptos_types::{
     access_path::{AccessPath, Path},
     chain_id::ChainId,
@@ -238,11 +238,12 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
             aptos_types::transaction::Transaction::ValidatorTransaction(txn) => {
                 Transaction::ValidatorTransaction((txn, info, events, timestamp).into())
             },
-            AutomatedTransaction(automated_txn) => {
+            AutomatedTransaction(automated_txn)
+            | SystemAutomatedTransaction(automated_txn) => {
                 let payload = self.try_into_transaction_payload(automated_txn.payload().clone())?;
                 (&automated_txn, info, payload, events, timestamp).into()
             },
-            AutomationRegistryTransaction(automated_txn) => {
+            AutomationRegistryTransaction(_automated_txn) => {
                 unreachable!("Automation registry transactions exposure to api is not supported ");
             },
         })

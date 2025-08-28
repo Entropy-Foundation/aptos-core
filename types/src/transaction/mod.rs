@@ -2020,6 +2020,11 @@ pub enum Transaction {
 
     /// An automation registry function/action to be executed on cycle state transition.
     AutomationRegistryTransaction(AutomationRegistryRecord),
+
+    /// Transaction corresponding to system automation tasks from automation registry.
+    /// Verification is skipped for this type of transaction as it is auto-generated from state
+    /// and is considered as `SignatureVerifiedTransaction::Valid` by default
+    SystemAutomatedTransaction(AutomatedTransaction),
 }
 
 impl From<BlockMetadataExt> for Transaction {
@@ -2062,7 +2067,8 @@ impl Transaction {
 
     pub fn try_as_automated_txn(&self) -> Option<&AutomatedTransaction> {
         match self {
-            Transaction::AutomatedTransaction(txn) => Some(txn),
+            Transaction::AutomatedTransaction(txn)
+            | Transaction::SystemAutomatedTransaction(txn) => Some(txn),
             _ => None,
         }
     }
@@ -2078,6 +2084,7 @@ impl Transaction {
             Transaction::BlockMetadataExt(_) => "block_metadata_ext",
             Transaction::AutomatedTransaction(_) => "automated_transaction",
             Transaction::AutomationRegistryTransaction(_) => "automation_registry_transaction",
+            Transaction::SystemAutomatedTransaction(_) => "system_automated_transaction"
         }
     }
 
@@ -2095,7 +2102,8 @@ impl Transaction {
             | Transaction::BlockMetadataExt(_)
             | Transaction::AutomatedTransaction(_)
             | Transaction::AutomationRegistryTransaction(_)
-            | Transaction::ValidatorTransaction(_) => false,
+            | Transaction::ValidatorTransaction(_)
+            | Transaction::SystemAutomatedTransaction(_) => false,
         }
     }
 }

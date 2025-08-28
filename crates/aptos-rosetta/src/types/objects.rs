@@ -919,7 +919,8 @@ impl Transaction {
                 (TransactionType::Validator, None, None, txn.info, txn.events)
             },
             BlockEpilogue(_) => (TransactionType::BlockEpilogue, None, None, txn.info, vec![]),
-            AutomatedTransaction(automated_txn) => (
+            AutomatedTransaction(automated_txn)
+            | SystemAutomatedTransaction(automated_txn)=> (
                 TransactionType::Automated,
                 None,
                 Some(automated_txn),
