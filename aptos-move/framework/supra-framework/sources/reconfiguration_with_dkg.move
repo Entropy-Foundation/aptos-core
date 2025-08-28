@@ -34,12 +34,12 @@ module supra_framework::reconfiguration_with_dkg {
         };
         reconfiguration_state::on_reconfig_start();
         let cur_epoch = reconfiguration::current_epoch();
-        dkg::start(
+        /*dkg::start(
             cur_epoch,
             randomness_config::current(),
             stake::cur_validator_consensus_infos(),
-            stake::next_validator_consensus_infos()
-        );
+            stake::next_validator_consensus_infos(),
+        );*/
     }
 
     /// Clear incomplete DKG session, if it exists.
@@ -68,7 +68,7 @@ module supra_framework::reconfiguration_with_dkg {
     /// Complete the current reconfiguration with DKG.
     /// Abort if no DKG is in progress.
     fun finish_with_dkg_result(account: &signer, dkg_result: vector<u8>) {
-        dkg::finish(dkg_result);
+        //dkg::finish(dkg_result);
         finish(account);
     }
 }
