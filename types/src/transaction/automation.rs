@@ -15,16 +15,20 @@ use std::cmp::Ordering;
 
 struct AutomationTransactionEntryRef {
     module_id: ModuleId,
-    function: Identifier,
+    register_user_task_function: Identifier,
+    register_system_task_function: Identifier,
+    process_tasks_function: Identifier,
 }
 
-static AUTOMATION_REGISTRATION_ENTRY: Lazy<AutomationTransactionEntryRef> =
+static AUTOMATION_REGISTRY_PRIVATE_ENTRY_REFS: Lazy<AutomationTransactionEntryRef> =
     Lazy::new(|| AutomationTransactionEntryRef {
         module_id: ModuleId::new(
             CORE_CODE_ADDRESS,
             Identifier::new("automation_registry").unwrap(),
         ),
-        function: Identifier::new("register").unwrap(),
+        register_user_task_function: Identifier::new("register").unwrap(),
+        register_system_task_function: Identifier::new("register_system_task").unwrap(),
+        process_tasks_function: Identifier::new("process_tasks").unwrap(),
     });
 
 /// Represents set of parameters required to register automation task.
@@ -49,6 +53,38 @@ impl RegistrationParams {
             automation_fee_cap_for_epoch,
             aux_data,
         ))
+    }
+
+    pub fn new_user_automation_task(
+        automated_function: EntryFunction,
+        expiration_timestamp_secs: u64,
+        max_gas_amount: u64,
+        gas_price_cap: u64,
+        automation_fee_cap_for_epoch: u64,
+    ) -> RegistrationParams {
+        Self::new_v1(
+            automated_function,
+            expiration_timestamp_secs,
+            max_gas_amount,
+            gas_price_cap,
+            automation_fee_cap_for_epoch,
+            vec![AutomationTaskType::User.into()],
+        )
+    }
+
+    pub fn new_system_automation_task(
+        automated_function: EntryFunction,
+        expiration_timestamp_secs: u64,
+        max_gas_amount: u64,
+    ) -> RegistrationParams {
+        Self::new_v1(
+            automated_function,
+            expiration_timestamp_secs,
+            max_gas_amount,
+            0,
+            0,
+            vec![AutomationTaskType::System.into()],
+        )
     }
 
     pub fn automated_function(&self) -> &EntryFunction {
@@ -162,17 +198,33 @@ impl RegistrationParamsV1 {
     }
     /// Module id containing registration function.
     pub fn module_id(&self) -> &ModuleId {
-        &AUTOMATION_REGISTRATION_ENTRY.module_id
+        &AUTOMATION_REGISTRY_PRIVATE_ENTRY_REFS.module_id
     }
 
     /// Registration function name accepting enclosed parameters.
     pub fn function(&self) -> &IdentStr {
-        &AUTOMATION_REGISTRATION_ENTRY.function
+        match self.task_type() {
+            AutomationTaskType::System => {
+                &AUTOMATION_REGISTRY_PRIVATE_ENTRY_REFS.register_system_task_function
+            }
+            AutomationTaskType::User => {
+                &AUTOMATION_REGISTRY_PRIVATE_ENTRY_REFS.register_user_task_function
+            }
+        }
     }
 
     /// Type arguments required by registration function.
     pub fn ty_args(&self) -> Vec<TypeTag> {
         vec![]
+    }
+
+    /// Returns task type extracted from auxiliary data. If none is specified task is considered
+    /// user submitted by default.
+    pub fn task_type(&self) -> AutomationTaskType {
+        self.aux_data
+            .get(0)
+            .and_then(|raw_type| AutomationTaskType::try_from(raw_type.as_slice()).ok())
+            .unwrap_or(AutomationTaskType::User)
     }
 
     pub fn serialized_args_with_sender_and_parent_hash(
@@ -185,22 +237,36 @@ impl RegistrationParamsV1 {
             .iter()
             .map(|item| MoveValue::vector_u8(item.clone()))
             .collect();
-        serialize_values(&[
-            MoveValue::Address(sender),
-            MoveValue::vector_u8(bcs::to_bytes(&self.automated_function).unwrap()),
-            MoveValue::U64(self.expiration_timestamp_secs),
-            MoveValue::U64(self.max_gas_amount),
-            MoveValue::U64(self.gas_price_cap),
-            MoveValue::U64(self.automation_fee_cap_for_epoch),
-            MoveValue::vector_u8(parent_hash),
-            MoveValue::Vector(aux_move_args),
-        ])
+        match self.task_type() {
+            AutomationTaskType::System => {
+                serialize_values(&[
+                    MoveValue::Address(sender),
+                    MoveValue::vector_u8(bcs::to_bytes(&self.automated_function).unwrap()),
+                    MoveValue::U64(self.expiration_timestamp_secs),
+                    MoveValue::U64(self.max_gas_amount),
+                    MoveValue::vector_u8(parent_hash),
+                    MoveValue::Vector(aux_move_args),
+                ])
+            }
+            AutomationTaskType::User => {
+                serialize_values(&[
+                    MoveValue::Address(sender),
+                    MoveValue::vector_u8(bcs::to_bytes(&self.automated_function).unwrap()),
+                    MoveValue::U64(self.expiration_timestamp_secs),
+                    MoveValue::U64(self.max_gas_amount),
+                    MoveValue::U64(self.gas_price_cap),
+                    MoveValue::U64(self.automation_fee_cap_for_epoch),
+                    MoveValue::vector_u8(parent_hash),
+                    MoveValue::Vector(aux_move_args),
+                ])
+            }
+        }
     }
 }
 
 /// Type of the automation task.
 // The order of the entries is important, a new one should be appended at the end.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq)]
 #[repr(u8)]
 pub enum AutomationTaskType {
     // System authorized automation task
@@ -243,7 +309,7 @@ pub struct AutomationTaskMetaData {
     /// Maximum automation fee for epoch to be paid ever.
     pub(crate) automation_fee_cap_for_epoch: u64,
     /// Auxiliary data specified for the task to aid registration.
-    /// Not used currently. Reserved for future extentions.
+    /// Not used currently. Reserved for future extensions.
     pub(crate) aux_data: Vec<Vec<u8>>,
     /// Registration epoch timestamp
     pub(crate) registration_time: u64,
@@ -358,20 +424,11 @@ impl AutomationTaskMetaData {
     pub fn get_task_type(&self) -> Result<AutomationTaskType, String> {
         if self.aux_data.is_empty() {
             // For the old tasks registered in scope of the automation v1 feature.
-            return Ok(AutomationTaskType::User)
+            return Ok(AutomationTaskType::User);
         }
         AutomationTaskType::try_from(self.aux_data[0].as_slice())
     }
 }
-
-static AUTOMATION_REGISTRY_PROCESS_TASKS_ENTRY: Lazy<AutomationTransactionEntryRef> =
-    Lazy::new(|| AutomationTransactionEntryRef {
-        module_id: ModuleId::new(
-            CORE_CODE_ADDRESS,
-            Identifier::new("automation_registry").unwrap(),
-        ),
-        function: Identifier::new("process_tasks").unwrap(),
-    });
 
 /// Action to be performed on automation registry.
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
@@ -411,12 +468,12 @@ impl AutomationRegistryAction {
 
     /// Module id containing automation registry target function.
     pub fn module_id(&self) -> &ModuleId {
-        &AUTOMATION_REGISTRY_PROCESS_TASKS_ENTRY.module_id
+        &AUTOMATION_REGISTRY_PRIVATE_ENTRY_REFS.module_id
     }
 
     /// Action function name accepting enclosed tasks.
     pub fn function(&self) -> &IdentStr {
-        &AUTOMATION_REGISTRY_PROCESS_TASKS_ENTRY.function
+        &AUTOMATION_REGISTRY_PRIVATE_ENTRY_REFS.process_tasks_function
     }
 
     /// Type arguments required by action function.

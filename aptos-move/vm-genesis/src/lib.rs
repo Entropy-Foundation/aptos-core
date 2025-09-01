@@ -294,7 +294,7 @@ pub fn encode_genesis_change_set_for_testnet(
     supra_config_bytes: Vec<u8>,
 ) -> ChangeSet {
     validate_genesis_config(genesis_config);
-    // Derive the EVM config from the chain ID. 
+    // Derive the EVM config from the chain ID.
     let evm_config = OnChainEvmConfig::new_v1(chain_id);
     // Create a Move VM session so we can invoke on-chain genesis initializations.
     let mut state_view = GenesisStateView::new();
@@ -1692,7 +1692,7 @@ pub fn test_mainnet_end_to_end() {
             balance: employee_balance,
         },
     ]);
-    
+
 
     let pbo_config_val0 = PboDelegatorConfiguration {
         delegator_config: DelegatorConfiguration {

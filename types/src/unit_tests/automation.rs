@@ -23,15 +23,14 @@ fn test_registration_params_serde() {
     let max_gas_amount = 10_000;
     let gas_price_cap = 500;
     let automation_fee_cap_for_epoch = 50_000_000;
-    let aux_data = vec![vec![1u8, 2], vec![3, 4], vec![5, 6]];
+    let aux_data = vec![vec![1u8; 1]];
     let entry_function = EntryFunction::new(module_id, member_id, vec![], vec![]);
-    let registration_params = RegistrationParams::new_v1(
+    let registration_params = RegistrationParams::new_user_automation_task(
         entry_function.clone(),
         expiry_time,
         max_gas_amount,
         gas_price_cap,
         automation_fee_cap_for_epoch,
-        aux_data.clone(),
     );
     let address = AccountAddress::random();
     let parent_hash = HashValue::random();

@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::tests::vm_viewer::to_view_function;
-use aptos_cached_packages::aptos_framework_sdk_builder;
+use aptos_cached_packages::{aptos_framework_sdk_builder, aptos_stdlib};
 use aptos_language_e2e_tests::{
     account::{Account, AccountData},
     data_store::FakeDataStore,
     executor::FakeExecutor,
 };
+use aptos_types::account_address::create_multisig_account_address;
+use aptos_types::transaction::{Multisig, MultisigTransactionPayload};
 use aptos_types::{
     on_chain_config::{
         AutomationCycleDetails, AutomationCycleInfo, AutomationCycleState, FeatureFlag,
@@ -32,7 +34,6 @@ use std::{
     ops::{Deref, DerefMut},
     time::Instant,
 };
-use aptos_types::transaction::automation::AutomationTaskType;
 
 const TIMESTAMP_NOW_SECONDS: &str = "0x1::timestamp::now_seconds";
 const ACCOUNT_BALANCE: &str = "0x1::coin::balance";
@@ -46,9 +47,32 @@ const HAS_SENDER_ACTIVE_TASK_WITH_ID: &str =
     "0x1::automation_registry::has_sender_active_task_with_id";
 const GET_TASK_IDS: &str = "0x1::automation_registry::get_task_ids";
 
+struct MultisigAccountData {
+    multisig_address: AccountAddress,
+    owners: Vec<AccountData>,
+}
+
+impl MultisigAccountData {
+    fn vote_txn(&self, account_index: usize, txn_idx: u64, seq_num: u64) -> SignedTransaction {
+        self.owners[account_index]
+            .account()
+            .transaction()
+            .max_gas_amount(1000)
+            .gas_unit_price(0)
+            .sequence_number(seq_num)
+            .payload(aptos_stdlib::multisig_account_vote_transaction(
+                self.multisig_address,
+                txn_idx,
+                true,
+            ))
+            .sign()
+    }
+}
+
 pub(crate) struct AutomationRegistrationTestContext {
     executor: FakeExecutor,
     txn_sender: AccountData,
+    multisig_account_data: MultisigAccountData,
 }
 
 impl AutomationRegistrationTestContext {
@@ -71,9 +95,52 @@ impl AutomationRegistrationTestContext {
         // Prepare automation registration transaction sender
         let txn_sender = executor.create_raw_account_data(100_000_000_000, 0);
         executor.add_account_data(&txn_sender);
+
+        let multisig_account_data = Self::create_multisig_account_data(&mut executor);
+
         Self {
             executor,
             txn_sender,
+            multisig_account_data,
+        }
+    }
+
+    fn create_multisig_account_data(executor: &mut FakeExecutor) -> MultisigAccountData {
+        // Prepare multisig_account for system task registration
+        let multisig_owner1 = executor.create_raw_account_data(1_000_000_000, 0);
+        let multisig_owner2 = executor.create_raw_account_data(1_000_000_000, 0);
+        executor.add_account_data(&multisig_owner1);
+        executor.add_account_data(&multisig_owner2);
+        let multisig_address = create_multisig_account_address(
+            *multisig_owner1.address(),
+            multisig_owner1.sequence_number(),
+        );
+        let create_multisig_payload = aptos_stdlib::multisig_account_create_with_owners(
+            vec![*multisig_owner2.address()],
+            1,
+            vec![],
+            vec![],
+            u64::MAX,
+        );
+        let account_create_txn = multisig_owner1
+            .account()
+            .transaction()
+            .max_gas_amount(1_000_000)
+            .gas_unit_price(100)
+            .payload(create_multisig_payload)
+            .sequence_number(0)
+            .sign();
+        executor.execute_and_apply(account_create_txn);
+
+        let transfer_txn = multisig_owner1.account().transaction()
+            .max_gas_amount(1000)
+            .payload(aptos_stdlib::supra_account_transfer(multisig_address, 10_000_000))
+            .sequence_number(1)
+            .sign();
+        executor.execute_and_apply(transfer_txn);
+        MultisigAccountData {
+            multisig_address,
+            owners: vec![multisig_owner1, multisig_owner2],
         }
     }
 
@@ -89,12 +156,16 @@ impl AutomationRegistrationTestContext {
         } else {
             (vec![], flag_value)
         };
-        self.executor
-            .exec("features", "change_feature_flags_internal", vec![], vec![
+        self.executor.exec(
+            "features",
+            "change_feature_flags_internal",
+            vec![],
+            vec![
                 MoveValue::Signer(acc).simple_serialize().unwrap(),
                 bcs::to_bytes(&enabled).unwrap(),
                 bcs::to_bytes(&disabled).unwrap(),
-            ]);
+            ],
+        );
     }
 
     pub(crate) fn toggle_feature_with_registry_reconfig(
@@ -141,15 +212,13 @@ impl AutomationRegistrationTestContext {
         max_gas_amount: u64,
         gas_price_cap: u64,
         automation_fee_cap: u64,
-        aux_data: Vec<Vec<u8>>,
     ) -> SignedTransaction {
-        let txn_arguments = RegistrationParams::new_v1(
+        let txn_arguments = RegistrationParams::new_user_automation_task(
             inner_payload,
             expiry_time,
             max_gas_amount,
             gas_price_cap,
             automation_fee_cap,
-            aux_data,
         );
         let automation_txn = TransactionPayload::AutomationRegistration(txn_arguments);
         self.txn_sender
@@ -159,6 +228,65 @@ impl AutomationRegistrationTestContext {
             .sequence_number(seq_num)
             .gas_unit_price(1)
             .sign()
+    }
+
+    pub(crate) fn create_system_automation_task_registration_txn(
+        &self,
+        seq_num: u64,
+        multisig: Multisig,
+    ) -> SignedTransaction {
+        let automation_txn = TransactionPayload::Multisig(multisig);
+        self.multisig_account_data.owners[0]
+            .account()
+            .transaction()
+            .payload(automation_txn)
+            .sequence_number(seq_num)
+            .gas_unit_price(1)
+            .sign()
+    }
+
+    pub(crate) fn create_system_automation_task_registration_proposal(
+        &self,
+        seq_num: u64,
+        multisig: &Multisig,
+    ) -> SignedTransaction {
+        self.multisig_account_data.owners[0]
+            .account()
+            .transaction()
+            .payload(aptos_stdlib::multisig_account_create_transaction(
+                self.multisig_account_data.multisig_address,
+                bcs::to_bytes(multisig.transaction_payload.as_ref().unwrap()).unwrap(),
+            ))
+            .sequence_number(seq_num)
+            .gas_unit_price(1)
+            .sign()
+    }
+
+    pub(crate) fn vote_for_multisig_txn(&mut self, account_idx: usize, txn_idx: u64, seq_num: u64) {
+        let _ = self
+            .executor
+            .execute_and_apply_transaction(Transaction::UserTransaction(
+                self.multisig_account_data.vote_txn(account_idx, txn_idx, seq_num),
+            ));
+    }
+
+    pub(crate) fn create_system_automation_task_registration_payload(
+        &self,
+        inner_payload: EntryFunction,
+        expiry_time: u64,
+        max_gas_amount: u64,
+    ) -> Multisig {
+        let txn_arguments = RegistrationParams::new_system_automation_task(
+            inner_payload,
+            expiry_time,
+            max_gas_amount,
+        );
+        let mutlisig_txn_payload =
+            MultisigTransactionPayload::AutomationRegistration(txn_arguments);
+        Multisig {
+            multisig_address: self.multisig_account_data.multisig_address,
+            transaction_payload: Some(mutlisig_txn_payload),
+        }
     }
 
     pub(crate) fn check_miscellaneous_output(
@@ -215,10 +343,11 @@ impl AutomationRegistrationTestContext {
     }
 
     pub(crate) fn account_sequence_number(&mut self, account_address: AccountAddress) -> u64 {
-        let view_output =
-            self.execute_view_function(str::parse(ACCOUNT_SEQ_NUM).unwrap(), vec![], vec![
-                account_address.to_vec(),
-            ]);
+        let view_output = self.execute_view_function(
+            str::parse(ACCOUNT_SEQ_NUM).unwrap(),
+            vec![],
+            vec![account_address.to_vec()],
+        );
         let result = view_output.values.expect("Valid result");
         assert_eq!(result.len(), 1);
         bcs::from_bytes::<u64>(&result[0]).unwrap()
@@ -236,12 +365,13 @@ impl AutomationRegistrationTestContext {
     }
 
     pub(crate) fn get_task_details(&mut self, index: u64) -> AutomationTaskMetaData {
-        let view_output =
-            self.execute_view_function(str::parse(AUTOMATION_TASK_DETAILS).unwrap(), vec![], vec![
-                MoveValue::U64(index)
-                    .simple_serialize()
-                    .expect("Successful serialization"),
-            ]);
+        let view_output = self.execute_view_function(
+            str::parse(AUTOMATION_TASK_DETAILS).unwrap(),
+            vec![],
+            vec![MoveValue::U64(index)
+                .simple_serialize()
+                .expect("Successful serialization")],
+        );
         let result = view_output.values.expect("Valid result");
         assert!(!result.is_empty());
         bcs::from_bytes::<AutomationTaskMetaData>(&result[0])
@@ -253,11 +383,13 @@ impl AutomationRegistrationTestContext {
         vm_viewer: &AptosVMViewer<FakeDataStore>,
     ) -> AutomationTaskMetaData {
         let view_output = vm_viewer.execute_view_function(
-            to_view_function(str::parse(AUTOMATION_TASK_DETAILS).unwrap(), vec![], vec![
-                MoveValue::U64(index)
+            to_view_function(
+                str::parse(AUTOMATION_TASK_DETAILS).unwrap(),
+                vec![],
+                vec![MoveValue::U64(index)
                     .simple_serialize()
-                    .expect("Successful serialization"),
-            ]),
+                    .expect("Successful serialization")],
+            ),
             50_000,
         );
         let result = view_output.values.expect("Valid result");
@@ -348,7 +480,6 @@ fn check_successful_registration() {
             .into_entry_function();
 
     let automation_fee_cap = 100_000;
-    let aux_data = vec![AutomationTaskType::User.into()];
     let expiration_time = test_context.chain_time_now() + 4000;
     let automation_txn = test_context.create_automation_txn(
         0,
@@ -357,7 +488,6 @@ fn check_successful_registration() {
         100,
         100,
         automation_fee_cap,
-        aux_data,
     );
 
     let sender_address = test_context.sender_account_address();
@@ -408,7 +538,6 @@ fn check_invalid_automation_txn() {
             .into_inner();
     let inner_entry_function = EntryFunction::new(m_id, f_id, vec![], vec![]);
     let automation_fee_cap = 100_000;
-    let aux_data = vec![AutomationTaskType::User.into()];
     let automation_txn = test_context.create_automation_txn(
         0,
         inner_entry_function,
@@ -416,7 +545,6 @@ fn check_invalid_automation_txn() {
         100,
         100,
         automation_fee_cap,
-        aux_data,
     );
 
     let output = test_context.execute_transaction(automation_txn);
@@ -436,7 +564,6 @@ fn check_invalid_gas_params_of_automation_task() {
         aptos_framework_sdk_builder::supra_coin_mint(dest_account.address().clone(), 100)
             .into_entry_function();
     let automation_fee_cap = 100_000;
-    let aux_data = vec![AutomationTaskType::User.into()];
     let automation_txn = test_context.create_automation_txn(
         0,
         inner_entry_function.clone(),
@@ -444,7 +571,6 @@ fn check_invalid_gas_params_of_automation_task() {
         2,
         100,
         automation_fee_cap,
-        aux_data.clone(),
     );
 
     let output = test_context.execute_transaction(automation_txn.clone());
@@ -465,7 +591,6 @@ fn check_invalid_gas_params_of_automation_task() {
         aptos_global_constants::MAX_GAS_AMOUNT + 1,
         100,
         automation_fee_cap,
-        aux_data.clone(),
     );
 
     let output = test_context.execute_transaction(automation_txn.clone());
@@ -486,7 +611,6 @@ fn check_invalid_gas_params_of_automation_task() {
         100,
         10_000_000_001,
         automation_fee_cap,
-        aux_data,
     );
 
     let output = test_context.execute_transaction(automation_txn.clone());
@@ -527,7 +651,6 @@ fn check_task_retrieval_performance() {
         .into_entry_function();
 
         let automation_fee_cap = 1000;
-        let aux_data = vec![AutomationTaskType::User.into()];
         let automation_txn = test_context.create_automation_txn(
             i,
             inner_entry_function.clone(),
@@ -535,7 +658,6 @@ fn check_task_retrieval_performance() {
             25,
             100,
             automation_fee_cap,
-            aux_data,
         );
         let output = test_context.execute_and_apply(automation_txn);
         assert_eq!(
@@ -580,7 +702,6 @@ fn check_automation_registry_actions_on_cycle_transition() {
             .into_entry_function();
 
     let automation_fee_cap = 100_000;
-    let aux_data = vec![AutomationTaskType::User.into()];
     let expiration_time = test_context.chain_time_now() + 4000;
     let automation_txn = test_context.create_automation_txn(
         0,
@@ -589,7 +710,6 @@ fn check_automation_registry_actions_on_cycle_transition() {
         100,
         100,
         automation_fee_cap,
-        aux_data.clone(),
     );
     // Expires in the first cycle
     let task_2_expiry_time = test_context.chain_time_now() + 1500;
@@ -600,7 +720,6 @@ fn check_automation_registry_actions_on_cycle_transition() {
         100,
         100,
         automation_fee_cap,
-        aux_data,
     );
 
     let sender_address = test_context.sender_account_address();
@@ -614,11 +733,14 @@ fn check_automation_registry_actions_on_cycle_transition() {
     let result = test_context
         .execute_tagged_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     let status = result.status().status().expect("Expected execution status");
-    assert!(matches!(status, ExecutionStatus::MoveAbort {
-        location: _,
-        code: _,
-        info: _
-    }));
+    assert!(matches!(
+        status,
+        ExecutionStatus::MoveAbort {
+            location: _,
+            code: _,
+            info: _
+        }
+    ));
 
     test_context.advance_chain_time_in_secs(600);
 
@@ -647,18 +769,23 @@ fn check_automation_registry_actions_on_cycle_transition() {
         test_context.create_automation_registry_transaction(0, cycle_info.index + 1, 1, vec![0]);
 
     // Check that out of order execution will fail
-    let result = test_context
-        .execute_tagged_transaction(Transaction::AutomationRegistryTransaction(registry_action_for_task1.clone()));
+    let result = test_context.execute_tagged_transaction(
+        Transaction::AutomationRegistryTransaction(registry_action_for_task1.clone()),
+    );
     let status = result.status().status().expect("Expected execution status");
 
-    assert!(matches!(status, ExecutionStatus::MoveAbort {
-        location: _,
-        code: _,
-        info: _
-    }));
+    assert!(matches!(
+        status,
+        ExecutionStatus::MoveAbort {
+            location: _,
+            code: _,
+            info: _
+        }
+    ));
 
-    test_context
-        .execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(registry_action_for_task0));
+    test_context.execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(
+        registry_action_for_task0,
+    ));
     let cycle_info = test_context.get_cycle_info();
     assert_eq!(cycle_info.state, AutomationCycleState::FINISHED);
     let cycle_details = AutomationCycleDetails::fetch_config(test_context.data_store())
@@ -669,8 +796,9 @@ fn check_automation_registry_actions_on_cycle_transition() {
         .expect("Transition state");
     assert_eq!(transition_state.next_task_index_position, 1);
 
-    test_context
-        .execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(registry_action_for_task1));
+    test_context.execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(
+        registry_action_for_task1,
+    ));
     let cycle_info = test_context.get_cycle_info();
     assert_eq!(cycle_info.state, AutomationCycleState::STARTED);
 
@@ -694,7 +822,6 @@ fn check_automation_registry_actions_on_cycle_suspension() {
             .into_entry_function();
 
     let automation_fee_cap = 100_000;
-    let aux_data = vec![AutomationTaskType::User.into()];
     let expiration_time = test_context.chain_time_now() + 4000;
     let automation_txn = test_context.create_automation_txn(
         0,
@@ -703,7 +830,6 @@ fn check_automation_registry_actions_on_cycle_suspension() {
         100,
         100,
         automation_fee_cap,
-        aux_data.clone(),
     );
 
     let sender_address = test_context.sender_account_address();
@@ -746,11 +872,14 @@ fn check_automation_registry_actions_on_cycle_suspension() {
         .execute_tagged_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     let status = result.status().status().expect("Expected execution status");
 
-    assert!(matches!(status, ExecutionStatus::MoveAbort {
-        location: _,
-        code: _,
-        info: _
-    }));
+    assert!(matches!(
+        status,
+        ExecutionStatus::MoveAbort {
+            location: _,
+            code: _,
+            info: _
+        }
+    ));
 }
 
 #[test]
@@ -767,4 +896,25 @@ fn check_automation_registry_actions_when_automation_cycle_disabled() {
         result.status().status(),
         Err(StatusCode::FEATURE_UNDER_GATING)
     ));
+}
+
+#[test]
+fn check_system_automation_task_registration() {
+    // Feature flag is not enabled yet.
+    let mut test_context = AutomationRegistrationTestContext::new();
+    test_context.set_supra_native_automation(true);
+    let inner_payload = aptos_stdlib::supra_account_transfer(*test_context.multisig_account_data.owners[1].address(),10).into_entry_function();
+    let expiry_time = test_context.chain_time_now() + 7200;
+    let multisig = test_context.create_system_automation_task_registration_payload(inner_payload, expiry_time, 100);
+    let proposal_txn = test_context.create_system_automation_task_registration_proposal(2, &multisig);
+    test_context.execute_and_apply(proposal_txn);
+    test_context.vote_for_multisig_txn(0, 1, 3);
+    let multisig_execute = test_context.create_system_automation_task_registration_txn(4, multisig);
+    test_context.execute_and_apply(multisig_execute);
+    // let next_task_id = test_context.get_next_task_index_from_registry();
+    // assert_eq!(next_task_id, 1);
+    //
+    // let task_details = test_context.get_task_details(0);
+    // println!("{:?}", task_details);
+    // assert_eq!(task_details.get_task_type().unwrap(), AutomationTaskType::System);
 }

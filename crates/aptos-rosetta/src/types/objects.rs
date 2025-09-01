@@ -927,6 +927,9 @@ impl Transaction {
                 txn.info,
                 txn.events,
             ),
+            AutomationRegistryTransaction(_record) => {
+                unimplemented!("Automation bookkeeping records are not supported yet")
+            }
         };
 
         // Operations must be sequential and operation index must always be in the same order

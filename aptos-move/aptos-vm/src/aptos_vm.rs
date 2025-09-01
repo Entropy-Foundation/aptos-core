@@ -923,31 +923,14 @@ impl AptosVM {
         }
 
         session.execute(|session| {
-            self.validate_automated_function(
-                session,
-                gas_meter,
-                txn_data.senders(),
-                registration_params.automated_function(),
-            )
-        })?;
-
-        session.execute(|session| {
-            self.execute_automation_registration(
+            self.validate_and_execute_automation_registration(
                 session,
                 gas_meter,
                 traversal_context,
-                txn_data.sender(),
-                registration_params,
                 txn_data,
-            )
-        })?;
-
-        session.execute(|session| {
-            self.resolve_pending_code_publish(
-                session,
-                gas_meter,
-                traversal_context,
-                new_published_modules_loaded,
+                txn_data.sender,
+                registration_params,
+                new_published_modules_loaded
             )
         })?;
 
@@ -967,6 +950,42 @@ impl AptosVM {
             change_set_configs,
             traversal_context,
         )
+    }
+
+    fn validate_and_execute_automation_registration(
+        &self,
+        session: &mut SessionExt,
+        gas_meter: &mut impl AptosGasMeter,
+        traversal_context: &mut TraversalContext,
+        txn_data: &TransactionMetadata,
+        sender: AccountAddress,
+        registration_params: &RegistrationParams,
+        new_published_modules_loaded: &mut bool,
+    ) -> Result<(), VMStatus> {
+
+        self.validate_automated_function(
+            session,
+            gas_meter,
+            txn_data.senders(),
+            registration_params.automated_function(),
+        )?;
+
+        self.execute_automation_registration(
+            session,
+            gas_meter,
+            traversal_context,
+            sender,
+            registration_params,
+            txn_data,
+        )?;
+
+        self.resolve_pending_code_publish(
+            session,
+            gas_meter,
+            traversal_context,
+            new_published_modules_loaded,
+        )?;
+        Ok(())
     }
 
     fn execute_automation_registration(
@@ -1102,43 +1121,56 @@ impl AptosVM {
         match &payload.transaction_payload {
             None => Err(VMStatus::error(StatusCode::MISSING_DATA, None)),
             Some(multisig_payload) => {
-                match multisig_payload {
-                    MultisigTransactionPayload::EntryFunction(entry_function) => {
-                        aptos_try!({
-                            return_on_failure!(session.execute(|session| self
-                                .execute_multisig_entry_function(
-                                    resolver,
-                                    session,
-                                    gas_meter,
-                                    traversal_context,
-                                    payload.multisig_address,
-                                    entry_function,
-                                    new_published_modules_loaded,
-                                    txn_data,
-                                )));
-                            // TODO: Deduplicate this against execute_multisig_transaction
-                            // A bit tricky since we need to skip success/failure cleanups,
-                            // which is in the middle. Introducing a boolean would make the code
-                            // messier.
-                            let epilogue_session = self.charge_change_set_and_respawn_session(
-                                session,
-                                resolver,
-                                gas_meter,
-                                change_set_configs,
-                                txn_data,
-                            )?;
+                aptos_try!({
+                    match multisig_payload {
+                            MultisigTransactionPayload::EntryFunction(entry_function) => {
+                                return_on_failure!(session.execute(|session| self
+                                    .execute_multisig_entry_function(
+                                        resolver,
+                                        session,
+                                        gas_meter,
+                                        traversal_context,
+                                        payload.multisig_address,
+                                        entry_function,
+                                        new_published_modules_loaded,
+                                        txn_data,
+                                    )));
+                            }
+                            MultisigTransactionPayload::AutomationRegistration(params) => {
+                                return_on_failure!(session.execute(|session| {
+                                    self.validate_and_execute_automation_registration(
+                                        session,
+                                        gas_meter,
+                                        traversal_context,
+                                        txn_data,
+                                        payload.multisig_address,
+                                        params,
+                                        new_published_modules_loaded,
+                                    )
+                                }));
+                            }
+                    }
+                    // TODO: Deduplicate this against execute_multisig_transaction
+                    // A bit tricky since we need to skip success/failure cleanups,
+                    // which is in the middle. Introducing a boolean would make the code
+                    // messier.
+                    let epilogue_session = self.charge_change_set_and_respawn_session(
+                        session,
+                        resolver,
+                        gas_meter,
+                        change_set_configs,
+                        txn_data,
+                    )?;
 
-                            self.success_transaction_cleanup(
-                                epilogue_session,
-                                gas_meter,
-                                txn_data,
-                                log_context,
-                                change_set_configs,
-                                traversal_context,
-                            )
-                        })
-                    },
-                }
+                    self.success_transaction_cleanup(
+                        epilogue_session,
+                        gas_meter,
+                        txn_data,
+                        log_context,
+                        change_set_configs,
+                        traversal_context,
+                    )
+                })
             },
         }
     }
@@ -1253,6 +1285,19 @@ impl AptosVM {
                     )
                 })
             },
+            MultisigTransactionPayload::AutomationRegistration(params) => {
+                session.execute(|session| {
+                    self.validate_and_execute_automation_registration(
+                        session,
+                        gas_meter,
+                        traversal_context,
+                        txn_data,
+                        txn_payload.multisig_address,
+                        &params,
+                        new_published_modules_loaded,
+                    )
+                })
+            }
         };
 
         // Step 3: Call post transaction cleanup function in multisig account module with the result

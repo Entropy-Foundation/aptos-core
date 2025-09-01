@@ -1,6 +1,3 @@
-// Copyright (c) Aptos Foundation
-// SPDX-License-Identifier: Apache-2.0
-
 // @generated
 impl serde::Serialize for GetTransactionsFromNodeRequest {
     #[allow(deprecated)]

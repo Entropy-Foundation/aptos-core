@@ -1,6 +1,3 @@
-// Copyright (c) Aptos Foundation
-// SPDX-License-Identifier: Apache-2.0
-
 // @generated
 /// This is for storage only.
 #[allow(clippy::derive_partial_eq_without_eq)]

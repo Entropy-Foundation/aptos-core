@@ -341,7 +341,7 @@ module supra_framework::multisig_account {
         old_timeout_duration: u64,
         new_timeout_duration: u64,
     }
-    
+
     #[event]
     struct MetadataUpdated has drop, store {
         multisig_account: address,

@@ -7896,5 +7896,3 @@ module supra_framework::automation_registry {
         assert!(0 == get_system_gas_committed_for_next_cycle(), 1);
     }
 }
-
-

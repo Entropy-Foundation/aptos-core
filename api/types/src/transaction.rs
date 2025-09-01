@@ -1041,6 +1041,7 @@ impl TryFrom<Script> for ScriptPayload {
 #[oai(one_of, discriminator_name = "type", rename_all = "snake_case")]
 pub enum MultisigTransactionPayload {
     EntryFunctionPayload(EntryFunctionPayload),
+    AutomationRegistrationPayload(AutomationRegistrationParams),
 }
 
 /// A multisig transaction that allows an owner of a multisig account to execute a pre-approved
@@ -1065,6 +1066,9 @@ impl VerifyInput for MultisigPayload {
                         type_arg.verify(0)?;
                     }
                 },
+                MultisigTransactionPayload::AutomationRegistrationPayload(params) => {
+                    params.verify()?;
+                }
             }
         }
 

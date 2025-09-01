@@ -1,6 +1,3 @@
-// Copyright (c) Aptos Foundation
-// SPDX-License-Identifier: Apache-2.0
-
 // @generated
 impl serde::Serialize for AccountSignature {
     #[allow(deprecated)]
@@ -6115,6 +6112,9 @@ impl serde::Serialize for MultisigTransactionPayload {
                 multisig_transaction_payload::Payload::EntryFunctionPayload(v) => {
                     struct_ser.serialize_field("entryFunctionPayload", v)?;
                 }
+                multisig_transaction_payload::Payload::AutomationPayload(v) => {
+                    struct_ser.serialize_field("automationPayload", v)?;
+                }
             }
         }
         struct_ser.end()
@@ -6130,12 +6130,15 @@ impl<'de> serde::Deserialize<'de> for MultisigTransactionPayload {
             "type",
             "entry_function_payload",
             "entryFunctionPayload",
+            "automation_payload",
+            "automationPayload",
         ];
 
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Type,
             EntryFunctionPayload,
+            AutomationPayload,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
             fn deserialize<D>(deserializer: D) -> std::result::Result<GeneratedField, D::Error>
@@ -6159,6 +6162,7 @@ impl<'de> serde::Deserialize<'de> for MultisigTransactionPayload {
                         match value {
                             "type" => Ok(GeneratedField::Type),
                             "entryFunctionPayload" | "entry_function_payload" => Ok(GeneratedField::EntryFunctionPayload),
+                            "automationPayload" | "automation_payload" => Ok(GeneratedField::AutomationPayload),
                             _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
                         }
                     }
@@ -6195,6 +6199,13 @@ impl<'de> serde::Deserialize<'de> for MultisigTransactionPayload {
                             payload__ = map.next_value::<::std::option::Option<_>>()?.map(multisig_transaction_payload::Payload::EntryFunctionPayload)
 ;
                         }
+                        GeneratedField::AutomationPayload => {
+                            if payload__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("automationPayload"));
+                            }
+                            payload__ = map.next_value::<::std::option::Option<_>>()?.map(multisig_transaction_payload::Payload::AutomationPayload)
+;
+                        }
                     }
                 }
                 Ok(MultisigTransactionPayload {
@@ -6215,6 +6226,7 @@ impl serde::Serialize for multisig_transaction_payload::Type {
         let variant = match self {
             Self::Unspecified => "TYPE_UNSPECIFIED",
             Self::EntryFunctionPayload => "TYPE_ENTRY_FUNCTION_PAYLOAD",
+            Self::AutomationPayload => "TYPE_AUTOMATION_PAYLOAD",
         };
         serializer.serialize_str(variant)
     }
@@ -6228,6 +6240,7 @@ impl<'de> serde::Deserialize<'de> for multisig_transaction_payload::Type {
         const FIELDS: &[&str] = &[
             "TYPE_UNSPECIFIED",
             "TYPE_ENTRY_FUNCTION_PAYLOAD",
+            "TYPE_AUTOMATION_PAYLOAD",
         ];
 
         struct GeneratedVisitor;
@@ -6272,6 +6285,7 @@ impl<'de> serde::Deserialize<'de> for multisig_transaction_payload::Type {
                 match value {
                     "TYPE_UNSPECIFIED" => Ok(multisig_transaction_payload::Type::Unspecified),
                     "TYPE_ENTRY_FUNCTION_PAYLOAD" => Ok(multisig_transaction_payload::Type::EntryFunctionPayload),
+                    "TYPE_AUTOMATION_PAYLOAD" => Ok(multisig_transaction_payload::Type::AutomationPayload),
                     _ => Err(serde::de::Error::unknown_variant(value, FIELDS)),
                 }
             }

@@ -106,7 +106,6 @@ fn check_automated_transaction_successful_execution() {
     let gas_price = 100;
     let max_gas_amount = 100;
     let automation_fee_cap = 100_000;
-    let aux_data = vec![AutomationTaskType::User.into()];
 
     // Register automation task
     let inner_entry_function = payload.clone().into_entry_function();
@@ -118,7 +117,6 @@ fn check_automated_transaction_successful_execution() {
         gas_price,
         max_gas_amount,
         automation_fee_cap,
-        aux_data,
     );
 
     let output = test_context.execute_and_apply(automation_txn);

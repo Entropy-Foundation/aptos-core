@@ -920,22 +920,27 @@ class MultisigPayload(_message.Message):
     ) -> None: ...
 
 class MultisigTransactionPayload(_message.Message):
-    __slots__ = ["type", "entry_function_payload"]
+    __slots__ = ["type", "entry_function_payload", "automation_payload"]
 
     class Type(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
         TYPE_UNSPECIFIED: _ClassVar[MultisigTransactionPayload.Type]
         TYPE_ENTRY_FUNCTION_PAYLOAD: _ClassVar[MultisigTransactionPayload.Type]
+        TYPE_AUTOMATION_PAYLOAD: _ClassVar[MultisigTransactionPayload.Type]
     TYPE_UNSPECIFIED: MultisigTransactionPayload.Type
     TYPE_ENTRY_FUNCTION_PAYLOAD: MultisigTransactionPayload.Type
+    TYPE_AUTOMATION_PAYLOAD: MultisigTransactionPayload.Type
     TYPE_FIELD_NUMBER: _ClassVar[int]
     ENTRY_FUNCTION_PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    AUTOMATION_PAYLOAD_FIELD_NUMBER: _ClassVar[int]
     type: MultisigTransactionPayload.Type
     entry_function_payload: EntryFunctionPayload
+    automation_payload: AutomationPayload
     def __init__(
         self,
         type: _Optional[_Union[MultisigTransactionPayload.Type, str]] = ...,
         entry_function_payload: _Optional[_Union[EntryFunctionPayload, _Mapping]] = ...,
+        automation_payload: _Optional[_Union[AutomationPayload, _Mapping]] = ...,
     ) -> None: ...
 
 class AutomationPayload(_message.Message):

@@ -1,6 +1,3 @@
-// Copyright (c) Aptos Foundation
-// SPDX-License-Identifier: Apache-2.0
-
 // @generated
 // Transaction data is transferred via 1 stream with batches until terminated.
 // One stream consists:
