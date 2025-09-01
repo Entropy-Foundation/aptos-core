@@ -12,10 +12,10 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Resource `ActiveAutomationRegistryConfig`](#0x1_automation_registry_ActiveAutomationRegistryConfig)
 -  [Resource `ActiveAutomationRegistryConfigV2`](#0x1_automation_registry_ActiveAutomationRegistryConfigV2)
 -  [Resource `AutomationRegistryConfig`](#0x1_automation_registry_AutomationRegistryConfig)
--  [Resource `RegistryConfigForSystemTasks`](#0x1_automation_registry_RegistryConfigForSystemTasks)
+-  [Struct `RegistryConfigForSystemTasks`](#0x1_automation_registry_RegistryConfigForSystemTasks)
 -  [Struct `AutomationRegistryConfigV2`](#0x1_automation_registry_AutomationRegistryConfigV2)
 -  [Resource `AutomationRegistry`](#0x1_automation_registry_AutomationRegistry)
--  [Resource `RegistryStateForSystemTasks`](#0x1_automation_registry_RegistryStateForSystemTasks)
+-  [Struct `RegistryStateForSystemTasks`](#0x1_automation_registry_RegistryStateForSystemTasks)
 -  [Resource `AutomationRegistryV2`](#0x1_automation_registry_AutomationRegistryV2)
 -  [Struct `TransitionState`](#0x1_automation_registry_TransitionState)
 -  [Resource `AutomationEpochInfo`](#0x1_automation_registry_AutomationEpochInfo)
@@ -157,6 +157,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
+<b>use</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">0x1::any</a>;
 <b>use</b> <a href="coin.md#0x1_coin">0x1::coin</a>;
 <b>use</b> <a href="config_buffer.md#0x1_config_buffer">0x1::config_buffer</a>;
 <b>use</b> <a href="create_signer.md#0x1_create_signer">0x1::create_signer</a>;
@@ -164,8 +165,11 @@ This contract is part of the Supra Framework and is designed to manage automated
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/math64.md#0x1_math64">0x1::math64</a>;
+<b>use</b> <a href="multisig_account.md#0x1_multisig_account">0x1::multisig_account</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
+<b>use</b> <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map">0x1::simple_map</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string">0x1::string</a>;
 <b>use</b> <a href="supra_coin.md#0x1_supra_coin">0x1::supra_coin</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="timestamp.md#0x1_timestamp">0x1::timestamp</a>;
@@ -220,6 +224,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 
 ## Resource `ActiveAutomationRegistryConfigV2`
 
+Registry active configuration parameters for the current cycle.
 
 
 <pre><code>#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
@@ -263,6 +268,12 @@ This contract is part of the Supra Framework and is designed to manage automated
 </dt>
 <dd>
  Will be the same as system_task_config.registry_max_gas_cap, unless updated during the cycle transition.
+</dd>
+<dt>
+<code>aux_configs: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_SimpleMap">simple_map::SimpleMap</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, <a href="../../aptos-stdlib/doc/any.md#0x1_any_Any">any::Any</a>&gt;</code>
+</dt>
+<dd>
+ Auxiliary configurations to support future expansions.
 </dd>
 </dl>
 
@@ -347,14 +358,13 @@ Automation registry configuration parameters
 
 <a id="0x1_automation_registry_RegistryConfigForSystemTasks"></a>
 
-## Resource `RegistryConfigForSystemTasks`
+## Struct `RegistryConfigForSystemTasks`
 
 Automation registry configuration parameters for governance/system submitted tasks
 
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]
-#[resource_group_member(#[group = <a href="object.md#0x1_object_ObjectGroup">0x1::object::ObjectGroup</a>])]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_RegistryConfigForSystemTasks">RegistryConfigForSystemTasks</a> <b>has</b> <b>copy</b>, drop, store, key
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_RegistryConfigForSystemTasks">RegistryConfigForSystemTasks</a> <b>has</b> <b>copy</b>, drop, store
 </code></pre>
 
 
@@ -383,6 +393,12 @@ Automation registry configuration parameters for governance/system submitted tas
 </dt>
 <dd>
  Maximum number of system tasks that registry can hold.
+</dd>
+<dt>
+<code>aux_properties: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_SimpleMap">simple_map::SimpleMap</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, u64&gt;</code>
+</dt>
+<dd>
+ Auxiliary configuration properties to easy expansion after release if required.
 </dd>
 </dl>
 
@@ -563,12 +579,12 @@ It tracks entries both pending and completed, organized by unique indices.
 
 <a id="0x1_automation_registry_RegistryStateForSystemTasks"></a>
 
-## Resource `RegistryStateForSystemTasks`
+## Struct `RegistryStateForSystemTasks`
 
 It tracks entries both pending and completed, organized by unique indices.
 
 
-<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_RegistryStateForSystemTasks">RegistryStateForSystemTasks</a> <b>has</b> store, key
+<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_RegistryStateForSystemTasks">RegistryStateForSystemTasks</a> <b>has</b> store
 </code></pre>
 
 
@@ -2405,7 +2421,7 @@ Resource Account does not have sufficient balance to process the refund for the 
 
 <a id="0x1_automation_registry_EINVALID_AUX_DATA_LENGHT"></a>
 
-Invalid number of auxaliry data.
+Invalid number of auxiliary data.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_AUX_DATA_LENGHT">EINVALID_AUX_DATA_LENGHT</a>: u64 = 14;
@@ -2668,6 +2684,16 @@ Unauthorized access: the caller is not the owner of the task
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EUNAUTHORIZED_TASK_OWNER">EUNAUTHORIZED_TASK_OWNER</a>: u64 = 8;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_EUNKNOWN_MULTISIG_ADDRESS"></a>
+
+The input address is not identified as multisig account.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EUNKNOWN_MULTISIG_ADDRESS">EUNKNOWN_MULTISIG_ADDRESS</a>: u64 = 47;
 </code></pre>
 
 
@@ -4051,7 +4077,7 @@ Grants authorization to the input account to submit system automation tasks.
     <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&system_tasks_state.authorized_accounts, &<a href="account.md#0x1_account">account</a>)) {
         <b>return</b>
     };
-    // TODO: Clarify, should the <a href="account.md#0x1_account">account</a> be checked <b>to</b> be an existing multisig <a href="account.md#0x1_account">account</a> ?
+    <b>assert</b>!(<a href="multisig_account.md#0x1_multisig_account_account_exists">multisig_account::account_exists</a>(<a href="account.md#0x1_account">account</a>), <a href="automation_registry.md#0x1_automation_registry_EUNKNOWN_MULTISIG_ADDRESS">EUNKNOWN_MULTISIG_ADDRESS</a>);
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> system_tasks_state.authorized_accounts, <a href="account.md#0x1_account">account</a>);
     <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_AuthorizationGranted">AuthorizationGranted</a> {
         <a href="account.md#0x1_account">account</a>
@@ -4505,7 +4531,8 @@ Public entry function to initialize bookeeping resource when feature enabling au
 ## Function `migrate_v2`
 
 API to gracfully migrate from automation feature v1 inplementation to v2 where bookkeeping of the tasks is
-detached from epoch-change and cycle based lifecycle of the automation registry is enabled.
+detached from epoch-change and cycle based lifecycle of the automation registry is enabled and
+tasks are updated to have UST task-type.
 IMPORTANT: Should always be followed by <code>SUPRA_AUTOMATION_CYCLE</code> feature flag being enabled and
 supra_governance::reconfiguration otherwise registry/chain will end-up in inconsistent state.
 
@@ -4656,7 +4683,8 @@ already released and is in ongoing state, then <code>migrate_v2</code> function 
     <b>let</b> system_task_config =  <a href="automation_registry.md#0x1_automation_registry_RegistryConfigForSystemTasks">RegistryConfigForSystemTasks</a> {
         task_duration_cap_in_secs: sys_task_duration_cap_in_secs,
         registry_max_gas_cap: sys_registry_max_gas_cap,
-        task_capacity: sys_task_capacity
+        task_capacity: sys_task_capacity,
+        aux_properties: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_new">simple_map::new</a>(),
     };
     <b>move_to</b>(supra_framework, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a> {
         main_config: <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> {
@@ -4672,7 +4700,8 @@ already released and is in ongoing state, then <code>migrate_v2</code> function 
         next_cycle_registry_max_gas_cap: registry_max_gas_cap,
         next_cycle_sys_registry_max_gas_cap: sys_registry_max_gas_cap,
         registration_enabled: <b>true</b>,
-        system_task_config
+        system_task_config,
+        aux_configs: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_new">simple_map::new</a>()
     });
 
     <b>let</b> (cycle_state, cycle_id) =
@@ -6102,7 +6131,7 @@ fee primitives.
 
 ## Function `refund_tasks_fees`
 
-Refunds automation fee for epoch for all eligible tasks.
+Refunds automation fee for epoch for all eligible tasks during migration.
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_tasks_fees">refund_tasks_fees</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, refund_automation_fee_per_sec: u256, refund_interval: u64, current_time: u64)
@@ -6121,9 +6150,6 @@ Refunds automation fee for epoch for all eligible tasks.
     refund_interval: u64,
     current_time: u64)
 {
-    <b>if</b> (refund_automation_fee_per_sec == 0) {
-        <b>return</b>
-    };
     <b>let</b> ids = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_map_list">enumerable_map::get_map_list</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks);
 
     <b>let</b> resource_signer = <a href="account.md#0x1_account_create_signer_with_capability">account::create_signer_with_capability</a>(
@@ -6134,7 +6160,7 @@ Refunds automation fee for epoch for all eligible tasks.
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(ids, |task_index| {
         <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_mut">enumerable_map::get_value_mut</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
         task.aux_data = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="automation_registry.md#0x1_automation_registry_UST">UST</a>]];
-        <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
+        <b>if</b> (refund_automation_fee_per_sec != 0 && task.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
             <b>let</b> refund = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(
                 arc,
                 task,
@@ -6965,7 +6991,8 @@ Transfers the specified fee amount from the resource account to the target accou
     <b>let</b> system_task_config =  <a href="automation_registry.md#0x1_automation_registry_RegistryConfigForSystemTasks">RegistryConfigForSystemTasks</a> {
         task_duration_cap_in_secs: sys_task_duration_cap_in_secs,
         registry_max_gas_cap: sys_registry_max_gas_cap,
-        task_capacity: sys_task_capacity
+        task_capacity: sys_task_capacity,
+        aux_properties: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_new">simple_map::new</a>()
     };
     <b>let</b> new_active_config = <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a> {
         main_config,
@@ -6973,6 +7000,7 @@ Transfers the specified fee amount from the resource account to the target accou
         next_cycle_sys_registry_max_gas_cap: sys_registry_max_gas_cap,
         registration_enabled,
         system_task_config,
+        aux_configs: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_new">simple_map::new</a>(),
     };
     <b>move_to</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>&gt;(supra_framework, new_active_config);
 }

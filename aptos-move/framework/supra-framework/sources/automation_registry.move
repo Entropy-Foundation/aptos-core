@@ -6,8 +6,13 @@ module supra_framework::automation_registry {
 
     use std::features;
     use std::signer;
+    use std::string::String;
     use std::vector;
+    use aptos_std::any::Any;
     use aptos_std::math64;
+    use aptos_std::simple_map;
+    use aptos_std::simple_map::SimpleMap;
+    use supra_framework::multisig_account;
     use supra_framework::system_addresses::assert_supra_framework;
     use supra_framework::coin::Coin;
 
@@ -27,6 +32,8 @@ module supra_framework::automation_registry {
     #[test_only]
     use supra_framework::timestamp::update_global_time_for_test_secs;
     use supra_std::vector_utils::sort_vector_u64;
+    #[test_only]
+    use supra_framework::account::create_signer_for_test;
     #[test_only]
     use supra_framework::supra_coin;
 
@@ -60,7 +67,7 @@ module supra_framework::automation_registry {
     const EGAS_COMMITTEED_VALUE_OVERFLOW: u64 = 12;
     /// The gas committed for next epoch value is underflow after remove old max gas
     const EGAS_COMMITTEED_VALUE_UNDERFLOW: u64 = 13;
-    /// Invalid number of auxaliry data.
+    /// Invalid number of auxiliary data.
     const EINVALID_AUX_DATA_LENGHT: u64 = 14;
     /// Supra native automation feature is not initialized or enabled
     const EDISABLED_AUTOMATION_FEATURE: u64 = 15;
@@ -126,6 +133,8 @@ module supra_framework::automation_registry {
     const EUNACCEPTABLE_SYSTEM_AUTOMATION_GAS_LIMIT: u64 = 45;
     /// Automation registry max gas capacity for  system tasks cannot be zero.
     const EREGISTRY_SYSTEM_MAX_GAS_CAP_NON_ZERO: u64 = 46;
+    /// The input address is not identified as multisig account.
+    const EUNKNOWN_MULTISIG_ADDRESS: u64 = 47;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -197,8 +206,8 @@ module supra_framework::automation_registry {
         registration_enabled: bool,
     }
 
-    /// Registry active configuration parameters for the current cycle.
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
+    /// Registry active configuration parameters for the current cycle.
     struct ActiveAutomationRegistryConfigV2 has key {
         main_config: AutomationRegistryConfig,
         /// Will be the same as main_config.registry_max_gas_cap, unless updated during the cycle transiation.
@@ -210,6 +219,8 @@ module supra_framework::automation_registry {
         system_task_config: RegistryConfigForSystemTasks,
         /// Will be the same as system_task_config.registry_max_gas_cap, unless updated during the cycle transition.
         next_cycle_sys_registry_max_gas_cap: u64,
+        /// Auxiliary configurations to support future expansions.
+        aux_configs: SimpleMap<String, Any>
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
@@ -238,10 +249,9 @@ module supra_framework::automation_registry {
         task_capacity: u16,
     }
 
-    #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     #[event]
     /// Automation registry configuration parameters for governance/system submitted tasks
-    struct RegistryConfigForSystemTasks has key, store, drop, copy {
+    struct RegistryConfigForSystemTasks has store, drop, copy {
         /// Maximum allowable duration (in seconds) from the registration time that an system automation task can run.
         /// If the expiration time exceeds this duration, the task registration will fail.
         task_duration_cap_in_secs: u64,
@@ -250,6 +260,8 @@ module supra_framework::automation_registry {
         registry_max_gas_cap: u64,
         /// Maximum number of system tasks that registry can hold.
         task_capacity: u16,
+        /// Auxiliary configuration properties to easy expansion after release if required.
+        aux_properties: SimpleMap<String, u64>
     }
 
     #[event]
@@ -309,7 +321,7 @@ module supra_framework::automation_registry {
     }
 
     /// It tracks entries both pending and completed, organized by unique indices.
-    struct RegistryStateForSystemTasks has key, store {
+    struct RegistryStateForSystemTasks has store {
         /// Gas committed for next cycle
         gas_committed_for_next_cycle: u64,
         /// Total committed max gas amount at the beginning of the current cycle.
@@ -1059,7 +1071,7 @@ module supra_framework::automation_registry {
         if (vector::contains(&system_tasks_state.authorized_accounts, &account)) {
             return
         };
-        // TODO: Clarify, should the account be checked to be an existing multisig account ?
+        assert!(multisig_account::account_exists(account), EUNKNOWN_MULTISIG_ADDRESS);
         vector::push_back(&mut system_tasks_state.authorized_accounts, account);
         event::emit(AuthorizationGranted {
             account
@@ -1386,7 +1398,8 @@ module supra_framework::automation_registry {
     }
 
     /// API to gracfully migrate from automation feature v1 inplementation to v2 where bookkeeping of the tasks is
-    /// detached from epoch-change and cycle based lifecycle of the automation registry is enabled.
+    /// detached from epoch-change and cycle based lifecycle of the automation registry is enabled and
+    /// tasks are updated to have UST task-type.
     /// IMPORTANT: Should always be followed by `SUPRA_AUTOMATION_CYCLE` feature flag being enabled and
     /// supra_governance::reconfiguration otherwise registry/chain will end-up in inconsistent state.
     ///
@@ -1509,7 +1522,8 @@ module supra_framework::automation_registry {
         let system_task_config =  RegistryConfigForSystemTasks {
             task_duration_cap_in_secs: sys_task_duration_cap_in_secs,
             registry_max_gas_cap: sys_registry_max_gas_cap,
-            task_capacity: sys_task_capacity
+            task_capacity: sys_task_capacity,
+            aux_properties: simple_map::new(),
         };
         move_to(supra_framework, ActiveAutomationRegistryConfigV2 {
             main_config: AutomationRegistryConfig {
@@ -1525,7 +1539,8 @@ module supra_framework::automation_registry {
             next_cycle_registry_max_gas_cap: registry_max_gas_cap,
             next_cycle_sys_registry_max_gas_cap: sys_registry_max_gas_cap,
             registration_enabled: true,
-            system_task_config
+            system_task_config,
+            aux_configs: simple_map::new()
         });
 
         let (cycle_state, cycle_id) =
@@ -2451,7 +2466,7 @@ module supra_framework::automation_registry {
         automation_registry.gas_committed_for_this_epoch = 0;
     }
 
-    /// Refunds automation fee for epoch for all eligible tasks.
+    /// Refunds automation fee for epoch for all eligible tasks during migration.
     fun refund_tasks_fees(
         automation_registry: &mut AutomationRegistry,
         arc: &AutomationRegistryConfig,
@@ -2459,9 +2474,6 @@ module supra_framework::automation_registry {
         refund_interval: u64,
         current_time: u64)
     {
-        if (refund_automation_fee_per_sec == 0) {
-            return
-        };
         let ids = enumerable_map::get_map_list(&automation_registry.tasks);
 
         let resource_signer = account::create_signer_with_capability(
@@ -2472,7 +2484,7 @@ module supra_framework::automation_registry {
         vector::for_each(ids, |task_index| {
             let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, task_index);
             task.aux_data = vector[vector[UST]];
-            if (task.state != PENDING) {
+            if (refund_automation_fee_per_sec != 0 && task.state != PENDING) {
                 let refund = calculate_task_fee(
                     arc,
                     task,
@@ -2928,6 +2940,9 @@ module supra_framework::automation_registry {
         assert!(*type_value == task_type, EINVALID_TASK_TYPE)
     }
 
+    // Precondition: `ActiveAutomationRegistryConfig` must exist at `@supra_framework`
+    // Postcondition: `ActiveAutomationRegistryConfig` must not exist at `@supra_framework`
+    // AND `ActiveAutomationRegistryConfigV2` must exist at `@supra_framework`
     fun migrate_registry_config(
         supra_framework: &signer,
         sys_task_duration_cap_in_secs: u64,
@@ -2944,7 +2959,8 @@ module supra_framework::automation_registry {
         let system_task_config =  RegistryConfigForSystemTasks {
             task_duration_cap_in_secs: sys_task_duration_cap_in_secs,
             registry_max_gas_cap: sys_registry_max_gas_cap,
-            task_capacity: sys_task_capacity
+            task_capacity: sys_task_capacity,
+            aux_properties: simple_map::new()
         };
         let new_active_config = ActiveAutomationRegistryConfigV2 {
             main_config,
@@ -2952,6 +2968,7 @@ module supra_framework::automation_registry {
             next_cycle_sys_registry_max_gas_cap: sys_registry_max_gas_cap,
             registration_enabled,
             system_task_config,
+            aux_configs: simple_map::new(),
         };
         move_to<ActiveAutomationRegistryConfigV2>(supra_framework, new_active_config);
     }
@@ -3127,7 +3144,8 @@ module supra_framework::automation_registry {
         let new_system_registry_config = RegistryConfigForSystemTasks {
             task_duration_cap_in_secs,
             registry_max_gas_cap,
-            task_capacity
+            task_capacity,
+            aux_properties: simple_map::new(),
         };
 
         let automation_registry_config = borrow_global_mut<ActiveAutomationRegistryConfigV2>(@supra_framework);
@@ -3139,30 +3157,40 @@ module supra_framework::automation_registry {
     /// Initializes registry. enables SUPRA_NATIVE_AUTOMATION feature flag and initialize config-buffer
     fun initialize_registry_test(supra_framework: &signer, user: &signer) {
         let (burn_cap, mint_cap) = supra_coin::initialize_for_test(supra_framework);
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_mint_cap(mint_cap);
         toggle_feature_flag(supra_framework, true);
         toggle_custom_feature_flags(supra_framework, vector[features::get_supra_automation_cycle_feature()], true);
         prepare_for_tests(supra_framework);
 
         topup_account(supra_framework, user, ACCOUNT_BALANCE);
 
-        coin::destroy_burn_cap(burn_cap);
-        coin::destroy_mint_cap(mint_cap);
+    }
+
+    #[test_only]
+    /// Create a multisig account the input signer as owner of it.
+    fun setup_multisig_account(supra_framework: &signer, user: &signer): (address, signer) {
+        let multisig_address = multisig_account::get_next_multisig_account_address(address_of(user));
+        let multisig_signer = create_signer_for_test(multisig_address);
+        topup_account(supra_framework, &multisig_signer, ACCOUNT_BALANCE);
+
+        multisig_account::create_with_owners(
+            user,
+            vector[],
+            1,
+            vector[],
+            vector[],
+            2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS);
+
+        (multisig_address, multisig_signer)
     }
 
     #[test_only]
     /// Initializes registry. enables SUPRA_NATIVE_AUTOMATION feature flag and initialize config-buffer
-    fun initialize_sys_registry_test(supra_framework: &signer, user: &signer, multisig_user: &signer) {
-        let (burn_cap, mint_cap) = supra_coin::initialize_for_test(supra_framework);
-
-        toggle_feature_flag(supra_framework, true);
-        toggle_custom_feature_flags(supra_framework, vector[features::get_supra_automation_cycle_feature()], true);
-        prepare_for_tests(supra_framework);
-
-        topup_account(supra_framework, user, ACCOUNT_BALANCE);
+    fun initialize_sys_registry_test(supra_framework: &signer, user: &signer, multisig_user: &signer): (address, signer) {
+        initialize_registry_test(supra_framework, user);
         topup_account(supra_framework, multisig_user, ACCOUNT_BALANCE);
-
-        coin::destroy_burn_cap(burn_cap);
-        coin::destroy_mint_cap(mint_cap);
+        setup_multisig_account(supra_framework, multisig_user)
     }
 
     #[test_only]
@@ -3546,11 +3574,11 @@ module supra_framework::automation_registry {
         user: &signer,
         multisig_user: &signer,
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
-        initialize_sys_registry_test(framework, user, multisig_user);
+        let (multisig_address, multisig_signer) = initialize_sys_registry_test(framework, user, multisig_user);
 
-        grant_authorization(framework, address_of(multisig_user));
+        grant_authorization(framework, multisig_address);
 
-        register_system_task(multisig_user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             50,
@@ -3617,11 +3645,13 @@ module supra_framework::automation_registry {
         user: &signer,
         multisig_user: &signer,
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
+        let (multisig_address, multisig_signer) =
         initialize_sys_registry_test(framework, user, multisig_user);
 
-        grant_authorization(framework, address_of(multisig_user));
+        grant_authorization(framework, multisig_address);
 
-        register_system_task(multisig_user,
+        register_system_task(
+            &multisig_signer,
             PAYLOAD,
             86400,
             50,
@@ -6819,6 +6849,7 @@ module supra_framework::automation_registry {
             next_cycle_sys_registry_max_gas_cap: _,
             registration_enabled,
             system_task_config: _,
+            aux_configs: _
         } = move_from<ActiveAutomationRegistryConfigV2>(@supra_framework);
         let config = ActiveAutomationRegistryConfig {
             main_config,
@@ -7176,8 +7207,9 @@ module supra_framework::automation_registry {
         user: &signer,
         multisig_user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2, AutomationRefundBookkeeping {
-        initialize_sys_registry_test(framework, user, multisig_user);
-        grant_authorization(framework, address_of(multisig_user));
+        let (multisig_address, multisig_signer) = initialize_sys_registry_test(framework, user, multisig_user);
+        grant_authorization(framework, multisig_address);
+
         let max_gas_amount = 10;
         let estimated_fee = estimate_automation_fee(max_gas_amount);
         register(user,
@@ -7197,7 +7229,7 @@ module supra_framework::automation_registry {
         let estimated_fee_with_congestion = estimate_automation_fee(max_gas_amount_causing_congestion);
 
         // register a system task
-        register_system_task(multisig_user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             max_gas_amount,
@@ -7214,13 +7246,13 @@ module supra_framework::automation_registry {
 
         let registry_fee_address = get_registry_fee_address();
         let user_address = address_of(user);
-        let multisig_address = address_of(multisig_user);
         let registration_charges = FLAT_REGISTRATION_FEE_TEST + estimated_fee;
         let expected_current_balance = ACCOUNT_BALANCE - registration_charges;
         let expected_registry_balance = REGISTRY_DEFAULT_BALANCE + registration_charges;
         check_account_balance(user_address, expected_current_balance);
         check_account_balance(registry_fee_address, expected_registry_balance);
         check_account_balance(multisig_address, ACCOUNT_BALANCE);
+        check_account_balance(address_of(multisig_user), ACCOUNT_BALANCE);
 
         register(user,
             PAYLOAD,
@@ -7238,6 +7270,7 @@ module supra_framework::automation_registry {
         let registration_charges = FLAT_REGISTRATION_FEE_TEST + estimated_fee_with_congestion;
         let expected_current_balance = expected_current_balance - registration_charges;
         let expected_registry_balance = expected_registry_balance + registration_charges;
+        check_account_balance(multisig_address, ACCOUNT_BALANCE);
         check_account_balance(user_address, expected_current_balance);
         check_account_balance(registry_fee_address, expected_registry_balance);
     }
@@ -7248,8 +7281,9 @@ module supra_framework::automation_registry {
         user: &signer,
         multisig_user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2, AutomationRefundBookkeeping {
-        initialize_sys_registry_test(framework, user, multisig_user);
-        grant_authorization(framework, address_of(multisig_user));
+        let (multisig_address, multisig_signer) = initialize_sys_registry_test(framework, user, multisig_user);
+        grant_authorization(framework, multisig_address);
+
         let max_gas_amount = 10;
         let estimated_fee = estimate_automation_fee(max_gas_amount);
         register(user,
@@ -7265,7 +7299,7 @@ module supra_framework::automation_registry {
         assert!(max_gas_amount == get_gas_committed_for_next_epoch(), 2);
 
         // register a system task
-        register_system_task(multisig_user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             max_gas_amount,
@@ -7282,13 +7316,13 @@ module supra_framework::automation_registry {
 
         let registry_fee_address = get_registry_fee_address();
         let user_address = address_of(user);
-        let multisig_address = address_of(multisig_user);
         let registration_charges = FLAT_REGISTRATION_FEE_TEST + estimated_fee;
         let expected_current_balance = ACCOUNT_BALANCE - registration_charges;
         let expected_registry_balance = REGISTRY_DEFAULT_BALANCE + registration_charges;
         check_account_balance(user_address, expected_current_balance);
         check_account_balance(registry_fee_address, expected_registry_balance);
         check_account_balance(multisig_address, ACCOUNT_BALANCE);
+        check_account_balance(address_of(multisig_user), ACCOUNT_BALANCE);
 
         timestamp::update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS);
         monitor_cycle_end();
@@ -7296,6 +7330,7 @@ module supra_framework::automation_registry {
 
         // Check the balance of the accounts, make sure that multisig account is not charged
         check_account_balance(multisig_address, ACCOUNT_BALANCE);
+        check_account_balance(address_of(multisig_user), ACCOUNT_BALANCE);
         check_account_balance(user_address, expected_current_balance - estimated_fee);
         check_account_balance(registry_fee_address, expected_registry_balance + estimated_fee);
         assert!(has_sender_active_task_with_id(user_address, 0), 9);
@@ -7309,10 +7344,13 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
 
         timestamp::update_global_time_for_test_secs(50);
-        register_system_task(user,
+        register_system_task(
+            &multisig_signer,
             PAYLOAD,
             25,
             70,
@@ -7328,9 +7366,10 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
 
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2,
             70,
@@ -7346,9 +7385,10 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
 
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             SYS_TASK_DURATION_CAP_IN_SECS + 1,
             70,
@@ -7363,9 +7403,10 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
 
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             SYS_TASK_DURATION_CAP_IN_SECS,
             70,
@@ -7398,21 +7439,23 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
+
         update_system_task_config_for_tests(
             framework,
             SYS_TASK_DURATION_CAP_IN_SECS,
             SYS_AUTOMATION_MAX_GAS_TEST,
             2,
         );
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             10,
             PARENT_HASH,
             SYS_AUX_DATA
         );
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             10,
@@ -7420,7 +7463,7 @@ module supra_framework::automation_registry {
             SYS_AUX_DATA
         );
         // Registry is already full
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             10,
@@ -7436,9 +7479,10 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
         let max_gas_amount = SYS_AUTOMATION_MAX_GAS_TEST / 2;
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             max_gas_amount,
@@ -7447,7 +7491,7 @@ module supra_framework::automation_registry {
         );
         assert!(1 == get_next_task_index(), 1);
         assert!(max_gas_amount == get_system_gas_committed_for_next_cycle(), 1);
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             max_gas_amount + 1,
@@ -7463,8 +7507,9 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
-        register_system_task(user,
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             0,
@@ -7480,8 +7525,9 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
-        register_system_task(user,
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             10,
@@ -7497,8 +7543,9 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
-        register_system_task(user,
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             10,
@@ -7514,9 +7561,10 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
         let aux_data = vector[];
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             10,
@@ -7532,9 +7580,10 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
         let aux_data = vector[vector[1, 2]];
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             10,
@@ -7549,18 +7598,19 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, ActiveAutomationRegistryConfigV2, AutomationCycleDetails {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
 
         let _ = register_system_task_with_state(
             framework,
-            user,
+            &multisig_signer,
             10,
             86400,
             ACTIVE
         );
         let _ = register_system_task_with_state(
             framework,
-            user,
+            &multisig_signer,
             10,
             86400,
             ACTIVE
@@ -7569,6 +7619,7 @@ module supra_framework::automation_registry {
         let registry_fee_address = get_registry_fee_address();
         let user_address = address_of(user);
         check_account_balance(user_address, ACCOUNT_BALANCE);
+        check_account_balance(multisig_address, ACCOUNT_BALANCE);
         check_account_balance(registry_fee_address, REGISTRY_DEFAULT_BALANCE);
 
         assert!(20 == get_system_gas_committed_for_next_cycle(), 1);
@@ -7580,7 +7631,7 @@ module supra_framework::automation_registry {
 
         // Cancel task 2. The committed gas for the next epoch will be updated,
         // but when requested active task it will be still available in the list
-        cancel_system_task(user, 1);
+        cancel_system_task(&multisig_signer, 1);
         // Task will be still available in the registry but with cancelled state
         let task_2_details = get_task_details(1);
         assert!(task_2_details.state == CANCELLED, 1);
@@ -7593,14 +7644,14 @@ module supra_framework::automation_registry {
 
         // Add and cancel the task in the same epoch. Task index will be 4
         assert!(get_next_task_index() == 2, 1);
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             10,
             PARENT_HASH,
             SYS_AUX_DATA
         );
-        cancel_system_task(user, 2);
+        cancel_system_task(&multisig_signer, 2);
         assert!(10 == get_system_gas_committed_for_next_cycle(), 1);
         let active_task_ids = get_active_task_ids();
         vector::for_each(expected_ids, |task_index| {
@@ -7612,6 +7663,7 @@ module supra_framework::automation_registry {
 
         // Check account balances after cancellation
         check_account_balance(user_address, ACCOUNT_BALANCE);
+        check_account_balance(multisig_address, ACCOUNT_BALANCE);
         check_account_balance(registry_fee_address, REGISTRY_DEFAULT_BALANCE);
     }
 
@@ -7623,9 +7675,10 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
 
-        cancel_system_task(user, 1);
+        cancel_system_task(&multisig_signer, 1);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe, user2 = @0x1cafa)]
@@ -7636,9 +7689,10 @@ module supra_framework::automation_registry {
         user2: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
 
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             10,
@@ -7655,17 +7709,18 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, ActiveAutomationRegistryConfigV2, AutomationCycleDetails {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
 
         let _ = register_system_task_with_state( framework,
-            user,
+            &multisig_signer,
             10,
             86400,
             ACTIVE
         );
         // Cancel the same task 2 times
-        cancel_system_task(user, 0);
-        cancel_system_task(user, 0);
+        cancel_system_task(&multisig_signer, 0);
+        cancel_system_task(&multisig_signer, 0);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
@@ -7675,10 +7730,11 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, ActiveAutomationRegistryConfigV2, AutomationCycleDetails, AutomationRefundBookkeeping {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
 
         let _ = register_system_task_with_state( framework,
-            user,
+            &multisig_signer,
             10,
             86400,
             ACTIVE
@@ -7710,34 +7766,35 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, ActiveAutomationRegistryConfigV2, AutomationRefundBookkeeping, AutomationCycleDetails {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
 
         let max_gas_amount = 200;
 
         let t1 = register_system_task_with_state(
             framework,
-            user,
+            &multisig_signer,
             max_gas_amount,
             86400,
             ACTIVE,
         );
         let t2 = register_system_task_with_state(
             framework,
-            user,
+            &multisig_signer,
             max_gas_amount,
             86400,
             ACTIVE,
         );
         let t3 = register_system_task_with_state(
             framework,
-            user,
+            &multisig_signer,
             max_gas_amount,
             86400,
             ACTIVE,
         );
         let t4 = register_system_task_with_state(
             framework,
-            user,
+            &multisig_signer,
             max_gas_amount,
             86400,
             ACTIVE,
@@ -7746,6 +7803,7 @@ module supra_framework::automation_registry {
         // Check account balances before stopping
         let registry_fee_address = get_registry_fee_address();
         let user_account = address_of(user);
+        check_account_balance( multisig_address, ACCOUNT_BALANCE );
         check_account_balance( user_account, ACCOUNT_BALANCE );
         check_account_balance( registry_fee_address, REGISTRY_DEFAULT_BALANCE );
 
@@ -7765,6 +7823,7 @@ module supra_framework::automation_registry {
         });
 
         // 0.002 (*4) - automation_epoch_fee_per_second, 7200 epoch duration
+        check_account_balance( multisig_address, ACCOUNT_BALANCE );
         check_account_balance(user_account, ACCOUNT_BALANCE );
         check_account_balance( registry_fee_address, REGISTRY_DEFAULT_BALANCE );
 
@@ -7773,7 +7832,7 @@ module supra_framework::automation_registry {
         );
 
         // Stop task 2. and it's removed from active task list immediately
-        stop_system_tasks(user, vector[2]);
+        stop_system_tasks(&multisig_signer, vector[2]);
         let active_task_ids = get_active_task_ids();
         let available_system_task_ids = get_system_task_indexes();
         let expected_ids = vector<u64>[0, 1, 3];
@@ -7790,7 +7849,7 @@ module supra_framework::automation_registry {
 
         // Add and stop the task in the same epoch. Task index will be 4
         assert!(get_next_task_index() == 4, 1);
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             max_gas_amount,
@@ -7801,7 +7860,7 @@ module supra_framework::automation_registry {
 
 
         // Stop newly added task
-        stop_system_tasks(user, vector[4]);
+        stop_system_tasks(&multisig_signer, vector[4]);
         let active_task_ids = get_active_task_ids();
         let available_system_task_ids = get_system_task_indexes();
         let expected_ids = vector<u64>[0, 1, 3];
@@ -7818,6 +7877,7 @@ module supra_framework::automation_registry {
         assert!(3 * max_gas_amount == get_system_gas_committed_for_next_cycle(), 1);
 
         // Check balances after test execution
+        check_account_balance(multisig_address, ACCOUNT_BALANCE);
         check_account_balance(user_account, ACCOUNT_BALANCE);
         check_account_balance(registry_fee_address, REGISTRY_DEFAULT_BALANCE);
     }
@@ -7828,9 +7888,10 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, ActiveAutomationRegistryConfigV2, AutomationCycleDetails {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
 
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             10,
@@ -7839,9 +7900,9 @@ module supra_framework::automation_registry {
         );
         timestamp::update_global_time_for_test_secs(50);
         // Stop the same task 2 times, second time it will not abort it just skip the task_id if it's not found
-        stop_system_tasks(user, vector[0]);
+        stop_system_tasks(&multisig_signer, vector[0]);
         assert!(!has_task_with_id(0), 1);
-        stop_system_tasks(user, vector[0]);
+        stop_system_tasks(&multisig_signer, vector[0]);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
@@ -7850,9 +7911,10 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, ActiveAutomationRegistryConfigV2, AutomationRefundBookkeeping, AutomationCycleDetails {
         initialize_registry_test(framework, user);
-        grant_authorization(framework, address_of(user));
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
 
-        register_system_task(user,
+        register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
             2000,
@@ -7869,7 +7931,7 @@ module supra_framework::automation_registry {
         process_tasks(create_signer(@vm_reserved), 2, vector[0]);
 
         // Task is active state and after cancelling it, status will be update to cancelled
-        cancel_system_task(user, 0);
+        cancel_system_task(&multisig_signer, 0);
         assert!(has_task_with_id(0), 1);
         assert!(0 == get_system_gas_committed_for_next_cycle(), 1);
 
@@ -7878,7 +7940,7 @@ module supra_framework::automation_registry {
             EPOCH_INTERVAL_FOR_TEST_IN_SECS + (EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2)
         );
 
-        stop_system_tasks(user, vector[0]);
+        stop_system_tasks(&multisig_signer, vector[0]);
         assert!(!has_task_with_id(0), 1);
         assert!(0 == get_system_gas_committed_for_next_cycle(), 1);
     }
