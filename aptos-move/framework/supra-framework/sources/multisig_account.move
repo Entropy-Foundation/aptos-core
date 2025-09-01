@@ -352,6 +352,12 @@ module supra_framework::multisig_account {
     ////////////////////////// View functions ///////////////////////////////
 
     #[view]
+    /// Checks whether a multisig account with the input address exists.
+    public fun account_exists(multisig_account: address): bool {
+        exists<MultisigAccount>(multisig_account)
+    }
+
+    #[view]
     /// Return the multisig account's metadata.
     public fun metadata(multisig_account: address): SimpleMap<String, vector<u8>> acquires MultisigAccount {
         borrow_global<MultisigAccount>(multisig_account).metadata

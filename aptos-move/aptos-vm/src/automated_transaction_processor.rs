@@ -33,7 +33,7 @@ use std::ops::Deref;
 
 pub struct AutomatedTransactionProcessor<'m> {
     aptos_vm: &'m AptosVM,
-    for_system_automated_transaction: bool,
+    sys_automated_txn: bool,
 }
 
 impl Deref for AutomatedTransactionProcessor<'_> {
@@ -45,8 +45,8 @@ impl Deref for AutomatedTransactionProcessor<'_> {
 }
 
 impl<'m> AutomatedTransactionProcessor<'m> {
-    pub(crate) fn new(aptos_vm: &'m AptosVM, for_system_automated_transaction: bool) -> Self {
-        Self { aptos_vm, for_system_automated_transaction }
+    pub(crate) fn new(aptos_vm: &'m AptosVM, sys_automated_txn: bool) -> Self {
+        Self { aptos_vm, sys_automated_txn }
     }
 
     fn validate_automated_transaction(
@@ -74,7 +74,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         transaction_validation::run_automated_transaction_prologue(
             session,
             transaction_data,
-            self.for_system_automated_transaction,
+            self.sys_automated_txn,
             log_context,
             traversal_context,
         )
@@ -116,7 +116,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 fee_statement,
                 self.features(),
                 txn_data,
-                self.for_system_automated_transaction,
+                self.sys_automated_txn,
                 log_context,
                 traversal_context,
             )
@@ -473,7 +473,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 fee_statement,
                 self.features(),
                 txn_data,
-                self.for_system_automated_transaction,
+                self.sys_automated_txn,
                 log_context,
                 traversal_context,
             )
