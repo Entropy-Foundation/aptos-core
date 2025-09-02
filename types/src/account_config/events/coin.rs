@@ -3,7 +3,7 @@ use move_core_types::{
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-
+use derive_getters::Getters;
 pub static COIN_WITHDRAW_EVENT_TYPE_TAG: Lazy<TypeTag> =
     Lazy::new(|| TypeTag::Struct(Box::new(CoinWithdraw::struct_tag())));
 pub static COIN_DEPOSIT_EVENT_TYPE_TAG: Lazy<TypeTag> =
@@ -19,7 +19,7 @@ pub static COIN_LEGACY_WITHDRAW_EVENT_V1: Lazy<TypeTag> = Lazy::new(|| {
 });
 
 /// Module event emitted when some amount of a coin is deposited into an account.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Getters)]
 pub struct CoinDeposit {
     coin_type: String,
     account: AccountAddress,
@@ -27,48 +27,11 @@ pub struct CoinDeposit {
 }
 
 /// Module event emitted when some amount of a coin is withdrawn from an account.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Getters)]
 pub struct CoinWithdraw {
     coin_type: String,
     account: AccountAddress,
     amount: u64,
-}
-
-pub trait MoveEventAccountAddr {
-    fn account_address(&self) -> AccountAddress;
-}
-
-impl CoinDeposit {
-    pub fn coin_type(&self) -> &str {
-        &self.coin_type
-    }
-
-    /// Get the amount sent or received
-    pub fn amount(&self) -> u64 {
-        self.amount
-    }
-}
-
-impl CoinWithdraw {
-    pub fn coin_type(&self) -> &str {
-        &self.coin_type
-    }
-
-    pub fn amount(&self) -> u64 {
-        self.amount
-    }
-}
-
-impl MoveEventAccountAddr for CoinDeposit {
-    fn account_address(&self) -> AccountAddress {
-        self.account
-    }
-}
-
-impl MoveEventAccountAddr for CoinWithdraw {
-    fn account_address(&self) -> AccountAddress {
-        self.account
-    }
 }
 
 impl MoveStructType for CoinWithdraw {
