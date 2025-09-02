@@ -2,6 +2,8 @@
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+use std::sync::OnceLock;
+
 use crate::{
     account_address::AccountAddress,
     identifier::{IdentStr, Identifier},
@@ -33,6 +35,11 @@ pub trait MoveStructType {
             module: Self::module_identifier(),
             type_args: Self::type_args(),
         }
+    }
+
+    fn cached_type_tag() -> &'static TypeTag {
+        static TAG: OnceLock<TypeTag> = OnceLock::new();
+        TAG.get_or_init(|| TypeTag::Struct(Box::new(Self::struct_tag())))
     }
 }
 
