@@ -68,6 +68,7 @@ impl AptosVM {
         }
     }
 
+    //todo: we can probably add the account verification and multi-sig verification for dkg transaction here
     fn process_dkg_result_inner(
         &self,
         resolver: &impl AptosMoveResolver,

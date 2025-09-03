@@ -2,6 +2,7 @@
 module supra_framework::reconfiguration_with_dkg {
     use std::features;
     use std::option;
+    use supra_framework::randomness;
     use supra_framework::consensus_config;
     use supra_framework::dkg;
     use supra_framework::execution_config;
@@ -34,18 +35,20 @@ module supra_framework::reconfiguration_with_dkg {
         };
         reconfiguration_state::on_reconfig_start();
         let cur_epoch = reconfiguration::current_epoch();
-        /*dkg::start(
+        let randomness_seed = randomness::bytes(32);
+        dkg::start(
             cur_epoch,
-            randomness_config::current(),
+            randomness_seed,
             stake::cur_validator_consensus_infos(),
-            stake::next_validator_consensus_infos(),
-        );*/
+        );
     }
 
     /// Clear incomplete DKG session, if it exists.
     /// Apply buffered on-chain configs (except for ValidatorSet, which is done inside `reconfiguration::reconfigure()`).
     /// Re-enable validator set changes.
     /// Run the default reconfiguration to enter the new epoch.
+    // todo: how to call this when dkg is finished?
+    // todo: may be call it in the dkg finish function?
     public(friend) fun finish(framework: &signer) {
         system_addresses::assert_supra_framework(framework);
         dkg::try_clear_incomplete_session(framework);
@@ -67,6 +70,7 @@ module supra_framework::reconfiguration_with_dkg {
 
     /// Complete the current reconfiguration with DKG.
     /// Abort if no DKG is in progress.
+    // todo: 
     fun finish_with_dkg_result(account: &signer, dkg_result: vector<u8>) {
         //dkg::finish(dkg_result);
         finish(account);
