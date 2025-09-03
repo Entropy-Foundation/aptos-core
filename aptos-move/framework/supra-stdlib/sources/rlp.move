@@ -33,7 +33,7 @@ module supra_std::rlp {
     /// Helper function for deserializing output of native_rlp_decode_list_byte_array
     /// Deserializes a vector<u8> into a vector<vector<u8>>.
     /// Format: [len1 (u32), data1, len2 (u32), data2, ...]
-    public fun deserialize_vec_vec_u8(serialized: vector<u8>): vector<vector<u8>> {
+    fun deserialize_vec_vec_u8(serialized: vector<u8>): vector<vector<u8>> {
         let result = vector::empty<vector<u8>>();
         let i:u64 = 0;
         let len = vector::length(&serialized);
@@ -292,7 +292,6 @@ module supra_std::rlp {
         let encoded = encode_list_scalar<address>(adress_list);
         let decoded: vector<address> = decode_list_scalar<address>(encoded);
         assert!(decoded == adress_list, 10003);
-
     }
 
     #[test]
