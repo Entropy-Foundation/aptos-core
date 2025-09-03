@@ -1,16 +1,23 @@
 module supra_std::rlp {
 
     use std::bcs;
+    use std::features;
     use std::vector;
+
+    /// SUPRA_RLP_ENCODE feature APIs are disabled.
+    const ERLP_ENCODE_FEATURE_DISABLED: u64 = 1;
+
 
     // Encode/Decode for type T
     // Types supported: bool, u8, u16, u32, u64, u128, address, vector<u8>
     // Attempting to encode any other type results in E_UNSUPPORTED_TYPE error
     public fun encode<T>(x: T): vector<u8> {
+        assert!(features::supra_rlp_enabled(), ERLP_ENCODE_FEATURE_DISABLED);
         native_rlp_encode(x)
     }
 
     public fun decode<T>(encoded_rlp: vector<u8>): T {
+        assert!(features::supra_rlp_enabled(), ERLP_ENCODE_FEATURE_DISABLED);
         native_rlp_decode(encoded_rlp)
     }
 
@@ -18,15 +25,18 @@ module supra_std::rlp {
     // Type of lists supported: bool, u8, u16, u32, u64, u128, address
     // Attempting to encode any other type results in E_UNSUPPORTED_TYPE error
     public fun encode_list_scalar<T: drop>(data: vector<T>): vector<u8> {
+        assert!(features::supra_rlp_enabled(), ERLP_ENCODE_FEATURE_DISABLED);
         native_rlp_encode_list_scalar<T>(bcs::to_bytes(&data))
     }
 
     public fun decode_list_scalar<T>(encoded_rlp: vector<u8>): vector<T> {
+        assert!(features::supra_rlp_enabled(), ERLP_ENCODE_FEATURE_DISABLED);
         native_rlp_decode_list_scalar<T>(encoded_rlp)
     }
 
     // Encode/Decode for list of byte arrays: (vec[vec[u8], vec[u8], ..])
     public fun encode_list_byte_array(data: vector<vector<u8>>): vector<u8> {
+        assert!(features::supra_rlp_enabled(), ERLP_ENCODE_FEATURE_DISABLED);
         native_rlp_encode_list_byte_array(bcs::to_bytes(&data))
     }
 
@@ -66,6 +76,7 @@ module supra_std::rlp {
     }
 
     public fun decode_list_byte_array(encoded_rlp: vector<u8>): vector<vector<u8>> {
+        assert!(features::supra_rlp_enabled(), ERLP_ENCODE_FEATURE_DISABLED);
         let ser_result = native_rlp_decode_list_byte_array(encoded_rlp);
         deserialize_vec_vec_u8(ser_result)
     }
@@ -82,11 +93,28 @@ module supra_std::rlp {
     native public fun native_rlp_encode_list_byte_array(x: vector<u8>): vector<u8>;
     native public fun native_rlp_decode_list_byte_array(data: vector<u8>): vector<u8>;
 
+
+    #[test_only]
+    fun prepare_env(supra_framework: &signer) {
+        let flag = vector[features::get_supra_rlp_feature()];
+        features::change_feature_flags_for_testing(
+            supra_framework, flag, vector::empty<u64>()
+        );
+    }
+
+    #[test]
+    #[expected_failure(abort_code = ERLP_ENCODE_FEATURE_DISABLED, location = Self)]
+    public fun test_rlp_encode_feature_disabled() {
+        let boolean_val = true;
+        let _encoded = encode(boolean_val);
+    }
+    
     //
     // 1) Test encode_bool / decode_bool
     //
-    #[test]
-    fun test_bool() {
+    #[test(supra_framework = @supra_framework)]
+    fun test_bool(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let cases = vector[true, false];
         let len = vector::length(&cases);
 
@@ -103,8 +131,9 @@ module supra_std::rlp {
     //
     // 2) Test encode_u8 / decode_u8
     //
-    #[test]
-    fun test_u8() {
+    #[test(supra_framework = @supra_framework)]
+    fun test_u8(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let cases: vector<u8> = vector[0, 1, 42, 255];
         let len = vector::length(&cases);
 
@@ -121,8 +150,9 @@ module supra_std::rlp {
     //
     // 3) Test encode_u16 / decode_u16
     //
-    #[test]
-    fun test_u16() {
+    #[test(supra_framework = @supra_framework)]
+    fun test_u16(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let cases: vector<u16> = vector[0, 1, 42, 65535];
         let len = vector::length(&cases);
 
@@ -139,8 +169,9 @@ module supra_std::rlp {
     //
     // 4) Test encode_u32 / decode_u32
     //
-    #[test]
-    fun test_u32() {
+    #[test(supra_framework = @supra_framework)]
+    fun test_u32(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let cases: vector<u32> = vector[
         0,
         1,
@@ -162,8 +193,9 @@ module supra_std::rlp {
     //
     // 5) Test encode_u64 / decode_u64
     //
-    #[test]
-    fun test_u64() {
+    #[test(supra_framework = @supra_framework)]
+    fun test_u64(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let cases: vector<u64> = vector[
         0,
         1,
@@ -186,8 +218,9 @@ module supra_std::rlp {
     //
     // 6) Test encode_u128 / decode_u128
     //
-    #[test]
-    fun test_u128() {
+    #[test(supra_framework = @supra_framework)]
+    fun test_u128(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let cases: vector<u128> = vector[
         0,
         1,
@@ -209,8 +242,9 @@ module supra_std::rlp {
     //
     // 8) Test encode_address / decode_address
     //
-    #[test]
-    fun test_address() {
+    #[test(supra_framework = @supra_framework)]
+    fun test_address(supra_framework: signer) {
+        prepare_env(&supra_framework);
         // Some representative addresses
         let addr1 = @0x0;
         let addr2 = @0x1;
@@ -234,8 +268,9 @@ module supra_std::rlp {
     //
     // 9) Test encode_bytes / decode_bytes
     //
-    #[test]
-    fun test_bytes() {
+    #[test(supra_framework = @supra_framework)]
+    fun test_bytes(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let empty = b"";
         let single_byte = b"\xAB";
         let short_bytes = b"Hello RLP!";
@@ -264,9 +299,9 @@ module supra_std::rlp {
     //
     // 10) Test encode_list / decode_list
     //
-    #[test]
-    fun test_list() {
-
+    #[test(supra_framework = @supra_framework)]
+    fun test_list(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let u8_list: vector<u8> =  vector[1, 2, 3];
         let encoded = encode_list_scalar<u8>(u8_list);
         let decoded: vector<u8> = decode_list_scalar<u8>(encoded);
@@ -294,8 +329,9 @@ module supra_std::rlp {
         assert!(decoded == adress_list, 10003);
     }
 
-    #[test]
-    fun test_list_bytes() {
+    #[test(supra_framework = @supra_framework)]
+    fun test_list_bytes(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let empty = b"";
         let single_byte = b"\xAB";
         let short_bytes = b"Hello RLP!";
@@ -315,50 +351,57 @@ module supra_std::rlp {
         assert!(decoded == orig, 11000);
     }
 
-    #[test]
+    #[test(supra_framework = @supra_framework)]
     #[expected_failure( abort_code = 0x1, location = Self)]
-    fun test_decode_u8_with_invalid_data() {
+    fun test_decode_u8_with_invalid_data(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let invalid_data = b"\xDE\xAD\xBE\xEF"; // random bytes, not valid RLP
         let _ = decode<vector<u8>>(invalid_data);
         // Should abort.
     }
 
-    #[test]
+    #[test(supra_framework = @supra_framework)]
     #[expected_failure( abort_code = 0x1, location = Self)]
-    fun test_decode_u64_with_empty_data() {
+    fun test_decode_u64_with_empty_data(supra_framework: signer) {
+        prepare_env(&supra_framework);
         // Empty data is definitely not valid RLP for a u64
         let invalid_data = b"";
         let _ = decode<u64>(invalid_data);
         // Should abort.
     }
 
-    #[test]
+    #[test(supra_framework = @supra_framework)]
     #[expected_failure( abort_code = 0x1, location = Self)]
-    fun test_decode_address_with_invalid_data() {
+    fun test_decode_address_with_invalid_data(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let invalid_data = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012"; // random bytes, not valid RLP
         let _ = decode<address>(invalid_data);
         // Should abort.
     }
 
-    #[test]
+    #[test(supra_framework = @supra_framework)]
     #[expected_failure( abort_code = 0x3, location = Self)]
-    fun test_encode_with_unsupported_type() {
+    fun test_encode_with_unsupported_type(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let invalid_data = vector[1,2,3];
         let _ = encode<vector<u128>>(invalid_data);
         // Should abort.
     }
 
-    #[test]
+    #[test(supra_framework = @supra_framework)]
     #[expected_failure( abort_code = 0x3, location = Self)]
-    fun test_encode_list_with_unsupported_type() {
+    fun test_encode_list_with_unsupported_type(supra_framework: signer) {
+        prepare_env(&supra_framework);
         let invalid_data = b"1234";
         let _ = encode_list_scalar<vector<u8>>(vector[invalid_data]);
         // Should abort.
     }
 
-    #[test]
+    #[test(supra_framework = @supra_framework)]
     #[expected_failure( abort_code = 0x3, location = Self)]
-    fun test_decode_list_with_unsupported_type() {
+    fun test_decode_list_with_unsupported_type(supra_framework: signer) {
+        prepare_env(&supra_framework);
+        prepare_env(&supra_framework);
         let invalid_data = b"1234"; // random bytes, not valid RLP
         let _ = decode_list_scalar<vector<u8>>(invalid_data);
         // Should abort.
