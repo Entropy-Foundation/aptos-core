@@ -12,11 +12,11 @@ DKG on-chain states and helper functions.
 -  [Struct `DKGSessionState`](#0x1_dkg_DKGSessionState)
 -  [Resource `DKGState`](#0x1_dkg_DKGState)
 -  [Constants](#@Constants_0)
--  [Function `initialize`](#0x1_dkg_initialize)
--  [Function `start`](#0x1_dkg_start)
 -  [Function `clan_threshold`](#0x1_dkg_clan_threshold)
 -  [Function `is_node_family_committee_member`](#0x1_dkg_is_node_family_committee_member)
 -  [Function `get_signer_bls_keys_from_indices`](#0x1_dkg_get_signer_bls_keys_from_indices)
+-  [Function `initialize`](#0x1_dkg_initialize)
+-  [Function `start`](#0x1_dkg_start)
 -  [Function `finish`](#0x1_dkg_finish)
 -  [Function `try_clear_incomplete_session`](#0x1_dkg_try_clear_incomplete_session)
 -  [Function `incomplete_session`](#0x1_dkg_incomplete_session)
@@ -301,86 +301,6 @@ The completed and in-progress DKG sessions.
 
 
 
-<a id="0x1_dkg_initialize"></a>
-
-## Function `initialize`
-
-Called in genesis to initialize on-chain states.
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="dkg.md#0x1_dkg_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="dkg.md#0x1_dkg_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
-    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
-    <b>if</b> (!<b>exists</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework)) {
-        <b>move_to</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(
-            supra_framework,
-            <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
-                last_completed: std::option::none(),
-                in_progress: std::option::none(),
-            }
-        );
-    }
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_dkg_start"></a>
-
-## Function `start`
-
-Mark on-chain DKG state as in-progress. Notify validators to start DKG.
-Abort if a DKG is already in progress.
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(dealer_epoch: u64, randomness_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, current_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(
-    dealer_epoch: u64,
-    randomness_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    current_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;ValidatorConsensusInfo&gt;,
-) <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
-    <b>let</b> dkg_state = <b>borrow_global_mut</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
-    <b>let</b> new_session_metadata = <a href="dkg.md#0x1_dkg_DKGSessionMetadata">DKGSessionMetadata</a> {
-        dealer_epoch,
-        randomness_seed,
-        current_validator_set,
-    };
-    <b>let</b> start_time_us = <a href="timestamp.md#0x1_timestamp_now_microseconds">timestamp::now_microseconds</a>();
-    dkg_state.in_progress = std::option::some(<a href="dkg.md#0x1_dkg_DKGSessionState">DKGSessionState</a> {
-        metadata: new_session_metadata,
-        start_time_us,
-        dkg_meta_transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
-    });
-
-    emit(<a href="dkg.md#0x1_dkg_DKGStartEvent">DKGStartEvent</a> {
-        start_time_us,
-        session_metadata: new_session_metadata,
-    });
-}
-</code></pre>
-
-
-
-</details>
-
 <a id="0x1_dkg_clan_threshold"></a>
 
 ## Function `clan_threshold`
@@ -482,6 +402,86 @@ N = 2f+1 with f byzantine nodes
     });
 
     signer_keys
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_initialize"></a>
+
+## Function `initialize`
+
+Called in genesis to initialize on-chain states.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg.md#0x1_dkg_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg.md#0x1_dkg_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
+    <b>if</b> (!<b>exists</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework)) {
+        <b>move_to</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(
+            supra_framework,
+            <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
+                last_completed: std::option::none(),
+                in_progress: std::option::none(),
+            }
+        );
+    }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_start"></a>
+
+## Function `start`
+
+Mark on-chain DKG state as in-progress. Notify validators to start DKG.
+Abort if a DKG is already in progress.
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(dealer_epoch: u64, randomness_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, current_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(
+    dealer_epoch: u64,
+    randomness_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    current_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;ValidatorConsensusInfo&gt;,
+) <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
+    <b>let</b> dkg_state = <b>borrow_global_mut</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
+    <b>let</b> new_session_metadata = <a href="dkg.md#0x1_dkg_DKGSessionMetadata">DKGSessionMetadata</a> {
+        dealer_epoch,
+        randomness_seed,
+        current_validator_set,
+    };
+    <b>let</b> start_time_us = <a href="timestamp.md#0x1_timestamp_now_microseconds">timestamp::now_microseconds</a>();
+    dkg_state.in_progress = std::option::some(<a href="dkg.md#0x1_dkg_DKGSessionState">DKGSessionState</a> {
+        metadata: new_session_metadata,
+        start_time_us,
+        dkg_meta_transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+    });
+
+    emit(<a href="dkg.md#0x1_dkg_DKGStartEvent">DKGStartEvent</a> {
+        start_time_us,
+        session_metadata: new_session_metadata,
+    });
 }
 </code></pre>
 

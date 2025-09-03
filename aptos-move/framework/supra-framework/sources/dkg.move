@@ -3,6 +3,7 @@
 //todo: validator node identity in move and rust might be diff.
 //todo: currently dkg module has no info if the dkg is normal or for resharing. Do we need to change that?
 module supra_framework::dkg {
+    use std::dkg_committee::{DkgNodeConfig, DkgCommittee, get_committee, get_addr, get_bls_pubkey};
     use std::error;
     use std::option;
     use std::option::{Option, is_some};
@@ -16,7 +17,10 @@ module supra_framework::dkg {
     use supra_framework::event::emit;
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
-    use supra_framework::validator_consensus_info::{ValidatorConsensusInfo, get_addr, get_pk_bytes};
+    #[test_only]
+    use std::dkg_committee;
+    #[test_only]
+    use std::dkg_committee::{new_dkg_committee, tribe_committee_type};
     #[test_only]
     use std::option::extract;
     #[test_only]
@@ -35,25 +39,26 @@ module supra_framework::dkg {
     const EDKG_INVALID_SIGNER_VERIFICATION_KEY: u64 = 7;
     const EDKG_META_SIGNATURE_VERIFICATION_FAILED: u64 = 8;
 
-    //todo: include the receiver committees info, what struct to use for receiver committees in case of external committees
-    /// This can be considered as the public input of DKG.
-    struct DKGSessionMetadata has copy, drop, store {
-        dealer_epoch: u64,
-        randomness_seed: vector<u8>,
-        current_validator_set: vector<ValidatorConsensusInfo>,
-    }
-
-    // Contains serialized DKG Meta for all dkg receiver committees
-    struct DKGMetaAllCommittees has store, copy, drop{
-        bytes: vector<u8>,
-    }
-
     #[event]
     struct DKGStartEvent has drop, store {
         session_metadata: DKGSessionMetadata,
         start_time_us: u64,
     }
 
+    //todo: update epochmanager to be able to make network connections between comittees
+    /// This can be considered as the public input of DKG.
+    struct DKGSessionMetadata has copy, drop, store {
+        dealer_epoch: u64,
+        randomness_seed: vector<u8>,
+        dealer_committee: DkgCommittee,
+        target_committees: vector<DkgCommittee>,
+    }
+    
+    // Contains serialized DKG Meta for all dkg receiver committees
+    struct DKGMetaAllCommittees has store, copy, drop{
+        bytes: vector<u8>,
+    }
+    
     /// The input and output of a DKG session.
     /// The validator set of epoch `x` works together for an DKG output for the target validator set of epoch `x+1`.
     struct DKGSessionState has copy, store, drop {
@@ -66,6 +71,57 @@ module supra_framework::dkg {
     struct DKGState has key {
         last_completed: Option<DKGSessionState>,
         in_progress: Option<DKGSessionState>,
+    }
+
+    /// The threshold required to ensure the presence of honest majority in clan where
+    /// N = 2f+1 with f byzantine nodes
+    fun clan_threshold(total: u64): u64 {
+        total / 2 + 1
+    }
+
+    fun is_node_family_committee_member(addr: address, dealer_committee: DkgCommittee, random_seed: vector<u8>): bool {
+
+        let committee = get_committee(&dealer_committee);
+        let family_committee_indices
+            = get_family_committee_indices((vector::length(&committee) as u32), random_seed);
+
+        vector::any(&family_committee_indices, |family_node_index|{
+            let family_node = vector::borrow(&committee, (*family_node_index as u64));
+            get_addr(family_node) == addr
+        })
+    }
+
+    fun get_signer_bls_keys_from_indices(dealer_committee: DkgCommittee, signers: vector<u32>, random_seed: vector<u8>): vector<PublicKeyWithPoP>{
+
+        let committee = get_committee(&dealer_committee);
+        
+        let dealer_clan_committee_indices = get_clan_committee_indices(
+            (vector::length(&committee) as u32),
+            random_seed);
+        let clan_threshold = clan_threshold( vector::length(&dealer_clan_committee_indices));
+
+        assert!( vector::length(&signers) == clan_threshold,
+            error::invalid_argument(EDKG_NOT_THRESHOLD_SIGNERS));
+
+        let signer_keys = vector[];
+        vector::for_each(signers, |signer| {
+            let clan_node_index = vector::borrow(&dealer_clan_committee_indices, (signer as u64));
+            let clan_node = vector::borrow(&committee, (*clan_node_index as u64));
+            let node_pk_bytes = get_bls_pubkey(clan_node);
+
+            let consensus_pk_option = consensus_key::consensus_public_key_from_bytes(node_pk_bytes);
+            assert!(is_some(&consensus_pk_option),error::invalid_argument(EDKG_INVALID_SIGNER_VERIFICATION_KEY));
+            let consensus_pk = option::extract(&mut consensus_pk_option);
+            let bls_key = consensus_key::get_bls_pub_key(&consensus_pk);
+
+            // create signer vks assuming the corresponding pops have already been verified upon registration
+            let signer_key_option = public_key_from_bytes_with_pop_externally_verified(bls12381::public_key_to_bytes(&bls_key));
+            assert!(is_some(&signer_key_option),error::invalid_argument(EDKG_INVALID_SIGNER_VERIFICATION_KEY));
+            let signer_key = std::option::extract(&mut signer_key_option);
+            vector::push_back(&mut signer_keys, signer_key);
+        });
+
+        signer_keys
     }
 
     /// Called in genesis to initialize on-chain states.
@@ -87,13 +143,15 @@ module supra_framework::dkg {
     public(friend) fun start(
         dealer_epoch: u64,
         randomness_seed: vector<u8>,
-        current_validator_set: vector<ValidatorConsensusInfo>,
+        dealer_committee: DkgCommittee,
+        target_committees: vector<DkgCommittee>
     ) acquires DKGState {
         let dkg_state = borrow_global_mut<DKGState>(@supra_framework);
         let new_session_metadata = DKGSessionMetadata {
             dealer_epoch,
             randomness_seed,
-            current_validator_set,
+            dealer_committee,
+            target_committees,
         };
         let start_time_us = timestamp::now_microseconds();
         dkg_state.in_progress = std::option::some(DKGSessionState {
@@ -108,63 +166,14 @@ module supra_framework::dkg {
         });
     }
 
-    /// The threshold required to ensure the presence of honest majority in clan where
-    /// N = 2f+1 with f byzantine nodes
-    fun clan_threshold(total: u64): u64 {
-        total / 2 + 1
-    }
-
-    fun is_node_family_committee_member(addr: address, validator_set: vector<ValidatorConsensusInfo>, random_seed: vector<u8>): bool {
-
-        let family_committee_indices
-            = get_family_committee_indices((vector::length(&validator_set) as u32), random_seed);
-
-        vector::any(&family_committee_indices, |family_node_index|{
-            let family_node = vector::borrow(&validator_set, (*family_node_index as u64));
-            get_addr(family_node) == addr
-        })
-    }
-
-    fun get_signer_bls_keys_from_indices(validator_set: vector<ValidatorConsensusInfo>, signers: vector<u32>, random_seed: vector<u8>): vector<PublicKeyWithPoP>{
-
-        let dealer_clan_committee_indices = get_clan_committee_indices(
-            (vector::length(&validator_set) as u32),
-            random_seed);
-        let clan_threshold = clan_threshold( vector::length(&dealer_clan_committee_indices));
-
-        assert!( vector::length(&signers) == clan_threshold,
-            error::invalid_argument(EDKG_NOT_THRESHOLD_SIGNERS));
-
-        let signer_keys = vector[];
-        vector::for_each(signers, |signer| {
-            let clan_node_index = vector::borrow(&dealer_clan_committee_indices, (signer as u64));
-            let clan_node = vector::borrow(&validator_set, (*clan_node_index as u64));
-            let node_pk_bytes = get_pk_bytes(clan_node);
-
-            let consensus_pk_option = consensus_key::consensus_public_key_from_bytes(node_pk_bytes);
-            assert!(is_some(&consensus_pk_option),error::invalid_argument(EDKG_INVALID_SIGNER_VERIFICATION_KEY));
-            let consensus_pk = option::extract(&mut consensus_pk_option);
-            let bls_key = consensus_key::get_bls_pub_key(&consensus_pk);
-
-            // create signer vks assuming the corresponding pops have already been verified upon registration
-            let signer_key_option = public_key_from_bytes_with_pop_externally_verified(bls12381::public_key_to_bytes(&bls_key));
-            assert!(is_some(&signer_key_option),error::invalid_argument(EDKG_INVALID_SIGNER_VERIFICATION_KEY));
-            let signer_key = std::option::extract(&mut signer_key_option);
-            vector::push_back(&mut signer_keys, signer_key);
-        });
-
-        signer_keys
-    }
-
-
     /// Family Node sets the DKGMeta for the in-progress DKG session and
     /// marks the incomplete DKG session completed.
     ///
     /// Abort if DKG is not in progress.
-    //todo: can we pass vector<u32> as argument?
     //todo: node indices are not same on rust and move side.
     //todo: Assumes that validator set vector indices are the dkg committee indices of the nodes
-    public(friend) fun finish(account: signer,
+    //todo: move bls multi sig verification to process_dkg_result_inner (can also be done twice if cheap)
+    public entry fun finish(account: &signer,
                               dkg_meta_all_committees: vector<u8>,
                               agg_signature: vector<u8>,
                               signers: vector<u32>)
@@ -178,13 +187,13 @@ module supra_framework::dkg {
         assert!(std::option::is_none(&session.dkg_meta_transcript), error::already_exists(EDKG_META_ALREADY_SET));
 
         // the dkg meta should only be added by a family node
-        assert!(is_node_family_committee_member(signer::address_of(&account),
-            session.metadata.current_validator_set,
+        assert!(is_node_family_committee_member(signer::address_of(account),
+            session.metadata.dealer_committee,
             session.metadata.randomness_seed),
             EDKG_NOT_FAMILY_NODE
         );
 
-        let signer_bls_pubkeys = get_signer_bls_keys_from_indices(session.metadata.current_validator_set,
+        let signer_bls_pubkeys = get_signer_bls_keys_from_indices(session.metadata.dealer_committee,
             signers,
             session.metadata.randomness_seed);
 
@@ -264,14 +273,14 @@ module supra_framework::dkg {
     }
 
     #[test_only]
-    fun test_setup(): (u64, vector<u8>, vector<ValidatorConsensusInfo>, vector<u8>, vector<u8>, vector<u32>){
+    fun test_setup(): (u64, vector<u8>, DkgCommittee, vector<DkgCommittee>, vector<u8>, vector<u8>, vector<u32>){
 
         let epoch: u64 = 10;
         let randomness_seed = vector[1,2,3];
         let validator_committee_size = 7;
         // clan indices: [0, 2, 4, 5, 6]
         // family_indices: [2, 4, 6]
-        let validator_committee = vector[];
+        let committee = vector[];
         
         let pk_bytes_0 = vector[59, 106, 39, 188, 206, 182, 164, 45, 98, 163, 168, 208, 42, 111, 13, 115, 101, 50, 21, 119, 29, 226, 67, 166, 58, 192, 72, 161, 139, 89, 218, 41, 166, 149, 173, 50, 93, 252, 126, 17, 145, 251, 201, 241, 134, 245, 142, 255, 66, 166, 52, 2, 151, 49, 177, 131, 128, 255, 137, 191, 66, 196, 100, 164, 44, 184, 202, 85, 178, 0, 240, 81, 245, 127, 30, 24, 147, 198, 135, 89, 1, 1, 0, 0, 151, 0, 0, 0, 147, 0, 0, 0, 48, 9, 103, 247, 207, 151, 53, 73, 239, 132, 246, 153, 199, 37, 238, 230, 250, 14, 61, 121, 89, 127, 216, 181, 208, 212, 241, 207, 62, 5, 209, 78, 147, 79, 109, 60, 87, 66, 197, 0, 187, 110, 67, 224, 201, 132, 68, 178, 34, 209, 132, 205, 15, 231, 105, 104, 23, 225, 109, 5, 166, 224, 64, 231, 121, 219, 199, 162, 157, 154, 215, 128, 90, 161, 44, 53, 225, 89, 238, 48, 123, 194, 192, 17, 40, 70, 60, 204, 253, 241, 60, 57, 73, 240, 250, 125, 180, 37, 248, 215, 191, 114, 241, 80, 142, 224, 113, 51, 234, 130, 212, 139, 1, 3, 208, 125, 177, 248, 15, 174, 125, 35, 9, 180, 69, 231, 23, 42, 72, 198, 13, 148, 18, 128, 70, 94, 63, 207, 85, 167, 66, 13, 146, 219, 6, 69, 35, 6, 0, 0, 0, 2, 0, 0, 0, 48, 1, 78, 0, 0, 0, 74, 0, 0, 0, 49, 10, 5, 47, 188, 135, 46, 21, 250, 29, 168, 128, 249, 198, 225, 85, 22, 90, 12, 120, 3, 23, 153, 0, 23, 147, 254, 38, 13, 45, 192, 144, 156, 0, 55, 69, 32, 248, 229, 209, 239, 59, 5, 242, 179, 169, 183, 48, 49, 44, 131, 203, 167, 145, 132, 33, 20, 141, 142, 5, 182, 177, 223, 217, 13, 12, 9, 151, 124, 80, 35, 216, 69, 193, 5, 0, 0, 0, 1, 0, 0, 0, 49, 0, 1, 1, 0, 0, 151, 0, 0, 0, 147, 0, 0, 0, 48, 9, 103, 247, 207, 151, 53, 73, 239, 132, 246, 153, 199, 37, 238, 230, 250, 14, 61, 121, 89, 127, 216, 181, 208, 212, 241, 207, 62, 5, 209, 78, 147, 79, 109, 60, 87, 66, 197, 0, 187, 110, 67, 224, 201, 132, 68, 178, 34, 209, 132, 205, 15, 231, 105, 104, 23, 225, 109, 5, 166, 224, 64, 231, 121, 219, 199, 162, 157, 154, 215, 128, 90, 161, 44, 53, 225, 89, 238, 48, 123, 194, 192, 17, 40, 70, 60, 204, 253, 241, 60, 57, 73, 240, 250, 125, 180, 37, 248, 215, 191, 114, 241, 80, 142, 224, 113, 51, 234, 130, 212, 139, 1, 3, 208, 125, 177, 248, 15, 174, 125, 35, 9, 180, 69, 231, 23, 42, 72, 198, 13, 148, 18, 128, 70, 94, 63, 207, 85, 167, 66, 13, 146, 219, 6, 69, 35, 6, 0, 0, 0, 2, 0, 0, 0, 48, 1, 78, 0, 0, 0, 74, 0, 0, 0, 49, 10, 5, 47, 188, 135, 46, 21, 250, 29, 168, 128, 249, 198, 225, 85, 22, 90, 12, 120, 3, 23, 153, 0, 23, 147, 254, 38, 13, 45, 192, 144, 156, 0, 55, 69, 32, 248, 229, 209, 239, 59, 5, 242, 179, 169, 183, 48, 49, 44, 131, 203, 167, 145, 132, 33, 20, 141, 142, 5, 182, 177, 223, 217, 13, 12, 9, 151, 124, 80, 35, 216, 69, 193, 5, 0, 0, 0, 1, 0, 0, 0, 49, 0, 37, 0, 0, 0, 33, 0, 0, 0, 48, 72, 131, 124, 250, 222, 128, 153, 217, 171, 90, 174, 96, 203, 255, 203, 137, 6, 211, 3, 56, 31, 53, 118, 251, 119, 177, 207, 50, 38, 35, 22, 125, 161, 0, 0, 0, 157, 0, 0, 0, 48, 73, 23, 150, 172, 117, 115, 243, 231, 7, 129, 107, 167, 230, 69, 114, 210, 75, 204, 7, 19, 6, 228, 94, 205, 238, 148, 205, 57, 251, 160, 236, 40, 57, 154, 232, 10, 68, 132, 146, 141, 2, 176, 3, 23, 85, 249, 205, 144, 224, 214, 174, 138, 116, 128, 116, 180, 133, 213, 249, 117, 75, 46, 166, 160, 95, 3, 110, 241, 18, 0, 14, 89, 222, 156, 39, 144, 144, 174, 26, 189, 122, 150, 47, 102, 1, 209, 95, 129, 8, 90, 192, 168, 188, 186, 37, 176, 82, 51, 23, 255, 147, 39, 229, 244, 22, 184, 158, 250, 181, 242, 82, 48, 3, 40, 248, 221, 53, 157, 144, 183, 162, 93, 76, 8, 19, 73, 13, 245, 15, 55, 51, 187, 216, 91, 94, 49, 34, 158, 212, 165, 232, 128, 71, 204, 60, 192, 215, 120, 107, 60, 114, 220, 75, 190, 211, 101];
         let pk_bytes_1 = vector[79, 45, 189, 68, 221, 227, 91, 59, 201, 81, 193, 254, 59, 57, 238, 217, 117, 245, 210, 216, 11, 254, 233, 81, 55, 100, 118, 150, 232, 100, 96, 155, 184, 165, 191, 160, 62, 232, 90, 31, 206, 237, 166, 112, 160, 37, 201, 31, 234, 84, 30, 190, 120, 180, 223, 244, 167, 151, 70, 235, 159, 161, 54, 119, 107, 7, 26, 123, 246, 127, 154, 1, 231, 237, 61, 242, 197, 129, 131, 209, 1, 1, 0, 0, 151, 0, 0, 0, 147, 0, 0, 0, 48, 70, 217, 43, 252, 105, 222, 121, 110, 98, 195, 228, 70, 69, 58, 53, 146, 100, 222, 48, 255, 18, 122, 76, 216, 252, 240, 178, 214, 85, 230, 97, 173, 49, 176, 13, 126, 222, 0, 143, 211, 44, 139, 54, 249, 96, 216, 243, 194, 174, 118, 83, 83, 182, 17, 30, 190, 16, 175, 86, 150, 216, 115, 253, 35, 61, 123, 169, 136, 210, 196, 228, 72, 124, 175, 239, 11, 217, 193, 211, 178, 239, 21, 72, 20, 158, 41, 200, 101, 68, 13, 16, 103, 7, 42, 90, 251, 218, 134, 201, 68, 245, 141, 226, 192, 165, 183, 212, 126, 5, 227, 130, 98, 166, 237, 57, 180, 78, 0, 93, 60, 186, 216, 0, 42, 141, 161, 136, 88, 134, 63, 91, 201, 183, 64, 149, 9, 74, 191, 28, 233, 1, 239, 253, 253, 138, 133, 6, 0, 0, 0, 2, 0, 0, 0, 48, 1, 78, 0, 0, 0, 74, 0, 0, 0, 48, 31, 148, 182, 227, 236, 221, 108, 214, 170, 102, 86, 212, 140, 227, 84, 181, 244, 193, 225, 87, 121, 185, 79, 62, 163, 151, 130, 3, 21, 250, 161, 219, 162, 37, 126, 161, 228, 95, 105, 133, 19, 34, 66, 11, 165, 125, 142, 112, 130, 254, 186, 254, 133, 125, 88, 197, 162, 4, 2, 208, 220, 253, 240, 25, 201, 252, 209, 148, 153, 48, 188, 211, 123, 5, 0, 0, 0, 1, 0, 0, 0, 49, 0, 1, 1, 0, 0, 151, 0, 0, 0, 147, 0, 0, 0, 48, 70, 217, 43, 252, 105, 222, 121, 110, 98, 195, 228, 70, 69, 58, 53, 146, 100, 222, 48, 255, 18, 122, 76, 216, 252, 240, 178, 214, 85, 230, 97, 173, 49, 176, 13, 126, 222, 0, 143, 211, 44, 139, 54, 249, 96, 216, 243, 194, 174, 118, 83, 83, 182, 17, 30, 190, 16, 175, 86, 150, 216, 115, 253, 35, 61, 123, 169, 136, 210, 196, 228, 72, 124, 175, 239, 11, 217, 193, 211, 178, 239, 21, 72, 20, 158, 41, 200, 101, 68, 13, 16, 103, 7, 42, 90, 251, 218, 134, 201, 68, 245, 141, 226, 192, 165, 183, 212, 126, 5, 227, 130, 98, 166, 237, 57, 180, 78, 0, 93, 60, 186, 216, 0, 42, 141, 161, 136, 88, 134, 63, 91, 201, 183, 64, 149, 9, 74, 191, 28, 233, 1, 239, 253, 253, 138, 133, 6, 0, 0, 0, 2, 0, 0, 0, 48, 1, 78, 0, 0, 0, 74, 0, 0, 0, 48, 31, 148, 182, 227, 236, 221, 108, 214, 170, 102, 86, 212, 140, 227, 84, 181, 244, 193, 225, 87, 121, 185, 79, 62, 163, 151, 130, 3, 21, 250, 161, 219, 162, 37, 126, 161, 228, 95, 105, 133, 19, 34, 66, 11, 165, 125, 142, 112, 130, 254, 186, 254, 133, 125, 88, 197, 162, 4, 2, 208, 220, 253, 240, 25, 201, 252, 209, 148, 153, 48, 188, 211, 123, 5, 0, 0, 0, 1, 0, 0, 0, 49, 0, 37, 0, 0, 0, 33, 0, 0, 0, 48, 110, 20, 53, 44, 250, 217, 157, 15, 215, 88, 122, 178, 100, 25, 198, 62, 78, 39, 35, 228, 231, 21, 135, 141, 6, 18, 167, 230, 209, 171, 118, 215, 161, 0, 0, 0, 157, 0, 0, 0, 48, 8, 207, 24, 86, 245, 177, 147, 63, 107, 74, 1, 131, 127, 125, 194, 26, 253, 207, 4, 148, 167, 29, 172, 197, 178, 105, 108, 105, 4, 114, 151, 18, 75, 57, 60, 17, 238, 18, 156, 39, 213, 194, 190, 218, 158, 222, 91, 104, 68, 115, 170, 247, 144, 21, 16, 237, 131, 224, 80, 16, 207, 223, 66, 171, 105, 109, 135, 105, 128, 122, 225, 100, 146, 205, 23, 108, 74, 230, 222, 104, 47, 168, 145, 214, 149, 250, 240, 35, 116, 221, 196, 183, 102, 36, 115, 222, 255, 111, 79, 79, 162, 178, 128, 14, 22, 211, 138, 53, 17, 105, 132, 228, 8, 180, 45, 55, 203, 53, 189, 212, 169, 123, 177, 163, 214, 7, 210, 40, 4, 179, 238, 142, 223, 137, 125, 30, 10, 6, 105, 172, 47, 128, 45, 5, 63, 230, 118, 21, 56, 171, 160, 195, 111, 149, 222, 206];
@@ -284,14 +293,16 @@ module supra_framework::dkg {
         let pk_committee = vector[pk_bytes_0, pk_bytes_1, pk_bytes_2, pk_bytes_3, pk_bytes_4, pk_bytes_5, pk_bytes_6];
         
         for (i in 0..vector::length(&pk_committee)){
-            vector::push_back(&mut validator_committee,validator_consensus_info::new(@0x1, *vector::borrow(&pk_committee, i), 10));
+            vector::push_back(&mut committee,dkg_committee::new_dkg_node_config(@0x1, *vector::borrow(&pk_committee, i)));
         };
 
         let dkg_meta_all_committees = vector[1,2,3,4,5];
         let agg_signature: vector<u8> = vector[182, 16, 72, 248, 113, 162, 7, 18, 129, 146, 150, 120, 162, 67, 33, 79, 20, 24, 100, 229, 90, 212, 52, 13, 15, 155, 60, 60, 62, 122, 219, 10, 7, 252, 131, 46, 83, 205, 227, 147, 136, 99, 74, 39, 19, 248, 196, 166, 0, 25, 5, 70, 54, 14, 217, 194, 167, 103, 112, 167, 213, 227, 49, 136, 86, 105, 38, 48, 132, 119, 163, 173, 112, 155, 115, 180, 227, 9, 27, 144, 193, 173, 85, 238, 57, 242, 172, 101, 188, 124, 197, 149, 94, 144, 31, 94];
         let signers: vector<u32> = vector[0,1,2];
+        
+        let tribe_committee = new_dkg_committee(tribe_committee_type(), committee);
 
-        (epoch, randomness_seed, validator_committee, dkg_meta_all_committees, agg_signature, signers)
+        (epoch, randomness_seed, tribe_committee, vector[tribe_committee], dkg_meta_all_committees, agg_signature, signers)
     }
 
     //----------------------------------------------------------------------------
@@ -305,15 +316,15 @@ module supra_framework::dkg {
         timestamp::set_time_has_started_for_testing(&sf_signer);
         initialize(&sf_signer);
 
-        let (epoch, randomness_seed, validator_committee, dkg_meta, agg_signature, signers) = test_setup();
-        start(epoch, randomness_seed, validator_committee);
+        let (epoch, randomness_seed, dealer_committee, target_committees, dkg_meta, agg_signature, signers) = test_setup();
+        start(epoch, randomness_seed, dealer_committee, target_committees);
 
         let session_opt = incomplete_session();
         assert!(is_some(&session_opt), 100);
 
         // Call finish with valid inputs.
         finish(
-            sf_signer,
+            &sf_signer,
             dkg_meta,
             agg_signature,
             signers
