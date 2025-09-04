@@ -14,10 +14,10 @@ use move_vm_runtime::native_functions::NativeFunction;
 use move_vm_types::loaded_data::runtime_types::Type;
 use move_vm_types::values::Value;
 
-pub const E_DECODE_FAILURE: u64 = 0x1;
-pub const E_INVALID_TYPE_ARG: u64 = 0x2;
-pub const E_UNSUPPORTED_TYPE: u64 = 0x3;
-pub const E_ENCODE_FAILURE: u64 = 0x4;
+const E_DECODE_FAILURE: u64 = 0x1;
+const E_INVALID_TYPE_ARG: u64 = 0x2;
+const E_UNSUPPORTED_TYPE: u64 = 0x3;
+const E_ENCODE_FAILURE: u64 = 0x4;
 
 /// Macro: pop a single scalar `T` from `args`, charge gas for `num_bytes`,
 /// RLP-encode the value, and return a `vector<u8>` Value.
@@ -82,7 +82,7 @@ macro_rules! rlp_decode_list {
 // Attempting to encode any other type results in E_UNSUPPORTED_TYPE error
 // ----------------------------------------------------------------------------
 //
-pub fn native_rlp_encode(
+fn native_rlp_encode(
     context: &mut SafeNativeContext,
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
@@ -136,7 +136,7 @@ pub fn native_rlp_encode(
     }
 }
 
-pub fn native_rlp_decode(
+fn native_rlp_decode(
     context: &mut SafeNativeContext,
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
@@ -206,7 +206,7 @@ pub fn native_rlp_decode(
 // Attempting to encode any other type results in E_UNSUPPORTED_TYPE error
 // ----------------------------------------------------------------------------
 //
-pub fn native_rlp_encode_list_scalar(
+fn native_rlp_encode_list_scalar(
     context: &mut SafeNativeContext,
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
@@ -262,7 +262,7 @@ pub fn native_rlp_encode_list_scalar(
     }
 }
 
-pub fn native_rlp_decode_list_scalar(
+fn native_rlp_decode_list_scalar(
     context: &mut SafeNativeContext,
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
@@ -344,7 +344,7 @@ fn serialize_vec_vec_u8(data: Vec<Vec<u8>>) -> Result<Vec<u8>, SafeNativeError> 
     Ok(serialized)
 }
 
-pub fn native_rlp_encode_list_byte_array(
+fn native_rlp_encode_list_byte_array(
     context: &mut SafeNativeContext,
     _ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
@@ -361,7 +361,7 @@ pub fn native_rlp_encode_list_byte_array(
     Ok(smallvec![Value::vector_u8(encoded_data)])
 }
 
-pub fn native_rlp_decode_list_byte_array(
+fn native_rlp_decode_list_byte_array(
     context: &mut SafeNativeContext,
     _ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
