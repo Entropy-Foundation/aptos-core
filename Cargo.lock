@@ -4081,6 +4081,7 @@ dependencies = [
  "claims",
  "coset",
  "criterion",
+ "crypto",
  "derivative",
  "fixed",
  "fxhash",

@@ -35,6 +35,7 @@ enum ExpectedFailure {
     EpochNotCurrent = 0x10001,
     TranscriptDeserializationFailed = 0x10002,
     TranscriptVerificationFailed = 0x10003,
+    TranscriptAlreadySet = 0x10004,
 
     // Move equivalent: `errors::invalid_state(*)`
     MissingResourceDKGState = 0x30001,
@@ -88,6 +89,49 @@ impl AptosVM {
         if dkg_node.metadata.epoch != config_resource.epoch() {
             return Err(Expected(EpochNotCurrent));
         }
+
+        if in_progress_session_state.dkg_meta_transcript.len() != 0{
+            return Err(Expected(TranscriptAlreadySet));
+        }
+        
+        
+
+
+
+
+
+
+        /*
+
+        // ensure dkg is in progress
+
+        // the dkg meta should only be added by a family node
+        assert!(is_node_family_committee_member(signer::address_of(account),
+            session.metadata.dealer_committee,
+            session.metadata.randomness_seed),
+            EDKG_NOT_FAMILY_NODE
+        );
+
+        let signer_bls_pubkeys = get_signer_bls_keys_from_indices(session.metadata.dealer_committee,
+            signers,
+            session.metadata.randomness_seed);
+
+        // verify the multi signature on the dkg meta is correct
+        let agg_sig = aggr_or_multi_signature_from_bytes(agg_signature);
+        let agg_pk = aggregate_pubkeys(signer_bls_pubkeys);
+        assert!(verify_multisignature(&agg_sig, &agg_pk, dkg_meta_all_committees),
+            error::invalid_argument(EDKG_META_SIGNATURE_VERIFICATION_FAILED));
+
+
+        */
+
+
+
+
+
+
+
+
 
         // Deserialize transcript and verify it.
         let pub_params = DefaultDKG::new_public_params(&in_progress_session_state.metadata);
