@@ -84,14 +84,14 @@ module supra_std::rlp {
     //
     // Native functions
     //
-    native public fun native_rlp_encode<T>(x: T): vector<u8>;
-    native public fun native_rlp_decode<T>(data: vector<u8>): T;
+    native fun native_rlp_encode<T>(x: T): vector<u8>;
+    native fun native_rlp_decode<T>(data: vector<u8>): T;
 
-    native public fun native_rlp_encode_list_scalar<T>(x: vector<u8>): vector<u8>;
-    native public fun native_rlp_decode_list_scalar<T>(data: vector<u8>): vector<T>;
+    native fun native_rlp_encode_list_scalar<T>(x: vector<u8>): vector<u8>;
+    native fun native_rlp_decode_list_scalar<T>(data: vector<u8>): vector<T>;
 
-    native public fun native_rlp_encode_list_byte_array(x: vector<u8>): vector<u8>;
-    native public fun native_rlp_decode_list_byte_array(data: vector<u8>): vector<u8>;
+    native fun native_rlp_encode_list_byte_array(x: vector<u8>): vector<u8>;
+    native fun native_rlp_decode_list_byte_array(data: vector<u8>): vector<u8>;
 
 
     #[test_only]
