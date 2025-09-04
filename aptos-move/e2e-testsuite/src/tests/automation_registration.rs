@@ -9,7 +9,8 @@ use aptos_language_e2e_tests::{
     executor::FakeExecutor,
 };
 use aptos_types::account_address::create_multisig_account_address;
-use aptos_types::transaction::{Multisig, MultisigTransactionPayload};
+use aptos_types::transaction::automation::Priority;
+use aptos_types::transaction::{ExecutionError, Multisig, MultisigTransactionPayload};
 use aptos_types::{
     on_chain_config::{
         AutomationCycleDetails, AutomationCycleInfo, AutomationCycleState, FeatureFlag,
@@ -34,6 +35,10 @@ use std::{
     ops::{Deref, DerefMut},
     time::Instant,
 };
+
+use serde::{Serialize, Deserialize};
+use aptos_types::contract_event::ContractEvent;
+use move_core_types::vm_status::StatusCode::FEATURE_UNDER_GATING;
 
 const TIMESTAMP_NOW_SECONDS: &str = "0x1::timestamp::now_seconds";
 const ACCOUNT_BALANCE: &str = "0x1::coin::balance";
@@ -132,9 +137,14 @@ impl AutomationRegistrationTestContext {
             .sign();
         executor.execute_and_apply(account_create_txn);
 
-        let transfer_txn = multisig_owner1.account().transaction()
+        let transfer_txn = multisig_owner1
+            .account()
+            .transaction()
             .max_gas_amount(1000)
-            .payload(aptos_stdlib::supra_account_transfer(multisig_address, 10_000_000))
+            .payload(aptos_stdlib::supra_account_transfer(
+                multisig_address,
+                10_000_000,
+            ))
             .sequence_number(1)
             .sign();
         executor.execute_and_apply(transfer_txn);
@@ -213,12 +223,42 @@ impl AutomationRegistrationTestContext {
         gas_price_cap: u64,
         automation_fee_cap: u64,
     ) -> SignedTransaction {
-        let txn_arguments = RegistrationParams::new_user_automation_task(
+        let txn_arguments = RegistrationParams::new_user_automation_task_v1(
             inner_payload,
             expiry_time,
             max_gas_amount,
             gas_price_cap,
             automation_fee_cap,
+            vec![],
+        );
+        let automation_txn = TransactionPayload::AutomationRegistration(txn_arguments);
+        self.txn_sender
+            .account()
+            .transaction()
+            .payload(automation_txn)
+            .sequence_number(seq_num)
+            .gas_unit_price(1)
+            .sign()
+    }
+
+    pub(crate) fn create_automation_txn_v2(
+        &self,
+        seq_num: u64,
+        inner_payload: EntryFunction,
+        expiry_time: u64,
+        max_gas_amount: u64,
+        gas_price_cap: u64,
+        automation_fee_cap: u64,
+        priority: Option<Priority>,
+    ) -> SignedTransaction {
+        let txn_arguments = RegistrationParams::new_user_automation_task_v2(
+            inner_payload,
+            expiry_time,
+            max_gas_amount,
+            gas_price_cap,
+            automation_fee_cap,
+            vec![],
+            priority,
         );
         let automation_txn = TransactionPayload::AutomationRegistration(txn_arguments);
         self.txn_sender
@@ -234,8 +274,17 @@ impl AutomationRegistrationTestContext {
         &self,
         seq_num: u64,
         multisig: Multisig,
+        without_payload: bool,
     ) -> SignedTransaction {
-        let automation_txn = TransactionPayload::Multisig(multisig);
+        let payload = if without_payload {
+            Multisig {
+                multisig_address: multisig.multisig_address,
+                transaction_payload: None,
+            }
+        } else {
+            multisig
+        };
+        let automation_txn = TransactionPayload::Multisig(payload);
         self.multisig_account_data.owners[0]
             .account()
             .transaction()
@@ -266,7 +315,8 @@ impl AutomationRegistrationTestContext {
         let _ = self
             .executor
             .execute_and_apply_transaction(Transaction::UserTransaction(
-                self.multisig_account_data.vote_txn(account_idx, txn_idx, seq_num),
+                self.multisig_account_data
+                    .vote_txn(account_idx, txn_idx, seq_num),
             ));
     }
 
@@ -280,6 +330,8 @@ impl AutomationRegistrationTestContext {
             inner_payload,
             expiry_time,
             max_gas_amount,
+            vec![],
+            None,
         );
         let mutlisig_txn_payload =
             MultisigTransactionPayload::AutomationRegistration(txn_arguments);
@@ -489,6 +541,15 @@ fn check_successful_registration() {
         100,
         automation_fee_cap,
     );
+    let automation_txn_2 = test_context.create_automation_txn_v2(
+        1,
+        inner_entry_function.clone(),
+        expiration_time,
+        100,
+        100,
+        automation_fee_cap,
+        Some(32),
+    );
 
     let sender_address = test_context.sender_account_address();
     let sender_seq_num_old = test_context.account_sequence_number(sender_address);
@@ -524,6 +585,19 @@ fn check_successful_registration() {
     assert_eq!(next_task_id, 1);
     let sender_seq_num = test_context.account_sequence_number(sender_address);
     assert_eq!(sender_seq_num, sender_seq_num_old + 1);
+
+    let output = test_context.execute_and_apply(automation_txn_2);
+    assert_eq!(
+        output.status(),
+        &TransactionStatus::Keep(ExecutionStatus::Success),
+        "{output:?}"
+    );
+
+    // Check automation registry state.
+    let next_task_id = test_context.get_next_task_index_from_registry();
+    assert_eq!(next_task_id, 2);
+    let sender_seq_num = test_context.account_sequence_number(sender_address);
+    assert_eq!(sender_seq_num, sender_seq_num_old + 2);
 }
 
 #[test]
@@ -898,23 +972,97 @@ fn check_automation_registry_actions_when_automation_cycle_disabled() {
     ));
 }
 
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct TransactionExecutionFailed {
+    multisig_address: AccountAddress,
+    executor: AccountAddress,
+    sequence_number: u64,
+    transaction_payload: Vec<u8>,
+    num_approvals: u64,
+    execution_error: ExecutionError,
+}
+
+fn find_transaction_error(events: &[ContractEvent]) -> Vec<TransactionExecutionFailed> {
+    events.iter().filter(|e| e.is_v2())
+        .map(|e| bcs::from_bytes::<TransactionExecutionFailed>(e.event_data()))
+        .filter(|d| d.is_ok())
+        .map(|d| d.unwrap())
+        .collect()
+
+}
+
 #[test]
 fn check_system_automation_task_registration() {
     // Feature flag is not enabled yet.
     let mut test_context = AutomationRegistrationTestContext::new();
     test_context.set_supra_native_automation(true);
-    let inner_payload = aptos_stdlib::supra_account_transfer(*test_context.multisig_account_data.owners[1].address(),10).into_entry_function();
+    let inner_payload = aptos_stdlib::supra_account_transfer(
+        *test_context.multisig_account_data.owners[1].address(),
+        10,
+    )
+    .into_entry_function();
     let expiry_time = test_context.chain_time_now() + 7200;
-    let multisig = test_context.create_system_automation_task_registration_payload(inner_payload, expiry_time, 100);
-    let proposal_txn = test_context.create_system_automation_task_registration_proposal(2, &multisig);
+    let multisig = test_context.create_system_automation_task_registration_payload(
+        inner_payload,
+        expiry_time,
+        100,
+    );
+    let proposal_txn =
+        test_context.create_system_automation_task_registration_proposal(2, &multisig);
     test_context.execute_and_apply(proposal_txn);
     test_context.vote_for_multisig_txn(0, 1, 3);
-    let multisig_execute = test_context.create_system_automation_task_registration_txn(4, multisig);
-    test_context.execute_and_apply(multisig_execute);
-    // let next_task_id = test_context.get_next_task_index_from_registry();
-    // assert_eq!(next_task_id, 1);
-    //
-    // let task_details = test_context.get_task_details(0);
-    // println!("{:?}", task_details);
-    // assert_eq!(task_details.get_task_type().unwrap(), AutomationTaskType::System);
+    let multisig_execute_txn =
+        test_context.create_system_automation_task_registration_txn(4, multisig.clone(), false);
+    let output = test_context.execute_and_apply(multisig_execute_txn);
+    let failed_event = find_transaction_error(output.events());
+    assert_eq!(failed_event.len(), 1);
+    let expected_execution_error = ExecutionError {
+        abort_location: "0000000000000000000000000000000000000000000000000000000000000001::automation_registry".to_string(),
+        error_type: "MoveAbort".to_string(),
+        error_code: 41,
+    };
+    assert_eq!(expected_execution_error, failed_event[0].execution_error);
+
+    // When feature flag is disabled for V2 transaction execution fails
+    test_context.set_feature_flag(FeatureFlag::SUPRA_AUTOMATION_CYCLE, false);
+
+    // Try with multisig payload specified
+    let proposal_txn =
+        test_context.create_system_automation_task_registration_proposal(5, &multisig);
+    test_context.execute_and_apply(proposal_txn);
+    test_context.vote_for_multisig_txn(0, 2, 6);
+    let multisig_execute_txn =
+        test_context.create_system_automation_task_registration_txn(7, multisig.clone(), false);
+    // When payload is not provided validation of the multisig does only simple checks of the transaction and not inner one.
+    let result = test_context.validate_transaction(multisig_execute_txn.clone());
+    assert!(result.status().is_none(),);
+
+    let result = test_context.execute_transaction(multisig_execute_txn);
+    let failed_event = find_transaction_error(result.events());
+    assert_eq!(failed_event.len(), 1);
+    let expected_execution_error = ExecutionError {
+        abort_location: "".to_string(),
+        error_type: "VMError".to_string(),
+        error_code: FEATURE_UNDER_GATING as u64,
+    };
+    assert_eq!(expected_execution_error, failed_event[0].execution_error);
+
+
+    // Try without multisig payload specified
+    let proposal_txn =
+        test_context.create_system_automation_task_registration_proposal(7, &multisig);
+    test_context.execute_and_apply(proposal_txn);
+    test_context.vote_for_multisig_txn(0, 3, 8);
+    let multisig_execute_txn =
+        test_context.create_system_automation_task_registration_txn(9, multisig, true);
+
+    // When payload is not provided validation of the multisig does only simple checks of the transaction and not inner one.
+    let result = test_context.validate_transaction(multisig_execute_txn.clone());
+    assert!(result.status().is_none(),);
+
+    let result = test_context.execute_transaction(multisig_execute_txn);
+    let failed_event = find_transaction_error(result.events());
+    assert_eq!(failed_event.len(), 1);
+    assert_eq!(expected_execution_error, failed_event[0].execution_error);
 }

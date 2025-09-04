@@ -12,7 +12,6 @@ use aptos_types::{
         ExecutionStatus, Transaction, TransactionStatus,
     },
 };
-use aptos_types::transaction::automation::AutomationTaskType;
 use move_core_types::vm_status::StatusCode;
 
 #[test]
@@ -137,11 +136,11 @@ fn check_automated_transaction_successful_execution() {
         .with_gas_unit_price(gas_price)
         .build();
     let BuilderResult::Success(automated_txn) = maybe_automated_txn else {
-        panic!("Automated transaction should successfully build")
+        panic!("Automated transaction should successfully build: {maybe_automated_txn:?}")
     };
 
     let result = test_context
-        .execute_tagged_transaction(Transaction::AutomatedTransaction(automated_txn.clone()));
+        .execute_tagged_transaction(automated_txn.clone().into());
     AutomationRegistrationTestContext::check_discarded_output(
         result,
         StatusCode::NO_ACTIVE_AUTOMATED_TASK,
@@ -164,7 +163,7 @@ fn check_automated_transaction_successful_execution() {
     let sender_address = test_context.sender_account_address();
     let sender_seq_num = test_context.account_sequence_number(sender_address);
     let output = test_context
-        .execute_and_apply_transaction(Transaction::AutomatedTransaction(automated_txn.clone()));
+        .execute_and_apply_transaction(automated_txn.clone().into());
     assert_eq!(
         output.status(),
         &TransactionStatus::Keep(ExecutionStatus::Success),
@@ -189,7 +188,7 @@ fn check_automated_transaction_successful_execution() {
         panic!("Automated transaction should successfully build")
     };
     let result = test_context
-        .execute_tagged_transaction(Transaction::AutomatedTransaction(automated_txn.clone()));
+        .execute_tagged_transaction(automated_txn.clone().into());
     AutomationRegistrationTestContext::check_discarded_output(
         result,
         StatusCode::NO_ACTIVE_AUTOMATED_TASK,

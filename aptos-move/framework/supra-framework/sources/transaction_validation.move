@@ -178,7 +178,7 @@ module supra_framework::transaction_validation {
         txn_max_gas_units: u64,
         txn_expiration_time: u64,
         chain_id: u8,
-        is_system: bool,
+        task_type: u8,
     )  {
         let gas_payer = signer::address_of(&sender);
 
@@ -202,13 +202,8 @@ module supra_framework::transaction_validation {
                 error::invalid_argument(PROLOGUE_ECANT_PAY_GAS_DEPOSIT)
             );
         };
-        if (is_system) {
-            assert!(automation_registry::has_sender_active_system_task_with_id(address_of(&sender), task_index),
-                error::invalid_state(PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK))
-        } else {
-            assert!(automation_registry::has_sender_active_task_with_id(address_of(&sender), task_index),
-                error::invalid_state(PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK))
-        }
+        assert!(automation_registry::has_sender_active_task_with_id_and_type(address_of(&sender), task_index, task_type),
+            error::invalid_state(PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK))
     }
 
     fun multi_agent_script_prologue(

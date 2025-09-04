@@ -54,7 +54,7 @@ impl Multisig {
 }
 
 /// Contains information about execution failure.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ExecutionError {
     // The module where the error occurred.
     pub abort_location: String,

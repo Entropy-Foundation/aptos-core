@@ -4,11 +4,13 @@
 /// This contract is part of the Supra Framework and is designed to manage automated task entries
 module supra_framework::automation_registry {
 
+    use std::bcs;
     use std::features;
     use std::signer;
     use std::string::String;
     use std::vector;
     use aptos_std::any::Any;
+    use aptos_std::from_bcs;
     use aptos_std::math64;
     use aptos_std::simple_map;
     use aptos_std::simple_map::SimpleMap;
@@ -17,6 +19,7 @@ module supra_framework::automation_registry {
     use supra_framework::coin::Coin;
 
     use supra_std::enumerable_map::{Self, EnumerableMap};
+    use supra_std::vector_utils;
 
     use supra_framework::account::{Self, SignerCapability};
     use supra_framework::coin;
@@ -68,7 +71,7 @@ module supra_framework::automation_registry {
     /// The gas committed for next epoch value is underflow after remove old max gas
     const EGAS_COMMITTEED_VALUE_UNDERFLOW: u64 = 13;
     /// Invalid number of auxiliary data.
-    const EINVALID_AUX_DATA_LENGHT: u64 = 14;
+    const EINVALID_AUX_DATA_LENGTH: u64 = 14;
     /// Supra native automation feature is not initialized or enabled
     const EDISABLED_AUTOMATION_FEATURE: u64 = 15;
     /// Insufficient balance in the resource wallet for withdrawal
@@ -156,9 +159,9 @@ module supra_framework::automation_registry {
     const ACTIVE: u8 = 1;
     const CANCELLED: u8 = 2;
 
-    /// Constants decribing the task type, USER SUBMITTED TASK (UST - 1), GOVERNANCE SUBMITTED TASK(GST - 0)
-    const GST: u8 = 0;
-    const UST: u8 = 1;
+    /// Constants decribing the task type, USER SUBMITTED TASK (UST - 2), GOVERNANCE SUBMITTED TASK(GST - 1)
+    const GST: u8 = 1;
+    const UST: u8 = 2;
 
     /// Constants describing CYCLE state.
     /// State transition flow is:
@@ -195,6 +198,13 @@ module supra_framework::automation_registry {
     const TASK_WRITE_OPS: u64 = 10;
     /// Task support factor in percentage. It should not exceed 100.
     const TASK_SUPPORT_FACTOR: u64 = 80;
+
+    /// Supported aux data count
+    const SUPPORTED_AUX_DATA_COUNT_MAX: u64 = 2;
+    /// Index of the aux data holding type value
+    const TYPE_AUX_DATA_INDEX: u64 = 0;
+    /// Index of the aux data holding task priority value
+    const PRIORITY_AUX_DATA_INDEX: u64 = 1;
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct ActiveAutomationRegistryConfig has key {
@@ -478,8 +488,8 @@ module supra_framework::automation_registry {
     }
 
     fun is_of_type(task: &AutomationTaskMetaData, type: u8): bool {
-        assert!(vector::length(&task.aux_data) == 1, EINVALID_AUX_DATA_LENGHT);
-        let type_data = vector::borrow(&task.aux_data, 0);
+        assert!(vector::length(&task.aux_data) == SUPPORTED_AUX_DATA_COUNT_MAX, EINVALID_AUX_DATA_LENGTH);
+        let type_data = vector::borrow(&task.aux_data, TYPE_AUX_DATA_INDEX);
         assert!(vector::length(type_data) == 1, EINVALID_TASK_TYPE_LENGTH);
         let type_value = vector::borrow(type_data, 0);
         *type_value == type
@@ -798,7 +808,7 @@ module supra_framework::automation_registry {
 
     #[view]
     /// Checks whether there is an active system task in registry with specified input task index.
-    fun has_sender_active_task_with_id_and_type(sender: address, task_index: u64, type: u8): bool acquires AutomationRegistryV2 {
+    public fun has_sender_active_task_with_id_and_type(sender: address, task_index: u64, type: u8): bool acquires AutomationRegistryV2 {
         let registry_state = borrow_global<AutomationRegistryV2>(@supra_framework);
         if (enumerable_map::contains(&registry_state.main.tasks, task_index)) {
             let value = enumerable_map::get_value_ref(&registry_state.main.tasks, task_index);
@@ -1659,7 +1669,7 @@ module supra_framework::automation_registry {
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2, AutomationRefundBookkeeping {
         // Guarding registration if feature is not enabled.
         assert!(features::supra_native_automation_enabled(), EDISABLED_AUTOMATION_FEATURE);
-        validate_aux_data(&aux_data, UST);
+        let has_no_priority = check_and_validate_aux_data(&aux_data, UST);
 
         let automation_registry_config = borrow_global<ActiveAutomationRegistryConfigV2>(@supra_framework);
         let automation_cycle_info = borrow_global<AutomationCycleDetails>(@supra_framework);
@@ -1705,6 +1715,11 @@ module supra_framework::automation_registry {
 
         automation_registry.gas_committed_for_next_epoch = committed_gas;
         let task_index = automation_registry.current_index;
+
+        if (has_no_priority) {
+            let priority = std::bcs::to_bytes(&task_index);
+            vector_utils::replace(&mut aux_data, PRIORITY_AUX_DATA_INDEX, priority);
+        };
 
         let automation_task_metadata = AutomationTaskMetaData {
             task_index,
@@ -1753,7 +1768,7 @@ module supra_framework::automation_registry {
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
         // Guarding registration if feature is not enabled.
         assert!(features::supra_native_automation_enabled(), EDISABLED_AUTOMATION_FEATURE);
-        validate_aux_data(&aux_data, GST);
+        let has_no_priority = check_and_validate_aux_data(&aux_data, GST);
 
         let automation_registry_config = borrow_global<ActiveAutomationRegistryConfigV2>(@supra_framework);
         let automation_cycle_info = borrow_global<AutomationCycleDetails>(@supra_framework);
@@ -1792,6 +1807,10 @@ module supra_framework::automation_registry {
 
         automation_registry.system_tasks_state.gas_committed_for_next_cycle = committed_gas;
         let task_index = automation_registry.main.current_index;
+        if (has_no_priority) {
+            let priority = std::bcs::to_bytes(&task_index);
+            vector_utils::replace(&mut aux_data, PRIORITY_AUX_DATA_INDEX, priority);
+        };
 
         let automation_task_metadata = AutomationTaskMetaData {
             task_index,
@@ -2472,14 +2491,14 @@ module supra_framework::automation_registry {
             // Compute the automation fee multiplier for ended epoch
             refund_automation_fee_per_sec = calculate_automation_fee_multiplier_for_epoch(arc, previous_tcmg, arc.registry_max_gas_cap);
         };
-        refund_tasks_fees(automation_registry, arc, refund_automation_fee_per_sec, refund_interval, current_time);
+        refund_fees_and_update_tasks(automation_registry, arc, refund_automation_fee_per_sec, refund_interval, current_time);
 
         automation_registry.epoch_locked_fees = 0;
         automation_registry.gas_committed_for_this_epoch = 0;
     }
 
     /// Refunds automation fee for epoch for all eligible tasks during migration.
-    fun refund_tasks_fees(
+    fun refund_fees_and_update_tasks(
         automation_registry: &mut AutomationRegistry,
         arc: &AutomationRegistryConfig,
         refund_automation_fee_per_sec: u256,
@@ -2495,7 +2514,8 @@ module supra_framework::automation_registry {
 
         vector::for_each(ids, |task_index| {
             let task = enumerable_map::get_value_mut(&mut automation_registry.tasks, task_index);
-            task.aux_data = vector[vector[UST]];
+            // Defult type before migration is UST and the priority is the task index
+            task.aux_data = vector[vector[UST], bcs::to_bytes(&task_index)];
             if (refund_automation_fee_per_sec != 0 && task.state != PENDING) {
                 let refund = calculate_task_fee(
                     arc,
@@ -2944,12 +2964,26 @@ module supra_framework::automation_registry {
         );
     }
 
-    fun validate_aux_data(aux_data: &vector<vector<u8>>, task_type: u8) {
-        assert!(vector::length(aux_data) == 1, EINVALID_AUX_DATA_LENGHT);
-        let maybe_task_type = vector::borrow(aux_data, 0);
+    /// Validates auxiliary data , by checking task type and priority if any specified.
+    /// Returns true if priority is not specify, false if specified.
+    fun check_and_validate_aux_data(aux_data: &vector<vector<u8>>, task_type: u8) : bool {
+        assert!(vector::length(aux_data) == SUPPORTED_AUX_DATA_COUNT_MAX, EINVALID_AUX_DATA_LENGTH);
+
+        // Check task type
+        let maybe_task_type = vector::borrow(aux_data, TYPE_AUX_DATA_INDEX);
         assert!(vector::length(maybe_task_type) == 1, EINVALID_TASK_TYPE_LENGTH);
         let type_value = vector::borrow(maybe_task_type, 0);
-        assert!(*type_value == task_type, EINVALID_TASK_TYPE)
+        assert!(*type_value == task_type, EINVALID_TASK_TYPE);
+
+        // Check priority existence
+        let maybe_task_priority = vector::borrow(aux_data, PRIORITY_AUX_DATA_INDEX);
+        let has_no_priority = vector::is_empty(maybe_task_priority);
+        if (!has_no_priority) {
+            // If there is a value specified validate that it can be converted to u64 successfully.
+            // This will allow to avoid invalid task registration
+            let _ = from_bcs::to_u64(*maybe_task_priority);
+        };
+        has_no_priority
     }
 
     // Precondition: `ActiveAutomationRegistryConfig` must exist at `@supra_framework`
@@ -3050,9 +3084,9 @@ module supra_framework::automation_registry {
     #[test_only]
     const PAYLOAD: vector<u8> = x"0102030405060708090a0b0c0d0e0f0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20101112131415161718191a1b1c1d1e1f20";
     #[test_only]
-    const AUX_DATA: vector<vector<u8>> = vector[vector[1]];
+    const AUX_DATA: vector<vector<u8>> = vector[vector[2], vector[]];
     #[test_only]
-    const SYS_AUX_DATA: vector<vector<u8>> = vector[vector[0]];
+    const SYS_AUX_DATA: vector<vector<u8>> = vector[vector[1], vector[]];
     #[test_only]
     const ACCOUNT_BALANCE: u64 = 10_000_000_000;
     #[test_only]
@@ -3904,6 +3938,78 @@ module supra_framework::automation_registry {
         check_account_balance(registry_fee_address, expected_registry_balance);
     }
 
+
+    #[test(framework = @supra_framework, user = @0x1cafe)]
+    fun check_task_priority_value(
+        framework: &signer,
+        user: &signer
+    ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2, AutomationRefundBookkeeping {
+        initialize_registry_test(framework, user);
+        let max_gas_amount = 10;
+        let estimated_fee = estimate_automation_fee(max_gas_amount);
+        register(user,
+            PAYLOAD,
+            86400,
+            max_gas_amount,
+            20,
+            estimated_fee,
+            PARENT_HASH,
+            AUX_DATA
+        );
+        let task_details = get_task_details(0);
+        let priority_raw = vector::borrow(&task_details.aux_data,  PRIORITY_AUX_DATA_INDEX);
+        let priority  = from_bcs::to_u64(*priority_raw);
+        assert!(priority == 0, 1);
+
+        register(user,
+            PAYLOAD,
+            86400,
+            max_gas_amount,
+            20,
+            estimated_fee,
+            PARENT_HASH,
+            AUX_DATA
+        );
+        let task_details = get_task_details(1);
+        let priority_raw = vector::borrow(&task_details.aux_data,  PRIORITY_AUX_DATA_INDEX);
+        let priority  = from_bcs::to_u64(*priority_raw);
+        assert!(priority == 1, 2);
+
+        let input_priority = 42u64;
+        let aux_data = vector[vector[2], bcs::to_bytes(&input_priority)];
+        register(user,
+            PAYLOAD,
+            86400,
+            max_gas_amount,
+            20,
+            estimated_fee,
+            PARENT_HASH,
+            aux_data
+        );
+        let task_details = get_task_details(2);
+        let priority_raw = vector::borrow(&task_details.aux_data,  PRIORITY_AUX_DATA_INDEX);
+        let priority  = from_bcs::to_u64(*priority_raw);
+        assert!(priority == input_priority, 3);
+
+
+        let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
+        grant_authorization(framework, multisig_address);
+
+        register_system_task(
+            &multisig_signer,
+            PAYLOAD,
+            86400,
+            70,
+            PARENT_HASH,
+            SYS_AUX_DATA
+        );
+        let task_details = get_task_details(3);
+        let priority_raw = vector::borrow(&task_details.aux_data,  PRIORITY_AUX_DATA_INDEX);
+        let priority  = from_bcs::to_u64(*priority_raw);
+        assert!(priority == 3, 4);
+        assert!(is_of_type(&task_details, GST), 5);
+    }
+
     #[test(framework = @supra_framework, user = @0x1cafe)]
     #[expected_failure(abort_code = EREGISTRY_IS_FULL, location = Self)]
     fun check_registration_with_full_tasks(
@@ -4084,7 +4190,7 @@ module supra_framework::automation_registry {
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
-    #[expected_failure(abort_code = EINVALID_AUX_DATA_LENGHT, location = Self)]
+    #[expected_failure(abort_code = EINVALID_AUX_DATA_LENGTH, location = Self)]
     fun check_registration_with_aux_data(
         framework: &signer,
         user: &signer
@@ -4109,7 +4215,7 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2, AutomationRefundBookkeeping {
         initialize_registry_test(framework, user);
-        let aux_data = vector[vector[1, 2]];
+        let aux_data = vector[vector[1, 2], vector[]];
         register(user,
             PAYLOAD,
             86400,
@@ -4128,7 +4234,7 @@ module supra_framework::automation_registry {
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2, AutomationRefundBookkeeping {
         initialize_registry_test(framework, user);
-        let aux_data = vector[vector[0]];
+        let aux_data = vector[vector[0], vector[]];
         register(user,
             PAYLOAD,
             86400,
@@ -7568,8 +7674,8 @@ module supra_framework::automation_registry {
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
-    #[expected_failure(abort_code = EINVALID_AUX_DATA_LENGHT, location = Self)]
-    fun check_system_task_registration_with_aux_data(
+    #[expected_failure(abort_code = EINVALID_AUX_DATA_LENGTH, location = Self)]
+    fun check_system_task_registration_without_aux_data(
         framework: &signer,
         user: &signer
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
@@ -7595,7 +7701,7 @@ module supra_framework::automation_registry {
         initialize_registry_test(framework, user);
         let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
         grant_authorization(framework, multisig_address);
-        let aux_data = vector[vector[1, 2]];
+        let aux_data = vector[vector[1, 2], vector[]];
         register_system_task(&multisig_signer,
             PAYLOAD,
             86400,
@@ -7603,6 +7709,14 @@ module supra_framework::automation_registry {
             PARENT_HASH,
             aux_data
         );
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 65537, location = from_bcs)]
+    fun check_invalid_priority_aux_data(
+    ) {
+        let aux_data = vector[vector[UST], vector[4, 5]];
+        check_and_validate_aux_data(&aux_data, UST);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]

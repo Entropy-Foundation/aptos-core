@@ -419,7 +419,7 @@ Only called during genesis to initialize system resources for this module.
 
 
 
-<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_automated_transaction_prologue">automated_transaction_prologue</a>(sender: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_index: u64, txn_gas_price: u64, txn_max_gas_units: u64, txn_expiration_time: u64, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, is_system: bool)
+<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_automated_transaction_prologue">automated_transaction_prologue</a>(sender: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_index: u64, txn_gas_price: u64, txn_max_gas_units: u64, txn_expiration_time: u64, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, task_type: u8)
 </code></pre>
 
 
@@ -435,7 +435,7 @@ Only called during genesis to initialize system resources for this module.
     txn_max_gas_units: u64,
     txn_expiration_time: u64,
     <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8,
-    is_system: bool,
+    task_type: u8,
 )  {
     <b>let</b> gas_payer = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&sender);
 
@@ -459,13 +459,8 @@ Only called during genesis to initialize system resources for this module.
             <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ECANT_PAY_GAS_DEPOSIT">PROLOGUE_ECANT_PAY_GAS_DEPOSIT</a>)
         );
     };
-    <b>if</b> (is_system) {
-        <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_has_sender_active_system_task_with_id">automation_registry::has_sender_active_system_task_with_id</a>(address_of(&sender), task_index),
-            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK">PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK</a>))
-    } <b>else</b> {
-        <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id">automation_registry::has_sender_active_task_with_id</a>(address_of(&sender), task_index),
-            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK">PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK</a>))
-    }
+    <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id_and_type">automation_registry::has_sender_active_task_with_id_and_type</a>(address_of(&sender), task_index, task_type),
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK">PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK</a>))
 }
 </code></pre>
 
