@@ -54,17 +54,12 @@ module supra_framework::dkg {
         target_committees: vector<DkgCommittee>,
     }
     
-    // Contains serialized DKG Meta for all dkg receiver committees
-    struct DKGMetaAllCommittees has store, copy, drop{
-        bytes: vector<u8>,
-    }
-    
     /// The input and output of a DKG session.
     /// The validator set of epoch `x` works together for an DKG output for the target validator set of epoch `x+1`.
     struct DKGSessionState has copy, store, drop {
         metadata: DKGSessionMetadata,
         start_time_us: u64,
-        dkg_meta_transcript: Option<DKGMetaAllCommittees>,
+        dkg_meta_transcript: vector<u8>,
     }
 
     /// The completed and in-progress DKG sessions.
@@ -157,7 +152,7 @@ module supra_framework::dkg {
         dkg_state.in_progress = std::option::some(DKGSessionState {
             metadata: new_session_metadata,
             start_time_us,
-            dkg_meta_transcript: option::none()
+            dkg_meta_transcript: vector[]
         });
 
         emit(DKGStartEvent {
@@ -184,7 +179,7 @@ module supra_framework::dkg {
 
         // we only add the first DKG Meta proposed and ignore the rest
         let session = option::extract(&mut dkg_state.in_progress);
-        assert!(std::option::is_none(&session.dkg_meta_transcript), error::already_exists(EDKG_META_ALREADY_SET));
+        assert!(vector::length(&session.dkg_meta_transcript) == 0, error::already_exists(EDKG_META_ALREADY_SET));
 
         // the dkg meta should only be added by a family node
         assert!(is_node_family_committee_member(signer::address_of(account),
@@ -203,11 +198,7 @@ module supra_framework::dkg {
         assert!(verify_multisignature(&agg_sig, &agg_pk, dkg_meta_all_committees),
             error::invalid_argument(EDKG_META_SIGNATURE_VERIFICATION_FAILED));
 
-        session.dkg_meta_transcript = option::some(
-            DKGMetaAllCommittees{
-                bytes: dkg_meta_all_committees
-            });
-
+        session.dkg_meta_transcript = dkg_meta_all_committees;
         dkg_state.last_completed = option::some(session);
         dkg_state.in_progress = option::none();
     }
@@ -335,8 +326,7 @@ module supra_framework::dkg {
         assert!(is_some(&session_opt), 100);
         let session = extract(&mut session_opt);
         assert!(session_dealer_epoch(&session) == 10, 101);
-        assert!(is_some(&session.dkg_meta_transcript), 102);
-        let dkg_meta_stored = extract(&mut session.dkg_meta_transcript);
-        assert!(dkg_meta_stored.bytes == dkg_meta, 103);
+        let dkg_meta_stored = session.dkg_meta_transcript;
+        assert!(dkg_meta_stored == dkg_meta, 102);
     }
 }
