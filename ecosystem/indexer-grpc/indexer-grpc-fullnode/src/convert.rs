@@ -494,17 +494,6 @@ pub fn convert_multisig_payload(
                     ),
                 }
             },
-            MultisigTransactionPayload::AutomationRegistrationPayload(params) => {
-                transaction::MultisigTransactionPayload {
-                    r#type: transaction::multisig_transaction_payload::Type::EntryFunctionPayload
-                        as i32,
-                    payload: Some(
-                        transaction::multisig_transaction_payload::Payload::AutomationPayload(
-                            convert_automation_payload(params),
-                        ),
-                    ),
-                }
-            }
         });
     transaction::MultisigPayload {
         multisig_address: multisig_payload.multisig_address.to_string(),

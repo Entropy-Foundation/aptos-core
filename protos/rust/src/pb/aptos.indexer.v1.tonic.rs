@@ -1,3 +1,6 @@
+// Copyright (c) Aptos Foundation
+// SPDX-License-Identifier: Apache-2.0
+
 // @generated
 /// Generated client implementations.
 pub mod raw_data_client {

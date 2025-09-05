@@ -144,9 +144,6 @@ impl Transaction {
                     wsc_detail,
                 )
             },
-            APITransaction::AutomatedTransaction(_auto_txn) => {
-                unimplemented!("AutomatedTransactions are not supported yet.")
-            }
             APITransaction::GenesisTransaction(genesis_txn) => {
                 let (wsc, wsc_detail) = WriteSetChangeModel::from_write_set_changes(
                     &genesis_txn.info.changes,

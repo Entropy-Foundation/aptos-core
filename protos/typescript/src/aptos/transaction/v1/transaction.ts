@@ -718,13 +718,11 @@ export interface MultisigPayload {
 export interface MultisigTransactionPayload {
   type?: MultisigTransactionPayload_Type | undefined;
   entryFunctionPayload?: EntryFunctionPayload | undefined;
-  automationPayload?: AutomationPayload | undefined;
 }
 
 export enum MultisigTransactionPayload_Type {
   TYPE_UNSPECIFIED = 0,
   TYPE_ENTRY_FUNCTION_PAYLOAD = 1,
-  TYPE_AUTOMATION_PAYLOAD = 2,
   UNRECOGNIZED = -1,
 }
 
@@ -736,9 +734,6 @@ export function multisigTransactionPayload_TypeFromJSON(object: any): MultisigTr
     case 1:
     case "TYPE_ENTRY_FUNCTION_PAYLOAD":
       return MultisigTransactionPayload_Type.TYPE_ENTRY_FUNCTION_PAYLOAD;
-    case 2:
-    case "TYPE_AUTOMATION_PAYLOAD":
-      return MultisigTransactionPayload_Type.TYPE_AUTOMATION_PAYLOAD;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -752,8 +747,6 @@ export function multisigTransactionPayload_TypeToJSON(object: MultisigTransactio
       return "TYPE_UNSPECIFIED";
     case MultisigTransactionPayload_Type.TYPE_ENTRY_FUNCTION_PAYLOAD:
       return "TYPE_ENTRY_FUNCTION_PAYLOAD";
-    case MultisigTransactionPayload_Type.TYPE_AUTOMATION_PAYLOAD:
-      return "TYPE_AUTOMATION_PAYLOAD";
     case MultisigTransactionPayload_Type.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
@@ -7086,7 +7079,7 @@ export const MultisigPayload = {
 };
 
 function createBaseMultisigTransactionPayload(): MultisigTransactionPayload {
-  return { type: 0, entryFunctionPayload: undefined, automationPayload: undefined };
+  return { type: 0, entryFunctionPayload: undefined };
 }
 
 export const MultisigTransactionPayload = {
@@ -7096,9 +7089,6 @@ export const MultisigTransactionPayload = {
     }
     if (message.entryFunctionPayload !== undefined) {
       EntryFunctionPayload.encode(message.entryFunctionPayload, writer.uint32(18).fork()).ldelim();
-    }
-    if (message.automationPayload !== undefined) {
-      AutomationPayload.encode(message.automationPayload, writer.uint32(26).fork()).ldelim();
     }
     return writer;
   },
@@ -7123,13 +7113,6 @@ export const MultisigTransactionPayload = {
           }
 
           message.entryFunctionPayload = EntryFunctionPayload.decode(reader, reader.uint32());
-          continue;
-        case 3:
-          if (tag !== 26) {
-            break;
-          }
-
-          message.automationPayload = AutomationPayload.decode(reader, reader.uint32());
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -7180,9 +7163,6 @@ export const MultisigTransactionPayload = {
       entryFunctionPayload: isSet(object.entryFunctionPayload)
         ? EntryFunctionPayload.fromJSON(object.entryFunctionPayload)
         : undefined,
-      automationPayload: isSet(object.automationPayload)
-        ? AutomationPayload.fromJSON(object.automationPayload)
-        : undefined,
     };
   },
 
@@ -7193,9 +7173,6 @@ export const MultisigTransactionPayload = {
     }
     if (message.entryFunctionPayload !== undefined) {
       obj.entryFunctionPayload = EntryFunctionPayload.toJSON(message.entryFunctionPayload);
-    }
-    if (message.automationPayload !== undefined) {
-      obj.automationPayload = AutomationPayload.toJSON(message.automationPayload);
     }
     return obj;
   },
@@ -7208,9 +7185,6 @@ export const MultisigTransactionPayload = {
     message.type = object.type ?? 0;
     message.entryFunctionPayload = (object.entryFunctionPayload !== undefined && object.entryFunctionPayload !== null)
       ? EntryFunctionPayload.fromPartial(object.entryFunctionPayload)
-      : undefined;
-    message.automationPayload = (object.automationPayload !== undefined && object.automationPayload !== null)
-      ? AutomationPayload.fromPartial(object.automationPayload)
       : undefined;
     return message;
   },

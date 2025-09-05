@@ -361,14 +361,12 @@ message MultisigTransactionPayload {
   enum Type {
     TYPE_UNSPECIFIED = 0;
     TYPE_ENTRY_FUNCTION_PAYLOAD = 1;
-    TYPE_AUTOMATION_PAYLOAD = 2;
   }
 
   Type type = 1;
 
   oneof payload {
     EntryFunctionPayload entry_function_payload = 2;
-    AutomationPayload automation_payload = 3;
   }
 }
 

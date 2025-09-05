@@ -24,7 +24,7 @@ module supra_framework::evm_config {
         assert!(!vector::is_empty(&config), error::invalid_argument(EINVALID_CONFIG));
         move_to(supra_framework, EvmConfig { config });
     }
-
+    
     /// This can be called by on-chain governance to update on-chain evm configs for the next epoch.
     /// Example usage:
     /// ```

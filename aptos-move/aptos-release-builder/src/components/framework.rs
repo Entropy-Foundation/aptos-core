@@ -8,7 +8,6 @@ use aptos_temppath::TempPath;
 use aptos_types::account_address::AccountAddress;
 use git2::Repository;
 use serde::{Deserialize, Serialize};
-use aptos_crypto::HashValue;
 
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Debug)]
 pub struct FrameworkReleaseConfig {
@@ -105,10 +104,10 @@ pub fn generate_upgrade_proposals(
 
         // If we're generating a single-step proposal on testnet
         if is_testnet && next_execution_hash.is_empty() {
-            release.generate_script_proposal_testnet(account, move_script_path.clone(), "testnet_script".to_string())?;
+            release.generate_script_proposal_testnet(account, move_script_path.clone())?;
             // If we're generating a single-step proposal on mainnet
         } else if next_execution_hash.is_empty() {
-            release.generate_script_proposal(account, move_script_path.clone(), "single_step_script".to_string())?;
+            release.generate_script_proposal(account, move_script_path.clone())?;
             // If we're generating a multi-step proposal
         } else {
             let next_execution_hash_bytes = if result.is_empty() {
@@ -119,8 +118,7 @@ pub fn generate_upgrade_proposals(
             release.generate_script_proposal_multi_step(
                 account,
                 move_script_path.clone(),
-                Some(HashValue::from_slice(next_execution_hash_bytes)?),
-                "multi_step_script".to_string(),
+                next_execution_hash_bytes,
             )?;
         };
 
