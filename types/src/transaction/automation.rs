@@ -476,10 +476,22 @@ impl From<RegistrationParamsV1> for RegistrationParamsV2 {
 #[derive(Clone, Copy, Debug, Hash, Serialize, Deserialize, PartialEq, Eq)]
 #[repr(u8)]
 pub enum AutomationTaskType {
-    // System authorized automation task
-    System = 1,
     // User submitted automation task
-    User,
+    User = 1,
+    // System authorized automation task
+    System = 2,
+}
+
+impl PartialOrd<Self> for AutomationTaskType {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for AutomationTaskType {
+    fn cmp(&self, other: &Self) -> Ordering {
+        (*self as u8).cmp(&(*other as u8))
+    }
 }
 
 /// Automation task priority
@@ -497,8 +509,8 @@ impl TryFrom<&[u8]> for AutomationTaskType {
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         if value.len() == 1 {
             match value[0] {
-                1 => Ok(AutomationTaskType::System),
-                2 => Ok(AutomationTaskType::User),
+                1 => Ok(AutomationTaskType::User),
+                2 => Ok(AutomationTaskType::System),
                 e => Err(format!("Invalid AutomationTaskType discriminant: {e}", )),
             }
         } else {

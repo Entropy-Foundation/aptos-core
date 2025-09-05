@@ -2714,10 +2714,9 @@ Attempt to run an unsupported action for a task.
 
 <a id="0x1_automation_registry_GST"></a>
 
-Constants decribing the task type, USER SUBMITTED TASK (UST - 2), GOVERNANCE SUBMITTED TASK(GST - 1)
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_GST">GST</a>: u8 = 1;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_GST">GST</a>: u8 = 2;
 </code></pre>
 
 
@@ -2886,9 +2885,10 @@ Index of the aux data holding type value
 
 <a id="0x1_automation_registry_UST"></a>
 
+Constants decribing the task type, USER SUBMITTED TASK (UST - 1), GOVERNANCE SUBMITTED TASK(GST - 2)
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_UST">UST</a>: u8 = 2;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_UST">UST</a>: u8 = 1;
 </code></pre>
 
 

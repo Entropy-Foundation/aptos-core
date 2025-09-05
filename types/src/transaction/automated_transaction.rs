@@ -1,6 +1,7 @@
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
+use std::cmp::Ordering;
 use crate::chain_id::ChainId;
 use crate::transaction::automation::{AutomationTaskMetaData, AutomationTaskType, Priority};
 use crate::transaction::{EntryFunction, RawTransaction, Transaction, TransactionPayload};
@@ -167,6 +168,29 @@ impl From<AutomatedTransactionDescriptor> for Transaction {
         match value.task_type {
             AutomationTaskType::System => Transaction::SystemAutomatedTransaction(value.inner),
             AutomationTaskType::User => Transaction::AutomatedTransaction(value.inner),
+        }
+    }
+}
+
+
+impl PartialOrd<Self> for AutomatedTransactionDescriptor {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for AutomatedTransactionDescriptor {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.task_type.cmp(&other.task_type) {
+            Ordering::Less => {
+                Ordering::Less
+            }
+            Ordering::Equal => {
+                self.priority.cmp(&other.priority)
+            }
+            Ordering::Greater => {
+                Ordering::Greater
+            }
         }
     }
 }

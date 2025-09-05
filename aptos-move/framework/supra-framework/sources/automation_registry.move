@@ -159,9 +159,9 @@ module supra_framework::automation_registry {
     const ACTIVE: u8 = 1;
     const CANCELLED: u8 = 2;
 
-    /// Constants decribing the task type, USER SUBMITTED TASK (UST - 2), GOVERNANCE SUBMITTED TASK(GST - 1)
-    const GST: u8 = 1;
-    const UST: u8 = 2;
+    /// Constants decribing the task type, USER SUBMITTED TASK (UST - 1), GOVERNANCE SUBMITTED TASK(GST - 2)
+    const UST: u8 = 1;
+    const GST: u8 = 2;
 
     /// Constants describing CYCLE state.
     /// State transition flow is:
@@ -3084,9 +3084,9 @@ module supra_framework::automation_registry {
     #[test_only]
     const PAYLOAD: vector<u8> = x"0102030405060708090a0b0c0d0e0f0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20101112131415161718191a1b1c1d1e1f20";
     #[test_only]
-    const AUX_DATA: vector<vector<u8>> = vector[vector[2], vector[]];
+    const AUX_DATA: vector<vector<u8>> = vector[vector[1], vector[]];
     #[test_only]
-    const SYS_AUX_DATA: vector<vector<u8>> = vector[vector[1], vector[]];
+    const SYS_AUX_DATA: vector<vector<u8>> = vector[vector[2], vector[]];
     #[test_only]
     const ACCOUNT_BALANCE: u64 = 10_000_000_000;
     #[test_only]
@@ -3976,7 +3976,7 @@ module supra_framework::automation_registry {
         assert!(priority == 1, 2);
 
         let input_priority = 42u64;
-        let aux_data = vector[vector[2], bcs::to_bytes(&input_priority)];
+        let aux_data = vector[vector[UST], bcs::to_bytes(&input_priority)];
         register(user,
             PAYLOAD,
             86400,

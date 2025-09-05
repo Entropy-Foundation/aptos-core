@@ -26,7 +26,7 @@ fn test_registration_params_serde() {
     let automation_fee_cap_for_epoch = 50_000_000;
     let aux_data = vec![vec![1u8, 1, 2, 3]];
     // Includes task type prepended to the user specified one.
-    let expected_aux_data = vec![vec![2u8], vec![ ], vec![1u8, 1, 2, 3]];
+    let expected_aux_data = vec![vec![AutomationTaskType::User as u8], vec![], vec![1u8, 1, 2, 3]];
     let entry_function = EntryFunction::new(module_id, member_id, vec![], vec![]);
     let registration_params = RegistrationParams::new_user_automation_task_v1(
         entry_function.clone(),
@@ -98,7 +98,11 @@ fn test_registration_params_v2_user_task_serde() {
     let aux_data = vec![vec![1u8, 1, 2, 3]];
     let priority = 42;
     // Includes task type prepended to the user specified one.
-    let expected_aux_data = vec![vec![2u8], bcs::to_bytes(&priority).unwrap(), vec![1u8, 1, 2, 3]];
+    let expected_aux_data = vec![
+        vec![AutomationTaskType::User as u8],
+        bcs::to_bytes(&priority).unwrap(),
+        vec![1u8, 1, 2, 3],
+    ];
     let entry_function = EntryFunction::new(module_id, member_id, vec![], vec![]);
     let registration_params = RegistrationParams::new_user_automation_task_v2(
         entry_function.clone(),
@@ -107,7 +111,7 @@ fn test_registration_params_v2_user_task_serde() {
         gas_price_cap,
         automation_fee_cap_for_epoch,
         aux_data.clone(),
-        Some(priority)
+        Some(priority),
     );
     let address = AccountAddress::random();
     let parent_hash = HashValue::random();
@@ -156,7 +160,7 @@ fn test_registration_params_v2_user_task_serde() {
         aux_data.clone(),
         None,
     );
-    let expected_aux_data = vec![vec![2u8], vec![], vec![1u8, 1, 2, 3]];
+    let expected_aux_data = vec![vec![AutomationTaskType::User as u8], vec![], vec![1u8, 1, 2, 3]];
     let serialized = registration_params.serialized_args_with_sender_and_parent_hash(
         address,
         parent_hash.to_vec(),
@@ -192,14 +196,18 @@ fn test_registration_params_system_task_serde() {
     let aux_data = vec![vec![1u8, 1, 2, 3]];
     let priority = 42;
     // Includes task type prepended to the user specified one.
-    let expected_aux_data = vec![vec![1u8], bcs::to_bytes(&priority).unwrap(), vec![1u8, 1, 2, 3]];
+    let expected_aux_data = vec![
+        vec![AutomationTaskType::System as u8],
+        bcs::to_bytes(&priority).unwrap(),
+        vec![1u8, 1, 2, 3],
+    ];
     let entry_function = EntryFunction::new(module_id, member_id, vec![], vec![]);
     let registration_params = RegistrationParams::new_system_automation_task(
         entry_function.clone(),
         expiry_time,
         max_gas_amount,
         aux_data.clone(),
-        Some(priority)
+        Some(priority),
     );
     let address = AccountAddress::random();
     let parent_hash = HashValue::random();
@@ -233,7 +241,6 @@ fn test_registration_params_system_task_serde() {
     let v_aux_data = bcs::from_bytes::<Vec<Vec<u8>>>(&serialized[5]).unwrap();
     assert_eq!(expected_aux_data, v_aux_data);
 
-
     let registration_params = RegistrationParams::new_system_automation_task(
         entry_function.clone(),
         expiry_time,
@@ -241,7 +248,7 @@ fn test_registration_params_system_task_serde() {
         aux_data.clone(),
         None,
     );
-    let expected_aux_data = vec![vec![1u8], vec![], vec![1u8, 1, 2, 3]];
+    let expected_aux_data = vec![vec![AutomationTaskType::System as u8], vec![], vec![1u8, 1, 2, 3]];
     let serialized = registration_params.serialized_args_with_sender_and_parent_hash(
         address,
         parent_hash.to_vec(),
@@ -301,10 +308,10 @@ fn automation_task_metadata_type_priority_expansion() {
 
     // Aux data with only type info, results with priority equal to task-index
     let task_meta_with_valid_type_aux = AutomationTaskMetaData {
-        aux_data: vec![vec![1]],
+        aux_data: vec![vec![AutomationTaskType::System as u8]],
         task_type: Default::default(),
         priority: Default::default(),
-        .. task_meta.clone()
+        ..task_meta.clone()
     };
     let task_type = task_meta_with_valid_type_aux.get_task_type().unwrap();
     let task_priority = task_meta_with_valid_type_aux.get_task_priority().unwrap();
@@ -313,13 +320,15 @@ fn automation_task_metadata_type_priority_expansion() {
 
     // Aux data with type info, and valid priority results with specified priority and type
     let task_meta_with_valid_type_priority = AutomationTaskMetaData {
-        aux_data: vec![vec![1], bcs::to_bytes(&42u64).unwrap()],
+        aux_data: vec![vec![AutomationTaskType::System as u8], bcs::to_bytes(&42u64).unwrap()],
         task_type: Default::default(),
         priority: Default::default(),
-        .. task_meta.clone()
+        ..task_meta.clone()
     };
     let task_type = task_meta_with_valid_type_priority.get_task_type().unwrap();
-    let task_priority = task_meta_with_valid_type_priority.get_task_priority().unwrap();
+    let task_priority = task_meta_with_valid_type_priority
+        .get_task_priority()
+        .unwrap();
     assert_eq!(task_type, AutomationTaskType::System);
     assert_eq!(task_priority, 42);
 
@@ -328,29 +337,43 @@ fn automation_task_metadata_type_priority_expansion() {
         aux_data: vec![vec![4], bcs::to_bytes(&24u64).unwrap()],
         task_type: Default::default(),
         priority: Default::default(),
-        .. task_meta.clone()
+        ..task_meta.clone()
     };
-    assert!(task_meta_with_invalid_type_and_valid_priority.get_task_type().is_none());
+    assert!(task_meta_with_invalid_type_and_valid_priority
+        .get_task_type()
+        .is_none());
     // Double check that result is all the same
-    assert!(task_meta_with_invalid_type_and_valid_priority.get_task_type().is_none());
+    assert!(task_meta_with_invalid_type_and_valid_priority
+        .get_task_type()
+        .is_none());
 
-    let task_priority = task_meta_with_invalid_type_and_valid_priority.get_task_priority().unwrap();
+    let task_priority = task_meta_with_invalid_type_and_valid_priority
+        .get_task_priority()
+        .unwrap();
     assert_eq!(task_priority, 24);
 
     // Aux data with invalid type info and priority results with specified no priority and no type
     let task_meta_with_invalid_type_and_valid_priority = AutomationTaskMetaData {
-        aux_data: vec![vec![4; 2], vec![1,2,3]],
+        aux_data: vec![vec![4; 2], vec![1, 2, 3]],
         task_type: Default::default(),
         priority: Default::default(),
-        .. task_meta.clone()
+        ..task_meta.clone()
     };
-    assert!(task_meta_with_invalid_type_and_valid_priority.get_task_type().is_none());
+    assert!(task_meta_with_invalid_type_and_valid_priority
+        .get_task_type()
+        .is_none());
     // Double check that result is all the same
-    assert!(task_meta_with_invalid_type_and_valid_priority.get_task_type().is_none());
+    assert!(task_meta_with_invalid_type_and_valid_priority
+        .get_task_type()
+        .is_none());
 
-    assert!(task_meta_with_invalid_type_and_valid_priority.get_task_priority().is_none());
+    assert!(task_meta_with_invalid_type_and_valid_priority
+        .get_task_priority()
+        .is_none());
     // Double check that result is all the same
-    assert!(task_meta_with_invalid_type_and_valid_priority.get_task_priority().is_none());
+    assert!(task_meta_with_invalid_type_and_valid_priority
+        .get_task_priority()
+        .is_none());
 }
 
 #[test]
@@ -420,7 +443,7 @@ fn automated_txn_builder_from_task_meta() {
 
     // Check builder construction when type is specified but not priority
     let task_meta_with_valid_type = AutomationTaskMetaData {
-        aux_data: vec![vec![1u8]],
+        aux_data: vec![vec![AutomationTaskType::System as u8]],
         ..task_meta_valid.clone()
     };
     let builder = AutomatedTransactionBuilder::try_from(task_meta_with_valid_type).unwrap();
@@ -429,7 +452,7 @@ fn automated_txn_builder_from_task_meta() {
 
     // Check builder construction when type is specified and priority is invalid.
     let task_meta_with_valid_type_and_none_priority = AutomationTaskMetaData {
-        aux_data: vec![vec![1u8], vec![ ]],
+        aux_data: vec![vec![1u8], vec![]],
         ..task_meta_valid.clone()
     };
     let builder =
@@ -438,7 +461,7 @@ fn automated_txn_builder_from_task_meta() {
 
     // Check builder construction when type is specified and priority is valid data.
     let task_meta_with_valid_type_and_priority = AutomationTaskMetaData {
-        aux_data: vec![vec![1u8], bcs::to_bytes(&45u64).unwrap()],
+        aux_data: vec![vec![AutomationTaskType::System as u8], bcs::to_bytes(&45u64).unwrap()],
         ..task_meta_valid.clone()
     };
     let builder =
@@ -548,6 +571,99 @@ fn automated_txn_build() {
         builder_with_no_expiry_time.clone().build(),
         BuilderResult::MissingValue(_)
     ));
+}
+
+#[test]
+fn automated_transaction_ordering() {
+    let MemberId {
+        module_id,
+        member_id,
+    } = MemberId::from_str("0x1::timestamp::now_seconds").unwrap();
+    let entry_function = EntryFunction::new(module_id, member_id, vec![], vec![]);
+    let address = AccountAddress::random();
+    let parent_hash = HashValue::random();
+    let chain_id = ChainId::new(1);
+    let expiry_time = 7200;
+    let task_meta = AutomationTaskMetaData {
+        id: 0,
+        owner: address,
+        payload_tx: bcs::to_bytes(&entry_function).unwrap(),
+        expiry_time,
+        tx_hash: parent_hash.to_vec(),
+        max_gas_amount: 10,
+        gas_price_cap: 20,
+        automation_fee_cap_for_epoch: 500,
+        aux_data: vec![],
+        registration_time: 1,
+        is_active: false,
+        locked_fee_for_next_epoch: 0,
+        task_type: Default::default(),
+        priority: Default::default(),
+    };
+
+    let builder = AutomatedTransactionBuilder::try_from(task_meta.clone())
+        .unwrap()
+        .with_chain_id(chain_id)
+        .with_gas_unit_price(15)
+        .with_block_height(5);
+
+    let BuilderResult::Success(user_auto_txn_100) = builder
+        .clone()
+        .with_task_type(AutomationTaskType::User)
+        .with_task_priority(100)
+        .build()
+    else {
+        panic!("Expected successful result");
+    };
+    let BuilderResult::Success(user_auto_txn_200) = builder
+        .clone()
+        .with_task_type(AutomationTaskType::User)
+        .with_task_priority(200)
+        .build()
+    else {
+        panic!("Expected successful result");
+    };
+    let BuilderResult::Success(system_auto_txn_100) = builder
+        .clone()
+        .with_task_type(AutomationTaskType::System)
+        .with_task_priority(100)
+        .build()
+    else {
+        panic!("Expected successful result");
+    };
+    let BuilderResult::Success(system_auto_txn_200) = builder
+        .clone()
+        .with_task_type(AutomationTaskType::System)
+        .with_task_priority(200)
+        .build()
+    else {
+        panic!("Expected successful result");
+    };
+    let BuilderResult::Success(system_auto_txn_300) = builder
+        .clone()
+        .with_task_type(AutomationTaskType::System)
+        .with_task_priority(200)
+        .build()
+    else {
+        panic!("Expected successful result");
+    };
+
+    let expected_auto_txns = vec![
+        user_auto_txn_100.clone(),
+        user_auto_txn_200.clone(),
+        system_auto_txn_100.clone(),
+        system_auto_txn_200.clone(),
+        system_auto_txn_300.clone(),
+    ];
+    let mut auto_txns = vec![
+        system_auto_txn_100,
+        system_auto_txn_300,
+        user_auto_txn_200,
+        system_auto_txn_200,
+        user_auto_txn_100,
+    ];
+    auto_txns.sort();
+    assert_eq!(auto_txns, expected_auto_txns);
 }
 
 #[test]
