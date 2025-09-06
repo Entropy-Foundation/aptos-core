@@ -1,6 +1,8 @@
 module std::dkg_committee {
 
     use std::vector;
+    use supra_framework::validator_consensus_info;
+    use supra_framework::validator_consensus_info::ValidatorConsensusInfo;
 
     const EINVALID_DKG_COMMITTEE_SIZE: u64 = 1;
     
@@ -8,7 +10,7 @@ module std::dkg_committee {
     const TYPE_TRIBE: u8 = 1;
 
     /// Internal tag wrapper
-    struct DkgCommitteeType has copy, drop { tag: u8 }
+    struct DkgCommitteeType has copy, drop, store { tag: u8 }
 
     public fun clan_committee_type(): DkgCommitteeType { DkgCommitteeType { tag: TYPE_CLAN } }
     public fun tribe_committee_type(): DkgCommitteeType { DkgCommitteeType { tag: TYPE_TRIBE } }
@@ -17,7 +19,7 @@ module std::dkg_committee {
     public fun is_tribe_committee_type(t: &DkgCommitteeType): bool { t.tag == TYPE_TRIBE }
 
     //todo: should we store network addr here?
-    struct DkgNodeConfig has copy, drop {
+    struct DkgNodeConfig has copy, drop, store {
         addr: address,
         // bls public key used for aggregate signatures
         bls_pubkey: vector<u8>,
@@ -38,7 +40,7 @@ module std::dkg_committee {
         dkg_node.bls_pubkey
     }
     
-    struct DkgCommittee has copy, drop {
+    struct DkgCommittee has copy, drop, store {
         type: DkgCommitteeType,
         committee: vector<DkgNodeConfig>,
     }
@@ -59,6 +61,31 @@ module std::dkg_committee {
         DkgCommittee{
             type,
             committee
+        }
+    }
+
+    public fun new_dkg_committee_from_validator_consensus_info(type: DkgCommitteeType, validator_committee: vector<ValidatorConsensusInfo>): DkgCommittee{
+
+        if(is_clan_committee_type(&type)){
+            assert!(vector::length(&validator_committee) > 2, EINVALID_DKG_COMMITTEE_SIZE);
+        };
+        if(is_tribe_committee_type(&type)){
+            assert!(vector::length(&validator_committee) > 3, EINVALID_DKG_COMMITTEE_SIZE);
+        };
+
+        let dkg_committee = vector[];
+        vector::for_each(validator_committee, |x|
+            {
+                vector::push_back(&mut dkg_committee, DkgNodeConfig{
+                    addr: validator_consensus_info::get_addr(&x),
+                    bls_pubkey: validator_consensus_info::get_pk_bytes(&x)
+                });
+            }
+        );
+
+        DkgCommittee{
+            type,
+            committee: dkg_committee
         }
     }
 }

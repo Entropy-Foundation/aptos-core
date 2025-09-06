@@ -23,6 +23,8 @@ impl ValidatorTransaction {
             metadata: DKGTranscriptMetadata {
                 epoch: 999,
                 author: AccountAddress::ZERO,
+                bls_aggregate_signature: vec![],
+                signer_indices_clan_committee: vec![],
             },
             transcript_bytes: payload,
         })

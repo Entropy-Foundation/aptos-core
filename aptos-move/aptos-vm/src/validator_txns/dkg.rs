@@ -13,7 +13,7 @@ use crate::{
     AptosVM,
 };
 use aptos_types::{
-    dkg::{DKGState, DKGTrait, DKGTranscript, DefaultDKG},
+    dkg::{DKGState, DKGTranscript},
     fee_statement::FeeStatement,
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{ConfigurationResource, OnChainConfig},
@@ -33,9 +33,8 @@ use move_vm_types::gas::UnmeteredGasMeter;
 enum ExpectedFailure {
     // Move equivalent: `errors::invalid_argument(*)`
     EpochNotCurrent = 0x10001,
-    TranscriptDeserializationFailed = 0x10002,
-    TranscriptVerificationFailed = 0x10003,
-    TranscriptAlreadySet = 0x10004,
+    TranscriptVerificationFailed = 0x10002,
+    TranscriptAlreadySet = 0x10003,
 
     // Move equivalent: `errors::invalid_state(*)`
     MissingResourceDKGState = 0x30001,
@@ -69,7 +68,6 @@ impl AptosVM {
         }
     }
 
-    //todo: we can probably add the account verification and multi-sig verification for dkg transaction here
     fn process_dkg_result_inner(
         &self,
         resolver: &impl AptosMoveResolver,
@@ -90,57 +88,13 @@ impl AptosVM {
             return Err(Expected(EpochNotCurrent));
         }
 
+        // transcript should not be set already
         if in_progress_session_state.dkg_meta_transcript.len() != 0{
             return Err(Expected(TranscriptAlreadySet));
         }
-        
-        
 
-
-
-
-
-
-        /*
-
-        // ensure dkg is in progress
-
-        // the dkg meta should only be added by a family node
-        assert!(is_node_family_committee_member(signer::address_of(account),
-            session.metadata.dealer_committee,
-            session.metadata.randomness_seed),
-            EDKG_NOT_FAMILY_NODE
-        );
-
-        let signer_bls_pubkeys = get_signer_bls_keys_from_indices(session.metadata.dealer_committee,
-            signers,
-            session.metadata.randomness_seed);
-
-        // verify the multi signature on the dkg meta is correct
-        let agg_sig = aggr_or_multi_signature_from_bytes(agg_signature);
-        let agg_pk = aggregate_pubkeys(signer_bls_pubkeys);
-        assert!(verify_multisignature(&agg_sig, &agg_pk, dkg_meta_all_committees),
-            error::invalid_argument(EDKG_META_SIGNATURE_VERIFICATION_FAILED));
-
-
-        */
-
-
-
-
-
-
-
-
-
-        // Deserialize transcript and verify it.
-        let pub_params = DefaultDKG::new_public_params(&in_progress_session_state.metadata);
-        let transcript = bcs::from_bytes::<<DefaultDKG as DKGTrait>::Transcript>(
-            dkg_node.transcript_bytes.as_slice(),
-        )
-        .map_err(|_| Expected(TranscriptDeserializationFailed))?;
-
-        DefaultDKG::verify_transcript(&pub_params, &transcript)
+        // verify transcript signature
+        dkg_node.verify(&in_progress_session_state.metadata.dealer_committee, &in_progress_session_state.metadata.randomness_seed)
             .map_err(|_| Expected(TranscriptVerificationFailed))?;
 
         // All check passed, invoke VM to publish DKG result on chain.
