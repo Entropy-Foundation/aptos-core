@@ -1,5 +1,6 @@
 /// Reconfiguration with DKG helper functions.
 module supra_framework::reconfiguration_with_dkg {
+    use std::dkg_committee::{new_dkg_committee_from_validator_consensus_info, tribe_committee_type};
     use std::features;
     use std::option;
     use supra_framework::randomness;
@@ -38,7 +39,10 @@ module supra_framework::reconfiguration_with_dkg {
         dkg::start(
             cur_epoch,
             randomness_seed,
-            stake::cur_validator_consensus_infos(),
+            new_dkg_committee_from_validator_consensus_info(
+                tribe_committee_type(),
+                stake::cur_validator_consensus_infos()),
+            vector[new_dkg_committee_from_validator_consensus_info(tribe_committee_type(), stake::next_validator_consensus_infos())]
         );
     }
 
@@ -69,9 +73,8 @@ module supra_framework::reconfiguration_with_dkg {
 
     /// Complete the current reconfiguration with DKG.
     /// Abort if no DKG is in progress.
-    // todo: 
     fun finish_with_dkg_result(account: &signer, dkg_result: vector<u8>) {
-        //dkg::finish(dkg_result);
+        dkg::finish(dkg_result);
         finish(account);
     }
 }

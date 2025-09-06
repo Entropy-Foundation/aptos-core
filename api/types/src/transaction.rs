@@ -847,6 +847,8 @@ pub struct DKGResultTransaction {
 pub struct ExportedDKGTranscript {
     pub epoch: U64,
     pub author: Address,
+    pub bls_aggregate_signature: Vec<u8>,
+    pub signer_indices_clan_committee: Vec<u32>,
     pub payload: HexEncodedBytes,
 }
 
@@ -856,10 +858,12 @@ impl From<DKGTranscript> for ExportedDKGTranscript {
             metadata,
             transcript_bytes,
         } = value;
-        let DKGTranscriptMetadata { epoch, author } = metadata;
+        let DKGTranscriptMetadata { epoch, author,  bls_aggregate_signature, signer_indices_clan_committee} = metadata;
         Self {
             epoch: epoch.into(),
             author: author.into(),
+            bls_aggregate_signature: bls_aggregate_signature.into(),
+            signer_indices_clan_committee: signer_indices_clan_committee.into(),
             payload: HexEncodedBytes::from(transcript_bytes),
         }
     }

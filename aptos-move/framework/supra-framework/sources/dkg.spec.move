@@ -14,16 +14,14 @@ spec supra_framework::dkg {
     spec start(
         dealer_epoch: u64,
         randomness_seed: vector<u8>,
-        current_validator_set: vector<ValidatorConsensusInfo>,
+        dealer_committee: DkgCommittee,
+        target_committees: vector<DkgCommittee>
     ) {
         aborts_if !exists<DKGState>(@supra_framework);
         aborts_if !exists<timestamp::CurrentTimeMicroseconds>(@supra_framework);
     }
 
-    spec finish(account: signer,
-        dkg_meta_all_committees: vector<u8>,
-        agg_signature: vector<u8>,
-        signers: vector<u32>) {
+    spec finish(dkg_meta_all_committees: vector<u8>) {
         use std::option;
         requires exists<DKGState>(@supra_framework);
         requires option::is_some(global<DKGState>(@supra_framework).in_progress);

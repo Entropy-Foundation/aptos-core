@@ -3,17 +3,11 @@
 //todo: validator node identity in move and rust might be diff.
 //todo: currently dkg module has no info if the dkg is normal or for resharing. Do we need to change that?
 module supra_framework::dkg {
-    use std::dkg_committee::{DkgNodeConfig, DkgCommittee, get_committee, get_addr, get_bls_pubkey};
+    use std::dkg_committee::{DkgCommittee};
     use std::error;
     use std::option;
-    use std::option::{Option, is_some};
-    use std::signer;
+    use std::option::{Option};
     use std::vector;
-    use aptos_std::bls12381;
-    use aptos_std::bls12381::{public_key_from_bytes_with_pop_externally_verified, PublicKeyWithPoP, aggregate_pubkeys,
-        aggr_or_multi_signature_from_bytes, verify_multisignature
-    };
-    use supra_std::consensus_key;
     use supra_framework::event::emit;
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
@@ -22,11 +16,9 @@ module supra_framework::dkg {
     #[test_only]
     use std::dkg_committee::{new_dkg_committee, tribe_committee_type};
     #[test_only]
-    use std::option::extract;
+    use std::option::{extract, is_some};
     #[test_only]
     use supra_framework::account::create_signer_for_test;
-    #[test_only]
-    use supra_framework::validator_consensus_info;
     friend supra_framework::block;
     friend supra_framework::reconfiguration_with_dkg;
 
@@ -66,57 +58,6 @@ module supra_framework::dkg {
     struct DKGState has key {
         last_completed: Option<DKGSessionState>,
         in_progress: Option<DKGSessionState>,
-    }
-
-    /// The threshold required to ensure the presence of honest majority in clan where
-    /// N = 2f+1 with f byzantine nodes
-    fun clan_threshold(total: u64): u64 {
-        total / 2 + 1
-    }
-
-    fun is_node_family_committee_member(addr: address, dealer_committee: DkgCommittee, random_seed: vector<u8>): bool {
-
-        let committee = get_committee(&dealer_committee);
-        let family_committee_indices
-            = get_family_committee_indices((vector::length(&committee) as u32), random_seed);
-
-        vector::any(&family_committee_indices, |family_node_index|{
-            let family_node = vector::borrow(&committee, (*family_node_index as u64));
-            get_addr(family_node) == addr
-        })
-    }
-
-    fun get_signer_bls_keys_from_indices(dealer_committee: DkgCommittee, signers: vector<u32>, random_seed: vector<u8>): vector<PublicKeyWithPoP>{
-
-        let committee = get_committee(&dealer_committee);
-        
-        let dealer_clan_committee_indices = get_clan_committee_indices(
-            (vector::length(&committee) as u32),
-            random_seed);
-        let clan_threshold = clan_threshold( vector::length(&dealer_clan_committee_indices));
-
-        assert!( vector::length(&signers) == clan_threshold,
-            error::invalid_argument(EDKG_NOT_THRESHOLD_SIGNERS));
-
-        let signer_keys = vector[];
-        vector::for_each(signers, |signer| {
-            let clan_node_index = vector::borrow(&dealer_clan_committee_indices, (signer as u64));
-            let clan_node = vector::borrow(&committee, (*clan_node_index as u64));
-            let node_pk_bytes = get_bls_pubkey(clan_node);
-
-            let consensus_pk_option = consensus_key::consensus_public_key_from_bytes(node_pk_bytes);
-            assert!(is_some(&consensus_pk_option),error::invalid_argument(EDKG_INVALID_SIGNER_VERIFICATION_KEY));
-            let consensus_pk = option::extract(&mut consensus_pk_option);
-            let bls_key = consensus_key::get_bls_pub_key(&consensus_pk);
-
-            // create signer vks assuming the corresponding pops have already been verified upon registration
-            let signer_key_option = public_key_from_bytes_with_pop_externally_verified(bls12381::public_key_to_bytes(&bls_key));
-            assert!(is_some(&signer_key_option),error::invalid_argument(EDKG_INVALID_SIGNER_VERIFICATION_KEY));
-            let signer_key = std::option::extract(&mut signer_key_option);
-            vector::push_back(&mut signer_keys, signer_key);
-        });
-
-        signer_keys
     }
 
     /// Called in genesis to initialize on-chain states.
@@ -167,11 +108,7 @@ module supra_framework::dkg {
     /// Abort if DKG is not in progress.
     //todo: node indices are not same on rust and move side.
     //todo: Assumes that validator set vector indices are the dkg committee indices of the nodes
-    //todo: move bls multi sig verification to process_dkg_result_inner (can also be done twice if cheap)
-    public entry fun finish(account: &signer,
-                              dkg_meta_all_committees: vector<u8>,
-                              agg_signature: vector<u8>,
-                              signers: vector<u32>)
+    public entry fun finish(dkg_meta_all_committees: vector<u8>)
     acquires DKGState {
         // ensure dkg is in progress
         let dkg_state = borrow_global_mut<DKGState>(@supra_framework);
@@ -180,24 +117,7 @@ module supra_framework::dkg {
         // we only add the first DKG Meta proposed and ignore the rest
         let session = option::extract(&mut dkg_state.in_progress);
         assert!(vector::length(&session.dkg_meta_transcript) == 0, error::already_exists(EDKG_META_ALREADY_SET));
-
-        // the dkg meta should only be added by a family node
-        assert!(is_node_family_committee_member(signer::address_of(account),
-            session.metadata.dealer_committee,
-            session.metadata.randomness_seed),
-            EDKG_NOT_FAMILY_NODE
-        );
-
-        let signer_bls_pubkeys = get_signer_bls_keys_from_indices(session.metadata.dealer_committee,
-            signers,
-            session.metadata.randomness_seed);
-
-        // verify the multi signature on the dkg meta is correct
-        let agg_sig = aggr_or_multi_signature_from_bytes(agg_signature);
-        let agg_pk = aggregate_pubkeys(signer_bls_pubkeys);
-        assert!(verify_multisignature(&agg_sig, &agg_pk, dkg_meta_all_committees),
-            error::invalid_argument(EDKG_META_SIGNATURE_VERIFICATION_FAILED));
-
+        
         session.dkg_meta_transcript = dkg_meta_all_committees;
         dkg_state.last_completed = option::some(session);
         dkg_state.in_progress = option::none();
@@ -235,36 +155,8 @@ module supra_framework::dkg {
         session.metadata.dealer_epoch
     }
 
-    fun get_clan_committee_indices(tribe_size: u32, seed: vector<u8>): vector<u32>{
-        let clan_indices = native_get_clan_committee_indices(tribe_size, seed);
-        assert!(vector::length(&clan_indices) > 0, EDKG_INVALID_TRIBE_SIZE);
-        clan_indices
-    }
-
-    fun get_family_committee_indices(tribe_size: u32, seed: vector<u8>): vector<u32>{
-        let family_indices = native_get_family_committee_indices(tribe_size, seed);
-        assert!(vector::length(&family_indices) > 0, EDKG_INVALID_TRIBE_SIZE);
-        family_indices
-    }
-
-    //todo: feature gate all native functions
-    native fun native_get_family_committee_indices(tribe_size: u32, seed: vector<u8>): vector<u32>;
-    native fun native_get_clan_committee_indices(tribe_size: u32, seed: vector<u8>): vector<u32>;
-
-    #[test]
-    public fun test_clan_committee_indices(){
-        let clan_committee = get_clan_committee_indices(10, vector[1, 2, 3]);
-        assert!(vector::length(&clan_committee) > 0, 1);
-    }
-    
-    #[test]
-    public fun test_family_committee_indices(){
-        let family_committee = get_family_committee_indices(10, vector[1, 2, 3]);
-        assert!(vector::length(&family_committee) > 0, 1);
-    }
-
     #[test_only]
-    fun test_setup(): (u64, vector<u8>, DkgCommittee, vector<DkgCommittee>, vector<u8>, vector<u8>, vector<u32>){
+    fun test_setup(): (u64, vector<u8>, DkgCommittee, vector<DkgCommittee>, vector<u8>){
 
         let epoch: u64 = 10;
         let randomness_seed = vector[1,2,3];
@@ -288,12 +180,10 @@ module supra_framework::dkg {
         };
 
         let dkg_meta_all_committees = vector[1,2,3,4,5];
-        let agg_signature: vector<u8> = vector[182, 16, 72, 248, 113, 162, 7, 18, 129, 146, 150, 120, 162, 67, 33, 79, 20, 24, 100, 229, 90, 212, 52, 13, 15, 155, 60, 60, 62, 122, 219, 10, 7, 252, 131, 46, 83, 205, 227, 147, 136, 99, 74, 39, 19, 248, 196, 166, 0, 25, 5, 70, 54, 14, 217, 194, 167, 103, 112, 167, 213, 227, 49, 136, 86, 105, 38, 48, 132, 119, 163, 173, 112, 155, 115, 180, 227, 9, 27, 144, 193, 173, 85, 238, 57, 242, 172, 101, 188, 124, 197, 149, 94, 144, 31, 94];
-        let signers: vector<u32> = vector[0,1,2];
         
         let tribe_committee = new_dkg_committee(tribe_committee_type(), committee);
 
-        (epoch, randomness_seed, tribe_committee, vector[tribe_committee], dkg_meta_all_committees, agg_signature, signers)
+        (epoch, randomness_seed, tribe_committee, vector[tribe_committee], dkg_meta_all_committees)
     }
 
     //----------------------------------------------------------------------------
@@ -307,19 +197,12 @@ module supra_framework::dkg {
         timestamp::set_time_has_started_for_testing(&sf_signer);
         initialize(&sf_signer);
 
-        let (epoch, randomness_seed, dealer_committee, target_committees, dkg_meta, agg_signature, signers) = test_setup();
+        let (epoch, randomness_seed, dealer_committee, target_committees, dkg_meta) = test_setup();
         start(epoch, randomness_seed, dealer_committee, target_committees);
 
         let session_opt = incomplete_session();
         assert!(is_some(&session_opt), 100);
-
-        // Call finish with valid inputs.
-        finish(
-            &sf_signer,
-            dkg_meta,
-            agg_signature,
-            signers
-        );
+        finish(dkg_meta,);
 
         // Verify that the DKG meta transcript was set correctly.
         let session_opt = last_completed_session();
