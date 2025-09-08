@@ -33,6 +33,7 @@ use std::ops::Deref;
 
 pub struct AutomatedTransactionProcessor<'m> {
     aptos_vm: &'m AptosVM,
+    sys_automated_txn: bool,
 }
 
 impl Deref for AutomatedTransactionProcessor<'_> {
@@ -44,8 +45,8 @@ impl Deref for AutomatedTransactionProcessor<'_> {
 }
 
 impl<'m> AutomatedTransactionProcessor<'m> {
-    pub(crate) fn new(aptos_vm: &'m AptosVM) -> Self {
-        Self { aptos_vm }
+    pub(crate) fn new(aptos_vm: &'m AptosVM, sys_automated_txn: bool) -> Self {
+        Self { aptos_vm, sys_automated_txn }
     }
 
     fn validate_automated_transaction(
@@ -73,6 +74,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         transaction_validation::run_automated_transaction_prologue(
             session,
             transaction_data,
+            self.sys_automated_txn,
             log_context,
             traversal_context,
         )
@@ -114,6 +116,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 fee_statement,
                 self.features(),
                 txn_data,
+                self.sys_automated_txn,
                 log_context,
                 traversal_context,
             )
@@ -335,7 +338,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             balance,
         );
         let (status, output) =
-            self.execute_transaction_impl(resolver, txn, txn_metadata, &mut gas_meter, log_context);
+            self.execute_transaction_impl(resolver, txn, txn_metadata,  &mut gas_meter, log_context);
 
         Ok((status, output, gas_meter))
     }
@@ -470,6 +473,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 fee_statement,
                 self.features(),
                 txn_data,
+                self.sys_automated_txn,
                 log_context,
                 traversal_context,
             )

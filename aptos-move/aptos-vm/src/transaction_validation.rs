@@ -201,6 +201,7 @@ pub(crate) fn run_multisig_prologue(
 pub(crate) fn run_automated_transaction_prologue(
     session: &mut SessionExt,
     txn_data: &TransactionMetadata,
+    is_system: bool,
     log_context: &AdapterLogSchema,
     traversal_context: &mut TraversalContext,
 ) -> Result<(), VMStatus> {
@@ -217,6 +218,7 @@ pub(crate) fn run_automated_transaction_prologue(
         MoveValue::U64(txn_max_gas_units.into()),
         MoveValue::U64(txn_expiration_timestamp_secs),
         MoveValue::U8(chain_id.id()),
+        MoveValue::Bool(is_system),
     ];
     session
         .execute_function_bypass_visibility(
@@ -307,33 +309,36 @@ fn run_automated_txn_epilogue(
     gas_remaining: Gas,
     fee_statement: FeeStatement,
     txn_data: &TransactionMetadata,
+    is_system: bool,
     features: &Features,
     traversal_context: &mut TraversalContext,
 ) -> VMResult<()> {
-    let txn_gas_price = txn_data.gas_unit_price();
-    let txn_max_gas_units = txn_data.max_gas_amount();
+    // System automated tasks are not charged but fee statement event is emitted to enable historical
+    // analysis
+    if !is_system {
+        let txn_gas_price = txn_data.gas_unit_price();
+        let txn_max_gas_units = txn_data.max_gas_amount();
 
-    // We can unconditionally do this as this condition can only be true if the prologue
-    // accepted it, in which case the gas payer feature is enabled.
-    // Regular tx, run the normal epilogue
-    let args = vec![
-        MoveValue::Signer(txn_data.sender),
-        MoveValue::U64(fee_statement.storage_fee_refund()),
-        MoveValue::U64(txn_gas_price.into()),
-        MoveValue::U64(txn_max_gas_units.into()),
-        MoveValue::U64(gas_remaining.into()),
-    ];
-    session
-        .execute_function_bypass_visibility(
-            &APTOS_TRANSACTION_VALIDATION.module_id(),
-            &APTOS_TRANSACTION_VALIDATION.automated_txn_epilogue_name,
-            vec![],
-            serialize_values(&args),
-            &mut UnmeteredGasMeter,
-            traversal_context,
-        )
-        .map(|_return_vals| ())
-        .map_err(expect_no_verification_errors)?;
+        let args = vec![
+            MoveValue::Signer(txn_data.sender),
+            MoveValue::U64(fee_statement.storage_fee_refund()),
+            MoveValue::U64(txn_gas_price.into()),
+            MoveValue::U64(txn_max_gas_units.into()),
+            MoveValue::U64(gas_remaining.into()),
+        ];
+
+        session
+            .execute_function_bypass_visibility(
+                &APTOS_TRANSACTION_VALIDATION.module_id(),
+                &APTOS_TRANSACTION_VALIDATION.automated_txn_epilogue_name,
+                vec![],
+                serialize_values(&args),
+                &mut UnmeteredGasMeter,
+                traversal_context,
+            )
+            .map(|_return_vals| ())
+            .map_err(expect_no_verification_errors)?;
+    }
 
     // Emit the FeeStatement event
     if features.is_emit_fee_statement_enabled() {
@@ -399,6 +404,7 @@ pub(crate) fn run_automated_txn_success_epilogue(
     fee_statement: FeeStatement,
     features: &Features,
     txn_data: &TransactionMetadata,
+    is_system: bool,
     log_context: &AdapterLogSchema,
     traversal_context: &mut TraversalContext,
 ) -> Result<(), VMStatus> {
@@ -414,6 +420,7 @@ pub(crate) fn run_automated_txn_success_epilogue(
         gas_remaining,
         fee_statement,
         txn_data,
+        is_system,
         features,
         traversal_context,
     )
@@ -456,6 +463,7 @@ pub(crate) fn run_automated_txn_failure_epilogue(
     fee_statement: FeeStatement,
     features: &Features,
     txn_data: &TransactionMetadata,
+    is_system: bool,
     log_context: &AdapterLogSchema,
     traversal_context: &mut TraversalContext,
 ) -> Result<(), VMStatus> {
@@ -464,6 +472,7 @@ pub(crate) fn run_automated_txn_failure_epilogue(
         gas_remaining,
         fee_statement,
         txn_data,
+        is_system,
         features,
         traversal_context,
     )
