@@ -72,6 +72,8 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `get_task_owner`](#0x1_automation_registry_get_task_owner)
 -  [Function `get_task_details_bulk`](#0x1_automation_registry_get_task_details_bulk)
 -  [Function `has_sender_active_task_with_id`](#0x1_automation_registry_has_sender_active_task_with_id)
+-  [Function `has_sender_active_system_task_with_id`](#0x1_automation_registry_has_sender_active_system_task_with_id)
+-  [Function `has_sender_active_task_with_id_and_type`](#0x1_automation_registry_has_sender_active_task_with_id_and_type)
 -  [Function `get_registry_fee_address`](#0x1_automation_registry_get_registry_fee_address)
 -  [Function `get_gas_committed_for_next_epoch`](#0x1_automation_registry_get_gas_committed_for_next_epoch)
 -  [Function `get_gas_committed_for_current_epoch`](#0x1_automation_registry_get_gas_committed_for_current_epoch)
@@ -3398,10 +3400,62 @@ Checks whether there is an active task in registry with specified input task ind
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id">has_sender_active_task_with_id</a>(sender: <b>address</b>, task_index: u64): bool <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a> {
+    <a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id_and_type">has_sender_active_task_with_id_and_type</a>(sender, task_index, <a href="automation_registry.md#0x1_automation_registry_UST">UST</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_has_sender_active_system_task_with_id"></a>
+
+## Function `has_sender_active_system_task_with_id`
+
+Checks whether there is an active system task in registry with specified input task index.
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_has_sender_active_system_task_with_id">has_sender_active_system_task_with_id</a>(sender: <b>address</b>, task_index: u64): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_has_sender_active_system_task_with_id">has_sender_active_system_task_with_id</a>(sender: <b>address</b>, task_index: u64): bool <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a> {
+    <a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id_and_type">has_sender_active_task_with_id_and_type</a>(sender, task_index, <a href="automation_registry.md#0x1_automation_registry_GST">GST</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_has_sender_active_task_with_id_and_type"></a>
+
+## Function `has_sender_active_task_with_id_and_type`
+
+Checks whether there is an active system task in registry with specified input task index.
+
+
+<pre><code>#[view]
+<b>fun</b> <a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id_and_type">has_sender_active_task_with_id_and_type</a>(sender: <b>address</b>, task_index: u64, type: u8): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id_and_type">has_sender_active_task_with_id_and_type</a>(sender: <b>address</b>, task_index: u64, type: u8): bool <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a> {
     <b>let</b> registry_state = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>&gt;(@supra_framework);
     <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&registry_state.main.tasks, task_index)) {
         <b>let</b> value = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_ref">enumerable_map::get_value_ref</a>(&registry_state.main.tasks, task_index);
-        value.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a> && value.owner == sender
+        value.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a> && value.owner == sender && <a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(value, type)
     } <b>else</b> {
         <b>false</b>
     }

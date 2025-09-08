@@ -827,10 +827,22 @@ module supra_framework::automation_registry {
     #[view]
     /// Checks whether there is an active task in registry with specified input task index.
     public fun has_sender_active_task_with_id(sender: address, task_index: u64): bool acquires AutomationRegistryV2 {
+        has_sender_active_task_with_id_and_type(sender, task_index, UST)
+    }
+
+    #[view]
+    /// Checks whether there is an active system task in registry with specified input task index.
+    public fun has_sender_active_system_task_with_id(sender: address, task_index: u64): bool acquires AutomationRegistryV2 {
+        has_sender_active_task_with_id_and_type(sender, task_index, GST)
+    }
+
+    #[view]
+    /// Checks whether there is an active system task in registry with specified input task index.
+    fun has_sender_active_task_with_id_and_type(sender: address, task_index: u64, type: u8): bool acquires AutomationRegistryV2 {
         let registry_state = borrow_global<AutomationRegistryV2>(@supra_framework);
         if (enumerable_map::contains(&registry_state.main.tasks, task_index)) {
             let value = enumerable_map::get_value_ref(&registry_state.main.tasks, task_index);
-            value.state != PENDING && value.owner == sender
+            value.state != PENDING && value.owner == sender && is_of_type(value, type)
         } else {
             false
         }
@@ -7374,7 +7386,7 @@ module supra_framework::automation_registry {
         check_account_balance(user_address, expected_current_balance - estimated_fee);
         check_account_balance(registry_fee_address, expected_registry_balance + estimated_fee);
         assert!(has_sender_active_task_with_id(user_address, 0), 9);
-        assert!(has_sender_active_task_with_id(multisig_address, 1), 10);
+        assert!(has_sender_active_system_task_with_id(multisig_address, 1), 10);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe)]
