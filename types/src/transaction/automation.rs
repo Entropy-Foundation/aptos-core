@@ -519,6 +519,31 @@ impl TryFrom<&[u8]> for AutomationTaskType {
     }
 }
 
+/// Type of the automation task.
+// The order of the entries is important, a new one should be appended at the end.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum AutomationTaskType {
+    // System authorized automation task
+    System = 0,
+    // User submitted automation task
+    User,
+}
+
+impl From<AutomationTaskType> for Vec<u8> {
+    fn from(value: AutomationTaskType) -> Self {
+        bcs::to_bytes(&value).unwrap()
+    }
+}
+
+impl TryFrom<&[u8]> for AutomationTaskType {
+    type Error = String;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        bcs::from_bytes::<Self>(value).map_err(|e| e.to_string())
+    }
+}
+
 /// Rust representation of the Automation task meta information in Move.
 #[derive(Clone, Debug, Serialize, Deserialize, Getters, Constructor)]
 pub struct AutomationTaskMetaData {
@@ -626,6 +651,14 @@ impl AutomationTaskMetaData {
                 }
             }
         })
+    }
+
+    pub fn get_task_type(&self) -> Result<AutomationTaskType, String> {
+        if self.aux_data.is_empty() {
+            // For the old tasks registered in scope of the automation v1 feature.
+            return Ok(AutomationTaskType::User)
+        }
+        AutomationTaskType::try_from(self.aux_data[0].as_slice())
     }
 }
 
@@ -842,6 +875,26 @@ impl AutomationRegistryRecordBuilder {
         }
     }
 
+    /// Consumes the builder and returns task indexes enclosed in the action if any specified
+    pub fn into_task_indexes(self) -> Vec<u64> {
+        let Some(action_data) = self.action else {
+            return vec![];
+        };
+        let AutomationRegistryAction::Process { task_indexes } = action_data;
+        task_indexes
+    }
+
+    /// Returns potential number of the tasks to be processed in scope of the record.
+    pub fn task_count(&self) -> usize {
+        let Some(action_data) = &self.action else {
+            return 0;
+        };
+        let AutomationRegistryAction::Process { task_indexes } = action_data;
+        task_indexes.len()
+    }
+
+    /// Constructs [`AutomationRegistryRecord`]
+    /// Fails if any of the properties is not specified
     pub fn build(self) -> Result<AutomationRegistryRecord, String> {
         let Some(action) = self.action else {
             return Err("AutomationRegistryRecord must have an action".to_string());

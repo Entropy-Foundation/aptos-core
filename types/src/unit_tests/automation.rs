@@ -669,17 +669,26 @@ fn automated_transaction_ordering() {
 #[test]
 fn check_automation_registry_record() {
     let r_builder = AutomationRegistryRecordBuilder::new(1);
+    assert_eq!(r_builder.task_range(), (u64::MAX, u64::MAX));
     assert!(r_builder.clone().build().is_err());
 
     let r_builder = r_builder.with_record_index(2);
+    assert_eq!(r_builder.task_range(), (u64::MAX, u64::MAX));
     assert!(r_builder.clone().build().is_err());
 
     let r_builder = r_builder.with_block_height(42);
+    assert_eq!(r_builder.task_range(), (u64::MAX, u64::MAX));
     assert!(r_builder.clone().build().is_err());
 
-    let action = AutomationRegistryAction::process(vec![12, 36, 45]);
+    let action_tasks = vec![12, 36, 45];
+    let action = AutomationRegistryAction::process(action_tasks.clone());
 
     let r_builder = r_builder.with_action(action);
+    assert_eq!(r_builder.task_count(), 3);
+    let task_indexes = r_builder.clone().into_task_indexes();
+    assert_eq!(task_indexes, action_tasks);
+    assert_eq!(r_builder.task_range(), (12, 45));
+
     let record = r_builder.clone().build().unwrap();
     assert_eq!(record.index(), 2);
     assert_eq!(record.cycle_id(), 1);
