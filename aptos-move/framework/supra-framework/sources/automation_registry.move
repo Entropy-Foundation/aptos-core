@@ -3001,7 +3001,6 @@ module supra_framework::automation_registry {
         });
     }
 
-
     fun upscale_from_u8(value: u8): u256 { (value as u256) * DECIMAL }
 
     fun upscale_from_u64(value: u64): u256 { (value as u256) * DECIMAL }

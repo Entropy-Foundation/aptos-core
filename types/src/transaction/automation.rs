@@ -586,6 +586,26 @@ impl AutomationRegistryRecordBuilder {
         }
     }
 
+    /// Consumes the builder and returns task indexes enclosed in the action if any specified
+    pub fn into_task_indexes(self) -> Vec<u64> {
+        let Some(action_data) = self.action else {
+            return vec![];
+        };
+        let AutomationRegistryAction::Process { task_indexes } = action_data;
+        task_indexes
+    }
+
+    /// Returns potential number of the tasks to be processed in scope of the record.
+    pub fn task_count(&self) -> usize {
+        let Some(action_data) = &self.action else {
+            return 0;
+        };
+        let AutomationRegistryAction::Process { task_indexes } = action_data;
+        task_indexes.len()
+    }
+
+    /// Constructs [`AutomationRegistryRecord`]
+    /// Fails if any of the properties is not specified
     pub fn build(self) -> Result<AutomationRegistryRecord, String> {
         let Some(action) = self.action else {
             return Err("AutomationRegistryRecord must have an action".to_string());
