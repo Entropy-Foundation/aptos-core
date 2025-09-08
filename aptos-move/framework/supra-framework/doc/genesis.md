@@ -720,7 +720,7 @@ Deprecated in favoor of initialize_supra_native_automation_v2.
 Genesis step 3: Initialize Supra Native Automation.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_native_automation_v2">initialize_supra_native_automation_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16, cycle_duration: u64)
+<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_supra_native_automation_v2">initialize_supra_native_automation_v2</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_duration_cap_in_secs: u64, registry_max_gas_cap: u64, automation_base_fee_in_quants_per_sec: u64, flat_registration_fee_in_quants: u64, congestion_threshold_percentage: u8, congestion_base_fee_in_quants_per_sec: u64, congestion_exponent: u8, task_capacity: u16, cycle_duration: u64, sys_task_duration_cap_in_secs: u64, sys_registry_max_gas_cap: u64, sys_task_capacity: u16)
 </code></pre>
 
 
@@ -739,7 +739,10 @@ Genesis step 3: Initialize Supra Native Automation.
     congestion_base_fee_in_quants_per_sec: u64,
     congestion_exponent: u8,
     task_capacity: u16,
-    cycle_duration: u64
+    cycle_duration: u64,
+    sys_task_duration_cap_in_secs: u64,
+    sys_registry_max_gas_cap: u64,
+    sys_task_capacity: u16,
 ) {
     <a href="automation_registry.md#0x1_automation_registry_initialize">automation_registry::initialize</a>(
         supra_framework,
@@ -752,6 +755,9 @@ Genesis step 3: Initialize Supra Native Automation.
         congestion_base_fee_in_quants_per_sec,
         congestion_exponent,
         task_capacity,
+        sys_task_duration_cap_in_secs,
+        sys_registry_max_gas_cap,
+        sys_task_capacity,
     )
 }
 </code></pre>
