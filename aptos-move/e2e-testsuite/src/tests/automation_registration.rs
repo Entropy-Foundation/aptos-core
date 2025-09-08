@@ -32,6 +32,7 @@ use std::{
     ops::{Deref, DerefMut},
     time::Instant,
 };
+use aptos_types::transaction::automation::AutomationTaskType;
 
 const TIMESTAMP_NOW_SECONDS: &str = "0x1::timestamp::now_seconds";
 const ACCOUNT_BALANCE: &str = "0x1::coin::balance";
@@ -347,7 +348,7 @@ fn check_successful_registration() {
             .into_entry_function();
 
     let automation_fee_cap = 100_000;
-    let aux_data = Vec::new();
+    let aux_data = vec![AutomationTaskType::User.into()];
     let expiration_time = test_context.chain_time_now() + 4000;
     let automation_txn = test_context.create_automation_txn(
         0,
@@ -407,7 +408,7 @@ fn check_invalid_automation_txn() {
             .into_inner();
     let inner_entry_function = EntryFunction::new(m_id, f_id, vec![], vec![]);
     let automation_fee_cap = 100_000;
-    let aux_data = Vec::new();
+    let aux_data = vec![AutomationTaskType::User.into()];
     let automation_txn = test_context.create_automation_txn(
         0,
         inner_entry_function,
@@ -435,7 +436,7 @@ fn check_invalid_gas_params_of_automation_task() {
         aptos_framework_sdk_builder::supra_coin_mint(dest_account.address().clone(), 100)
             .into_entry_function();
     let automation_fee_cap = 100_000;
-    let aux_data = Vec::new();
+    let aux_data = vec![AutomationTaskType::User.into()];
     let automation_txn = test_context.create_automation_txn(
         0,
         inner_entry_function.clone(),
@@ -526,7 +527,7 @@ fn check_task_retrieval_performance() {
         .into_entry_function();
 
         let automation_fee_cap = 1000;
-        let aux_data = Vec::new();
+        let aux_data = vec![AutomationTaskType::User.into()];
         let automation_txn = test_context.create_automation_txn(
             i,
             inner_entry_function.clone(),
@@ -579,7 +580,7 @@ fn check_automation_registry_actions_on_cycle_transition() {
             .into_entry_function();
 
     let automation_fee_cap = 100_000;
-    let aux_data = Vec::new();
+    let aux_data = vec![AutomationTaskType::User.into()];
     let expiration_time = test_context.chain_time_now() + 4000;
     let automation_txn = test_context.create_automation_txn(
         0,
@@ -693,7 +694,7 @@ fn check_automation_registry_actions_on_cycle_suspension() {
             .into_entry_function();
 
     let automation_fee_cap = 100_000;
-    let aux_data = Vec::new();
+    let aux_data = vec![AutomationTaskType::User.into()];
     let expiration_time = test_context.chain_time_now() + 4000;
     let automation_txn = test_context.create_automation_txn(
         0,

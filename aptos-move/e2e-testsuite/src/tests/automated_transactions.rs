@@ -12,6 +12,7 @@ use aptos_types::{
         ExecutionStatus, Transaction, TransactionStatus,
     },
 };
+use aptos_types::transaction::automation::AutomationTaskType;
 use move_core_types::vm_status::StatusCode;
 
 #[test]
@@ -105,7 +106,7 @@ fn check_automated_transaction_successful_execution() {
     let gas_price = 100;
     let max_gas_amount = 100;
     let automation_fee_cap = 100_000;
-    let aux_data = Vec::new();
+    let aux_data = vec![AutomationTaskType::User.into()];
 
     // Register automation task
     let inner_entry_function = payload.clone().into_entry_function();
