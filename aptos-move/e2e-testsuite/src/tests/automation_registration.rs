@@ -986,8 +986,7 @@ struct TransactionExecutionFailed {
 fn find_transaction_error(events: &[ContractEvent]) -> Vec<TransactionExecutionFailed> {
     events.iter().filter(|e| e.is_v2())
         .map(|e| bcs::from_bytes::<TransactionExecutionFailed>(e.event_data()))
-        .filter(|d| d.is_ok())
-        .map(|d| d.unwrap())
+        .filter_map(|d| d.ok())
         .collect()
 
 }
