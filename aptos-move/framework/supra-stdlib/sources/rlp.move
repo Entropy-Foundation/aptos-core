@@ -2,7 +2,8 @@ module supra_std::rlp {
 
     use std::bcs;
     use std::features;
-    use supra_std::vec_utils::unflatten_vec_to_nested_vec;
+    use aptos_std::any;
+    use aptos_std::type_info;
 
     /// SUPRA_RLP_ENCODE feature APIs are disabled.
     const ERLP_ENCODE_FEATURE_DISABLED: u64 = 1;
@@ -43,7 +44,8 @@ module supra_std::rlp {
     public fun decode_list_byte_array(encoded_rlp: vector<u8>): vector<vector<u8>> {
         assert!(features::supra_rlp_enabled(), ERLP_ENCODE_FEATURE_DISABLED);
         let ser_result = native_rlp_decode_list_byte_array(encoded_rlp);
-        unflatten_vec_to_nested_vec(ser_result)
+        let any_ser = any::new(type_info::type_name<vector<vector<u8>>>(), ser_result);
+        any::unpack<vector<vector<u8>>>(any_ser)
     }
 
     //

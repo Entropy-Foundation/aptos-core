@@ -750,20 +750,7 @@ module std::features {
     public fun supra_rlp_enabled(): bool acquires Features {
         is_enabled(SUPRA_RLP_ENCODE)
     }
-
-    /// Whether the APIs related to the vec_utils feature are enabled.
-    ///
-    /// Lifetime: transient
-    const SUPRA_VEC_UTILS: u64 = 95;
-
-    public fun get_supra_vec_utils_feature(): u64 {
-        SUPRA_VEC_UTILS
-    }
-
-    public fun supra_vec_utils_enabled(): bool acquires Features {
-        is_enabled(SUPRA_VEC_UTILS)
-    }
-
+    
     // ============================================================================================
     // Feature Flag Implementation
 

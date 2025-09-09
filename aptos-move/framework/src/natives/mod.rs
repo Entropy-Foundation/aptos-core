@@ -22,7 +22,6 @@ pub mod transaction_context;
 pub mod type_info;
 pub mod util;
 pub mod rlp;
-pub mod vec_utils;
 
 use crate::natives::cryptography::multi_ed25519;
 use aggregator_natives::{aggregator, aggregator_factory, aggregator_v2};
@@ -99,7 +98,6 @@ pub fn all_natives(
         dispatchable_fungible_asset::make_all(builder)
     );
     add_natives_from_module!("rlp", rlp::make_all(builder));
-    add_natives_from_module!("vec_utils", vec_utils::make_all(builder));
 
     make_table_from_iter(framework_addr, natives)
 }

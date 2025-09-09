@@ -5,14 +5,13 @@ use ark_std::iterable::Iterable;
 use keccak_hash::H256;
 use rlp::Rlp;
 use smallvec::{smallvec, SmallVec};
-use aptos_gas_schedule::gas_params::natives::aptos_framework::{RLP_ENCODE_DECODE_BASE, RLP_ENCODE_DECODE_PER_BYTE, VEC_UTILS_ENCODE_DECODE_BASE, VEC_UTILS_ENCODE_DECODE_PER_BYTE};
+use aptos_gas_schedule::gas_params::natives::aptos_framework::{RLP_ENCODE_DECODE_BASE, RLP_ENCODE_DECODE_PER_BYTE, UTIL_FROM_BYTES_BASE, UTIL_FROM_BYTES_PER_BYTE};
 use aptos_native_interface::{safely_pop_arg, RawSafeNative, SafeNativeBuilder, SafeNativeContext, SafeNativeError, SafeNativeResult};
 use move_core_types::account_address::AccountAddress;
 use move_core_types::gas_algebra::{NumBytes};
 use move_vm_runtime::native_functions::NativeFunction;
 use move_vm_types::loaded_data::runtime_types::Type;
 use move_vm_types::values::Value;
-use crate::natives::vec_utils::flatten_nested_vec_to_vec_inner;
 
 const E_DECODE_FAILURE: u64 = 0x1;
 const E_INVALID_TYPE_ARG: u64 = 0x2;
@@ -362,10 +361,11 @@ fn native_rlp_decode_list_byte_array(
         Ok(decoded) => {
             //serialize and return data
             context.charge(
-                VEC_UTILS_ENCODE_DECODE_BASE+
-                    VEC_UTILS_ENCODE_DECODE_PER_BYTE * NumBytes::new(encoded_data.len() as u64)
+                UTIL_FROM_BYTES_BASE+
+                    UTIL_FROM_BYTES_PER_BYTE * NumBytes::new(encoded_data.len() as u64)
             )?;
-            let serialized_data = flatten_nested_vec_to_vec_inner(decoded)?;
+            let serialized_data = bcs::to_bytes(&decoded)
+                .map_err(|_| SafeNativeError::Abort { abort_code: E_DECODE_FAILURE })?;
             Ok(smallvec![Value::vector_u8(serialized_data)])
         },
         Err(_) => Err(SafeNativeError::Abort { abort_code: E_DECODE_FAILURE }),

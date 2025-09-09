@@ -20,9 +20,11 @@
 -  [Function `native_rlp_decode_list_byte_array`](#0x1_rlp_native_rlp_decode_list_byte_array)
 
 
-<pre><code><b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs">0x1::bcs</a>;
+<pre><code><b>use</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">0x1::any</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs">0x1::bcs</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
-<b>use</b> <a href="vec_utils.md#0x1_vec_utils">0x1::vec_utils</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string">0x1::string</a>;
+<b>use</b> <a href="../../aptos-stdlib/doc/type_info.md#0x1_type_info">0x1::type_info</a>;
 </code></pre>
 
 
@@ -185,7 +187,8 @@ SUPRA_RLP_ENCODE feature APIs are disabled.
 <pre><code><b>public</b> <b>fun</b> <a href="rlp.md#0x1_rlp_decode_list_byte_array">decode_list_byte_array</a>(encoded_rlp: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt; {
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_rlp_enabled">features::supra_rlp_enabled</a>(), <a href="rlp.md#0x1_rlp_ERLP_ENCODE_FEATURE_DISABLED">ERLP_ENCODE_FEATURE_DISABLED</a>);
     <b>let</b> ser_result = <a href="rlp.md#0x1_rlp_native_rlp_decode_list_byte_array">native_rlp_decode_list_byte_array</a>(encoded_rlp);
-    unflatten_vec_to_nested_vec(ser_result)
+    <b>let</b> any_ser = <a href="../../aptos-stdlib/doc/any.md#0x1_any_new">any::new</a>(<a href="../../aptos-stdlib/doc/type_info.md#0x1_type_info_type_name">type_info::type_name</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;&gt;(), ser_result);
+    <a href="../../aptos-stdlib/doc/any.md#0x1_any_unpack">any::unpack</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;&gt;(any_ser)
 }
 </code></pre>
 

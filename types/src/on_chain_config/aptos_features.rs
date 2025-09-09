@@ -95,7 +95,6 @@ pub enum FeatureFlag {
     SUPRA_AUTOMATION_TASK_SYNC = 92,
     SUPRA_COUNT_FAILED_PROPOSALS = 93,
     SUPRA_RLP_ENCODE = 94,
-    SUPRA_VEC_UTILS = 95,
 }
 
 impl FeatureFlag {
