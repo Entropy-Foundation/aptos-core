@@ -127,7 +127,8 @@ pub enum FeatureFlag {
     PrivatePoll,
     SupraAutomationTaskSync,
     SupraCountFailedProposals,
-    SupraRLPEncode
+    SupraRLPEncode,
+    SupraVecUtils
 }
 
 fn generate_features_blob(writer: &CodeWriter, data: &[u64]) {
@@ -334,6 +335,7 @@ impl From<FeatureFlag> for AptosFeatureFlag {
                 AptosFeatureFlag::SUPRA_COUNT_FAILED_PROPOSALS
             },
             FeatureFlag::SupraRLPEncode => AptosFeatureFlag::SUPRA_RLP_ENCODE,
+            FeatureFlag::SupraVecUtils => AptosFeatureFlag::SUPRA_VEC_UTILS,
         }
     }
 }
@@ -469,6 +471,7 @@ impl From<AptosFeatureFlag> for FeatureFlag {
                 FeatureFlag::SupraCountFailedProposals
             },
             AptosFeatureFlag::SUPRA_RLP_ENCODE => FeatureFlag::SupraRLPEncode,
+            AptosFeatureFlag::SUPRA_VEC_UTILS => FeatureFlag::SupraVecUtils,
         }
     }
 }

@@ -2,7 +2,7 @@ module supra_std::rlp {
 
     use std::bcs;
     use std::features;
-    use std::vector;
+    use supra_std::vec_utils::unflatten_vec_to_nested_vec;
 
     /// SUPRA_RLP_ENCODE feature APIs are disabled.
     const ERLP_ENCODE_FEATURE_DISABLED: u64 = 1;
@@ -40,45 +40,10 @@ module supra_std::rlp {
         native_rlp_encode_list_byte_array(bcs::to_bytes(&data))
     }
 
-    /// Helper function for deserializing output of native_rlp_decode_list_byte_array
-    /// Deserializes a vector<u8> into a vector<vector<u8>>.
-    /// Format: [len1 (u32), data1, len2 (u32), data2, ...]
-    fun deserialize_vec_vec_u8(serialized: vector<u8>): vector<vector<u8>> {
-        let result = vector::empty<vector<u8>>();
-        let i:u64 = 0;
-        let len = vector::length(&serialized);
-
-        while (i < len) {
-            // Read the next 4 bytes as the length of the inner vector
-            let len_inner = read_u32(&serialized, i);
-            i = i + 4;
-
-            // Extract the next len_inner bytes as the inner vector
-            let inner_vec = vector::empty<u8>();
-            let j = 0;
-            while (j < len_inner) {
-                vector::push_back(&mut inner_vec, *vector::borrow(&serialized, i + (j as u64)));
-                j = j + 1;
-            };
-            vector::push_back(&mut result, inner_vec);
-            i = i + (len_inner as u64);
-        };
-        result
-    }
-
-    /// Reads a u32 from a vector<u8> at position i in little-endian order.
-    fun read_u32(data: &vector<u8>, i: u64): u32 {
-        let b0 = (*vector::borrow(data, i) as u32);
-        let b1 = (*vector::borrow(data, i + 1) as u32);
-        let b2 = (*vector::borrow(data, i + 2) as u32);
-        let b3 = (*vector::borrow(data, i + 3) as u32);
-        b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)
-    }
-
     public fun decode_list_byte_array(encoded_rlp: vector<u8>): vector<vector<u8>> {
         assert!(features::supra_rlp_enabled(), ERLP_ENCODE_FEATURE_DISABLED);
         let ser_result = native_rlp_decode_list_byte_array(encoded_rlp);
-        deserialize_vec_vec_u8(ser_result)
+        unflatten_vec_to_nested_vec(ser_result)
     }
 
     //

@@ -2,17 +2,17 @@
 
 use std::collections::VecDeque;
 use ark_std::iterable::Iterable;
-use byteorder::{LittleEndian, WriteBytesExt};
 use keccak_hash::H256;
 use rlp::Rlp;
 use smallvec::{smallvec, SmallVec};
-use aptos_gas_schedule::gas_params::natives::aptos_framework::{RLP_ENCODE_DECODE_BASE, RLP_ENCODE_DECODE_PER_BYTE};
+use aptos_gas_schedule::gas_params::natives::aptos_framework::{RLP_ENCODE_DECODE_BASE, RLP_ENCODE_DECODE_PER_BYTE, VEC_UTILS_ENCODE_DECODE_BASE, VEC_UTILS_ENCODE_DECODE_PER_BYTE};
 use aptos_native_interface::{safely_pop_arg, RawSafeNative, SafeNativeBuilder, SafeNativeContext, SafeNativeError, SafeNativeResult};
 use move_core_types::account_address::AccountAddress;
 use move_core_types::gas_algebra::{NumBytes};
 use move_vm_runtime::native_functions::NativeFunction;
 use move_vm_types::loaded_data::runtime_types::Type;
 use move_vm_types::values::Value;
+use crate::natives::vec_utils::flatten_nested_vec_to_vec_inner;
 
 const E_DECODE_FAILURE: u64 = 0x1;
 const E_INVALID_TYPE_ARG: u64 = 0x2;
@@ -327,23 +327,6 @@ fn native_rlp_decode_list_scalar(
     }
 }
 
-/// Helper function to serialize a Vec<Vec<u8>> into a flat Vec<u8>.
-fn serialize_vec_vec_u8(data: Vec<Vec<u8>>) -> Result<Vec<u8>, SafeNativeError> {
-    let mut serialized = Vec::new();
-    for inner_vec in data {
-        let len = inner_vec.len() as u32;
-        // Write length as 4-byte u32 in little-endian
-        serialized
-            .write_u32::<LittleEndian>(len)
-            .map_err(|_| SafeNativeError::Abort {
-                abort_code: E_DECODE_FAILURE,
-            })?;
-        // Append the inner vector's data
-        serialized.extend_from_slice(&inner_vec);
-    }
-    Ok(serialized)
-}
-
 fn native_rlp_encode_list_byte_array(
     context: &mut SafeNativeContext,
     _ty_args: Vec<Type>,
@@ -378,7 +361,11 @@ fn native_rlp_decode_list_byte_array(
     match rlp.as_list::<Vec<u8>>() {
         Ok(decoded) => {
             //serialize and return data
-            let serialized_data = serialize_vec_vec_u8(decoded)?;
+            context.charge(
+                VEC_UTILS_ENCODE_DECODE_BASE+
+                    VEC_UTILS_ENCODE_DECODE_PER_BYTE * NumBytes::new(encoded_data.len() as u64)
+            )?;
+            let serialized_data = flatten_nested_vec_to_vec_inner(decoded)?;
             Ok(smallvec![Value::vector_u8(serialized_data)])
         },
         Err(_) => Err(SafeNativeError::Abort { abort_code: E_DECODE_FAILURE }),

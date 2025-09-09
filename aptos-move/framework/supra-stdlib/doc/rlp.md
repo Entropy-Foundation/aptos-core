@@ -11,8 +11,6 @@
 -  [Function `encode_list_scalar`](#0x1_rlp_encode_list_scalar)
 -  [Function `decode_list_scalar`](#0x1_rlp_decode_list_scalar)
 -  [Function `encode_list_byte_array`](#0x1_rlp_encode_list_byte_array)
--  [Function `deserialize_vec_vec_u8`](#0x1_rlp_deserialize_vec_vec_u8)
--  [Function `read_u32`](#0x1_rlp_read_u32)
 -  [Function `decode_list_byte_array`](#0x1_rlp_decode_list_byte_array)
 -  [Function `native_rlp_encode`](#0x1_rlp_native_rlp_encode)
 -  [Function `native_rlp_decode`](#0x1_rlp_native_rlp_decode)
@@ -24,6 +22,7 @@
 
 <pre><code><b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs">0x1::bcs</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
+<b>use</b> <a href="vec_utils.md#0x1_vec_utils">0x1::vec_utils</a>;
 </code></pre>
 
 
@@ -168,81 +167,6 @@ SUPRA_RLP_ENCODE feature APIs are disabled.
 
 </details>
 
-<a id="0x1_rlp_deserialize_vec_vec_u8"></a>
-
-## Function `deserialize_vec_vec_u8`
-
-Helper function for deserializing output of native_rlp_decode_list_byte_array
-Deserializes a vector<u8> into a vector<vector<u8>>.
-Format: [len1 (u32), data1, len2 (u32), data2, ...]
-
-
-<pre><code><b>fun</b> <a href="rlp.md#0x1_rlp_deserialize_vec_vec_u8">deserialize_vec_vec_u8</a>(serialized: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="rlp.md#0x1_rlp_deserialize_vec_vec_u8">deserialize_vec_vec_u8</a>(serialized: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt; {
-    <b>let</b> result = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;();
-    <b>let</b> i:u64 = 0;
-    <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&serialized);
-
-    <b>while</b> (i &lt; len) {
-        // Read the next 4 bytes <b>as</b> the length of the inner <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>
-        <b>let</b> len_inner = <a href="rlp.md#0x1_rlp_read_u32">read_u32</a>(&serialized, i);
-        i = i + 4;
-
-        // Extract the next len_inner bytes <b>as</b> the inner <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>
-        <b>let</b> inner_vec = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>&lt;u8&gt;();
-        <b>let</b> j = 0;
-        <b>while</b> (j &lt; len_inner) {
-            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> inner_vec, *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&serialized, i + (j <b>as</b> u64)));
-            j = j + 1;
-        };
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> result, inner_vec);
-        i = i + (len_inner <b>as</b> u64);
-    };
-    result
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_rlp_read_u32"></a>
-
-## Function `read_u32`
-
-Reads a u32 from a vector<u8> at position i in little-endian order.
-
-
-<pre><code><b>fun</b> <a href="rlp.md#0x1_rlp_read_u32">read_u32</a>(data: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, i: u64): u32
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="rlp.md#0x1_rlp_read_u32">read_u32</a>(data: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, i: u64): u32 {
-    <b>let</b> b0 = (*<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(data, i) <b>as</b> u32);
-    <b>let</b> b1 = (*<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(data, i + 1) <b>as</b> u32);
-    <b>let</b> b2 = (*<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(data, i + 2) <b>as</b> u32);
-    <b>let</b> b3 = (*<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(data, i + 3) <b>as</b> u32);
-    b0 | (b1 &lt;&lt; 8) | (b2 &lt;&lt; 16) | (b3 &lt;&lt; 24)
-}
-</code></pre>
-
-
-
-</details>
-
 <a id="0x1_rlp_decode_list_byte_array"></a>
 
 ## Function `decode_list_byte_array`
@@ -261,7 +185,7 @@ Reads a u32 from a vector<u8> at position i in little-endian order.
 <pre><code><b>public</b> <b>fun</b> <a href="rlp.md#0x1_rlp_decode_list_byte_array">decode_list_byte_array</a>(encoded_rlp: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt; {
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_rlp_enabled">features::supra_rlp_enabled</a>(), <a href="rlp.md#0x1_rlp_ERLP_ENCODE_FEATURE_DISABLED">ERLP_ENCODE_FEATURE_DISABLED</a>);
     <b>let</b> ser_result = <a href="rlp.md#0x1_rlp_native_rlp_decode_list_byte_array">native_rlp_decode_list_byte_array</a>(encoded_rlp);
-    <a href="rlp.md#0x1_rlp_deserialize_vec_vec_u8">deserialize_vec_vec_u8</a>(ser_result)
+    unflatten_vec_to_nested_vec(ser_result)
 }
 </code></pre>
 
