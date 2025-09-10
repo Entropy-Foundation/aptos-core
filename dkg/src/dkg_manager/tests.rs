@@ -15,8 +15,8 @@ use aptos_crypto::{
 use aptos_infallible::RwLock;
 use aptos_types::{
     dkg::{
-        dummy_dkg::DummyDKG, DKGSessionMetadata, DKGStartEvent, DKGTrait, DKGTranscript,
-        DKGTranscriptMetadata,
+        dummy_dkg::DummyDKG, DKGSessionMetadata, DKGStartEvent, DKGTrait, DKGTransactionData,
+        DKGTransactionMetadata,
     },
     epoch_state::EpochState,
     on_chain_config::OnChainRandomnessConfig,
@@ -95,7 +95,7 @@ async fn test_dkg_state_transition() {
     let handle_result = dkg_manager.process_dkg_start_event(event.clone()).await;
     assert!(handle_result.is_ok());
     assert!(
-        matches!(&dkg_manager.state, InnerState::InProgress { start_time, my_transcript, .. } if *start_time == start_time_1 && my_transcript.metadata == DKGTranscriptMetadata{ epoch: 999, author: addrs[0]})
+        matches!(&dkg_manager.state, InnerState::InProgress { start_time, my_transcript, .. } if *start_time == start_time_1 && my_transcript.metadata == DKGTransactionMetadata{ epoch: 999, author: addrs[0]})
     );
 
     // 2nd `DKGStartEvent` should be rejected.
@@ -133,12 +133,12 @@ async fn test_dkg_state_transition() {
         TransactionFilter::no_op(),
     );
     assert_eq!(
-        vec![ValidatorTransaction::DKGResult(DKGTranscript {
-            metadata: DKGTranscriptMetadata {
+        vec![ValidatorTransaction::DKG(DKGTransactionData {
+            metadata: DKGTransactionMetadata {
                 epoch: 999,
                 author: addrs[0],
             },
-            transcript_bytes: bcs::to_bytes(&agg_trx).unwrap(),
+            data_bytes: bcs::to_bytes(&agg_trx).unwrap(),
         })],
         available_vtxns
     );

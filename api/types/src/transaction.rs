@@ -22,7 +22,7 @@ use aptos_types::{
     block_metadata::BlockMetadata,
     block_metadata_ext::BlockMetadataExt,
     contract_event::{ContractEvent, EventWithVersion},
-    dkg::{DKGTranscript, DKGTranscriptMetadata},
+    dkg::{DKGTransactionData, DKGTransactionMetadata},
     jwks::{jwk::JWK, ProviderJWKs, QuorumCertifiedUpdate},
     keyless,
     transaction::{
@@ -741,7 +741,7 @@ impl
         ),
     ) -> Self {
         match txn {
-            aptos_types::validator_txn::ValidatorTransaction::DKGResult(dkg_transcript) => {
+            aptos_types::validator_txn::ValidatorTransaction::DKG(dkg_transcript) => {
                 Self::DkgResult(DKGResultTransaction {
                     info,
                     events,
@@ -849,22 +849,24 @@ pub struct ExportedDKGTranscript {
     pub author: Address,
     pub bls_aggregate_signature: Vec<u8>,
     pub signer_indices_clan_committee: Vec<u32>,
+    pub transaction_type: u8,
     pub payload: HexEncodedBytes,
 }
 
-impl From<DKGTranscript> for ExportedDKGTranscript {
-    fn from(value: DKGTranscript) -> Self {
-        let DKGTranscript {
+impl From<DKGTransactionData> for ExportedDKGTranscript {
+    fn from(value: DKGTransactionData) -> Self {
+        let DKGTransactionData {
             metadata,
-            transcript_bytes,
+            data_bytes: transcript_bytes,
         } = value;
-        let DKGTranscriptMetadata { epoch, author,  bls_aggregate_signature, signer_indices_clan_committee} = metadata;
+        let DKGTransactionMetadata { epoch, author,  bls_aggregate_signature, signer_indices_clan_committee, transaction_type} = metadata;
         Self {
             epoch: epoch.into(),
             author: author.into(),
             bls_aggregate_signature: bls_aggregate_signature.into(),
             signer_indices_clan_committee: signer_indices_clan_committee.into(),
             payload: HexEncodedBytes::from(transcript_bytes),
+            transaction_type: transaction_type as u8,
         }
     }
 }

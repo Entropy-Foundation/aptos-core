@@ -13,6 +13,7 @@ DKG on-chain states and helper functions.
 -  [Constants](#@Constants_0)
 -  [Function `initialize`](#0x1_dkg_initialize)
 -  [Function `start`](#0x1_dkg_start)
+-  [Function `set_dkg_meta`](#0x1_dkg_set_dkg_meta)
 -  [Function `finish`](#0x1_dkg_finish)
 -  [Function `try_clear_incomplete_session`](#0x1_dkg_try_clear_incomplete_session)
 -  [Function `incomplete_session`](#0x1_dkg_incomplete_session)
@@ -21,6 +22,7 @@ DKG on-chain states and helper functions.
 -  [Specification](#@Specification_1)
     -  [Function `initialize`](#@Specification_1_initialize)
     -  [Function `start`](#@Specification_1_start)
+    -  [Function `set_dkg_meta`](#@Specification_1_set_dkg_meta)
     -  [Function `finish`](#@Specification_1_finish)
     -  [Function `try_clear_incomplete_session`](#@Specification_1_try_clear_incomplete_session)
     -  [Function `incomplete_session`](#@Specification_1_incomplete_session)
@@ -152,6 +154,12 @@ The validator set of epoch <code>x</code> works together for an DKG output for t
 <dd>
 
 </dd>
+<dt>
+<code>target_committees_public_key_shares: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>
+</dt>
+<dd>
+
+</dd>
 </dl>
 
 
@@ -196,29 +204,11 @@ The completed and in-progress DKG sessions.
 ## Constants
 
 
-<a id="0x1_dkg_EDKG_INVALID_SIGNER_VERIFICATION_KEY"></a>
+<a id="0x1_dkg_EDKG_INVALID_PK_SHARES"></a>
 
 
 
-<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_INVALID_SIGNER_VERIFICATION_KEY">EDKG_INVALID_SIGNER_VERIFICATION_KEY</a>: u64 = 7;
-</code></pre>
-
-
-
-<a id="0x1_dkg_EDKG_INVALID_TRIBE_SIZE"></a>
-
-
-
-<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_INVALID_TRIBE_SIZE">EDKG_INVALID_TRIBE_SIZE</a>: u64 = 4;
-</code></pre>
-
-
-
-<a id="0x1_dkg_EDKG_IN_PROGRESS"></a>
-
-
-
-<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_IN_PROGRESS">EDKG_IN_PROGRESS</a>: u64 = 1;
+<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_INVALID_PK_SHARES">EDKG_INVALID_PK_SHARES</a>: u64 = 4;
 </code></pre>
 
 
@@ -227,25 +217,16 @@ The completed and in-progress DKG sessions.
 
 
 
-<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_META_ALREADY_SET">EDKG_META_ALREADY_SET</a>: u64 = 3;
+<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_META_ALREADY_SET">EDKG_META_ALREADY_SET</a>: u64 = 2;
 </code></pre>
 
 
 
-<a id="0x1_dkg_EDKG_META_SIGNATURE_VERIFICATION_FAILED"></a>
+<a id="0x1_dkg_EDKG_META_NOT_SET"></a>
 
 
 
-<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_META_SIGNATURE_VERIFICATION_FAILED">EDKG_META_SIGNATURE_VERIFICATION_FAILED</a>: u64 = 8;
-</code></pre>
-
-
-
-<a id="0x1_dkg_EDKG_NOT_FAMILY_NODE"></a>
-
-
-
-<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_NOT_FAMILY_NODE">EDKG_NOT_FAMILY_NODE</a>: u64 = 5;
+<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_META_NOT_SET">EDKG_META_NOT_SET</a>: u64 = 3;
 </code></pre>
 
 
@@ -254,16 +235,7 @@ The completed and in-progress DKG sessions.
 
 
 
-<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_NOT_IN_PROGRESS">EDKG_NOT_IN_PROGRESS</a>: u64 = 2;
-</code></pre>
-
-
-
-<a id="0x1_dkg_EDKG_NOT_THRESHOLD_SIGNERS"></a>
-
-
-
-<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_NOT_THRESHOLD_SIGNERS">EDKG_NOT_THRESHOLD_SIGNERS</a>: u64 = 6;
+<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_NOT_IN_PROGRESS">EDKG_NOT_IN_PROGRESS</a>: u64 = 1;
 </code></pre>
 
 
@@ -336,7 +308,8 @@ Abort if a DKG is already in progress.
     dkg_state.in_progress = std::option::some(<a href="dkg.md#0x1_dkg_DKGSessionState">DKGSessionState</a> {
         metadata: new_session_metadata,
         start_time_us,
-        dkg_meta_transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]
+        dkg_meta_transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[],
+        target_committees_public_key_shares: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[],
     });
 
     emit(<a href="dkg.md#0x1_dkg_DKGStartEvent">DKGStartEvent</a> {
@@ -350,17 +323,15 @@ Abort if a DKG is already in progress.
 
 </details>
 
-<a id="0x1_dkg_finish"></a>
+<a id="0x1_dkg_set_dkg_meta"></a>
 
-## Function `finish`
+## Function `set_dkg_meta`
 
-Family Node sets the DKGMeta for the in-progress DKG session and
-marks the incomplete DKG session completed.
-
-Abort if DKG is not in progress.
+Family Node sets the DKGMeta for the in-progress DKG session
+The dkg transcript is assumed to have been already verified by the aptos VM in <code>process_dkg_result</code> method
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>(dkg_meta_all_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_set_dkg_meta">set_dkg_meta</a>(dkg_meta_all_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
 </code></pre>
 
 
@@ -369,7 +340,7 @@ Abort if DKG is not in progress.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>(dkg_meta_all_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_set_dkg_meta">set_dkg_meta</a>(dkg_meta_all_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
 <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
     // ensure <a href="dkg.md#0x1_dkg">dkg</a> is in progress
     <b>let</b> dkg_state = <b>borrow_global_mut</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
@@ -378,8 +349,44 @@ Abort if DKG is not in progress.
     // we only add the first DKG Meta proposed and ignore the rest
     <b>let</b> session = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> dkg_state.in_progress);
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&session.dkg_meta_transcript) == 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_already_exists">error::already_exists</a>(<a href="dkg.md#0x1_dkg_EDKG_META_ALREADY_SET">EDKG_META_ALREADY_SET</a>));
-
     session.dkg_meta_transcript = dkg_meta_all_committees;
+    dkg_state.in_progress = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(session);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_finish"></a>
+
+## Function `finish`
+
+Family Node sets the <code>target_committees_public_key_shares</code> for the in-progress DKG session and
+marks the incomplete DKG session completed.
+The <code>target_committees_public_key_shares</code> is assumed to be verified by the aptos VM before calling this function
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>(target_committees_public_key_shares: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>(target_committees_public_key_shares: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
+    // ensure <a href="dkg.md#0x1_dkg">dkg</a> is in progress
+    <b>let</b> dkg_state = <b>borrow_global_mut</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&dkg_state.in_progress), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="dkg.md#0x1_dkg_EDKG_NOT_IN_PROGRESS">EDKG_NOT_IN_PROGRESS</a>));
+
+    // DKG meta should be already set before `finish` is called
+    <b>let</b> session = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> dkg_state.in_progress);
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&session.dkg_meta_transcript) &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_already_exists">error::already_exists</a>(<a href="dkg.md#0x1_dkg_EDKG_META_NOT_SET">EDKG_META_NOT_SET</a>));
+
+    session.target_committees_public_key_shares = target_committees_public_key_shares;
     dkg_state.last_completed = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(session);
     dkg_state.in_progress = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>();
 }
@@ -546,12 +553,30 @@ Return the dealer epoch of a <code><a href="dkg.md#0x1_dkg_DKGSessionState">DKGS
 
 
 
+<a id="@Specification_1_set_dkg_meta"></a>
+
+### Function `set_dkg_meta`
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_set_dkg_meta">set_dkg_meta</a>(dkg_meta_all_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+</code></pre>
+
+
+
+
+<pre><code><b>requires</b> <b>exists</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
+<b>requires</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(<b>global</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework).in_progress);
+<b>aborts_if</b> <b>false</b>;
+</code></pre>
+
+
+
 <a id="@Specification_1_finish"></a>
 
 ### Function `finish`
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>(dkg_meta_all_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>public</b> <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>(target_committees_public_key_shares: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
 </code></pre>
 
 

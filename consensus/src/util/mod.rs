@@ -18,7 +18,7 @@ pub fn is_vtxn_expected(
     vtxn: &ValidatorTransaction,
 ) -> bool {
     match vtxn {
-        ValidatorTransaction::DKGResult(_) => randomness_config.randomness_enabled(),
+        ValidatorTransaction::DKG(_) => randomness_config.randomness_enabled(),
         ValidatorTransaction::ObservedJWKUpdate(_) => jwk_consensus_config.jwk_consensus_enabled(),
     }
 }

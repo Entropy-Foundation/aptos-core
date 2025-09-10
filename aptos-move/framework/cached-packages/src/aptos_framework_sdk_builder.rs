@@ -279,14 +279,6 @@ pub enum EntryFunctionCall {
         rpc_port: Vec<u16>,
     },
 
-    /// Family Node sets the DKGMeta for the in-progress DKG session and
-    /// marks the incomplete DKG session completed.
-    ///
-    /// Abort if DKG is not in progress.
-    DkgFinish {
-        dkg_meta_all_committees: Vec<u8>,
-    },
-
     /// Withdraw an `amount` of coin `CoinType` from `account` and burn it.
     ManagedCoinBurn {
         coin_type: TypeTag,
@@ -1401,9 +1393,6 @@ impl EntryFunctionCall {
                 network_port,
                 rpc_port,
             ),
-            DkgFinish {
-                dkg_meta_all_committees,
-            } => dkg_finish(dkg_meta_all_committees),
             ManagedCoinBurn { coin_type, amount } => managed_coin_burn(coin_type, amount),
             ManagedCoinInitialize {
                 coin_type,
@@ -2681,25 +2670,6 @@ pub fn committee_map_upsert_committee_member_bulk(
             bcs::to_bytes(&network_port).unwrap(),
             bcs::to_bytes(&rpc_port).unwrap(),
         ],
-    ))
-}
-
-/// Family Node sets the DKGMeta for the in-progress DKG session and
-/// marks the incomplete DKG session completed.
-///
-/// Abort if DKG is not in progress.
-pub fn dkg_finish(dkg_meta_all_committees: Vec<u8>) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("dkg").to_owned(),
-        ),
-        ident_str!("finish").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&dkg_meta_all_committees).unwrap()],
     ))
 }
 
@@ -5914,16 +5884,6 @@ mod decoder {
         }
     }
 
-    pub fn dkg_finish(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::DkgFinish {
-                dkg_meta_all_committees: bcs::from_bytes(script.args().get(0)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
     pub fn managed_coin_burn(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(script) = payload {
             Some(EntryFunctionCall::ManagedCoinBurn {
@@ -7730,7 +7690,6 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
             "committee_map_upsert_committee_member_bulk".to_string(),
             Box::new(decoder::committee_map_upsert_committee_member_bulk),
         );
-        map.insert("dkg_finish".to_string(), Box::new(decoder::dkg_finish));
         map.insert(
             "managed_coin_burn".to_string(),
             Box::new(decoder::managed_coin_burn),

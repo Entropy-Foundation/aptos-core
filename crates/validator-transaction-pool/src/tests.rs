@@ -5,7 +5,7 @@ use crate::{TransactionFilter, VTxnPoolState};
 use aptos_channels::{aptos_channel, message_queues::QueueStyle};
 use aptos_crypto::hash::CryptoHash;
 use aptos_types::{
-    dkg::DKGTranscript,
+    dkg::DKGTransactionData,
     jwks::{dummy_issuer, QuorumCertifiedUpdate},
     validator_txn::{Topic, ValidatorTransaction},
 };
@@ -21,9 +21,9 @@ use tokio::time::timeout;
 #[test]
 fn txn_pull_order_should_be_fifo_except_in_topic_overwriting() {
     let pool = VTxnPoolState::default();
-    let txn_0 = ValidatorTransaction::DKGResult(DKGTranscript::dummy());
+    let txn_0 = ValidatorTransaction::DKG(DKGTransactionData::dummy());
     let txn_1 = ValidatorTransaction::ObservedJWKUpdate(QuorumCertifiedUpdate::dummy());
-    let txn_2 = ValidatorTransaction::DKGResult(DKGTranscript::dummy());
+    let txn_2 = ValidatorTransaction::DKG(DKGTransactionData::dummy());
     let _guard_0 = pool.put(
         Topic::JWK_CONSENSUS(dummy_issuer()),
         Arc::new(txn_0.clone()),
@@ -48,7 +48,7 @@ fn txn_pull_order_should_be_fifo_except_in_topic_overwriting() {
 fn delete_by_seq_num() {
     let pool = VTxnPoolState::default();
     let txn_0 = ValidatorTransaction::ObservedJWKUpdate(QuorumCertifiedUpdate::dummy());
-    let txn_1 = ValidatorTransaction::DKGResult(DKGTranscript::dummy());
+    let txn_1 = ValidatorTransaction::DKG(DKGTransactionData::dummy());
     let guard_0 = pool.put(
         Topic::JWK_CONSENSUS(dummy_issuer()),
         Arc::new(txn_0.clone()),
@@ -69,7 +69,7 @@ fn delete_by_seq_num() {
 fn txn_should_be_dropped_if_guard_is_dropped() {
     let pool = VTxnPoolState::default();
     let txn_0 = ValidatorTransaction::ObservedJWKUpdate(QuorumCertifiedUpdate::dummy());
-    let txn_1 = ValidatorTransaction::DKGResult(DKGTranscript::dummy());
+    let txn_1 = ValidatorTransaction::DKG(DKGTransactionData::dummy());
     let guard_0 = pool.put(
         Topic::JWK_CONSENSUS(dummy_issuer()),
         Arc::new(txn_0.clone()),
@@ -91,7 +91,7 @@ fn txn_should_be_dropped_if_guard_is_dropped() {
 async fn per_txn_pull_notification() {
     let pool = VTxnPoolState::default();
     let txn_0 = ValidatorTransaction::ObservedJWKUpdate(QuorumCertifiedUpdate::dummy());
-    let txn_1 = ValidatorTransaction::DKGResult(DKGTranscript::dummy());
+    let txn_1 = ValidatorTransaction::DKG(DKGTransactionData::dummy());
     let (tx, mut rx) = aptos_channel::new(QueueStyle::KLAST, 1, None);
     let _guard_0 = pool.put(
         Topic::JWK_CONSENSUS(dummy_issuer()),
@@ -116,7 +116,7 @@ async fn per_txn_pull_notification() {
 fn pull_item_limit_should_be_respected() {
     let pool = VTxnPoolState::default();
     let txn_0 = ValidatorTransaction::ObservedJWKUpdate(QuorumCertifiedUpdate::dummy());
-    let txn_1 = ValidatorTransaction::DKGResult(DKGTranscript::dummy());
+    let txn_1 = ValidatorTransaction::DKG(DKGTransactionData::dummy());
     let guard_0 = pool.put(
         Topic::JWK_CONSENSUS(dummy_issuer()),
         Arc::new(txn_0.clone()),
