@@ -561,6 +561,38 @@ impl AutomationTaskMetaData {
     const TASK_PRIORITY_AUX_INDEX: usize = 1;
 
     #[allow(clippy::too_many_arguments)]
+    pub fn create(
+        id: u64,
+        owner: AccountAddress,
+        payload_tx: Vec<u8>,
+        expiry_time: u64,
+        tx_hash: Vec<u8>,
+        max_gas_amount: u64,
+        gas_price_cap: u64,
+        automation_fee_cap_for_epoch: u64,
+        aux_data: Vec<Vec<u8>>,
+        registration_time: u64,
+        is_active: bool,
+    ) -> Self {
+        Self {
+            id,
+            owner,
+            payload_tx,
+            expiry_time,
+            tx_hash,
+            max_gas_amount,
+            gas_price_cap,
+            automation_fee_cap_for_epoch,
+            aux_data,
+            registration_time,
+            is_active,
+            locked_fee_for_next_epoch: 0,
+            task_type: Default::default(),
+            priority: Default::default(),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub fn new_with_locked_fee(
         id: u64,
         owner: AccountAddress,
