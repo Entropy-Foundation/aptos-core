@@ -47,12 +47,14 @@ module supra_framework::reconfiguration_with_dkg {
         );
     }
 
+    fun set_dkg_meta(dkg_meta: vector<u8>) {
+        dkg::set_dkg_meta(dkg_meta);
+    }
+
     /// Clear incomplete DKG session, if it exists.
     /// Apply buffered on-chain configs (except for ValidatorSet, which is done inside `reconfiguration::reconfigure()`).
     /// Re-enable validator set changes.
     /// Run the default reconfiguration to enter the new epoch.
-    // todo: how to call this when dkg is finished?
-    // todo: may be call it in the dkg finish function?
     public(friend) fun finish(framework: &signer) {
         system_addresses::assert_supra_framework(framework);
         dkg::try_clear_incomplete_session(framework);

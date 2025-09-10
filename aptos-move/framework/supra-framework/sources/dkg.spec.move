@@ -21,7 +21,14 @@ spec supra_framework::dkg {
         aborts_if !exists<timestamp::CurrentTimeMicroseconds>(@supra_framework);
     }
 
-    spec finish(dkg_meta_all_committees: vector<u8>) {
+    spec set_dkg_meta(dkg_meta_all_committees: vector<u8>) {
+        use std::option;
+        requires exists<DKGState>(@supra_framework);
+        requires option::is_some(global<DKGState>(@supra_framework).in_progress);
+        aborts_if false;
+    }
+
+    spec finish(target_committees_public_key_shares: vector<u8>) {
         use std::option;
         requires exists<DKGState>(@supra_framework);
         requires option::is_some(global<DKGState>(@supra_framework).in_progress);

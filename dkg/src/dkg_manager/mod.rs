@@ -14,8 +14,8 @@ use aptos_infallible::duration_since_epoch;
 use aptos_logger::{debug, error, info, warn};
 use aptos_types::{
     dkg::{
-        DKGSessionMetadata, DKGSessionState, DKGStartEvent, DKGTrait, DKGTranscript,
-        DKGTranscriptMetadata, MayHaveRoundingSummary,
+        DKGSessionMetadata, DKGSessionState, DKGStartEvent, DKGTrait, DKGTransactionData,
+        DKGTransactionMetadata, MayHaveRoundingSummary,
     },
     epoch_state::EpochState,
     validator_txn::{Topic, ValidatorTransaction},
@@ -33,13 +33,13 @@ enum InnerState {
     NotStarted,
     InProgress {
         start_time: Duration,
-        my_transcript: DKGTranscript,
+        my_transcript: DKGTransactionData,
         abort_handle: AbortHandle,
     },
     Finished {
         vtxn_guard: TxnGuard,
         start_time: Duration,
-        my_transcript: DKGTranscript,
+        my_transcript: DKGTransactionData,
         proposed: bool,
     },
 }
@@ -79,7 +79,7 @@ impl InnerState {
     }
 
     #[cfg(test)]
-    pub fn my_node_cloned(&self) -> DKGTranscript {
+    pub fn my_node_cloned(&self) -> DKGTransactionData {
         match self {
             InnerState::NotStarted => panic!("my_node unavailable"),
             InnerState::InProgress { my_transcript, .. }
@@ -334,7 +334,7 @@ impl<DKG: DKGTrait> DKGManager<DKG> {
             &self.dealer_sk,
         );
 
-        let my_transcript = DKGTranscript::new(
+        let my_transcript = DKGTransactionData::new(
             self.epoch_state.epoch,
             self.my_addr,
             bcs::to_bytes(&trx).map_err(|e| anyhow!("transcript serialization error: {e}"))?,
@@ -390,12 +390,12 @@ impl<DKG: DKGTrait> DKGManager<DKG> {
                     .with_label_values(&[self.my_addr.to_hex().as_str(), "agg_transcript_ready"])
                     .observe(secs_since_dkg_start);
 
-                let txn = ValidatorTransaction::DKGResult(DKGTranscript {
-                    metadata: DKGTranscriptMetadata {
+                let txn = ValidatorTransaction::DKG(DKGTransactionData {
+                    metadata: DKGTransactionMetadata {
                         epoch: self.epoch_state.epoch,
                         author: self.my_addr,
                     },
-                    transcript_bytes: bcs::to_bytes(&agg_trx)
+                    data_bytes: bcs::to_bytes(&agg_trx)
                         .map_err(|e| anyhow!("transcript serialization error: {e}"))?,
                 });
                 let vtxn_guard = self.vtxn_pool.put(

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(any(test, feature = "fuzzing"))]
-use crate::dkg::DKGTranscriptMetadata;
-use crate::{dkg::DKGTranscript, jwks};
+use crate::dkg::DKGTransactionMetadata;
+use crate::{dkg::DKGTransactionData, jwks};
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
 #[cfg(any(test, feature = "fuzzing"))]
 use move_core_types::account_address::AccountAddress;
@@ -12,21 +12,22 @@ use std::fmt::Debug;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, CryptoHasher, BCSCryptoHash)]
 pub enum ValidatorTransaction {
-    DKGResult(DKGTranscript),
+    DKG(DKGTransactionData),
     ObservedJWKUpdate(jwks::QuorumCertifiedUpdate),
 }
 
 impl ValidatorTransaction {
     #[cfg(any(test, feature = "fuzzing"))]
     pub fn dummy(payload: Vec<u8>) -> Self {
-        Self::DKGResult(DKGTranscript {
-            metadata: DKGTranscriptMetadata {
+        Self::DKG(DKGTransactionData {
+            metadata: DKGTransactionMetadata {
                 epoch: 999,
                 author: AccountAddress::ZERO,
                 bls_aggregate_signature: vec![],
                 signer_indices_clan_committee: vec![],
+                transaction_type: crate::dkg::DKGTransactionType::DKGMeta,
             },
-            transcript_bytes: payload,
+            data_bytes: payload,
         })
     }
 
@@ -36,7 +37,7 @@ impl ValidatorTransaction {
 
     pub fn topic(&self) -> Topic {
         match self {
-            ValidatorTransaction::DKGResult(_) => Topic::DKG,
+            ValidatorTransaction::DKG(_) => Topic::DKG,
             ValidatorTransaction::ObservedJWKUpdate(update) => {
                 Topic::JWK_CONSENSUS(update.update.issuer.clone())
             },
@@ -45,7 +46,7 @@ impl ValidatorTransaction {
 
     pub fn type_name(&self) -> &'static str {
         match self {
-            ValidatorTransaction::DKGResult(_) => "validator_transaction__dkg_result",
+            ValidatorTransaction::DKG(_) => "validator_transaction__dkg_result",
             ValidatorTransaction::ObservedJWKUpdate(_) => {
                 "validator_transaction__observed_jwk_update"
             },

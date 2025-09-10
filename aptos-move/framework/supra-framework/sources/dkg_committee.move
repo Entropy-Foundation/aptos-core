@@ -45,6 +45,10 @@ module std::dkg_committee {
         committee: vector<DkgNodeConfig>,
     }
     
+    public fun len(committee: &DkgCommittee): u64{
+        vector::length(&committee.committee)
+    }
+    
     public fun get_committee(dkg_committee: &DkgCommittee): vector<DkgNodeConfig>{
         dkg_committee.committee
     }

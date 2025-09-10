@@ -7,6 +7,7 @@ Reconfiguration with DKG helper functions.
 
 
 -  [Function `try_start`](#0x1_reconfiguration_with_dkg_try_start)
+-  [Function `set_dkg_meta`](#0x1_reconfiguration_with_dkg_set_dkg_meta)
 -  [Function `finish`](#0x1_reconfiguration_with_dkg_finish)
 -  [Function `finish_with_dkg_result`](#0x1_reconfiguration_with_dkg_finish_with_dkg_result)
 -  [Specification](#@Specification_0)
@@ -77,6 +78,30 @@ Do nothing if one is already in progress.
             <a href="stake.md#0x1_stake_cur_validator_consensus_infos">stake::cur_validator_consensus_infos</a>()),
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[new_dkg_committee_from_validator_consensus_info(tribe_committee_type(), <a href="stake.md#0x1_stake_next_validator_consensus_infos">stake::next_validator_consensus_infos</a>())]
     );
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_reconfiguration_with_dkg_set_dkg_meta"></a>
+
+## Function `set_dkg_meta`
+
+
+
+<pre><code><b>fun</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_set_dkg_meta">set_dkg_meta</a>(dkg_meta: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_set_dkg_meta">set_dkg_meta</a>(dkg_meta: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;) {
+    <a href="dkg.md#0x1_dkg_set_dkg_meta">dkg::set_dkg_meta</a>(dkg_meta);
 }
 </code></pre>
 

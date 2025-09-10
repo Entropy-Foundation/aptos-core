@@ -19,8 +19,8 @@ impl AptosVM {
     ) -> Result<(VMStatus, VMOutput), VMStatus> {
         let session_id = SessionId::validator_txn(&txn);
         match txn {
-            ValidatorTransaction::DKGResult(dkg_node) => {
-                self.process_dkg_result(resolver, log_context, session_id, dkg_node)
+            ValidatorTransaction::DKG(dkg_node) => {
+                self.process_dkg_transaction(resolver, log_context, session_id, dkg_node)
             },
             ValidatorTransaction::ObservedJWKUpdate(jwk_update) => {
                 self.process_jwk_update(resolver, log_context, session_id, jwk_update)

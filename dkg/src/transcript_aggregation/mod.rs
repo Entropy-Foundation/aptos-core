@@ -8,7 +8,7 @@ use aptos_infallible::{duration_since_epoch, Mutex};
 use aptos_logger::info;
 use aptos_reliable_broadcast::BroadcastStatus;
 use aptos_types::{
-    dkg::{DKGTrait, DKGTranscript},
+    dkg::{DKGTrait, DKGTransactionData},
     epoch_state::EpochState,
     validator_verifier::VerifyError,
 };
@@ -60,16 +60,16 @@ impl<DKG: DKGTrait> TranscriptAggregationState<DKG> {
 impl<S: DKGTrait> BroadcastStatus<DKGMessage> for Arc<TranscriptAggregationState<S>> {
     type Aggregated = S::Transcript;
     type Message = DKGTranscriptRequest;
-    type Response = DKGTranscript;
+    type Response = DKGTransactionData;
 
     fn add(
         &self,
         sender: Author,
-        dkg_transcript: DKGTranscript,
+        dkg_transcript: DKGTransactionData,
     ) -> anyhow::Result<Option<Self::Aggregated>> {
-        let DKGTranscript {
+        let DKGTransactionData {
             metadata,
-            transcript_bytes,
+            data_bytes: transcript_bytes,
         } = dkg_transcript;
         ensure!(
             metadata.epoch == self.epoch_state.epoch,

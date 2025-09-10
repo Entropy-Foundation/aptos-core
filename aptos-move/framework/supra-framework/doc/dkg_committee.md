@@ -16,6 +16,7 @@
 -  [Function `new_dkg_node_config`](#0x1_dkg_committee_new_dkg_node_config)
 -  [Function `get_addr`](#0x1_dkg_committee_get_addr)
 -  [Function `get_bls_pubkey`](#0x1_dkg_committee_get_bls_pubkey)
+-  [Function `len`](#0x1_dkg_committee_len)
 -  [Function `get_committee`](#0x1_dkg_committee_get_committee)
 -  [Function `new_dkg_committee`](#0x1_dkg_committee_new_dkg_committee)
 -  [Function `new_dkg_committee_from_validator_consensus_info`](#0x1_dkg_committee_new_dkg_committee_from_validator_consensus_info)
@@ -309,6 +310,30 @@ Internal tag wrapper
 
 <pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_get_bls_pubkey">get_bls_pubkey</a>(dkg_node: &<a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">DkgNodeConfig</a>): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;{
     dkg_node.bls_pubkey
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_committee_len"></a>
+
+## Function `len`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_len">len</a>(committee: &<a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_len">len</a>(committee: &<a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">DkgCommittee</a>): u64{
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&committee.committee)
 }
 </code></pre>
 

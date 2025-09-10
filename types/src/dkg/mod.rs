@@ -17,12 +17,19 @@ use crate::on_chain_config::OnChainConfig;
 use crypto::utils::{get_clan_node_indices, get_family_node_indices};
 use aptos_crypto::bls12381::{PublicKey, Signature};
 
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub enum DKGTransactionType{
+    DKGMeta,
+    PublicKeyShares,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, CryptoHasher, BCSCryptoHash)]
-pub struct DKGTranscriptMetadata {
+pub struct DKGTransactionMetadata {
     pub epoch: u64,
     pub author: AccountAddress,
     pub bls_aggregate_signature: Vec<u8>,
     pub signer_indices_clan_committee: Vec<u32>,
+    pub transaction_type: DKGTransactionType
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -41,56 +48,57 @@ pub static DKG_START_EVENT_MOVE_TYPE_TAG: Lazy<TypeTag> =
 
 /// DKG transcript and its metadata.
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DKGTranscript {
-    pub metadata: DKGTranscriptMetadata,
+pub struct DKGTransactionData {
+    pub metadata: DKGTransactionMetadata,
     #[serde(with = "serde_bytes")]
-    pub transcript_bytes: Vec<u8>,
+    pub data_bytes: Vec<u8>,
 }
 
-impl Debug for DKGTranscript {
+impl Debug for DKGTransactionData {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DKGTranscript")
+        f.debug_struct("DKGTransactionData")
             .field("metadata", &self.metadata)
-            .field("transcript_bytes_len", &self.transcript_bytes.len())
+            .field("data_bytes_len", &self.data_bytes.len())
             .finish()
     }
 }
 
-impl DKGTranscript {
-    pub fn new(epoch: u64, author: AccountAddress, transcript_bytes: Vec<u8>, bls_aggregate_signature: Vec<u8>, signer_indices_clan_committee: Vec<u32>) -> Self {
+impl DKGTransactionData {
+    pub fn new(epoch: u64, author: AccountAddress, transcript_bytes: Vec<u8>, bls_aggregate_signature: Vec<u8>, signer_indices_clan_committee: Vec<u32>, transaction_type: DKGTransactionType) -> Self {
         Self {
-            metadata: DKGTranscriptMetadata { epoch, author, bls_aggregate_signature, signer_indices_clan_committee },
-            transcript_bytes,
+            metadata: DKGTransactionMetadata { epoch, author, bls_aggregate_signature, signer_indices_clan_committee, transaction_type },
+            data_bytes: transcript_bytes,
         }
     }
 
     pub fn dummy() -> Self {
         Self {
-            metadata: DKGTranscriptMetadata {
+            metadata: DKGTransactionMetadata {
                 epoch: 0,
                 author: AccountAddress::ZERO,
                 bls_aggregate_signature: vec![],
                 signer_indices_clan_committee: vec![],
+                transaction_type: DKGTransactionType::DKGMeta,
             },
-            transcript_bytes: vec![],
+            data_bytes: vec![],
         }
     }
-    
-    pub fn verify(&self, dealer_committee: &DkgCommittee, random_seed: &Vec<u8>) -> Result<()> {
+
+    pub fn verify_transaction(&self, dealer_committee: &DkgCommittee, random_seed: &Vec<u8>) -> Result<()> {
         // the node submitting the transcript must be a family node
         if !is_node_family_committee_member(self.metadata.author, dealer_committee, random_seed){
-            return Err(anyhow!("dkg::verify_transcript transcript not submitted by a family node"));
+            return Err(anyhow!("dkg::verify_transaction transcript not submitted by a family node"));
         }
 
         let signer_bls_pubkeys = get_signer_bls_keys_from_indices(dealer_committee,
                                                                   &self.metadata.signer_indices_clan_committee,
                                                                   random_seed)
-            .map_err(|e| anyhow!("dkg::verify_transcript invalid signers: {e}"))?;
+            .map_err(|e| anyhow!("dkg::verify_transaction invalid signers: {e}"))?;
         let agg_sig = Signature::try_from(self.metadata.bls_aggregate_signature.as_slice())
-            .map_err(|e| anyhow!("dkg::verify_transcript aggregate signature deserialization failed: {e}"))?;
+            .map_err(|e| anyhow!("dkg::verify_transaction aggregate signature deserialization failed: {e}"))?;
         let agg_pk = PublicKey::aggregate(signer_bls_pubkeys.iter().collect())
-            .map_err(|e| anyhow!("dkg::verify_transcript public keys aggregation failed: {e}"))?;
-        agg_sig.verify_aggregate_arbitrary_msg(&[self.transcript_bytes.as_slice()], &[&agg_pk])
+            .map_err(|e| anyhow!("dkg::verify_transaction public keys aggregation failed: {e}"))?;
+        agg_sig.verify_aggregate_arbitrary_msg(&[self.data_bytes.as_slice()], &[&agg_pk])
     }
 }
 
