@@ -183,7 +183,7 @@ pub struct GaslessAutomationTaskRegistrationArguments {
     pub(crate) automation_function: EntryFunctionArguments,
     /// Automation task expiry time in seconds
     #[clap(long)]
-    pub(crate) task_expiry_time: u64,
+    pub(crate) task_expiry_time_secs: u64,
     /// Max gas amount for task execution.
     #[clap(long)]
     pub(crate) task_max_gas_amount: u64,
@@ -199,7 +199,7 @@ impl TryInto<MultisigTransactionPayload> for GaslessAutomationTaskRegistrationAr
         let automation_function = self.automation_function.try_into()?;
         let registration_params = RegistrationParams::new_system_automation_task(
             automation_function,
-            self.task_expiry_time,
+            self.task_expiry_time_secs,
             self.task_max_gas_amount,
             vec![],
             self.task_priority,
@@ -244,7 +244,7 @@ impl TryFrom<AutomationTaskRegistrationArguments> for MultisigTransactionPayload
             value.task_gas_price_cap,
             value.task_automation_fee_cap,
             vec![],
-            value.task_priority,
+            None,
         );
         let multisig_payload =
             MultisigTransactionPayload::AutomationRegistration(registration_params);
