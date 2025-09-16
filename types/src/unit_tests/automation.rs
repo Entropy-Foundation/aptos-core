@@ -74,7 +74,7 @@ fn test_registration_params_serde() {
     let v_aux_data = bcs::from_bytes::<Vec<Vec<u8>>>(&serialized[7]).unwrap();
     assert_eq!(expected_aux_data, v_aux_data);
 
-    features.disable(FeatureFlag::SUPRA_AUTOMATION_CYCLE);
+    features.disable(FeatureFlag::SUPRA_AUTOMATION_V2);
     let serialized = registration_params.serialized_args_with_sender_and_parent_hash(
         address,
         parent_hash.to_vec(),
@@ -172,7 +172,7 @@ fn test_registration_params_v2_user_task_serde() {
     let v_aux_data = bcs::from_bytes::<Vec<Vec<u8>>>(&serialized[7]).unwrap();
     assert_eq!(expected_aux_data, v_aux_data);
 
-    features.disable(FeatureFlag::SUPRA_AUTOMATION_CYCLE);
+    features.disable(FeatureFlag::SUPRA_AUTOMATION_V2);
     let serialized = registration_params.serialized_args_with_sender_and_parent_hash(
         address,
         parent_hash.to_vec(),
@@ -260,7 +260,7 @@ fn test_registration_params_system_task_serde() {
     let v_aux_data = bcs::from_bytes::<Vec<Vec<u8>>>(&serialized[5]).unwrap();
     assert_eq!(expected_aux_data, v_aux_data);
 
-    features.disable(FeatureFlag::SUPRA_AUTOMATION_CYCLE);
+    features.disable(FeatureFlag::SUPRA_AUTOMATION_V2);
     let serialized = registration_params.serialized_args_with_sender_and_parent_hash(
         address,
         parent_hash.to_vec(),

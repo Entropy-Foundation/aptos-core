@@ -392,7 +392,7 @@ module supra_framework::automation_registry {
     }
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
-    /// Epoch state. Deprecated since SUPRA_AUTOMATION_CYCLE version.
+    /// Epoch state. Deprecated since SUPRA_AUTOMATION_V2 version.
     struct AutomationEpochInfo has key, copy {
         /// Epoch expected duration at the beginning of the new epoch, Based on this and actual
         /// epoch_duration which will be (current_time - last_reconfiguration_time) automation tasks
@@ -1422,7 +1422,7 @@ module supra_framework::automation_registry {
     /// API to gracfully migrate from automation feature v1 inplementation to v2 where bookkeeping of the tasks is
     /// detached from epoch-change and cycle based lifecycle of the automation registry is enabled and
     /// tasks are updated to have UST task-type.
-    /// IMPORTANT: Should always be followed by `SUPRA_AUTOMATION_CYCLE` feature flag being enabled and
+    /// IMPORTANT: Should always be followed by `SUPRA_AUTOMATION_V2` feature flag being enabled and
     /// supra_governance::reconfiguration otherwise registry/chain will end-up in inconsistent state.
     ///
     /// monitor_cycle_end (block_prologue->automation_registry::monitor_cycle_end) which will lead to panic and node will stop
@@ -1434,7 +1434,7 @@ module supra_framework::automation_registry {
         sys_task_capacity: u16
     ) acquires AutomationRegistry, AutomationEpochInfo, ActiveAutomationRegistryConfig, ActiveAutomationRegistryConfigV2, AutomationCycleDetails, AutomationRegistryV2{
         assert_supra_framework(supra_framework);
-        assert!(!features::supra_automation_cycle_enabled(), EINVALID_MIGRATION_ACTION);
+        assert!(!features::supra_automation_v2_enabled(), EINVALID_MIGRATION_ACTION);
         assert!(exists<AutomationEpochInfo>(@supra_framework), EINVALID_MIGRATION_ACTION);
         validate_system_configuration_parameters_common(cycle_duration_secs, sys_task_duration_cap_in_secs, sys_registry_max_gas_cap);
 
@@ -1484,7 +1484,7 @@ module supra_framework::automation_registry {
 
     // Public friend api
 
-    /// Initialization of Automation Registry with configuration parameters for SUPRA_AUTOMATION_CYCLE version.
+    /// Initialization of Automation Registry with configuration parameters for SUPRA_AUTOMATION_V2 version.
     /// Expected to have this function call either at genesis startup or as part of the SUPRA_FRAMEWORK upgrade where
     /// automation feature is being introduced very first time utilizing `genesis::initialize_supra_native_automation_v2`.
     /// In case if framework upgrade is happening on the chain where automation feature with epoch based lifecycle is
@@ -1566,7 +1566,7 @@ module supra_framework::automation_registry {
         });
 
         let (cycle_state, cycle_id) =
-            if (features::supra_automation_cycle_enabled() && features::supra_native_automation_enabled()) {
+            if (features::supra_automation_v2_enabled() && features::supra_native_automation_enabled()) {
                 (CYCLE_STARTED, 1)
             } else {
                 (CYCLE_READY, 0)
@@ -1585,9 +1585,9 @@ module supra_framework::automation_registry {
     }
 
     /// Checks the cycle end and emit an event on it.
-    /// Does nothing if SUPRA_NATIVE_AUTOMATION or SUPRA_AUTOMATION_CYCLE is disabled.
+    /// Does nothing if SUPRA_NATIVE_AUTOMATION or SUPRA_AUTOMATION_V2 is disabled.
     public(friend) fun monitor_cycle_end() acquires AutomationCycleDetails, ActiveAutomationRegistryConfigV2, AutomationRegistryV2 {
-        if (!is_feature_enabled_and_initialized() || !features::supra_automation_cycle_enabled()) {
+        if (!is_feature_enabled_and_initialized() || !features::supra_automation_v2_enabled()) {
             return
         };
         assert_automation_cycle_management_support();
@@ -1615,7 +1615,7 @@ module supra_framework::automation_registry {
     /// If native automation feature is enabled and automation lifecycle has been in CYCLE_READY state,
     /// then lifecycle is restarted.
     public(friend) fun on_new_epoch() acquires AutomationCycleDetails, ActiveAutomationRegistryConfigV2, AutomationRegistryV2 {
-        if (!is_initialized() || !features::supra_automation_cycle_enabled()) {
+        if (!is_initialized() || !features::supra_automation_v2_enabled()) {
             return
         };
         let cycle_info = borrow_global_mut<AutomationCycleDetails>(@supra_framework);
@@ -3046,7 +3046,7 @@ module supra_framework::automation_registry {
 
     fun downscale_to_u256(value: u256): u256 { value / DECIMAL }
 
-    /// If SUPRA_AUTOMATION_CYCLE is enabled then call native function to assert full support of cycle based
+    /// If SUPRA_AUTOMATION_V2 is enabled then call native function to assert full support of cycle based
     /// automation registry management.
     fun assert_automation_cycle_management_support() {
         native_automation_cycle_management_support();
@@ -3119,7 +3119,7 @@ module supra_framework::automation_registry {
     }
 
     #[test_only]
-    /// Initializes registry without enabling SUPRA_NATIVE_AUTOMATION and SUPRA_AUTOMATION_CYCLE feature flags
+    /// Initializes registry without enabling SUPRA_NATIVE_AUTOMATION and SUPRA_AUTOMATION_V2 feature flags
     fun initialize_registry_only_test(supra_framework: &signer) {
         let (burn_cap, mint_cap) = supra_coin::initialize_for_test(supra_framework);
         prepare_for_tests(supra_framework);
@@ -3207,7 +3207,7 @@ module supra_framework::automation_registry {
         coin::destroy_burn_cap(burn_cap);
         coin::destroy_mint_cap(mint_cap);
         toggle_feature_flag(supra_framework, true);
-        toggle_custom_feature_flags(supra_framework, vector[features::get_supra_automation_cycle_feature()], true);
+        toggle_custom_feature_flags(supra_framework, vector[features::get_supra_automation_v2_feature()], true);
         prepare_for_tests(supra_framework);
 
         topup_account(supra_framework, user, ACCOUNT_BALANCE);
@@ -6871,14 +6871,14 @@ module supra_framework::automation_registry {
     #[test(framework = @supra_framework)]
     fun check_monitor_cycle_end_when_feature_flags_are_disabled(framework: &signer)
     acquires AutomationCycleDetails, ActiveAutomationRegistryConfigV2, AutomationRegistryV2 {
-        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], false);
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_v2_feature()], false);
         initialize_registry_only_test(framework);
         check_cycle_state(CYCLE_READY, 0, 0, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
 
         // Updating the time which should cause cycle end if in proper state
         update_global_time_for_test_secs(2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS);
 
-        // Both SUPRA_NATIVE_AUTOMATION and SUPRA_AUTOMATION_CYCLE are disabled
+        // Both SUPRA_NATIVE_AUTOMATION and SUPRA_AUTOMATION_V2 are disabled
         monitor_cycle_end();
         check_cycle_state(CYCLE_READY, 0, 0, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
 
@@ -6889,7 +6889,7 @@ module supra_framework::automation_registry {
 
         //Disable feature enable automation cycle
         toggle_feature_flag(framework, false);
-        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], true);
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_v2_feature()], true);
         monitor_cycle_end();
         check_cycle_state(CYCLE_READY, 0, 0, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
 
@@ -6909,14 +6909,14 @@ module supra_framework::automation_registry {
         // Updating the time which should cause cycle end if in proper state
         update_global_time_for_test_secs(2 * EPOCH_INTERVAL_FOR_TEST_IN_SECS);
 
-        // SUPRA_AUTOMATION_CYCLE is disabled
-        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], false);
+        // SUPRA_AUTOMATION_V2 is disabled
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_v2_feature()], false);
         monitor_cycle_end();
         check_cycle_state(CYCLE_STARTED, 1, 0, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
 
         // Both feature flags are enabled, but as long as registry is empty we will only progress
         // in cycle and remain in started state.
-        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], true);
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_v2_feature()], true);
         monitor_cycle_end();
         let recent_chain_time = timestamp::now_seconds();
         check_cycle_state(CYCLE_STARTED, 2, recent_chain_time, EPOCH_INTERVAL_FOR_TEST_IN_SECS);
@@ -7051,7 +7051,7 @@ module supra_framework::automation_registry {
 
         assert!(exists<AutomationEpochInfo>(@supra_framework), 0);
         assert!(!exists<AutomationCycleDetails>(@supra_framework), 1);
-        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], false);
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_v2_feature()], false);
         // Simulate that half of the epoch passed, when migration was requested
         update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
 
@@ -7132,7 +7132,7 @@ module supra_framework::automation_registry {
         initialize_registry_test(framework, user);
 
         prepare_state_for_migration(framework);
-        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], false);
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_v2_feature()], false);
         // Simulate that half of the epoch passed, when migration was requested
         update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
 
@@ -7163,7 +7163,7 @@ module supra_framework::automation_registry {
         initialize_registry_test(framework, user);
 
         prepare_state_for_migration(framework);
-        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], false);
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_v2_feature()], false);
         // Simulate that half of the epoch passed, when migration was requested
         update_global_time_for_test_secs(EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2);
 
@@ -7173,7 +7173,7 @@ module supra_framework::automation_registry {
             SYS_AUTOMATION_MAX_GAS_TEST,
             SYS_TASK_CAPACITY_TEST
         );
-        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_cycle_feature()], true);
+        toggle_custom_feature_flags(framework, vector[features::get_supra_automation_v2_feature()], true);
         on_new_epoch();
 
         assert!(!exists<AutomationEpochInfo>(@supra_framework), 0);

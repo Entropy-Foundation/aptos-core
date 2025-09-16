@@ -303,7 +303,7 @@ impl RegistrationParamsV1 {
 
     fn prepare_aux_data(&self, features: &Features) -> Vec<MoveValue> {
         let mut aux_data = vec![];
-        if features.is_enabled(FeatureFlag::SUPRA_AUTOMATION_CYCLE) {
+        if features.is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2) {
             let type_value = vec![self.task_type() as u8];
             // With V1 version no priority is supported and will always be assigned by
             // registry with default value
@@ -425,7 +425,7 @@ impl RegistrationParamsV2 {
     fn prepare_aux_data(&self, features: &Features) -> Vec<MoveValue> {
         let mut aux_data = vec![];
         // If SUPRA_AUTOMATION_V2 feature is not enabled then no type and priority should be prepended to aux-data
-        if features.is_enabled(FeatureFlag::SUPRA_AUTOMATION_CYCLE) {
+        if features.is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2) {
             let type_value = vec![*self.task_type() as u8];
             // If no priority is specified by user, it will be assigned by registry at registration time.
             let priority_value = self
