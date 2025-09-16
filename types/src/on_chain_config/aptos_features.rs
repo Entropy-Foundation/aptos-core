@@ -94,7 +94,7 @@ pub enum FeatureFlag {
     PRIVATE_POLL = 91,
     SUPRA_AUTOMATION_TASK_SYNC = 92,
     SUPRA_COUNT_FAILED_PROPOSALS = 93,
-    BLOCK_METADATA_EXT_V1 = 94,
+    SUPRA_DKG = 94,
 }
 
 impl FeatureFlag {
