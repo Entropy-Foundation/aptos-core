@@ -163,11 +163,6 @@ fn native_rlp_decode(
             // address => decode as Vec<u8>, then convert
             match rlp::decode::<Vec<u8>>(&encoded_data) {
                 Ok(addr_bytes) => {
-                    if addr_bytes.len() > AccountAddress::LENGTH {
-                        return Err(SafeNativeError::Abort {
-                            abort_code: E_DECODE_FAILURE,
-                        });
-                    }
                     match AccountAddress::from_bytes(addr_bytes) {
                         Ok(addr) => Ok(smallvec![Value::address(addr)]),
                         Err(_)   => Err(SafeNativeError::Abort { abort_code: E_DECODE_FAILURE }),

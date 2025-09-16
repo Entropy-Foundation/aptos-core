@@ -237,6 +237,7 @@ crate::gas_schedule::macros::define_gas_parameters!(
         [eth_trie_proof_decode_base: InternalGasPerArg, { RELEASE_V1_16_SUPRA_V1_6_0.. => "eth.trie.proof.decode.base" }, 1102],
         [eth_trie_proof_decode_per_byte: InternalGasPerByte, { RELEASE_V1_16_SUPRA_V1_6_0.. => "eth.trie.proof.decode.per_byte"}, 18],
 
+        //TODO: update the release version to the appropriate version where the RLP feature is a part of
         [rlp_encode_decode_base: InternalGas, { RELEASE_V1_16_SUPRA_V1_6_0.. => "rlp.encode.decode.base" }, 1102],
         [rlp_encode_decode_per_byte: InternalGasPerByte, { RELEASE_V1_16_SUPRA_V1_6_0.. => "rlp.encode.decode.per_byte"}, 18],
 
