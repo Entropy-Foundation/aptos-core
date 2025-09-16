@@ -26,7 +26,6 @@ pub enum DKGTransactionType{
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, CryptoHasher, BCSCryptoHash)]
 pub struct DKGTransactionMetadata {
     pub epoch: u64,
-    pub author: AccountAddress,
     pub bls_aggregate_signature: Vec<u8>,
     pub signer_indices_clan_committee: Vec<u32>,
     pub transaction_type: DKGTransactionType
@@ -64,9 +63,9 @@ impl Debug for DKGTransactionData {
 }
 
 impl DKGTransactionData {
-    pub fn new(epoch: u64, author: AccountAddress, transcript_bytes: Vec<u8>, bls_aggregate_signature: Vec<u8>, signer_indices_clan_committee: Vec<u32>, transaction_type: DKGTransactionType) -> Self {
+    pub fn new(epoch: u64, transcript_bytes: Vec<u8>, bls_aggregate_signature: Vec<u8>, signer_indices_clan_committee: Vec<u32>, transaction_type: DKGTransactionType) -> Self {
         Self {
-            metadata: DKGTransactionMetadata { epoch, author, bls_aggregate_signature, signer_indices_clan_committee, transaction_type },
+            metadata: DKGTransactionMetadata { epoch, bls_aggregate_signature, signer_indices_clan_committee, transaction_type },
             data_bytes: transcript_bytes,
         }
     }
@@ -75,7 +74,6 @@ impl DKGTransactionData {
         Self {
             metadata: DKGTransactionMetadata {
                 epoch: 0,
-                author: AccountAddress::ZERO,
                 bls_aggregate_signature: vec![],
                 signer_indices_clan_committee: vec![],
                 transaction_type: DKGTransactionType::DKGMeta,
@@ -85,11 +83,6 @@ impl DKGTransactionData {
     }
 
     pub fn verify_transaction(&self, dealer_committee: &DkgCommittee, random_seed: &Vec<u8>) -> Result<()> {
-        // the node submitting the transcript must be a family node
-        if !is_node_family_committee_member(self.metadata.author, dealer_committee, random_seed){
-            return Err(anyhow!("dkg::verify_transaction transcript not submitted by a family node"));
-        }
-
         let signer_bls_pubkeys = get_signer_bls_keys_from_indices(dealer_committee,
                                                                   &self.metadata.signer_indices_clan_committee,
                                                                   random_seed)
@@ -159,18 +152,6 @@ impl DKGState {
 impl OnChainConfig for DKGState {
     const MODULE_IDENTIFIER: &'static str = "dkg";
     const TYPE_IDENTIFIER: &'static str = "DKGState";
-}
-
-fn is_node_family_committee_member(addr: AccountAddress, dealer_committee: &DkgCommittee, random_seed: &Vec<u8>) -> bool {
-
-    let family_committee_indices
-    = get_family_node_indices(dealer_committee.committee.len() as u32, random_seed.clone());
-
-    if let Some(family_node_indices) = family_committee_indices{
-        let result = family_node_indices.iter().any(|x| dealer_committee.committee[*x].addr == addr);
-        return result;
-    }
-    false
 }
 
 /// The threshold required to ensure the presence of honest majority in clan where
