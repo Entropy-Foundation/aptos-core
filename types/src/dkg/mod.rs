@@ -4,7 +4,7 @@
 use anyhow::{anyhow, Result};
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
 use move_core_types::{
-    account_address::AccountAddress, ident_str, identifier::IdentStr, language_storage::TypeTag,
+    ident_str, identifier::IdentStr, language_storage::TypeTag,
     move_resource::MoveStructType,
 };
 use once_cell::sync::Lazy;
@@ -14,7 +14,7 @@ use std::{
 };
 use crate::dkg_committee::DkgCommittee;
 use crate::on_chain_config::OnChainConfig;
-use crypto::utils::{get_clan_node_indices, get_family_node_indices};
+use crypto::utils::get_clan_node_indices;
 use aptos_crypto::bls12381::{PublicKey, Signature};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]

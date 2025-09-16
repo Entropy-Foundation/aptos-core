@@ -126,7 +126,7 @@ pub enum FeatureFlag {
     SupraAutomationPayloadGasCheck,
     PrivatePoll,
     SupraAutomationTaskSync,
-    Block_Metadata_Ext_V1,
+    SUPRA_DKG,
 }
 
 fn generate_features_blob(writer: &CodeWriter, data: &[u64]) {
@@ -327,7 +327,7 @@ impl From<FeatureFlag> for AptosFeatureFlag {
             FeatureFlag::SupraAutomationPayloadGasCheck => AptosFeatureFlag::SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK,
             FeatureFlag::PrivatePoll => AptosFeatureFlag::PRIVATE_POLL,
             FeatureFlag::SupraAutomationTaskSync => AptosFeatureFlag::SUPRA_AUTOMATION_TASK_SYNC,
-            FeatureFlag::Block_Metadata_Ext_V1 => AptosFeatureFlag::BLOCK_METADATA_EXT_V1,
+            FeatureFlag::SUPRA_DKG => AptosFeatureFlag::SUPRA_DKG,
         }
     }
 }
@@ -457,7 +457,7 @@ impl From<AptosFeatureFlag> for FeatureFlag {
             AptosFeatureFlag::SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK => FeatureFlag::SupraAutomationPayloadGasCheck,
             AptosFeatureFlag::PRIVATE_POLL => FeatureFlag::PrivatePoll,
             AptosFeatureFlag::SUPRA_AUTOMATION_TASK_SYNC => FeatureFlag::SupraAutomationTaskSync,
-            AptosFeatureFlag::BLOCK_METADATA_EXT_V1 => FeatureFlag::Block_Metadata_Ext_V1,
+            AptosFeatureFlag::SUPRA_DKG => FeatureFlag::SUPRA_DKG,
         }
     }
 }

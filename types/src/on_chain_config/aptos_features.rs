@@ -93,7 +93,7 @@ pub enum FeatureFlag {
     SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK = 90,
     PRIVATE_POLL = 91,
     SUPRA_AUTOMATION_TASK_SYNC = 92,
-    BLOCK_METADATA_EXT_V1 = 93,
+    SUPRA_DKG = 93,
 }
 
 impl FeatureFlag {

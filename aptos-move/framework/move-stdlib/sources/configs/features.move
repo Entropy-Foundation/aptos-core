@@ -727,17 +727,17 @@ module std::features {
         is_enabled(SUPRA_AUTOMATION_TASK_SYNC)
     }
 
-    /// Whether the APIs related to the Block_Metadata_Ext_V1 feature are enabled.
+    /// Whether the APIs related to the Supra_Dkg feature are enabled.
     ///
     /// Lifetime: transient
-    const BLOCK_METADATA_EXT_V1: u64 = 93;
+    const SUPRA_DKG: u64 = 93;
 
-    public fun get_block_metadata_ext_v1_feature(): u64 {
-        BLOCK_METADATA_EXT_V1
+    public fun get_supra_dkg_feature(): u64 {
+        SUPRA_DKG
     }
 
-    public fun block_metadata_ext_v1_enabled(): bool acquires Features {
-        is_enabled(BLOCK_METADATA_EXT_V1)
+    public fun supra_dkg_enabled(): bool acquires Features {
+        is_enabled(SUPRA_DKG)
     }
 
     // ============================================================================================
