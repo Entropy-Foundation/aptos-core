@@ -5,8 +5,6 @@
 use crate::dkg::DKGTransactionMetadata;
 use crate::{dkg::DKGTransactionData, jwks};
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
-#[cfg(any(test, feature = "fuzzing"))]
-use move_core_types::account_address::AccountAddress;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 

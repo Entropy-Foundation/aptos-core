@@ -736,6 +736,7 @@ module std::features {
 
     public fun supra_count_failed_proposals_enabled(): bool acquires Features {
         is_enabled(SUPRA_COUNT_FAILED_PROPOSALS)
+    }
 
     /// Whether the APIs related to the Supra_Dkg feature are enabled.
     ///
