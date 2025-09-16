@@ -846,7 +846,6 @@ pub struct DKGResultTransaction {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Object)]
 pub struct ExportedDKGTranscript {
     pub epoch: U64,
-    pub author: Address,
     pub bls_aggregate_signature: Vec<u8>,
     pub signer_indices_clan_committee: Vec<u32>,
     pub transaction_type: u8,
@@ -859,10 +858,9 @@ impl From<DKGTransactionData> for ExportedDKGTranscript {
             metadata,
             data_bytes: transcript_bytes,
         } = value;
-        let DKGTransactionMetadata { epoch, author,  bls_aggregate_signature, signer_indices_clan_committee, transaction_type} = metadata;
+        let DKGTransactionMetadata { epoch,  bls_aggregate_signature, signer_indices_clan_committee, transaction_type} = metadata;
         Self {
             epoch: epoch.into(),
-            author: author.into(),
             bls_aggregate_signature: bls_aggregate_signature.into(),
             signer_indices_clan_committee: signer_indices_clan_committee.into(),
             payload: HexEncodedBytes::from(transcript_bytes),

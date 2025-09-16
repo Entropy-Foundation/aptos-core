@@ -22,7 +22,6 @@ impl ValidatorTransaction {
         Self::DKG(DKGTransactionData {
             metadata: DKGTransactionMetadata {
                 epoch: 999,
-                author: AccountAddress::ZERO,
                 bls_aggregate_signature: vec![],
                 signer_indices_clan_committee: vec![],
                 transaction_type: crate::dkg::DKGTransactionType::DKGMeta,
