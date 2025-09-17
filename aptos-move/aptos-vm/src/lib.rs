@@ -140,6 +140,7 @@ use aptos_types::{
     vm_status::VMStatus,
 };
 use std::{marker::Sync, sync::Arc};
+use aptos_types::validator_txn::ValidatorTransaction;
 pub use verifier::view_function::determine_is_view;
 
 /// This trait describes the VM's validation interfaces.
@@ -148,6 +149,12 @@ pub trait VMValidator {
     fn validate_transaction(
         &self,
         transaction: SignedTransaction,
+        state_view: &impl StateView,
+    ) -> VMValidatorResult;
+
+    fn validate_dkg_validator_transaction(
+        &self,
+        dkg_transaction: ValidatorTransaction,
         state_view: &impl StateView,
     ) -> VMValidatorResult;
 }

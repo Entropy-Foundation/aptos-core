@@ -110,6 +110,9 @@ use std::{
     marker::Sync,
     sync::Arc,
 };
+use aptos_types::dkg::{DKGState, DKGTransactionType};
+use aptos_types::on_chain_config::ConfigurationResource;
+use aptos_types::validator_txn::ValidatorTransaction;
 
 static EXECUTION_CONCURRENCY_LEVEL: OnceCell<usize> = OnceCell::new();
 static NUM_EXECUTION_SHARD: OnceCell<usize> = OnceCell::new();
@@ -2818,6 +2821,73 @@ impl VMValidator for AptosVM {
             .inc();
 
         result
+    }
+
+    fn validate_dkg_validator_transaction(
+        &self,
+        transaction: ValidatorTransaction,
+        state_view: &impl StateView,
+    ) -> VMValidatorResult {
+
+        if !self
+            .features()
+            .is_enabled(FeatureFlag::SUPRA_DKG)
+        {
+            return VMValidatorResult::error(StatusCode::FEATURE_UNDER_GATING);
+        }
+
+        let resolver = self.as_move_resolver(&state_view);
+
+        let dkg_state = match OnChainConfig::fetch_config(&resolver) {
+            Some(state) => state,
+            None => return VMValidatorResult::error(StatusCode::RESOURCE_DOES_NOT_EXIST),
+        };
+
+        let config_resource = match ConfigurationResource::fetch_config(&resolver) {
+            Some(cfg) => cfg,
+            None => return VMValidatorResult::error(StatusCode::RESOURCE_DOES_NOT_EXIST),
+        };
+
+        let DKGState { in_progress, .. } = dkg_state;
+        let in_progress_session_state = match in_progress{
+            Some(session) => session,
+            None => return VMValidatorResult::error(StatusCode::DKG_SESSION_NOT_IN_PROGRESS),
+
+        };
+
+        let dkg_transaction = match transaction {
+            ValidatorTransaction::DKG(txn) => txn,
+            _ => return VMValidatorResult::error(StatusCode::INVALID_TRANSACTION_TYPE_FOR_DKG),
+        };
+
+        // Check epoch number.
+        if dkg_transaction.metadata.epoch != config_resource.epoch() {
+            return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_INVALID_EPOCH_NUM);
+        }
+
+        match dkg_transaction.metadata.transaction_type {
+            DKGTransactionType::DKGMeta => {
+                // dkg meta should not be already set
+                if in_progress_session_state.dkg_meta_transcript.len() != 0{
+                    return VMValidatorResult::error(StatusCode::DKG_META_ALREADY_SET);
+                }
+            }
+            DKGTransactionType::PublicKeyShares => {
+                // dkg meta should be already set
+                if in_progress_session_state.dkg_meta_transcript.len() == 0{
+                    return VMValidatorResult::error(StatusCode::DKG_META_NOT_SET);
+                }
+            }
+        }
+
+        if dkg_transaction.data_bytes.is_empty() ||
+            dkg_transaction.metadata.bls_aggregate_signature.is_empty() ||
+            dkg_transaction.metadata.signer_indices_clan_committee.is_empty()
+        {
+            return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_NOT_VALID);
+        }
+
+        VMValidatorResult::new(None, 0)
     }
 }
 
