@@ -6,6 +6,7 @@
 
 
 -  [Constants](#@Constants_0)
+-  [Function `replace`](#0x1_vector_utils_replace)
 -  [Function `sort_vector_u64`](#0x1_vector_utils_sort_vector_u64)
 -  [Function `sort_vector_u64_by_keys`](#0x1_vector_utils_sort_vector_u64_by_keys)
 -  [Function `native_sort_vector_u64`](#0x1_vector_utils_native_sort_vector_u64)
@@ -13,6 +14,7 @@
 
 
 <pre><code><b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 </code></pre>
 
 
@@ -20,6 +22,16 @@
 <a id="@Constants_0"></a>
 
 ## Constants
+
+
+<a id="0x1_vector_utils_EINDEX_OUT_OF_BOUNDS"></a>
+
+The index into the vector is out of bounds
+
+
+<pre><code><b>const</b> <a href="vector_utils.md#0x1_vector_utils_EINDEX_OUT_OF_BOUNDS">EINDEX_OUT_OF_BOUNDS</a>: u64 = 0;
+</code></pre>
+
 
 
 <a id="0x1_vector_utils_EVECTORS_LENGTH_MISMATCH"></a>
@@ -31,6 +43,35 @@ Input vectors length does not match.
 </code></pre>
 
 
+
+<a id="0x1_vector_utils_replace"></a>
+
+## Function `replace`
+
+Replace the <code>i</code>th element of the vector <code>v</code> with the input element.
+This is O(1), but does preserve ordering of elements in the vector.
+Aborts if <code>i</code> is out of bounds.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="vector_utils.md#0x1_vector_utils_replace">replace</a>&lt;Element&gt;(v: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;Element&gt;, i: u64, element: Element): Element
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="vector_utils.md#0x1_vector_utils_replace">replace</a>&lt;Element&gt;(v: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;Element&gt;, i: u64, element: Element): Element {
+    <b>assert</b>!(i &lt; <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(v), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_out_of_range">error::out_of_range</a>(<a href="vector_utils.md#0x1_vector_utils_EINDEX_OUT_OF_BOUNDS">EINDEX_OUT_OF_BOUNDS</a>));
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(v, element);
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_swap_remove">vector::swap_remove</a>(v, i)
+}
+</code></pre>
+
+
+
+</details>
 
 <a id="0x1_vector_utils_sort_vector_u64"></a>
 

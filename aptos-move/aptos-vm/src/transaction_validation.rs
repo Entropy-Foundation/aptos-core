@@ -30,6 +30,7 @@ use move_core_types::{
 use move_vm_runtime::{logging::expect_no_verification_errors, module_traversal::TraversalContext};
 use move_vm_types::gas::UnmeteredGasMeter;
 use once_cell::sync::Lazy;
+use aptos_types::transaction::automation::AutomationTaskType;
 
 pub static APTOS_TRANSACTION_VALIDATION: Lazy<TransactionValidation> =
     Lazy::new(|| TransactionValidation {
@@ -201,7 +202,7 @@ pub(crate) fn run_multisig_prologue(
 pub(crate) fn run_automated_transaction_prologue(
     session: &mut SessionExt,
     txn_data: &TransactionMetadata,
-    is_system: bool,
+    task_type: AutomationTaskType,
     log_context: &AdapterLogSchema,
     traversal_context: &mut TraversalContext,
 ) -> Result<(), VMStatus> {
@@ -218,7 +219,7 @@ pub(crate) fn run_automated_transaction_prologue(
         MoveValue::U64(txn_max_gas_units.into()),
         MoveValue::U64(txn_expiration_timestamp_secs),
         MoveValue::U8(chain_id.id()),
-        MoveValue::Bool(is_system),
+        MoveValue::U8(task_type as u8),
     ];
     session
         .execute_function_bypass_visibility(
@@ -309,13 +310,13 @@ fn run_automated_txn_epilogue(
     gas_remaining: Gas,
     fee_statement: FeeStatement,
     txn_data: &TransactionMetadata,
-    is_system: bool,
+    task_type: AutomationTaskType,
     features: &Features,
     traversal_context: &mut TraversalContext,
 ) -> VMResult<()> {
     // System automated tasks are not charged but fee statement event is emitted to enable historical
     // analysis
-    if !is_system {
+    if task_type == AutomationTaskType::User {
         let txn_gas_price = txn_data.gas_unit_price();
         let txn_max_gas_units = txn_data.max_gas_amount();
 
@@ -404,7 +405,7 @@ pub(crate) fn run_automated_txn_success_epilogue(
     fee_statement: FeeStatement,
     features: &Features,
     txn_data: &TransactionMetadata,
-    is_system: bool,
+    task_type: AutomationTaskType,
     log_context: &AdapterLogSchema,
     traversal_context: &mut TraversalContext,
 ) -> Result<(), VMStatus> {
@@ -420,7 +421,7 @@ pub(crate) fn run_automated_txn_success_epilogue(
         gas_remaining,
         fee_statement,
         txn_data,
-        is_system,
+        task_type,
         features,
         traversal_context,
     )
@@ -463,7 +464,7 @@ pub(crate) fn run_automated_txn_failure_epilogue(
     fee_statement: FeeStatement,
     features: &Features,
     txn_data: &TransactionMetadata,
-    is_system: bool,
+    task_type: AutomationTaskType,
     log_context: &AdapterLogSchema,
     traversal_context: &mut TraversalContext,
 ) -> Result<(), VMStatus> {
@@ -472,7 +473,7 @@ pub(crate) fn run_automated_txn_failure_epilogue(
         gas_remaining,
         fee_statement,
         txn_data,
-        is_system,
+        task_type,
         features,
         traversal_context,
     )

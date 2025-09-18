@@ -301,6 +301,29 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                                 entry_function_payload,
                             ))
                         },
+                        aptos_types::transaction::MultisigTransactionPayload::AutomationRegistration(params) => {
+                            let maybe_params_v1 = params.into_v1();
+                            let Some(params_v1) = maybe_params_v1 else {
+                                bail!("Unsupported automation registration parameters.");
+                            };
+                            let (
+                                inner_payload,
+                                max_gas_amount,
+                                gas_price_cap,
+                                expiration_timestamp_secs,
+                                automation_fee_cap,
+                                aux_data,
+                            ) = params_v1.into_inner();
+                            let auto_payload = AutomationRegistrationParamsV1 {
+                                automated_function: self.try_into_entry_function_payload(inner_payload)?,
+                                expiration_timestamp_secs,
+                                max_gas_amount,
+                                gas_price_cap,
+                                automation_fee_cap,
+                                aux_data,
+                            };
+                            Some(MultisigTransactionPayload::AutomationRegistrationPayload(auto_payload.into()))
+                        }
                     }
                 } else {
                     None
@@ -681,6 +704,29 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                                 ),
                             )
                         },
+                        MultisigTransactionPayload::AutomationRegistrationPayload(params) => {
+                            let Some(params_v1) = params.into_v1() else {
+                                bail!("Unsupported/Unimplemented automation registration parameters");
+                            };
+                            let AutomationRegistrationParamsV1 {
+                                automated_function,
+                                expiration_timestamp_secs,
+                                max_gas_amount,
+                                gas_price_cap,
+                                automation_fee_cap,
+                                aux_data,
+                            } = params_v1;
+                            let core_automated_function =
+                                self.try_into_supra_core_entry_function(automated_function)?;
+                            Some(aptos_types::transaction::MultisigTransactionPayload::AutomationRegistration(RegistrationParams::new_v1(
+                                core_automated_function,
+                                expiration_timestamp_secs,
+                                max_gas_amount,
+                                gas_price_cap,
+                                automation_fee_cap,
+                                aux_data,
+                            )))
+                        }
                     }
                 } else {
                     None
