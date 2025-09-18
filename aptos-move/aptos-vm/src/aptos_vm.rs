@@ -2859,7 +2859,7 @@ impl VMValidator for AptosVM {
 
         let dkg_transaction = match transaction {
             ValidatorTransaction::DKG(txn) => txn,
-            _ => return VMValidatorResult::error(StatusCode::INVALID_TRANSACTION_TYPE_FOR_DKG),
+            _ => return VMValidatorResult::error(StatusCode::ONLY_DKG_TRANSACTION_VALIDATION_SUPPORTED),
         };
 
         // Check epoch number.

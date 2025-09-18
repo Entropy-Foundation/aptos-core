@@ -612,7 +612,7 @@ pub enum StatusCode {
     // DKG session is currently not in progress
     DKG_SESSION_NOT_IN_PROGRESS = 51,
     // Validator Transaction does not contain a DKG transaction type
-    INVALID_TRANSACTION_TYPE_FOR_DKG = 52,
+    ONLY_DKG_TRANSACTION_VALIDATION_SUPPORTED = 52,
     // DKG transaction has an invalid epoch number
     DKG_TRANSACTION_INVALID_EPOCH_NUM = 53,
     // DKG meta has already set so DKGMeta transaction should fail
