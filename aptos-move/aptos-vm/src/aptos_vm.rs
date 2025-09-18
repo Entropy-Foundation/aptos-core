@@ -2726,7 +2726,7 @@ impl AptosVM {
     fn check_multisig_task_registration_support(&self) -> Result<(), VMStatus> {
         if !self
             .features()
-            .is_enabled(FeatureFlag::SUPRA_AUTOMATION_CYCLE)
+            .is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2)
         {
             return Err(VMStatus::Error {
                 status_code: StatusCode::FEATURE_UNDER_GATING,
