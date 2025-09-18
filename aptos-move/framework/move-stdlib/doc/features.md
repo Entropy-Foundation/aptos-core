@@ -145,8 +145,8 @@ return true.
 -  [Function `supra_rlp_enabled`](#0x1_features_supra_rlp_enabled)
 -  [Function `get_supra_delegation_pool_identity_feature`](#0x1_features_get_supra_delegation_pool_identity_feature)
 -  [Function `supra_delegation_pool_identity_enabled`](#0x1_features_supra_delegation_pool_identity_enabled)
--  [Function `get_supra_automation_cycle_feature`](#0x1_features_get_supra_automation_cycle_feature)
--  [Function `supra_automation_cycle_enabled`](#0x1_features_supra_automation_cycle_enabled)
+-  [Function `get_supra_automation_v2_feature`](#0x1_features_get_supra_automation_v2_feature)
+-  [Function `supra_automation_v2_enabled`](#0x1_features_supra_automation_v2_enabled)
 -  [Function `change_feature_flags`](#0x1_features_change_feature_flags)
 -  [Function `change_feature_flags_internal`](#0x1_features_change_feature_flags_internal)
 -  [Function `change_feature_flags_for_next_epoch`](#0x1_features_change_feature_flags_for_next_epoch)
@@ -884,19 +884,6 @@ Lifetime: transient
 
 
 
-<a id="0x1_features_SUPRA_AUTOMATION_CYCLE"></a>
-
-Whether Supra cycle based automation is enabled. Once enabled, the native automation feature with detached cycle
-based registry management feature will be activated.
-
-Lifetime: transient
-
-
-<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_AUTOMATION_CYCLE">SUPRA_AUTOMATION_CYCLE</a>: u64 = 96;
-</code></pre>
-
-
-
 <a id="0x1_features_SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK"></a>
 
 Whether gas check of automation-task during registration is enabled. Once enabled, the inner payload along with
@@ -918,6 +905,19 @@ Lifetime: transient
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_AUTOMATION_TASK_SYNC">SUPRA_AUTOMATION_TASK_SYNC</a>: u64 = 92;
+</code></pre>
+
+
+
+<a id="0x1_features_SUPRA_AUTOMATION_V2"></a>
+
+Whether Supra cycle based automation is enabled. Once enabled, the native automation feature with detached cycle
+based registry management feature will be activated.
+
+Lifetime: transient
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_AUTOMATION_V2">SUPRA_AUTOMATION_V2</a>: u64 = 96;
 </code></pre>
 
 
@@ -3745,13 +3745,13 @@ Lifetime: transient
 
 </details>
 
-<a id="0x1_features_get_supra_automation_cycle_feature"></a>
+<a id="0x1_features_get_supra_automation_v2_feature"></a>
 
-## Function `get_supra_automation_cycle_feature`
+## Function `get_supra_automation_v2_feature`
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_automation_cycle_feature">get_supra_automation_cycle_feature</a>(): u64
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_automation_v2_feature">get_supra_automation_v2_feature</a>(): u64
 </code></pre>
 
 
@@ -3760,8 +3760,8 @@ Lifetime: transient
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_automation_cycle_feature">get_supra_automation_cycle_feature</a>(): u64 {
-    <a href="features.md#0x1_features_SUPRA_AUTOMATION_CYCLE">SUPRA_AUTOMATION_CYCLE</a>
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_automation_v2_feature">get_supra_automation_v2_feature</a>(): u64 {
+    <a href="features.md#0x1_features_SUPRA_AUTOMATION_V2">SUPRA_AUTOMATION_V2</a>
 }
 </code></pre>
 
@@ -3769,13 +3769,13 @@ Lifetime: transient
 
 </details>
 
-<a id="0x1_features_supra_automation_cycle_enabled"></a>
+<a id="0x1_features_supra_automation_v2_enabled"></a>
 
-## Function `supra_automation_cycle_enabled`
+## Function `supra_automation_v2_enabled`
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_automation_cycle_enabled">supra_automation_cycle_enabled</a>(): bool
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_automation_v2_enabled">supra_automation_v2_enabled</a>(): bool
 </code></pre>
 
 
@@ -3784,8 +3784,8 @@ Lifetime: transient
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_automation_cycle_enabled">supra_automation_cycle_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
-    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_AUTOMATION_CYCLE">SUPRA_AUTOMATION_CYCLE</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_automation_v2_enabled">supra_automation_v2_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_AUTOMATION_V2">SUPRA_AUTOMATION_V2</a>)
 }
 </code></pre>
 

@@ -11,6 +11,7 @@
 -  [Function `prologue_common`](#0x1_transaction_validation_prologue_common)
 -  [Function `script_prologue`](#0x1_transaction_validation_script_prologue)
 -  [Function `automated_transaction_prologue`](#0x1_transaction_validation_automated_transaction_prologue)
+-  [Function `automated_transaction_prologue_v2`](#0x1_transaction_validation_automated_transaction_prologue_v2)
 -  [Function `multi_agent_script_prologue`](#0x1_transaction_validation_multi_agent_script_prologue)
 -  [Function `multi_agent_common_prologue`](#0x1_transaction_validation_multi_agent_common_prologue)
 -  [Function `fee_payer_script_prologue`](#0x1_transaction_validation_fee_payer_script_prologue)
@@ -420,9 +421,13 @@ Only called during genesis to initialize system resources for this module.
 
 ## Function `automated_transaction_prologue`
 
+Deprecated after Automation V2 release.
+<code>automated_transaction_prologue_v2</code> should be favored instead.
+May be removed at any time after Automation V2 release. Kept for smooth transitioning from
+V1 to V2 on active chains
 
 
-<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_automated_transaction_prologue">automated_transaction_prologue</a>(sender: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_index: u64, txn_gas_price: u64, txn_max_gas_units: u64, txn_expiration_time: u64, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, task_type: u8)
+<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_automated_transaction_prologue">automated_transaction_prologue</a>(sender: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_index: u64, txn_gas_price: u64, txn_max_gas_units: u64, txn_expiration_time: u64, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8)
 </code></pre>
 
 
@@ -432,6 +437,38 @@ Only called during genesis to initialize system resources for this module.
 
 
 <pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_automated_transaction_prologue">automated_transaction_prologue</a>(
+    sender: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    task_index: u64,
+    txn_gas_price: u64,
+    txn_max_gas_units: u64,
+    txn_expiration_time: u64,
+    <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8,
+)  {
+    <b>let</b> ust:u8 = 1;
+    <a href="transaction_validation.md#0x1_transaction_validation_automated_transaction_prologue_v2">automated_transaction_prologue_v2</a>(sender, task_index, txn_gas_price, txn_max_gas_units, txn_expiration_time, <a href="chain_id.md#0x1_chain_id">chain_id</a>, ust);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_transaction_validation_automated_transaction_prologue_v2"></a>
+
+## Function `automated_transaction_prologue_v2`
+
+
+
+<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_automated_transaction_prologue_v2">automated_transaction_prologue_v2</a>(sender: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_index: u64, txn_gas_price: u64, txn_max_gas_units: u64, txn_expiration_time: u64, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, task_type: u8)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="transaction_validation.md#0x1_transaction_validation_automated_transaction_prologue_v2">automated_transaction_prologue_v2</a>(
     sender: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     task_index: u64,
     txn_gas_price: u64,

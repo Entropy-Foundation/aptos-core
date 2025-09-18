@@ -171,7 +171,23 @@ module supra_framework::transaction_validation {
         )
     }
 
+    /// Deprecated after Automation V2 release.
+    /// `automated_transaction_prologue_v2` should be favored instead.
+    /// May be removed at any time after Automation V2 release. Kept for smooth transitioning from
+    /// V1 to V2 on active chains
     fun automated_transaction_prologue(
+        sender: signer,
+        task_index: u64,
+        txn_gas_price: u64,
+        txn_max_gas_units: u64,
+        txn_expiration_time: u64,
+        chain_id: u8,
+    )  {
+        let ust:u8 = 1;
+        automated_transaction_prologue_v2(sender, task_index, txn_gas_price, txn_max_gas_units, txn_expiration_time, chain_id, ust);
+    }
+
+    fun automated_transaction_prologue_v2(
         sender: signer,
         task_index: u64,
         txn_gas_price: u64,

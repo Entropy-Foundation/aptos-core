@@ -17,6 +17,7 @@ use aptos_gas_schedule::VMGasParameters;
 use aptos_types::fee_statement::FeeStatement;
 use aptos_types::on_chain_config::FeatureFlag;
 use aptos_types::transaction::automated_transaction::AutomatedTransaction;
+use aptos_types::transaction::automation::AutomationTaskType;
 use aptos_types::transaction::{
     EntryFunction, ExecutionStatus, TransactionAuxiliaryData, TransactionPayload, TransactionStatus,
 };
@@ -30,7 +31,6 @@ use move_binary_format::errors::Location;
 use move_core_types::vm_status::{StatusCode, VMStatus};
 use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
 use std::ops::Deref;
-use aptos_types::transaction::automation::AutomationTaskType;
 
 pub struct AutomatedTransactionProcessor<'m> {
     aptos_vm: &'m AptosVM,
@@ -47,7 +47,10 @@ impl Deref for AutomatedTransactionProcessor<'_> {
 
 impl<'m> AutomatedTransactionProcessor<'m> {
     pub(crate) fn new(aptos_vm: &'m AptosVM, task_type: AutomationTaskType) -> Self {
-        Self { aptos_vm, task_type }
+        Self {
+            aptos_vm,
+            task_type,
+        }
     }
 
     fn validate_automated_transaction(
@@ -72,13 +75,25 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             log_context,
         )?;
 
-        transaction_validation::run_automated_transaction_prologue(
-            session,
-            transaction_data,
-            self.task_type,
-            log_context,
-            traversal_context,
-        )
+        if self
+            .features()
+            .is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2)
+        {
+            transaction_validation::run_automated_transaction_prologue_v2(
+                session,
+                transaction_data,
+                self.task_type,
+                log_context,
+                traversal_context,
+            )
+        } else {
+            transaction_validation::run_automated_transaction_prologue(
+                session,
+                transaction_data,
+                log_context,
+                traversal_context,
+            )
+        }
     }
 
     fn success_transaction_cleanup(
@@ -339,7 +354,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             balance,
         );
         let (status, output) =
-            self.execute_transaction_impl(resolver, txn, txn_metadata,  &mut gas_meter, log_context);
+            self.execute_transaction_impl(resolver, txn, txn_metadata, &mut gas_meter, log_context);
 
         Ok((status, output, gas_meter))
     }

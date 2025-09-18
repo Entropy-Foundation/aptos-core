@@ -47,7 +47,7 @@ impl<'m> AutomationRegistryTransactionProcessor<'m> {
     ) -> Result<(VMStatus, VMOutput), VMStatus> {
         if !self
             .features()
-            .is_enabled(FeatureFlag::SUPRA_AUTOMATION_CYCLE)
+            .is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2)
         {
             return Ok((
                 VMStatus::Error {

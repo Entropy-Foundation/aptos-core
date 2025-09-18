@@ -962,7 +962,7 @@ fn check_automation_registry_actions_when_automation_cycle_disabled() {
     let mut test_context = AutomationRegistrationTestContext::new();
     test_context.set_supra_native_automation(true);
     // Disable feature and check that no automation registry action is processed.
-    test_context.toggle_feature_with_registry_reconfig(FeatureFlag::SUPRA_AUTOMATION_CYCLE, false);
+    test_context.toggle_feature_with_registry_reconfig(FeatureFlag::SUPRA_AUTOMATION_V2, false);
     let registry_action = test_context.create_automation_registry_transaction(0, 1, 1, vec![0]);
     let result = test_context
         .execute_tagged_transaction(Transaction::AutomationRegistryTransaction(registry_action));
@@ -1024,7 +1024,7 @@ fn check_system_automation_task_registration() {
     assert_eq!(expected_execution_error, failed_event[0].execution_error);
 
     // When feature flag is disabled for V2 transaction execution fails
-    test_context.set_feature_flag(FeatureFlag::SUPRA_AUTOMATION_CYCLE, false);
+    test_context.set_feature_flag(FeatureFlag::SUPRA_AUTOMATION_V2, false);
 
     // Try with multisig payload specified
     let proposal_txn =

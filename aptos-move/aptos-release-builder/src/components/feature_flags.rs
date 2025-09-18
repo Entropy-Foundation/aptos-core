@@ -129,7 +129,7 @@ pub enum FeatureFlag {
     SupraCountFailedProposals,
     SupraRLPEncode,
     SupraDelegationPoolIdentity,
-    SupraAutomationCycle,
+    SupraAutomationV2,
 }
 
 fn generate_features_blob(writer: &CodeWriter, data: &[u64]) {
@@ -339,7 +339,7 @@ impl From<FeatureFlag> for AptosFeatureFlag {
             FeatureFlag::SupraDelegationPoolIdentity => {
                 AptosFeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY
             },
-            FeatureFlag::SupraAutomationCycle => AptosFeatureFlag::SUPRA_AUTOMATION_CYCLE,
+            FeatureFlag::SupraAutomationV2 => AptosFeatureFlag::SUPRA_AUTOMATION_V2,
         }
     }
 }
@@ -478,7 +478,7 @@ impl From<AptosFeatureFlag> for FeatureFlag {
             AptosFeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY => {
                 FeatureFlag::SupraDelegationPoolIdentity
             },
-            AptosFeatureFlag::SUPRA_AUTOMATION_CYCLE => FeatureFlag::SupraAutomationCycle,
+            AptosFeatureFlag::SUPRA_AUTOMATION_V2 => FeatureFlag::SupraAutomationV2,
         }
     }
 }

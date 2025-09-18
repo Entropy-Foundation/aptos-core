@@ -54,7 +54,6 @@ pub use self::{
         LeaderReputationType, OnChainConsensusConfig, ProposerAndVoterConfig, ProposerElectionType,
         ValidatorTxnConfig,
     },
-    evm_config::OnChainEvmConfig,
     execution_config::{
         BlockGasLimitType, ExecutionConfigV1, ExecutionConfigV2, ExecutionConfigV4,
         OnChainExecutionConfig, TransactionDeduperType, TransactionShufflerType,
