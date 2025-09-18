@@ -129,7 +129,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `move_to_started_state`](#0x1_automation_registry_move_to_started_state)
 -  [Function `try_move_to_suspended_state`](#0x1_automation_registry_try_move_to_suspended_state)
 -  [Function `update_state_for_migration`](#0x1_automation_registry_update_state_for_migration)
--  [Function `refund_tasks_fees`](#0x1_automation_registry_refund_tasks_fees)
+-  [Function `refund_fees_and_update_tasks`](#0x1_automation_registry_refund_fees_and_update_tasks)
 -  [Function `safe_deposit_refund`](#0x1_automation_registry_safe_deposit_refund)
 -  [Function `safe_unlock_locked_deposit`](#0x1_automation_registry_safe_unlock_locked_deposit)
 -  [Function `safe_unlock_locked_epoch_fee`](#0x1_automation_registry_safe_unlock_locked_epoch_fee)
@@ -146,7 +146,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `update_config_from_buffer`](#0x1_automation_registry_update_config_from_buffer)
 -  [Function `transfer_fee_to_account_internal`](#0x1_automation_registry_transfer_fee_to_account_internal)
 -  [Function `validate_task_duration`](#0x1_automation_registry_validate_task_duration)
--  [Function `validate_aux_data`](#0x1_automation_registry_validate_aux_data)
+-  [Function `check_and_validate_aux_data`](#0x1_automation_registry_check_and_validate_aux_data)
 -  [Function `migrate_registry_config`](#0x1_automation_registry_migrate_registry_config)
 -  [Function `migrate_registry_state`](#0x1_automation_registry_migrate_registry_state)
 -  [Function `upscale_from_u8`](#0x1_automation_registry_upscale_from_u8)
@@ -160,12 +160,14 @@ This contract is part of the Supra Framework and is designed to manage automated
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">0x1::any</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs">0x1::bcs</a>;
 <b>use</b> <a href="coin.md#0x1_coin">0x1::coin</a>;
 <b>use</b> <a href="config_buffer.md#0x1_config_buffer">0x1::config_buffer</a>;
 <b>use</b> <a href="create_signer.md#0x1_create_signer">0x1::create_signer</a>;
 <b>use</b> <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map">0x1::enumerable_map</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
+<b>use</b> <a href="../../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs">0x1::from_bcs</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/math64.md#0x1_math64">0x1::math64</a>;
 <b>use</b> <a href="multisig_account.md#0x1_multisig_account">0x1::multisig_account</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
@@ -2421,12 +2423,12 @@ Resource Account does not have sufficient balance to process the refund for the 
 
 
 
-<a id="0x1_automation_registry_EINVALID_AUX_DATA_LENGHT"></a>
+<a id="0x1_automation_registry_EINVALID_AUX_DATA_LENGTH"></a>
 
 Invalid number of auxiliary data.
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_AUX_DATA_LENGHT">EINVALID_AUX_DATA_LENGHT</a>: u64 = 14;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_AUX_DATA_LENGTH">EINVALID_AUX_DATA_LENGTH</a>: u64 = 14;
 </code></pre>
 
 
@@ -2712,10 +2714,9 @@ Attempt to run an unsupported action for a task.
 
 <a id="0x1_automation_registry_GST"></a>
 
-Constants decribing the task type, USER SUBMITTED TASK (UST - 1), GOVERNANCE SUBMITTED TASK(GST - 0)
 
 
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_GST">GST</a>: u8 = 0;
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_GST">GST</a>: u8 = 2;
 </code></pre>
 
 
@@ -2750,6 +2751,16 @@ Constants describing task state.
 
 
 
+<a id="0x1_automation_registry_PRIORITY_AUX_DATA_INDEX"></a>
+
+Index of the aux data holding task priority value
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_PRIORITY_AUX_DATA_INDEX">PRIORITY_AUX_DATA_INDEX</a>: u64 = 1;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_REFUND_FACTOR"></a>
 
 Defines divisor for refunds of deposit fees with penalty
@@ -2776,6 +2787,16 @@ Registry resource creation seed
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_REGISTRY_RESOURCE_SEED">REGISTRY_RESOURCE_SEED</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; = [115, 117, 112, 114, 97, 95, 102, 114, 97, 109, 101, 119, 111, 114, 107, 58, 58, 97, 117, 116, 111, 109, 97, 116, 105, 111, 110, 95, 114, 101, 103, 105, 115, 116, 114, 121];
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_SUPPORTED_AUX_DATA_COUNT_MAX"></a>
+
+Supported aux data count
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_SUPPORTED_AUX_DATA_COUNT_MAX">SUPPORTED_AUX_DATA_COUNT_MAX</a>: u64 = 2;
 </code></pre>
 
 
@@ -2852,8 +2873,19 @@ The length of the transaction hash.
 
 
 
+<a id="0x1_automation_registry_TYPE_AUX_DATA_INDEX"></a>
+
+Index of the aux data holding type value
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_TYPE_AUX_DATA_INDEX">TYPE_AUX_DATA_INDEX</a>: u64 = 0;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_UST"></a>
 
+Constants decribing the task type, USER SUBMITTED TASK (UST - 1), GOVERNANCE SUBMITTED TASK(GST - 2)
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_UST">UST</a>: u8 = 1;
@@ -2952,8 +2984,8 @@ The length of the transaction hash.
 
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a>, type: u8): bool {
-    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&task.aux_data) == 1, <a href="automation_registry.md#0x1_automation_registry_EINVALID_AUX_DATA_LENGHT">EINVALID_AUX_DATA_LENGHT</a>);
-    <b>let</b> type_data = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&task.aux_data, 0);
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&task.aux_data) == <a href="automation_registry.md#0x1_automation_registry_SUPPORTED_AUX_DATA_COUNT_MAX">SUPPORTED_AUX_DATA_COUNT_MAX</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_AUX_DATA_LENGTH">EINVALID_AUX_DATA_LENGTH</a>);
+    <b>let</b> type_data = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&task.aux_data, <a href="automation_registry.md#0x1_automation_registry_TYPE_AUX_DATA_INDEX">TYPE_AUX_DATA_INDEX</a>);
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(type_data) == 1, <a href="automation_registry.md#0x1_automation_registry_EINVALID_TASK_TYPE_LENGTH">EINVALID_TASK_TYPE_LENGTH</a>);
     <b>let</b> type_value = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(type_data, 0);
     *type_value == type
@@ -3359,7 +3391,7 @@ Checks whether there is an active system task in registry with specified input t
 
 
 <pre><code>#[view]
-<b>fun</b> <a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id_and_type">has_sender_active_task_with_id_and_type</a>(sender: <b>address</b>, task_index: u64, type: u8): bool
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id_and_type">has_sender_active_task_with_id_and_type</a>(sender: <b>address</b>, task_index: u64, type: u8): bool
 </code></pre>
 
 
@@ -3368,7 +3400,7 @@ Checks whether there is an active system task in registry with specified input t
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id_and_type">has_sender_active_task_with_id_and_type</a>(sender: <b>address</b>, task_index: u64, type: u8): bool <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a> {
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id_and_type">has_sender_active_task_with_id_and_type</a>(sender: <b>address</b>, task_index: u64, type: u8): bool <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a> {
     <b>let</b> registry_state = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>&gt;(@supra_framework);
     <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&registry_state.main.tasks, task_index)) {
         <b>let</b> value = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_ref">enumerable_map::get_value_ref</a>(&registry_state.main.tasks, task_index);
@@ -4920,7 +4952,7 @@ Registers a new automation task entry.
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
     // Guarding registration <b>if</b> feature is not enabled.
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>);
-    <a href="automation_registry.md#0x1_automation_registry_validate_aux_data">validate_aux_data</a>(&aux_data, <a href="automation_registry.md#0x1_automation_registry_UST">UST</a>);
+    <b>let</b> has_no_priority = <a href="automation_registry.md#0x1_automation_registry_check_and_validate_aux_data">check_and_validate_aux_data</a>(&aux_data, <a href="automation_registry.md#0x1_automation_registry_UST">UST</a>);
 
     <b>let</b> automation_registry_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>&gt;(@supra_framework);
     <b>let</b> automation_cycle_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
@@ -4966,6 +4998,11 @@ Registers a new automation task entry.
 
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = committed_gas;
     <b>let</b> task_index = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.current_index;
+
+    <b>if</b> (has_no_priority) {
+        <b>let</b> priority = std::bcs::to_bytes(&task_index);
+        <a href="../../supra-stdlib/doc/vector_utils.md#0x1_vector_utils_replace">vector_utils::replace</a>(&<b>mut</b> aux_data, <a href="automation_registry.md#0x1_automation_registry_PRIORITY_AUX_DATA_INDEX">PRIORITY_AUX_DATA_INDEX</a>, priority);
+    };
 
     <b>let</b> automation_task_metadata = <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a> {
         task_index,
@@ -5034,7 +5071,7 @@ Note, system tasks are not charged registration and deposit fee.
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a> {
     // Guarding registration <b>if</b> feature is not enabled.
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>);
-    <a href="automation_registry.md#0x1_automation_registry_validate_aux_data">validate_aux_data</a>(&aux_data, <a href="automation_registry.md#0x1_automation_registry_GST">GST</a>);
+    <b>let</b> has_no_priority = <a href="automation_registry.md#0x1_automation_registry_check_and_validate_aux_data">check_and_validate_aux_data</a>(&aux_data, <a href="automation_registry.md#0x1_automation_registry_GST">GST</a>);
 
     <b>let</b> automation_registry_config = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>&gt;(@supra_framework);
     <b>let</b> automation_cycle_info = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>&gt;(@supra_framework);
@@ -5073,6 +5110,10 @@ Note, system tasks are not charged registration and deposit fee.
 
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.system_tasks_state.gas_committed_for_next_cycle = committed_gas;
     <b>let</b> task_index = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.main.current_index;
+    <b>if</b> (has_no_priority) {
+        <b>let</b> priority = std::bcs::to_bytes(&task_index);
+        <a href="../../supra-stdlib/doc/vector_utils.md#0x1_vector_utils_replace">vector_utils::replace</a>(&<b>mut</b> aux_data, <a href="automation_registry.md#0x1_automation_registry_PRIORITY_AUX_DATA_INDEX">PRIORITY_AUX_DATA_INDEX</a>, priority);
+    };
 
     <b>let</b> automation_task_metadata = <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a> {
         task_index,
@@ -6170,7 +6211,7 @@ fee primitives.
         // Compute the automation fee multiplier for ended epoch
         refund_automation_fee_per_sec = <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_multiplier_for_epoch">calculate_automation_fee_multiplier_for_epoch</a>(arc, previous_tcmg, arc.registry_max_gas_cap);
     };
-    <a href="automation_registry.md#0x1_automation_registry_refund_tasks_fees">refund_tasks_fees</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>, arc, refund_automation_fee_per_sec, refund_interval, current_time);
+    <a href="automation_registry.md#0x1_automation_registry_refund_fees_and_update_tasks">refund_fees_and_update_tasks</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>, arc, refund_automation_fee_per_sec, refund_interval, current_time);
 
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees = 0;
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_this_epoch = 0;
@@ -6181,14 +6222,14 @@ fee primitives.
 
 </details>
 
-<a id="0x1_automation_registry_refund_tasks_fees"></a>
+<a id="0x1_automation_registry_refund_fees_and_update_tasks"></a>
 
-## Function `refund_tasks_fees`
+## Function `refund_fees_and_update_tasks`
 
 Refunds automation fee for epoch for all eligible tasks during migration.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_tasks_fees">refund_tasks_fees</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, refund_automation_fee_per_sec: u256, refund_interval: u64, current_time: u64)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_fees_and_update_tasks">refund_fees_and_update_tasks</a>(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>, refund_automation_fee_per_sec: u256, refund_interval: u64, current_time: u64)
 </code></pre>
 
 
@@ -6197,7 +6238,7 @@ Refunds automation fee for epoch for all eligible tasks during migration.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_tasks_fees">refund_tasks_fees</a>(
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_fees_and_update_tasks">refund_fees_and_update_tasks</a>(
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">AutomationRegistry</a>,
     arc: &<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>,
     refund_automation_fee_per_sec: u256,
@@ -6213,7 +6254,8 @@ Refunds automation fee for epoch for all eligible tasks during migration.
 
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(ids, |task_index| {
         <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_mut">enumerable_map::get_value_mut</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.tasks, task_index);
-        task.aux_data = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="automation_registry.md#0x1_automation_registry_UST">UST</a>]];
+        // Defult type before migration is <a href="automation_registry.md#0x1_automation_registry_UST">UST</a> and the priority is the task index
+        task.aux_data = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="automation_registry.md#0x1_automation_registry_UST">UST</a>], <a href="../../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs_to_bytes">bcs::to_bytes</a>(&task_index)];
         <b>if</b> (refund_automation_fee_per_sec != 0 && task.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
             <b>let</b> refund = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(
                 arc,
@@ -6986,13 +7028,15 @@ Transfers the specified fee amount from the resource account to the target accou
 
 </details>
 
-<a id="0x1_automation_registry_validate_aux_data"></a>
+<a id="0x1_automation_registry_check_and_validate_aux_data"></a>
 
-## Function `validate_aux_data`
+## Function `check_and_validate_aux_data`
+
+Validates auxiliary data , by checking task type and priority if any specified.
+Returns true if priority is not specify, false if specified.
 
 
-
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_validate_aux_data">validate_aux_data</a>(aux_data: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, task_type: u8)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_check_and_validate_aux_data">check_and_validate_aux_data</a>(aux_data: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, task_type: u8): bool
 </code></pre>
 
 
@@ -7001,12 +7045,24 @@ Transfers the specified fee amount from the resource account to the target accou
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_validate_aux_data">validate_aux_data</a>(aux_data: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, task_type: u8) {
-    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(aux_data) == 1, <a href="automation_registry.md#0x1_automation_registry_EINVALID_AUX_DATA_LENGHT">EINVALID_AUX_DATA_LENGHT</a>);
-    <b>let</b> maybe_task_type = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(aux_data, 0);
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_check_and_validate_aux_data">check_and_validate_aux_data</a>(aux_data: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, task_type: u8) : bool {
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(aux_data) == <a href="automation_registry.md#0x1_automation_registry_SUPPORTED_AUX_DATA_COUNT_MAX">SUPPORTED_AUX_DATA_COUNT_MAX</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_AUX_DATA_LENGTH">EINVALID_AUX_DATA_LENGTH</a>);
+
+    // Check task type
+    <b>let</b> maybe_task_type = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(aux_data, <a href="automation_registry.md#0x1_automation_registry_TYPE_AUX_DATA_INDEX">TYPE_AUX_DATA_INDEX</a>);
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(maybe_task_type) == 1, <a href="automation_registry.md#0x1_automation_registry_EINVALID_TASK_TYPE_LENGTH">EINVALID_TASK_TYPE_LENGTH</a>);
     <b>let</b> type_value = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(maybe_task_type, 0);
-    <b>assert</b>!(*type_value == task_type, <a href="automation_registry.md#0x1_automation_registry_EINVALID_TASK_TYPE">EINVALID_TASK_TYPE</a>)
+    <b>assert</b>!(*type_value == task_type, <a href="automation_registry.md#0x1_automation_registry_EINVALID_TASK_TYPE">EINVALID_TASK_TYPE</a>);
+
+    // Check priority existence
+    <b>let</b> maybe_task_priority = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(aux_data, <a href="automation_registry.md#0x1_automation_registry_PRIORITY_AUX_DATA_INDEX">PRIORITY_AUX_DATA_INDEX</a>);
+    <b>let</b> has_no_priority = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(maybe_task_priority);
+    <b>if</b> (!has_no_priority) {
+        // If there is a value specified validate that it can be converted <b>to</b> u64 successfully.
+        // This will allow <b>to</b> avoid invalid task registration
+        <b>let</b> _ = <a href="../../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_u64">from_bcs::to_u64</a>(*maybe_task_priority);
+    };
+    has_no_priority
 }
 </code></pre>
 

@@ -93,6 +93,7 @@ pub enum FeatureFlag {
     SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK = 90,
     PRIVATE_POLL = 91,
     SUPRA_AUTOMATION_TASK_SYNC = 92,
+    // TODO update the name to SUPRA_NATIVE_AUTOMATION_V2 as we are releasing 2 features, CYCLE and GST support
     SUPRA_AUTOMATION_CYCLE = 93,
 }
 

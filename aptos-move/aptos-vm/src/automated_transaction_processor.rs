@@ -30,10 +30,11 @@ use move_binary_format::errors::Location;
 use move_core_types::vm_status::{StatusCode, VMStatus};
 use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
 use std::ops::Deref;
+use aptos_types::transaction::automation::AutomationTaskType;
 
 pub struct AutomatedTransactionProcessor<'m> {
     aptos_vm: &'m AptosVM,
-    sys_automated_txn: bool,
+    task_type: AutomationTaskType,
 }
 
 impl Deref for AutomatedTransactionProcessor<'_> {
@@ -45,8 +46,8 @@ impl Deref for AutomatedTransactionProcessor<'_> {
 }
 
 impl<'m> AutomatedTransactionProcessor<'m> {
-    pub(crate) fn new(aptos_vm: &'m AptosVM, sys_automated_txn: bool) -> Self {
-        Self { aptos_vm, sys_automated_txn }
+    pub(crate) fn new(aptos_vm: &'m AptosVM, task_type: AutomationTaskType) -> Self {
+        Self { aptos_vm, task_type }
     }
 
     fn validate_automated_transaction(
@@ -74,7 +75,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         transaction_validation::run_automated_transaction_prologue(
             session,
             transaction_data,
-            self.sys_automated_txn,
+            self.task_type,
             log_context,
             traversal_context,
         )
@@ -116,7 +117,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 fee_statement,
                 self.features(),
                 txn_data,
-                self.sys_automated_txn,
+                self.task_type,
                 log_context,
                 traversal_context,
             )
@@ -473,7 +474,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 fee_statement,
                 self.features(),
                 txn_data,
-                self.sys_automated_txn,
+                self.task_type,
                 log_context,
                 traversal_context,
             )
