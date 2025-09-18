@@ -41,6 +41,7 @@ pub enum RegistrationParams {
     V1(RegistrationParamsV1),
     V2(RegistrationParamsV2),
 }
+
 impl RegistrationParams {
     pub fn new_v1(
         automated_function: EntryFunction,
@@ -301,22 +302,19 @@ impl RegistrationParamsV1 {
     }
 
     fn prepare_aux_data(&self, features: &Features) -> Vec<MoveValue> {
+        let mut aux_data = vec![];
         if features.is_enabled(FeatureFlag::SUPRA_AUTOMATION_CYCLE) {
             let type_value = vec![self.task_type() as u8];
             // With V1 version no priority is supported and will always be assigned by
             // registry with default value
             let priority_value = vec![];
-            vec![type_value, priority_value]
-                .iter()
-                .chain(self.aux_data.iter())
-                .map(|item| MoveValue::vector_u8(item.clone()))
-                .collect()
-        } else {
-            self.aux_data
-                .iter()
-                .map(|item| MoveValue::vector_u8(item.clone()))
-                .collect()
+            aux_data = vec![type_value, priority_value];
         }
+        aux_data
+            .iter()
+            .chain(self.aux_data.iter())
+            .map(|item| MoveValue::vector_u8(item.clone()))
+            .collect()
     }
 }
 
@@ -425,25 +423,23 @@ impl RegistrationParamsV2 {
     }
 
     fn prepare_aux_data(&self, features: &Features) -> Vec<MoveValue> {
+        let mut aux_data = vec![];
+        // If SUPRA_AUTOMATION_V2 feature is not enabled then no type and priority should be prepended to aux-data
         if features.is_enabled(FeatureFlag::SUPRA_AUTOMATION_CYCLE) {
             let type_value = vec![*self.task_type() as u8];
             // If no priority is specified by user, it will be assigned by registry at registration time.
             let priority_value = self
                 .priority_value()
                 .as_ref()
-                .map(|v| bcs::to_bytes(v).expect("None value should always serialize"))
+                .map(|v| bcs::to_bytes(v).expect("u64 value should always serialize"))
                 .unwrap_or_default();
-            vec![type_value, priority_value]
-                .iter()
-                .chain(self.aux_data.iter())
-                .map(|item| MoveValue::vector_u8(item.clone()))
-                .collect()
-        } else {
-            self.aux_data
-                .iter()
-                .map(|item| MoveValue::vector_u8(item.clone()))
-                .collect()
+            aux_data = vec![type_value, priority_value]
         }
+        aux_data
+            .iter()
+            .chain(self.aux_data.iter())
+            .map(|item| MoveValue::vector_u8(item.clone()))
+            .collect()
     }
 }
 
@@ -511,10 +507,13 @@ impl TryFrom<&[u8]> for AutomationTaskType {
             match value[0] {
                 1 => Ok(AutomationTaskType::User),
                 2 => Ok(AutomationTaskType::System),
-                e => Err(format!("Invalid AutomationTaskType discriminant: {e}", )),
+                e => Err(format!("Invalid AutomationTaskType discriminant: {e}",)),
             }
         } else {
-            Err(format!("Invalid automation task type with discriminant as vector: {:?}", value))
+            Err(format!(
+                "Invalid automation task type with discriminant as vector: {:?}",
+                value
+            ))
         }
     }
 }
@@ -649,18 +648,14 @@ impl AutomationTaskMetaData {
                 // until Automation V2 is fully enabled/release.
                 Some(self.id)
             } else {
-                match bcs::from_bytes::<u64>(&self.aux_data[Self::TASK_PRIORITY_AUX_INDEX])
-                {
+                match bcs::from_bytes::<u64>(&self.aux_data[Self::TASK_PRIORITY_AUX_INDEX]) {
                     Ok(value) => Some(value),
                     // If deserialization fails then none is considered specified
-                    Err(_) => {
-                        None
-                    },
+                    Err(_) => None,
                 }
             }
         })
     }
-
 }
 
 /// Action to be performed on automation registry.
