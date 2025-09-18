@@ -621,6 +621,8 @@ pub enum StatusCode {
     DKG_META_NOT_SET = 55,
     // DKG transaction data is invalid
     DKG_TRANSACTION_NOT_VALID = 56,
+    // The sender of the dkg transaction is not a family node
+    DKG_TRANSACTION_SENDER_NOT_FAMILY_NODE = 57,
     // When a code module/script is published it is verified. These are the
     // possible errors that can arise from the verification process.
     // Verification Errors: 1000-1999

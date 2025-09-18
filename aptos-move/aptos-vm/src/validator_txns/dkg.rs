@@ -1,6 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+use crypto::utils::get_family_node_indices;
 use crate::{
     aptos_vm::get_or_vm_startup_failure,
     errors::expect_only_successful_execution,
@@ -20,6 +21,7 @@ use aptos_types::{
     transaction::{ExecutionStatus, TransactionStatus},
 };
 use aptos_types::dkg::DKGTransactionType;
+use aptos_types::dkg_committee::DkgCommittee;
 use aptos_vm_logging::log_schema::AdapterLogSchema;
 use aptos_vm_types::output::VMOutput;
 use move_core_types::{

@@ -1291,6 +1291,7 @@ impl Arbitrary for ValidatorTransaction {
                 ValidatorTransaction::DKG(DKGTransactionData {
                     metadata: DKGTransactionMetadata {
                         epoch: 0,
+                        author: AccountAddress::ZERO,
                         bls_aggregate_signature: vec![],
                         signer_indices_clan_committee: vec![],
                         transaction_type: DKGTransactionType::DKGMeta,

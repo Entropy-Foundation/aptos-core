@@ -110,7 +110,9 @@ use std::{
     marker::Sync,
     sync::Arc,
 };
+use crypto::utils::get_family_node_indices;
 use aptos_types::dkg::{DKGState, DKGTransactionType};
+use aptos_types::dkg_committee::DkgCommittee;
 use aptos_types::on_chain_config::ConfigurationResource;
 use aptos_types::validator_txn::ValidatorTransaction;
 
@@ -2878,6 +2880,23 @@ impl VMValidator for AptosVM {
                     return VMValidatorResult::error(StatusCode::DKG_META_NOT_SET);
                 }
             }
+        }
+
+        // the node submitting the transaction must be a family node
+        let dealer_committee = &in_progress_session_state.metadata.dealer_committee;
+        let family_committee_indices
+            = get_family_node_indices(dealer_committee.committee.len() as u32, in_progress_session_state.metadata.randomness_seed);
+        let sender_is_family_node = match family_committee_indices{
+            Some(family_node_indices) => {
+                family_node_indices.iter().any(|x| dealer_committee.committee[*x].addr == dkg_transaction.metadata.author)
+            }
+            None => {
+                false
+            }
+        };
+
+        if !sender_is_family_node{
+            return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_SENDER_NOT_FAMILY_NODE);
         }
 
         if dkg_transaction.data_bytes.is_empty() ||

@@ -16,6 +16,7 @@ use crate::dkg_committee::DkgCommittee;
 use crate::on_chain_config::OnChainConfig;
 use crypto::utils::get_clan_node_indices;
 use aptos_crypto::bls12381::{PublicKey, Signature};
+use move_core_types::account_address::AccountAddress;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum DKGTransactionType{
@@ -26,6 +27,7 @@ pub enum DKGTransactionType{
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, CryptoHasher, BCSCryptoHash)]
 pub struct DKGTransactionMetadata {
     pub epoch: u64,
+    pub author: AccountAddress,
     pub bls_aggregate_signature: Vec<u8>,
     pub signer_indices_clan_committee: Vec<u32>,
     pub transaction_type: DKGTransactionType
@@ -63,9 +65,9 @@ impl Debug for DKGTransactionData {
 }
 
 impl DKGTransactionData {
-    pub fn new(epoch: u64, transcript_bytes: Vec<u8>, bls_aggregate_signature: Vec<u8>, signer_indices_clan_committee: Vec<u32>, transaction_type: DKGTransactionType) -> Self {
+    pub fn new(epoch: u64, author: AccountAddress, transcript_bytes: Vec<u8>, bls_aggregate_signature: Vec<u8>, signer_indices_clan_committee: Vec<u32>, transaction_type: DKGTransactionType) -> Self {
         Self {
-            metadata: DKGTransactionMetadata { epoch, bls_aggregate_signature, signer_indices_clan_committee, transaction_type },
+            metadata: DKGTransactionMetadata { epoch, author, bls_aggregate_signature, signer_indices_clan_committee, transaction_type },
             data_bytes: transcript_bytes,
         }
     }
@@ -74,6 +76,7 @@ impl DKGTransactionData {
         Self {
             metadata: DKGTransactionMetadata {
                 epoch: 0,
+                author: AccountAddress::ZERO,
                 bls_aggregate_signature: vec![],
                 signer_indices_clan_committee: vec![],
                 transaction_type: DKGTransactionType::DKGMeta,

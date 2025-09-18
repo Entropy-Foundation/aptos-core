@@ -4216,6 +4216,7 @@ dependencies = [
  "bytes",
  "claims",
  "crossbeam-channel",
+ "crypto",
  "derive_more",
  "fail",
  "futures",
