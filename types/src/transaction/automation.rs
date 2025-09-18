@@ -518,6 +518,7 @@ impl TryFrom<&[u8]> for AutomationTaskType {
     }
 }
 
+
 /// Rust representation of the Automation task meta information in Move.
 #[derive(Clone, Debug, Serialize, Deserialize, Getters, Constructor)]
 pub struct AutomationTaskMetaData {
