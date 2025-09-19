@@ -2635,6 +2635,16 @@ impl AptosVM {
                 (VMStatus::Executed, output)
             },
             Transaction::ValidatorTransaction(txn) => {
+                if !self
+                    .features()
+                    .is_enabled(FeatureFlag::SUPRA_DKG)
+                {
+                    return Err(VMStatus::error(
+                        StatusCode::FEATURE_UNDER_GATING,
+                        None,
+                    ));
+                }
+
                 let (vm_status, output) =
                     self.process_validator_transaction(resolver, txn.clone(), log_context)?;
                 (vm_status, output)
