@@ -259,7 +259,6 @@ module supra_framework::automation_registry {
         task_capacity: u16,
     }
 
-    #[event]
     /// Automation registry configuration parameters for governance/system submitted tasks
     struct RegistryConfigForSystemTasks has store, drop, copy {
         /// Maximum allowable duration (in seconds) from the registration time that an system automation task can run.
@@ -568,6 +567,7 @@ module supra_framework::automation_registry {
         task_index: u64,
         owner: address,
     }
+
     #[event]
     /// Event emitted on automation task cancellation by owner.
     struct TaskCancelledV2 has drop, store {
@@ -691,13 +691,13 @@ module supra_framework::automation_registry {
     struct DisabledRegistrationEvent has drop, store {}
 
     #[event]
-    /// Emitted when the account is authroized to submit system automation tasks
+    /// Emitted when the account is authorized to submit system automation tasks
     struct AuthorizationGranted has drop, store {
         account: address
     }
 
     #[event]
-    /// Emitted when the account authorizationis revoked to submit system automation tasks
+    /// Emitted when the account authorization is revoked to submit system automation tasks
     struct AuthorizationRevoked has drop, store {
         account: address
     }
@@ -848,7 +848,8 @@ module supra_framework::automation_registry {
     }
 
     #[view]
-    /// Checks whether there is an active system task in registry with specified input task index.
+    /// Checks whether there is an active task in registry with specified input task index of the input type.
+    /// The type can be either 1 for user submitted tasks, and 2 for governance authorized tasks.
     public fun has_sender_active_task_with_id_and_type(sender: address, task_index: u64, type: u8): bool acquires AutomationRegistryV2 {
         let registry_state = borrow_global<AutomationRegistryV2>(@supra_framework);
         if (enumerable_map::contains(&registry_state.main.tasks, task_index)) {
@@ -883,6 +884,12 @@ module supra_framework::automation_registry {
     /// Get automation registry configuration
     public fun get_automation_registry_config(): AutomationRegistryConfig acquires ActiveAutomationRegistryConfigV2 {
         borrow_global<ActiveAutomationRegistryConfigV2>(@supra_framework).main_config
+    }
+
+    #[view]
+    /// Get automation registry configuration for system tasks
+    public fun get_automation_registry_config_for_system_tasks(): RegistryConfigForSystemTasks acquires ActiveAutomationRegistryConfigV2 {
+        borrow_global<ActiveAutomationRegistryConfigV2>(@supra_framework).system_task_config
     }
 
     #[view]
@@ -1145,7 +1152,7 @@ module supra_framework::automation_registry {
     public fun revoke_authorization(supra_framework: &signer, account: address) acquires AutomationRegistryV2 {
         system_addresses::assert_supra_framework(supra_framework);
         let system_tasks_state = &mut borrow_global_mut<AutomationRegistryV2>(@supra_framework).system_tasks_state;
-        if (vector::contains(&system_tasks_state.authorized_accounts, &account)) {
+        if (!vector::contains(&system_tasks_state.authorized_accounts, &account)) {
             return
         };
         vector::remove_value(&mut system_tasks_state.authorized_accounts, &account);
@@ -1335,7 +1342,7 @@ module supra_framework::automation_registry {
     /// Only tasks that exist and are owned by the sender can be stopped.
     /// If any of the specified tasks are not owned by the sender, the transaction will abort.
     /// When a task is stopped, the committed gas for the next epoch is reduced
-    /// by the max gas amount of the stopped task. Half of the remaining task fee is refunded.
+    /// by the max gas amount of the stopped task.
     public entry fun stop_system_tasks(
         owner_signer: &signer,
         task_indexes: vector<u64>
@@ -8114,4 +8121,28 @@ module supra_framework::automation_registry {
         assert!(!has_task_with_id(0), 1);
         assert!(0 == get_system_gas_committed_for_next_cycle(), 1);
     }
+
+    #[test(framework = @supra_framework, user = @0x1cafe, user2 = @0x2da5ef)]
+    fun check_account_authorization(
+        framework: &signer,
+        user: &signer,
+        user2: &signer
+    ) acquires AutomationRegistryV2 {
+        initialize_registry_test(framework, user);
+        // To make sure that account resource exists
+        topup_account(framework, user2, 1000);
+        let (multisig_address, _multisig_signer) = setup_multisig_account(framework, user);
+        let (multisig_address2, _multisig_signer2) = setup_multisig_account(framework, user2);
+        grant_authorization(framework, multisig_address);
+        grant_authorization(framework, multisig_address2);
+        assert!(is_authorized_account(multisig_address), 1);
+        assert!(is_authorized_account(multisig_address2), 2);
+        revoke_authorization(framework, multisig_address);
+        assert!(!is_authorized_account(multisig_address), 3);
+        assert!(is_authorized_account(multisig_address2), 4);
+
+        let registry = borrow_global<AutomationRegistryV2>(@supra_framework);
+        assert!(vector::length(&registry.system_tasks_state.authorized_accounts) == 1, 5);
+    }
+
 }
