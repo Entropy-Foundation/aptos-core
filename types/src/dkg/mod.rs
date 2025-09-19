@@ -14,8 +14,8 @@ use std::{
 };
 use crate::dkg_committee::DkgCommittee;
 use crate::on_chain_config::OnChainConfig;
-use crypto::utils::get_clan_node_indices;
-use aptos_crypto::bls12381::{PublicKey, Signature};
+use crypto::utils::{get_clan_node_indices, get_family_node_indices};
+use aptos_crypto::bls12381::PublicKey;
 use move_core_types::account_address::AccountAddress;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -84,18 +84,6 @@ impl DKGTransactionData {
             data_bytes: vec![],
         }
     }
-
-    pub fn verify_transaction(&self, dealer_committee: &DkgCommittee, random_seed: &Vec<u8>) -> Result<()> {
-        let signer_bls_pubkeys = get_signer_bls_keys_from_indices(dealer_committee,
-                                                                  &self.metadata.signer_indices_clan_committee,
-                                                                  random_seed)
-            .map_err(|e| anyhow!("dkg::verify_transaction invalid signers: {e}"))?;
-        let agg_sig = Signature::try_from(self.metadata.bls_aggregate_signature.as_slice())
-            .map_err(|e| anyhow!("dkg::verify_transaction aggregate signature deserialization failed: {e}"))?;
-        let agg_pk = PublicKey::aggregate(signer_bls_pubkeys.iter().collect())
-            .map_err(|e| anyhow!("dkg::verify_transaction public keys aggregation failed: {e}"))?;
-        agg_sig.verify_aggregate_arbitrary_msg(&[self.data_bytes.as_slice()], &[&agg_pk])
-    }
 }
 
 /// Reflection of `0x1::dkg::DKGSessionMetadata` in rust.
@@ -163,7 +151,7 @@ fn clan_threshold(total: u64)-> u64 {
     total / 2 + 1
 }
 
-fn get_signer_bls_keys_from_indices(dealer_committee: &DkgCommittee, signers: &Vec<u32>, random_seed: &Vec<u8>) -> Result<Vec<PublicKey>>{
+pub fn get_clan_nodes_bls_keys_from_indices(dealer_committee: &DkgCommittee, signers: &Vec<u32>, random_seed: &Vec<u8>) -> Result<Vec<PublicKey>>{
 
     let committee = &dealer_committee.committee;
     let dealer_clan_committee_indices = get_clan_node_indices(committee.len() as u32, random_seed.clone());
@@ -188,4 +176,16 @@ fn get_signer_bls_keys_from_indices(dealer_committee: &DkgCommittee, signers: &V
     else {
         Err(anyhow!("dkg::cannot derive clan committee"))
     }
+}
+
+pub fn is_node_family_committee_member(addr: AccountAddress, dealer_committee: &DkgCommittee, random_seed: &Vec<u8>) -> bool {
+
+    let family_committee_indices
+        = get_family_node_indices(dealer_committee.committee.len() as u32, random_seed.clone());
+
+    if let Some(family_node_indices) = family_committee_indices{
+        let result = family_node_indices.iter().any(|x| dealer_committee.committee[*x].addr == addr);
+        return result;
+    }
+    false
 }

@@ -623,6 +623,14 @@ pub enum StatusCode {
     DKG_TRANSACTION_NOT_VALID = 56,
     // The sender of the dkg transaction is not a family node
     DKG_TRANSACTION_SENDER_NOT_FAMILY_NODE = 57,
+    // Failed to get the public keys for the signer clan nodes
+    DKG_FAILED_TO_GET_CLAN_NODE_PUBKEYS = 58,
+    // Failed to deserialize the aggregated signature  
+    DKG_FAILED_TO_DESER_AGG_SIG = 59,
+    // Failed to aggregate the public keys for the signer clan nodes
+    DKG_FAILED_TO_AGGREGATE_PUBLIC_KEYS = 60,
+    // Failed to verify the clan committee aggregated signature
+    DKG_AGG_SIG_VERIFICATION_FAILED = 61,
     // When a code module/script is published it is verified. These are the
     // possible errors that can arise from the verification process.
     // Verification Errors: 1000-1999

@@ -110,9 +110,8 @@ use std::{
     marker::Sync,
     sync::Arc,
 };
-use crypto::utils::get_family_node_indices;
+use aptos_crypto::bls12381::{PublicKey, Signature};
 use aptos_types::dkg::{DKGState, DKGTransactionType};
-use aptos_types::dkg_committee::DkgCommittee;
 use aptos_types::on_chain_config::ConfigurationResource;
 use aptos_types::validator_txn::ValidatorTransaction;
 
@@ -2835,10 +2834,11 @@ impl VMValidator for AptosVM {
         result
     }
 
+
     fn validate_dkg_validator_transaction(
         &self,
         transaction: ValidatorTransaction,
-        state_view: &impl StateView,
+        resolver: &impl AptosMoveResolver,
     ) -> VMValidatorResult {
 
         if !self
@@ -2848,14 +2848,12 @@ impl VMValidator for AptosVM {
             return VMValidatorResult::error(StatusCode::FEATURE_UNDER_GATING);
         }
 
-        let resolver = self.as_move_resolver(&state_view);
-
-        let dkg_state = match OnChainConfig::fetch_config(&resolver) {
+        let dkg_state = match OnChainConfig::fetch_config(resolver) {
             Some(state) => state,
             None => return VMValidatorResult::error(StatusCode::RESOURCE_DOES_NOT_EXIST),
         };
 
-        let config_resource = match ConfigurationResource::fetch_config(&resolver) {
+        let config_resource = match ConfigurationResource::fetch_config(resolver) {
             Some(cfg) => cfg,
             None => return VMValidatorResult::error(StatusCode::RESOURCE_DOES_NOT_EXIST),
         };
@@ -2894,18 +2892,8 @@ impl VMValidator for AptosVM {
 
         // the node submitting the transaction must be a family node
         let dealer_committee = &in_progress_session_state.metadata.dealer_committee;
-        let family_committee_indices
-            = get_family_node_indices(dealer_committee.committee.len() as u32, in_progress_session_state.metadata.randomness_seed);
-        let sender_is_family_node = match family_committee_indices{
-            Some(family_node_indices) => {
-                family_node_indices.iter().any(|x| dealer_committee.committee[*x].addr == dkg_transaction.metadata.author)
-            }
-            None => {
-                false
-            }
-        };
-
-        if !sender_is_family_node{
+        let randomness_seed = &in_progress_session_state.metadata.randomness_seed;
+        if !aptos_types::dkg::is_node_family_committee_member(dkg_transaction.metadata.author, dealer_committee, randomness_seed){
             return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_SENDER_NOT_FAMILY_NODE);
         }
 
@@ -2914,6 +2902,34 @@ impl VMValidator for AptosVM {
             dkg_transaction.metadata.signer_indices_clan_committee.is_empty()
         {
             return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_NOT_VALID);
+        }
+
+        // verify clan committee multi-signature on the transaction data
+        let signer_bls_pubkeys = match aptos_types::dkg::get_clan_nodes_bls_keys_from_indices(dealer_committee,
+                                                                                        &dkg_transaction.metadata.signer_indices_clan_committee,
+                                                                                        randomness_seed){
+            Ok(bls_keys) => {bls_keys}
+            Err(_) => {
+                return VMValidatorResult::error(StatusCode::DKG_FAILED_TO_GET_CLAN_NODE_PUBKEYS);
+            }
+        };
+
+        let agg_sig = match Signature::try_from(dkg_transaction.metadata.bls_aggregate_signature.as_slice()){
+            Ok(sig) => {sig}
+            Err(_) => {
+                return VMValidatorResult::error(StatusCode::DKG_FAILED_TO_DESER_AGG_SIG);
+            }
+        };
+
+        let agg_pk = match PublicKey::aggregate(signer_bls_pubkeys.iter().collect()){
+            Ok(pk) => {pk}
+            Err(_) => {
+                return VMValidatorResult::error(StatusCode::DKG_FAILED_TO_AGGREGATE_PUBLIC_KEYS);
+            }
+        };
+
+        if agg_sig.verify_aggregate_arbitrary_msg(&[dkg_transaction.data_bytes.as_slice()], &[&agg_pk]).is_err(){
+            return VMValidatorResult::error(StatusCode::DKG_AGG_SIG_VERIFICATION_FAILED);
         }
 
         VMValidatorResult::new(None, 0)
