@@ -750,7 +750,20 @@ module std::features {
     public fun supra_rlp_enabled(): bool acquires Features {
         is_enabled(SUPRA_RLP_ENCODE)
     }
-    
+
+    /// Whether using delegation pool as node identity feature is enabled.
+    ///
+    /// Lifetime: transient
+    const SUPRA_DELEGATION_POOL_IDENTITY: u64 = 95;
+
+    public fun get_supra_delegation_pool_identity_feature(): u64 {
+        SUPRA_DELEGATION_POOL_IDENTITY
+    }
+
+    public fun supra_delegation_pool_identity_enabled(): bool acquires Features {
+        is_enabled(SUPRA_DELEGATION_POOL_IDENTITY)
+    }
+
     // ============================================================================================
     // Feature Flag Implementation
 
