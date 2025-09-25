@@ -37,6 +37,7 @@ use aptos_types::{
 };
 use once_cell::sync::Lazy;
 use poem_openapi::{Object, Union};
+use poem_openapi_derive::Enum;
 use serde::{Deserialize, Serialize};
 use std::{
     boxed::Box,
@@ -45,7 +46,6 @@ use std::{
     str::FromStr,
     time::{SystemTime, UNIX_EPOCH},
 };
-use poem_openapi_derive::Enum;
 
 static DUMMY_GUID: Lazy<EventGuid> = Lazy::new(|| EventGuid {
     creation_number: U64::from(0u64),
@@ -1069,7 +1069,7 @@ impl VerifyInput for MultisigPayload {
                 },
                 MultisigTransactionPayload::AutomationRegistrationPayload(params) => {
                     params.verify()?;
-                }
+                },
             }
         }
 
@@ -1078,9 +1078,9 @@ impl VerifyInput for MultisigPayload {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Union)]
-pub enum  AutomationRegistrationParams {
+pub enum AutomationRegistrationParams {
     V1(AutomationRegistrationParamsV1),
-    V2(AutomationRegistrationParamsV2)
+    V2(AutomationRegistrationParamsV2),
 }
 
 impl AutomationRegistrationParams {
@@ -1117,7 +1117,7 @@ impl VerifyInput for AutomationRegistrationParams {
 #[serde(rename_all = "snake_case")]
 pub enum AutomationTaskType {
     User,
-    System
+    System,
 }
 
 impl From<aptos_types::transaction::automation::AutomationTaskType> for AutomationTaskType {
@@ -1150,10 +1150,10 @@ pub struct AutomationRegistrationParamsV1 {
 impl VerifyInput for AutomationRegistrationParamsV1 {
     fn verify(&self) -> anyhow::Result<()> {
         self.automated_function.function.verify()?;
-        for type_arg in self.automated_function.type_arguments.iter() {
-            type_arg.verify(0)?;
-        }
-        Ok(())
+        self.automated_function
+            .type_arguments
+            .iter()
+            .try_for_each(|type_arg| type_arg.verify(0))
     }
 }
 
@@ -1172,10 +1172,10 @@ pub struct AutomationRegistrationParamsV2 {
 impl VerifyInput for AutomationRegistrationParamsV2 {
     fn verify(&self) -> anyhow::Result<()> {
         self.automated_function.function.verify()?;
-        for type_arg in self.automated_function.type_arguments.iter() {
-            type_arg.verify(0)?;
-        }
-        Ok(())
+        self.automated_function
+            .type_arguments
+            .iter()
+            .try_for_each(|type_arg| type_arg.verify(0))
     }
 }
 
