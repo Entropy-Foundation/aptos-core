@@ -83,6 +83,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `get_gas_committed_for_next_epoch`](#0x1_automation_registry_get_gas_committed_for_next_epoch)
 -  [Function `get_gas_committed_for_current_epoch`](#0x1_automation_registry_get_gas_committed_for_current_epoch)
 -  [Function `get_automation_registry_config`](#0x1_automation_registry_get_automation_registry_config)
+-  [Function `get_automation_registry_config_for_system_tasks`](#0x1_automation_registry_get_automation_registry_config_for_system_tasks)
 -  [Function `get_next_epoch_registry_max_gas_cap`](#0x1_automation_registry_get_next_epoch_registry_max_gas_cap)
 -  [Function `get_automation_epoch_info`](#0x1_automation_registry_get_automation_epoch_info)
 -  [Function `estimate_automation_fee`](#0x1_automation_registry_estimate_automation_fee)
@@ -375,8 +376,7 @@ Automation registry configuration parameters
 Automation registry configuration parameters for governance/system submitted tasks
 
 
-<pre><code>#[<a href="event.md#0x1_event">event</a>]
-<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_RegistryConfigForSystemTasks">RegistryConfigForSystemTasks</a> <b>has</b> <b>copy</b>, drop, store
+<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_RegistryConfigForSystemTasks">RegistryConfigForSystemTasks</a> <b>has</b> <b>copy</b>, drop, store
 </code></pre>
 
 
@@ -2073,7 +2073,7 @@ Emitted when the registration in the automation registry is disabled.
 
 ## Struct `AuthorizationGranted`
 
-Emitted when the account is authroized to submit system automation tasks
+Emitted when the account is authorized to submit system automation tasks
 
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]
@@ -2102,7 +2102,7 @@ Emitted when the account is authroized to submit system automation tasks
 
 ## Struct `AuthorizationRevoked`
 
-Emitted when the account authorizationis revoked to submit system automation tasks
+Emitted when the account authorization is revoked to submit system automation tasks
 
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]
@@ -3702,7 +3702,8 @@ Checks whether there is an active system task in registry with specified input t
 
 ## Function `has_sender_active_task_with_id_and_type`
 
-Checks whether there is an active system task in registry with specified input task index.
+Checks whether there is an active task in registry with specified input task index of the input type.
+The type can be either 1 for user submitted tasks, and 2 for governance authorized tasks.
 
 
 <pre><code>#[view]
@@ -3829,6 +3830,32 @@ Get automation registry configuration
 
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_automation_registry_config">get_automation_registry_config</a>(): <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a> <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a> {
     <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>&gt;(@supra_framework).main_config
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_get_automation_registry_config_for_system_tasks"></a>
+
+## Function `get_automation_registry_config_for_system_tasks`
+
+Get automation registry configuration for system tasks
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_automation_registry_config_for_system_tasks">get_automation_registry_config_for_system_tasks</a>(): <a href="automation_registry.md#0x1_automation_registry_RegistryConfigForSystemTasks">automation_registry::RegistryConfigForSystemTasks</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_get_automation_registry_config_for_system_tasks">get_automation_registry_config_for_system_tasks</a>(): <a href="automation_registry.md#0x1_automation_registry_RegistryConfigForSystemTasks">RegistryConfigForSystemTasks</a> <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a> {
+    <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>&gt;(@supra_framework).system_task_config
 }
 </code></pre>
 
@@ -4509,7 +4536,7 @@ Revoke authorization from the input account to submit system automation tasks.
 <pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_revoke_authorization">revoke_authorization</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="account.md#0x1_account">account</a>: <b>address</b>) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
     <b>let</b> system_tasks_state = &<b>mut</b> <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>&gt;(@supra_framework).system_tasks_state;
-    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&system_tasks_state.authorized_accounts, &<a href="account.md#0x1_account">account</a>)) {
+    <b>if</b> (!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&system_tasks_state.authorized_accounts, &<a href="account.md#0x1_account">account</a>)) {
         <b>return</b>
     };
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_remove_value">vector::remove_value</a>(&<b>mut</b> system_tasks_state.authorized_accounts, &<a href="account.md#0x1_account">account</a>);
@@ -4748,7 +4775,7 @@ Immediately stops system automation tasks for the specified <code>task_indexes</
 Only tasks that exist and are owned by the sender can be stopped.
 If any of the specified tasks are not owned by the sender, the transaction will abort.
 When a task is stopped, the committed gas for the next epoch is reduced
-by the max gas amount of the stopped task. Half of the remaining task fee is refunded.
+by the max gas amount of the stopped task.
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_stop_system_tasks">stop_system_tasks</a>(owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)

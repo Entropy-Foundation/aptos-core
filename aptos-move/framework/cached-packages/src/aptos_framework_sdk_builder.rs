@@ -173,7 +173,7 @@ pub enum EntryFunctionCall {
     /// Only tasks that exist and are owned by the sender can be stopped.
     /// If any of the specified tasks are not owned by the sender, the transaction will abort.
     /// When a task is stopped, the committed gas for the next epoch is reduced
-    /// by the max gas amount of the stopped task. Half of the remaining task fee is refunded.
+    /// by the max gas amount of the stopped task.
     AutomationRegistryStopSystemTasks {
         task_indexes: Vec<u64>,
     },
@@ -2362,7 +2362,7 @@ pub fn automation_registry_cancel_task(task_index: u64) -> TransactionPayload {
 /// Only tasks that exist and are owned by the sender can be stopped.
 /// If any of the specified tasks are not owned by the sender, the transaction will abort.
 /// When a task is stopped, the committed gas for the next epoch is reduced
-/// by the max gas amount of the stopped task. Half of the remaining task fee is refunded.
+/// by the max gas amount of the stopped task.
 pub fn automation_registry_stop_system_tasks(task_indexes: Vec<u64>) -> TransactionPayload {
     TransactionPayload::EntryFunction(EntryFunction::new(
         ModuleId::new(

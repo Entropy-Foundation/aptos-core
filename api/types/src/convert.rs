@@ -3,7 +3,9 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::transaction::AutomationRegistrationParamsV1;
+use crate::transaction::{
+    AutomationRegistrationParams, AutomationRegistrationParamsV1, AutomationRegistrationParamsV2,
+};
 use crate::{
     transaction::{
         BlockEpilogueTransaction, DecodedTableData, DeleteModule, DeleteResource, DeleteTableItem,
@@ -24,7 +26,9 @@ use aptos_logger::{sample, sample::SampleRate};
 use aptos_resource_viewer::AptosValueAnnotator;
 use aptos_storage_interface::DbReader;
 use aptos_types::transaction::automation::RegistrationParams;
-use aptos_types::transaction::Transaction::{AutomationRegistryTransaction, SystemAutomatedTransaction};
+use aptos_types::transaction::Transaction::{
+    AutomationRegistryTransaction, SystemAutomatedTransaction,
+};
 use aptos_types::{
     access_path::{AccessPath, Path},
     chain_id::ChainId,
@@ -238,8 +242,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
             aptos_types::transaction::Transaction::ValidatorTransaction(txn) => {
                 Transaction::ValidatorTransaction((txn, info, events, timestamp).into())
             },
-            AutomatedTransaction(automated_txn)
-            | SystemAutomatedTransaction(automated_txn) => {
+            AutomatedTransaction(automated_txn) | SystemAutomatedTransaction(automated_txn) => {
                 let payload = self.try_into_transaction_payload(automated_txn.payload().clone())?;
                 (&automated_txn, info, payload, events, timestamp).into()
             },
@@ -302,27 +305,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                             ))
                         },
                         aptos_types::transaction::MultisigTransactionPayload::AutomationRegistration(params) => {
-                            let maybe_params_v1 = params.into_v1();
-                            let Some(params_v1) = maybe_params_v1 else {
-                                bail!("Unsupported automation registration parameters.");
-                            };
-                            let (
-                                inner_payload,
-                                max_gas_amount,
-                                gas_price_cap,
-                                expiration_timestamp_secs,
-                                automation_fee_cap,
-                                aux_data,
-                            ) = params_v1.into_inner();
-                            let auto_payload = AutomationRegistrationParamsV1 {
-                                automated_function: self.try_into_entry_function_payload(inner_payload)?,
-                                expiration_timestamp_secs,
-                                max_gas_amount,
-                                gas_price_cap,
-                                automation_fee_cap,
-                                aux_data,
-                            };
-                            Some(MultisigTransactionPayload::AutomationRegistrationPayload(auto_payload.into()))
+                            Some(MultisigTransactionPayload::AutomationRegistrationPayload(self.try_into_automation_registration_payload(params)?))
                         }
                     }
                 } else {
@@ -336,11 +319,19 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
 
             // Deprecated.
             ModuleBundle(_) => bail!("Module bundle payload has been removed"),
-            AutomationRegistration(params) => {
-                let maybe_params_v1 = params.into_v1();
-                let Some(params_v1) = maybe_params_v1 else {
-                    bail!("Unsupported automation registration parameters.");
-                };
+            AutomationRegistration(params) => TransactionPayload::AutomationRegistrationPayload(
+                self.try_into_automation_registration_payload(params)?,
+            ),
+        };
+        Ok(ret)
+    }
+
+    pub fn try_into_automation_registration_payload(
+        &self,
+        params: RegistrationParams,
+    ) -> Result<AutomationRegistrationParams> {
+        match params {
+            RegistrationParams::V1(params_v1) => {
                 let (
                     inner_payload,
                     max_gas_amount,
@@ -357,10 +348,84 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                     automation_fee_cap,
                     aux_data,
                 };
-                TransactionPayload::AutomationRegistrationPayload(auto_payload.into())
+                Ok(auto_payload.into())
             },
-        };
-        Ok(ret)
+            RegistrationParams::V2(params_v2) => {
+                let (
+                    inner_payload,
+                    max_gas_amount,
+                    gas_price_cap,
+                    expiration_timestamp_secs,
+                    automation_fee_cap,
+                    aux_data,
+                    task_type,
+                    task_priority,
+                ) = params_v2.into_inner();
+                let auto_payload = AutomationRegistrationParamsV2 {
+                    automated_function: self.try_into_entry_function_payload(inner_payload)?,
+                    expiration_timestamp_secs,
+                    max_gas_amount,
+                    gas_price_cap,
+                    automation_fee_cap,
+                    aux_data,
+                    task_type: task_type.into(),
+                    task_priority,
+                };
+                Ok(auto_payload.into())
+            },
+        }
+    }
+
+    pub fn try_into_automation_registration_parameters(
+        &self,
+        params: AutomationRegistrationParams,
+    ) -> Result<RegistrationParams> {
+        match params {
+            AutomationRegistrationParams::V1(params_v1) => {
+                let AutomationRegistrationParamsV1 {
+                    automated_function,
+                    expiration_timestamp_secs,
+                    max_gas_amount,
+                    gas_price_cap,
+                    automation_fee_cap,
+                    aux_data,
+                } = params_v1;
+                let core_automated_function =
+                    self.try_into_supra_core_entry_function(automated_function)?;
+                Ok(RegistrationParams::new_v1(
+                    core_automated_function,
+                    expiration_timestamp_secs,
+                    max_gas_amount,
+                    gas_price_cap,
+                    automation_fee_cap,
+                    aux_data,
+                ))
+            },
+            AutomationRegistrationParams::V2(params_v2) => {
+                let AutomationRegistrationParamsV2 {
+                    automated_function,
+                    expiration_timestamp_secs,
+                    max_gas_amount,
+                    gas_price_cap,
+                    automation_fee_cap,
+                    aux_data,
+                    task_type,
+                    task_priority,
+                } = params_v2;
+                let core_automated_function =
+                    self.try_into_supra_core_entry_function(automated_function)?;
+                Ok(RegistrationParams::new_v2(
+                    core_automated_function,
+                    expiration_timestamp_secs,
+                    max_gas_amount,
+                    gas_price_cap,
+                    automation_fee_cap,
+                    aux_data,
+                    task_type.into(),
+                    task_priority,
+                ))
+            },
+        }
     }
 
     pub fn try_into_write_set_payload(
@@ -705,28 +770,8 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                             )
                         },
                         MultisigTransactionPayload::AutomationRegistrationPayload(params) => {
-                            let Some(params_v1) = params.into_v1() else {
-                                bail!("Unsupported/Unimplemented automation registration parameters");
-                            };
-                            let AutomationRegistrationParamsV1 {
-                                automated_function,
-                                expiration_timestamp_secs,
-                                max_gas_amount,
-                                gas_price_cap,
-                                automation_fee_cap,
-                                aux_data,
-                            } = params_v1;
-                            let core_automated_function =
-                                self.try_into_supra_core_entry_function(automated_function)?;
-                            Some(aptos_types::transaction::MultisigTransactionPayload::AutomationRegistration(RegistrationParams::new_v1(
-                                core_automated_function,
-                                expiration_timestamp_secs,
-                                max_gas_amount,
-                                gas_price_cap,
-                                automation_fee_cap,
-                                aux_data,
-                            )))
-                        }
+                            Some(aptos_types::transaction::MultisigTransactionPayload::AutomationRegistration(self.try_into_automation_registration_parameters(params)?))
+                        },
                     }
                 } else {
                     None
@@ -742,27 +787,9 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                 bail!("Module bundle payload has been removed")
             },
             TransactionPayload::AutomationRegistrationPayload(payload) => {
-                let Some(params_v1) = payload.into_v1() else {
-                    bail!("Unsupported/Unimplemented automation registration parameters");
-                };
-                let AutomationRegistrationParamsV1 {
-                    automated_function,
-                    expiration_timestamp_secs,
-                    max_gas_amount,
-                    gas_price_cap,
-                    automation_fee_cap,
-                    aux_data,
-                } = params_v1;
-                let core_automated_function =
-                    self.try_into_supra_core_entry_function(automated_function)?;
-                Target::AutomationRegistration(RegistrationParams::new_v1(
-                    core_automated_function,
-                    expiration_timestamp_secs,
-                    max_gas_amount,
-                    gas_price_cap,
-                    automation_fee_cap,
-                    aux_data,
-                ))
+                Target::AutomationRegistration(
+                    self.try_into_automation_registration_parameters(payload)?,
+                )
             },
         };
         Ok(ret)
