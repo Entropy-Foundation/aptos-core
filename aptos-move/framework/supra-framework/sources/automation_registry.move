@@ -568,6 +568,13 @@ module supra_framework::automation_registry {
         task_index: u64,
         owner: address,
     }
+    #[event]
+    /// Event emitted on automation task cancellation by owner.
+    struct TaskCancelledV2 has drop, store {
+        task_index: u64,
+        owner: address,
+        registration_hash: vector<u8>
+    }
 
     #[event]
     /// Event emitted on automation tasks stopped by owner.
@@ -583,11 +590,35 @@ module supra_framework::automation_registry {
     }
 
     #[event]
+    /// Event emitted on automation tasks stopped by owner.
+    struct TasksStoppedV2 has drop, store {
+        tasks: vector<TaskStoppedV2>,
+        owner: address,
+    }
+
+    struct TaskStoppedV2 has drop, store {
+        task_index: u64,
+        deposit_refund: u64,
+        epoch_fee_refund: u64,
+        registration_hash: vector<u8>
+    }
+
+    #[event]
     /// Event emitted when an automation task is cancelled due to insufficient balance.
     struct TaskCancelledInsufficentBalance has drop, store {
         task_index: u64,
         owner: address,
         fee: u64,
+    }
+
+    #[event]
+    /// Event emitted when an automation task is cancelled due to insufficient balance.
+    struct TaskCancelledInsufficentBalanceV2 has drop, store {
+        task_index: u64,
+        owner: address,
+        fee: u64,
+        balance: u64,
+        registration_hash: vector<u8>
     }
 
     #[event]
@@ -597,6 +628,16 @@ module supra_framework::automation_registry {
         owner: address,
         fee: u64,
         automation_fee_cap: u64,
+    }
+
+    #[event]
+    /// Event emitted when an automation task is cancelled due to automation fee capacity surpass.
+    struct TaskCancelledCapacitySurpassedV2 has drop, store {
+        task_index: u64,
+        owner: address,
+        fee: u64,
+        automation_fee_cap: u64,
+        registration_hash: vector<u8>
     }
 
     #[event]
@@ -1211,7 +1252,7 @@ module supra_framework::automation_registry {
             automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
         };
 
-        event::emit(TaskCancelled { task_index: automation_task_metadata.task_index, owner });
+        event::emit(TaskCancelledV2 { task_index: automation_task_metadata.task_index, owner, registration_hash: automation_task_metadata.tx_hash });
     }
 
     /// Immediately stops automation tasks for the specified `task_indexes`.
@@ -1307,7 +1348,7 @@ module supra_framework::automation_registry {
 
                 vector::push_back(
                     &mut stopped_task_details,
-                    TaskStopped { task_index, deposit_refund, epoch_fee_refund }
+                    TaskStoppedV2 { task_index, deposit_refund, epoch_fee_refund, registration_hash: task.tx_hash }
                 );
             }
         });
@@ -1323,7 +1364,7 @@ module supra_framework::automation_registry {
             coin::transfer<SupraCoin>(&resource_signer, owner, total_refund_fee);
 
             // Emit task stopped event
-            event::emit(TasksStopped {
+            event::emit(TasksStoppedV2 {
                 tasks: stopped_task_details,
                 owner
             });
@@ -1384,7 +1425,7 @@ module supra_framework::automation_registry {
 
                 vector::push_back(
                     &mut stopped_task_details,
-                    TaskStopped { task_index, deposit_refund: 0, epoch_fee_refund: 0 }
+                    TaskStoppedV2 { task_index, deposit_refund: 0, epoch_fee_refund: 0, registration_hash: task.tx_hash }
                 );
             }
         });
@@ -1392,7 +1433,7 @@ module supra_framework::automation_registry {
         // Refund and emit event if any tasks were stopped
         if (!vector::is_empty(&stopped_task_details)) {
             // Emit task stopped event
-            event::emit(TasksStopped {
+            event::emit(TasksStoppedV2 {
                 tasks: stopped_task_details,
                 owner
             });
@@ -1446,7 +1487,7 @@ module supra_framework::automation_registry {
                 automation_registry.system_tasks_state.gas_committed_for_next_cycle - automation_task_metadata.max_gas_amount;
         };
 
-        event::emit(TaskCancelled { task_index: automation_task_metadata.task_index, owner });
+        event::emit(TaskCancelledV2 { task_index: automation_task_metadata.task_index, owner, registration_hash: automation_task_metadata.tx_hash });
     }
 
     // Public functions facilitating transitions from version to version
@@ -2131,9 +2172,7 @@ module supra_framework::automation_registry {
         automation_registry: &mut AutomationRegistryV2,
         refund_bookkeeping: &mut AutomationRefundBookkeeping,
         resource_signer: &signer,
-        removed_tasks: &mut vector<u64>
-
-    )  {
+        removed_tasks: &mut vector<u64> ) : AutomationTaskMetaData {
         let task = enumerable_map::remove_value(&mut automation_registry.main.tasks, task_index);
         assert!(is_of_type(&task, UST), EREGISTERED_TASK_INVALID_TYPE);
         safe_deposit_refund(
@@ -2145,6 +2184,7 @@ module supra_framework::automation_registry {
             task.locked_fee_for_next_epoch,
             task.locked_fee_for_next_epoch);
         vector::push_back(removed_tasks, task_index);
+        task
     }
 
     /// Removes system task from registry state.
@@ -2855,18 +2895,19 @@ module supra_framework::automation_registry {
         // It might happen that task has been expired by the time charging is being done.
         // This may be caused by the fact that bookkeeping transactions has been withheld due to epoch transition.
         if (task.fee > task.automation_fee_cap) {
-            refund_deposit_and_drop(
+            let task_meta = refund_deposit_and_drop(
                 task.task_index,
                 automation_registry,
                 refund_bookkeeping,
                 resource_signer,
                 &mut intermediate_state.removed_tasks
             );
-            event::emit(TaskCancelledCapacitySurpassed {
+            event::emit(TaskCancelledCapacitySurpassedV2 {
                 task_index: task.task_index,
                 owner: task.owner,
                 fee: task.fee,
                 automation_fee_cap: task.automation_fee_cap,
+                registration_hash: task_meta.tx_hash,
             });
             return
         };
@@ -2875,12 +2916,14 @@ module supra_framework::automation_registry {
             // If the user does not have enough balance, remove the task, DON'T refund the locked deposit, but simply unlock it
             // and emit an event
             safe_unlock_locked_deposit(refund_bookkeeping, task.locked_deposit_fee, task.task_index);
-            enumerable_map::remove_value(&mut automation_registry.main.tasks, task.task_index);
+            let task_meta = enumerable_map::remove_value(&mut automation_registry.main.tasks, task.task_index);
             vector::push_back(&mut intermediate_state.removed_tasks, task.task_index);
-            event::emit(TaskCancelledInsufficentBalance {
+            event::emit(TaskCancelledInsufficentBalanceV2 {
                 task_index: task.task_index,
                 owner: task.owner,
                 fee: task.fee,
+                balance: user_balance,
+                registration_hash: task_meta.tx_hash
             });
             return
         };

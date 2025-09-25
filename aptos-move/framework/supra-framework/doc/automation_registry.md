@@ -33,10 +33,15 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `ErrorUnlockTaskDepositFee`](#0x1_automation_registry_ErrorUnlockTaskDepositFee)
 -  [Struct `ErrorUnlockTaskEpochFee`](#0x1_automation_registry_ErrorUnlockTaskEpochFee)
 -  [Struct `TaskCancelled`](#0x1_automation_registry_TaskCancelled)
+-  [Struct `TaskCancelledV2`](#0x1_automation_registry_TaskCancelledV2)
 -  [Struct `TasksStopped`](#0x1_automation_registry_TasksStopped)
 -  [Struct `TaskStopped`](#0x1_automation_registry_TaskStopped)
+-  [Struct `TasksStoppedV2`](#0x1_automation_registry_TasksStoppedV2)
+-  [Struct `TaskStoppedV2`](#0x1_automation_registry_TaskStoppedV2)
 -  [Struct `TaskCancelledInsufficentBalance`](#0x1_automation_registry_TaskCancelledInsufficentBalance)
+-  [Struct `TaskCancelledInsufficentBalanceV2`](#0x1_automation_registry_TaskCancelledInsufficentBalanceV2)
 -  [Struct `TaskCancelledCapacitySurpassed`](#0x1_automation_registry_TaskCancelledCapacitySurpassed)
+-  [Struct `TaskCancelledCapacitySurpassedV2`](#0x1_automation_registry_TaskCancelledCapacitySurpassedV2)
 -  [Struct `RemovedTasks`](#0x1_automation_registry_RemovedTasks)
 -  [Struct `ActiveTasks`](#0x1_automation_registry_ActiveTasks)
 -  [Struct `ErrorTaskDoesNotExist`](#0x1_automation_registry_ErrorTaskDoesNotExist)
@@ -1420,6 +1425,47 @@ Event emitted on automation task cancellation by owner.
 
 </details>
 
+<a id="0x1_automation_registry_TaskCancelledV2"></a>
+
+## Struct `TaskCancelledV2`
+
+Event emitted on automation task cancellation by owner.
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_TaskCancelledV2">TaskCancelledV2</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>task_index: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>owner: <b>address</b></code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>registration_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
 <a id="0x1_automation_registry_TasksStopped"></a>
 
 ## Struct `TasksStopped`
@@ -1494,6 +1540,86 @@ Event emitted on automation tasks stopped by owner.
 
 </details>
 
+<a id="0x1_automation_registry_TasksStoppedV2"></a>
+
+## Struct `TasksStoppedV2`
+
+Event emitted on automation tasks stopped by owner.
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_TasksStoppedV2">TasksStoppedV2</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>tasks: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="automation_registry.md#0x1_automation_registry_TaskStoppedV2">automation_registry::TaskStoppedV2</a>&gt;</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>owner: <b>address</b></code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_automation_registry_TaskStoppedV2"></a>
+
+## Struct `TaskStoppedV2`
+
+
+
+<pre><code><b>struct</b> <a href="automation_registry.md#0x1_automation_registry_TaskStoppedV2">TaskStoppedV2</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>task_index: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>deposit_refund: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>epoch_fee_refund: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>registration_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
 <a id="0x1_automation_registry_TaskCancelledInsufficentBalance"></a>
 
 ## Struct `TaskCancelledInsufficentBalance`
@@ -1526,6 +1652,59 @@ Event emitted when an automation task is cancelled due to insufficient balance.
 </dd>
 <dt>
 <code>fee: u64</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_automation_registry_TaskCancelledInsufficentBalanceV2"></a>
+
+## Struct `TaskCancelledInsufficentBalanceV2`
+
+Event emitted when an automation task is cancelled due to insufficient balance.
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_TaskCancelledInsufficentBalanceV2">TaskCancelledInsufficentBalanceV2</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>task_index: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>owner: <b>address</b></code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>fee: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>balance: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>registration_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>
 </dt>
 <dd>
 
@@ -1573,6 +1752,59 @@ Event emitted when an automation task is cancelled due to automation fee capacit
 </dd>
 <dt>
 <code>automation_fee_cap: u64</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_automation_registry_TaskCancelledCapacitySurpassedV2"></a>
+
+## Struct `TaskCancelledCapacitySurpassedV2`
+
+Event emitted when an automation task is cancelled due to automation fee capacity surpass.
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_TaskCancelledCapacitySurpassedV2">TaskCancelledCapacitySurpassedV2</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>task_index: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>owner: <b>address</b></code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>fee: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>automation_fee_cap: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>registration_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>
 </dt>
 <dd>
 
@@ -4364,7 +4596,7 @@ Committed gas-limit is updated by reducing it with the max-gas-amount of the can
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch - automation_task_metadata.max_gas_amount;
     };
 
-    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskCancelled">TaskCancelled</a> { task_index: automation_task_metadata.task_index, owner });
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskCancelledV2">TaskCancelledV2</a> { task_index: automation_task_metadata.task_index, owner, registration_hash: automation_task_metadata.tx_hash });
 }
 </code></pre>
 
@@ -4480,7 +4712,7 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
 
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(
                 &<b>mut</b> stopped_task_details,
-                <a href="automation_registry.md#0x1_automation_registry_TaskStopped">TaskStopped</a> { task_index, deposit_refund, epoch_fee_refund }
+                <a href="automation_registry.md#0x1_automation_registry_TaskStoppedV2">TaskStoppedV2</a> { task_index, deposit_refund, epoch_fee_refund, registration_hash: task.tx_hash }
             );
         }
     });
@@ -4496,7 +4728,7 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
         <a href="coin.md#0x1_coin_transfer">coin::transfer</a>&lt;SupraCoin&gt;(&resource_signer, owner, total_refund_fee);
 
         // Emit task stopped <a href="event.md#0x1_event">event</a>
-        <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TasksStopped">TasksStopped</a> {
+        <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TasksStoppedV2">TasksStoppedV2</a> {
             tasks: stopped_task_details,
             owner
         });
@@ -4577,7 +4809,7 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
 
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(
                 &<b>mut</b> stopped_task_details,
-                <a href="automation_registry.md#0x1_automation_registry_TaskStopped">TaskStopped</a> { task_index, deposit_refund: 0, epoch_fee_refund: 0 }
+                <a href="automation_registry.md#0x1_automation_registry_TaskStoppedV2">TaskStoppedV2</a> { task_index, deposit_refund: 0, epoch_fee_refund: 0, registration_hash: task.tx_hash }
             );
         }
     });
@@ -4585,7 +4817,7 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
     // Refund and emit <a href="event.md#0x1_event">event</a> <b>if</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> tasks were stopped
     <b>if</b> (!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&stopped_task_details)) {
         // Emit task stopped <a href="event.md#0x1_event">event</a>
-        <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TasksStopped">TasksStopped</a> {
+        <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TasksStoppedV2">TasksStoppedV2</a> {
             tasks: stopped_task_details,
             owner
         });
@@ -4659,7 +4891,7 @@ Committed gas-limit is updated by reducing it with the max-gas-amount of the can
             <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.system_tasks_state.gas_committed_for_next_cycle - automation_task_metadata.max_gas_amount;
     };
 
-    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskCancelled">TaskCancelled</a> { task_index: automation_task_metadata.task_index, owner });
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskCancelledV2">TaskCancelledV2</a> { task_index: automation_task_metadata.task_index, owner, registration_hash: automation_task_metadata.tx_hash });
 }
 </code></pre>
 
@@ -5580,7 +5812,7 @@ If the task is already processed or missing from the registry then nothing is do
 Refunds the deposit fee of the task and removes from registry.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_deposit_and_drop">refund_deposit_and_drop</a>(task_index: u64, <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">automation_registry::AutomationRegistryV2</a>, refund_bookkeeping: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">automation_registry::AutomationRefundBookkeeping</a>, resource_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, removed_tasks: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_deposit_and_drop">refund_deposit_and_drop</a>(task_index: u64, <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">automation_registry::AutomationRegistryV2</a>, refund_bookkeeping: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">automation_registry::AutomationRefundBookkeeping</a>, resource_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, removed_tasks: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;): <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>
 </code></pre>
 
 
@@ -5594,9 +5826,7 @@ Refunds the deposit fee of the task and removes from registry.
     <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>,
     refund_bookkeeping: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>,
     resource_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    removed_tasks: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;
-
-)  {
+    removed_tasks: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt; ) : <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a> {
     <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.main.tasks, task_index);
     <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(&task, <a href="automation_registry.md#0x1_automation_registry_UST">UST</a>), <a href="automation_registry.md#0x1_automation_registry_EREGISTERED_TASK_INVALID_TYPE">EREGISTERED_TASK_INVALID_TYPE</a>);
     <a href="automation_registry.md#0x1_automation_registry_safe_deposit_refund">safe_deposit_refund</a>(
@@ -5608,6 +5838,7 @@ Refunds the deposit fee of the task and removes from registry.
         task.locked_fee_for_next_epoch,
         task.locked_fee_for_next_epoch);
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(removed_tasks, task_index);
+    task
 }
 </code></pre>
 
@@ -6877,18 +7108,19 @@ would allow the congestion fee to increase in a non-linear fashion.
     // It might happen that task <b>has</b> been expired by the time charging is being done.
     // This may be caused by the fact that bookkeeping transactions <b>has</b> been withheld due <b>to</b> epoch transition.
     <b>if</b> (task.fee &gt; task.automation_fee_cap) {
-        <a href="automation_registry.md#0x1_automation_registry_refund_deposit_and_drop">refund_deposit_and_drop</a>(
+        <b>let</b> task_meta = <a href="automation_registry.md#0x1_automation_registry_refund_deposit_and_drop">refund_deposit_and_drop</a>(
             task.task_index,
             <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
             refund_bookkeeping,
             resource_signer,
             &<b>mut</b> intermediate_state.removed_tasks
         );
-        <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskCancelledCapacitySurpassed">TaskCancelledCapacitySurpassed</a> {
+        <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskCancelledCapacitySurpassedV2">TaskCancelledCapacitySurpassedV2</a> {
             task_index: task.task_index,
             owner: task.owner,
             fee: task.fee,
             automation_fee_cap: task.automation_fee_cap,
+            registration_hash: task_meta.tx_hash,
         });
         <b>return</b>
     };
@@ -6897,12 +7129,14 @@ would allow the congestion fee to increase in a non-linear fashion.
         // If the user does not have enough balance, remove the task, DON'T refund the locked deposit, but simply unlock it
         // and emit an <a href="event.md#0x1_event">event</a>
         <a href="automation_registry.md#0x1_automation_registry_safe_unlock_locked_deposit">safe_unlock_locked_deposit</a>(refund_bookkeeping, task.locked_deposit_fee, task.task_index);
-        <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.main.tasks, task.task_index);
+        <b>let</b> task_meta = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.main.tasks, task.task_index);
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> intermediate_state.removed_tasks, task.task_index);
-        <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskCancelledInsufficentBalance">TaskCancelledInsufficentBalance</a> {
+        <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskCancelledInsufficentBalanceV2">TaskCancelledInsufficentBalanceV2</a> {
             task_index: task.task_index,
             owner: task.owner,
             fee: task.fee,
+            balance: user_balance,
+            registration_hash: task_meta.tx_hash
         });
         <b>return</b>
     };
