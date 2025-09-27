@@ -129,6 +129,7 @@ pub enum FeatureFlag {
     SupraCountFailedProposals,
     SupraRLPEncode,
     SupraDelegationPoolIdentity,
+    SupraValidatorIdentityV2,
 }
 
 fn generate_features_blob(writer: &CodeWriter, data: &[u64]) {
@@ -338,9 +339,8 @@ impl From<FeatureFlag> for AptosFeatureFlag {
             FeatureFlag::SupraDelegationPoolIdentity => {
                 AptosFeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY
             },
-        }
+            FeatureFlag::SupraValidatorIdentityV2 => AptosFeatureFlag::SUPRA_VALIDATOR_IDENTITY_V2,
     }
-}
 
 // We don't need this implementation. Just to make sure we have an exhaustive 1-1 mapping between the two structs.
 impl From<AptosFeatureFlag> for FeatureFlag {
@@ -476,6 +476,7 @@ impl From<AptosFeatureFlag> for FeatureFlag {
             AptosFeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY => {
                 FeatureFlag::SupraDelegationPoolIdentity
             },
+            AptosFeatureFlag::SUPRA_VALIDATOR_IDENTITY_V2 => FeatureFlag::SupraValidatorIdentityV2,
         }
     }
 }

@@ -765,6 +765,19 @@ module std::features {
         // We could update supra_delegation_pool_identity_enabled to always return true after the feature has been rolled out.
     }
 
+    /// Whether the functionality related to the new validator identity representation is enabled.
+    ///
+    /// Lifetime: permanent
+    const SUPRA_VALIDATOR_IDENTITY_V2: u64 = 96;
+
+    public fun get_supra_validator_identity_v2_feature(): u64 {
+        SUPRA_VALIDATOR_IDENTITY_V2
+    }
+
+    public fun supra_validator_identity_v2_enabled(): bool acquires Features {
+        is_enabled(SUPRA_VALIDATOR_IDENTITY_V2)
+    }
+    
     // ============================================================================================
     // Feature Flag Implementation
 
