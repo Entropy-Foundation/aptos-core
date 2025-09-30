@@ -554,7 +554,6 @@ pub struct AutomationTaskMetaData {
     /// Priority of the task to be executed.
     pub(crate) priority: OnceCell<Option<Priority>>,
 }
-
 impl AutomationTaskMetaData {
     const TASK_TYPE_AUX_INDEX: usize = 0;
     const TASK_PRIORITY_AUX_INDEX: usize = 1;
@@ -656,6 +655,36 @@ impl AutomationTaskMetaData {
             }
         })
     }
+
+    pub fn flatten(self) ->
+        (u64,
+         AccountAddress,
+         Vec<u8>,
+         u64,
+         Vec<u8>,
+         u64,
+         u64,
+         u64,
+         Vec<Vec<u8>>,
+         u64,
+         bool,
+         u64,
+         ) {
+            (
+                self.id,
+                self.owner,
+                self.payload_tx,
+                self.expiry_time,
+                self.tx_hash,
+                self.max_gas_amount,
+                self.gas_price_cap,
+                self.automation_fee_cap_for_epoch,
+                self.aux_data,
+                self.registration_time,
+                self.is_active,
+                self.locked_fee_for_next_epoch,
+                )
+        }
 }
 
 /// Action to be performed on automation registry.
