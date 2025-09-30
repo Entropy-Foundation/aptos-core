@@ -40,6 +40,7 @@ module supra_framework::stake {
     friend supra_framework::reconfiguration;
     friend supra_framework::reconfiguration_with_dkg;
     friend supra_framework::transaction_fee;
+    friend supra_framework::leader_ban_registry;
 
     /// Validator Config not published.
     const EVALIDATOR_CONFIG: u64 = 1;
@@ -504,6 +505,45 @@ module supra_framework::stake {
     public(friend) fun store_supra_coin_mint_cap(supra_framework: &signer, mint_cap: MintCapability<SupraCoin>) {
         system_addresses::assert_supra_framework(supra_framework);
         move_to(supra_framework, SupraCoinCapabilities { mint_cap })
+    }
+
+    /// To get validator pool address from validator index
+    public(friend) fun get_pool_address_from_index(index: u64) : Option<address>
+    acquires ValidatorSet
+    {
+        if (exists<ValidatorSet>(@supra_framework)) {
+            let validator_set = borrow_global<ValidatorSet>(@supra_framework);
+            // it can happen that some validator may added a leave request in between
+            // this can change the order of indexes in active validator
+            // so need to iterate through all until find pool address in active and  pending_active
+            let return_addr = option::none();
+            vector::for_each_ref(&validator_set.active_validators, |validator_info| {
+                if (index == validator_info.config.validator_index) {
+                    return_addr = option::some(validator_info.addr);
+                }
+            });
+            vector::for_each_ref(&validator_set.pending_active, |validator_info| {
+                if (index == validator_info.config.validator_index) {
+                    return_addr = option::some(validator_info.addr);
+                }
+            });
+            // as we are sure that either the index can be found in active or pending active or none
+            // so not returning the address in between but at the end.
+            return return_addr;
+        };
+        option::none()
+    }
+
+    /// Returns committee size
+    public(friend) fun get_committe_size() : u64
+    acquires ValidatorSet
+    {
+        let commitee_size= 0;
+        if (exists<ValidatorSet>(@supra_framework)) {
+            let validator_set = borrow_global<ValidatorSet>(@supra_framework);
+            commitee_size = vector::length(&validator_set.active_validators) + vector::length(&validator_set.pending_active);
+        };
+        commitee_size
     }
 
     /// Allow on chain governance to remove validators from the validator set.

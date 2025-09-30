@@ -18,6 +18,7 @@ module supra_framework::block {
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
     use supra_framework::transaction_fee;
+    use supra_framework::leader_ban_registry;
 
     friend supra_framework::genesis;
 
@@ -219,6 +220,8 @@ module supra_framework::block {
         // transition is the last block in the previous epoch.
         stake::update_performance_statistics(proposer_index, failed_proposer_indices);
         state_storage::on_new_block(reconfiguration::current_epoch());
+        
+        leader_ban_registry::update_ban_registry(epoch, round, proposer_index, failed_proposer_indices);
 
         block_metadata_ref.epoch_interval
     }

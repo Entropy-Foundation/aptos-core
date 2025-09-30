@@ -65,39 +65,67 @@ module supra_framework::leader_ban_registry_config {
         }
     }
 
+    #[view]
+    public fun get_ban_registry_param(): (vector<u8>, u8) acquires BanRegistryParameters {
+        if (!exists::<BanRegistryParameters>(@supra_framework)) {
+            let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
+                return (
+                    ban_registry_config.config,
+                    ban_registry_config.version
+                )
+        };
+        (vector::empty(), 0)
+    }
+
+    #[view]
+    public fun get_ban_registry_param_v0(): (u8, u32, u8) acquires BanRegistryParameters {
+        if (!exists::<BanRegistryParameters>(@supra_framework)) {
+            let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
+            if (ban_registry_config.version == 0) {
+                let ban_registry_params = deserialise_v0_params(ban_registry_config.config);
+                return (
+                    ban_registry_params.initial_elections_denied,
+                    ban_registry_params.max_elections_denied,
+                    ban_registry_params.minimum_unbanned_proposers
+                )
+            }
+        };
+        (0, 0, 0)
+    }
+
     /// Provide initial election denied value efficiently
     /// by decdoing correct version and if not set then 0
     public fun get_initial_election_denied(): u8 acquires BanRegistryParameters {
         if (!exists::<BanRegistryParameters>(@supra_framework)) {
             let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
             if (ban_registry_config.version == 0) {
-                let ban_registry_params = deserialise_v1_param(ban_registry_config.config);
+                let ban_registry_params = deserialise_v0_params(ban_registry_config.config);
                 return ban_registry_params.initial_elections_denied;
             } 
         };
         0
     }
 
-    /// Provide max electoion denied value efficiently
+    /// Provide max election denied value efficiently
     /// by decdoing correct version and if not set then 0
     public fun get_max_elections_denied(): u32 acquires BanRegistryParameters {
         if (!exists::<BanRegistryParameters>(@supra_framework)) {
             let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
             if (ban_registry_config.version == 0) {
-                let ban_registry_params = deserialise_v1_param(ban_registry_config.config);
+                let ban_registry_params = deserialise_v0_params(ban_registry_config.config);
                 return ban_registry_params.max_elections_denied;
             } 
         };
         0
     }
 
-    /// Provide max electoion denied value efficiently
+    /// Provide max election denied value efficiently
     /// by decdoing correct version and if not set then 0
     public fun get_minimum_unbanned_proposers(): u8 acquires BanRegistryParameters {
         if (!exists::<BanRegistryParameters>(@supra_framework)) {
             let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
             if (ban_registry_config.version == 0) {
-                let ban_registry_params = deserialise_v1_param(ban_registry_config.config);
+                let ban_registry_params = deserialise_v0_params(ban_registry_config.config);
                 return ban_registry_params.minimum_unbanned_proposers;
             } 
         };
@@ -105,7 +133,7 @@ module supra_framework::leader_ban_registry_config {
     }
 
     /// Decoding bytes to `BanRegistryParametersV0` using bcs
-    fun deserialise_v1_param(bytes: vector<u8>): BanRegistryParametersV0 {
+    fun deserialise_v0_params(bytes: vector<u8>): BanRegistryParametersV0 {
         let bcs_bytes = decode_bcs::new(bytes);
         let initial_elections_denied: u8 = decode_bcs::peel_u8(&mut bcs_bytes);
         let max_elections_denied: u32 = decode_bcs::peel_u32(&mut bcs_bytes);
