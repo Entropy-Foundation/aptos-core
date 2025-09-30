@@ -567,13 +567,6 @@ module supra_framework::automation_registry {
         task_index: u64,
         owner: address,
     }
-    #[event]
-    /// Event emitted on automation task cancellation by owner.
-    struct TaskCancelledV2 has drop, store {
-        task_index: u64,
-        owner: address,
-        registration_hash: vector<u8>
-    }
 
     #[event]
     /// Event emitted on automation task cancellation by owner.
