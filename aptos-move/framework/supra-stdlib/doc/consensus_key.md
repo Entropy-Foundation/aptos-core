@@ -49,13 +49,13 @@ Consensus public key consists of:
 
 </dd>
 <dt>
-<code>bls_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a></code>
+<code>bls_key: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>cg_key: <a href="class_groups.md#0x1_class_groups_CGPublicKey">class_groups::CGPublicKey</a></code>
+<code>cg_key: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="class_groups.md#0x1_class_groups_CGPublicKey">class_groups::CGPublicKey</a>&gt;</code>
 </dt>
 <dd>
 
@@ -127,7 +127,17 @@ Invalid consensus public key
 
 <pre><code><b>public</b> <b>fun</b> <a href="consensus_key.md#0x1_consensus_key_consensus_public_key_from_bytes">consensus_public_key_from_bytes</a>(bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): Option&lt;<a href="consensus_key.md#0x1_consensus_key_ConsensusPublicKey">ConsensusPublicKey</a>&gt;{
     //todo: pop for ed and bls
-    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&bytes) &gt; <a href="consensus_key.md#0x1_consensus_key_ED25519_PUBLIC_KEY_NUM_BYTES">ED25519_PUBLIC_KEY_NUM_BYTES</a> + <a href="consensus_key.md#0x1_consensus_key_BLS12381_G1_PUBLIC_KEY_NUM_BYTES">BLS12381_G1_PUBLIC_KEY_NUM_BYTES</a>){
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&bytes) == <a href="consensus_key.md#0x1_consensus_key_ED25519_PUBLIC_KEY_NUM_BYTES">ED25519_PUBLIC_KEY_NUM_BYTES</a>){
+        <b>let</b> ed_key_bytes = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_slice">vector::slice</a>(&bytes, 0, <a href="consensus_key.md#0x1_consensus_key_ED25519_PUBLIC_KEY_NUM_BYTES">ED25519_PUBLIC_KEY_NUM_BYTES</a>);
+        <b>let</b> valid_ed_public_key = <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519_new_validated_public_key_from_bytes">ed25519::new_validated_public_key_from_bytes</a>(ed_key_bytes);
+        <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&valid_ed_public_key), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="consensus_key.md#0x1_consensus_key_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>));
+        <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(<a href="consensus_key.md#0x1_consensus_key_ConsensusPublicKey">ConsensusPublicKey</a> {
+            ed_key: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> valid_ed_public_key),
+            bls_key: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>&lt;<a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>&gt;(),
+            cg_key: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>&lt;<a href="class_groups.md#0x1_class_groups_CGPublicKey">class_groups::CGPublicKey</a>&gt;()
+        })
+    }
+    <b>else</b> <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&bytes) &gt; <a href="consensus_key.md#0x1_consensus_key_ED25519_PUBLIC_KEY_NUM_BYTES">ED25519_PUBLIC_KEY_NUM_BYTES</a> + <a href="consensus_key.md#0x1_consensus_key_BLS12381_G1_PUBLIC_KEY_NUM_BYTES">BLS12381_G1_PUBLIC_KEY_NUM_BYTES</a>){
 
         <b>let</b> ed_key_bytes = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_slice">vector::slice</a>(&bytes, 0, <a href="consensus_key.md#0x1_consensus_key_ED25519_PUBLIC_KEY_NUM_BYTES">ED25519_PUBLIC_KEY_NUM_BYTES</a>);
         <b>let</b> bls_key_bytes = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_slice">vector::slice</a>(&bytes, <a href="consensus_key.md#0x1_consensus_key_ED25519_PUBLIC_KEY_NUM_BYTES">ED25519_PUBLIC_KEY_NUM_BYTES</a>, <a href="consensus_key.md#0x1_consensus_key_ED25519_PUBLIC_KEY_NUM_BYTES">ED25519_PUBLIC_KEY_NUM_BYTES</a> + <a href="consensus_key.md#0x1_consensus_key_BLS12381_G1_PUBLIC_KEY_NUM_BYTES">BLS12381_G1_PUBLIC_KEY_NUM_BYTES</a>);
@@ -144,8 +154,8 @@ Invalid consensus public key
 
         <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(<a href="consensus_key.md#0x1_consensus_key_ConsensusPublicKey">ConsensusPublicKey</a> {
             ed_key: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> valid_ed_public_key),
-            bls_key: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> valid_bls_public_key),
-            cg_key: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> valid_cg_public_key)
+            bls_key: valid_bls_public_key,
+            cg_key: valid_cg_public_key
         })
 
     }
@@ -180,11 +190,15 @@ Invalid consensus public key
     <b>let</b> ed_bytes  = <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519_validated_public_key_to_bytes">ed25519::validated_public_key_to_bytes</a>(&pk.ed_key);
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_append">vector::append</a>(&<b>mut</b> out, ed_bytes);
 
-    <b>let</b> bls_bytes = <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a>(&pk.bls_key);
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_append">vector::append</a>(&<b>mut</b> out, bls_bytes);
+    <b>if</b>(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&pk.bls_key) && <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&pk.cg_key)){
+        <b>let</b> bls_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> pk.bls_key);
+        <b>let</b> bls_bytes = <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a>(&bls_key);
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_append">vector::append</a>(&<b>mut</b> out, bls_bytes);
 
-    <b>let</b> cg_bytes  = <a href="class_groups.md#0x1_class_groups_public_key_to_bytes">class_groups::public_key_to_bytes</a>(&pk.cg_key);
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_append">vector::append</a>(&<b>mut</b> out, cg_bytes);
+        <b>let</b> cg_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> pk.cg_key);
+        <b>let</b> cg_bytes  = <a href="class_groups.md#0x1_class_groups_public_key_to_bytes">class_groups::public_key_to_bytes</a>(&cg_key);
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_append">vector::append</a>(&<b>mut</b> out, cg_bytes);
+    };
     out
 }
 </code></pre>
@@ -199,7 +213,7 @@ Invalid consensus public key
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="consensus_key.md#0x1_consensus_key_get_bls_pub_key">get_bls_pub_key</a>(pk: &<a href="consensus_key.md#0x1_consensus_key_ConsensusPublicKey">consensus_key::ConsensusPublicKey</a>): <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>
+<pre><code><b>public</b> <b>fun</b> <a href="consensus_key.md#0x1_consensus_key_get_bls_pub_key">get_bls_pub_key</a>(pk: &<a href="consensus_key.md#0x1_consensus_key_ConsensusPublicKey">consensus_key::ConsensusPublicKey</a>): <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>&gt;
 </code></pre>
 
 
@@ -208,7 +222,7 @@ Invalid consensus public key
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="consensus_key.md#0x1_consensus_key_get_bls_pub_key">get_bls_pub_key</a>(pk: &<a href="consensus_key.md#0x1_consensus_key_ConsensusPublicKey">ConsensusPublicKey</a>): <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>{
+<pre><code><b>public</b> <b>fun</b> <a href="consensus_key.md#0x1_consensus_key_get_bls_pub_key">get_bls_pub_key</a>(pk: &<a href="consensus_key.md#0x1_consensus_key_ConsensusPublicKey">ConsensusPublicKey</a>): <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>&gt;{
     pk.bls_key
 }
 </code></pre>

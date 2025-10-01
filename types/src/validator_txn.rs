@@ -7,7 +7,6 @@ use crate::{dkg::DKGTransactionData, jwks};
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use move_core_types::account_address::AccountAddress;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, CryptoHasher, BCSCryptoHash)]
 pub enum ValidatorTransaction {
@@ -21,7 +20,7 @@ impl ValidatorTransaction {
         Self::DKG(DKGTransactionData {
             metadata: DKGTransactionMetadata {
                 epoch: 999,
-                author: AccountAddress::ZERO,
+                author: move_core_types::account_address::AccountAddress::ZERO,
                 bls_aggregate_signature: vec![],
                 signer_indices_clan_committee: vec![],
                 transaction_type: crate::dkg::DKGTransactionType::DKGMeta,

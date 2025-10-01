@@ -27,8 +27,8 @@ module supra_std::consensus_key {
     /// 3. Class group encryption key
     struct ConsensusPublicKey has copy, drop, store {
         ed_key: ed25519::ValidatedPublicKey,
-        bls_key: bls12381::PublicKey,
-        cg_key: class_groups::CGPublicKey,
+        bls_key: option::Option<bls12381::PublicKey>,
+        cg_key: option::Option<class_groups::CGPublicKey>,
     }
 
     #[test_only]
@@ -41,7 +41,17 @@ module supra_std::consensus_key {
 
     public fun consensus_public_key_from_bytes(bytes: vector<u8>): Option<ConsensusPublicKey>{
         //todo: pop for ed and bls
-        if (vector::length(&bytes) > ED25519_PUBLIC_KEY_NUM_BYTES + BLS12381_G1_PUBLIC_KEY_NUM_BYTES){
+        if (vector::length(&bytes) == ED25519_PUBLIC_KEY_NUM_BYTES){
+            let ed_key_bytes = vector::slice(&bytes, 0, ED25519_PUBLIC_KEY_NUM_BYTES);
+            let valid_ed_public_key = ed25519::new_validated_public_key_from_bytes(ed_key_bytes);
+            assert!(option::is_some(&valid_ed_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+            option::some(ConsensusPublicKey {
+                ed_key: option::extract(&mut valid_ed_public_key),
+                bls_key: option::none<bls12381::PublicKey>(),
+                cg_key: option::none<class_groups::CGPublicKey>()
+            })
+        }
+        else if (vector::length(&bytes) > ED25519_PUBLIC_KEY_NUM_BYTES + BLS12381_G1_PUBLIC_KEY_NUM_BYTES){
 
             let ed_key_bytes = vector::slice(&bytes, 0, ED25519_PUBLIC_KEY_NUM_BYTES);
             let bls_key_bytes = vector::slice(&bytes, ED25519_PUBLIC_KEY_NUM_BYTES, ED25519_PUBLIC_KEY_NUM_BYTES + BLS12381_G1_PUBLIC_KEY_NUM_BYTES);
@@ -58,8 +68,8 @@ module supra_std::consensus_key {
 
             option::some(ConsensusPublicKey {
                 ed_key: option::extract(&mut valid_ed_public_key),
-                bls_key: option::extract(&mut valid_bls_public_key),
-                cg_key: option::extract(&mut valid_cg_public_key)
+                bls_key: valid_bls_public_key,
+                cg_key: valid_cg_public_key
             })
 
         }
@@ -74,15 +84,19 @@ module supra_std::consensus_key {
         let ed_bytes  = ed25519::validated_public_key_to_bytes(&pk.ed_key);
         vector::append(&mut out, ed_bytes);
 
-        let bls_bytes = bls12381::public_key_to_bytes(&pk.bls_key);
-        vector::append(&mut out, bls_bytes);
+        if(option::is_some(&pk.bls_key) && option::is_some(&pk.cg_key)){
+            let bls_key = option::extract(&mut pk.bls_key);
+            let bls_bytes = bls12381::public_key_to_bytes(&bls_key);
+            vector::append(&mut out, bls_bytes);
 
-        let cg_bytes  = class_groups::public_key_to_bytes(&pk.cg_key);
-        vector::append(&mut out, cg_bytes);
+            let cg_key = option::extract(&mut pk.cg_key);
+            let cg_bytes  = class_groups::public_key_to_bytes(&cg_key);
+            vector::append(&mut out, cg_bytes);
+        };
         out
     }
 
-    public fun get_bls_pub_key(pk: &ConsensusPublicKey): bls12381::PublicKey{
+    public fun get_bls_pub_key(pk: &ConsensusPublicKey): option::Option<bls12381::PublicKey>{
         pk.bls_key
     }
 
@@ -101,8 +115,8 @@ module supra_std::consensus_key {
 
         let pk = ConsensusPublicKey{
             ed_key: ed_pk,
-            bls_key: public_key_with_pop_to_normal(&bls12381_pk),
-            cg_key: cg_pk
+            bls_key: option::some(public_key_with_pop_to_normal(&bls12381_pk)),
+            cg_key: option::some(cg_pk)
         };
 
         (sk,pk)
