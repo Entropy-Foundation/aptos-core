@@ -466,7 +466,7 @@ module supra_framework::genesis {
     }
 
     /// DEPRECATED
-    /// 
+    ///
     fun create_initialize_validators_with_commission(
         supra_framework: &signer,
         use_staking_contract: bool,
@@ -479,7 +479,7 @@ module supra_framework::genesis {
     }
 
     /// DEPRECATED
-    /// 
+    ///
     /// Sets up the initial validator set for the network.
     /// The validator "owner" accounts, and their authentication
     /// Addresses (and keys) are encoded in the `owners`

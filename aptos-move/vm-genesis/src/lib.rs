@@ -293,7 +293,6 @@ pub fn encode_genesis_change_set_for_testnet(
     evm_genesis_config: Option<OnChainEvmGenesisConfig>,
 ) -> ChangeSet {
     validate_genesis_config(genesis_config);
-
     // Create a Move VM session so we can invoke on-chain genesis initializations.
     let mut state_view = GenesisStateView::new();
     for (module_bytes, module) in framework.code_and_compiled_modules() {

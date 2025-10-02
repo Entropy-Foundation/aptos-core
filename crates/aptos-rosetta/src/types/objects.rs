@@ -859,6 +859,7 @@ pub enum TransactionType {
     Validator,
     BlockEpilogue,
     Automated,
+    AutomationRegistration,
 }
 
 impl Display for TransactionType {
@@ -873,6 +874,7 @@ impl Display for TransactionType {
             Validator => "Validator",
             BlockEpilogue => "BlockEpilogue",
             Automated => "Automated",
+            AutomationRegistration => "AutomationRegistration",
         })
     }
 }
@@ -927,6 +929,13 @@ impl Transaction {
                 txn.info,
                 txn.events,
             ),
+            AutomationRegistryTransaction(_) => (
+                TransactionType::AutomationRegistration,
+                None,
+                None,
+                txn.info,
+                txn.events,
+            )
         };
 
         // Operations must be sequential and operation index must always be in the same order
