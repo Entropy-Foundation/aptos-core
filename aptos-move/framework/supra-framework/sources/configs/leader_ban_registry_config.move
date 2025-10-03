@@ -92,7 +92,7 @@ module supra_framework::leader_ban_registry_config {
     }
 
     #[view]
-    public fun get_ban_registry_param(): (vector<u8>, u8) acquires BanRegistryParameters {
+    public fun get_ban_registry_params(): (vector<u8>, u8) acquires BanRegistryParameters {
         if (!exists<BanRegistryParameters>(@supra_framework)) {
             let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
                 return (
@@ -104,7 +104,7 @@ module supra_framework::leader_ban_registry_config {
     }
 
     #[view]
-    public fun get_ban_registry_param_v0(): (u8, u32, u8) acquires BanRegistryParameters, BanRegistryParametersV0 {
+    public fun get_ban_registry_params_v0(): (u8, u32, u8) acquires BanRegistryParameters, BanRegistryParametersV0 {
         if (!exists<BanRegistryParameters>(@supra_framework)) {
             let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
             if (ban_registry_config.version == 0) {

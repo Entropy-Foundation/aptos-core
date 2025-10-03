@@ -114,7 +114,7 @@ module supra_std::decode_bcs {
         assert!(v::length(&bcs.bytes) >= 16, EOutOfRange);
 
         let (value, i) = (0u256, 0u8);
-        while (i < 256) {
+        while (i < 255) {
             let byte = (v::pop_back(&mut bcs.bytes) as u256);
             value = value | (byte << i);
             i = i + 8;

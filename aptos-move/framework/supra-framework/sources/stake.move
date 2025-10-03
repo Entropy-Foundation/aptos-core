@@ -516,25 +516,22 @@ module supra_framework::stake {
             // it can happen that some validator may added a leave request in between
             // this can change the order of indexes in active validator
             // so need to iterate through all until find pool address in active and  pending_active
-            let return_addr = option::none();
-            vector::for_each_ref(&validator_set.active_validators, |validator_info| {
-                if (index == validator_info.config.validator_index) {
-                    return_addr = option::some(validator_info.addr);
-                    break;
-                }
+            let (is_index_exist, i) = vector::find(&validator_set.active_validators, |v| {
+                let v: &ValidatorInfo = v;
+                v.config.validator_index == index
             });
-            // as we are sure that either the index can be found in active or pending inactive or none
-            // returning early without looping through pending_inactive if found
-            if (option::is_some(&return_addr)) {
-                return return_addr;
+            if (is_index_exist) {
+                let v_info = vector::borrow(&validator_set.active_validators, i);
+                return option::some(v_info.addr);
             };
-            vector::for_each_ref(&validator_set.pending_inactive, |validator_info| {
-                if (index == validator_info.config.validator_index) {
-                    return_addr = option::some(validator_info.addr);
-                    break;
-                }
+            let (is_index_exist, i) = vector::find(&validator_set.pending_inactive, |v| {
+                let v: &ValidatorInfo = v;
+                v.config.validator_index == index
             });
-            return return_addr;
+            if (is_index_exist) {
+                let v_info = vector::borrow(&validator_set.pending_inactive, i);
+                return option::some(v_info.addr);
+            };
         };
         option::none()
     }
@@ -551,7 +548,7 @@ module supra_framework::stake {
         commitee_size
     }
 
-    /// Returns committee size
+    /// Returns pool addresses of current committee including pending inactive
     public(friend) fun get_committee_pool_addresses() : vector<address>
     acquires ValidatorSet
     {
@@ -559,9 +556,11 @@ module supra_framework::stake {
         if (exists<ValidatorSet>(@supra_framework)) {
             let validator_set = borrow_global<ValidatorSet>(@supra_framework);
             vector::for_each_ref(&validator_set.active_validators, |validator_info| {
+                let validator_info: &ValidatorInfo = validator_info;
                 vector::push_back(&mut pool_addresses, validator_info.addr);
             });
             vector::for_each_ref(&validator_set.pending_inactive, |validator_info| {
+                let validator_info: &ValidatorInfo = validator_info;
                 vector::push_back(&mut pool_addresses, validator_info.addr);
             });
         };
