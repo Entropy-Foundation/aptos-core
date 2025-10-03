@@ -520,30 +520,52 @@ module supra_framework::stake {
             vector::for_each_ref(&validator_set.active_validators, |validator_info| {
                 if (index == validator_info.config.validator_index) {
                     return_addr = option::some(validator_info.addr);
+                    break;
                 }
             });
-            vector::for_each_ref(&validator_set.pending_active, |validator_info| {
+            // as we are sure that either the index can be found in active or pending inactive or none
+            // returning early without looping through pending_inactive if found
+            if (option::is_some(&return_addr)) {
+                return return_addr;
+            };
+            vector::for_each_ref(&validator_set.pending_inactive, |validator_info| {
                 if (index == validator_info.config.validator_index) {
                     return_addr = option::some(validator_info.addr);
+                    break;
                 }
             });
-            // as we are sure that either the index can be found in active or pending active or none
-            // so not returning the address in between but at the end.
             return return_addr;
         };
         option::none()
     }
 
     /// Returns committee size
-    public(friend) fun get_committe_size() : u64
+    public(friend) fun get_committee_size() : u64
     acquires ValidatorSet
     {
         let commitee_size= 0;
         if (exists<ValidatorSet>(@supra_framework)) {
             let validator_set = borrow_global<ValidatorSet>(@supra_framework);
-            commitee_size = vector::length(&validator_set.active_validators) + vector::length(&validator_set.pending_active);
+            commitee_size = vector::length(&validator_set.active_validators) + vector::length(&validator_set.pending_inactive);
         };
         commitee_size
+    }
+
+    /// Returns committee size
+    public(friend) fun get_committee_pool_addresses() : vector<address>
+    acquires ValidatorSet
+    {
+        let pool_addresses= vector::empty();
+        if (exists<ValidatorSet>(@supra_framework)) {
+            let validator_set = borrow_global<ValidatorSet>(@supra_framework);
+            vector::for_each_ref(&validator_set.active_validators, |validator_info| {
+                vector::push_back(&mut pool_addresses, validator_info.addr);
+            });
+            vector::for_each_ref(&validator_set.pending_inactive, |validator_info| {
+                vector::push_back(&mut pool_addresses, validator_info.addr);
+            });
+        };
+        pool_addresses
     }
 
     /// Allow on chain governance to remove validators from the validator set.

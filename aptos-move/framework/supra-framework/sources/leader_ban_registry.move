@@ -1,10 +1,13 @@
 /// Maintains the list of banned validators and updates counters on every epoch
 module supra_framework::leader_ban_registry {
     use std::error;
+    use std::features;
     use std::option;
     use std::option::Option;
     use supra_framework::system_addresses;
     use std::vector;
+    use aptos_std::math64::{pow, min};
+    use supra_framework::event;
     use supra_framework::stake;
     use supra_framework::leader_ban_registry_config;
 
@@ -46,15 +49,22 @@ module supra_framework::leader_ban_registry {
     struct BanAdded has drop {
         pool_address: address,
         epoch: u64,
+        round: u64
+    }
+
+    #[event]
+    struct BanUpdated has drop {
+        pool_address: address,
+        epoch: u64,
         round: u64,
-        consecutive_count: u64
+        consecutive_bans: u32
     }
 
     #[event]
     struct BanRemoved has drop {
         pool_address: address,
         epoch: u64,
-        round: u64,
+        round: u64
     }
 
     /// Initialise leader ban registry
@@ -69,6 +79,7 @@ module supra_framework::leader_ban_registry {
             error::already_exists(EBAN_REGISTRY_ALREADY_EXISTS)
         );
         move_to(supra_framework, BanRegistry { bans: vector::empty() });
+        move_to(supra_framework, LatestView { epoch: 0, round: 0 });
     }
 
     #[view]
@@ -82,16 +93,16 @@ module supra_framework::leader_ban_registry {
 
     #[view]
     public fun get_initial_ban_duration(): u64 {
-        let initail_election_denied = leader_ban_registry_config::get_initial_election_denied() as u64;
-        let committee_size = stake::get_committe_size();
-        committee_size * initail_election_denied
+        let initial_elections_denied = leader_ban_registry_config::get_initial_elections_denied() as u64;
+        let committee_size = stake::get_committee_size();
+        committee_size * initial_elections_denied
     }
 
     #[view]
     public fun get_max_ban_duration(): u64 {
-        let max_ban_election_denied = leader_ban_registry_config::get_max_elections_denied() as u64;
-        let committee_size = stake::get_committe_size();
-        committee_size * max_ban_election_denied
+        let max_elections_denied = leader_ban_registry_config::get_max_elections_denied() as u64;
+        let committee_size = stake::get_committee_size();
+        committee_size * max_elections_denied
     }
 
     /// Add or update the ban registry as per block metadata
@@ -130,24 +141,55 @@ module supra_framework::leader_ban_registry {
         };
 
         vector::for_each(failed_proposer_indices, |failed_validator_index| {
-            let validator_pool_address_opt= stake::get_pool_address_from_index(failed_validator_index);
+            let validator_pool_address_opt = stake::get_pool_address_from_index(failed_validator_index);
             if (option::is_some(&validator_pool_address_opt)) {
                 let validator_pool_address = option::extract(&mut validator_pool_address_opt);
-                let (is_exists, index) = is_pool_exists(&ban_registry.bans, validator_pool_address);
-                if (is_exists) {
+                let (is_banned, index) = vector::find(&ban_registry.bans, |v| {
+                    validator_pool_address == v.pool_address
+                });
+                if (is_banned) {
                     let bans = vector::borrow_mut(&mut ban_registry.bans, index);
                     bans.consecutive_bans += 1;
-                    // TODO: we can update the registry here if max duration already passed
+                    if (duration(bans) >= get_max_ban_duration()) {
+                        vector::swap_remove(&mut ban_registry.bans, index);
+                        if (features::module_event_enabled()) {
+                            event::emit(BanRemoved {
+                                pool_address: validator_pool_address,
+                                epoch: epoch_earned,
+                                round: round_earned
+                            });
+                        }
+                    } else {
+                        if (features::module_event_enabled()) {
+                            event::emit(BanUpdated {
+                                pool_address: validator_pool_address,
+                                epoch: epoch_earned,
+                                round: round_earned,
+                                consecutive_bans: bans.consecutive_bans
+                            });
+                        }
+                    }
                 } else {
-                    vector::push_back(&mut ban_registry.bans, ValidatorBansWithAddress {
-                        active: ActiveBan {
-                            epoch_earned,
-                            round_earned,
-                            rounds_served_in_previous_epochs: 0
-                        },
-                        consecutive_bans: 0,
-                        pool_address: validator_pool_address
-                    });
+                    let ban_registry_len = vector::length(&ban_registry.bans);
+                    if (can_be_added_in_ban(ban_registry_len)) {
+                        vector::push_back(&mut ban_registry.bans, ValidatorBansWithAddress {
+                            active: ActiveBan {
+                                epoch_earned,
+                                round_earned,
+                                rounds_served_in_previous_epochs: 0
+                            },
+                            consecutive_bans: 0,
+                            pool_address: validator_pool_address
+                        });
+
+                        if (features::module_event_enabled()) {
+                            event::emit(BanAdded {
+                                pool_address: validator_pool_address,
+                                epoch: epoch_earned,
+                                round: round_earned
+                            });
+                        }
+                    }
                 };
             };
         });
@@ -159,8 +201,10 @@ module supra_framework::leader_ban_registry {
         let validator_pool_address_opt= stake::get_pool_address_from_index(proposer_index);
         if (option::is_some(&validator_pool_address_opt)) {
             let validator_pool_address = option::extract(&mut validator_pool_address_opt);
-            let (exists, index) = is_pool_exists(&ban_registry.bans, validator_pool_address);
-            if (exists) {
+            let (is_banned, index) = vector::find(&ban_registry.bans, |v| {
+                validator_pool_address == v.pool_address
+            });
+            if (is_banned) {
                 vector::swap_remove(&mut ban_registry.bans, index);
             };
         };
@@ -177,6 +221,8 @@ module supra_framework::leader_ban_registry {
         let latest_view = borrow_global<LatestView>(@supra_framework);
         let ban_registry = borrow_global_mut<BanRegistry>(@supra_framework);
 
+        let updated_pool_addresses = stake::get_committee_pool_addresses();
+        let pool_addresses_to_remove = vector::empty();
         vector::for_each_mut(&mut ban_registry.bans, |v| {
             if (has_started(&v.active, latest_view)) {
                 if (latest_view.epoch > v.active.epoch_earned) {
@@ -185,21 +231,53 @@ module supra_framework::leader_ban_registry {
                     v.active.rounds_served_in_previous_epochs += latest_view.round - v.active.round_earned;
                 }
             };
+            if (vector::contains(&updated_pool_addresses, &v.pool_address)) {
+                vector::push_back(&mut pool_addresses_to_remove, v.pool_address)
+            }
         });
-        // TODO: Do we need update the list here ? for those entreis which max duration already passed?
-    }
 
-    /// Checks whether pool entry exists or not
-    fun is_pool_exists(bans: &vector<ValidatorBansWithAddress>, addr: address) : (bool, u64) {
-        let (is_exist, index) = vector::find(bans, |v| {
-           v.pool_address == addr
+        vector::for_each(pool_addresses_to_remove, |p| {
+            let (is_exist, index) = vector::find(&mut ban_registry.bans, |v|{ v.pool_address == p });
+            if (is_exist) {
+                vector::swap_remove(&mut ban_registry.bans, index);
+                if (features::module_event_enabled()) {
+                    event::emit(BanRemoved {
+                        pool_address: p,
+                        epoch: latest_view.epoch,
+                        round: latest_view.round
+                    });
+                }
+            }
         });
-        (is_exist, index)
     }
 
     /// Checks if ban has already started
     fun has_started(active_ban: &ActiveBan, latest_view: &LatestView): bool {
         active_ban.epoch_earned <= latest_view.epoch && active_ban.round_earned < latest_view.round
+    }
+
+    /// Calculate the duration
+    fun duration(ban: &ValidatorBansWithAddress): u64 {
+        let initial_ban_duration = get_initial_ban_duration();
+        let max_ban_duration = get_max_ban_duration();
+        let duration = initial_ban_duration * pow(2, ban.consecutive_bans as u64);
+        if (duration >= ban.active.rounds_served_in_previous_epochs) {
+            duration = duration - ban.active.rounds_served_in_previous_epochs;
+        } else {
+            duration = 0;
+        };
+        min(duration, max_ban_duration)
+    }
+
+    fun can_be_added_in_ban(ban_registry_len: u64) : bool {
+        let minimum_unbanned_proposer = leader_ban_registry_config::get_minimum_unbanned_proposers() as u64;
+        let committee_size = stake::get_committee_size();
+        if (committee_size > ban_registry_len) {
+            if (committee_size - ban_registry_len > minimum_unbanned_proposer) {
+                return true;
+            };
+        };
+        false
     }
 
     /// Validates registry initialised if not aborted with `EBAN_REGISTRY_NOT_INITIALIZED`
