@@ -46,14 +46,14 @@ module supra_framework::leader_ban_registry {
     }
 
     #[event]
-    struct BanAdded has drop {
+    struct BanAdded has drop, store {
         pool_address: address,
         epoch: u64,
         round: u64
     }
 
     #[event]
-    struct BanUpdated has drop {
+    struct BanUpdated has drop, store {
         pool_address: address,
         epoch: u64,
         round: u64,
@@ -61,7 +61,7 @@ module supra_framework::leader_ban_registry {
     }
 
     #[event]
-    struct BanRemoved has drop {
+    struct BanRemoved has drop, store {
         pool_address: address,
         epoch: u64,
         round: u64
@@ -93,9 +93,9 @@ module supra_framework::leader_ban_registry {
 
     #[view]
     public fun get_initial_ban_duration(): u64 {
-        let initial_elections_denied = leader_ban_registry_config::get_initial_elections_denied() as u64;
+        let initial_elections_denied = leader_ban_registry_config::get_initial_elections_denied();
         let committee_size = stake::get_committee_size();
-        committee_size * initial_elections_denied
+        committee_size * (initial_elections_denied as u64)
     }
 
     #[view]
@@ -236,13 +236,13 @@ module supra_framework::leader_ban_registry {
             }
         });
 
-        vector::for_each(pool_addresses_to_remove, |p| {
-            let (is_exist, index) = vector::find(&mut ban_registry.bans, |v|{ v.pool_address == p });
+        vector::for_each_ref(&pool_addresses_to_remove, |p| {
+            let (is_exist, index) = vector::find(&mut ban_registry.bans, |v|{ &v.pool_address == p });
             if (is_exist) {
                 vector::swap_remove(&mut ban_registry.bans, index);
                 if (features::module_event_enabled()) {
                     event::emit(BanRemoved {
-                        pool_address: p,
+                        pool_address: *p,
                         epoch: latest_view.epoch,
                         round: latest_view.round
                     });
