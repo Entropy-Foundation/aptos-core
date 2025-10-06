@@ -522,7 +522,7 @@ module supra_framework::stake {
             });
             if (is_index_exist) {
                 let v_info = vector::borrow(&validator_set.active_validators, i);
-                return option::some(v_info.addr);
+                return option::some(v_info.addr)
             };
             let (is_index_exist, i) = vector::find(&validator_set.pending_inactive, |v| {
                 let v: &ValidatorInfo = v;
@@ -530,7 +530,7 @@ module supra_framework::stake {
             });
             if (is_index_exist) {
                 let v_info = vector::borrow(&validator_set.pending_inactive, i);
-                return option::some(v_info.addr);
+                return option::some(v_info.addr)
             };
         };
         option::none()

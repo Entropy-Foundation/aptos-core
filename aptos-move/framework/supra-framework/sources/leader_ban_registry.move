@@ -78,7 +78,7 @@ module supra_framework::leader_ban_registry {
     #[view]
     public fun get_ban_registry() : vector<ValidatorBansWithAddress> acquires BanRegistry {
         if (!exists<BanRegistry>(@supra_framework)) {
-            return (vector::empty());
+            return vector::empty()
         };
         let ban_registry = borrow_global<BanRegistry>(@supra_framework);
         ban_registry.bans
@@ -105,10 +105,10 @@ module supra_framework::leader_ban_registry {
     acquires BanRegistry, LatestView
     {
         if (!exists<BanRegistry>(@supra_framework)) {
-            return ;
+            return
         };
         if (!exists<LatestView>(@supra_framework)) {
-            return ;
+            return
         };
         let ban_registry = borrow_global_mut<BanRegistry>(@supra_framework);
         let latest_view = borrow_global_mut<LatestView>(@supra_framework);
@@ -137,7 +137,7 @@ module supra_framework::leader_ban_registry {
     {
         let initial_ban_duration = get_initial_ban_duration();
         if (initial_ban_duration == 0) {
-            return;
+            return
         };
 
         vector::for_each(failed_proposer_indices, |failed_validator_index| {
@@ -250,10 +250,10 @@ module supra_framework::leader_ban_registry {
     /// Update counts on every epoch
     public(friend) fun on_new_epoch() acquires BanRegistry,LatestView {
         if (!exists<LatestView>(@supra_framework)) {
-            return;
+            return
         };
         if (!exists<BanRegistry>(@supra_framework)) {
-            return;
+            return
         };
         let latest_view = borrow_global<LatestView>(@supra_framework);
         let ban_registry = borrow_global_mut<BanRegistry>(@supra_framework);

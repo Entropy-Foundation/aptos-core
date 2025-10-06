@@ -39,7 +39,7 @@ module supra_framework::leader_ban_registry_config {
         assert!(!exists<BanRegistryParameters>(@supra_framework), error::already_exists(EALREADY_INITIALISED));
         let v0 = deserialise_v0_params(config);
         if (option::is_none(&v0)) {
-            abort error::invalid_argument(EINVALID_VERSION_BYTES);
+            abort error::invalid_argument(EINVALID_VERSION_BYTES)
         };
         // we always init with version 0
         move_to(supra_framework, BanRegistryParameters { config, version: 0 });
@@ -125,7 +125,7 @@ module supra_framework::leader_ban_registry_config {
             let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
             if (ban_registry_config.version == 0) {
                 let ban_registry_params = borrow_global<BanRegistryParametersV0>(@supra_framework);
-                return ban_registry_params.initial_elections_denied;
+                return ban_registry_params.initial_elections_denied
             } 
         };
         0
@@ -137,7 +137,7 @@ module supra_framework::leader_ban_registry_config {
             let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
             if (ban_registry_config.version == 0) {
                 let ban_registry_params = borrow_global<BanRegistryParametersV0>(@supra_framework);
-                return ban_registry_params.max_elections_denied;
+                return ban_registry_params.max_elections_denied
             } 
         };
         0
@@ -149,7 +149,7 @@ module supra_framework::leader_ban_registry_config {
             let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
             if (ban_registry_config.version == 0) {
                 let ban_registry_params = borrow_global<BanRegistryParametersV0>(@supra_framework);
-                return ban_registry_params.minimum_unbanned_proposers;
+                return ban_registry_params.minimum_unbanned_proposers
             } 
         };
         0
