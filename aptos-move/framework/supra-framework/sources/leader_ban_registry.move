@@ -12,6 +12,7 @@ module supra_framework::leader_ban_registry {
     use supra_framework::leader_ban_registry_config;
 
     friend supra_framework::block;
+    friend supra_framework::genesis;
 
     /// Leader ban registry already initialized
     const EBAN_REGISTRY_ALREADY_EXISTS: u64 = 1;
@@ -22,41 +23,59 @@ module supra_framework::leader_ban_registry {
 
     /// Holds metrics for banned round, epoch and round server in prev epoch
     struct ActiveBan has store, drop, copy {
-        epoch_earned: u64, // EPOCH
-        round_earned: u64, // ROUND
-        rounds_served_in_previous_epochs: u64 // ROUND
+        /// Epoch when validator first got banned
+        epoch_earned: u64,
+        /// Round when validator first got banned
+        round_earned: u64,
+        /// Round count incremented on every epoch change
+        rounds_served_in_previous_epochs: u64
     }
 
     /// Holds validator metrics regarding duration pool address etc
     struct ValidatorBansWithAddress has store, drop, copy {
+        /// Holds active ban counts
         active: ActiveBan,
+        /// Consecutive ban count
         consecutive_bans: u32,
+        /// Validator's pool address
         pool_address: address
     }
 
     /// Holds ban registry
     struct BanRegistry has drop, store, key {
+        /// List of validator active bans with pool address
         bans: vector<ValidatorBansWithAddress>
     }
 
     /// Holds latest processed round and epoch
     struct LatestView has drop, store, key {
+        /// Epoch
         epoch: u64,
+        /// Round
         round: u64
     }
 
     #[event]
+    /// Emits when validator receives a ban or consucutive ban occurred
     struct Bannned has drop, store {
+        /// Validator's pool address
         pool_address: address,
+        /// Epoch
         epoch: u64,
+        /// Round
         round: u64,
+        /// Consecutive bans count
         consecutive_bans: u32
     }
 
     #[event]
+    /// Emits when validator ban lifted due to ban expiry
     struct Reinstated has drop, store {
+        /// Validator's pool address
         pool_address: address,
+        /// Epoch
         epoch: u64,
+        /// Round
         round: u64
     }
 
@@ -76,6 +95,7 @@ module supra_framework::leader_ban_registry {
     }
 
     #[view]
+    /// Returns list of validators active ban with it's pool address
     public fun get_ban_registry() : vector<ValidatorBansWithAddress> acquires BanRegistry {
         if (!exists<BanRegistry>(@supra_framework)) {
             return vector::empty()
@@ -85,6 +105,7 @@ module supra_framework::leader_ban_registry {
     }
 
     #[view]
+    /// Return initial ban duration
     public fun get_initial_ban_duration(): u64 {
         let initial_elections_denied = leader_ban_registry_config::get_initial_elections_denied();
         let committee_size = stake::get_committee_size();
@@ -92,6 +113,7 @@ module supra_framework::leader_ban_registry {
     }
 
     #[view]
+    /// Returns max ban duration
     public fun get_max_ban_duration(): u64 {
         let max_elections_denied = leader_ban_registry_config::get_max_elections_denied();
         let committee_size = stake::get_committee_size();
