@@ -753,7 +753,7 @@ module std::features {
 
     /// Whether using delegation pool as node identity feature is enabled.
     ///
-    /// Lifetime: transient
+    /// Lifetime: permanent
     const SUPRA_DELEGATION_POOL_IDENTITY: u64 = 95;
 
     public fun get_supra_delegation_pool_identity_feature(): u64 {
@@ -762,6 +762,7 @@ module std::features {
 
     public fun supra_delegation_pool_identity_enabled(): bool acquires Features {
         is_enabled(SUPRA_DELEGATION_POOL_IDENTITY)
+        // We could update supra_delegation_pool_identity_enabled to always return true after the feature has been rolled out.
     }
 
     // ============================================================================================

@@ -334,6 +334,7 @@ impl From<FeatureFlag> for AptosFeatureFlag {
             FeatureFlag::SupraCountFailedProposals => {
                 AptosFeatureFlag::SUPRA_COUNT_FAILED_PROPOSALS
             },
+            FeatureFlag::SupraRLPEncode => AptosFeatureFlag::SUPRA_RLP_ENCODE,
             FeatureFlag::SupraDelegationPoolIdentity => {
                 AptosFeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY
             },
