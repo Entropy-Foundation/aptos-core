@@ -7,6 +7,7 @@ pub type Entries = HashMap<String, u64>;
 pub struct GasScheduleChangeSet {
     additions: Entries,
     deletions: Entries,
+    mutations: Entries,
 }
 
 impl GasScheduleChangeSet {
@@ -22,16 +23,16 @@ impl GasScheduleChangeSet {
         &self.additions
     }
 
-    pub fn deletion_entries(&self) -> &Entries {
-        self.deletions()
-    }
-
-    pub fn addition_entries(&self) -> &Entries {
-        self.additions()
+    pub fn mutations(&self) -> &Entries {
+        &self.mutations
     }
 
     pub fn is_empty(&self) -> bool {
-        self.additions.is_empty() && self.deletions.is_empty()
+        self.additions.is_empty() && self.deletions.is_empty() && self.mutations.is_empty()
+    }
+
+    pub fn should_bump_feature_version(&self) -> bool {
+        !self.additions.is_empty() || !self.deletions.is_empty()
     }
 }
 
@@ -40,10 +41,13 @@ fn test_deserialize_change_set() {
     let json = r#"{
         "additions": {
              "foo": 123,
-             "bar": 600999
+             "bar": 100999
         },
         "deletions": {
             "bar": 456
+        },
+        "mutations": {
+            "foo": 789
         }
     }"#
     .to_string();
@@ -52,7 +56,8 @@ fn test_deserialize_change_set() {
 
     assert_eq!(change_set.additions.len(), 2);
     assert_eq!(change_set.deletions.len(), 1);
+    assert_eq!(change_set.mutations.len(), 1);
     assert_eq!(change_set.additions.get("foo").unwrap(), &123u64);
-    assert_eq!(change_set.additions.get("bar").unwrap(), &600999u64);
-    assert_eq!(change_set.deletions.get("bar").unwrap(), &456u64);
+    assert_eq!(change_set.additions.get("bar").unwrap(), &100999u64);
+    assert_eq!(change_set.deletions.get("foo").unwrap(), &789u64);
 }

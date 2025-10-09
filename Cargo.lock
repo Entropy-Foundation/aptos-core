@@ -1898,6 +1898,8 @@ dependencies = [
  "clap 4.4.14",
  "move-core-types",
  "move-model",
+ "serde",
+ "serde_json",
  "tempfile",
 ]
 

@@ -112,7 +112,6 @@ fn aptos_framework_path() -> PathBuf {
 #[derive(Parser, Debug)]
 pub enum GasScheduleGenerator {
     GenerateNew(GenerateNewSchedule),
-    ScaleCurrent(ScaleCurrentSchedule),
     UpdateSchedule(UpdateSchedule),
 }
 
@@ -136,41 +135,6 @@ impl GenerateNewSchedule {
 
         generate_update_proposal(
             &gas_schedule,
-            self.output
-                .unwrap_or_else(|| DEFAULT_GAS_SCHEDULE_SCRIPT_UPDATE_PATH.to_string()),
-        )
-    }
-}
-
-#[derive(Debug, Args)]
-pub struct ScaleCurrentSchedule {
-    #[clap(short, long, help = "Path to file to write the output script")]
-    pub output: Option<String>,
-
-    #[clap(
-        short,
-        long,
-        help = "Path to JSON file containing the GasScheduleV2 to use"
-    )]
-    pub current_schedule_path: String,
-
-    #[clap(
-        short,
-        long,
-        help = "Scale the Minimum Gas Unit Price value by the given factor"
-    )]
-    pub scale_min_gas_unit_price_by: f64,
-}
-
-impl ScaleCurrentSchedule {
-    pub fn execute(self) -> Result<()> {
-        let json_str = fs::read_to_string(self.current_schedule_path)?;
-        let mut current_schedule = GasScheduleV2::from_json_string(json_str)?;
-
-        current_schedule.scale_min_gas_unit_price_by(self.scale_min_gas_unit_price_by);
-
-        generate_update_proposal(
-            &current_schedule,
             self.output
                 .unwrap_or_else(|| DEFAULT_GAS_SCHEDULE_SCRIPT_UPDATE_PATH.to_string()),
         )
@@ -241,12 +205,32 @@ impl UpdateSchedule {
             }
         }
 
-        // Bump the feature version as we are adding or removing params
-        let new_feature_version = current_schedule
-            .feature_version
-            .checked_add(1)
-            .ok_or_else(|| anyhow!("Overflow when bumping feature version"))?;
-        current_schedule.feature_version = new_feature_version;
+        for (name, value) in change_set.mutations().iter() {
+            if let Some(position) = current_schedule
+                .entries
+                .iter()
+                .position(|entry| entry.0 == *name )
+            {
+                // Remove old entry and insert new entry
+                current_schedule.entries.remove(position);
+                current_schedule.entries.push((name.clone(), *value));
+            } else {
+                return Err(anyhow!(
+                    "Mutation entry ({}, {}) not found in GasSchedule",
+                    name,
+                    value
+                ));
+            }
+        }
+
+        // Bump the feature version if we are adding or removing params
+        if change_set.should_bump_feature_version() {
+            let new_feature_version = current_schedule
+                .feature_version
+                .checked_add(1)
+                .ok_or_else(|| anyhow!("Overflow when bumping feature version"))?;
+            current_schedule.feature_version = new_feature_version;
+        }
 
         generate_update_proposal(
             &current_schedule,
@@ -281,7 +265,6 @@ impl GasScheduleGenerator {
     pub fn execute(self) -> Result<()> {
         match self {
             GasScheduleGenerator::GenerateNew(args) => args.execute(),
-            GasScheduleGenerator::ScaleCurrent(args) => args.execute(),
             GasScheduleGenerator::UpdateSchedule(args) => args.execute(),
         }
     }
