@@ -62,11 +62,11 @@ impl GasSchedule {
 
 impl GasScheduleV2 {
 
-    pub fn from_json_string(json_str: String) -> Self {
-        serde_json::from_str(&json_str).unwrap()
+    pub fn from_json_string(json_str: String) -> anyhow::Result<Self> {
+        serde_json::from_str(&json_str).map_err(|e| anyhow::anyhow!(e))
     }
 
-    pub fn scale_min_gas_price_by(&mut self, factor: f64) {
+    pub fn scale_min_gas_unit_price_by(&mut self, factor: f64) {
         for (name, value) in &mut self.entries {
             if name == KEY_MIN_PRICE_PER_GAS {
                 // Convert to f64, multiply, then convert back to u64 with saturation
@@ -186,20 +186,20 @@ mod tests {
             ],
         };
 
-        gas_schedule.scale_min_gas_price_by(0.5);
+        gas_schedule.scale_min_gas_unit_price_by(0.5);
 
         // Check that only the min gas price was scaled
         assert_eq!(gas_schedule.entries[0], ("other.param".to_string(), 100));
         assert_eq!(gas_schedule.entries[1], (KEY_MIN_PRICE_PER_GAS.to_string(), 25));
         assert_eq!(gas_schedule.entries[2], ("another.param".to_string(), 200));
 
-        gas_schedule.scale_min_gas_price_by(2.0);
+        gas_schedule.scale_min_gas_unit_price_by(2.0);
         assert_eq!(gas_schedule.entries[1], (KEY_MIN_PRICE_PER_GAS.to_string(), 50));
 
-        gas_schedule.scale_min_gas_price_by(10.0);
+        gas_schedule.scale_min_gas_unit_price_by(10.0);
         assert_eq!(gas_schedule.entries[1], (KEY_MIN_PRICE_PER_GAS.to_string(), 500));
 
-        gas_schedule.scale_min_gas_price_by(0.1);
+        gas_schedule.scale_min_gas_unit_price_by(0.1);
         assert_eq!(gas_schedule.entries[1], (KEY_MIN_PRICE_PER_GAS.to_string(), 50));
     }
 
@@ -213,7 +213,7 @@ mod tests {
         };
 
         // Test rounding behavior (100 * 1.234 = 123.4, should round to 123)
-        gas_schedule.scale_min_gas_price_by(1.234);
+        gas_schedule.scale_min_gas_unit_price_by(1.234);
         assert_eq!(gas_schedule.entries[0].1, 123);
     }
 
@@ -227,7 +227,7 @@ mod tests {
         };
 
         // Should not panic with large factor
-        gas_schedule.scale_min_gas_price_by(2.0);
+        gas_schedule.scale_min_gas_unit_price_by(2.0);
         // The result will be clamped to u64::MAX due to overflow in f64 to u64 conversion
         assert_eq!(gas_schedule.entries[0].1, u64::MAX);
     }
@@ -244,7 +244,7 @@ mod tests {
         }"#
         .to_string();
 
-        let mut schedule = GasScheduleV2::from_json_string(json);
+        let mut schedule = GasScheduleV2::from_json_string(json).unwrap();
 
         assert_eq!(schedule.feature_version, 42);
         assert_eq!(schedule.entries.len(), 3);
@@ -252,7 +252,7 @@ mod tests {
         assert_eq!(schedule.entries[1], ("bar".to_string(), 456));
         assert_eq!(schedule.entries[2], ("txn.min_price_per_gas_unit".to_string(), 50));
 
-        schedule.scale_min_gas_price_by(10.0);
+        schedule.scale_min_gas_unit_price_by(10.0);
 
         assert_eq!(schedule.entries[2], ("txn.min_price_per_gas_unit".to_string(), 500));
     }
