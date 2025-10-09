@@ -1,12 +1,12 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 pub type Entries = HashMap<String, u64>;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct GasScheduleChangeSet {
     additions: Entries,
-    deletions: Entries
+    deletions: Entries,
 }
 
 impl GasScheduleChangeSet {
@@ -14,12 +14,20 @@ impl GasScheduleChangeSet {
         serde_json::from_str(&json_str).map_err(|e| anyhow::anyhow!(e))
     }
 
-    pub fn deletion_entries(&self) -> Entries {
-        self.deletions.clone()
+    pub fn deletions(&self) -> &Entries {
+        &self.deletions
     }
 
-    pub fn addition_entries(&self) -> Entries {
-        self.additions.clone()
+    pub fn additions(&self) -> &Entries {
+        &self.additions
+    }
+
+    pub fn deletion_entries(&self) -> &Entries {
+        self.deletions()
+    }
+
+    pub fn addition_entries(&self) -> &Entries {
+        self.additions()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -38,9 +46,9 @@ fn test_deserialize_change_set() {
             "bar": 456
         }
     }"#
-        .to_string();
+    .to_string();
 
-    let mut change_set = GasScheduleChangeSet::from_json_string(json).unwrap();
+    let change_set = GasScheduleChangeSet::from_json_string(json).unwrap();
 
     assert_eq!(change_set.additions.len(), 2);
     assert_eq!(change_set.deletions.len(), 1);
