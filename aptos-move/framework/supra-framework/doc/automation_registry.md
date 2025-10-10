@@ -3036,16 +3036,6 @@ Supported aux data count
 
 
 
-<a id="0x1_automation_registry_SYS_TASK_DURATION_CAP_IN_SECS"></a>
-
-Value deinfed in seconds
-
-
-<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_SYS_TASK_DURATION_CAP_IN_SECS">SYS_TASK_DURATION_CAP_IN_SECS</a>: u64 = 1626560;
-</code></pre>
-
-
-
 <a id="0x1_automation_registry_TASK_EXECUTION_GAS"></a>
 
 Constants defining single task processing maximum limits
@@ -3209,7 +3199,7 @@ Constants decribing the task type, USER SUBMITTED TASK (UST - 1), GOVERNANCE SUB
 
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, type: u8): bool
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, type: u8): bool
 </code></pre>
 
 
@@ -3218,7 +3208,7 @@ Constants decribing the task type, USER SUBMITTED TASK (UST - 1), GOVERNANCE SUB
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a>, type: u8): bool {
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(task: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a>, type: u8): bool {
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&task.aux_data) == <a href="automation_registry.md#0x1_automation_registry_SUPPORTED_AUX_DATA_COUNT_MAX">SUPPORTED_AUX_DATA_COUNT_MAX</a>, <a href="automation_registry.md#0x1_automation_registry_EINVALID_AUX_DATA_LENGTH">EINVALID_AUX_DATA_LENGTH</a>);
     <b>let</b> type_data = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&task.aux_data, <a href="automation_registry.md#0x1_automation_registry_TYPE_AUX_DATA_INDEX">TYPE_AUX_DATA_INDEX</a>);
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(type_data) == 1, <a href="automation_registry.md#0x1_automation_registry_EINVALID_TASK_TYPE_LENGTH">EINVALID_TASK_TYPE_LENGTH</a>);
@@ -6384,6 +6374,7 @@ Note it is expected that committed_occupancy does not include currnet task's occ
             transition_state.automation_fee_per_sec = 0;
             transition_state.gas_committed_for_new_cycle = 0;
             transition_state.gas_committed_for_next_cycle = 0;
+            transition_state.sys_gas_committed_for_next_cycle = 0;
             transition_state.locked_fees = 0;
             transition_state.expected_tasks_to_be_processed = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
             transition_state.next_task_index_position = 0;
