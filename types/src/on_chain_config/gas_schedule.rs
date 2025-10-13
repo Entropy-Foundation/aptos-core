@@ -98,6 +98,12 @@ impl GasScheduleV2 {
     }
 }
 
+// Helper enum to facilitate deserialization of gas schedule entries that can be either
+// tuples or maps.
+// Examples of valid formats:
+// 1. Tuple format: ["foo", 123]
+// 2. Map format: { "key": "foo", "val": 123 }
+// 3. Map format with string value: { "key": "foo", "val": "123" }
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum GasEntryHelper {
@@ -105,6 +111,7 @@ enum GasEntryHelper {
     Map { key: String, val: GasEntryValue },
 }
 
+// Helper enum to represent the value in the map format, which can be either a number or a string.
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum GasEntryValue {
@@ -112,6 +119,7 @@ enum GasEntryValue {
     String(String),
 }
 
+// Custom deserializer for gas schedule entries to handle both tuple and map formats.
 fn deserialize_gas_schedule_entries<'de, D>(deserializer: D) -> Result<Vec<(String, u64)>, D::Error>
 where
     D: Deserializer<'de>,

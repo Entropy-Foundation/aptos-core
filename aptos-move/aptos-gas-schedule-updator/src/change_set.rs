@@ -3,6 +3,10 @@ use std::collections::HashMap;
 
 pub type Entries = HashMap<String, u64>;
 
+/// A set of changes to be applied to a gas schedule.
+/// Additions are new entries to be added to the gas schedule.
+/// Deletions are entries to be removed from the gas schedule.
+/// Mutations are entries to be updated in the gas schedule.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct GasScheduleChangeSet {
     additions: Entries,
@@ -11,6 +15,8 @@ pub struct GasScheduleChangeSet {
 }
 
 impl GasScheduleChangeSet {
+
+    /// Deserialize a GasScheduleChangeSet from a JSON string.
     pub fn from_json_string(json_str: String) -> anyhow::Result<Self> {
         serde_json::from_str(&json_str).map_err(|e| anyhow::anyhow!(e))
     }
@@ -27,16 +33,22 @@ impl GasScheduleChangeSet {
         &self.mutations
     }
 
+    /// Returns true if the change set is empty.
     pub fn is_empty(&self) -> bool {
         self.additions.is_empty() && self.deletions.is_empty() && self.mutations.is_empty()
     }
 
+    /// Returns true if the change set contains any additions or deletions.
+    /// This indicates that a feature version bump is required.
+    /// A mutation alone does not require a feature version bump.
+    // Check `aptos-core/aptos-move/aptos-gas-schedule/src/ver.rs` for more context.
     pub fn should_bump_feature_version(&self) -> bool {
         !self.additions.is_empty() || !self.deletions.is_empty()
     }
 }
 
 #[test]
+// Test deserialization of GasScheduleChangeSet from JSON string.
 fn test_deserialize_change_set() {
     let json = r#"{
         "additions": {

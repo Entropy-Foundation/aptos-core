@@ -109,18 +109,40 @@ fn aptos_framework_path() -> PathBuf {
     )
 }
 
+/// Command line interface for the gas schedule update proposal generation tool.
+/// It supports two modes:
+/// 1. Generate a new gas schedule from the current hardcoded values.
+/// 2. Update an existing gas schedule with a change set.
+/// The generated proposal is written to a Move package in the specified output directory.
+/// If no output directory is specified, it defaults to `./proposals`.
+/// The generated package contains a single Move script `update_gas_schedule.move`.
+/// This script can be submitted as a governance proposal to update the on-chain gas schedule.
+/// The script includes a comment section listing the contents of the gas schedule in a human readable format.
 #[derive(Parser, Debug)]
 pub enum GasScheduleGenerator {
+    /// Generate a new gas schedule from the current hardcoded values.
+    /// Optionally specify the feature version of the gas schedule.
+    /// If not specified, it defaults to the latest feature version.
     GenerateNew(GenerateNewSchedule),
+    /// Update an existing gas schedule with a change set.
+    /// The change set is specified in a JSON file.
+    /// The current gas schedule is also specified in a JSON file.
+    /// The change set can include additions, deletions, and mutations of gas parameters.
+    /// If the change set includes any additions or deletions, the feature version of the gas
+    /// schedule is bumped by 1.
     UpdateSchedule(UpdateSchedule),
 }
 
 /// Command line arguments to the gas schedule update proposal generation tool.
 #[derive(Debug, Args)]
 pub struct GenerateNewSchedule {
+    /// Path to file to write the output script.
+    /// If not specified, it defaults to `./proposals`.
     #[clap(short, long, help = "Path to file to write the output script")]
     pub output: Option<String>,
 
+    /// Feature version of the gas schedule to generate.
+    /// If not specified, it defaults to the latest feature version.
     #[clap(short, long, help = "Feature version of the GasSchedule generated")]
     pub gas_feature_version: Option<u64>,
 }
@@ -143,9 +165,14 @@ impl GenerateNewSchedule {
 
 #[derive(Parser, Debug)]
 pub struct UpdateSchedule {
+    /// Path to file to write the output script.
+    /// If not specified, it defaults to `./proposals`.
     #[clap(short, long, help = "Path to file to write the output script")]
     pub output: Option<String>,
 
+    /// Path to JSON file containing the current GasScheduleV2 to update.
+    /// The JSON file should be in the format produced by the `to_json_string` method
+    /// of the `GasScheduleV2` struct.
     #[clap(
         short,
         long,
@@ -153,6 +180,9 @@ pub struct UpdateSchedule {
     )]
     pub current_schedule_path: String,
 
+    /// Path to JSON file containing the change set to apply to the current GasScheduleV2.
+    /// The JSON file should be in the format produced by the `to_json_string` method
+    /// of the `GasScheduleChangeSet` struct.
     #[clap(
         short,
         long,
@@ -173,6 +203,7 @@ impl UpdateSchedule {
         let current_schedule_json_str = fs::read_to_string(self.current_schedule_path)?;
         let mut current_schedule = GasScheduleV2::from_json_string(current_schedule_json_str)?;
 
+        // Apply additions to the gas schedule
         for (name, value) in change_set.additions().iter() {
             if current_schedule
                 .entries
@@ -189,6 +220,7 @@ impl UpdateSchedule {
             current_schedule.entries.push((name.clone(), *value));
         }
 
+        // Apply deletions to existing entries in the gas schedule
         for (name, value) in change_set.deletions().iter() {
             if let Some(position) = current_schedule
                 .entries
@@ -205,6 +237,7 @@ impl UpdateSchedule {
             }
         }
 
+        // Apply mutations to existing entries in the gas schedule
         for (name, value) in change_set.mutations().iter() {
             if let Some(position) = current_schedule
                 .entries
@@ -223,6 +256,17 @@ impl UpdateSchedule {
             }
         }
 
+
+        // Sort the entries by name to ensure deterministic order
+        current_schedule.entries.sort_by(|a, b| a.0.cmp(&b.0));
+        // Ensure no duplicate entries exist
+        let mut seen = std::collections::HashSet::new();
+        for (name, _) in &current_schedule.entries {
+            if !seen.insert(name) {
+                return Err(anyhow!("Duplicate entry ({}) found in GasSchedule", name));
+            }
+        }
+
         // Bump the feature version if we are adding or removing params
         if change_set.should_bump_feature_version() {
             let new_feature_version = current_schedule
@@ -232,6 +276,12 @@ impl UpdateSchedule {
             current_schedule.feature_version = new_feature_version;
         }
 
+        println!(
+            "Updated gas schedule to feature version {}",
+            current_schedule.feature_version
+        );
+
+        // Generate the update proposal script
         generate_update_proposal(
             &current_schedule,
             self.output
