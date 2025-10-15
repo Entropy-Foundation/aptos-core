@@ -8,14 +8,15 @@ pub enum DkgCommitteeType{
     Tribe,
 }
 
-/// Reflection of `0x1::types::DkgNodeConfig` in rust.
+/// Reflection of `0x1::dkg_committee::DkgNodeConfig` in rust.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DkgNodeConfig {
     pub addr: AccountAddress,
-    pub bls_pubkey: Vec<u8>,
+    pub identity: Vec<u8>,
+    pub dkg_pubkey: Vec<u8>,
 }
 
-/// Reflection of `0x1::types::DkgCommittee` in rust.
+/// Reflection of `0x1::dkg_committee::DkgCommittee` in rust.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DkgCommittee {
     pub committee_type: DkgCommitteeType,

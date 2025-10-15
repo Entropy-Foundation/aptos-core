@@ -17,6 +17,7 @@ use crate::on_chain_config::OnChainConfig;
 use crypto::utils::{get_clan_node_indices, get_family_node_indices};
 use aptos_crypto::bls12381::PublicKey;
 use move_core_types::account_address::AccountAddress;
+use crate::consensus_key::ConsensusPublicKey;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum DKGTransactionType{
@@ -192,8 +193,11 @@ pub fn get_clan_nodes_bls_keys_from_indices(dealer_committee: &DkgCommittee, sig
 
         for signer in signers{
             let clan_node_index = clan_committee_indices[*signer as usize];
-            let clan_node_pk_bytes = &committee[clan_node_index].bls_pubkey;
-            let clan_node_bls_pubkey = PublicKey::try_from(clan_node_pk_bytes.as_slice())
+            let clan_node_pk = ConsensusPublicKey::try_from(committee[clan_node_index].dkg_pubkey.clone())
+                .map_err(|e| anyhow!("dkg::node consensus public key deserialization failed: {e}"))?;
+            let clan_node_bls_pubkey_bytes = clan_node_pk.bls_key
+                .ok_or_else(|| anyhow!("dkg::node consensus bls key not found"))?;
+            let clan_node_bls_pubkey = PublicKey::try_from(clan_node_bls_pubkey_bytes.as_slice())
                 .map_err(|e| anyhow!("dkg::node bls public key deserialization failed: {e}"))?;
             clan_committee_bls_keys.push(clan_node_bls_pubkey);
         }

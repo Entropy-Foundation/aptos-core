@@ -69,3 +69,4 @@ pub mod state_store;
 mod unit_tests;
 pub mod vm;
 pub mod dkg_committee;
+pub mod consensus_key;
