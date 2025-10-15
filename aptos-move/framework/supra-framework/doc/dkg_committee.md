@@ -15,15 +15,14 @@
 -  [Function `is_tribe_committee_type`](#0x1_dkg_committee_is_tribe_committee_type)
 -  [Function `new_dkg_node_config`](#0x1_dkg_committee_new_dkg_node_config)
 -  [Function `get_addr`](#0x1_dkg_committee_get_addr)
--  [Function `get_bls_pubkey`](#0x1_dkg_committee_get_bls_pubkey)
+-  [Function `get_dkg_pubkey`](#0x1_dkg_committee_get_dkg_pubkey)
 -  [Function `len`](#0x1_dkg_committee_len)
 -  [Function `get_committee`](#0x1_dkg_committee_get_committee)
 -  [Function `new_dkg_committee`](#0x1_dkg_committee_new_dkg_committee)
 -  [Function `new_dkg_committee_from_validator_consensus_info`](#0x1_dkg_committee_new_dkg_committee_from_validator_consensus_info)
 
 
-<pre><code><b>use</b> <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381">0x1::bls12381</a>;
-<b>use</b> <a href="../../supra-stdlib/doc/consensus_key.md#0x1_consensus_key">0x1::consensus_key</a>;
+<pre><code><b>use</b> <a href="../../supra-stdlib/doc/consensus_key.md#0x1_consensus_key">0x1::consensus_key</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519">0x1::ed25519</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
 <b>use</b> <a href="validator_consensus_info.md#0x1_validator_consensus_info">0x1::validator_consensus_info</a>;
@@ -89,7 +88,7 @@ Internal tag wrapper
 
 </dd>
 <dt>
-<code>bls_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>
+<code>dkg_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>
 </dt>
 <dd>
 
@@ -267,7 +266,7 @@ Internal tag wrapper
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_dkg_node_config">new_dkg_node_config</a>(addr: <b>address</b>, identity: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, bls_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">dkg_committee::DkgNodeConfig</a>
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_dkg_node_config">new_dkg_node_config</a>(addr: <b>address</b>, identity: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, dkg_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">dkg_committee::DkgNodeConfig</a>
 </code></pre>
 
 
@@ -276,11 +275,11 @@ Internal tag wrapper
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_dkg_node_config">new_dkg_node_config</a>(addr: <b>address</b>, identity: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, bls_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,): <a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">DkgNodeConfig</a>{
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_dkg_node_config">new_dkg_node_config</a>(addr: <b>address</b>, identity: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, dkg_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,): <a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">DkgNodeConfig</a>{
     <a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">DkgNodeConfig</a>{
         addr,
         identity,
-        bls_pubkey
+        dkg_pubkey
     }
 }
 </code></pre>
@@ -313,13 +312,13 @@ Internal tag wrapper
 
 </details>
 
-<a id="0x1_dkg_committee_get_bls_pubkey"></a>
+<a id="0x1_dkg_committee_get_dkg_pubkey"></a>
 
-## Function `get_bls_pubkey`
+## Function `get_dkg_pubkey`
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_get_bls_pubkey">get_bls_pubkey</a>(dkg_node: &<a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">dkg_committee::DkgNodeConfig</a>): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_get_dkg_pubkey">get_dkg_pubkey</a>(dkg_node: &<a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">dkg_committee::DkgNodeConfig</a>): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 </code></pre>
 
 
@@ -328,8 +327,8 @@ Internal tag wrapper
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_get_bls_pubkey">get_bls_pubkey</a>(dkg_node: &<a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">DkgNodeConfig</a>): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;{
-    dkg_node.bls_pubkey
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_get_dkg_pubkey">get_dkg_pubkey</a>(dkg_node: &<a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">DkgNodeConfig</a>): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;{
+    dkg_node.dkg_pubkey
 }
 </code></pre>
 
@@ -444,16 +443,14 @@ Internal tag wrapper
         <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&validator_committee) &gt; 3, <a href="dkg_committee.md#0x1_dkg_committee_EINVALID_DKG_COMMITTEE_SIZE">EINVALID_DKG_COMMITTEE_SIZE</a>);
     };
 
+    //todo: verify this is correct
     <b>let</b> <a href="dkg_committee.md#0x1_dkg_committee">dkg_committee</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(validator_committee, |x|
         {
             <b>let</b> consensus_pk_option = consensus_public_key_from_bytes(<a href="validator_consensus_info.md#0x1_validator_consensus_info_get_pk_bytes">validator_consensus_info::get_pk_bytes</a>(&x));
             <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&consensus_pk_option), <a href="dkg_committee.md#0x1_dkg_committee_EINVALID_DKG_NODE_PUBLIC_KEY">EINVALID_DKG_NODE_PUBLIC_KEY</a>);
             <b>let</b> <a href="../../supra-stdlib/doc/consensus_key.md#0x1_consensus_key">consensus_key</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> consensus_pk_option);
-            <b>let</b> bls_key_option = get_bls_pub_key(&<a href="../../supra-stdlib/doc/consensus_key.md#0x1_consensus_key">consensus_key</a>);
-            <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&bls_key_option), <a href="dkg_committee.md#0x1_dkg_committee_EINVALID_DKG_NODE_PUBLIC_KEY">EINVALID_DKG_NODE_PUBLIC_KEY</a>);
-            <b>let</b> bls_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> bls_key_option);
-            <b>let</b> bls_key_bytes = public_key_to_bytes(&bls_key);
+            <b>let</b> consensus_key_bytes = public_key_to_bytes(<a href="../../supra-stdlib/doc/consensus_key.md#0x1_consensus_key">consensus_key</a>);
 
             <b>let</b> ed_key = get_ed_key(&<a href="../../supra-stdlib/doc/consensus_key.md#0x1_consensus_key">consensus_key</a>);
             <b>let</b> ed_key_bytes = validated_public_key_to_bytes(&ed_key);
@@ -461,7 +458,7 @@ Internal tag wrapper
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> <a href="dkg_committee.md#0x1_dkg_committee">dkg_committee</a>, <a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">DkgNodeConfig</a>{
                 addr: <a href="validator_consensus_info.md#0x1_validator_consensus_info_get_addr">validator_consensus_info::get_addr</a>(&x),
                 identity: ed_key_bytes,
-                bls_pubkey: bls_key_bytes,
+                dkg_pubkey: consensus_key_bytes,
             });
         }
     );

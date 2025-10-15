@@ -7,6 +7,8 @@ DKG on-chain states and helper functions.
 
 
 -  [Struct `DKGStartEvent`](#0x1_dkg_DKGStartEvent)
+-  [Struct `DKGMetaSetEvent`](#0x1_dkg_DKGMetaSetEvent)
+-  [Struct `DKGFinishEvent`](#0x1_dkg_DKGFinishEvent)
 -  [Struct `DKGSessionMetadata`](#0x1_dkg_DKGSessionMetadata)
 -  [Struct `DKGSessionState`](#0x1_dkg_DKGSessionState)
 -  [Resource `DKGState`](#0x1_dkg_DKGState)
@@ -63,6 +65,62 @@ DKG on-chain states and helper functions.
 </dd>
 <dt>
 <code>start_time_us: u64</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_dkg_DKGMetaSetEvent"></a>
+
+## Struct `DKGMetaSetEvent`
+
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="dkg.md#0x1_dkg_DKGMetaSetEvent">DKGMetaSetEvent</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>dkg_meta_transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_dkg_DKGFinishEvent"></a>
+
+## Struct `DKGFinishEvent`
+
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="dkg.md#0x1_dkg_DKGFinishEvent">DKGFinishEvent</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>target_committees_public_key_shares: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>
 </dt>
 <dd>
 
