@@ -10,6 +10,7 @@
 -  [Function `consensus_public_key_from_bytes`](#0x1_consensus_key_consensus_public_key_from_bytes)
 -  [Function `public_key_to_bytes`](#0x1_consensus_key_public_key_to_bytes)
 -  [Function `get_bls_pub_key`](#0x1_consensus_key_get_bls_pub_key)
+-  [Function `get_ed_key`](#0x1_consensus_key_get_ed_key)
 
 
 <pre><code><b>use</b> <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381">0x1::bls12381</a>;
@@ -224,6 +225,30 @@ Invalid consensus public key
 
 <pre><code><b>public</b> <b>fun</b> <a href="consensus_key.md#0x1_consensus_key_get_bls_pub_key">get_bls_pub_key</a>(pk: &<a href="consensus_key.md#0x1_consensus_key_ConsensusPublicKey">ConsensusPublicKey</a>): <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>&gt;{
     pk.bls_key
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_consensus_key_get_ed_key"></a>
+
+## Function `get_ed_key`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="consensus_key.md#0x1_consensus_key_get_ed_key">get_ed_key</a>(pk: &<a href="consensus_key.md#0x1_consensus_key_ConsensusPublicKey">consensus_key::ConsensusPublicKey</a>): <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519_ValidatedPublicKey">ed25519::ValidatedPublicKey</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="consensus_key.md#0x1_consensus_key_get_ed_key">get_ed_key</a>(pk: &<a href="consensus_key.md#0x1_consensus_key_ConsensusPublicKey">ConsensusPublicKey</a>): <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519_ValidatedPublicKey">ed25519::ValidatedPublicKey</a>{
+    pk.ed_key
 }
 </code></pre>
 

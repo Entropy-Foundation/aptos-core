@@ -100,6 +100,10 @@ module supra_std::consensus_key {
         pk.bls_key
     }
 
+    public fun get_ed_key(pk: &ConsensusPublicKey): ed25519::ValidatedPublicKey{
+        pk.ed_key
+    }
+
     #[test_only]
     /// Generates an Consensus key pair.
     public fun generate_keys(): (SecretKey, ConsensusPublicKey) {
