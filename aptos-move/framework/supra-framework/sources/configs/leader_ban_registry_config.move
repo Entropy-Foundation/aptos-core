@@ -15,6 +15,8 @@ module supra_framework::leader_ban_registry_config {
 
     #[test_only]
     friend supra_framework::test_leader_ban_registry_config;
+    #[test_only]
+    friend supra_framework::test_leader_ban_registry;
 
     /// The provided on chain config bytes are empty or invalid
     const EINVALID_CONFIG: u64 = 1;
@@ -57,7 +59,6 @@ module supra_framework::leader_ban_registry_config {
         move_to(supra_framework, BanRegistryParameters { config, version: 0 });
         let v0_params = option::extract(&mut v0);
         move_to(supra_framework, v0_params);
-
     }
 
     /// This can be called by on-chain governance to update on-chain configs for the next epoch.
@@ -187,9 +188,9 @@ module supra_framework::leader_ban_registry_config {
     #[test_only]
     public fun get_test_ban_registry_params_v0(): BanRegistryParametersV0 {
         BanRegistryParametersV0 {
-            minimum_unbanned_proposers: 2,
+            initial_elections_denied: 1,
             max_elections_denied: 5,
-            initial_elections_denied : 1
+            minimum_unbanned_proposers: 2
         }
     }
 

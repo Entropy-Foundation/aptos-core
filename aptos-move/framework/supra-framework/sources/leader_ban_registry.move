@@ -13,6 +13,10 @@ module supra_framework::leader_ban_registry {
 
     friend supra_framework::block;
     friend supra_framework::genesis;
+    friend supra_framework::reconfiguration;
+
+    #[test_only]
+    friend supra_framework::test_leader_ban_registry;
 
     /// Leader ban registry already initialized
     const EBAN_REGISTRY_ALREADY_EXISTS: u64 = 1;
@@ -48,7 +52,7 @@ module supra_framework::leader_ban_registry {
     }
 
     /// Holds latest processed round and epoch
-    struct LatestView has drop, store, key {
+    struct LatestView has drop, store, key, copy {
         /// Epoch
         epoch: u64,
         /// Round
@@ -106,6 +110,20 @@ module supra_framework::leader_ban_registry {
 
     #[view]
     /// Return initial ban duration
+    public fun get_latest_view(): LatestView
+    acquires LatestView {
+        if (!exists<LatestView>(@supra_framework)) {
+            return LatestView {
+                epoch: 0,
+                round: 0
+            }
+        };
+        let latest_view = borrow_global<LatestView>(@supra_framework);
+        *latest_view
+    }
+
+    #[view]
+    /// Return initial ban duration
     public fun get_initial_ban_duration(): u64 {
         let initial_elections_denied = leader_ban_registry_config::get_initial_elections_denied();
         let committee_size = stake::get_committee_size();
@@ -137,11 +155,11 @@ module supra_framework::leader_ban_registry {
         latest_view.epoch = epoch_earned;
         latest_view.round = round_earned;
 
-        // ban the failed proposer indices
-        bans(latest_view, failed_proposer_indices, ban_registry);
+        // ban the failed proposer
+        ban_failed_proposers(latest_view, failed_proposer_indices, ban_registry);
 
-        // removing bans whose duration is over
-        reinstate_bans(latest_view, ban_registry);
+        // remove expired bans
+        reinstate_expired_bans(latest_view, ban_registry);
 
         // unban the proposer
         if (std::option::is_some(&proposer_index)) {
@@ -151,7 +169,7 @@ module supra_framework::leader_ban_registry {
     }
 
     /// Adds failed proposer indices to ban registry
-    fun bans(
+    fun ban_failed_proposers(
         latest_view: &LatestView,
         failed_proposer_indices: vector<u64>,
         ban_registry: &mut BanRegistry,
@@ -166,35 +184,24 @@ module supra_framework::leader_ban_registry {
             let validator_pool_address_opt = stake::get_pool_address_from_index(failed_validator_index);
             if (option::is_some(&validator_pool_address_opt)) {
                 let validator_pool_address = option::extract(&mut validator_pool_address_opt);
-                let (is_ban_exists, index) = vector::find(&ban_registry.bans, |v| {
+                let (is_banned, index) = vector::find(&ban_registry.bans, |v| {
                     let v: &ValidatorBansWithAddress = v;
                     validator_pool_address == v.pool_address
                 });
-                if (is_ban_exists) {
+                if (is_banned) {
                     let bans = vector::borrow_mut(&mut ban_registry.bans, index);
                     bans.consecutive_bans = bans.consecutive_bans + 1;
-                    if (remaining_duration(bans, latest_view) == 0) {
-                        vector::swap_remove(&mut ban_registry.bans, index);
-                        if (features::module_event_enabled()) {
-                            event::emit(Reinstated {
-                                pool_address: validator_pool_address,
-                                epoch: latest_view.epoch,
-                                round: latest_view.round
-                            });
-                        }
-                    } else {
-                        if (features::module_event_enabled()) {
-                            event::emit(Bannned {
-                                pool_address: validator_pool_address,
-                                epoch: latest_view.epoch,
-                                round: latest_view.round,
-                                consecutive_bans: bans.consecutive_bans
-                            });
-                        }
+                    if (features::module_event_enabled()) {
+                        event::emit(Bannned {
+                            pool_address: validator_pool_address,
+                            epoch: latest_view.epoch,
+                            round: latest_view.round,
+                            consecutive_bans: bans.consecutive_bans
+                        });
                     }
                 } else {
                     let ban_registry_len = vector::length(&ban_registry.bans);
-                    if (can_be_added_in_ban(ban_registry_len)) {
+                    if (can_be_banned(ban_registry_len)) {
                         let ban_with_address = ValidatorBansWithAddress {
                             active: ActiveBan {
                                 epoch_earned: latest_view.epoch,
@@ -221,19 +228,19 @@ module supra_framework::leader_ban_registry {
     }
 
     /// Removes bans for those validator which duration is over
-    fun reinstate_bans(latest_view: &LatestView, ban_registry: &mut BanRegistry) {
+    fun reinstate_expired_bans(latest_view: &LatestView, ban_registry: &mut BanRegistry) {
         let pool_address_for_duration_over = vector::empty();
         vector::for_each_ref(&ban_registry.bans, |v| {
-            if (remaining_duration(v, latest_view) == 0 ) {
+            if (remaining_duration(v, latest_view) == 0) {
                 vector::push_back(&mut pool_address_for_duration_over, v.pool_address);
             }
         });
         vector::for_each_ref(&pool_address_for_duration_over, |p| {
-            let (exists, index) = vector::find(&ban_registry.bans, |v| {
+            let (is_banned, index) = vector::find(&ban_registry.bans, |v| {
                 let v : &ValidatorBansWithAddress = v;
                 &v.pool_address == p
             });
-            if (exists) {
+            if (is_banned) {
                 vector::swap_remove(&mut ban_registry.bans, index);
                 if (features::module_event_enabled()) {
                     event::emit(Reinstated {
@@ -249,7 +256,7 @@ module supra_framework::leader_ban_registry {
     /// Remvoing an entry of validator from registry if found at proposer index
     fun reinstate_proposer(latest_view: &LatestView, proposer_index: u64, ban_registry: &mut BanRegistry)
     {
-        let validator_pool_address_opt= stake::get_pool_address_from_index(proposer_index);
+        let validator_pool_address_opt = stake::get_pool_address_from_index(proposer_index);
         if (option::is_some(&validator_pool_address_opt)) {
             let validator_pool_address = option::extract(&mut validator_pool_address_opt);
             let (is_banned, index) = vector::find(&ban_registry.bans, |v| {
@@ -270,6 +277,7 @@ module supra_framework::leader_ban_registry {
     }
 
     /// Update counts on every epoch
+    /// Only run after committee has been updated from reconfigure
     public(friend) fun on_new_epoch() acquires BanRegistry,LatestView {
         if (!exists<LatestView>(@supra_framework)) {
             return
@@ -280,8 +288,10 @@ module supra_framework::leader_ban_registry {
         let latest_view = borrow_global<LatestView>(@supra_framework);
         let ban_registry = borrow_global_mut<BanRegistry>(@supra_framework);
 
-        let updated_pool_addresses = stake::get_committee_pool_addresses();
-        let pool_addresses_to_remove = vector::empty();
+        // The pool addresses of the validators for the new epoch.
+        let new_committee_pool_addresses = stake::get_committee_pool_addresses();
+        // The pool addresses of the validators that have left the committee.
+        let retired_validators = vector::empty();
         vector::for_each_mut(&mut ban_registry.bans, |v| {
             let v: &mut ValidatorBansWithAddress = v;
             if (has_started(&v.active, latest_view)) {
@@ -291,17 +301,17 @@ module supra_framework::leader_ban_registry {
                     v.active.rounds_served_in_previous_epochs = v.active.rounds_served_in_previous_epochs + latest_view.round - v.active.round_earned;
                 }
             };
-            if (vector::contains(&updated_pool_addresses, &v.pool_address)) {
-                vector::push_back(&mut pool_addresses_to_remove, v.pool_address)
+            if (!vector::contains(&new_committee_pool_addresses, &v.pool_address)) {
+                vector::push_back(&mut retired_validators, v.pool_address)
             }
         });
 
-        vector::for_each_ref(&pool_addresses_to_remove, |p| {
-            let (is_exist, index) = vector::find(&ban_registry.bans, |v|{
+        vector::for_each_ref(&retired_validators, |p| {
+            let (is_banned, index) = vector::find(&ban_registry.bans, |v|{
                 let v : &ValidatorBansWithAddress = v;
                 &v.pool_address == p
             });
-            if (is_exist) {
+            if (is_banned) {
                 vector::swap_remove(&mut ban_registry.bans, index);
                 if (features::module_event_enabled()) {
                     event::emit(Reinstated {
@@ -316,7 +326,8 @@ module supra_framework::leader_ban_registry {
 
     /// Checks if ban has already started
     fun has_started(active_ban: &ActiveBan, latest_view: &LatestView): bool {
-        active_ban.epoch_earned <= latest_view.epoch && active_ban.round_earned < latest_view.round
+        active_ban.epoch_earned < latest_view.epoch ||
+            (active_ban.epoch_earned == latest_view.epoch && active_ban.round_earned < latest_view.round)
     }
 
     /// Calculate the number of rounds remaining in the a given ban.
@@ -334,7 +345,7 @@ module supra_framework::leader_ban_registry {
     }
 
     /// Returns true until ban registry size + minimum proposers required count less than committee size
-    fun can_be_added_in_ban(ban_registry_len: u64) : bool {
+    fun can_be_banned(ban_registry_len: u64) : bool {
         let minimum_unbanned_proposers = leader_ban_registry_config::get_minimum_unbanned_proposers();
         let committee_size = stake::get_committee_size();
         committee_size >= ban_registry_len + (minimum_unbanned_proposers as u64)
@@ -346,5 +357,10 @@ module supra_framework::leader_ban_registry {
             exists<BanRegistry>(@supra_framework),
             error::invalid_state(EBAN_REGISTRY_NOT_INITIALIZED)
         );
+    }
+
+    #[test_only]
+    public fun get_pool_address_from_vp(validator_with_pool_addr: &ValidatorBansWithAddress) : address {
+        validator_with_pool_addr.pool_address
     }
 }

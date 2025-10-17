@@ -42,6 +42,9 @@ module supra_framework::stake {
     friend supra_framework::transaction_fee;
     friend supra_framework::leader_ban_registry;
 
+    #[test_only]
+    friend supra_framework::test_leader_ban_registry;
+
     /// Validator Config not published.
     const EVALIDATOR_CONFIG: u64 = 1;
     /// Not enough stake to join validator set.
