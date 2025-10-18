@@ -140,6 +140,7 @@ pub struct DKGSessionState {
     pub metadata: DKGSessionMetadata,
     pub start_time_us: u64,
     pub dkg_meta_transcript: Vec<u8>,
+    pub target_committees_public_key_shares: Vec<u8>
 }
 
 impl DKGSessionState {
@@ -157,6 +158,13 @@ pub struct DKGState {
 impl DKGState {
     pub fn maybe_last_complete(&self, epoch: u64) -> Option<&DKGSessionState> {
         match &self.last_completed {
+            Some(session) if session.target_epoch() == epoch => Some(session),
+            _ => None,
+        }
+    }
+
+    pub fn maybe_in_progress(&self, epoch: u64) -> Option<&DKGSessionState> {
+        match &self.in_progress {
             Some(session) if session.target_epoch() == epoch => Some(session),
             _ => None,
         }
