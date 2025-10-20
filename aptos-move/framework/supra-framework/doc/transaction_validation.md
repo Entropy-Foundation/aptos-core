@@ -486,18 +486,22 @@ V1 to V2 on active chains
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ETRANSACTION_EXPIRED">PROLOGUE_ETRANSACTION_EXPIRED</a>),
     );
 
-    <b>let</b> max_transaction_fee = txn_gas_price * txn_max_gas_units;
+    // Task is not gas-less/GST,
+    // gas-less automated transactions are not charged so no need <b>to</b> check eligability <b>to</b> pay the gas-fee
+    <b>if</b> (task_type != 2) {
+        <b>let</b> max_transaction_fee = txn_gas_price * txn_max_gas_units;
 
-    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_operations_default_to_fa_supra_store_enabled">features::operations_default_to_fa_supra_store_enabled</a>()) {
-        <b>assert</b>!(
-            <a href="supra_account.md#0x1_supra_account_is_fungible_balance_at_least">supra_account::is_fungible_balance_at_least</a>(gas_payer, max_transaction_fee),
-            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ECANT_PAY_GAS_DEPOSIT">PROLOGUE_ECANT_PAY_GAS_DEPOSIT</a>)
-        );
-    } <b>else</b> {
-        <b>assert</b>!(
-            <a href="coin.md#0x1_coin_is_balance_at_least">coin::is_balance_at_least</a>&lt;SupraCoin&gt;(gas_payer, max_transaction_fee),
-            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ECANT_PAY_GAS_DEPOSIT">PROLOGUE_ECANT_PAY_GAS_DEPOSIT</a>)
-        );
+        <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_operations_default_to_fa_supra_store_enabled">features::operations_default_to_fa_supra_store_enabled</a>()) {
+            <b>assert</b>!(
+                <a href="supra_account.md#0x1_supra_account_is_fungible_balance_at_least">supra_account::is_fungible_balance_at_least</a>(gas_payer, max_transaction_fee),
+                <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ECANT_PAY_GAS_DEPOSIT">PROLOGUE_ECANT_PAY_GAS_DEPOSIT</a>)
+            );
+        } <b>else</b> {
+            <b>assert</b>!(
+                <a href="coin.md#0x1_coin_is_balance_at_least">coin::is_balance_at_least</a>&lt;SupraCoin&gt;(gas_payer, max_transaction_fee),
+                <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ECANT_PAY_GAS_DEPOSIT">PROLOGUE_ECANT_PAY_GAS_DEPOSIT</a>)
+            );
+        };
     };
     <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id_and_type">automation_registry::has_sender_active_task_with_id_and_type</a>(address_of(&sender), task_index, task_type),
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK">PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK</a>))
