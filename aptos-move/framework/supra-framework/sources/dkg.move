@@ -133,6 +133,10 @@ module supra_framework::dkg {
         assert!(vector::length(&session.dkg_meta_transcript) == 0, error::already_exists(EDKG_META_ALREADY_SET));
         session.dkg_meta_transcript = dkg_meta_all_committees;
         dkg_state.in_progress = option::some(session);
+
+        emit(DKGMetaSetEvent {
+            dkg_meta_transcript: dkg_meta_all_committees,
+        });
     }
 
     /// Family Node sets the `target_committees_public_key_shares` for the in-progress DKG session and
@@ -151,6 +155,10 @@ module supra_framework::dkg {
         session.target_committees_public_key_shares = target_committees_public_key_shares;
         dkg_state.last_completed = option::some(session);
         dkg_state.in_progress = option::none();
+
+        emit(DKGFinishEvent {
+            target_committees_public_key_shares,
+        });
     }
 
     /// Delete the currently incomplete session, if it exists.
