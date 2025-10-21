@@ -180,6 +180,17 @@ impl OnChainConfig for DKGState {
     const TYPE_IDENTIFIER: &'static str = "DKGState";
 }
 
+/// Reflection of Move type `0x1::dkg::DKGResharing`.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub struct DKGResharing {
+    pub is_resharing: bool,
+}
+
+impl OnChainConfig for DKGResharing {
+    const MODULE_IDENTIFIER: &'static str = "dkg";
+    const TYPE_IDENTIFIER: &'static str = "DKGResharing";
+}
+
 /// The threshold required to ensure the presence of honest majority in clan where
 /// N = 2f+1 with f byzantine nodes
 fn clan_threshold(total: u64)-> u64 {

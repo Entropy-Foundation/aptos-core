@@ -12,6 +12,7 @@ DKG on-chain states and helper functions.
 -  [Struct `DKGSessionMetadata`](#0x1_dkg_DKGSessionMetadata)
 -  [Struct `DKGSessionState`](#0x1_dkg_DKGSessionState)
 -  [Resource `DKGState`](#0x1_dkg_DKGState)
+-  [Resource `DKGResharing`](#0x1_dkg_DKGResharing)
 -  [Constants](#@Constants_0)
 -  [Function `initialize`](#0x1_dkg_initialize)
 -  [Function `start`](#0x1_dkg_start)
@@ -257,6 +258,34 @@ The completed and in-progress DKG sessions.
 
 </details>
 
+<a id="0x1_dkg_DKGResharing"></a>
+
+## Resource `DKGResharing`
+
+Flag indicating if the next DKG run should be a fresh instance or a resharing instance
+
+
+<pre><code><b>struct</b> <a href="dkg.md#0x1_dkg_DKGResharing">DKGResharing</a> <b>has</b> key
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>is_resharing: bool</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
 <a id="@Constants_0"></a>
 
 ## Constants
@@ -322,6 +351,15 @@ Called in genesis to initialize on-chain states.
             <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
                 last_completed: std::option::none(),
                 in_progress: std::option::none(),
+            }
+        );
+    };
+
+    <b>if</b> (!<b>exists</b>&lt;<a href="dkg.md#0x1_dkg_DKGResharing">DKGResharing</a>&gt;(@supra_framework)) {
+        <b>move_to</b>&lt;<a href="dkg.md#0x1_dkg_DKGResharing">DKGResharing</a>&gt;(
+            supra_framework,
+            <a href="dkg.md#0x1_dkg_DKGResharing">DKGResharing</a> {
+                is_resharing: <b>false</b>,
             }
         );
     }

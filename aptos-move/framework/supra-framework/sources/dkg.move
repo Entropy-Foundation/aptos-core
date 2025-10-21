@@ -1,6 +1,4 @@
 /// DKG on-chain states and helper functions.
-
-//todo: currently dkg module has no info if the dkg is normal or for resharing. Do we need to change that?
 module supra_framework::dkg {
     use std::dkg_committee::{DkgCommittee};
     use std::error;
@@ -65,6 +63,11 @@ module supra_framework::dkg {
         in_progress: Option<DKGSessionState>,
     }
 
+    /// Flag indicating if the next DKG run should be a fresh instance or a resharing instance
+    struct DKGResharing has key {
+        is_resharing: bool,
+    }
+
     /// Called in genesis to initialize on-chain states.
     public fun initialize(supra_framework: &signer) {
         system_addresses::assert_supra_framework(supra_framework);
@@ -74,6 +77,15 @@ module supra_framework::dkg {
                 DKGState {
                     last_completed: std::option::none(),
                     in_progress: std::option::none(),
+                }
+            );
+        };
+
+        if (!exists<DKGResharing>(@supra_framework)) {
+            move_to<DKGResharing>(
+                supra_framework,
+                DKGResharing {
+                    is_resharing: false,
                 }
             );
         }
