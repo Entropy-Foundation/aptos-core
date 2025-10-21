@@ -88,7 +88,7 @@ module supra_framework::transaction_fee {
     #[event]
     /// Breakdown of the assessed fee charges for the gas-less transactions.
     ///  Holds the same information as FeeStatement for charged transactions.
-    struct FeeAssessment has drop, store {
+    struct GasAssessment has drop, store {
         /// Total gas assessed for transaction execution.
         total_assessed_gas_units: u64,
         /// Execution gas charge.
@@ -301,7 +301,7 @@ module supra_framework::transaction_fee {
     }
 
     // Called by the VM after epilogue for gas-less transactions to report fee assessment
-    fun emit_fee_assessment(fee_statement: FeeStatement) {
+    fun emit_gas_assessment(fee_statement: FeeStatement) {
         let FeeStatement {
             total_charge_gas_units,
             execution_gas_units,
@@ -310,7 +310,7 @@ module supra_framework::transaction_fee {
             storage_fee_refund_quants,
 
         } = fee_statement;
-        let fee_assesment = FeeAssessment {
+        let gas_assesment = GasAssessment {
             total_assessed_gas_units: total_charge_gas_units,
             execution_gas_units,
             io_gas_units,
@@ -318,7 +318,7 @@ module supra_framework::transaction_fee {
             storage_fee_refund_quants,
 
         };
-        event::emit(fee_assesment)
+        event::emit(gas_assesment)
     }
 
     #[test_only]

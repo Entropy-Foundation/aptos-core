@@ -11,7 +11,7 @@ This module provides an interface to burn or collect and redistribute transactio
 -  [Resource `SupraCoinMintCapability`](#0x1_transaction_fee_SupraCoinMintCapability)
 -  [Resource `CollectedFeesPerBlock`](#0x1_transaction_fee_CollectedFeesPerBlock)
 -  [Struct `FeeStatement`](#0x1_transaction_fee_FeeStatement)
--  [Struct `FeeAssessment`](#0x1_transaction_fee_FeeAssessment)
+-  [Struct `GasAssessment`](#0x1_transaction_fee_GasAssessment)
 -  [Constants](#@Constants_0)
 -  [Function `initialize_fee_collection_and_distribution`](#0x1_transaction_fee_initialize_fee_collection_and_distribution)
 -  [Function `is_fees_collection_enabled`](#0x1_transaction_fee_is_fees_collection_enabled)
@@ -27,7 +27,7 @@ This module provides an interface to burn or collect and redistribute transactio
 -  [Function `store_supra_coin_mint_cap`](#0x1_transaction_fee_store_supra_coin_mint_cap)
 -  [Function `initialize_storage_refund`](#0x1_transaction_fee_initialize_storage_refund)
 -  [Function `emit_fee_statement`](#0x1_transaction_fee_emit_fee_statement)
--  [Function `emit_fee_assessment`](#0x1_transaction_fee_emit_fee_assessment)
+-  [Function `emit_gas_assessment`](#0x1_transaction_fee_emit_gas_assessment)
 -  [Specification](#@Specification_1)
     -  [High-level Requirements](#high-level-req)
     -  [Module-level Specification](#module-level-spec)
@@ -257,16 +257,16 @@ This is meant to emitted as a module event.
 
 </details>
 
-<a id="0x1_transaction_fee_FeeAssessment"></a>
+<a id="0x1_transaction_fee_GasAssessment"></a>
 
-## Struct `FeeAssessment`
+## Struct `GasAssessment`
 
 Breakdown of the assessed fee charges for the gas-less transactions.
 Holds the same information as FeeStatement for charged transactions.
 
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]
-<b>struct</b> <a href="transaction_fee.md#0x1_transaction_fee_FeeAssessment">FeeAssessment</a> <b>has</b> drop, store
+<b>struct</b> <a href="transaction_fee.md#0x1_transaction_fee_GasAssessment">GasAssessment</a> <b>has</b> drop, store
 </code></pre>
 
 
@@ -834,13 +834,13 @@ Only called during genesis.
 
 </details>
 
-<a id="0x1_transaction_fee_emit_fee_assessment"></a>
+<a id="0x1_transaction_fee_emit_gas_assessment"></a>
 
-## Function `emit_fee_assessment`
+## Function `emit_gas_assessment`
 
 
 
-<pre><code><b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_emit_fee_assessment">emit_fee_assessment</a>(fee_statement: <a href="transaction_fee.md#0x1_transaction_fee_FeeStatement">transaction_fee::FeeStatement</a>)
+<pre><code><b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_emit_gas_assessment">emit_gas_assessment</a>(fee_statement: <a href="transaction_fee.md#0x1_transaction_fee_FeeStatement">transaction_fee::FeeStatement</a>)
 </code></pre>
 
 
@@ -849,7 +849,7 @@ Only called during genesis.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_emit_fee_assessment">emit_fee_assessment</a>(fee_statement: <a href="transaction_fee.md#0x1_transaction_fee_FeeStatement">FeeStatement</a>) {
+<pre><code><b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_emit_gas_assessment">emit_gas_assessment</a>(fee_statement: <a href="transaction_fee.md#0x1_transaction_fee_FeeStatement">FeeStatement</a>) {
     <b>let</b> <a href="transaction_fee.md#0x1_transaction_fee_FeeStatement">FeeStatement</a> {
         total_charge_gas_units,
         execution_gas_units,
@@ -858,7 +858,7 @@ Only called during genesis.
         storage_fee_refund_quants,
 
     } = fee_statement;
-    <b>let</b> fee_assesment = <a href="transaction_fee.md#0x1_transaction_fee_FeeAssessment">FeeAssessment</a> {
+    <b>let</b> gas_assesment = <a href="transaction_fee.md#0x1_transaction_fee_GasAssessment">GasAssessment</a> {
         total_assessed_gas_units: total_charge_gas_units,
         execution_gas_units,
         io_gas_units,
@@ -866,7 +866,7 @@ Only called during genesis.
         storage_fee_refund_quants,
 
     };
-    <a href="event.md#0x1_event_emit">event::emit</a>(fee_assesment)
+    <a href="event.md#0x1_event_emit">event::emit</a>(gas_assesment)
 }
 </code></pre>
 
