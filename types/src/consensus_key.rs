@@ -57,3 +57,15 @@ impl TryFrom<Vec<u8>> for ConsensusPublicKey {
         }
     }
 }
+
+impl ConsensusPublicKey {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = self.ed_key.clone();
+
+        if let (Some(bls_key), Some(cg_key)) = (&self.bls_key, &self.cg_key) {
+            bytes.extend(bls_key);
+            bytes.extend(cg_key);
+        }
+        bytes
+    }
+}
