@@ -447,6 +447,10 @@ The dkg transcript is assumed to have been already verified by the aptos VM in <
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&session.dkg_meta_transcript) == 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_already_exists">error::already_exists</a>(<a href="dkg.md#0x1_dkg_EDKG_META_ALREADY_SET">EDKG_META_ALREADY_SET</a>));
     session.dkg_meta_transcript = dkg_meta_all_committees;
     dkg_state.in_progress = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(session);
+
+    emit(<a href="dkg.md#0x1_dkg_DKGMetaSetEvent">DKGMetaSetEvent</a> {
+        dkg_meta_transcript: dkg_meta_all_committees,
+    });
 }
 </code></pre>
 
@@ -485,6 +489,10 @@ The <code>target_committees_public_key_shares</code> is assumed to be verified b
     session.target_committees_public_key_shares = target_committees_public_key_shares;
     dkg_state.last_completed = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(session);
     dkg_state.in_progress = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>();
+
+    emit(<a href="dkg.md#0x1_dkg_DKGFinishEvent">DKGFinishEvent</a> {
+        target_committees_public_key_shares,
+    });
 }
 </code></pre>
 

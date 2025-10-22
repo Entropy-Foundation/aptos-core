@@ -318,6 +318,15 @@ impl TryFrom<&ContractEvent> for DKGStartEvent {
     }
 }
 
+impl From<DKGStartEvent> for ContractEvent {
+    fn from(event: DKGStartEvent) -> Self {
+        Self::new_v2(
+            TypeTag::from(DKGStartEvent::struct_tag()),
+            bcs::to_bytes(&event).unwrap(),
+        )
+    }
+}
+
 impl TryFrom<&ContractEvent> for DKGFinishEvent {
     type Error = Error;
 
@@ -336,6 +345,15 @@ impl TryFrom<&ContractEvent> for DKGFinishEvent {
     }
 }
 
+impl From<DKGFinishEvent> for ContractEvent {
+    fn from(event: DKGFinishEvent) -> Self {
+        Self::new_v2(
+            TypeTag::from(DKGFinishEvent::struct_tag()),
+            bcs::to_bytes(&event).unwrap(),
+        )
+    }
+}
+
 impl TryFrom<&ContractEvent> for DKGMetaSetEvent {
     type Error = Error;
 
@@ -351,6 +369,15 @@ impl TryFrom<&ContractEvent> for DKGMetaSetEvent {
                 bcs::from_bytes(&event.event_data).map_err(Into::into)
             },
         }
+    }
+}
+
+impl From<DKGMetaSetEvent> for ContractEvent {
+    fn from(event: DKGMetaSetEvent) -> Self {
+        Self::new_v2(
+            TypeTag::from(DKGMetaSetEvent::struct_tag()),
+            bcs::to_bytes(&event).unwrap(),
+        )
     }
 }
 
