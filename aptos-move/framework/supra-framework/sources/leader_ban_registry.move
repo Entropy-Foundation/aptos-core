@@ -336,7 +336,11 @@ module supra_framework::leader_ban_registry {
         let max_ban_duration = get_max_ban_duration();
         let duration = initial_ban_duration * pow(2, (ban.consecutive_bans as u64));
         let duration = min(duration, max_ban_duration);
-        let rounds_served = ban.active.rounds_served_in_previous_epochs + latest_view.round;
+        let rounds_served = if (latest_view.epoch > ban.active.epoch_earned) {
+            ban.active.rounds_served_in_previous_epochs + latest_view.round
+        } else {
+            latest_view.round - ban.active.round_earned
+        };
         if (duration >= rounds_served) {
             duration - rounds_served
         } else {
@@ -348,7 +352,7 @@ module supra_framework::leader_ban_registry {
     fun can_be_banned(ban_registry_len: u64) : bool {
         let minimum_unbanned_proposers = leader_ban_registry_config::get_minimum_unbanned_proposers();
         let committee_size = stake::get_committee_size();
-        committee_size >= ban_registry_len + (minimum_unbanned_proposers as u64)
+        committee_size > ban_registry_len + (minimum_unbanned_proposers as u64)
     }
 
     /// Validates registry initialised if not aborted with `EBAN_REGISTRY_NOT_INITIALIZED`
@@ -362,5 +366,10 @@ module supra_framework::leader_ban_registry {
     #[test_only]
     public fun get_pool_address_from_vp(validator_with_pool_addr: &ValidatorBansWithAddress) : address {
         validator_with_pool_addr.pool_address
+    }
+
+    #[test_only]
+    public fun get_consecutive_count_from_vp(validator_with_pool_addr: &ValidatorBansWithAddress) : u32 {
+        validator_with_pool_addr.consecutive_bans
     }
 }
