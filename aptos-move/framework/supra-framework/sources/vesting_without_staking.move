@@ -170,6 +170,13 @@ module supra_framework::vesting_without_staking {
         old_schedule: VestingSchedule,
         new_schedule: VestingSchedule
     }
+    
+    #[event]
+    struct VestingDelayed has drop, store {
+        contract_address: address,
+        period_duration: u64,
+        periods_delayed: u64
+    }
 
     #[view]
     /// Return the vesting start timestamp (in seconds) of the vesting contract.
@@ -746,6 +753,33 @@ module supra_framework::vesting_without_staking {
         } else { false }
     }
 
+    /// Delay the vesting by a number of periods for all shareholders in the vesting contract.
+    /// This can only be called by the admin of the vesting contract.
+    public entry fun delay_vesting(admin: &signer, contract_address: address, num_periods: u64) acquires VestingContract {
+
+        assert_active_vesting_contract(contract_address);
+        let vesting_contract = borrow_global_mut<VestingContract>(contract_address);
+        verify_admin(admin, vesting_contract);
+        
+        let (keys, values) = simple_map::to_vec_pair(vesting_contract.shareholders);
+        vector::zip_mut<address, VestingRecord>(
+            &mut keys,
+            &mut values,
+            |shareholder, srecord| {
+                let msrecord: &mut VestingRecord = srecord;
+                msrecord.last_vested_period = msrecord.last_vested_period + num_periods;
+            },
+        );
+        vesting_contract.shareholders = simple_map::new_from(keys, values);
+        event::emit(
+            VestingDelayed {
+                contract_address,
+                period_duration: vesting_contract.vesting_schedule.period_duration,
+                periods_delayed: num_periods
+            },
+        );
+       
+    }
     public entry fun set_vesting_schedule(
         admin: &signer,
         contract_address: address,
@@ -3525,6 +3559,164 @@ module supra_framework::vesting_without_staking {
         vested_amount = vested_amount + fraction(shareholder_share, 7, 10);
         let shareholder_balance = coin::balance<SupraCoin>(shareholder_address);
         assert!(shareholder_balance == vested_amount, vested_amount);
+    }
+
+    //Write a test where three shareholders perform their first vesting, the vesting is delayed by 2 periods and then they call vest_individual after 1 period and
+    // assert that they do not receive any tokens, then after another period they call vest_individual again and assert that they receive the correct amount of tokens.
+    #[test(supra_framework = @0x1, admin = @0x123, shareholder_1 = @0x234, shareholder_2 = @0x345, shareholder_3 = @0x456, withdrawal = @0x111)]
+    public entry fun test_individual_vesting_after_delay(
+        supra_framework: &signer,
+        admin: &signer,
+        shareholder_1: &signer,
+        shareholder_2: &signer,
+        shareholder_3: &signer,
+        withdrawal: &signer
+    ) acquires AdminStore, VestingContract {
+        let admin_address = signer::address_of(admin);
+        let withdrawal_address = signer::address_of(withdrawal);
+        let shareholder_1_address = signer::address_of(shareholder_1);
+        let shareholder_2_address = signer::address_of(shareholder_2);
+        let shareholder_3_address = signer::address_of(shareholder_3);  
+        // Amounts for shareholders
+        let shareholder_1_share = 100000000000; // 10^11
+        let shareholder_2_share = 200000000000; // 2*10^11
+        let shareholder_3_share = 300000000000; // 3*10^11
+
+        let shareholders = vector[shareholder_1_address, shareholder_2_address, shareholder_3_address];
+        let shares = vector[shareholder_1_share, shareholder_2_share, shareholder_3_share];
+
+        // Setup accounts and mint coins
+        setup(
+            supra_framework,
+            vector[
+                admin_address,
+                withdrawal_address,
+                shareholder_1_address,
+                shareholder_2_address,
+                shareholder_3_address],
+        );
+        stake::mint(admin, shareholder_1_share + shareholder_2_share + shareholder_3_share);
+        let numerators: vector<u64> = vector[1];
+        // Create vesting contract with period_duration = 3600, vesting_numerators = [1], vesting_denominator = 10
+        let contract_address = setup_vesting_contract_with_amount_with_schedule(
+            admin,
+            shareholders,
+            shares,
+            withdrawal_address,
+            numerators,
+            10,
+        );
+        set_vesting_schedule(
+            admin,
+            contract_address,
+            numerators,
+            10, // Denominators
+            3600, // Period duration in seconds
+        );
+        //fast forward time at the end of first vesting period (3600 seconds)
+        timestamp::update_global_time_for_test_secs(
+            vesting_start_secs(contract_address) + 3600
+        );
+        // First vesting for all shareholders
+        vest_individual(contract_address, shareholder_1_address);
+        vest_individual(contract_address, shareholder_2_address);
+        vest_individual(contract_address, shareholder_3_address);
+
+        let s1_balance = coin::balance<SupraCoin>(shareholder_1_address);
+        let s2_balance = coin::balance<SupraCoin>(shareholder_2_address);
+        let s3_balance = coin::balance<SupraCoin>(shareholder_3_address);
+        assert!(s1_balance == fraction(shareholder_1_share,1,10), s1_balance);
+        assert!(s2_balance == fraction(shareholder_2_share,1,10), s2_balance);
+        assert!(s3_balance == fraction(shareholder_3_share,1,10), s3_balance);
+
+        delay_vesting(admin, contract_address, 2);
+        // Fast forward time by 1 period (3600 seconds)
+        timestamp::update_global_time_for_test_secs(
+            vesting_start_secs(contract_address) + 3600 * 2
+        );
+        // Vesting after 1 period delay, should not receive any tokens
+        vest_individual(contract_address, shareholder_1_address);
+        vest_individual(contract_address, shareholder_2_address);
+        vest_individual(contract_address, shareholder_3_address);
+
+        s1_balance = coin::balance<SupraCoin>(shareholder_1_address);
+        s2_balance = coin::balance<SupraCoin>(shareholder_2_address);
+        s3_balance = coin::balance<SupraCoin>(shareholder_3_address);
+        assert!(s1_balance == fraction(shareholder_1_share,1, 10), s1_balance);
+        assert!(s2_balance == fraction(shareholder_2_share,1, 10), s2_balance);
+        assert!(s3_balance == fraction(shareholder_3_share,1, 10), s3_balance);
+        // Fast forward time to 4 hours past start time
+        timestamp::update_global_time_for_test_secs(
+            vesting_start_secs(contract_address) + 3600 * 4
+        );
+        // At 1 hr after start, vesting happened, 2 hr after start no more vesting happened since vesting was delayed by 2 periods so
+        //contract would think 3 periods have vested, so next vesting would happen at the end of 4th period
+        // Vesting after another period (4th), should receive tokens for the 2nd vesting period
+        vest_individual(contract_address, shareholder_1_address);
+        vest_individual(contract_address, shareholder_2_address);   
+        vest_individual(contract_address, shareholder_3_address);
+        s1_balance = coin::balance<SupraCoin>(shareholder_1_address);
+        s2_balance = coin::balance<SupraCoin>(shareholder_2_address);
+        s3_balance = coin::balance<SupraCoin>(shareholder_3_address);
+        assert!(s1_balance == fraction(shareholder_1_share,1, 10)*2, s1_balance);
+        assert!(s2_balance == fraction(shareholder_2_share,1, 10)*2, s2_balance);
+        assert!(s3_balance == fraction(shareholder_3_share,1, 10)*2, s3_balance);
+    }
+    // write a test where delay_vesting is being called by an unauthorized account and assert that it fails
+    #[test(supra_framework = @0x1, admin = @0x123, unauthorized = @0x456, shareholder = @0x234, withdrawal = @0x111)]
+    #[expected_failure(abort_code = 262151, location = Self)]
+    public entry fun test_delay_vesting_unauthorized(
+        supra_framework: &signer,
+        admin: &signer,
+        unauthorized: &signer,
+        shareholder: &signer,
+        withdrawal: &signer
+    ) acquires AdminStore, VestingContract {
+        let admin_address = signer::address_of(admin);
+        let unauthorized_address = signer::address_of(unauthorized);
+        let withdrawal_address = signer::address_of(withdrawal);
+        let shareholder_address = signer::address_of(shareholder);
+        // Amount for shareholder
+        let shareholder_share = 100000000000; // 10^11  
+        let shareholders = vector[shareholder_address];
+        let shares = vector[shareholder_share];
+        // Setup accounts and mint coins
+        setup(
+            supra_framework,
+            vector[ 
+                admin_address,
+                unauthorized_address,
+                withdrawal_address,
+                shareholder_address],
+        );
+        stake::mint(admin, shareholder_share);
+        let numerators: vector<u64> = vector[1];
+        // Create vesting contract with period_duration = 3600, vesting_numerators = [1], vesting_denominator = 10
+        let contract_address = setup_vesting_contract_with_amount_with_schedule(
+            admin,
+            shareholders,
+            shares,
+            withdrawal_address,
+            numerators,
+            10,
+        );
+        set_vesting_schedule(
+            admin,
+            contract_address,   
+            numerators,
+            10, // Denominators
+            3600, // Period duration in seconds
+        );
+        // Fast forward time at the end of first vesting period (3600 seconds)
+        timestamp::update_global_time_for_test_secs(
+            vesting_start_secs(contract_address) + 3600
+        );
+        // First vesting for shareholder
+        vest_individual(contract_address, shareholder_address);
+        let s_balance = coin::balance<SupraCoin>(shareholder_address);
+        assert!(s_balance == fraction(shareholder_share,1,10), s_balance);
+        // Unauthorized account tries to delay vesting, should fail
+        delay_vesting(unauthorized, contract_address, 2);
     }
 
     #[test(supra_framework = @0x1, admin = @0x1111, shareholder_1 = @0x2222, shareholder_2 = @0x3333, withdrawal = @0x1111)]
