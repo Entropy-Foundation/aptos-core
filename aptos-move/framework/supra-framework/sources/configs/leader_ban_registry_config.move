@@ -27,7 +27,6 @@ module supra_framework::leader_ban_registry_config {
     /// The BanRegistryParameters already initialised
     const EALREADY_INITIALISED: u64 = 4;
 
-
     /// Holds ban registry parameters bytes and it's version
     struct BanRegistryParameters has drop, key, store {
         /// Denotes config bcs bytes
@@ -37,7 +36,7 @@ module supra_framework::leader_ban_registry_config {
     }
 
     /// Ban registry parameters v0
-    struct BanRegistryParametersV0 has drop, key, store  {
+    struct BanRegistryParametersV0 has drop, key, store {
         /// Denotes initial election count denied
         initial_elections_denied: u8,
         /// Denotes max election count denied
@@ -47,10 +46,15 @@ module supra_framework::leader_ban_registry_config {
     }
 
     /// Publishes the BanRegistryParameters config.
-    public(friend) fun initialize(supra_framework: &signer, config: vector<u8>) {
+    public(friend) fun initialize(
+        supra_framework: &signer, config: vector<u8>
+    ) {
         system_addresses::assert_supra_framework(supra_framework);
         assert!(vector::length(&config) != 0, error::invalid_argument(EINVALID_CONFIG));
-        assert!(!exists<BanRegistryParameters>(@supra_framework), error::already_exists(EALREADY_INITIALISED));
+        assert!(
+            !exists<BanRegistryParameters>(@supra_framework),
+            error::already_exists(EALREADY_INITIALISED)
+        );
         let v0 = deserialise_v0_params(config);
         if (option::is_none(&v0)) {
             abort error::invalid_argument(EINVALID_VERSION_BYTES)
@@ -67,18 +71,28 @@ module supra_framework::leader_ban_registry_config {
     /// supra_framework::leader_ban_registry_config::set_for_next_epoch(&framework_signer, some_config_bytes, version);
     /// supra_framework::supra_governance::reconfigure(&framework_signer);
     /// ```
-    public fun set_for_next_epoch(account: &signer, config: vector<u8>, version: u8) acquires BanRegistryParameters {
+    public fun set_for_next_epoch(
+        account: &signer, config: vector<u8>, version: u8
+    ) acquires BanRegistryParameters {
         system_addresses::assert_supra_framework(account);
         assert!(vector::length(&config) != 0, error::invalid_argument(EINVALID_CONFIG));
         if (exists<BanRegistryParameters>(@supra_framework)) {
-            let ban_registry_params = borrow_global<BanRegistryParameters>(@supra_framework);
-            assert!(version >= ban_registry_params.version, error::invalid_argument(EINVALID_VERSION));
+            let ban_registry_params =
+                borrow_global<BanRegistryParameters>(@supra_framework);
+            assert!(
+                version >= ban_registry_params.version,
+                error::invalid_argument(EINVALID_VERSION)
+            );
         };
-        std::config_buffer::upsert<BanRegistryParameters>(BanRegistryParameters {config, version});
+        std::config_buffer::upsert<BanRegistryParameters>(
+            BanRegistryParameters { config, version }
+        );
     }
 
     /// Only used in reconfigurations to apply the pending `BanRegistryParameters`, if there is any.
-    public(friend) fun on_new_epoch(framework: &signer) acquires BanRegistryParameters, BanRegistryParametersV0 {
+    public(friend) fun on_new_epoch(
+        framework: &signer
+    ) acquires BanRegistryParameters, BanRegistryParametersV0 {
         system_addresses::assert_supra_framework(framework);
         if (config_buffer::does_exist<BanRegistryParameters>()) {
             let new_config = config_buffer::extract<BanRegistryParameters>();
@@ -91,7 +105,7 @@ module supra_framework::leader_ban_registry_config {
             if (params.version == 0) {
                 let v0 = deserialise_v0_params(params.config);
                 // This is to prevent abort on new epoch if deserialise failed.
-                if (option::is_some(&v0)){
+                if (option::is_some(&v0)) {
                     let ban_registry_params = option::extract(&mut v0);
                     if (exists<BanRegistryParametersV0>(@supra_framework)) {
                         *borrow_global_mut<BanRegistryParametersV0>(@supra_framework) = ban_registry_params;
@@ -107,11 +121,9 @@ module supra_framework::leader_ban_registry_config {
     #[view]
     public fun get_ban_registry_params(): (vector<u8>, u8) acquires BanRegistryParameters {
         if (exists<BanRegistryParameters>(@supra_framework)) {
-            let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
-                return (
-                    ban_registry_config.config,
-                    ban_registry_config.version
-                )
+            let ban_registry_config =
+                borrow_global<BanRegistryParameters>(@supra_framework);
+            return (ban_registry_config.config, ban_registry_config.version)
         };
         (vector::empty(), 0)
     }
@@ -119,9 +131,11 @@ module supra_framework::leader_ban_registry_config {
     #[view]
     public fun get_ban_registry_params_v0(): (u8, u32, u8) acquires BanRegistryParameters, BanRegistryParametersV0 {
         if (exists<BanRegistryParameters>(@supra_framework)) {
-            let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
+            let ban_registry_config =
+                borrow_global<BanRegistryParameters>(@supra_framework);
             if (ban_registry_config.version == 0) {
-                let ban_registry_params = borrow_global<BanRegistryParametersV0>(@supra_framework);
+                let ban_registry_params =
+                    borrow_global<BanRegistryParametersV0>(@supra_framework);
                 return (
                     ban_registry_params.initial_elections_denied,
                     ban_registry_params.max_elections_denied,
@@ -135,11 +149,13 @@ module supra_framework::leader_ban_registry_config {
     /// Provide initial election denied value
     public fun get_initial_elections_denied(): u8 acquires BanRegistryParameters, BanRegistryParametersV0 {
         if (exists<BanRegistryParameters>(@supra_framework)) {
-            let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
+            let ban_registry_config =
+                borrow_global<BanRegistryParameters>(@supra_framework);
             if (ban_registry_config.version == 0) {
-                let ban_registry_params = borrow_global<BanRegistryParametersV0>(@supra_framework);
+                let ban_registry_params =
+                    borrow_global<BanRegistryParametersV0>(@supra_framework);
                 return ban_registry_params.initial_elections_denied
-            } 
+            }
         };
         0
     }
@@ -147,11 +163,13 @@ module supra_framework::leader_ban_registry_config {
     /// Provide max election denied value
     public fun get_max_elections_denied(): u32 acquires BanRegistryParameters, BanRegistryParametersV0 {
         if (exists<BanRegistryParameters>(@supra_framework)) {
-            let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
+            let ban_registry_config =
+                borrow_global<BanRegistryParameters>(@supra_framework);
             if (ban_registry_config.version == 0) {
-                let ban_registry_params = borrow_global<BanRegistryParametersV0>(@supra_framework);
+                let ban_registry_params =
+                    borrow_global<BanRegistryParametersV0>(@supra_framework);
                 return ban_registry_params.max_elections_denied
-            } 
+            }
         };
         0
     }
@@ -159,11 +177,13 @@ module supra_framework::leader_ban_registry_config {
     /// Provide minimum unbanned proposers value
     public fun get_minimum_unbanned_proposers(): u8 acquires BanRegistryParameters, BanRegistryParametersV0 {
         if (exists<BanRegistryParameters>(@supra_framework)) {
-            let ban_registry_config = borrow_global<BanRegistryParameters>(@supra_framework);
+            let ban_registry_config =
+                borrow_global<BanRegistryParameters>(@supra_framework);
             if (ban_registry_config.version == 0) {
-                let ban_registry_params = borrow_global<BanRegistryParametersV0>(@supra_framework);
+                let ban_registry_params =
+                    borrow_global<BanRegistryParametersV0>(@supra_framework);
                 return ban_registry_params.minimum_unbanned_proposers
-            } 
+            }
         };
         0
     }
@@ -176,11 +196,13 @@ module supra_framework::leader_ban_registry_config {
         let minimum_unbanned_proposers: u8 = decode_bcs::peel_u8(&mut bcs_bytes);
         // making sure no bytes left to decode means correct parameter version
         if (vector::length(&decode_bcs::into_remainder_bytes(bcs_bytes)) == 0) {
-            return option::some(BanRegistryParametersV0 {
-                initial_elections_denied,
-                max_elections_denied,
-                minimum_unbanned_proposers
-            })
+            return option::some(
+                BanRegistryParametersV0 {
+                    initial_elections_denied,
+                    max_elections_denied,
+                    minimum_unbanned_proposers
+                }
+            )
         };
         option::none<BanRegistryParametersV0>()
     }
