@@ -261,8 +261,9 @@ This is meant to emitted as a module event.
 
 ## Struct `GasAssessment`
 
-Breakdown of the assessed fee charges for the gas-less transactions.
-Holds the same information as FeeStatement for charged transactions.
+Breakdown of the gas consumed by gas-fee-less (i.e. gasless) transactions.
+The consumed amounts serve as a record of the workload of the transaction and
+are not charged to the gas payer's account.
 
 
 <pre><code>#[<a href="event.md#0x1_event">event</a>]

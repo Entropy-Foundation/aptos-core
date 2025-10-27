@@ -86,8 +86,9 @@ module supra_framework::transaction_fee {
     }
 
     #[event]
-    /// Breakdown of the assessed fee charges for the gas-less transactions.
-    ///  Holds the same information as FeeStatement for charged transactions.
+    /// Breakdown of the gas consumed by gas-fee-less (i.e. gasless) transactions.
+    /// The consumed amounts serve as a record of the workload of the transaction and
+    /// are not charged to the gas payer's account.
     struct GasAssessment has drop, store {
         /// Total gas assessed for transaction execution.
         total_assessed_gas_units: u64,
