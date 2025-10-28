@@ -16,7 +16,7 @@ use move_vm_runtime::native_functions::NativeFunction;
 use move_vm_types::loaded_data::runtime_types::Type;
 use move_vm_types::values::Value;
 #[cfg(feature = "testing")]
-use crypto::bls12381::utils::{cpp_rng, get_cl};
+use crypto::bls12381::cl_utils::rng;
 
 fn native_class_group_validate_pubkey(
     context: &mut SafeNativeContext,
@@ -40,15 +40,13 @@ fn native_class_group_validate_pubkey(
 pub fn native_generate_keys(
     _context: &mut SafeNativeContext,
     _ty_args: Vec<Type>,
-    mut _arguments: VecDeque<Value>,
+    _arguments: VecDeque<Value>,
 ) -> SafeNativeResult<SmallVec<[Value; 1]>> {
 
-    let cl = get_cl();
-    let mut cpp_rng = cpp_rng();
-    let (sk, pk) = crypto::bls12381::cg_encryption::keygen(&cl, &mut cpp_rng, &vec![]);
+    let (sk, pk) = crypto::bls12381::cg_encryption::keygen(&mut rng(), &vec![]).unwrap();
 
     Ok(smallvec![
-        Value::vector_u8(sk.to_bytes()),
+        Value::vector_u8(bcs::to_bytes(&sk).unwrap()),
         Value::vector_u8(pk.to_vec()),
     ])
 }

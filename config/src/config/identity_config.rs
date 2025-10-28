@@ -17,6 +17,9 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
+use anyhow::anyhow;
+use aptos_types::dkg::{DKGTrait, DefaultDKG};
+use aptos_types::dkg::real_dkg::maybe_dk_from_bls_sk;
 
 /// A single struct for reading / writing to a file for identity across configs
 #[derive(Deserialize, Serialize)]
@@ -42,6 +45,21 @@ impl IdentityBlob {
     pub fn to_file(&self, path: &Path) -> anyhow::Result<()> {
         let mut file = File::open(path)?;
         Ok(file.write_all(serde_yaml::to_string(self)?.as_bytes())?)
+    }
+
+    pub fn try_into_dkg_dealer_private_key(
+        self,
+    ) -> Option<<DefaultDKG as DKGTrait>::DealerPrivateKey> {
+        self.consensus_private_key
+    }
+
+    pub fn try_into_dkg_new_validator_decrypt_key(
+        self,
+    ) -> anyhow::Result<<DefaultDKG as DKGTrait>::NewValidatorDecryptKey> {
+        let consensus_sk = self.consensus_private_key.as_ref().ok_or_else(|| {
+            anyhow!("try_into_dkg_new_validator_decrypt_key failed with missing consensus key")
+        })?;
+        maybe_dk_from_bls_sk(consensus_sk)
     }
 }
 

@@ -9,6 +9,8 @@ module supra_std::consensus_key {
     use supra_std::class_groups;
     #[test_only]
     use aptos_std::bls12381::public_key_with_pop_to_normal;
+    #[test_only]
+    use supra_std::consensus_key;
 
     /// Wrong number of bytes were given as input when deserializing an consensus public key.
     const E_WRONG_PUBKEY_SIZE: u64 = 1;
@@ -104,6 +106,10 @@ module supra_std::consensus_key {
         pk.ed_key
     }
 
+    public fun get_cg_key(pk: &ConsensusPublicKey): option::Option<class_groups::CGPublicKey>{
+        pk.cg_key
+    }
+
     #[test_only]
     /// Generates an Consensus key pair.
     public fun generate_keys(): (SecretKey, ConsensusPublicKey) {
@@ -125,5 +131,71 @@ module supra_std::consensus_key {
 
         (sk,pk)
     }
+
+    #[test]
+    fun test_serde_roundtrip_full() {
+        // Generate full keypair
+        let (_sk, pk_full) = consensus_key::generate_keys();
+
+        // Serialize
+        let bytes = consensus_key::public_key_to_bytes(pk_full);
+
+        // Parse
+        let parsed_opt = consensus_key::consensus_public_key_from_bytes(bytes);
+        assert!(option::is_some(&parsed_opt), 1000);
+        let parsed = option::extract(&mut parsed_opt);
+
+        // Compare ED bytes
+        let ed0 = get_ed_key(&pk_full);
+        let ed1 = get_ed_key(&parsed);
+        assert!(ed0 == ed1, 1001);
+
+        // BLS present and equal
+        let bls_some = consensus_key::get_bls_pub_key(&parsed);
+        assert!(option::is_some(&bls_some), 1002);
+
+        let b0 = get_bls_pub_key(&pk_full);
+        let b1 = get_bls_pub_key(&parsed);
+        assert!(b0 == b1, 1003);
+
+        // CG present and equal
+        let cg_some = consensus_key::get_cg_key(&parsed);
+        assert!(option::is_some(&cg_some), 1004);
+
+        let b0 = get_cg_key(&pk_full);
+        let b1 = get_cg_key(&parsed);
+        assert!(b0 == b1, 1005);
+    }
+
+    /// Round-trip: ED-only survives serialize parse, and BLS/CG are None
+    #[test]
+    fun test_serde_roundtrip_ed_only() {
+        let (_sk, pk_full) = consensus_key::generate_keys();
+
+        // Build an ED-only public key
+        let pk_ed_only = consensus_key::ConsensusPublicKey {
+            ed_key: consensus_key::get_ed_key(&pk_full),
+            bls_key: option::none<bls12381::PublicKey>(),
+            cg_key: option::none<supra_std::class_groups::CGPublicKey>(),
+        };
+
+        let bytes = consensus_key::public_key_to_bytes(pk_ed_only);
+        // Expect exactly ED bytes length
+        assert!(vector::length(&bytes) == 32, 1100);
+
+        let parsed_opt = consensus_key::consensus_public_key_from_bytes(bytes);
+        assert!(option::is_some(&parsed_opt), 1101);
+        let parsed = option::extract(&mut parsed_opt);
+
+        // ED equal
+        let ed0 = get_ed_key(&pk_full);
+        let ed1 = get_ed_key(&parsed);
+        assert!(ed0 == ed1, 1102);
+
+        // BLS should be None (ED-only)
+        let bls_some = consensus_key::get_bls_pub_key(&parsed);
+        assert!(!option::is_some(&bls_some), 1103);
+    }
+
 
 }

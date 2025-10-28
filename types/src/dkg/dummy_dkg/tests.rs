@@ -12,6 +12,7 @@ use crate::{
 use aptos_crypto::{ed25519, Uniform};
 use move_core_types::account_address::AccountAddress;
 use rand::thread_rng;
+use crate::dkg::DKGSessionMetadataOld;
 
 struct DealerState {
     addr: AccountAddress,
@@ -95,7 +96,7 @@ fn test_dummy_dkg_correctness() {
         .collect();
 
     // Now imagine DKG starts.
-    let dkg_session_metadata = DKGSessionMetadata {
+    let dkg_session_metadata = DKGSessionMetadataOld {
         dealer_epoch: 999,
         randomness_config: OnChainRandomnessConfig::default_enabled().into(),
         dealer_validator_set: dealer_infos.clone(),

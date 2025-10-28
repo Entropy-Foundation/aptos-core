@@ -8,7 +8,7 @@ use aptos_reliable_broadcast::BroadcastStatus;
 use aptos_types::{
     dkg::{
         dummy_dkg::{DummyDKG, DummyDKGTranscript},
-        DKGSessionMetadata, DKGTrait, DKGTransactionData, DKGTransactionMetadata,
+        DKGSessionMetadata, DKGTrait, DKGTranscript, DKGTranscriptMetadata,
     },
     epoch_state::EpochState,
     on_chain_config::OnChainRandomnessConfig,
@@ -61,74 +61,74 @@ fn test_transcript_aggregation_state() {
     let good_trx_bytes = bcs::to_bytes(&good_transcript).unwrap();
 
     // Node with incorrect epoch should be rejected.
-    let result = trx_agg_state.add(addrs[0], DKGTransactionData {
-        metadata: DKGTransactionMetadata {
+    let result = trx_agg_state.add(addrs[0], DKGTranscript {
+        metadata: DKGTranscriptMetadata {
             epoch: 998,
             author: addrs[0],
         },
-        data_bytes: good_trx_bytes.clone(),
+        transcript_bytes: good_trx_bytes.clone(),
     });
     assert!(result.is_err());
 
     // Node authored by X but sent by Y should be rejected.
-    let result = trx_agg_state.add(addrs[1], DKGTransactionData {
-        metadata: DKGTransactionMetadata {
+    let result = trx_agg_state.add(addrs[1], DKGTranscript {
+        metadata: DKGTranscriptMetadata {
             epoch: 999,
             author: addrs[0],
         },
-        data_bytes: good_trx_bytes.clone(),
+        transcript_bytes: good_trx_bytes.clone(),
     });
     assert!(result.is_err());
 
     // Node authored by non-active-validator should be rejected.
-    let result = trx_agg_state.add(vfn_addr, DKGTransactionData {
-        metadata: DKGTransactionMetadata {
+    let result = trx_agg_state.add(vfn_addr, DKGTranscript {
+        metadata: DKGTranscriptMetadata {
             epoch: 999,
             author: vfn_addr,
         },
-        data_bytes: good_trx_bytes.clone(),
+        transcript_bytes: good_trx_bytes.clone(),
     });
     assert!(result.is_err());
 
     // Node with invalid transcript should be rejected.
     let mut bad_trx_bytes = good_trx_bytes.clone();
     bad_trx_bytes[0] = 0xAB;
-    let result = trx_agg_state.add(addrs[2], DKGTransactionData {
-        metadata: DKGTransactionMetadata {
+    let result = trx_agg_state.add(addrs[2], DKGTranscript {
+        metadata: DKGTranscriptMetadata {
             epoch: 999,
             author: addrs[2],
         },
-        data_bytes: vec![],
+        transcript_bytes: vec![],
     });
     assert!(result.is_err());
 
     // Good node should be accepted.
-    let result = trx_agg_state.add(addrs[3], DKGTransactionData {
-        metadata: DKGTransactionMetadata {
+    let result = trx_agg_state.add(addrs[3], DKGTranscript {
+        metadata: DKGTranscriptMetadata {
             epoch: 999,
             author: addrs[3],
         },
-        data_bytes: good_trx_bytes.clone(),
+        transcript_bytes: good_trx_bytes.clone(),
     });
     assert!(matches!(result, Ok(None)));
 
     // Node from contributed author should be ignored.
-    let result = trx_agg_state.add(addrs[3], DKGTransactionData {
-        metadata: DKGTransactionMetadata {
+    let result = trx_agg_state.add(addrs[3], DKGTranscript {
+        metadata: DKGTranscriptMetadata {
             epoch: 999,
             author: addrs[3],
         },
-        data_bytes: good_trx_bytes.clone(),
+        transcript_bytes: good_trx_bytes.clone(),
     });
     assert!(matches!(result, Ok(None)));
 
     // Aggregated trx should be returned if after adding a node, the threshold is exceeded.
-    let result = trx_agg_state.add(addrs[4], DKGTransactionData {
-        metadata: DKGTransactionMetadata {
+    let result = trx_agg_state.add(addrs[4], DKGTranscript {
+        metadata: DKGTranscriptMetadata {
             epoch: 999,
             author: addrs[4],
         },
-        data_bytes: good_trx_bytes.clone(),
+        transcript_bytes: good_trx_bytes.clone(),
     });
     assert!(matches!(result, Ok(Some(_))));
 }

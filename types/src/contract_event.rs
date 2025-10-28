@@ -22,7 +22,7 @@ use once_cell::sync::Lazy;
 use proptest_derive::Arbitrary;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{convert::TryFrom, str::FromStr};
-use crate::dkg::{DKGFinishEvent, DKGMetaSetEvent};
+use crate::dkg::{DKGFinishEvent, DKGMetaSetEvent, DKGStartEventOld};
 
 pub static FEE_STATEMENT_EVENT_TYPE: Lazy<TypeTag> = Lazy::new(|| {
     TypeTag::Struct(Box::new(StructTag {
@@ -297,6 +297,24 @@ impl From<(u64, NewEpochEvent)> for ContractEvent {
             TypeTag::from(NewEpochEvent::struct_tag()),
             bcs::to_bytes(&event).unwrap(),
         )
+    }
+}
+
+impl TryFrom<&ContractEvent> for DKGStartEventOld {
+    type Error = Error;
+
+    fn try_from(event: &ContractEvent) -> Result<Self> {
+        match event {
+            ContractEvent::V1(_) => {
+                bail!("conversion to dkg start event failed with wrong contract event version");
+            },
+            ContractEvent::V2(event) => {
+                if event.type_tag != TypeTag::Struct(Box::new(Self::struct_tag())) {
+                    bail!("conversion to dkg start event failed with wrong type tag")
+                }
+                bcs::from_bytes(&event.event_data).map_err(Into::into)
+            },
+        }
     }
 }
 

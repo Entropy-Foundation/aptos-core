@@ -10,6 +10,8 @@ use aptos_types::{
     transaction::{SignedTransaction, VMValidatorResult},
     vm_status::StatusCode,
 };
+use aptos_types::validator_txn::ValidatorTransaction;
+use aptos_vm::move_vm_ext::AptosMoveResolver;
 use aptos_vm::VMValidator;
 
 pub const ACCOUNT_DNE_TEST_ADD: AccountAddress =
@@ -35,6 +37,14 @@ impl VMValidator for MockVMValidator {
         &self,
         _transaction: SignedTransaction,
         _state_view: &impl StateView,
+    ) -> VMValidatorResult {
+        VMValidatorResult::new(None, 0)
+    }
+
+    fn validate_dkg_validator_transaction(
+        &self,
+        _transaction: ValidatorTransaction,
+        _state_view: &impl AptosMoveResolver,
     ) -> VMValidatorResult {
         VMValidatorResult::new(None, 0)
     }

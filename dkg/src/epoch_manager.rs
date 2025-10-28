@@ -21,7 +21,7 @@ use aptos_network::{application::interface::NetworkClient, protocols::network::E
 use aptos_reliable_broadcast::ReliableBroadcast;
 use aptos_types::{
     account_address::AccountAddress,
-    dkg::{DKGStartEvent, DKGState, DKGTrait, DefaultDKG},
+    dkg::{DKGStartEventOld, DKGTrait, DefaultDKG},
     epoch_state::EpochState,
     on_chain_config::{
         OnChainConfigPayload, OnChainConfigProvider, OnChainConsensusConfig,
@@ -33,6 +33,7 @@ use futures::StreamExt;
 use futures_channel::oneshot;
 use std::{sync::Arc, time::Duration};
 use tokio_retry::strategy::ExponentialBackoff;
+use aptos_types::dkg::DKGStateOld;
 
 pub struct EpochManager<P: OnChainConfigProvider> {
     dkg_dealer_sk: Arc<<DefaultDKG as DKGTrait>::DealerPrivateKey>,
@@ -48,7 +49,7 @@ pub struct EpochManager<P: OnChainConfigProvider> {
     dkg_rpc_msg_tx:
         Option<aptos_channel::Sender<AccountAddress, (AccountAddress, IncomingRpcRequest)>>,
     dkg_manager_close_tx: Option<oneshot::Sender<oneshot::Sender<()>>>,
-    dkg_start_event_tx: Option<aptos_channel::Sender<(), DKGStartEvent>>,
+    dkg_start_event_tx: Option<aptos_channel::Sender<(), DKGStartEventOld>>,
     vtxn_pool: VTxnPoolState,
 
     // Network utils
@@ -109,7 +110,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
                 subscribed_events, ..
             } = notification;
             for event in subscribed_events {
-                if let Ok(dkg_start_event) = DKGStartEvent::try_from(&event) {
+                if let Ok(dkg_start_event) = DKGStartEventOld::try_from(&event) {
                     let _ = tx.push((), dkg_start_event);
                     return Ok(());
                 } else {
@@ -199,10 +200,10 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
         let randomness_enabled =
             consensus_config.is_vtxn_enabled() && onchain_randomness_config.randomness_enabled();
         if let (true, Some(my_index)) = (randomness_enabled, my_index) {
-            let DKGState {
+            let DKGStateOld {
                 in_progress: in_progress_session,
                 ..
-            } = payload.get::<DKGState>().unwrap_or_default();
+            } = payload.get::<DKGStateOld>().unwrap_or_default();
 
             let network_sender = self.create_network_sender();
             let rb = ReliableBroadcast::new(
