@@ -6547,7 +6547,7 @@ checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 [[package]]
 name = "crypto"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Entropy-Foundation/crypto?rev=1cdc8d3f41d1de6025ec5da2858e2f86634ebd22#1cdc8d3f41d1de6025ec5da2858e2f86634ebd22"
+source = "git+ssh://git@github.com/Entropy-Foundation/crypto?rev=904174db9fdc282a0dffabefc219daf671752f9a#904174db9fdc282a0dffabefc219daf671752f9a"
 dependencies = [
  "base64 0.22.1",
  "bicycl_rs",
