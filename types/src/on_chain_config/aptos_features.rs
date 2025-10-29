@@ -168,7 +168,8 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_AUTOMATION_TASK_SYNC,
             FeatureFlag::SUPRA_COUNT_FAILED_PROPOSALS,
             FeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY,
-            FeatureFlag::SUPRA_VALIDATOR_IDENTITY_V2,
+            // TODO: uncomment when implementation of v2 will be ready.
+            // FeatureFlag::SUPRA_VALIDATOR_IDENTITY_V2,
         ]
     }
 }
