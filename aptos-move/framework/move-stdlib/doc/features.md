@@ -914,6 +914,8 @@ Lifetime: transient
 Whether Supra cycle based automation is enabled. Once enabled, the native automation feature with detached cycle
 based registry management feature will be activated.
 
+Note: After flag is enabled it CANNOT be disabled anymore and any attempt should be prevented.
+
 Lifetime: transient
 
 
