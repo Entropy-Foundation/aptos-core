@@ -6,7 +6,7 @@ use aptos_crypto::{ed25519, Uniform};
 use aptos_infallible::duration_since_epoch;
 use aptos_reliable_broadcast::BroadcastStatus;
 use aptos_types::{
-    dkg::{
+    aptos_dkg::{
         dummy_dkg::{DummyDKG, DummyDKGTranscript},
         DKGSessionMetadata, DKGTrait, DKGTranscript, DKGTranscriptMetadata,
     },

@@ -1,7 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::dkg::{DKGSessionMetadataOld, DKGTrait};
+use crate::aptos_dkg::{DKGSessionMetadata, DKGTrait};
 use anyhow::{anyhow, ensure};
 use aptos_crypto::{ed25519, Uniform};
 use rand::{CryptoRng, Rng, RngCore};
@@ -20,10 +20,10 @@ impl DKGTrait for DummyDKG {
     type DealtSecretShare = DummySecret;
     type InputSecret = DummySecret;
     type NewValidatorDecryptKey = ed25519::PrivateKey;
-    type PublicParams = DKGSessionMetadataOld;
+    type PublicParams = DKGSessionMetadata;
     type Transcript = DummyDKGTranscript;
 
-    fn new_public_params(dkg_session_metadata: &DKGSessionMetadataOld) -> Self::PublicParams {
+    fn new_public_params(dkg_session_metadata: &DKGSessionMetadata) -> Self::PublicParams {
         dkg_session_metadata.clone()
     }
 

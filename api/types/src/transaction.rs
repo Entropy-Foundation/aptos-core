@@ -19,10 +19,11 @@ use aptos_crypto::{
 use aptos_types::{
     account_address::AccountAddress,
     aggregate_signature::AggregateSignature,
+    aptos_dkg::{DKGTranscript, DKGTranscriptMetadata},
     block_metadata::BlockMetadata,
     block_metadata_ext::BlockMetadataExt,
     contract_event::{ContractEvent, EventWithVersion},
-    dkg::{DKGTransactionData, DKGTransactionMetadata},
+    dkg::transactions::{DKGTransactionData, DKGTransactionMetadata},
     jwks::{jwk::JWK, ProviderJWKs, QuorumCertifiedUpdate},
     keyless,
     transaction::{
@@ -117,11 +118,11 @@ impl From<(TransactionWithProof, aptos_crypto::HashValue)> for TransactionOnChai
 }
 
 impl
-    From<(
-        TransactionWithProof,
-        aptos_crypto::HashValue,
-        &TransactionOutput,
-    )> for TransactionOnChainData
+From<(
+    TransactionWithProof,
+    aptos_crypto::HashValue,
+    &TransactionOutput,
+)> for TransactionOnChainData
 {
     fn from(
         (txn, accumulator_root_hash, txn_output): (
@@ -142,14 +143,14 @@ impl
 }
 
 impl
-    From<(
-        u64,
-        aptos_types::transaction::Transaction,
-        aptos_types::transaction::TransactionInfo,
-        Vec<ContractEvent>,
-        aptos_crypto::HashValue,
-        aptos_types::write_set::WriteSet,
-    )> for TransactionOnChainData
+From<(
+    u64,
+    aptos_types::transaction::Transaction,
+    aptos_types::transaction::TransactionInfo,
+    Vec<ContractEvent>,
+    aptos_crypto::HashValue,
+    aptos_types::write_set::WriteSet,
+)> for TransactionOnChainData
 {
     fn from(
         (version, transaction, info, events, accumulator_root_hash, write_set): (
@@ -284,13 +285,13 @@ impl From<(SignedTransaction, TransactionPayload)> for Transaction {
 }
 
 impl
-    From<(
-        &SignedTransaction,
-        TransactionInfo,
-        TransactionPayload,
-        Vec<Event>,
-        u64,
-    )> for Transaction
+From<(
+    &SignedTransaction,
+    TransactionInfo,
+    TransactionPayload,
+    Vec<Event>,
+    u64,
+)> for Transaction
 {
     fn from(
         (txn, info, payload, events, timestamp): (
@@ -311,13 +312,13 @@ impl
 }
 
 impl
-    From<(
-        &UserAutomatedTransaction,
-        TransactionInfo,
-        TransactionPayload,
-        Vec<Event>,
-        u64,
-    )> for Transaction
+From<(
+    &UserAutomatedTransaction,
+    TransactionInfo,
+    TransactionPayload,
+    Vec<Event>,
+    u64,
+)> for Transaction
 {
     fn from(
         (txn, info, payload, events, timestamp): (
@@ -682,6 +683,7 @@ pub struct BlockMetadataTransaction {
 )]
 pub enum ValidatorTransaction {
     ObservedJwkUpdate(JWKUpdateTransaction),
+    Dkg(DKGTransaction),
     DkgResult(DKGResultTransaction),
 }
 
@@ -692,6 +694,7 @@ impl ValidatorTransaction {
                 "validator_transaction__observed_jwk_update"
             },
             ValidatorTransaction::DkgResult(_) => "validator_transaction__dkg_result",
+            ValidatorTransaction::Dkg(_) => "validator_transaction__dkg",
         }
     }
 
@@ -699,6 +702,7 @@ impl ValidatorTransaction {
         match self {
             ValidatorTransaction::ObservedJwkUpdate(t) => &t.info,
             ValidatorTransaction::DkgResult(t) => &t.info,
+            ValidatorTransaction::Dkg(t) => &t.info,
         }
     }
 
@@ -706,6 +710,7 @@ impl ValidatorTransaction {
         match self {
             ValidatorTransaction::ObservedJwkUpdate(t) => &mut t.info,
             ValidatorTransaction::DkgResult(t) => &mut t.info,
+            ValidatorTransaction::Dkg(t) => &mut t.info,
         }
     }
 
@@ -713,6 +718,7 @@ impl ValidatorTransaction {
         match self {
             ValidatorTransaction::ObservedJwkUpdate(t) => t.timestamp,
             ValidatorTransaction::DkgResult(t) => t.timestamp,
+            ValidatorTransaction::Dkg(t) => t.timestamp,
         }
     }
 
@@ -720,17 +726,18 @@ impl ValidatorTransaction {
         match self {
             ValidatorTransaction::ObservedJwkUpdate(t) => &t.events,
             ValidatorTransaction::DkgResult(t) => &t.events,
+            ValidatorTransaction::Dkg(t) => &t.events,
         }
     }
 }
 
 impl
-    From<(
-        aptos_types::validator_txn::ValidatorTransaction,
-        TransactionInfo,
-        Vec<Event>,
-        u64,
-    )> for ValidatorTransaction
+From<(
+    aptos_types::validator_txn::ValidatorTransaction,
+    TransactionInfo,
+    Vec<Event>,
+    u64,
+)> for ValidatorTransaction
 {
     fn from(
         (txn, info, events, timestamp): (
@@ -741,7 +748,16 @@ impl
         ),
     ) -> Self {
         match txn {
-            aptos_types::validator_txn::ValidatorTransaction::DKG(dkg_transcript) => {
+            aptos_types::validator_txn::ValidatorTransaction::DKG(dkg_transaction_data) => {
+                Self::Dkg(DKGTransaction {
+                    info,
+                    events,
+                    timestamp: U64::from(timestamp),
+                    dkg_transaction_data: dkg_transaction_data.into(),
+                })
+            },
+
+            aptos_types::validator_txn::ValidatorTransaction::DKGResult(dkg_transcript) => {
                 Self::DkgResult(DKGResultTransaction {
                     info,
                     events,
@@ -749,6 +765,7 @@ impl
                     dkg_transcript: dkg_transcript.into(),
                 })
             },
+
             aptos_types::validator_txn::ValidatorTransaction::ObservedJWKUpdate(
                 quorum_certified_update,
             ) => Self::ObservedJwkUpdate(JWKUpdateTransaction {
@@ -840,11 +857,33 @@ pub struct DKGResultTransaction {
     pub info: TransactionInfo,
     pub events: Vec<Event>,
     pub timestamp: U64,
-    pub dkg_transcript: ExportedDKGTranscript,
+    pub dkg_transcript: ExportedDKGResultTranscript,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Object)]
-pub struct ExportedDKGTranscript {
+pub struct ExportedDKGResultTranscript {
+    pub epoch: U64,
+    pub author: Address,
+    pub payload: HexEncodedBytes,
+}
+
+impl From<DKGTranscript> for ExportedDKGResultTranscript {
+    fn from(value: DKGTranscript) -> Self {
+        let DKGTranscript {
+            metadata,
+            transcript_bytes,
+        } = value;
+        let DKGTranscriptMetadata { epoch, author } = metadata;
+        Self {
+            epoch: epoch.into(),
+            author: author.into(),
+            payload: HexEncodedBytes::from(transcript_bytes),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Object)]
+pub struct ExportedDKGTransactionData {
     pub epoch: U64,
     pub author: Address,
     pub bls_aggregate_signature: Vec<u8>,
@@ -853,13 +892,19 @@ pub struct ExportedDKGTranscript {
     pub payload: HexEncodedBytes,
 }
 
-impl From<DKGTransactionData> for ExportedDKGTranscript {
+impl From<DKGTransactionData> for ExportedDKGTransactionData {
     fn from(value: DKGTransactionData) -> Self {
         let DKGTransactionData {
             metadata,
             data_bytes: transcript_bytes,
         } = value;
-        let DKGTransactionMetadata { epoch, author,  bls_aggregate_signature, signer_indices_clan_committee, transaction_type} = metadata;
+        let DKGTransactionMetadata {
+            epoch,
+            author,
+            bls_aggregate_signature,
+            signer_indices_clan_committee,
+            transaction_type,
+        } = metadata;
         Self {
             epoch: epoch.into(),
             author: author.into(),
@@ -869,6 +914,16 @@ impl From<DKGTransactionData> for ExportedDKGTranscript {
             transaction_type: transaction_type as u8,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Object)]
+pub struct DKGTransaction {
+    #[serde(flatten)]
+    #[oai(flatten)]
+    pub info: TransactionInfo,
+    pub events: Vec<Event>,
+    pub timestamp: U64,
+    pub dkg_transaction_data: ExportedDKGTransactionData,
 }
 
 /// An event from a transaction
@@ -1079,8 +1134,8 @@ impl VerifyInput for MultisigPayload {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Union)]
-pub enum  AutomationRegistrationParams {
-    V1(AutomationRegistrationParamsV1)
+pub enum AutomationRegistrationParams {
+    V1(AutomationRegistrationParamsV1),
 }
 
 impl AutomationRegistrationParams {
@@ -1733,24 +1788,24 @@ impl VerifyInput for SingleKeySignature {
                 public_key: p.value.clone(),
                 signature: s.value.clone(),
             }
-            .verify(),
+                .verify(),
             (PublicKey::Secp256k1Ecdsa(p), Signature::Secp256k1Ecdsa(s)) => {
                 Secp256k1EcdsaSignature {
                     public_key: p.value.clone(),
                     signature: s.value.clone(),
                 }
-                .verify()
+                    .verify()
             },
             (PublicKey::Secp256r1Ecdsa(p), Signature::WebAuthn(s)) => WebAuthnSignature {
                 public_key: p.value.clone(),
                 signature: s.value.clone(),
             }
-            .verify(),
+                .verify(),
             (PublicKey::Keyless(p), Signature::Keyless(s)) => KeylessSignature {
                 public_key: p.value.clone(),
                 signature: s.value.clone(),
             }
-            .verify(),
+                .verify(),
             _ => bail!("Invalid public key, signature match."),
         }
     }
@@ -1920,8 +1975,8 @@ impl TryFrom<MultiKeySignature> for AccountAuthenticator {
                     },
                     Signature::WebAuthn(s) => {
                         let paar = s.value.inner().try_into().context(
-                        "Failed to parse given signature as PartialAuthenticatorAssertionResponse",
-                    )?;
+                            "Failed to parse given signature as PartialAuthenticatorAssertionResponse",
+                        )?;
                         AnySignature::webauthn(paar)
                     },
                     Signature::Keyless(s) => {
@@ -2046,10 +2101,10 @@ impl From<(&Ed25519PublicKey, &ed25519::Ed25519Signature)> for Ed25519Signature 
 }
 
 impl
-    From<(
-        &MultiEd25519PublicKey,
-        &multi_ed25519::MultiEd25519Signature,
-    )> for MultiEd25519Signature
+From<(
+    &MultiEd25519PublicKey,
+    &multi_ed25519::MultiEd25519Signature,
+)> for MultiEd25519Signature
 {
     fn from(
         (pk, sig): (
@@ -2084,10 +2139,10 @@ impl From<(&secp256k1_ecdsa::PublicKey, &secp256k1_ecdsa::Signature)> for Secp25
 }
 
 impl
-    From<(
-        &secp256r1_ecdsa::PublicKey,
-        &PartialAuthenticatorAssertionResponse,
-    )> for Secp256k1EcdsaSignature
+From<(
+    &secp256r1_ecdsa::PublicKey,
+    &PartialAuthenticatorAssertionResponse,
+)> for Secp256k1EcdsaSignature
 {
     fn from(
         (pk, sig): (
@@ -2143,11 +2198,11 @@ impl From<&AccountAuthenticator> for AccountSignature {
 }
 
 impl
-    From<(
-        &AccountAuthenticator,
-        &Vec<AccountAddress>,
-        &Vec<AccountAuthenticator>,
-    )> for MultiAgentSignature
+From<(
+    &AccountAuthenticator,
+    &Vec<AccountAddress>,
+    &Vec<AccountAuthenticator>,
+)> for MultiAgentSignature
 {
     fn from(
         (sender, addresses, signers): (
@@ -2220,13 +2275,13 @@ impl TryFrom<FeePayerSignature> for TransactionAuthenticator {
 }
 
 impl
-    From<(
-        &AccountAuthenticator,
-        &Vec<AccountAddress>,
-        &Vec<AccountAuthenticator>,
-        &AccountAddress,
-        &AccountAuthenticator,
-    )> for FeePayerSignature
+From<(
+    &AccountAuthenticator,
+    &Vec<AccountAddress>,
+    &Vec<AccountAuthenticator>,
+    &AccountAddress,
+    &AccountAuthenticator,
+)> for FeePayerSignature
 {
     fn from(
         (sender, addresses, signers, fee_payer_address, fee_payer_signer): (

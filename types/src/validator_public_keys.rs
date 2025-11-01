@@ -1,5 +1,6 @@
 use std::fmt;
 
+//TODO: Update this type according to ValidatorPublicKeys
 /// Consensus public key consists of:
 /// 1. Ed25519 key
 /// 2. Bls12381 G1 key

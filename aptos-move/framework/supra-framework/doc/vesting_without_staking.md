@@ -1247,7 +1247,7 @@ Create a vesting schedule with the given schedule of distributions, a vesting st
     // last <a href="vesting.md#0x1_vesting">vesting</a> fraction must be non zero <b>to</b> ensure that no amount remains unvested forever.
     <b>assert</b>!(
         <a href="../../aptos-stdlib/../move-stdlib/doc/fixed_point32.md#0x1_fixed_point32_get_raw_value">fixed_point32::get_raw_value</a>(*<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&schedule, schedule_len - 1)) !=
-        0,
+            0,
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_EEMPTY_VESTING_SCHEDULE">EEMPTY_VESTING_SCHEDULE</a>),
     );
     <b>assert</b>!(
@@ -2120,8 +2120,8 @@ account.
     <b>let</b> addr = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(<a href="account.md#0x1_account">account</a>);
     <b>assert</b>!(
         addr == vesting_contract.admin
-        || addr
-        == <a href="vesting_without_staking.md#0x1_vesting_without_staking_get_role_holder">get_role_holder</a>(contract_address, utf8(<a href="vesting_without_staking.md#0x1_vesting_without_staking_ROLE_BENEFICIARY_RESETTER">ROLE_BENEFICIARY_RESETTER</a>)),
+            || addr
+            == <a href="vesting_without_staking.md#0x1_vesting_without_staking_get_role_holder">get_role_holder</a>(contract_address, utf8(<a href="vesting_without_staking.md#0x1_vesting_without_staking_ROLE_BENEFICIARY_RESETTER">ROLE_BENEFICIARY_RESETTER</a>)),
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="vesting_without_staking.md#0x1_vesting_without_staking_EPERMISSION_DENIED">EPERMISSION_DENIED</a>),
     );
 

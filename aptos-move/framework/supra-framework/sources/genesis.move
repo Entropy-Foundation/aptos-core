@@ -36,9 +36,9 @@ module supra_framework::genesis {
     use supra_framework::version;
     use supra_framework::vesting;
     use supra_framework::vesting_without_staking;
-    
+
     #[test_only]
-    use supra_std::consensus_key;
+    use supra_std::validator_public_keys;
 
     #[verify_only]
     use std::features;
@@ -887,8 +887,8 @@ module supra_framework::genesis {
 
         initialize_supra_coin(supra_framework);
         let owner = @0x121341;
-        let (_, pk_1) = stake::generate_identity();
-        let _pk_1 = consensus_key::public_key_to_bytes(pk_1);
+        let (_sk_1, pk_1) = stake::generate_identity();
+        let _pk_1 = validator_public_keys::public_key_to_bytes(pk_1);
         create_account(supra_framework, owner, 0);
         let validator_config_commission = ValidatorConfigurationWithCommission {
             validator_config: ValidatorConfiguration {
@@ -950,10 +950,10 @@ module supra_framework::genesis {
         initialize_supra_coin(supra_framework);
         let owner1 = @0x121341;
         create_account(supra_framework, owner1, 0);
-        let (_, pk_1) = stake::generate_identity();
-        let (_, pk_2) = stake::generate_identity();
-        let _pk_1 = consensus_key::public_key_to_bytes(pk_1);
-        let _pk_2 = consensus_key::public_key_to_bytes(pk_2);
+        let (_sk_1, pk_1) = stake::generate_identity();
+        let (_sk_2, pk_2) = stake::generate_identity();
+        let _pk_1 = validator_public_keys::public_key_to_bytes(pk_1);
+        let _pk_2 = validator_public_keys::public_key_to_bytes(pk_2);
         let validator_config_commission1 = ValidatorConfigurationWithCommission {
             validator_config: ValidatorConfiguration {
                 owner_address: owner1,

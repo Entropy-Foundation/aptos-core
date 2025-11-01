@@ -81,7 +81,7 @@ use aptos_safety_rules::SafetyRulesManager;
 use aptos_secure_storage::{KVStorage, Storage};
 use aptos_types::{
     account_address::AccountAddress,
-    dkg::{real_dkg::maybe_dk_from_bls_sk, DKGTrait, DefaultDKG},
+    aptos_dkg::{real_dkg::maybe_dk_from_bls_sk, DKGState, DKGTrait, DefaultDKG},
     epoch_change::EpochChangeProof,
     epoch_state::EpochState,
     jwks::SupportedOIDCProviders,
@@ -115,7 +115,6 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use aptos_types::dkg::DKGStateOld;
 
 /// Range of rounds (window) that we might be calling proposer election
 /// functions with at any given time, in addition to the proposer history length.
@@ -922,7 +921,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
         &self,
         new_epoch_state: &EpochState,
         onchain_randomness_config: &OnChainRandomnessConfig,
-        maybe_dkg_state: anyhow::Result<DKGStateOld>,
+        maybe_dkg_state: anyhow::Result<DKGState>,
         consensus_config: &OnChainConsensusConfig,
     ) -> Result<(RandConfig, Option<RandConfig>), NoRandomnessReason> {
         if !consensus_config.is_vtxn_enabled() {
@@ -953,7 +952,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
         let transcript = bcs::from_bytes::<<DefaultDKG as DKGTrait>::Transcript>(
             dkg_session.transcript.as_slice(),
         )
-        .map_err(NoRandomnessReason::TranscriptDeserializationError)?;
+            .map_err(NoRandomnessReason::TranscriptDeserializationError)?;
 
         let vuf_pp = WvufPP::from(&dkg_pub_params.pvss_config.pp);
 
@@ -966,7 +965,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
             my_index as u64,
             &dkg_decrypt_key,
         )
-        .map_err(NoRandomnessReason::SecretShareDecryptionFailed)?;
+            .map_err(NoRandomnessReason::SecretShareDecryptionFailed)?;
 
         let fast_randomness_is_enabled = onchain_randomness_config.fast_randomness_enabled()
             && sk.fast.is_some()
@@ -1071,7 +1070,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
         let randomness_config_move_struct: anyhow::Result<RandomnessConfigMoveStruct> =
             payload.get();
         let onchain_jwk_consensus_config: anyhow::Result<OnChainJWKConsensusConfig> = payload.get();
-        let dkg_state = payload.get::<DKGStateOld>();
+        let dkg_state = payload.get::<DKGState>();
 
         if let Err(error) = &onchain_consensus_config {
             error!("Failed to read on-chain consensus config {}", error);
@@ -1171,7 +1170,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
                 fast_rand_config,
                 rand_msg_rx,
             )
-            .await
+                .await
         } else {
             self.start_new_epoch_with_joltean(
                 epoch_state,
@@ -1186,7 +1185,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
                 fast_rand_config,
                 rand_msg_rx,
             )
-            .await
+                .await
         }
     }
 
@@ -1247,7 +1246,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
                     fast_rand_config,
                     rand_msg_rx,
                 )
-                .await
+                    .await
             },
             LivenessStorageData::PartialRecoveryData(ledger_data) => {
                 self.recovery_mode = true;
@@ -1257,7 +1256,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
                     epoch_state,
                     Arc::new(network_sender),
                 )
-                .await
+                    .await
             },
         }
     }
@@ -1583,7 +1582,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
                 (peer_id, discriminant(&round_manager_event)),
                 (peer_id, round_manager_event),
             )
-            .context("round manager sender"),
+                .context("round manager sender"),
         } {
             warn!("Failed to forward event: {}", e);
         }

@@ -542,7 +542,7 @@ module supra_framework::pbo_delegation_pool {
     ): bool acquires NextCommissionPercentage {
         exists<NextCommissionPercentage>(pool_address)
             && timestamp::now_seconds()
-                >= borrow_global<NextCommissionPercentage>(pool_address).effective_after_secs
+            >= borrow_global<NextCommissionPercentage>(pool_address).effective_after_secs
     }
 
     #[view]
@@ -852,13 +852,13 @@ module supra_framework::pbo_delegation_pool {
         )
 
     }
-    
+
     // Create `vector<FixedPoint64>` for schedule fractions from numerators and a denominator
     // Pre-condition: It is assumed that `validate_unlock_schedule_params` is called before this
     // If the denominator is zero, this function would fail in `create_from_rational`
     fun create_schedule_fractions(unlock_numerators: &vector<u64>, unlock_denominator: u64) : vector<FixedPoint64> {
-        
-    //Create unlock schedule
+
+        //Create unlock schedule
         let schedule = vector::empty();
         vector::for_each_ref(
             unlock_numerators,
@@ -870,7 +870,7 @@ module supra_framework::pbo_delegation_pool {
                 vector::push_back(&mut schedule, fraction);
             }
         );
-        
+
         schedule
 
     }
@@ -910,7 +910,7 @@ module supra_framework::pbo_delegation_pool {
 
         //Create unlock schedule fractions
         let schedule = create_schedule_fractions(&unlock_numerators,unlock_denominator);
-       
+
         pool.principle_unlock_schedule = UnlockSchedule {
             schedule: schedule,
             start_timestamp_secs: unlock_start_time,
@@ -1008,7 +1008,7 @@ module supra_framework::pbo_delegation_pool {
             error::invalid_state(EDELEGATION_POOLS_DISABLED)
         );
 
-        
+
         validate_unlock_schedule_params(
             &unlock_numerators,
             unlock_denominator,
@@ -1069,7 +1069,7 @@ module supra_framework::pbo_delegation_pool {
 
         //Create unlock schedule
         let schedule = create_schedule_fractions(&unlock_numerators,unlock_denominator);
-        
+
         move_to(
             &stake_pool_signer,
             DelegationPool {
@@ -1122,8 +1122,8 @@ module supra_framework::pbo_delegation_pool {
         assert!(
             active_stake
                 == pool_u64::total_coins(
-                    &borrow_global<DelegationPool>(pool_address).active_shares
-                ),
+                &borrow_global<DelegationPool>(pool_address).active_shares
+            ),
             error::invalid_state(EACTIVE_COIN_VALUE_NOT_SAME_STAKE_DELEGATION_POOL)
         );
         // All delegation pool enable partial governace voting by default once the feature flag is enabled.
@@ -2292,9 +2292,9 @@ module supra_framework::pbo_delegation_pool {
         if (!(
             withdrawal_exists
                 && (
-                    withdrawal_olc.index < pool.observed_lockup_cycle.index
-                        || can_withdraw_pending_inactive(pool_address)
-                )
+                withdrawal_olc.index < pool.observed_lockup_cycle.index
+                    || can_withdraw_pending_inactive(pool_address)
+            )
         )) { return };
 
         if (withdrawal_olc.index == pool.observed_lockup_cycle.index) {
@@ -2841,7 +2841,7 @@ module supra_framework::pbo_delegation_pool {
     use supra_framework::timestamp::fast_forward_seconds;
 
     #[test_only]
-    const CONSENSUS_KEY_1: vector<u8> = x"c1bd3bcb387e4ee9a909f6304a1c9902661b0ecfb1e148c7892b210c7f353dfd";
+    const CONSENSUS_KEY_1: vector<u8> = x"20e22a160e10265dd8e5f56a42d4e7ff87750cba212386bfbde5435f7746c4f15a3089935974b957b009edb3fd6bf45a3c6e60baa21e52d5b4133b88b541fdb38dc7c6ad53d218675e4bbc05b4a2abe36fe2000000800901920000000000000003bcd463767c0efdf19df8906c96d92bdf7253b131b88b1fb368a9b015073d42abf3796fa2d116625b7502c2ef2600451d317a5fdddb209425d7ea6b39f5cb8492d28b2f4ebeb146474540b5d3e5afbb0109492ec05668d364fcba443f4ca2a64f95d3e629de123e533f1ab9b704baf510ae89c566f99bc1c059139ac5a97b6c0b77f30ea744062a29423d046c2f78f62115019100000000000000ed12a32a15e132fa3e16079739345f706beb8ae68159bbb469ebe1e7e87b48a3422ade5a5fcad0d95551a94abdc2521f704c0401b8fb677564ced4c41112d84e35d501c7631addf1c14d2a0ca6de6e9ae69b0e7919492b19dacc1c7b1319351a261ba2113834497c71b39fc6094e7fb0c3a6f223966bc32b66d475c2bf9345b52022fae51e9fb8d2ac5dbd9a5719c1ac1f019300000000000000120614bfc50125d819b206148d37a507a60b3b517369ad903a4483855a58c9cfd3609e715a5bedb28c1136b9d72e3fd7781d7bd4f07b2a6f7de5d3d2159bf7565e7327ecfab633e0cbbe8eb718fc94cfafdd774a3f91a482c223fae0bf9dc4b8a42b121b2ab77ed2c2acd14f59376b8b5d9ba0c8a8b8d5044da056011fb1397b72e3426cbb239375b3addc7c517cb3f3c51a95b80300000000000001920000000000000003bcd463767c0efdf19df8906c96d92bdf7253b131b88b1fb368a9b015073d42abf3796fa2d116625b7502c2ef2600451d317a5fdddb209425d7ea6b39f5cb8492d28b2f4ebeb146474540b5d3e5afbb0109492ec05668d364fcba443f4ca2a64f95d3e629de123e533f1ab9b704baf510ae89c566f99bc1c059139ac5a97b6c0b77f30ea744062a29423d046c2f78f62115019100000000000000ed12a32a15e132fa3e16079739345f706beb8ae68159bbb469ebe1e7e87b48a3422ade5a5fcad0d95551a94abdc2521f704c0401b8fb677564ced4c41112d84e35d501c7631addf1c14d2a0ca6de6e9ae69b0e7919492b19dacc1c7b1319351a261ba2113834497c71b39fc6094e7fb0c3a6f223966bc32b66d475c2bf9345b52022fae51e9fb8d2ac5dbd9a5719c1ac1f019300000000000000120614bfc50125d819b206148d37a507a60b3b517369ad903a4483855a58c9cfd3609e715a5bedb28c1136b9d72e3fd7781d7bd4f07b2a6f7de5d3d2159bf7565e7327ecfab633e0cbbe8eb718fc94cfafdd774a3f91a482c223fae0bf9dc4b8a42b121b2ab77ed2c2acd14f59376b8b5d9ba0c8a8b8d5044da056011fb1397b72e3426cbb239375b3addc7c517cb3f3c51a95b8030000000000000120000000000000002c295f60c28e9ebd9eee117955e670eee4a81bfe4f14a2530e23e1ba3b4acd3b019c00000000000000ef60c022b09ed9a05759beb2a4e9b333743ef1152b2b3db78cbbaea6bc8cf09e911907e654d1b1bda3d79641dfd1ca586b4b2dd2ebc596c3c226549c6a14030819d10cd28ad0f569af26297d52187de0ede9d7f18bb93c65ce0b4533d936b64d5e8cbfa37ea731612e66bab5c8dda5a805b05765026857e1c1f8ef1c342b6c30f2ff604bee2624e42ae05c9c9b19a4bb184cf44d719a8098bb2fb58b20f9e380f2fe2aef7cd553b483391d36435466964cd545c71256f7f98e44da7118";
 
     #[test_only]
     const CONSENSUS_POP_1: vector<u8> = x"a9d6c1f1270f2d1454c89a83a4099f813a56dc7db55591d46aa4e6ccae7898b234029ba7052f18755e6fa5e6b73e235f14efc4e2eb402ca2b8f56bad69f965fc11b7b25eb1c95a06f83ddfd023eac4559b6582696cfea97b227f4ce5bdfdfed0";
@@ -3197,12 +3197,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator1 = @0x010,
-            delegator2 = @0x020
-        )
+    test(
+        supra_framework = @supra_framework,
+        validator = @0x123,
+        delegator1 = @0x010,
+        delegator2 = @0x020
+    )
     ]
     public entry fun test_add_stake_fee(
         supra_framework: &signer,
@@ -4436,12 +4436,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator1 = @0x010,
-            delegator2 = @0x020
-        )
+    test(
+        supra_framework = @supra_framework,
+        validator = @0x123,
+        delegator1 = @0x010,
+        delegator2 = @0x020
+    )
     ]
     public entry fun test_total_coins_inactive(
         supra_framework: &signer,
@@ -5761,12 +5761,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator1 = @0x010,
-            delegator2 = @0x020
-        )
+    test(
+        supra_framework = @supra_framework,
+        validator = @0x123,
+        delegator1 = @0x010,
+        delegator2 = @0x020
+    )
     ]
     public entry fun test_out_of_order_redeem(
         supra_framework: &signer,
@@ -5945,12 +5945,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator1 = @0x010,
-            delegator2 = @0x020
-        )
+    test(
+        supra_framework = @supra_framework,
+        validator = @0x123,
+        delegator1 = @0x010,
+        delegator2 = @0x020
+    )
     ]
     public entry fun test_operator_fee(
         supra_framework: &signer,
@@ -6244,12 +6244,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-        test(
-            supra_framework = @supra_framework,
-            old_operator = @0x123,
-            delegator = @0x010,
-            new_operator = @0x020
-        )
+    test(
+        supra_framework = @supra_framework,
+        old_operator = @0x123,
+        delegator = @0x010,
+        new_operator = @0x020
+    )
     ]
     public entry fun test_change_operator(
         supra_framework: &signer,
@@ -6365,13 +6365,13 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-        test(
-            supra_framework = @supra_framework,
-            operator1 = @0x123,
-            delegator = @0x010,
-            beneficiary = @0x020,
-            operator2 = @0x030
-        )
+    test(
+        supra_framework = @supra_framework,
+        operator1 = @0x123,
+        delegator = @0x010,
+        beneficiary = @0x020,
+        operator2 = @0x030
+    )
     ]
     public entry fun test_set_beneficiary_for_operator(
         supra_framework: &signer,
@@ -6666,12 +6666,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator1 = @0x010,
-            delegator2 = @0x020
-        )
+    test(
+        supra_framework = @supra_framework,
+        validator = @0x123,
+        delegator1 = @0x010,
+        delegator2 = @0x020
+    )
     ]
     public entry fun test_min_stake_is_preserved(
         supra_framework: &signer,
@@ -7075,12 +7075,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator1 = @0x010,
-            delegator2 = @0x020
-        )
+    test(
+        supra_framework = @supra_framework,
+        validator = @0x123,
+        delegator1 = @0x010,
+        delegator2 = @0x020
+    )
     ]
     public entry fun test_unlock_mutiple_delegators(
         supra_framework: &signer,
@@ -7150,12 +7150,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator1 = @0x010,
-            delegator2 = @0x020
-        )
+    test(
+        supra_framework = @supra_framework,
+        validator = @0x123,
+        delegator1 = @0x010,
+        delegator2 = @0x020
+    )
     ]
     #[expected_failure(abort_code = 65561, location = Self)]
     public entry fun test_multiple_users(
@@ -7359,12 +7359,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator1 = @0x010,
-            delegator2 = @0x020
-        )
+    test(
+        supra_framework = @supra_framework,
+        validator = @0x123,
+        delegator1 = @0x010,
+        delegator2 = @0x020
+    )
     ]
     public entry fun test_lose_shares_small(
         supra_framework: &signer,
@@ -7469,12 +7469,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator1 = @0x010,
-            delegator2 = @0x020
-        )
+    test(
+        supra_framework = @supra_framework,
+        validator = @0x123,
+        delegator1 = @0x010,
+        delegator2 = @0x020
+    )
     ]
     public entry fun test_lose_shares_large(
         supra_framework: &signer,
@@ -7813,12 +7813,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator = @0x010,
-            funder = @0x999
-        )
+    test(
+        supra_framework = @supra_framework,
+        validator = @0x123,
+        delegator = @0x010,
+        funder = @0x999
+    )
     ]
     /// if delegator is not part of one of the principle stake holder, and not funded with locked stake,
     /// they can unlock/withdraw without restriction
@@ -8044,12 +8044,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-        test(
-            supra_framework = @supra_framework,
-            validator = @0x123,
-            delegator = @0x010,
-            funder = @0x999
-        )
+    test(
+        supra_framework = @supra_framework,
+        validator = @0x123,
+        delegator = @0x010,
+        funder = @0x999
+    )
     ]
     /// if a single delegator was not part of one of the principle stake holder, and not funded with locked stake,
     /// they can unlock/withdraw without restriction
@@ -10358,7 +10358,7 @@ module supra_framework::pbo_delegation_pool {
         assert!(
             inactive
                 == half_delegator_allocation_with_rounding_error + half_epoch_reward
-                    - 1,
+                - 1,
             inactive
         );
         assert!(pending_inactive == 0, pending_inactive);

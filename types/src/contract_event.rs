@@ -4,7 +4,7 @@
 
 use crate::{
     account_config::{DepositEvent, NewBlockEvent, NewEpochEvent, WithdrawEvent},
-    dkg::DKGStartEvent,
+    dkg::events::{DKGFinishEvent, DKGMetaSetEvent, DKGStartEvent},
     event::EventKey,
     jwks::ObservedJWKsUpdated,
     on_chain_config::new_epoch_event_key,
@@ -22,7 +22,6 @@ use once_cell::sync::Lazy;
 use proptest_derive::Arbitrary;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{convert::TryFrom, str::FromStr};
-use crate::dkg::{DKGFinishEvent, DKGMetaSetEvent, DKGStartEventOld};
 
 pub static FEE_STATEMENT_EVENT_TYPE: Lazy<TypeTag> = Lazy::new(|| {
     TypeTag::Struct(Box::new(StructTag {
@@ -300,7 +299,7 @@ impl From<(u64, NewEpochEvent)> for ContractEvent {
     }
 }
 
-impl TryFrom<&ContractEvent> for DKGStartEventOld {
+impl TryFrom<&ContractEvent> for crate::aptos_dkg::DKGStartEvent {
     type Error = Error;
 
     fn try_from(event: &ContractEvent) -> Result<Self> {

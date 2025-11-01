@@ -1,15 +1,14 @@
 module std::dkg_committee {
 
-    use std::option;
     use std::vector;
     use aptos_std::ed25519::validated_public_key_to_bytes;
-    use supra_std::consensus_key::{consensus_public_key_from_bytes, get_ed_key, public_key_to_bytes};
+    use supra_std::validator_public_keys::{validator_public_keys_from_bytes, get_supra_ed_key, public_key_to_bytes};
     use supra_framework::validator_consensus_info;
     use supra_framework::validator_consensus_info::ValidatorConsensusInfo;
 
     const EINVALID_DKG_COMMITTEE_SIZE: u64 = 1;
     const EINVALID_DKG_NODE_PUBLIC_KEY: u64 = 2;
-    
+
     const TYPE_CLAN: u8 = 0;
     const TYPE_TRIBE: u8 = 1;
 
@@ -22,13 +21,12 @@ module std::dkg_committee {
     public fun is_clan_committee_type(t: &DkgCommitteeType): bool { t.tag == TYPE_CLAN }
     public fun is_tribe_committee_type(t: &DkgCommitteeType): bool { t.tag == TYPE_TRIBE }
 
-    //todo: should we store network addr here?
     struct DkgNodeConfig has copy, drop, store {
         addr: address,
         identity: vector<u8>,
         dkg_pubkey: vector<u8>,
     }
-    
+
     public fun new_dkg_node_config(addr: address, identity: vector<u8>, dkg_pubkey: vector<u8>,): DkgNodeConfig{
         DkgNodeConfig{
             addr,
@@ -44,29 +42,29 @@ module std::dkg_committee {
     public fun get_dkg_pubkey(dkg_node: &DkgNodeConfig): vector<u8>{
         dkg_node.dkg_pubkey
     }
-    
+
     struct DkgCommittee has copy, drop, store {
         type: DkgCommitteeType,
         committee: vector<DkgNodeConfig>,
     }
-    
+
     public fun len(committee: &DkgCommittee): u64{
         vector::length(&committee.committee)
     }
-    
+
     public fun get_committee(dkg_committee: &DkgCommittee): vector<DkgNodeConfig>{
         dkg_committee.committee
     }
-    
+
     public fun new_dkg_committee(type: DkgCommitteeType, committee: vector<DkgNodeConfig>): DkgCommittee{
-        
+
         if(is_clan_committee_type(&type)){
             assert!(vector::length(&committee) > 2, EINVALID_DKG_COMMITTEE_SIZE);
         };
         if(is_tribe_committee_type(&type)){
             assert!(vector::length(&committee) > 3, EINVALID_DKG_COMMITTEE_SIZE);
         };
-        
+
         DkgCommittee{
             type,
             committee
@@ -86,14 +84,12 @@ module std::dkg_committee {
         let dkg_committee = vector[];
         vector::for_each(validator_committee, |x|
             {
-                let consensus_pk_option = consensus_public_key_from_bytes(validator_consensus_info::get_pk_bytes(&x));
-                assert!(option::is_some(&consensus_pk_option), EINVALID_DKG_NODE_PUBLIC_KEY);
-                let consensus_key = option::extract(&mut consensus_pk_option);
+                let consensus_key = validator_public_keys_from_bytes(validator_consensus_info::get_pk_bytes(&x));
                 let consensus_key_bytes = public_key_to_bytes(consensus_key);
 
-                let ed_key = get_ed_key(&consensus_key);
+                let ed_key = get_supra_ed_key(&consensus_key);
                 let ed_key_bytes = validated_public_key_to_bytes(&ed_key);
-                
+
                 vector::push_back(&mut dkg_committee, DkgNodeConfig{
                     addr: validator_consensus_info::get_addr(&x),
                     identity: ed_key_bytes,
