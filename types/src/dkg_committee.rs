@@ -1,9 +1,9 @@
-use move_core_types::account_address::AccountAddress;
 use serde::{Deserialize, Serialize};
+use move_core_types::account_address::AccountAddress;
 
 /// Reflection of `0x1::types::DkgCommitteeType` in rust.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum DkgCommitteeType {
+pub enum DkgCommitteeType{
     Clan,
     Tribe,
 }

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{config::SecureBackend, keys::ConfigKey};
-use anyhow::anyhow;
 use aptos_crypto::{
     ed25519,
     ed25519::Ed25519PrivateKey,
@@ -11,7 +10,6 @@ use aptos_crypto::{
 };
 use aptos_types::{
     account_address::{from_identity_public_key, AccountAddress, AccountAddress as PeerId},
-    aptos_dkg::{real_dkg::maybe_dk_from_bls_sk, DKGTrait, DefaultDKG},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -19,6 +17,9 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
+use anyhow::anyhow;
+use aptos_types::dkg::{DKGTrait, DefaultDKG};
+use aptos_types::dkg::real_dkg::maybe_dk_from_bls_sk;
 
 /// A single struct for reading / writing to a file for identity across configs
 #[derive(Deserialize, Serialize)]

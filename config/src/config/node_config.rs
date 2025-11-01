@@ -47,7 +47,7 @@ pub struct NodeConfig {
     #[serde(default)]
     pub dag_consensus: DagConsensusConfig,
     #[serde(default)]
-    pub aptos_dkg: DKGConfig,
+    pub dkg: DKGConfig,
     #[serde(default)]
     pub execution: ExecutionConfig,
     #[serde(default)]

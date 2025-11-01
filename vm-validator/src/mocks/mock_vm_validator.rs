@@ -8,10 +8,11 @@ use aptos_types::{
     account_address::AccountAddress,
     state_store::StateView,
     transaction::{SignedTransaction, VMValidatorResult},
-    validator_txn::ValidatorTransaction,
     vm_status::StatusCode,
 };
-use aptos_vm::{move_vm_ext::AptosMoveResolver, VMValidator};
+use aptos_types::validator_txn::ValidatorTransaction;
+use aptos_vm::move_vm_ext::AptosMoveResolver;
+use aptos_vm::VMValidator;
 
 pub const ACCOUNT_DNE_TEST_ADD: AccountAddress =
     AccountAddress::new([0_u8; AccountAddress::LENGTH]);

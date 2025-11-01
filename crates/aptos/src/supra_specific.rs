@@ -4,9 +4,7 @@ use crate::common::types::{GasOptions, ProfileOptions, RestOptions};
 
 impl From<ProfileOptions> for supra_aptos::ProfileOptions {
     fn from(value: ProfileOptions) -> Self {
-        Self {
-            profile: value.profile,
-        }
+        Self { profile: value.profile }
     }
 }
 

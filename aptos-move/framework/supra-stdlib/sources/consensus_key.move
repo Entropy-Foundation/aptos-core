@@ -1,0 +1,201 @@
+module supra_std::consensus_key {
+
+    use std::error;
+    use std::option;
+    use std::option::Option;
+    use std::vector;
+    use aptos_std::bls12381;
+    use aptos_std::ed25519;
+    use supra_std::class_groups;
+    #[test_only]
+    use aptos_std::bls12381::public_key_with_pop_to_normal;
+    #[test_only]
+    use supra_std::consensus_key;
+
+    /// Wrong number of bytes were given as input when deserializing an consensus public key.
+    const E_WRONG_PUBKEY_SIZE: u64 = 1;
+
+    /// Invalid consensus public key
+    const EINVALID_PUBLIC_KEY: u64 = 2;
+
+    /// The size of a serialized ed25519 public key, in bytes.
+    const ED25519_PUBLIC_KEY_NUM_BYTES: u64 = 32;
+    /// The size of a serialized bls12381 G1 public key, in bytes.
+    const BLS12381_G1_PUBLIC_KEY_NUM_BYTES: u64 = 48;
+
+    /// Consensus public key consists of:
+    /// 1. Ed25519 key
+    /// 2. Bls12381 G1 key
+    /// 3. Class group encryption key
+    struct ConsensusPublicKey has copy, drop, store {
+        ed_key: ed25519::ValidatedPublicKey,
+        bls_key: option::Option<bls12381::PublicKey>,
+        cg_key: option::Option<class_groups::CGPublicKey>,
+    }
+
+    #[test_only]
+    /// This struct holds consensus secret key that can be used during testing.
+    struct SecretKey has drop {
+        ed_key: ed25519::SecretKey,
+        bls_key: bls12381::SecretKey,
+        cg_key: class_groups::SecretKey,
+    }
+
+    public fun consensus_public_key_from_bytes(bytes: vector<u8>): Option<ConsensusPublicKey>{
+        //todo: pop for ed and bls
+        if (vector::length(&bytes) == ED25519_PUBLIC_KEY_NUM_BYTES){
+            let ed_key_bytes = vector::slice(&bytes, 0, ED25519_PUBLIC_KEY_NUM_BYTES);
+            let valid_ed_public_key = ed25519::new_validated_public_key_from_bytes(ed_key_bytes);
+            assert!(option::is_some(&valid_ed_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+            option::some(ConsensusPublicKey {
+                ed_key: option::extract(&mut valid_ed_public_key),
+                bls_key: option::none<bls12381::PublicKey>(),
+                cg_key: option::none<class_groups::CGPublicKey>()
+            })
+        }
+        else if (vector::length(&bytes) > ED25519_PUBLIC_KEY_NUM_BYTES + BLS12381_G1_PUBLIC_KEY_NUM_BYTES){
+
+            let ed_key_bytes = vector::slice(&bytes, 0, ED25519_PUBLIC_KEY_NUM_BYTES);
+            let bls_key_bytes = vector::slice(&bytes, ED25519_PUBLIC_KEY_NUM_BYTES, ED25519_PUBLIC_KEY_NUM_BYTES + BLS12381_G1_PUBLIC_KEY_NUM_BYTES);
+            let cg_key_bytes = vector::slice(&bytes, ED25519_PUBLIC_KEY_NUM_BYTES + BLS12381_G1_PUBLIC_KEY_NUM_BYTES, vector::length(&bytes));
+
+            let valid_ed_public_key = ed25519::new_validated_public_key_from_bytes(ed_key_bytes);
+            assert!(option::is_some(&valid_ed_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+
+            let valid_bls_public_key = bls12381::public_key_from_bytes(bls_key_bytes);
+            assert!(option::is_some(&valid_bls_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+
+            let valid_cg_public_key = class_groups::public_key_from_bytes(cg_key_bytes);
+            assert!(option::is_some(&valid_cg_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+
+            option::some(ConsensusPublicKey {
+                ed_key: option::extract(&mut valid_ed_public_key),
+                bls_key: valid_bls_public_key,
+                cg_key: valid_cg_public_key
+            })
+
+        }
+        else {
+            option::none<ConsensusPublicKey>()
+        }
+    }
+
+    public fun public_key_to_bytes(pk: ConsensusPublicKey): vector<u8>{
+
+        let out = vector::empty<u8>();
+        let ed_bytes  = ed25519::validated_public_key_to_bytes(&pk.ed_key);
+        vector::append(&mut out, ed_bytes);
+
+        if(option::is_some(&pk.bls_key) && option::is_some(&pk.cg_key)){
+            let bls_key = option::extract(&mut pk.bls_key);
+            let bls_bytes = bls12381::public_key_to_bytes(&bls_key);
+            vector::append(&mut out, bls_bytes);
+
+            let cg_key = option::extract(&mut pk.cg_key);
+            let cg_bytes  = class_groups::public_key_to_bytes(&cg_key);
+            vector::append(&mut out, cg_bytes);
+        };
+        out
+    }
+
+    public fun get_bls_pub_key(pk: &ConsensusPublicKey): option::Option<bls12381::PublicKey>{
+        pk.bls_key
+    }
+
+    public fun get_ed_key(pk: &ConsensusPublicKey): ed25519::ValidatedPublicKey{
+        pk.ed_key
+    }
+
+    public fun get_cg_key(pk: &ConsensusPublicKey): option::Option<class_groups::CGPublicKey>{
+        pk.cg_key
+    }
+
+    #[test_only]
+    /// Generates an Consensus key pair.
+    public fun generate_keys(): (SecretKey, ConsensusPublicKey) {
+        let (ed_sk, ed_pk) = ed25519::generate_keys();
+        let (bls12381_sk, bls12381_pk) = bls12381::generate_keys();
+        let (cg_sk, cg_pk) = class_groups::generate_keys();
+
+        let sk = SecretKey{
+            ed_key: ed_sk,
+            bls_key: bls12381_sk,
+            cg_key: cg_sk
+        };
+
+        let pk = ConsensusPublicKey{
+            ed_key: ed_pk,
+            bls_key: option::some(public_key_with_pop_to_normal(&bls12381_pk)),
+            cg_key: option::some(cg_pk)
+        };
+
+        (sk,pk)
+    }
+
+    #[test]
+    fun test_serde_roundtrip_full() {
+        // Generate full keypair
+        let (_sk, pk_full) = consensus_key::generate_keys();
+
+        // Serialize
+        let bytes = consensus_key::public_key_to_bytes(pk_full);
+
+        // Parse
+        let parsed_opt = consensus_key::consensus_public_key_from_bytes(bytes);
+        assert!(option::is_some(&parsed_opt), 1000);
+        let parsed = option::extract(&mut parsed_opt);
+
+        // Compare ED bytes
+        let ed0 = get_ed_key(&pk_full);
+        let ed1 = get_ed_key(&parsed);
+        assert!(ed0 == ed1, 1001);
+
+        // BLS present and equal
+        let bls_some = consensus_key::get_bls_pub_key(&parsed);
+        assert!(option::is_some(&bls_some), 1002);
+
+        let b0 = get_bls_pub_key(&pk_full);
+        let b1 = get_bls_pub_key(&parsed);
+        assert!(b0 == b1, 1003);
+
+        // CG present and equal
+        let cg_some = consensus_key::get_cg_key(&parsed);
+        assert!(option::is_some(&cg_some), 1004);
+
+        let b0 = get_cg_key(&pk_full);
+        let b1 = get_cg_key(&parsed);
+        assert!(b0 == b1, 1005);
+    }
+
+    /// Round-trip: ED-only survives serialize parse, and BLS/CG are None
+    #[test]
+    fun test_serde_roundtrip_ed_only() {
+        let (_sk, pk_full) = consensus_key::generate_keys();
+
+        // Build an ED-only public key
+        let pk_ed_only = consensus_key::ConsensusPublicKey {
+            ed_key: consensus_key::get_ed_key(&pk_full),
+            bls_key: option::none<bls12381::PublicKey>(),
+            cg_key: option::none<supra_std::class_groups::CGPublicKey>(),
+        };
+
+        let bytes = consensus_key::public_key_to_bytes(pk_ed_only);
+        // Expect exactly ED bytes length
+        assert!(vector::length(&bytes) == 32, 1100);
+
+        let parsed_opt = consensus_key::consensus_public_key_from_bytes(bytes);
+        assert!(option::is_some(&parsed_opt), 1101);
+        let parsed = option::extract(&mut parsed_opt);
+
+        // ED equal
+        let ed0 = get_ed_key(&pk_full);
+        let ed1 = get_ed_key(&parsed);
+        assert!(ed0 == ed1, 1102);
+
+        // BLS should be None (ED-only)
+        let bls_some = consensus_key::get_bls_pub_key(&parsed);
+        assert!(!option::is_some(&bls_some), 1103);
+    }
+
+
+}

@@ -4,10 +4,8 @@
 
 use crate::transaction_shuffler::fairness::conflict_key::ConflictKey;
 use aptos_types::transaction::{SignedTransaction, TransactionPayload};
-use move_core_types::{
-    identifier::{IdentStr, Identifier},
-    language_storage::ModuleId,
-};
+use move_core_types::{identifier::Identifier, language_storage::ModuleId};
+use move_core_types::identifier::IdentStr;
 
 #[derive(Eq, Hash, PartialEq)]
 pub enum EntryFunKey {
@@ -38,7 +36,7 @@ impl ConflictKey<SignedTransaction> for EntryFunKey {
         match txn.payload() {
             TransactionPayload::AutomationRegistration(auto_payload) => {
                 EntryFunKey::from((auto_payload.module_id(), auto_payload.function()))
-            },
+            }
             TransactionPayload::EntryFunction(entry_fun) => {
                 EntryFunKey::from((entry_fun.module(), entry_fun.function()))
             },

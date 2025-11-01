@@ -107,8 +107,6 @@ pub mod counters;
 pub mod data_cache;
 
 pub mod aptos_vm;
-pub mod aptos_vm_viewer;
-mod automated_transaction_processor;
 pub mod block_executor;
 mod errors;
 pub mod gas;
@@ -125,12 +123,11 @@ pub mod transaction_metadata;
 mod transaction_validation;
 pub mod validator_txns;
 pub mod verifier;
+mod automated_transaction_processor;
+pub mod aptos_vm_viewer;
 
 pub use crate::aptos_vm::{AptosSimulationVM, AptosVM};
-use crate::{
-    move_vm_ext::AptosMoveResolver,
-    sharded_block_executor::{executor_client::ExecutorClient, ShardedBlockExecutor},
-};
+use crate::sharded_block_executor::{executor_client::ExecutorClient, ShardedBlockExecutor};
 use aptos_types::{
     block_executor::{
         config::BlockExecutorConfigFromOnchain, partitioner::PartitionedTransactions,
@@ -140,11 +137,12 @@ use aptos_types::{
         signature_verified_transaction::SignatureVerifiedTransaction, BlockOutput,
         SignedTransaction, TransactionOutput, VMValidatorResult,
     },
-    validator_txn::ValidatorTransaction,
     vm_status::VMStatus,
 };
 use std::{marker::Sync, sync::Arc};
+use aptos_types::validator_txn::ValidatorTransaction;
 pub use verifier::view_function::determine_is_view;
+use crate::move_vm_ext::AptosMoveResolver;
 
 /// This trait describes the VM's validation interfaces.
 pub trait VMValidator {

@@ -24,7 +24,6 @@ use aptos_api_types::ViewFunction;
 use aptos_crypto::{
     ed25519::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signature},
     encoding_type::{EncodingError, EncodingType},
-    hash::HashValueParseError,
     x25519, PrivateKey, ValidCryptoMaterialStringExt,
 };
 use aptos_global_constants::adjust_gas_headroom;
@@ -68,8 +67,9 @@ use std::{
     str::FromStr,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use supra_aptos::ApiVersion;
 use thiserror::Error;
+use aptos_crypto::hash::HashValueParseError;
+use supra_aptos::ApiVersion;
 
 pub const USER_AGENT: &str = concat!("aptos-cli/", env!("CARGO_PKG_VERSION"));
 const US_IN_SECS: u64 = 1_000_000;

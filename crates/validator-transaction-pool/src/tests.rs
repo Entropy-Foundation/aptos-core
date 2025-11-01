@@ -5,7 +5,7 @@ use crate::{TransactionFilter, VTxnPoolState};
 use aptos_channels::{aptos_channel, message_queues::QueueStyle};
 use aptos_crypto::hash::CryptoHash;
 use aptos_types::{
-    dkg::transactions::DKGTransactionData,
+    dkg::DKGTransactionData,
     jwks::{dummy_issuer, QuorumCertifiedUpdate},
     validator_txn::{Topic, ValidatorTransaction},
 };

@@ -3,12 +3,11 @@
 
 use self::framework::FrameworkReleaseConfig;
 use crate::{
-    aptos_core_path,
+    aptos_core_path, supra_framework_path,
     components::{
         feature_flags::Features, oidc_providers::OidcProviderOp,
         randomness_config::ReleaseFriendlyRandomnessConfig,
     },
-    supra_framework_path,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use aptos::governance::GenerateExecutionHash;

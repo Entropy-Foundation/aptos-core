@@ -3,8 +3,8 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::automated_transaction_processor::AutomatedTransactionProcessor;
 use crate::{
-    automated_transaction_processor::AutomatedTransactionProcessor,
     block_executor::{AptosTransactionOutput, BlockAptosVM},
     counters::*,
     data_cache::{AsMoveResolver, StorageAdapter},
@@ -27,10 +27,7 @@ use crate::{
 };
 use anyhow::anyhow;
 use aptos_block_executor::txn_commit_hook::NoOpTransactionCommitHook;
-use aptos_crypto::{
-    bls12381::{PublicKey, Signature},
-    HashValue,
-};
+use aptos_crypto::HashValue;
 use aptos_framework::{
     natives::{code::PublishRequest, randomness::RandomnessContext},
     RuntimeModuleMetadataV1,
@@ -42,6 +39,7 @@ use aptos_logger::{enabled, prelude::*, Level};
 use aptos_metrics_core::TimerHelper;
 #[cfg(any(test, feature = "testing"))]
 use aptos_types::state_store::StateViewId;
+use aptos_types::transaction::automation::RegistrationParams;
 use aptos_types::{
     account_config::{self, new_block_event_key, AccountResource},
     block_executor::{
@@ -51,24 +49,21 @@ use aptos_types::{
     block_metadata::BlockMetadata,
     block_metadata_ext::{BlockMetadataExt, BlockMetadataWithRandomness},
     chain_id::ChainId,
-    dkg::{state::DKGState, transactions::DKGTransactionType},
     fee_statement::FeeStatement,
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{
-        new_epoch_event_key, ApprovedExecutionHashes, ConfigStorage, ConfigurationResource,
-        FeatureFlag, Features, OnChainConfig, TimedFeatureFlag, TimedFeatures,
+        new_epoch_event_key, ApprovedExecutionHashes, ConfigStorage, FeatureFlag, Features,
+        OnChainConfig, TimedFeatureFlag, TimedFeatures,
     },
     randomness::Randomness,
     state_store::{StateView, TStateView},
     transaction::{
-        authenticator::AnySignature, automation::RegistrationParams,
-        signature_verified_transaction::SignatureVerifiedTransaction, BlockOutput, EntryFunction,
-        ExecutionError, ExecutionStatus, ModuleBundle, Multisig, MultisigTransactionPayload,
-        Script, SignedTransaction, Transaction, TransactionAuxiliaryData, TransactionOutput,
-        TransactionPayload, TransactionStatus, VMValidatorResult, ViewFunctionOutput,
-        WriteSetPayload,
+        authenticator::AnySignature, signature_verified_transaction::SignatureVerifiedTransaction,
+        BlockOutput, EntryFunction, ExecutionError, ExecutionStatus, ModuleBundle, Multisig,
+        MultisigTransactionPayload, Script, SignedTransaction, Transaction,
+        TransactionAuxiliaryData, TransactionOutput, TransactionPayload, TransactionStatus,
+        VMValidatorResult, ViewFunctionOutput, WriteSetPayload,
     },
-    validator_txn::ValidatorTransaction,
     vm_status::{AbortLocation, StatusCode, VMStatus},
 };
 use aptos_utils::{aptos_try, return_on_failure};
@@ -115,6 +110,10 @@ use std::{
     marker::Sync,
     sync::Arc,
 };
+use aptos_crypto::bls12381::{PublicKey, Signature};
+use aptos_types::dkg::{DKGState, DKGTransactionType};
+use aptos_types::on_chain_config::ConfigurationResource;
+use aptos_types::validator_txn::ValidatorTransaction;
 
 static EXECUTION_CONCURRENCY_LEVEL: OnceCell<usize> = OnceCell::new();
 static NUM_EXECUTION_SHARD: OnceCell<usize> = OnceCell::new();
@@ -157,8 +156,8 @@ macro_rules! unwrap_or_discard {
     };
 }
 
-use crate::gas::check_automation_task_gas;
 pub(crate) use unwrap_or_discard;
+use crate::gas::check_automation_task_gas;
 
 pub(crate) fn get_system_transaction_output(
     session: SessionExt,
@@ -776,10 +775,11 @@ impl AptosVM {
             let module_id = traversal_context
                 .referenced_module_ids
                 .alloc(entry_fn.module().clone());
-            session.check_dependencies_and_charge_gas(gas_meter, traversal_context, [(
-                module_id.address(),
-                module_id.name(),
-            )])?;
+            session.check_dependencies_and_charge_gas(
+                gas_meter,
+                traversal_context,
+                [(module_id.address(), module_id.name())],
+            )?;
         }
 
         let function =
@@ -980,10 +980,11 @@ impl AptosVM {
             let module_id = traversal_context
                 .referenced_module_ids
                 .alloc(registration_params.module_id().clone());
-            session.check_dependencies_and_charge_gas(gas_meter, traversal_context, [(
-                module_id.address(),
-                module_id.name(),
-            )])?;
+            session.check_dependencies_and_charge_gas(
+                gas_meter,
+                traversal_context,
+                [(module_id.address(), module_id.name())],
+            )?;
         }
         let args = registration_params
             .serialized_args_with_sender_and_parent_hash(sender, txn_metadata.txn_app_hash.clone());
@@ -2633,8 +2634,14 @@ impl AptosVM {
                 (VMStatus::Executed, output)
             },
             Transaction::ValidatorTransaction(txn) => {
-                if !self.features().is_enabled(FeatureFlag::SUPRA_DKG) {
-                    return Err(VMStatus::error(StatusCode::FEATURE_UNDER_GATING, None));
+                if !self
+                    .features()
+                    .is_enabled(FeatureFlag::SUPRA_DKG)
+                {
+                    return Err(VMStatus::error(
+                        StatusCode::FEATURE_UNDER_GATING,
+                        None,
+                    ));
                 }
 
                 let (vm_status, output) =
@@ -2827,12 +2834,17 @@ impl VMValidator for AptosVM {
         result
     }
 
+
     fn validate_dkg_validator_transaction(
         &self,
         transaction: ValidatorTransaction,
         resolver: &impl AptosMoveResolver,
     ) -> VMValidatorResult {
-        if !self.features().is_enabled(FeatureFlag::SUPRA_DKG) {
+
+        if !self
+            .features()
+            .is_enabled(FeatureFlag::SUPRA_DKG)
+        {
             return VMValidatorResult::error(StatusCode::FEATURE_UNDER_GATING);
         }
 
@@ -2847,18 +2859,15 @@ impl VMValidator for AptosVM {
         };
 
         let DKGState { in_progress, .. } = dkg_state;
-        let in_progress_session_state = match in_progress {
+        let in_progress_session_state = match in_progress{
             Some(session) => session,
             None => return VMValidatorResult::error(StatusCode::DKG_SESSION_NOT_IN_PROGRESS),
+
         };
 
         let dkg_transaction = match transaction {
             ValidatorTransaction::DKG(txn) => txn,
-            _ => {
-                return VMValidatorResult::error(
-                    StatusCode::ONLY_DKG_TRANSACTION_VALIDATION_SUPPORTED,
-                )
-            },
+            _ => return VMValidatorResult::error(StatusCode::ONLY_DKG_TRANSACTION_VALIDATION_SUPPORTED),
         };
 
         // Check epoch number.
@@ -2869,71 +2878,57 @@ impl VMValidator for AptosVM {
         match dkg_transaction.metadata.transaction_type {
             DKGTransactionType::DKGMeta => {
                 // dkg meta should not be already set
-                if in_progress_session_state.dkg_meta_transcript.len() != 0 {
+                if in_progress_session_state.dkg_meta_transcript.len() != 0{
                     return VMValidatorResult::error(StatusCode::DKG_META_ALREADY_SET);
                 }
-            },
+            }
             DKGTransactionType::PublicKeyShares => {
                 // dkg meta should be already set
-                if in_progress_session_state.dkg_meta_transcript.len() == 0 {
+                if in_progress_session_state.dkg_meta_transcript.len() == 0{
                     return VMValidatorResult::error(StatusCode::DKG_META_NOT_SET);
                 }
-            },
+            }
         }
 
         // the node submitting the transaction must be a family node
         let dealer_committee = &in_progress_session_state.metadata.dealer_committee;
         let randomness_seed = &in_progress_session_state.metadata.randomness_seed;
-        if !aptos_types::dkg::is_node_family_committee_member(
-            dkg_transaction.metadata.author,
-            dealer_committee,
-            randomness_seed,
-        ) {
+        if !aptos_types::dkg::is_node_family_committee_member(dkg_transaction.metadata.author, dealer_committee, randomness_seed){
             return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_SENDER_NOT_FAMILY_NODE);
         }
 
-        if dkg_transaction.data_bytes.is_empty()
-            || dkg_transaction.metadata.bls_aggregate_signature.is_empty()
-            || dkg_transaction
-                .metadata
-                .signer_indices_clan_committee
-                .is_empty()
+        if dkg_transaction.data_bytes.is_empty() ||
+            dkg_transaction.metadata.bls_aggregate_signature.is_empty() ||
+            dkg_transaction.metadata.signer_indices_clan_committee.is_empty()
         {
             return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_NOT_VALID);
         }
 
         // verify clan committee multi-signature on the transaction data
-        let signer_bls_pubkeys = match aptos_types::dkg::get_clan_nodes_bls_keys_from_indices(
-            dealer_committee,
-            &dkg_transaction.metadata.signer_indices_clan_committee,
-            randomness_seed,
-        ) {
-            Ok(bls_keys) => bls_keys,
+        let signer_bls_pubkeys = match aptos_types::dkg::get_clan_nodes_bls_keys_from_indices(dealer_committee,
+                                                                                        &dkg_transaction.metadata.signer_indices_clan_committee,
+                                                                                        randomness_seed){
+            Ok(bls_keys) => {bls_keys}
             Err(_) => {
                 return VMValidatorResult::error(StatusCode::DKG_FAILED_TO_GET_CLAN_NODE_PUBKEYS);
-            },
+            }
         };
 
-        let agg_sig = match Signature::try_from(
-            dkg_transaction.metadata.bls_aggregate_signature.as_slice(),
-        ) {
-            Ok(sig) => sig,
+        let agg_sig = match Signature::try_from(dkg_transaction.metadata.bls_aggregate_signature.as_slice()){
+            Ok(sig) => {sig}
             Err(_) => {
                 return VMValidatorResult::error(StatusCode::DKG_FAILED_TO_DESER_AGG_SIG);
-            },
+            }
         };
 
-        let agg_pk = match PublicKey::aggregate(signer_bls_pubkeys.iter().collect()) {
-            Ok(pk) => pk,
+        let agg_pk = match PublicKey::aggregate(signer_bls_pubkeys.iter().collect()){
+            Ok(pk) => {pk}
             Err(_) => {
                 return VMValidatorResult::error(StatusCode::DKG_FAILED_TO_AGGREGATE_PUBLIC_KEYS);
-            },
+            }
         };
 
-        if agg_sig
-            .verify_aggregate_arbitrary_msg(&[dkg_transaction.data_bytes.as_slice()], &[&agg_pk])
-            .is_err()
-        {
+        if agg_sig.verify_aggregate_arbitrary_msg(&[dkg_transaction.data_bytes.as_slice()], &[&agg_pk]).is_err(){
             return VMValidatorResult::error(StatusCode::DKG_AGG_SIG_VERIFICATION_FAILED);
         }
 

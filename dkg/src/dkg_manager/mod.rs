@@ -13,9 +13,8 @@ use aptos_crypto::Uniform;
 use aptos_infallible::duration_since_epoch;
 use aptos_logger::{debug, error, info, warn};
 use aptos_types::{
-    aptos_dkg::{
-        DKGSessionMetadata, DKGSessionState, DKGStartEvent, DKGTrait, DKGTranscript,
-        DKGTranscriptMetadata, MayHaveRoundingSummary,
+    dkg::{
+        DKGTrait, DKGTranscript, MayHaveRoundingSummary,
     },
     epoch_state::EpochState,
     validator_txn::{Topic, ValidatorTransaction},
@@ -27,6 +26,7 @@ use futures_util::{future::AbortHandle, FutureExt, StreamExt};
 use move_core_types::account_address::AccountAddress;
 use rand::{prelude::StdRng, thread_rng, SeedableRng};
 use std::{sync::Arc, time::Duration};
+use aptos_types::dkg::{DKGSessionMetadataOld, DKGSessionStateOld, DKGStartEventOld, DKGTransactionData};
 
 #[derive(Clone, Debug)]
 enum InnerState {
@@ -116,8 +116,8 @@ impl<DKG: DKGTrait> DKGManager<DKG> {
 
     pub async fn run(
         mut self,
-        in_progress_session: Option<DKGSessionState>,
-        mut dkg_start_event_rx: aptos_channel::Receiver<(), DKGStartEvent>,
+        in_progress_session: Option<DKGSessionStateOld>,
+        mut dkg_start_event_rx: aptos_channel::Receiver<(), DKGStartEventOld>,
         mut rpc_msg_rx: aptos_channel::Receiver<
             AccountAddress,
             (AccountAddress, IncomingRpcRequest),
@@ -135,7 +135,7 @@ impl<DKG: DKGTrait> DKGManager<DKG> {
         self.agg_trx_tx = Some(agg_trx_tx);
 
         if let Some(session_state) = in_progress_session {
-            let DKGSessionState {
+            let DKGSessionStateOld {
                 start_time_us,
                 metadata,
                 ..
@@ -290,7 +290,7 @@ impl<DKG: DKGTrait> DKGManager<DKG> {
     async fn setup_deal_broadcast(
         &mut self,
         start_time_us: u64,
-        dkg_session_metadata: &DKGSessionMetadata,
+        dkg_session_metadata: &DKGSessionMetadataOld,
     ) -> Result<()> {
         ensure!(
             matches!(&self.state, InnerState::NotStarted),
@@ -390,14 +390,7 @@ impl<DKG: DKGTrait> DKGManager<DKG> {
                     .with_label_values(&[self.my_addr.to_hex().as_str(), "agg_transcript_ready"])
                     .observe(secs_since_dkg_start);
 
-                let txn = ValidatorTransaction::DKGResult(DKGTranscript {
-                    metadata: DKGTranscriptMetadata {
-                        epoch: self.epoch_state.epoch,
-                        author: self.my_addr,
-                    },
-                    transcript_bytes: bcs::to_bytes(&agg_trx)
-                        .map_err(|e| anyhow!("transcript serialization error: {e}"))?,
-                });
+                let txn = ValidatorTransaction::DKG(DKGTransactionData::dummy());
                 let vtxn_guard = self.vtxn_pool.put(
                     Topic::DKG,
                     Arc::new(txn),
@@ -420,14 +413,14 @@ impl<DKG: DKGTrait> DKGManager<DKG> {
         Ok(())
     }
 
-    async fn process_dkg_start_event(&mut self, event: DKGStartEvent) -> Result<()> {
+    async fn process_dkg_start_event(&mut self, event: DKGStartEventOld) -> Result<()> {
         info!(
             epoch = self.epoch_state.epoch,
             my_addr = self.my_addr,
             "[DKG] Processing DKGStart event."
         );
         fail_point!("dkg::process_dkg_start_event");
-        let DKGStartEvent {
+        let DKGStartEventOld {
             session_metadata,
             start_time_us,
         } = event;

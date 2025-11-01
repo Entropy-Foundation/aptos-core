@@ -14,7 +14,7 @@ use aptos_crypto::{
 };
 use aptos_infallible::RwLock;
 use aptos_types::{
-    aptos_dkg::{
+    dkg::{
         dummy_dkg::DummyDKG, DKGSessionMetadata, DKGStartEvent, DKGTrait, DKGTranscript,
         DKGTranscriptMetadata,
     },

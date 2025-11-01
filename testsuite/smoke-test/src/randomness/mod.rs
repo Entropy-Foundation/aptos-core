@@ -8,7 +8,7 @@ use aptos_forge::LocalSwarm;
 use aptos_logger::info;
 use aptos_rest_client::Client;
 use aptos_types::{
-    aptos_dkg::{DKGSessionState, DKGState, DKGTrait, DefaultDKG},
+    dkg::{DKGSessionState, DKGState, DKGTrait, DefaultDKG},
     on_chain_config::{OnChainConfig, OnChainConsensusConfig},
     randomness::{PerBlockRandomness, RandMetadata, WVUF},
     validator_verifier::ValidatorConsensusInfo,

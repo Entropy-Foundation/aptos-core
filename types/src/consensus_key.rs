@@ -31,6 +31,7 @@ impl TryFrom<Vec<u8>> for ConsensusPublicKey {
     type Error = ConsensusKeyError;
 
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+
         // Case 1: Only ED key present
         if bytes.len() == aptos_crypto::ed25519::ED25519_PUBLIC_KEY_LENGTH {
             Ok(Self {
@@ -40,10 +41,7 @@ impl TryFrom<Vec<u8>> for ConsensusPublicKey {
             })
         }
         // Case 2: ED + BLS + CG present
-        else if bytes.len()
-            > aptos_crypto::ed25519::ED25519_PUBLIC_KEY_LENGTH
-                + aptos_crypto::bls12381::PublicKey::LENGTH
-        {
+        else if bytes.len() > aptos_crypto::ed25519::ED25519_PUBLIC_KEY_LENGTH + aptos_crypto::bls12381::PublicKey::LENGTH {
             let ed_end = aptos_crypto::ed25519::ED25519_PUBLIC_KEY_LENGTH;
             let bls_end = ed_end + aptos_crypto::bls12381::PublicKey::LENGTH;
 
@@ -51,11 +49,7 @@ impl TryFrom<Vec<u8>> for ConsensusPublicKey {
             let bls_key = Some(bytes[ed_end..bls_end].to_vec());
             let cg_key = Some(bytes[bls_end..].to_vec());
 
-            Ok(Self {
-                ed_key,
-                bls_key,
-                cg_key,
-            })
+            Ok(Self { ed_key, bls_key, cg_key })
         }
         // Otherwise: invalid input
         else {

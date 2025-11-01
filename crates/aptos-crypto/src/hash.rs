@@ -113,7 +113,7 @@ use std::{
     fmt,
     str::FromStr,
 };
-use tiny_keccak::{Hasher, Keccak, Sha3};
+use tiny_keccak::{Hasher, Sha3, Keccak};
 
 /// A prefix used to begin the salt of every hashable structure. The salt
 /// consists in this global prefix, concatenated with the specified
