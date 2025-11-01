@@ -2,19 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use aptos_language_e2e_tests::executor::FakeExecutor;
-use aptos_types::move_utils::MemberId;
-use aptos_types::transaction::{ViewFunction, ViewFunctionOutput};
+use aptos_logger::debug;
+use aptos_types::{
+    move_utils::MemberId,
+    transaction::{ViewFunction, ViewFunctionOutput},
+};
 use aptos_vm::aptos_vm_viewer::AptosVMViewer;
 use move_core_types::language_storage::TypeTag;
 use std::time::Instant;
-use aptos_logger::debug;
 
 const TIMESTAMP_NOW_SECONDS: &str = "0x1::timestamp::now_seconds";
 const ACCOUNT_BALANCE: &str = "0x1::coin::balance";
 const ACCOUNT_SEQ_NUM: &str = "0x1::account::get_sequence_number";
 const SUPRA_COIN: &str = "0x1::supra_coin::SupraCoin";
 
-pub(crate) fn to_view_function(fn_ref: MemberId, ty_args: Vec<TypeTag>, args: Vec<Vec<u8>>) -> ViewFunction {
+pub(crate) fn to_view_function(
+    fn_ref: MemberId,
+    ty_args: Vec<TypeTag>,
+    args: Vec<Vec<u8>>,
+) -> ViewFunction {
     ViewFunction::new(fn_ref.module_id, fn_ref.member_id, ty_args, args)
 }
 
@@ -73,7 +79,10 @@ fn test_vm_viewer() {
     let viewer_ifc_time = Instant::now();
     let time = Instant::now();
     let vm_viewer = AptosVMViewer::new(test_executor.data_store());
-    debug!("AptosVMViewer creation time: {}", time.elapsed().as_secs_f64());
+    debug!(
+        "AptosVMViewer creation time: {}",
+        time.elapsed().as_secs_f64()
+    );
     let actual_results = accounts
         .iter()
         .map(|account| {

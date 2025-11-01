@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::transaction::EntryFunction;
-use move_core_types::account_address::AccountAddress;
-use move_core_types::identifier::{IdentStr, Identifier};
-use move_core_types::language_storage::{ModuleId, TypeTag, CORE_CODE_ADDRESS};
-use move_core_types::value::{serialize_values, MoveValue};
+use move_core_types::{
+    account_address::AccountAddress,
+    identifier::{IdentStr, Identifier},
+    language_storage::{ModuleId, TypeTag, CORE_CODE_ADDRESS},
+    value::{serialize_values, MoveValue},
+};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
@@ -23,11 +25,10 @@ static AUTOMATION_REGISTRATION_ENTRY: Lazy<AutomationTransactionEntryRef> =
         function: Identifier::new("register").unwrap(),
     });
 
-
 /// Represents set of parameters required to register automation task.
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RegistrationParams {
-    V1(RegistrationParamsV1)
+    V1(RegistrationParamsV1),
 }
 impl RegistrationParams {
     pub fn new_v1(
@@ -38,7 +39,7 @@ impl RegistrationParams {
         automation_fee_cap_for_epoch: u64,
         aux_data: Vec<Vec<u8>>,
     ) -> RegistrationParams {
-        RegistrationParams::V1(RegistrationParamsV1::new (
+        RegistrationParams::V1(RegistrationParamsV1::new(
             automated_function,
             expiration_timestamp_secs,
             max_gas_amount,
@@ -121,7 +122,7 @@ pub struct RegistrationParamsV1 {
     /// which will require all components upgrade( not only supra-framework/state but also node)
     /// then it is advised to add a new version of registration parameters and have the new parameter properly
     /// integrated in the automation-task/automated-transaction execution flow.
-    aux_data: Vec<Vec<u8>>
+    aux_data: Vec<Vec<u8>>,
 }
 
 impl RegistrationParamsV1 {
@@ -157,6 +158,7 @@ impl RegistrationParamsV1 {
             self.aux_data,
         )
     }
+
     /// Module id containing registration function.
     pub fn module_id(&self) -> &ModuleId {
         &AUTOMATION_REGISTRATION_ENTRY.module_id
@@ -177,7 +179,11 @@ impl RegistrationParamsV1 {
         sender: AccountAddress,
         parent_hash: Vec<u8>,
     ) -> Vec<Vec<u8>> {
-        let aux_move_args = self.aux_data.iter().map(|item| MoveValue::vector_u8(item.clone())).collect();
+        let aux_move_args = self
+            .aux_data
+            .iter()
+            .map(|item| MoveValue::vector_u8(item.clone()))
+            .collect();
         serialize_values(&[
             MoveValue::Address(sender),
             MoveValue::vector_u8(bcs::to_bytes(&self.automated_function).unwrap()),

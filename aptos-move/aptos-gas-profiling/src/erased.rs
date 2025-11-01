@@ -296,7 +296,11 @@ impl StorageFees {
 
         TypeErasedStorageFees {
             total: self.total,
-            tree: Node::new_with_children("storage fees (SUPRA)", (Fee::zero(), Fee::zero()), nodes),
+            tree: Node::new_with_children(
+                "storage fees (SUPRA)",
+                (Fee::zero(), Fee::zero()),
+                nodes,
+            ),
         }
     }
 }

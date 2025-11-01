@@ -3587,9 +3587,9 @@ module supra_framework::vesting_without_staking {
         vest_individual(contract_address, shareholder_2_address);
 
         // Assert both shareholders have received their full original amount
-        let (init_amount_1, left_amount_1, _) =
+        let (_init_amount_1, left_amount_1, _) =
             get_vesting_record(contract_address, shareholder_1_address);
-        let (init_amount_2, left_amount_2, _) =
+        let (_init_amount_2, left_amount_2, _) =
             get_vesting_record(contract_address, shareholder_2_address);
 
         assert!(left_amount_1 == 0, left_amount_1);

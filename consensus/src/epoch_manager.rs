@@ -81,7 +81,7 @@ use aptos_safety_rules::SafetyRulesManager;
 use aptos_secure_storage::{KVStorage, Storage};
 use aptos_types::{
     account_address::AccountAddress,
-    dkg::{real_dkg::maybe_dk_from_bls_sk, DKGTrait, DefaultDKG},
+    aptos_dkg::{real_dkg::maybe_dk_from_bls_sk, DKGState, DKGTrait, DefaultDKG},
     epoch_change::EpochChangeProof,
     epoch_state::EpochState,
     jwks::SupportedOIDCProviders,
@@ -115,7 +115,6 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use aptos_types::dkg::DKGStateOld;
 
 /// Range of rounds (window) that we might be calling proposer election
 /// functions with at any given time, in addition to the proposer history length.
@@ -922,7 +921,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
         &self,
         new_epoch_state: &EpochState,
         onchain_randomness_config: &OnChainRandomnessConfig,
-        maybe_dkg_state: anyhow::Result<DKGStateOld>,
+        maybe_dkg_state: anyhow::Result<DKGState>,
         consensus_config: &OnChainConsensusConfig,
     ) -> Result<(RandConfig, Option<RandConfig>), NoRandomnessReason> {
         if !consensus_config.is_vtxn_enabled() {
@@ -1071,7 +1070,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
         let randomness_config_move_struct: anyhow::Result<RandomnessConfigMoveStruct> =
             payload.get();
         let onchain_jwk_consensus_config: anyhow::Result<OnChainJWKConsensusConfig> = payload.get();
-        let dkg_state = payload.get::<DKGStateOld>();
+        let dkg_state = payload.get::<DKGState>();
 
         if let Err(error) = &onchain_consensus_config {
             error!("Failed to read on-chain consensus config {}", error);

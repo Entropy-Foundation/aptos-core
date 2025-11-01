@@ -13,10 +13,10 @@ pub mod move_tool;
 pub mod node;
 pub mod op;
 pub mod stake;
+pub mod supra_specific;
 #[cfg(any(test, feature = "fuzzing"))]
 pub mod test;
 pub mod update;
-pub mod supra_specific;
 
 use crate::common::{
     types::{CliCommand, CliResult, CliTypedResult},

@@ -8500,6 +8500,9 @@ impl serde::Serialize for ValidatorTransaction {
                 validator_transaction::ValidatorTransactionType::DkgUpdate(v) => {
                     struct_ser.serialize_field("dkgUpdate", v)?;
                 }
+                validator_transaction::ValidatorTransactionType::Dkg(v) => {
+                    struct_ser.serialize_field("dkg", v)?;
+                }
             }
         }
         struct_ser.end()
@@ -8821,6 +8824,288 @@ impl<'de> serde::Deserialize<'de> for validator_transaction::dkg_update::DkgTran
             }
         }
         deserializer.deserialize_struct("aptos.transaction.v1.ValidatorTransaction.DkgUpdate.DkgTranscript", FIELDS, GeneratedVisitor)
+    }
+}
+impl serde::Serialize for validator_transaction::DkgTransactionData {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if self.dkg_data.is_some() {
+            len += 1;
+        }
+        let mut struct_ser = serializer.serialize_struct("aptos.transaction.v1.ValidatorTransaction.DkgTransactionData", len)?;
+        if let Some(v) = self.dkg_data.as_ref() {
+            struct_ser.serialize_field("dkgData", v)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for validator_transaction::DkgTransactionData {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "dkg_data",
+            "dkgData",
+        ];
+
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            DkgData,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(deserializer: D) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+
+                impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+                    type Value = GeneratedField;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", &FIELDS)
+                    }
+
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(self, value: &str) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "dkgData" | "dkg_data" => Ok(GeneratedField::DkgData),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = validator_transaction::DkgTransactionData;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("struct aptos.transaction.v1.ValidatorTransaction.DkgTransactionData")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> std::result::Result<validator_transaction::DkgTransactionData, V::Error>
+                where
+                    V: serde::de::MapAccess<'de>,
+            {
+                let mut dkg_data__ = None;
+                while let Some(k) = map.next_key()? {
+                    match k {
+                        GeneratedField::DkgData => {
+                            if dkg_data__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("dkgData"));
+                            }
+                            dkg_data__ = map.next_value()?;
+                        }
+                    }
+                }
+                Ok(validator_transaction::DkgTransactionData {
+                    dkg_data: dkg_data__,
+                })
+            }
+        }
+        deserializer.deserialize_struct("aptos.transaction.v1.ValidatorTransaction.DkgTransactionData", FIELDS, GeneratedVisitor)
+    }
+}
+impl serde::Serialize for validator_transaction::dkg_data::DkgTransactionData {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if self.epoch != 0 {
+            len += 1;
+        }
+        if !self.author.is_empty() {
+            len += 1;
+        }
+        if !self.bls_aggregate_signature.is_empty() {
+            len += 1;
+        }
+        if !self.signer_indices_clan_committee.is_empty() {
+            len += 1;
+        }
+        if self.transaction_type != 0 {
+            len += 1;
+        }
+        if !self.payload.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer.serialize_struct("aptos.transaction.v1.ValidatorTransaction.DkgTransactionData.DkgTransactionData", len)?;
+        if self.epoch != 0 {
+            struct_ser.serialize_field("epoch", ToString::to_string(&self.epoch).as_str())?;
+        }
+        if !self.author.is_empty() {
+            struct_ser.serialize_field("author", &self.author)?;
+        }
+        if !self.bls_aggregate_signature.is_empty() {
+            struct_ser.serialize_field("blsAggregateSignature", pbjson::private::base64::encode(&self.bls_aggregate_signature).as_str())?;
+        }
+        if !self.signer_indices_clan_committee.is_empty() {
+            struct_ser.serialize_field("signerIndicesClanCommittee", &self.signer_indices_clan_committee.iter().map(ToString::to_string).collect::<Vec<_>>())?;
+        }
+        if self.transaction_type != 0 {
+            struct_ser.serialize_field("transactionType", ToString::to_string(&self.transaction_type).as_str())?;
+        }
+        if !self.payload.is_empty() {
+            struct_ser.serialize_field("payload", pbjson::private::base64::encode(&self.payload).as_str())?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for validator_transaction::dkg_data::DkgTransactionData {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "epoch",
+            "author",
+            "bls_aggregate_signature",
+            "blsAggregateSignature",
+            "signer_indices_clan_committee",
+            "signerIndicesClanCommittee",
+            "transaction_type",
+            "transactionType",
+            "payload",
+        ];
+
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Epoch,
+            Author,
+            BlsAggregateSignature,
+            SignerIndicesClanCommittee,
+            TransactionType,
+            Payload,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(deserializer: D) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+
+                impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+                    type Value = GeneratedField;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", &FIELDS)
+                    }
+
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(self, value: &str) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "epoch" => Ok(GeneratedField::Epoch),
+                            "author" => Ok(GeneratedField::Author),
+                            "blsAggregateSignature" | "bls_aggregate_signature" => Ok(GeneratedField::BlsAggregateSignature),
+                            "signerIndicesClanCommittee" | "signer_indices_clan_committee" => Ok(GeneratedField::SignerIndicesClanCommittee),
+                            "transactionType" | "transaction_type" => Ok(GeneratedField::TransactionType),
+                            "payload" => Ok(GeneratedField::Payload),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = validator_transaction::dkg_data::DkgTransactionData;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("struct aptos.transaction.v1.ValidatorTransaction.DkgTransactionData.DkgTransactionData")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> std::result::Result<validator_transaction::dkg_data::DkgTransactionData, V::Error>
+                where
+                    V: serde::de::MapAccess<'de>,
+            {
+                let mut epoch__ = None;
+                let mut author__ = None;
+                let mut bls_aggregate_signature__ = None;
+                let mut signer_indices_clan_committee__ = None;
+                let mut transaction_type__ = None;
+                let mut payload__ = None;
+                while let Some(k) = map.next_key()? {
+                    match k {
+                        GeneratedField::Epoch => {
+                            if epoch__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("epoch"));
+                            }
+                            epoch__ =
+                                Some(map.next_value::<::pbjson::private::NumberDeserialize<_>>()?.0)
+                            ;
+                        }
+                        GeneratedField::Author => {
+                            if author__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("author"));
+                            }
+                            author__ = Some(map.next_value()?);
+                        }
+                        GeneratedField::BlsAggregateSignature => {
+                            if bls_aggregate_signature__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("blsAggregateSignature"));
+                            }
+                            bls_aggregate_signature__ =
+                                Some(map.next_value::<::pbjson::private::BytesDeserialize<_>>()?.0)
+                            ;
+                        }
+                        GeneratedField::SignerIndicesClanCommittee => {
+                            if signer_indices_clan_committee__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("signerIndicesClanCommittee"));
+                            }
+                            signer_indices_clan_committee__ =
+                                Some(map.next_value::<Vec<::pbjson::private::NumberDeserialize<_>>>()?
+                                    .into_iter().map(|x| x.0).collect())
+                            ;
+                        }
+                        GeneratedField::TransactionType => {
+                            if transaction_type__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("transactionType"));
+                            }
+                            transaction_type__ =
+                                Some(map.next_value::<::pbjson::private::NumberDeserialize<_>>()?.0)
+                            ;
+                        }
+                        GeneratedField::Payload => {
+                            if payload__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("payload"));
+                            }
+                            payload__ =
+                                Some(map.next_value::<::pbjson::private::BytesDeserialize<_>>()?.0)
+                            ;
+                        }
+                    }
+                }
+                Ok(validator_transaction::dkg_data::DkgTransactionData {
+                    epoch: epoch__.unwrap_or_default(),
+                    author: author__.unwrap_or_default(),
+                    bls_aggregate_signature: bls_aggregate_signature__.unwrap_or_default(),
+                    signer_indices_clan_committee: signer_indices_clan_committee__.unwrap_or_default(),
+                    transaction_type: transaction_type__.unwrap_or_default(),
+                    payload: payload__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer.deserialize_struct("aptos.transaction.v1.ValidatorTransaction.DkgTransactionData.DkgTransactionData", FIELDS, GeneratedVisitor)
     }
 }
 impl serde::Serialize for validator_transaction::ObservedJwkUpdate {

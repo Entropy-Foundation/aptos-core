@@ -25,7 +25,8 @@ use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
     on_chain_config::{
-        Features, GasScheduleV2, OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig
+        AutomationRegistryConfig, Features, GasScheduleV2, OnChainConsensusConfig,
+        OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig,
     },
     transaction::Transaction,
     waypoint::Waypoint,
@@ -33,7 +34,6 @@ use aptos_types::{
 use aptos_vm::AptosVM;
 use aptos_vm_genesis::Validator;
 use std::convert::TryInto;
-use aptos_types::on_chain_config::AutomationRegistryConfig;
 
 /// Holder object for all pieces needed to generate a genesis transaction
 #[derive(Clone)]

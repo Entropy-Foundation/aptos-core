@@ -4,11 +4,13 @@
 use crate::tests::automation_registration::AutomationRegistrationTestContext;
 use aptos_cached_packages::aptos_framework_sdk_builder;
 use aptos_crypto::HashValue;
-use aptos_types::chain_id::ChainId;
-use aptos_types::transaction::automated_transaction::{
-    AutomatedTransaction, AutomatedTransactionBuilder, BuilderResult,
+use aptos_types::{
+    chain_id::ChainId,
+    transaction::{
+        automated_transaction::{AutomatedTransaction, AutomatedTransactionBuilder, BuilderResult},
+        ExecutionStatus, Transaction, TransactionStatus,
+    },
 };
-use aptos_types::transaction::{ExecutionStatus, Transaction, TransactionStatus};
 use move_core_types::vm_status::StatusCode;
 
 #[test]

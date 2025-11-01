@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{account_address::AccountAddress, event::EventHandle};
+use move_core_types::{
+    ident_str,
+    identifier::IdentStr,
+    move_resource::{MoveResource, MoveStructType},
+};
 use serde::{Deserialize, Serialize};
-use move_core_types::ident_str;
-use move_core_types::identifier::IdentStr;
-use move_core_types::move_resource::{MoveResource, MoveStructType};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StakePool {

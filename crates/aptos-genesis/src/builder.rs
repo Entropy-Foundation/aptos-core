@@ -28,8 +28,8 @@ use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
     on_chain_config::{
-        Features, GasScheduleV2, OnChainConsensusConfig, OnChainExecutionConfig,
-        OnChainJWKConsensusConfig, OnChainRandomnessConfig,
+        AutomationRegistryConfig, Features, GasScheduleV2, OnChainConsensusConfig,
+        OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig,
     },
     transaction::Transaction,
     waypoint::Waypoint,
@@ -45,7 +45,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use aptos_types::on_chain_config::AutomationRegistryConfig;
 
 const VALIDATOR_IDENTITY: &str = "validator-identity.yaml";
 const VFN_IDENTITY: &str = "vfn-identity.yaml";

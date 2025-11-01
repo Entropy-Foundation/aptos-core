@@ -1,11 +1,15 @@
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::chain_id::ChainId;
-use crate::move_utils::MemberId;
-use crate::transaction::automated_transaction::{AutomatedTransactionBuilder, BuilderResult};
-use crate::transaction::automation::{AutomationTaskMetaData, RegistrationParams};
-use crate::transaction::{EntryFunction, TransactionPayload};
+use crate::{
+    chain_id::ChainId,
+    move_utils::MemberId,
+    transaction::{
+        automated_transaction::{AutomatedTransactionBuilder, BuilderResult},
+        automation::{AutomationTaskMetaData, RegistrationParams},
+        EntryFunction, TransactionPayload,
+    },
+};
 use aptos_crypto::HashValue;
 use move_core_types::account_address::AccountAddress;
 use std::str::FromStr;

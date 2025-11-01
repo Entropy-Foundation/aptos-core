@@ -74,6 +74,7 @@ This is the reference documentation of the Supra framework.
 -  [`0x1::transaction_validation`](transaction_validation.md#0x1_transaction_validation)
 -  [`0x1::util`](util.md#0x1_util)
 -  [`0x1::validator_consensus_info`](validator_consensus_info.md#0x1_validator_consensus_info)
+-  [`0x1::validator_public_keys`](validator_public_keys.md#0x1_validator_public_keys)
 -  [`0x1::version`](version.md#0x1_version)
 -  [`0x1::vesting`](vesting.md#0x1_vesting)
 -  [`0x1::vesting_without_staking`](vesting_without_staking.md#0x1_vesting_without_staking)

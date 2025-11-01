@@ -1,9 +1,10 @@
+use derive_getters::Getters;
 use move_core_types::{
-    account_address::AccountAddress, ident_str, identifier::IdentStr, language_storage::TypeTag, move_resource::MoveStructType, parser::parse_type_tag
+    account_address::AccountAddress, ident_str, identifier::IdentStr, language_storage::TypeTag,
+    move_resource::MoveStructType, parser::parse_type_tag,
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use derive_getters::Getters;
 pub static COIN_WITHDRAW_EVENT_TYPE_TAG: Lazy<TypeTag> =
     Lazy::new(|| TypeTag::Struct(Box::new(CoinWithdraw::struct_tag())));
 pub static COIN_DEPOSIT_EVENT_TYPE_TAG: Lazy<TypeTag> =

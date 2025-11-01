@@ -82,7 +82,7 @@ pub fn dkg_network_configuration(node_config: &NodeConfig) -> NetworkApplication
     let network_service_config = NetworkServiceConfig::new(
         direct_send_protocols,
         rpc_protocols,
-        aptos_channel::Config::new(node_config.dkg.max_network_channel_size)
+        aptos_channel::Config::new(node_config.aptos_dkg.max_network_channel_size)
             .queue_style(QueueStyle::FIFO),
     );
     NetworkApplicationConfig::new(network_client_config, network_service_config)

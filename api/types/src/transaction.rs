@@ -19,10 +19,11 @@ use aptos_crypto::{
 use aptos_types::{
     account_address::AccountAddress,
     aggregate_signature::AggregateSignature,
+    aptos_dkg::{DKGTranscript, DKGTranscriptMetadata},
     block_metadata::BlockMetadata,
     block_metadata_ext::BlockMetadataExt,
     contract_event::{ContractEvent, EventWithVersion},
-    dkg::{DKGTransactionData, DKGTransactionMetadata},
+    dkg::transactions::{DKGTransactionData, DKGTransactionMetadata},
     jwks::{jwk::JWK, ProviderJWKs, QuorumCertifiedUpdate},
     keyless,
     transaction::{
@@ -682,6 +683,7 @@ pub struct BlockMetadataTransaction {
 )]
 pub enum ValidatorTransaction {
     ObservedJwkUpdate(JWKUpdateTransaction),
+    Dkg(DKGTransaction),
     DkgResult(DKGResultTransaction),
 }
 
@@ -692,6 +694,7 @@ impl ValidatorTransaction {
                 "validator_transaction__observed_jwk_update"
             },
             ValidatorTransaction::DkgResult(_) => "validator_transaction__dkg_result",
+            ValidatorTransaction::Dkg(_) => "validator_transaction__dkg",
         }
     }
 
@@ -699,6 +702,7 @@ impl ValidatorTransaction {
         match self {
             ValidatorTransaction::ObservedJwkUpdate(t) => &t.info,
             ValidatorTransaction::DkgResult(t) => &t.info,
+            ValidatorTransaction::Dkg(t) => &t.info,
         }
     }
 
@@ -706,6 +710,7 @@ impl ValidatorTransaction {
         match self {
             ValidatorTransaction::ObservedJwkUpdate(t) => &mut t.info,
             ValidatorTransaction::DkgResult(t) => &mut t.info,
+            ValidatorTransaction::Dkg(t) => &mut t.info,
         }
     }
 
@@ -713,6 +718,7 @@ impl ValidatorTransaction {
         match self {
             ValidatorTransaction::ObservedJwkUpdate(t) => t.timestamp,
             ValidatorTransaction::DkgResult(t) => t.timestamp,
+            ValidatorTransaction::Dkg(t) => t.timestamp,
         }
     }
 
@@ -720,6 +726,7 @@ impl ValidatorTransaction {
         match self {
             ValidatorTransaction::ObservedJwkUpdate(t) => &t.events,
             ValidatorTransaction::DkgResult(t) => &t.events,
+            ValidatorTransaction::Dkg(t) => &t.events,
         }
     }
 }
@@ -741,7 +748,16 @@ impl
         ),
     ) -> Self {
         match txn {
-            aptos_types::validator_txn::ValidatorTransaction::DKG(dkg_transcript) => {
+            aptos_types::validator_txn::ValidatorTransaction::DKG(dkg_transaction_data) => {
+                Self::Dkg(DKGTransaction {
+                    info,
+                    events,
+                    timestamp: U64::from(timestamp),
+                    dkg_transaction_data: dkg_transaction_data.into(),
+                })
+            },
+
+            aptos_types::validator_txn::ValidatorTransaction::DKGResult(dkg_transcript) => {
                 Self::DkgResult(DKGResultTransaction {
                     info,
                     events,
@@ -749,6 +765,7 @@ impl
                     dkg_transcript: dkg_transcript.into(),
                 })
             },
+
             aptos_types::validator_txn::ValidatorTransaction::ObservedJWKUpdate(
                 quorum_certified_update,
             ) => Self::ObservedJwkUpdate(JWKUpdateTransaction {
@@ -840,11 +857,33 @@ pub struct DKGResultTransaction {
     pub info: TransactionInfo,
     pub events: Vec<Event>,
     pub timestamp: U64,
-    pub dkg_transcript: ExportedDKGTranscript,
+    pub dkg_transcript: ExportedDKGResultTranscript,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Object)]
-pub struct ExportedDKGTranscript {
+pub struct ExportedDKGResultTranscript {
+    pub epoch: U64,
+    pub author: Address,
+    pub payload: HexEncodedBytes,
+}
+
+impl From<DKGTranscript> for ExportedDKGResultTranscript {
+    fn from(value: DKGTranscript) -> Self {
+        let DKGTranscript {
+            metadata,
+            transcript_bytes,
+        } = value;
+        let DKGTranscriptMetadata { epoch, author } = metadata;
+        Self {
+            epoch: epoch.into(),
+            author: author.into(),
+            payload: HexEncodedBytes::from(transcript_bytes),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Object)]
+pub struct ExportedDKGTransactionData {
     pub epoch: U64,
     pub author: Address,
     pub bls_aggregate_signature: Vec<u8>,
@@ -853,13 +892,19 @@ pub struct ExportedDKGTranscript {
     pub payload: HexEncodedBytes,
 }
 
-impl From<DKGTransactionData> for ExportedDKGTranscript {
+impl From<DKGTransactionData> for ExportedDKGTransactionData {
     fn from(value: DKGTransactionData) -> Self {
         let DKGTransactionData {
             metadata,
             data_bytes: transcript_bytes,
         } = value;
-        let DKGTransactionMetadata { epoch, author,  bls_aggregate_signature, signer_indices_clan_committee, transaction_type} = metadata;
+        let DKGTransactionMetadata {
+            epoch,
+            author,
+            bls_aggregate_signature,
+            signer_indices_clan_committee,
+            transaction_type,
+        } = metadata;
         Self {
             epoch: epoch.into(),
             author: author.into(),
@@ -869,6 +914,16 @@ impl From<DKGTransactionData> for ExportedDKGTranscript {
             transaction_type: transaction_type as u8,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Object)]
+pub struct DKGTransaction {
+    #[serde(flatten)]
+    #[oai(flatten)]
+    pub info: TransactionInfo,
+    pub events: Vec<Event>,
+    pub timestamp: U64,
+    pub dkg_transaction_data: ExportedDKGTransactionData,
 }
 
 /// An event from a transaction
@@ -1079,8 +1134,8 @@ impl VerifyInput for MultisigPayload {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Union)]
-pub enum  AutomationRegistrationParams {
-    V1(AutomationRegistrationParamsV1)
+pub enum AutomationRegistrationParams {
+    V1(AutomationRegistrationParamsV1),
 }
 
 impl AutomationRegistrationParams {

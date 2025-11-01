@@ -345,7 +345,7 @@ mod tests {
         weighted_vuf::traits::WeightedVUF,
     };
     use aptos_types::{
-        dkg::{real_dkg::maybe_dk_from_bls_sk, DKGSessionMetadata, DKGTrait, DefaultDKG},
+        aptos_dkg::{real_dkg::maybe_dk_from_bls_sk, DKGSessionMetadata, DKGTrait, DefaultDKG},
         on_chain_config::OnChainRandomnessConfig,
         randomness::{FullRandMetadata, RandKeys, WvufPP, WVUF},
         validator_verifier::{

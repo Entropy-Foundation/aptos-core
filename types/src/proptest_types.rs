@@ -14,7 +14,7 @@ use crate::{
     block_metadata_ext::BlockMetadataExt,
     chain_id::ChainId,
     contract_event::ContractEvent,
-    dkg::{DKGTransactionData, DKGTransactionMetadata},
+    dkg::transactions::{DKGTransactionData, DKGTransactionMetadata, DKGTransactionType},
     epoch_state::EpochState,
     event::{EventHandle, EventKey},
     ledger_info::{generate_ledger_info_with_sig, LedgerInfo, LedgerInfoWithSignatures},
@@ -57,7 +57,6 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     iter::Iterator,
 };
-use crate::dkg::DKGTransactionType;
 
 impl WriteOp {
     pub fn value_strategy() -> impl Strategy<Value = Self> {

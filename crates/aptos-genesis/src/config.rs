@@ -7,7 +7,10 @@ use aptos_types::{
     account_address::{AccountAddress, AccountAddressWithChecks},
     chain_id::ChainId,
     network_address::{DnsName, NetworkAddress, Protocol},
-    on_chain_config::{OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig},
+    on_chain_config::{
+        AutomationRegistryConfig, OnChainConsensusConfig, OnChainExecutionConfig,
+        OnChainJWKConsensusConfig,
+    },
     transaction::authenticator::AuthenticationKey,
 };
 use aptos_vm_genesis::{AccountBalance, EmployeePool, Validator, ValidatorWithCommissionRate};
@@ -21,7 +24,6 @@ use std::{
     path::Path,
     str::FromStr,
 };
-use aptos_types::on_chain_config::AutomationRegistryConfig;
 
 /// Template for setting up Github for Genesis
 ///

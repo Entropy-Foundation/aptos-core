@@ -258,6 +258,34 @@ pub mod validator_transaction {
             pub payload: ::prost::alloc::vec::Vec<u8>,
         }
     }
+
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct DkgTransactionData {
+        #[prost(message, optional, tag="1")]
+        pub dkg_data: ::core::option::Option<dkg_data::DkgTransactionData>,
+    }
+
+    /// Nested message and enum types in `DkgTransactionData`.
+    pub mod dkg_data {
+        #[allow(clippy::derive_partial_eq_without_eq)]
+        #[derive(Clone, PartialEq, ::prost::Message)]
+        pub struct DkgTransactionData {
+            #[prost(uint64, tag="1")]
+            pub epoch: u64,
+            #[prost(string, tag="2")]
+            pub author: ::prost::alloc::string::String,
+            #[prost(bytes="vec", tag="3")]
+            pub bls_aggregate_signature: ::prost::alloc::vec::Vec<u8>,
+            #[prost(uint32, repeated, tag="4")]
+            pub signer_indices_clan_committee: ::prost::alloc::vec::Vec<u32>,
+            #[prost(uint32, tag="5")]
+            pub transaction_type: u32,
+            #[prost(bytes="vec", tag="6")]
+            pub payload: ::prost::alloc::vec::Vec<u8>,
+        }
+    }
+
     #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum ValidatorTransactionType {
@@ -265,6 +293,8 @@ pub mod validator_transaction {
         ObservedJwkUpdate(ObservedJwkUpdate),
         #[prost(message, tag="2")]
         DkgUpdate(DkgUpdate),
+        #[prost(message, tag="3")]
+        Dkg(DkgTransactionData),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

@@ -53,9 +53,6 @@ pub fn supra_vote(
 ) -> TransactionStatus {
     harness.run_transaction_payload(
         account,
-        aptos_stdlib::supra_governance_supra_vote(
-            proposal_id,
-            should_pass,
-        ),
+        aptos_stdlib::supra_governance_supra_vote(proposal_id, should_pass),
     )
 }

@@ -1,5 +1,8 @@
 use derive_getters::Getters;
-use move_core_types::{account_address::AccountAddress, ident_str, identifier::IdentStr, language_storage::TypeTag, move_resource::MoveStructType};
+use move_core_types::{
+    account_address::AccountAddress, ident_str, identifier::IdentStr, language_storage::TypeTag,
+    move_resource::MoveStructType,
+};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 

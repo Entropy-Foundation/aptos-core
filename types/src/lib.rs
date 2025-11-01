@@ -7,6 +7,7 @@
 pub mod access_path;
 pub mod account_address;
 pub mod account_config;
+pub mod aptos_dkg;
 pub mod block_info;
 pub mod block_metadata;
 pub mod block_metadata_ext;
@@ -62,11 +63,10 @@ pub use utility_coin::*;
 pub mod aggregate_signature;
 pub mod block_executor;
 pub mod bytes;
+pub mod consensus_key;
 pub mod delayed_fields;
 pub mod keyless;
 pub mod state_store;
 #[cfg(test)]
 mod unit_tests;
 pub mod vm;
-pub mod dkg_committee;
-pub mod consensus_key;

@@ -621,11 +621,11 @@ pub enum StatusCode {
     DKG_META_NOT_SET = 55,
     // DKG transaction data is invalid
     DKG_TRANSACTION_NOT_VALID = 56,
-    // The sender of the dkg transaction is not a family node
+    // The sender of the aptos_dkg transaction is not a family node
     DKG_TRANSACTION_SENDER_NOT_FAMILY_NODE = 57,
     // Failed to get the public keys for the signer clan nodes
     DKG_FAILED_TO_GET_CLAN_NODE_PUBKEYS = 58,
-    // Failed to deserialize the aggregated signature  
+    // Failed to deserialize the aggregated signature
     DKG_FAILED_TO_DESER_AGG_SIG = 59,
     // Failed to aggregate the public keys for the signer clan nodes
     DKG_FAILED_TO_AGGREGATE_PUBLIC_KEYS = 60,

@@ -3,6 +3,7 @@
 
 use crate::{built_package::BuiltPackage, natives::code::PackageMetadata, path_in_crate};
 use anyhow::Context;
+use aptos_crypto::HashValue;
 use aptos_types::account_address::AccountAddress;
 use move_binary_format::{access::ModuleAccess, errors::PartialVMError, CompiledModule};
 use move_command_line_common::files::{extension_equals, find_filenames, MOVE_EXTENSION};
@@ -10,7 +11,6 @@ use move_core_types::language_storage::ModuleId;
 use move_model::{code_writer::CodeWriter, emit, emitln, model::Loc};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
-use aptos_crypto::HashValue;
 
 /// A release bundle consists of a list of release packages.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -184,9 +184,16 @@ impl ReleasePackage {
         for_address: AccountAddress,
         out: PathBuf,
         next_execution_hash: Option<HashValue>,
-        function_name: String
+        function_name: String,
     ) -> anyhow::Result<()> {
-        self.generate_script_proposal_impl(for_address, out, true, true, next_execution_hash, function_name)
+        self.generate_script_proposal_impl(
+            for_address,
+            out,
+            true,
+            true,
+            next_execution_hash,
+            function_name,
+        )
     }
 
     fn generate_script_proposal_impl(
@@ -208,7 +215,11 @@ impl ReleasePackage {
         // The Sha2-256 digest here is the combined hash of all the hashes of the `.move` files and
         // the manifest file(Move.toml) in the source package.
         // Check [move_package::resolution::digest::compile_digest]
-        emitln!(writer, "// source package's SHA2-256 digest: {}", self.metadata.source_digest);
+        emitln!(
+            writer,
+            "// source package's SHA2-256 digest: {}",
+            self.metadata.source_digest
+        );
         emitln!(writer, "script {");
         writer.indent();
         emitln!(writer, "use std::vector;");

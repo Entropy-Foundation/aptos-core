@@ -5224,7 +5224,7 @@ dependencies = [
 [[package]]
 name = "bicycl_rs"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Entropy-Foundation/bicycl-rs?rev=eaea34f2ece348d21cb151e70b885de3709eb724#eaea34f2ece348d21cb151e70b885de3709eb724"
+source = "git+ssh://git@github.com/Entropy-Foundation/bicycl-rs?rev=c10dd9fc98917bf7bebf95a96e4b99b7c32922c9#c10dd9fc98917bf7bebf95a96e4b99b7c32922c9"
 dependencies = [
  "gmp-mpfr-sys",
  "libc",
@@ -6547,7 +6547,7 @@ checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 [[package]]
 name = "crypto"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Entropy-Foundation/crypto?rev=2e14562da84998e08c343826a8739ff8d68c6cff#2e14562da84998e08c343826a8739ff8d68c6cff"
+source = "git+ssh://git@github.com/Entropy-Foundation/crypto?rev=8fa2ea498c1cdef637aff135ce77852d77fcc487#8fa2ea498c1cdef637aff135ce77852d77fcc487"
 dependencies = [
  "base64 0.22.1",
  "bicycl_rs",
@@ -8514,7 +8514,7 @@ dependencies = [
 [[package]]
 name = "gmp-mpfr-sys"
 version = "1.6.8"
-source = "git+ssh://git@github.com/Entropy-Foundation/bicycl-rs?rev=eaea34f2ece348d21cb151e70b885de3709eb724#eaea34f2ece348d21cb151e70b885de3709eb724"
+source = "git+ssh://git@github.com/Entropy-Foundation/bicycl-rs?rev=c10dd9fc98917bf7bebf95a96e4b99b7c32922c9#c10dd9fc98917bf7bebf95a96e4b99b7c32922c9"
 dependencies = [
  "cc",
  "libc",

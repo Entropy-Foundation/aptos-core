@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    dkg::{
-        real_dkg::rounding::DKGRounding, DKGTrait, MayHaveRoundingSummary,
+    aptos_dkg::{
+        real_dkg::rounding::DKGRounding, DKGSessionMetadata, DKGTrait, MayHaveRoundingSummary,
         RoundingSummary,
     },
     on_chain_config::OnChainRandomnessConfig,
@@ -23,7 +23,6 @@ use num_traits::Zero;
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeSet, time::Instant};
-use crate::dkg::DKGSessionMetadataOld;
 
 pub mod rounding;
 
@@ -142,7 +141,7 @@ pub struct RealDKG {}
 
 #[derive(Clone, Debug)]
 pub struct RealDKGPublicParams {
-    pub session_metadata: DKGSessionMetadataOld,
+    pub session_metadata: DKGSessionMetadata,
     pub pvss_config: DKGPvssConfig,
     pub verifier: ValidatorVerifier,
 }
@@ -187,7 +186,7 @@ impl DKGTrait for RealDKG {
     type PublicParams = RealDKGPublicParams;
     type Transcript = Transcripts;
 
-    fn new_public_params(dkg_session_metadata: &DKGSessionMetadataOld) -> RealDKGPublicParams {
+    fn new_public_params(dkg_session_metadata: &DKGSessionMetadata) -> RealDKGPublicParams {
         let randomness_config = dkg_session_metadata
             .randomness_config_derived()
             .unwrap_or_else(OnChainRandomnessConfig::default_enabled);

@@ -1,9 +1,11 @@
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::tests::vm_viewer::to_view_function;
 use aptos_cached_packages::aptos_framework_sdk_builder;
 use aptos_language_e2e_tests::{
     account::{Account, AccountData},
+    data_store::FakeDataStore,
     executor::FakeExecutor,
 };
 use aptos_types::{
@@ -14,12 +16,12 @@ use aptos_types::{
         TransactionStatus,
     },
 };
-use move_core_types::{account_address::AccountAddress, value::MoveValue, vm_status::StatusCode};
-use std::ops::{Deref, DerefMut};
-use std::time::Instant;
-use aptos_language_e2e_tests::data_store::FakeDataStore;
 use aptos_vm::aptos_vm_viewer::AptosVMViewer;
-use crate::tests::vm_viewer::to_view_function;
+use move_core_types::{account_address::AccountAddress, value::MoveValue, vm_status::StatusCode};
+use std::{
+    ops::{Deref, DerefMut},
+    time::Instant,
+};
 
 const TIMESTAMP_NOW_SECONDS: &str = "0x1::timestamp::now_seconds";
 const ACCOUNT_BALANCE: &str = "0x1::coin::balance";
@@ -64,13 +66,9 @@ impl AutomationRegistrationTestContext {
         self.set_feature_flag(FeatureFlag::SUPRA_NATIVE_AUTOMATION, enable);
     }
 
-
     pub(crate) fn set_feature_flag(&mut self, flag: FeatureFlag, enable: bool) {
         let acc = AccountAddress::ONE;
-        let flag_value = [flag]
-            .into_iter()
-            .map(|f| f as u64)
-            .collect::<Vec<_>>();
+        let flag_value = [flag].into_iter().map(|f| f as u64).collect::<Vec<_>>();
         let (enabled, disabled) = if enable {
             (flag_value, vec![])
         } else {
@@ -83,8 +81,6 @@ impl AutomationRegistrationTestContext {
                 bcs::to_bytes(&disabled).unwrap(),
             ]);
     }
-
-
 
     pub(crate) fn new_account_data(&mut self, amount: u64, seq_num: u64) -> AccountData {
         let new_account_data = self.create_raw_account_data(amount, seq_num);
@@ -206,26 +202,40 @@ impl AutomationRegistrationTestContext {
             .expect("Successful deserialization of AutomationTaskMetaData")
     }
 
-    pub(crate) fn get_task_details_with_vm_viewer(index: u64, vm_viewer: &AptosVMViewer<FakeDataStore>) -> AutomationTaskMetaData {
-        let view_output =
-            vm_viewer.execute_view_function(to_view_function(str::parse(AUTOMATION_TASK_DETAILS).unwrap(), vec![], vec![
+    pub(crate) fn get_task_details_with_vm_viewer(
+        index: u64,
+        vm_viewer: &AptosVMViewer<FakeDataStore>,
+    ) -> AutomationTaskMetaData {
+        let view_output = vm_viewer.execute_view_function(
+            to_view_function(str::parse(AUTOMATION_TASK_DETAILS).unwrap(), vec![], vec![
                 MoveValue::U64(index)
                     .simple_serialize()
                     .expect("Successful serialization"),
-            ]), 50_000);
+            ]),
+            50_000,
+        );
         let result = view_output.values.expect("Valid result");
         assert!(!result.is_empty());
         bcs::from_bytes::<AutomationTaskMetaData>(&result[0])
             .expect("Successful deserialization of AutomationTaskMetaData")
     }
 
-    pub(crate) fn get_task_details_bulk(indexes: Vec<u64>, vm_viewer: &AptosVMViewer<FakeDataStore>) -> Vec<AutomationTaskMetaData> {
-        let view_output =
-            vm_viewer.execute_view_function(to_view_function(str::parse(AUTOMATION_TASK_DETAILS_BULK).unwrap(), vec![], vec![
-                MoveValue::Vector(indexes.into_iter().map(MoveValue::U64).collect())
-                    .simple_serialize()
-                    .expect("Successful serialization"),
-            ]), 50_000);
+    pub(crate) fn get_task_details_bulk(
+        indexes: Vec<u64>,
+        vm_viewer: &AptosVMViewer<FakeDataStore>,
+    ) -> Vec<AutomationTaskMetaData> {
+        let view_output = vm_viewer.execute_view_function(
+            to_view_function(
+                str::parse(AUTOMATION_TASK_DETAILS_BULK).unwrap(),
+                vec![],
+                vec![
+                    MoveValue::Vector(indexes.into_iter().map(MoveValue::U64).collect())
+                        .simple_serialize()
+                        .expect("Successful serialization"),
+                ],
+            ),
+            50_000,
+        );
         let result = view_output.values.expect("Valid result");
         assert!(!result.is_empty());
         bcs::from_bytes::<Vec<AutomationTaskMetaData>>(&result[0])
@@ -362,7 +372,10 @@ fn check_invalid_gas_params_of_automation_task() {
         StatusCode::AUTOMATION_TASK_MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS,
     );
     let validation_output = test_context.validate_transaction(automation_txn);
-    assert_eq!(validation_output.status(), Some(StatusCode::AUTOMATION_TASK_MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS));
+    assert_eq!(
+        validation_output.status(),
+        Some(StatusCode::AUTOMATION_TASK_MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS)
+    );
 
     let automation_txn = test_context.create_automation_txn(
         0,
@@ -380,7 +393,10 @@ fn check_invalid_gas_params_of_automation_task() {
         StatusCode::AUTOMATION_TASK_MAX_GAS_UNITS_EXCEEDS_MAX_GAS_UNITS_BOUND,
     );
     let validation_output = test_context.validate_transaction(automation_txn);
-    assert_eq!(validation_output.status(), Some(StatusCode::AUTOMATION_TASK_MAX_GAS_UNITS_EXCEEDS_MAX_GAS_UNITS_BOUND));
+    assert_eq!(
+        validation_output.status(),
+        Some(StatusCode::AUTOMATION_TASK_MAX_GAS_UNITS_EXCEEDS_MAX_GAS_UNITS_BOUND)
+    );
 
     let automation_txn = test_context.create_automation_txn(
         0,
@@ -398,7 +414,10 @@ fn check_invalid_gas_params_of_automation_task() {
         StatusCode::AUTOMATION_TASK_GAS_PRICE_CAP_ABOVE_MAX_BOUND,
     );
     let validation_output = test_context.validate_transaction(automation_txn.clone());
-    assert_eq!(validation_output.status(), Some(StatusCode::AUTOMATION_TASK_GAS_PRICE_CAP_ABOVE_MAX_BOUND));
+    assert_eq!(
+        validation_output.status(),
+        Some(StatusCode::AUTOMATION_TASK_GAS_PRICE_CAP_ABOVE_MAX_BOUND)
+    );
 
     // Check the gas check of inner payload is skipped if feature flag is not enabled
     test_context.set_feature_flag(FeatureFlag::SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK, false);
@@ -420,9 +439,11 @@ fn check_task_retrieval_performance() {
     for i in 0..task_count {
         // Prepare inner-entry-function to be automated.
         let dest_account = test_context.new_account_data(0, 0);
-        let inner_entry_function =
-            aptos_framework_sdk_builder::supra_coin_mint(dest_account.address().clone(), (i + 1) * 10)
-                .into_entry_function();
+        let inner_entry_function = aptos_framework_sdk_builder::supra_coin_mint(
+            dest_account.address().clone(),
+            (i + 1) * 10,
+        )
+        .into_entry_function();
 
         let automation_fee_cap = 1000;
         let aux_data = Vec::new();
@@ -457,9 +478,11 @@ fn check_task_retrieval_performance() {
     let mut i = 0;
     let step: u64 = 25;
     while i < task_count {
-        AutomationRegistrationTestContext::get_task_details_bulk((i .. i + step).collect(), &vm_viewer);
-        i = i + step ;
+        AutomationRegistrationTestContext::get_task_details_bulk(
+            (i..i + step).collect(),
+            &vm_viewer,
+        );
+        i = i + step;
     }
     println!("Bulk load time: {:?}", bulk_load.elapsed());
-
 }

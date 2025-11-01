@@ -11,7 +11,7 @@ use crate::{
 };
 use aptos_forge::{Node, Swarm, SwarmExt};
 use aptos_logger::{debug, info};
-use aptos_types::{dkg::DKGState, on_chain_config::OnChainRandomnessConfig};
+use aptos_types::{aptos_dkg::DKGState, on_chain_config::OnChainRandomnessConfig};
 use std::{sync::Arc, time::Duration};
 
 /// Enable on-chain randomness in the following steps.

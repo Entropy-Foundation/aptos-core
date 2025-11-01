@@ -12,9 +12,9 @@ use aptos_crypto::{
 use aptos_scratchpad::{ProofRead, SparseMerkleTree};
 use aptos_types::{
     account_config::NEW_EPOCH_EVENT_MOVE_TYPE_TAG,
+    aptos_dkg::DKG_START_EVENT_MOVE_TYPE_TAG,
     block_executor::{config::BlockExecutorConfigFromOnchain, partitioner::ExecutableBlock},
     contract_event::ContractEvent,
-    dkg::DKG_START_EVENT_MOVE_TYPE_TAG,
     epoch_state::EpochState,
     jwks::OBSERVED_JWK_UPDATED_MOVE_TYPE_TAG,
     ledger_info::LedgerInfoWithSignatures,

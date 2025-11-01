@@ -1,5 +1,3 @@
-
-
 /***************************************************************************************************
  * native fun class_group_validate_pubkey
  *
@@ -8,15 +6,16 @@
  * where +? indicates that the expression stops evaluating there if the previous gas-charging step
  * failed
  **************************************************************************************************/
-use std::collections::VecDeque;
-use smallvec::{smallvec, SmallVec};
 use aptos_gas_schedule::gas_params::natives::aptos_framework::BLS12381_BASE;
-use aptos_native_interface::{safely_pop_arg, RawSafeNative, SafeNativeBuilder, SafeNativeContext, SafeNativeResult};
-use move_vm_runtime::native_functions::NativeFunction;
-use move_vm_types::loaded_data::runtime_types::Type;
-use move_vm_types::values::Value;
+use aptos_native_interface::{
+    safely_pop_arg, RawSafeNative, SafeNativeBuilder, SafeNativeContext, SafeNativeResult,
+};
 #[cfg(feature = "testing")]
 use crypto::bls12381::cl_utils::rng;
+use move_vm_runtime::native_functions::NativeFunction;
+use move_vm_types::{loaded_data::runtime_types::Type, values::Value};
+use smallvec::{smallvec, SmallVec};
+use std::collections::VecDeque;
 
 fn native_class_group_validate_pubkey(
     context: &mut SafeNativeContext,
@@ -42,7 +41,6 @@ pub fn native_generate_keys(
     _ty_args: Vec<Type>,
     _arguments: VecDeque<Value>,
 ) -> SafeNativeResult<SmallVec<[Value; 1]>> {
-
     let (sk, pk) = crypto::bls12381::cg_encryption::keygen(&mut rng(), &vec![]).unwrap();
 
     Ok(smallvec![
@@ -60,14 +58,16 @@ pub fn make_all(
 ) -> impl Iterator<Item = (String, NativeFunction)> + '_ {
     let mut natives = vec![];
 
-    natives.extend([
-        ("validate_pubkey_internal", native_class_group_validate_pubkey as RawSafeNative),
-    ]);
+    natives.extend([(
+        "validate_pubkey_internal",
+        native_class_group_validate_pubkey as RawSafeNative,
+    )]);
 
     #[cfg(feature = "testing")]
-    natives.append(&mut vec![
-        ("generate_keys_internal", native_generate_keys as RawSafeNative),
-    ]);
+    natives.append(&mut vec![(
+        "generate_keys_internal",
+        native_generate_keys as RawSafeNative,
+    )]);
 
     builder.make_named_natives(natives)
 }

@@ -408,11 +408,13 @@ pub fn update_counters_for_processed_chunk<T, O>(
                         .with_label_values(&[process_type, "script", state])
                         .inc();
                 },
-                aptos_types::transaction::TransactionPayload::AutomationRegistration(_auto_payload) => {
+                aptos_types::transaction::TransactionPayload::AutomationRegistration(
+                    _auto_payload,
+                ) => {
                     metrics::APTOS_PROCESSED_USER_TRANSACTIONS_PAYLOAD_TYPE
                         .with_label_values(&[process_type, "automation", state])
                         .inc();
-                }
+                },
                 aptos_types::transaction::TransactionPayload::EntryFunction(function) => {
                     metrics::APTOS_PROCESSED_USER_TRANSACTIONS_PAYLOAD_TYPE
                         .with_label_values(&[process_type, "function", state])

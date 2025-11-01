@@ -20,7 +20,6 @@ pub enum PayloadTypeReference<EFP: Debug, MSP: Debug> {
     AutomationRegistration,
 }
 
-
 impl<EFP, MSP> PayloadTypeReference<EFP, MSP>
 where
     EFP: Clone + Debug,
