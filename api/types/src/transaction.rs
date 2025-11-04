@@ -884,11 +884,17 @@ impl From<DKGTranscript> for ExportedDKGResultTranscript {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Object)]
 pub struct ExportedDKGTransactionData {
+    /// The epoch number for the dkg
     pub epoch: U64,
+    /// The author of the dkg transaction
     pub author: Address,
+    /// The bls multi signature of the clan committee certifying the payload of the transaction
     pub bls_aggregate_signature: Vec<u8>,
+    /// indices of the clan committee nodes that signed the bls multisignature
     pub signer_indices_clan_committee: Vec<u32>,
+    /// type of the dkg transaction: (DKGMeta = 0), (PublicKeyShares = 1)
     pub transaction_type: u8,
+    /// raw serialized payload of the transaction
     pub payload: HexEncodedBytes,
 }
 
@@ -920,9 +926,9 @@ impl From<DKGTransactionData> for ExportedDKGTransactionData {
 pub struct DKGTransaction {
     #[serde(flatten)]
     #[oai(flatten)]
-    pub info: TransactionInfo,
-    pub events: Vec<Event>,
-    pub timestamp: U64,
+    info: TransactionInfo,
+    events: Vec<Event>,
+    timestamp: U64,
     pub dkg_transaction_data: ExportedDKGTransactionData,
 }
 

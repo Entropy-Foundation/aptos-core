@@ -97,6 +97,7 @@ pub enum FeatureFlag {
     SUPRA_DKG = 94,
 }
 
+//TODO: add dkg feature
 impl FeatureFlag {
     pub fn default_features() -> Vec<Self> {
         vec![

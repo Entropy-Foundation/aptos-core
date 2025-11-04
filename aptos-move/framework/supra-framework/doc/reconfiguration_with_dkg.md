@@ -70,6 +70,7 @@ Do nothing if one is already in progress.
     <a href="reconfiguration_state.md#0x1_reconfiguration_state_on_reconfig_start">reconfiguration_state::on_reconfig_start</a>();
     <b>let</b> cur_epoch = <a href="reconfiguration.md#0x1_reconfiguration_current_epoch">reconfiguration::current_epoch</a>();
     <b>let</b> randomness_seed = <a href="randomness.md#0x1_randomness_bytes">randomness::bytes</a>(32);
+
     <a href="dkg.md#0x1_dkg_start">dkg::start</a>(
         cur_epoch,
         randomness_seed,

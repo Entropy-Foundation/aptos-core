@@ -31,5 +31,8 @@ crate::gas_schedule::macros::define_gas_parameters!(
         [string_index_of_base: InternalGas, "string.index_of.base", 1470],
         [string_index_of_per_byte_pattern: InternalGasPerByte, "string.index_of.per_byte_pattern", 73],
         [string_index_of_per_byte_searched: InternalGasPerByte, "string.index_of.per_byte_searched", 36],
+
+        // Note(Gas): this initial value is guesswork.
+        [class_groups_base: InternalGas, "class.groups.base", 4578610],
     ]
 );

@@ -1,6 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+use aptos_types::on_chain_config::FeatureFlag;
 use crate::{
     move_vm_ext::{AptosMoveResolver, SessionId},
     AptosVM,
@@ -20,6 +21,10 @@ impl AptosVM {
         let session_id = SessionId::validator_txn(&txn);
         match txn {
             ValidatorTransaction::DKG(dkg_node) => {
+                if !self.features().is_enabled(FeatureFlag::SUPRA_DKG) {
+                    return Err(VMStatus::error(StatusCode::FEATURE_UNDER_GATING, None));
+                }
+
                 self.process_dkg_transaction(resolver, log_context, session_id, dkg_node)
             },
             ValidatorTransaction::ObservedJWKUpdate(jwk_update) => {

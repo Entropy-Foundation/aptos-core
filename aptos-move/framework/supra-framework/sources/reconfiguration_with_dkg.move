@@ -37,6 +37,7 @@ module supra_framework::reconfiguration_with_dkg {
         reconfiguration_state::on_reconfig_start();
         let cur_epoch = reconfiguration::current_epoch();
         let randomness_seed = randomness::bytes(32);
+        
         dkg::start(
             cur_epoch,
             randomness_seed,

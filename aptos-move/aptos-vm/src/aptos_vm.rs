@@ -68,7 +68,6 @@ use aptos_types::{
         TransactionPayload, TransactionStatus, VMValidatorResult, ViewFunctionOutput,
         WriteSetPayload,
     },
-    validator_txn::ValidatorTransaction,
     vm_status::{AbortLocation, StatusCode, VMStatus},
 };
 use aptos_utils::{aptos_try, return_on_failure};
@@ -115,6 +114,7 @@ use std::{
     marker::Sync,
     sync::Arc,
 };
+use aptos_types::dkg::transactions::DKGTransactionData;
 
 static EXECUTION_CONCURRENCY_LEVEL: OnceCell<usize> = OnceCell::new();
 static NUM_EXECUTION_SHARD: OnceCell<usize> = OnceCell::new();
@@ -2633,10 +2633,6 @@ impl AptosVM {
                 (VMStatus::Executed, output)
             },
             Transaction::ValidatorTransaction(txn) => {
-                if !self.features().is_enabled(FeatureFlag::SUPRA_DKG) {
-                    return Err(VMStatus::error(StatusCode::FEATURE_UNDER_GATING, None));
-                }
-
                 let (vm_status, output) =
                     self.process_validator_transaction(resolver, txn.clone(), log_context)?;
                 (vm_status, output)
@@ -2829,7 +2825,7 @@ impl VMValidator for AptosVM {
 
     fn validate_dkg_validator_transaction(
         &self,
-        transaction: ValidatorTransaction,
+        dkg_transaction: DKGTransactionData,
         resolver: &impl AptosMoveResolver,
     ) -> VMValidatorResult {
         if !self.features().is_enabled(FeatureFlag::SUPRA_DKG) {
@@ -2852,15 +2848,6 @@ impl VMValidator for AptosVM {
             None => return VMValidatorResult::error(StatusCode::DKG_SESSION_NOT_IN_PROGRESS),
         };
 
-        let dkg_transaction = match transaction {
-            ValidatorTransaction::DKG(txn) => txn,
-            _ => {
-                return VMValidatorResult::error(
-                    StatusCode::ONLY_DKG_TRANSACTION_VALIDATION_SUPPORTED,
-                )
-            },
-        };
-
         // Check epoch number.
         if dkg_transaction.metadata.epoch != config_resource.epoch() {
             return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_INVALID_EPOCH_NUM);
@@ -2881,16 +2868,8 @@ impl VMValidator for AptosVM {
             },
         }
 
-        // the node submitting the transaction must be a family node
         let dealer_committee = &in_progress_session_state.metadata.dealer_committee;
         let randomness_seed = &in_progress_session_state.metadata.randomness_seed;
-        if !aptos_types::dkg::is_node_family_committee_member(
-            dkg_transaction.metadata.author,
-            dealer_committee,
-            randomness_seed,
-        ) {
-            return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_SENDER_NOT_FAMILY_NODE);
-        }
 
         if dkg_transaction.data_bytes.is_empty()
             || dkg_transaction.metadata.bls_aggregate_signature.is_empty()

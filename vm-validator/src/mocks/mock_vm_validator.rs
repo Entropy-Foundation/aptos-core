@@ -10,7 +10,7 @@ use aptos_types::{
     transaction::{SignedTransaction, VMValidatorResult},
     vm_status::StatusCode,
 };
-use aptos_types::validator_txn::ValidatorTransaction;
+use aptos_types::dkg::transactions::DKGTransactionData;
 use aptos_vm::move_vm_ext::AptosMoveResolver;
 use aptos_vm::VMValidator;
 
@@ -43,7 +43,7 @@ impl VMValidator for MockVMValidator {
 
     fn validate_dkg_validator_transaction(
         &self,
-        _transaction: ValidatorTransaction,
+        _transaction: DKGTransactionData,
         _state_view: &impl AptosMoveResolver,
     ) -> VMValidatorResult {
         VMValidatorResult::new(None, 0)

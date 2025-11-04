@@ -13,8 +13,8 @@ use aptos_types::{
     fee_statement::FeeStatement,
     move_utils::as_move_value::AsMoveValue,
     transaction::ExecutionStatus,
-    validator_txn::ValidatorTransaction,
 };
+use aptos_types::transaction::TransactionStatus;
 use aptos_vm_logging::log_schema::AdapterLogSchema;
 use aptos_vm_types::output::VMOutput;
 use move_core_types::{
@@ -22,8 +22,28 @@ use move_core_types::{
     value::{serialize_values, MoveValue},
     vm_status::VMStatus,
 };
+use move_core_types::vm_status::{AbortLocation, StatusCode};
 use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
 use move_vm_types::gas::UnmeteredGasMeter;
+
+#[derive(Debug)]
+enum ExpectedFailure {
+    // Move equivalent: `errors::invalid_argument(*)`
+    EpochNotCurrent = 0x10001,
+    TranscriptVerificationFailed = 0x10002,
+    DKGMetaAlreadySet = 0x10003,
+    DKGMetaNotSet = 0x10004,
+
+    // Move equivalent: `errors::invalid_state(*)`
+    MissingResourceDKGState = 0x30001,
+    MissingResourceInprogressDKGSession = 0x30002,
+    MissingResourceDKGClanPublicKeys = 0x30003,
+}
+
+enum ExecutionFailure {
+    Expected(ExpectedFailure),
+    Unexpected(VMStatus),
+}
 
 impl AptosVM {
     pub(crate) fn process_dkg_transaction(
@@ -40,7 +60,14 @@ impl AptosVM {
             dkg_transaction_data,
         ) {
             Ok((vm_status, vm_output)) => Ok((vm_status, vm_output)),
-            Err(vm_status) => Err(vm_status),
+            Err(ExecutionFailure::Expected(failure)) => {
+                // Pretend we are inside Move, and expected failures are like Move aborts.
+                Ok((
+                    VMStatus::MoveAbort(AbortLocation::Script, failure as u64),
+                    VMOutput::empty_with_status(TransactionStatus::Discard(StatusCode::ABORTED)),
+                ))
+            },
+            Err(ExecutionFailure::Unexpected(vm_status)) => Err(vm_status),
         }
     }
 
@@ -50,38 +77,56 @@ impl AptosVM {
         log_context: &AdapterLogSchema,
         session_id: SessionId,
         dkg_transaction: DKGTransactionData,
-    ) -> Result<(VMStatus, VMOutput), VMStatus> {
+    ) -> Result<(VMStatus, VMOutput), ExecutionFailure> {
         // Verify the dkg transaction before execution
         if let Some(status) = self
             .validate_dkg_validator_transaction(
-                ValidatorTransaction::DKG(dkg_transaction.clone()),
+                dkg_transaction.clone(),
                 resolver,
             )
             .status()
         {
-            return Err(VMStatus::Error {
-                status_code: status,
-                sub_status: None,
-                message: None,
-            });
+            return match status {
+                StatusCode::RESOURCE_DOES_NOT_EXIST => {
+                    Err(ExecutionFailure::Expected(ExpectedFailure::MissingResourceDKGState))
+                }
+
+                StatusCode::DKG_SESSION_NOT_IN_PROGRESS => {
+                    Err(ExecutionFailure::Expected(ExpectedFailure::MissingResourceInprogressDKGSession))
+                }
+
+                StatusCode::DKG_TRANSACTION_INVALID_EPOCH_NUM => {
+                    Err(ExecutionFailure::Expected(ExpectedFailure::EpochNotCurrent))
+                }
+
+                StatusCode::DKG_META_ALREADY_SET => {
+                    Err(ExecutionFailure::Expected(ExpectedFailure::DKGMetaAlreadySet))
+                }
+
+                StatusCode::DKG_META_NOT_SET => {
+                    Err(ExecutionFailure::Expected(ExpectedFailure::DKGMetaNotSet))
+                }
+
+                StatusCode::DKG_FAILED_TO_GET_CLAN_NODE_PUBKEYS => {
+                    Err(ExecutionFailure::Expected(ExpectedFailure::MissingResourceDKGClanPublicKeys))
+                }
+                _ => {
+                    Err(ExecutionFailure::Expected(ExpectedFailure::TranscriptVerificationFailed))
+                }
+            };
         }
 
-        let function_name;
-        let args;
-
-        match dkg_transaction.metadata.transaction_type {
+        let (function_name, args) = match dkg_transaction.metadata.transaction_type {
             DKGTransactionType::DKGMeta => {
-                function_name = SET_DKG_META;
-                args = vec![dkg_transaction.data_bytes.as_move_value()];
+                (SET_DKG_META, vec![dkg_transaction.data_bytes.as_move_value()])
             },
             DKGTransactionType::PublicKeyShares => {
-                function_name = FINISH_WITH_DKG_RESULT;
-                args = vec![
+                (FINISH_WITH_DKG_RESULT, vec![
                     MoveValue::Signer(AccountAddress::ONE),
                     dkg_transaction.data_bytes.as_move_value(),
-                ];
+                ])
             },
-        }
+        };
 
         // All check passed, invoke VM to publish DKG result on chain.
         let mut gas_meter = UnmeteredGasMeter;
@@ -98,14 +143,17 @@ impl AptosVM {
                 &mut TraversalContext::new(&module_storage),
             )
             .map_err(|e| expect_only_successful_execution(e, function_name.as_str(), log_context))
-            .map_err(|r| r.unwrap_err())?;
+            .map_err(|r| ExecutionFailure::Unexpected(r.unwrap_err()))?;
 
         let output = crate::aptos_vm::get_system_transaction_output(
             session,
             FeeStatement::zero(),
             ExecutionStatus::Success,
-            &get_or_vm_startup_failure(&self.storage_gas_params, log_context)?.change_set_configs,
-        )?;
+            &get_or_vm_startup_failure(&self.storage_gas_params, log_context)
+                .map_err(ExecutionFailure::Unexpected)?
+                .change_set_configs,
+        )
+            .map_err(ExecutionFailure::Unexpected)?;
 
         Ok((VMStatus::Executed, output))
     }

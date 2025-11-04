@@ -11,7 +11,7 @@ pub enum DkgCommitteeType {
 /// Reflection of `0x1::dkg_committee::DkgNodeConfig` in rust.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DkgNodeConfig {
-    pub addr: AccountAddress,
+    pub pool_address: AccountAddress,
     pub identity: Vec<u8>,
     pub dkg_pubkey: Vec<u8>,
 }

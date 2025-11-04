@@ -1,4 +1,4 @@
-
+// Copyright (c) 2025 Supra.
 
 /***************************************************************************************************
  * native fun class_group_validate_pubkey
@@ -10,13 +10,13 @@
  **************************************************************************************************/
 use std::collections::VecDeque;
 use smallvec::{smallvec, SmallVec};
-use aptos_gas_schedule::gas_params::natives::aptos_framework::BLS12381_BASE;
 use aptos_native_interface::{safely_pop_arg, RawSafeNative, SafeNativeBuilder, SafeNativeContext, SafeNativeResult};
 use move_vm_runtime::native_functions::NativeFunction;
 use move_vm_types::loaded_data::runtime_types::Type;
 use move_vm_types::values::Value;
 #[cfg(feature = "testing")]
 use crypto::bls12381::cl_utils::rng;
+use aptos_gas_schedule::gas_params::natives::move_stdlib::CLASS_GROUPS_BASE;
 
 fn native_class_group_validate_pubkey(
     context: &mut SafeNativeContext,
@@ -26,8 +26,7 @@ fn native_class_group_validate_pubkey(
     debug_assert!(_ty_args.is_empty());
     debug_assert!(arguments.len() == 1);
 
-    //todo: update gas cost
-    context.charge(BLS12381_BASE)?;
+    context.charge(CLASS_GROUPS_BASE)?;
 
     let pk_bytes = safely_pop_arg!(arguments, Vec<u8>);
     match crypto::cg_public_key::CGEncryptionKeyBls12381::try_from(pk_bytes.as_slice()) {

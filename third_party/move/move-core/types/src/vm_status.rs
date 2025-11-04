@@ -611,26 +611,24 @@ pub enum StatusCode {
     AUTOMATION_TASK_GAS_PRICE_CAP_ABOVE_MAX_BOUND = 50,
     // DKG session is currently not in progress
     DKG_SESSION_NOT_IN_PROGRESS = 51,
-    // Validator Transaction does not contain a DKG transaction type
-    ONLY_DKG_TRANSACTION_VALIDATION_SUPPORTED = 52,
     // DKG transaction has an invalid epoch number
-    DKG_TRANSACTION_INVALID_EPOCH_NUM = 53,
+    DKG_TRANSACTION_INVALID_EPOCH_NUM = 52,
     // DKG meta has already set so DKGMeta transaction should fail
-    DKG_META_ALREADY_SET = 54,
+    DKG_META_ALREADY_SET = 53,
     // DKG meta has not been set so PublicKeyShares transaction should fail
-    DKG_META_NOT_SET = 55,
+    DKG_META_NOT_SET = 54,
     // DKG transaction data is invalid
-    DKG_TRANSACTION_NOT_VALID = 56,
+    DKG_TRANSACTION_NOT_VALID = 55,
     // The sender of the dkg transaction is not a family node
-    DKG_TRANSACTION_SENDER_NOT_FAMILY_NODE = 57,
+    DKG_TRANSACTION_SENDER_NOT_FAMILY_NODE = 56,
     // Failed to get the public keys for the signer clan nodes
-    DKG_FAILED_TO_GET_CLAN_NODE_PUBKEYS = 58,
+    DKG_FAILED_TO_GET_CLAN_NODE_PUBKEYS = 57,
     // Failed to deserialize the aggregated signature  
-    DKG_FAILED_TO_DESER_AGG_SIG = 59,
+    DKG_FAILED_TO_DESER_AGG_SIG = 58,
     // Failed to aggregate the public keys for the signer clan nodes
-    DKG_FAILED_TO_AGGREGATE_PUBLIC_KEYS = 60,
+    DKG_FAILED_TO_AGGREGATE_PUBLIC_KEYS = 59,
     // Failed to verify the clan committee aggregated signature
-    DKG_AGG_SIG_VERIFICATION_FAILED = 61,
+    DKG_AGG_SIG_VERIFICATION_FAILED = 60,
     // When a code module/script is published it is verified. These are the
     // possible errors that can arise from the verification process.
     // Verification Errors: 1000-1999

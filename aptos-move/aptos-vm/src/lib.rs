@@ -140,7 +140,7 @@ use aptos_types::{
     vm_status::VMStatus,
 };
 use std::{marker::Sync, sync::Arc};
-use aptos_types::validator_txn::ValidatorTransaction;
+use aptos_types::dkg::transactions::DKGTransactionData;
 pub use verifier::view_function::determine_is_view;
 use crate::move_vm_ext::AptosMoveResolver;
 
@@ -155,7 +155,7 @@ pub trait VMValidator {
 
     fn validate_dkg_validator_transaction(
         &self,
-        dkg_transaction: ValidatorTransaction,
+        dkg_transaction: DKGTransactionData,
         resolver: &impl AptosMoveResolver,
     ) -> VMValidatorResult;
 }

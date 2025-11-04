@@ -4,8 +4,7 @@
 use crate::{validator_public_keys::ConsensusPublicKey, dkg::dkg_committee::DkgCommittee};
 use anyhow::{anyhow, Result};
 use aptos_crypto::bls12381::PublicKey;
-use crypto::utils::{get_clan_node_indices, get_family_node_indices};
-use move_core_types::account_address::AccountAddress;
+use crypto::utils::get_clan_node_indices;
 
 pub mod dkg_committee;
 pub mod events;
@@ -36,9 +35,13 @@ pub fn get_clan_nodes_bls_keys_from_indices(
         }
 
         for signer in signers {
-            let clan_node_index = clan_committee_indices[*signer as usize];
+            let clan_node_index = clan_committee_indices.get(*signer as usize)
+                .ok_or(anyhow!("dkg::node Invalid signer index: {signer}"))?;
+            let clan_node_key = committee.get(*clan_node_index)
+                .ok_or(anyhow!("dkg::node Invalid clan node index: {signer}"))?
+                .dkg_pubkey.clone();
             let clan_node_pk =
-                ConsensusPublicKey::try_from(committee[clan_node_index].dkg_pubkey.clone())
+                ConsensusPublicKey::try_from(clan_node_key)
                     .map_err(|e| {
                         anyhow!("dkg::node consensus public key deserialization failed: {e}")
                     })?;
@@ -54,21 +57,4 @@ pub fn get_clan_nodes_bls_keys_from_indices(
     } else {
         Err(anyhow!("dkg::cannot derive clan committee"))
     }
-}
-
-pub fn is_node_family_committee_member(
-    addr: AccountAddress,
-    dealer_committee: &DkgCommittee,
-    random_seed: &Vec<u8>,
-) -> bool {
-    let family_committee_indices =
-        get_family_node_indices(dealer_committee.committee.len() as u32, random_seed.clone());
-
-    if let Some(family_node_indices) = family_committee_indices {
-        let result = family_node_indices
-            .iter()
-            .any(|x| dealer_committee.committee[*x].addr == addr);
-        return result;
-    }
-    false
 }

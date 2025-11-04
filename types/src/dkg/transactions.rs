@@ -55,7 +55,10 @@ impl DKGTransactionData {
             data_bytes: transcript_bytes,
         }
     }
+}
 
+#[cfg(test)]
+impl DKGTransactionData {
     pub fn dummy() -> Self {
         Self {
             metadata: DKGTransactionMetadata {
