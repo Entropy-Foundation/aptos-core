@@ -12,8 +12,6 @@ module supra_framework::validator_public_keys {
     #[test_only]
     use aptos_std::bls12381::public_key_with_pop_to_normal;
     #[test_only]
-    use aptos_std::debug::print;
-    #[test_only]
     use supra_framework::validator_public_keys;
 
     const CERTIFICATE_THRESHOLD_TYPE_VALIDITY: u8 = 0;

@@ -16,7 +16,8 @@ use move_vm_types::loaded_data::runtime_types::Type;
 use move_vm_types::values::Value;
 #[cfg(feature = "testing")]
 use crypto::bls12381::cl_utils::rng;
-use aptos_gas_schedule::gas_params::natives::move_stdlib::CLASS_GROUPS_BASE;
+use aptos_gas_schedule::gas_params::natives::supra_stdlib::{CLASS_GROUPS_PER_PUBKEY_DESERIALIZE, CLASS_GROUPS_POP};
+use move_core_types::gas_algebra::NumArgs;
 
 fn native_class_group_validate_pubkey(
     context: &mut SafeNativeContext,
@@ -26,7 +27,8 @@ fn native_class_group_validate_pubkey(
     debug_assert!(_ty_args.is_empty());
     debug_assert!(arguments.len() == 1);
 
-    context.charge(CLASS_GROUPS_BASE)?;
+    context.charge(CLASS_GROUPS_PER_PUBKEY_DESERIALIZE * NumArgs::one())?;
+    context.charge(CLASS_GROUPS_POP)?;
 
     let pk_bytes = safely_pop_arg!(arguments, Vec<u8>);
     match crypto::cg_public_key::CGEncryptionKeyBls12381::try_from(pk_bytes.as_slice()) {
