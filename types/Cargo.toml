@@ -90,7 +90,12 @@ url = { workspace = true }
 
 [features]
 default = []
-fuzzing = ["proptest", "proptest-derive", "aptos-crypto/fuzzing", "move-core-types/fuzzing"]
+fuzzing = [
+  "proptest",
+  "proptest-derive",
+  "aptos-crypto/fuzzing",
+  "move-core-types/fuzzing",
+]
 
 [[bench]]
 name = "keyless"

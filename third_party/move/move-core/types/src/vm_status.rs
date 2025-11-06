@@ -623,7 +623,7 @@ pub enum StatusCode {
     DKG_TRANSACTION_SENDER_NOT_FAMILY_NODE = 56,
     // Failed to get the public keys for the signer clan nodes
     DKG_FAILED_TO_GET_CLAN_NODE_PUBKEYS = 57,
-    // Failed to deserialize the aggregated signature  
+    // Failed to deserialize the aggregated signature
     DKG_FAILED_TO_DESER_AGG_SIG = 58,
     // Failed to aggregate the public keys for the signer clan nodes
     DKG_FAILED_TO_AGGREGATE_PUBLIC_KEYS = 59,

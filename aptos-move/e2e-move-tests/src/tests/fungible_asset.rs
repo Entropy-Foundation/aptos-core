@@ -2,19 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{assert_success, tests::common, MoveHarness};
-use aptos_types::account_address::{self, AccountAddress};
+use aptos_cached_packages::aptos_stdlib;
+use aptos_language_e2e_tests::account::{Account, TransactionBuilder};
+use aptos_types::{
+    account_address::{self, AccountAddress},
+    account_config::AccountResource,
+    on_chain_config::FeatureFlag,
+};
 use move_core_types::{
     identifier::Identifier,
     language_storage::{StructTag, TypeTag},
+    move_resource::MoveStructType,
 };
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::str::FromStr;
-use aptos_cached_packages::aptos_stdlib;
-use aptos_language_e2e_tests::account::{Account, TransactionBuilder};
-use aptos_types::account_config::AccountResource;
-use aptos_types::on_chain_config::FeatureFlag;
-use move_core_types::move_resource::MoveStructType;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 struct FungibleStore {
@@ -279,7 +281,7 @@ fn test_sponsered_tx() {
                 "0x{}::managed_fungible_token::get_metadata",
                 (*alice.address()).to_hex()
             ))
-                .unwrap(),
+            .unwrap(),
             vec![],
             vec![],
         )
@@ -295,7 +297,7 @@ fn test_sponsered_tx() {
             "0x{}::managed_fungible_asset::mint_to_primary_stores",
             (*alice.address()).to_hex()
         ))
-            .unwrap(),
+        .unwrap(),
         vec![],
         vec![
             bcs::to_bytes(&metadata).unwrap(),
@@ -304,7 +306,7 @@ fn test_sponsered_tx() {
         ],
     );
     assert_success!(result);
-    
+
     let sender_address = *bob.address();
     let sender_hex = sender_address.to_hex();
     let module_src_string = format!(
@@ -319,10 +321,7 @@ fn test_sponsered_tx() {
         sender_hex
     );
     let module_src = module_src_string.as_str();
-    let payload = aptos_stdlib::publish_module_source(
-        "test_module",
-        module_src
-    );
+    let payload = aptos_stdlib::publish_module_source("test_module", module_src);
     let transaction = TransactionBuilder::new(bob.clone())
         .fee_payer(alice.clone())
         .payload(payload)
@@ -330,13 +329,16 @@ fn test_sponsered_tx() {
         .max_gas_amount(1_000_000)
         .gas_unit_price(1)
         .sign_fee_payer();
-    
+
     let output = h.run_raw(transaction);
     assert_success!(*output.status());
-    
+
     // Make sure bob's account is created
     let exists = h.exists_resource(bob.address(), AccountResource::struct_tag());
-    assert!(exists, "Bob's account should exist after the sponsored transaction");
+    assert!(
+        exists,
+        "Bob's account should exist after the sponsored transaction"
+    );
 
     let result = h.run_entry_function(
         &alice,
@@ -344,7 +346,7 @@ fn test_sponsered_tx() {
             "0x{}::managed_fungible_asset::transfer_between_primary_stores",
             (*alice.address()).to_hex()
         ))
-            .unwrap(),
+        .unwrap(),
         vec![],
         vec![
             bcs::to_bytes(&metadata).unwrap(),
@@ -353,7 +355,7 @@ fn test_sponsered_tx() {
             bcs::to_bytes(&vec![30u64]).unwrap(), // amount
         ],
     );
-    
+
     assert_success!(result);
     let token_addr = account_address::create_token_address(
         *alice.address(),
@@ -364,7 +366,7 @@ fn test_sponsered_tx() {
         account_address::create_derived_object_address(*alice.address(), token_addr);
     let bob_primary_store_addr =
         account_address::create_derived_object_address(*bob.address(), token_addr);
-    
+
     // Ensure that the group data can be read
     let alice_store: FungibleStore = h
         .read_resource_from_resource_group(
@@ -373,7 +375,7 @@ fn test_sponsered_tx() {
             FUNGIBLE_STORE_TAG.clone(),
         )
         .unwrap();
-    
+
     let bob_store: FungibleStore = h
         .read_resource_from_resource_group(
             &bob_primary_store_addr,
@@ -381,6 +383,6 @@ fn test_sponsered_tx() {
             FUNGIBLE_STORE_TAG.clone(),
         )
         .unwrap();
-    
+
     assert_ne!(alice_store, bob_store);
 }

@@ -262,22 +262,22 @@ impl Arbitrary for AccountInfoUniverse {
             (ed25519::keypair_strategy(), ed25519::keypair_strategy()),
             num_accounts,
         )
-            .prop_map(|kps| {
-                let mut account_private_keys = vec![];
-                let mut consensus_private_keys = vec![];
-                for (kp1, kp2) in kps {
-                    account_private_keys.push(kp1.private_key);
-                    consensus_private_keys.push(kp2.private_key);
-                }
-                AccountInfoUniverse::new(
-                    account_private_keys,
-                    consensus_private_keys,
-                    /* epoch = */ 0,
-                    /* round = */ 0,
-                    /* next_version = */ 0,
-                )
-            })
-            .boxed()
+        .prop_map(|kps| {
+            let mut account_private_keys = vec![];
+            let mut consensus_private_keys = vec![];
+            for (kp1, kp2) in kps {
+                account_private_keys.push(kp1.private_key);
+                consensus_private_keys.push(kp2.private_key);
+            }
+            AccountInfoUniverse::new(
+                account_private_keys,
+                consensus_private_keys,
+                /* epoch = */ 0,
+                /* round = */ 0,
+                /* next_version = */ 0,
+            )
+        })
+        .boxed()
     }
 
     fn arbitrary() -> Self::Strategy {
@@ -331,13 +331,13 @@ impl RawTransaction {
         )
             .prop_map(
                 |(
-                     sender,
-                     sequence_number,
-                     payload,
-                     max_gas_amount,
-                     gas_unit_price,
-                     expiration_time_secs,
-                 )| {
+                    sender,
+                    sequence_number,
+                    payload,
+                    max_gas_amount,
+                    gas_unit_price,
+                    expiration_time_secs,
+                )| {
                     new_raw_transaction(
                         sender,
                         sequence_number,
@@ -554,7 +554,7 @@ impl Arbitrary for TransactionPayload {
         prop_oneof![
             4 => Self::script_strategy(),
         ]
-            .boxed()
+        .boxed()
     }
 }
 
@@ -618,7 +618,7 @@ impl Arbitrary for LedgerInfoWithSignatures {
                     validator_infos.iter().map(|x| x.1.clone()).collect(),
                     validator_infos.len() as u128 / 2,
                 )
-                    .unwrap();
+                .unwrap();
                 let partial_sig = PartialSignatures::new(
                     validator_infos.iter().map(|x| (x.0, x.2.clone())).collect(),
                 );
@@ -974,14 +974,14 @@ impl Arbitrary for BlockMetadata {
         )
             .prop_map(
                 |(
-                     id,
-                     epoch,
-                     round,
-                     proposer,
-                     previous_block_votes,
-                     failed_proposer_indices,
-                     timestamp,
-                 )| {
+                    id,
+                    epoch,
+                    round,
+                    proposer,
+                    previous_block_votes,
+                    failed_proposer_indices,
+                    timestamp,
+                )| {
                     BlockMetadata::new(
                         id,
                         epoch,
@@ -1013,14 +1013,14 @@ impl Arbitrary for BlockMetadataExt {
         )
             .prop_map(
                 |(
-                     id,
-                     epoch,
-                     round,
-                     proposer,
-                     previous_block_votes,
-                     failed_proposer_indices,
-                     timestamp,
-                 )| {
+                    id,
+                    epoch,
+                    round,
+                    proposer,
+                    previous_block_votes,
+                    failed_proposer_indices,
+                    timestamp,
+                )| {
                     BlockMetadataExt::new_v1(
                         id,
                         epoch,
@@ -1310,11 +1310,11 @@ impl Arbitrary for BlockEndInfo {
         (any::<bool>(), any::<bool>(), any::<u64>(), any::<u64>())
             .prop_map(
                 |(
-                     block_gas_limit_reached,
-                     block_output_limit_reached,
-                     block_effective_block_gas,
-                     block_approx_output_size,
-                 )| {
+                    block_gas_limit_reached,
+                    block_output_limit_reached,
+                    block_effective_block_gas,
+                    block_approx_output_size,
+                )| {
                     BlockEndInfo::V0 {
                         block_gas_limit_reached,
                         block_output_limit_reached,

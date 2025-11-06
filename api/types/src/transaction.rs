@@ -118,11 +118,11 @@ impl From<(TransactionWithProof, aptos_crypto::HashValue)> for TransactionOnChai
 }
 
 impl
-From<(
-    TransactionWithProof,
-    aptos_crypto::HashValue,
-    &TransactionOutput,
-)> for TransactionOnChainData
+    From<(
+        TransactionWithProof,
+        aptos_crypto::HashValue,
+        &TransactionOutput,
+    )> for TransactionOnChainData
 {
     fn from(
         (txn, accumulator_root_hash, txn_output): (
@@ -143,14 +143,14 @@ From<(
 }
 
 impl
-From<(
-    u64,
-    aptos_types::transaction::Transaction,
-    aptos_types::transaction::TransactionInfo,
-    Vec<ContractEvent>,
-    aptos_crypto::HashValue,
-    aptos_types::write_set::WriteSet,
-)> for TransactionOnChainData
+    From<(
+        u64,
+        aptos_types::transaction::Transaction,
+        aptos_types::transaction::TransactionInfo,
+        Vec<ContractEvent>,
+        aptos_crypto::HashValue,
+        aptos_types::write_set::WriteSet,
+    )> for TransactionOnChainData
 {
     fn from(
         (version, transaction, info, events, accumulator_root_hash, write_set): (
@@ -285,13 +285,13 @@ impl From<(SignedTransaction, TransactionPayload)> for Transaction {
 }
 
 impl
-From<(
-    &SignedTransaction,
-    TransactionInfo,
-    TransactionPayload,
-    Vec<Event>,
-    u64,
-)> for Transaction
+    From<(
+        &SignedTransaction,
+        TransactionInfo,
+        TransactionPayload,
+        Vec<Event>,
+        u64,
+    )> for Transaction
 {
     fn from(
         (txn, info, payload, events, timestamp): (
@@ -312,13 +312,13 @@ From<(
 }
 
 impl
-From<(
-    &UserAutomatedTransaction,
-    TransactionInfo,
-    TransactionPayload,
-    Vec<Event>,
-    u64,
-)> for Transaction
+    From<(
+        &UserAutomatedTransaction,
+        TransactionInfo,
+        TransactionPayload,
+        Vec<Event>,
+        u64,
+    )> for Transaction
 {
     fn from(
         (txn, info, payload, events, timestamp): (
@@ -732,12 +732,12 @@ impl ValidatorTransaction {
 }
 
 impl
-From<(
-    aptos_types::validator_txn::ValidatorTransaction,
-    TransactionInfo,
-    Vec<Event>,
-    u64,
-)> for ValidatorTransaction
+    From<(
+        aptos_types::validator_txn::ValidatorTransaction,
+        TransactionInfo,
+        Vec<Event>,
+        u64,
+    )> for ValidatorTransaction
 {
     fn from(
         (txn, info, events, timestamp): (
@@ -1794,24 +1794,24 @@ impl VerifyInput for SingleKeySignature {
                 public_key: p.value.clone(),
                 signature: s.value.clone(),
             }
-                .verify(),
+            .verify(),
             (PublicKey::Secp256k1Ecdsa(p), Signature::Secp256k1Ecdsa(s)) => {
                 Secp256k1EcdsaSignature {
                     public_key: p.value.clone(),
                     signature: s.value.clone(),
                 }
-                    .verify()
+                .verify()
             },
             (PublicKey::Secp256r1Ecdsa(p), Signature::WebAuthn(s)) => WebAuthnSignature {
                 public_key: p.value.clone(),
                 signature: s.value.clone(),
             }
-                .verify(),
+            .verify(),
             (PublicKey::Keyless(p), Signature::Keyless(s)) => KeylessSignature {
                 public_key: p.value.clone(),
                 signature: s.value.clone(),
             }
-                .verify(),
+            .verify(),
             _ => bail!("Invalid public key, signature match."),
         }
     }
@@ -1965,34 +1965,36 @@ impl TryFrom<MultiKeySignature> for AccountAuthenticator {
 
         let mut signatures = vec![];
         for indexed_signature in value.signatures {
-            let signature =
-                match indexed_signature.signature {
-                    Signature::Ed25519(s) => {
-                        let signature = s.value.inner().try_into().context(
+            let signature = match indexed_signature.signature {
+                Signature::Ed25519(s) => {
+                    let signature =
+                        s.value.inner().try_into().context(
                             "Failed to parse given public_key bytes as Ed25519Signature",
                         )?;
-                        AnySignature::ed25519(signature)
-                    },
-                    Signature::Secp256k1Ecdsa(s) => {
-                        let signature = s.value.inner().try_into().context(
+                    AnySignature::ed25519(signature)
+                },
+                Signature::Secp256k1Ecdsa(s) => {
+                    let signature =
+                        s.value.inner().try_into().context(
                             "Failed to parse given signature as Secp256k1EcdsaSignature",
                         )?;
-                        AnySignature::secp256k1_ecdsa(signature)
-                    },
-                    Signature::WebAuthn(s) => {
-                        let paar = s.value.inner().try_into().context(
-                            "Failed to parse given signature as PartialAuthenticatorAssertionResponse",
-                        )?;
-                        AnySignature::webauthn(paar)
-                    },
-                    Signature::Keyless(s) => {
-                        let signature =
-                            s.value.inner().try_into().context(
-                                "Failed to parse given signature as AnySignature::Keyless",
-                            )?;
-                        AnySignature::keyless(signature)
-                    },
-                };
+                    AnySignature::secp256k1_ecdsa(signature)
+                },
+                Signature::WebAuthn(s) => {
+                    let paar = s.value.inner().try_into().context(
+                        "Failed to parse given signature as PartialAuthenticatorAssertionResponse",
+                    )?;
+                    AnySignature::webauthn(paar)
+                },
+                Signature::Keyless(s) => {
+                    let signature = s
+                        .value
+                        .inner()
+                        .try_into()
+                        .context("Failed to parse given signature as AnySignature::Keyless")?;
+                    AnySignature::keyless(signature)
+                },
+            };
             signatures.push((indexed_signature.index, signature));
         }
 
@@ -2107,10 +2109,10 @@ impl From<(&Ed25519PublicKey, &ed25519::Ed25519Signature)> for Ed25519Signature 
 }
 
 impl
-From<(
-    &MultiEd25519PublicKey,
-    &multi_ed25519::MultiEd25519Signature,
-)> for MultiEd25519Signature
+    From<(
+        &MultiEd25519PublicKey,
+        &multi_ed25519::MultiEd25519Signature,
+    )> for MultiEd25519Signature
 {
     fn from(
         (pk, sig): (
@@ -2145,10 +2147,10 @@ impl From<(&secp256k1_ecdsa::PublicKey, &secp256k1_ecdsa::Signature)> for Secp25
 }
 
 impl
-From<(
-    &secp256r1_ecdsa::PublicKey,
-    &PartialAuthenticatorAssertionResponse,
-)> for Secp256k1EcdsaSignature
+    From<(
+        &secp256r1_ecdsa::PublicKey,
+        &PartialAuthenticatorAssertionResponse,
+    )> for Secp256k1EcdsaSignature
 {
     fn from(
         (pk, sig): (
@@ -2204,11 +2206,11 @@ impl From<&AccountAuthenticator> for AccountSignature {
 }
 
 impl
-From<(
-    &AccountAuthenticator,
-    &Vec<AccountAddress>,
-    &Vec<AccountAuthenticator>,
-)> for MultiAgentSignature
+    From<(
+        &AccountAuthenticator,
+        &Vec<AccountAddress>,
+        &Vec<AccountAuthenticator>,
+    )> for MultiAgentSignature
 {
     fn from(
         (sender, addresses, signers): (
@@ -2281,13 +2283,13 @@ impl TryFrom<FeePayerSignature> for TransactionAuthenticator {
 }
 
 impl
-From<(
-    &AccountAuthenticator,
-    &Vec<AccountAddress>,
-    &Vec<AccountAuthenticator>,
-    &AccountAddress,
-    &AccountAuthenticator,
-)> for FeePayerSignature
+    From<(
+        &AccountAuthenticator,
+        &Vec<AccountAddress>,
+        &Vec<AccountAuthenticator>,
+        &AccountAddress,
+        &AccountAuthenticator,
+    )> for FeePayerSignature
 {
     fn from(
         (sender, addresses, signers, fee_payer_address, fee_payer_signer): (

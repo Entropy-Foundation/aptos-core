@@ -51,7 +51,10 @@ use aptos_types::{
     block_metadata::BlockMetadata,
     block_metadata_ext::{BlockMetadataExt, BlockMetadataWithRandomness},
     chain_id::ChainId,
-    dkg::{state::DKGState, transactions::DKGTransactionType},
+    dkg::{
+        state::DKGState,
+        transactions::{DKGTransactionData, DKGTransactionType},
+    },
     fee_statement::FeeStatement,
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{
@@ -114,7 +117,6 @@ use std::{
     marker::Sync,
     sync::Arc,
 };
-use aptos_types::dkg::transactions::DKGTransactionData;
 
 static EXECUTION_CONCURRENCY_LEVEL: OnceCell<usize> = OnceCell::new();
 static NUM_EXECUTION_SHARD: OnceCell<usize> = OnceCell::new();

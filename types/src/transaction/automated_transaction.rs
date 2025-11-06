@@ -1,16 +1,19 @@
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::chain_id::ChainId;
-use crate::transaction::automation::AutomationTaskMetaData;
-use crate::transaction::{EntryFunction, RawTransaction, Transaction, TransactionPayload};
+use crate::{
+    chain_id::ChainId,
+    transaction::{
+        automation::AutomationTaskMetaData, EntryFunction, RawTransaction, Transaction,
+        TransactionPayload,
+    },
+};
 use anyhow::anyhow;
 use aptos_crypto::HashValue;
 use move_core_types::account_address::AccountAddress;
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::fmt::Debug;
+use std::{fmt, fmt::Debug};
 
 /// A transaction that has been created based on the automation-task in automation registry.
 ///
@@ -151,7 +154,7 @@ impl From<AutomatedTransaction> for Transaction {
 }
 
 macro_rules! value_or_missing {
-    ($value: ident , $message: literal) => {
+    ($value:ident, $message:literal) => {
         match $value {
             Some(v) => v,
             None => return BuilderResult::missing_value($message),
@@ -255,6 +258,7 @@ impl AutomatedTransactionBuilder {
     pub fn gas_unit_price(&self) -> &Option<u64> {
         &self.gas_unit_price
     }
+
     pub fn expiration_timestamp_secs(&self) -> &Option<u64> {
         &self.expiration_timestamp_secs
     }
@@ -262,6 +266,7 @@ impl AutomatedTransactionBuilder {
     pub fn chain_id(&self) -> &Option<ChainId> {
         &self.chain_id
     }
+
     pub fn authenticator(&self) -> &Option<HashValue> {
         &self.authenticator
     }
@@ -275,6 +280,7 @@ impl AutomatedTransactionBuilder {
     pub fn new() -> Self {
         Self::default()
     }
+
     pub fn with_gas_price_cap(mut self, cap: u64) -> Self {
         self.gas_price_cap = cap;
         self
@@ -284,10 +290,12 @@ impl AutomatedTransactionBuilder {
         self.sender = Some(sender);
         self
     }
+
     pub fn with_sequence_number(mut self, seq: u64) -> Self {
         self.sequence_number = Some(seq);
         self
     }
+
     pub fn with_payload(mut self, payload: TransactionPayload) -> Self {
         self.payload = Some(payload);
         self
@@ -297,26 +305,32 @@ impl AutomatedTransactionBuilder {
         self.payload = Some(TransactionPayload::EntryFunction(entry_fn));
         self
     }
+
     pub fn with_max_gas_amount(mut self, max_gas_amount: u64) -> Self {
         self.max_gas_amount = Some(max_gas_amount);
         self
     }
+
     pub fn with_gas_unit_price(mut self, gas_unit_price: u64) -> Self {
         self.gas_unit_price = Some(gas_unit_price);
         self
     }
+
     pub fn with_expiration_timestamp_secs(mut self, secs: u64) -> Self {
         self.expiration_timestamp_secs = Some(secs);
         self
     }
+
     pub fn with_chain_id(mut self, chain_id: ChainId) -> Self {
         self.chain_id = Some(chain_id);
         self
     }
+
     pub fn with_authenticator(mut self, authenticator: HashValue) -> Self {
         self.authenticator = Some(authenticator);
         self
     }
+
     pub fn with_block_height(mut self, block_height: u64) -> Self {
         self.block_height = Some(block_height);
         self

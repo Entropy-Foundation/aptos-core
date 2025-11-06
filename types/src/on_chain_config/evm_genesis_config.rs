@@ -1,15 +1,14 @@
 // Copyright (c) Supra Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use once_cell::sync::Lazy;
-
 use super::OnChainConfig;
 use crate::chain_id::ChainId;
 use anyhow::{anyhow, Result};
-use serde::{Deserialize, Serialize};
 use move_core_types::{
     ident_str, identifier::IdentStr, language_storage::TypeTag, move_resource::MoveStructType,
 };
+use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 
 /// The Genesis configuration for EVM that can only be set once at genesis epoch.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -45,7 +44,11 @@ pub struct GenesisEvmContract {
 
 impl OnChainEvmGenesisConfig {
     /// Create a new OnChainEvmGenesisConfig with the given parameters.
-    pub fn new(chain_id: ChainId, eoas: Vec<GenesisEvmEOA>, contracts: Vec<GenesisEvmContract>) -> Self {
+    pub fn new(
+        chain_id: ChainId,
+        eoas: Vec<GenesisEvmEOA>,
+        contracts: Vec<GenesisEvmContract>,
+    ) -> Self {
         let chain_id = Self::derive_evm_chain_id_from_move_chain_id(chain_id);
 
         Self {
@@ -54,7 +57,7 @@ impl OnChainEvmGenesisConfig {
             contracts,
         }
     }
-    
+
     /// Derive the EVM chain ID from the Move chain ID.
     fn derive_evm_chain_id_from_move_chain_id(move_chain_id: ChainId) -> u64 {
         let chain_id = move_chain_id.id() as u64;
@@ -86,13 +89,10 @@ impl OnChainConfig for OnChainEvmGenesisConfig {
     }
 }
 
-
-
 /// Move event type `0x1::evm_genesis_config::EvmGenesisEvent` in rust.
 /// See its doc in Move for more details.
 #[derive(Serialize, Deserialize)]
-pub struct EvmGenesisEvent {
-}
+pub struct EvmGenesisEvent {}
 
 impl MoveStructType for EvmGenesisEvent {
     const MODULE_NAME: &'static IdentStr = ident_str!("evm_genesis_config");

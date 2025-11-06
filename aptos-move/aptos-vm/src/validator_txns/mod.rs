@@ -1,12 +1,11 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use aptos_types::on_chain_config::FeatureFlag;
 use crate::{
     move_vm_ext::{AptosMoveResolver, SessionId},
     AptosVM,
 };
-use aptos_types::validator_txn::ValidatorTransaction;
+use aptos_types::{on_chain_config::FeatureFlag, validator_txn::ValidatorTransaction};
 use aptos_vm_logging::log_schema::AdapterLogSchema;
 use aptos_vm_types::output::VMOutput;
 use move_core_types::vm_status::{StatusCode, VMStatus};

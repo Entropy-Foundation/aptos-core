@@ -952,7 +952,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
         let transcript = bcs::from_bytes::<<DefaultDKG as DKGTrait>::Transcript>(
             dkg_session.transcript.as_slice(),
         )
-            .map_err(NoRandomnessReason::TranscriptDeserializationError)?;
+        .map_err(NoRandomnessReason::TranscriptDeserializationError)?;
 
         let vuf_pp = WvufPP::from(&dkg_pub_params.pvss_config.pp);
 
@@ -965,7 +965,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
             my_index as u64,
             &dkg_decrypt_key,
         )
-            .map_err(NoRandomnessReason::SecretShareDecryptionFailed)?;
+        .map_err(NoRandomnessReason::SecretShareDecryptionFailed)?;
 
         let fast_randomness_is_enabled = onchain_randomness_config.fast_randomness_enabled()
             && sk.fast.is_some()
@@ -1170,7 +1170,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
                 fast_rand_config,
                 rand_msg_rx,
             )
-                .await
+            .await
         } else {
             self.start_new_epoch_with_joltean(
                 epoch_state,
@@ -1185,7 +1185,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
                 fast_rand_config,
                 rand_msg_rx,
             )
-                .await
+            .await
         }
     }
 
@@ -1246,7 +1246,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
                     fast_rand_config,
                     rand_msg_rx,
                 )
-                    .await
+                .await
             },
             LivenessStorageData::PartialRecoveryData(ledger_data) => {
                 self.recovery_mode = true;
@@ -1256,7 +1256,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
                     epoch_state,
                     Arc::new(network_sender),
                 )
-                    .await
+                .await
             },
         }
     }
@@ -1582,7 +1582,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
                 (peer_id, discriminant(&round_manager_event)),
                 (peer_id, round_manager_event),
             )
-                .context("round manager sender"),
+            .context("round manager sender"),
         } {
             warn!("Failed to forward event: {}", e);
         }

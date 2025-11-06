@@ -20,7 +20,7 @@ aptos-block-partitioner = { workspace = true }
 aptos-crypto = { workspace = true }
 aptos-crypto-derive = { workspace = true }
 aptos-experimental-runtimes = { workspace = true }
-aptos-framework =  { workspace = true }
+aptos-framework = { workspace = true }
 aptos-gas-algebra = { workspace = true }
 aptos-gas-meter = { workspace = true }
 aptos-gas-schedule = { workspace = true }
@@ -69,6 +69,12 @@ rand_core = { workspace = true }
 
 [features]
 default = []
-fuzzing = ["move-core-types/fuzzing", "move-binary-format/fuzzing", "move-vm-types/fuzzing", "aptos-framework/fuzzing", "aptos-types/fuzzing"]
+fuzzing = [
+  "move-core-types/fuzzing",
+  "move-binary-format/fuzzing",
+  "move-vm-types/fuzzing",
+  "aptos-framework/fuzzing",
+  "aptos-types/fuzzing",
+]
 failpoints = ["fail/failpoints", "move-vm-runtime/failpoints"]
 testing = ["move-unit-test", "aptos-framework/testing"]

@@ -56,24 +56,29 @@ pub mod user_transaction_context;
 pub mod webauthn;
 
 pub use self::block_epilogue::{BlockEndInfo, BlockEpiloguePayload};
-use crate::move_utils::MemberId;
-use crate::serde_helper::vec_bytes;
 #[cfg(any(test, feature = "fuzzing"))]
 use crate::state_store::create_empty_sharded_state_updates;
-use crate::transaction::automated_transaction::AutomatedTransaction;
-use crate::transaction::automation::RegistrationParams;
 use crate::{
-    block_metadata_ext::BlockMetadataExt, contract_event::TransactionEvent, executable::ModulePath,
-    fee_statement::FeeStatement, proof::accumulator::InMemoryEventAccumulator,
-    validator_txn::ValidatorTransaction, write_set::TransactionWrite,
+    block_metadata_ext::BlockMetadataExt,
+    contract_event::TransactionEvent,
+    executable::ModulePath,
+    fee_statement::FeeStatement,
+    move_utils::MemberId,
+    proof::accumulator::InMemoryEventAccumulator,
+    serde_helper::vec_bytes,
+    transaction::{automated_transaction::AutomatedTransaction, automation::RegistrationParams},
+    validator_txn::ValidatorTransaction,
+    write_set::TransactionWrite,
 };
 pub use block_output::BlockOutput;
 pub use change_set::ChangeSet;
 pub use module::{Module, ModuleBundle};
-use move_core_types::identifier::{IdentStr, Identifier};
-use move_core_types::language_storage::{ModuleId, TypeTag};
 pub use move_core_types::transaction_argument::TransactionArgument;
-use move_core_types::vm_status::AbortLocation;
+use move_core_types::{
+    identifier::{IdentStr, Identifier},
+    language_storage::{ModuleId, TypeTag},
+    vm_status::AbortLocation,
+};
 use move_vm_types::delayed_values::delayed_field_id::{
     ExtractUniqueIndex, ExtractWidth, TryFromMoveValue, TryIntoMoveValue,
 };

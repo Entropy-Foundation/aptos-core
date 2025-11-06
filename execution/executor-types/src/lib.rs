@@ -475,8 +475,8 @@ impl StateComputeResult {
         assert!(
             self.has_reconfiguration()
                 || output
-                .last()
-                .map_or(false, Transaction::is_non_reconfig_block_ending),
+                    .last()
+                    .map_or(false, Transaction::is_non_reconfig_block_ending),
             "{:?}",
             output.last()
         );

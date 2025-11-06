@@ -10,4 +10,4 @@ aptos_token_objects = "0x4"
 
 [dependencies]
 MoveStdlib = { local = "../move-stdlib" }
-SupraFramework = { local = "../supra-framework"}
+SupraFramework = { local = "../supra-framework" }

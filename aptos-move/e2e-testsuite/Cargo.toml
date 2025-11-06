@@ -34,7 +34,7 @@ aptos-global-constants = { workspace = true }
 
 [features]
 default = [
-    "aptos-cached-packages/fuzzing",
-    "move-core-types/fuzzing",
-    "aptos-types/fuzzing",
+  "aptos-cached-packages/fuzzing",
+  "move-core-types/fuzzing",
+  "aptos-types/fuzzing",
 ]

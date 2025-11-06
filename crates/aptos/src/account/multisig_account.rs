@@ -1,7 +1,6 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::anyhow;
 use crate::common::{
     types::{
         CliCommand, CliError, CliTypedResult, EntryFunctionArguments, MultisigAccount,
@@ -9,6 +8,7 @@ use crate::common::{
     },
     utils::view_json_option_str,
 };
+use anyhow::anyhow;
 use aptos_api_types::ViewFunction;
 use aptos_cached_packages::aptos_stdlib;
 use aptos_crypto::HashValue;
@@ -36,10 +36,10 @@ pub struct Create {
     /// Addresses of additional owners for the new multisig, beside the transaction sender.
     #[clap(long, num_args = 0.., value_parser = crate::common::types::load_account_arg)]
     pub(crate) additional_owners: Vec<AccountAddress>,
-	/// account level timeout_duration in seconds, all created Tx must be approved and
-	/// executed before this timeout (from its creation) otherwise the Tx is marked for rejection
-	#[clap(long)]
-	pub(crate) timeout_duration: u64,
+    /// account level timeout_duration in seconds, all created Tx must be approved and
+    /// executed before this timeout (from its creation) otherwise the Tx is marked for rejection
+    #[clap(long)]
+    pub(crate) timeout_duration: u64,
     /// The number of signatures (approvals or rejections) required to execute or remove a proposed
     /// transaction.
     #[clap(long)]
@@ -108,7 +108,7 @@ impl CliCommand<CreateSummary> for Create {
                 // TODO: Support passing in custom metadata.
                 vec![],
                 vec![],
-				self.timeout_duration,
+                self.timeout_duration,
             ))
             .await
             .map(CreateSummary::from)
@@ -119,13 +119,17 @@ impl CliCommand<CreateSummary> for Create {
 impl SupraCommand for Create {
     async fn supra_command_arguments(self) -> anyhow::Result<SupraCommandArguments> {
         if self.metadata_keys.len() != self.metadata_values.len() {
-            return Err(anyhow!("Not all metadata key has a metadata value."))
+            return Err(anyhow!("Not all metadata key has a metadata value."));
         };
-        let metadata_key = self.metadata_keys.iter()
+        let metadata_key = self
+            .metadata_keys
+            .iter()
             .map(|k| to_bytes(k))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let metadata_value = self.metadata_values.iter()
+        let metadata_value = self
+            .metadata_values
+            .iter()
             .map(|v| to_bytes(v))
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -137,15 +141,13 @@ impl SupraCommand for Create {
             self.timeout_duration,
         );
 
-        Ok(
-            SupraCommandArguments {
-                payload,
-                sender_account: self.txn_options.sender_account,
-                profile_options: supra_aptos::ProfileOptions::from(self.txn_options.profile_options),
-                rest_options: supra_aptos::RestOptions::from(self.txn_options.rest_options),
-                gas_options: supra_aptos::GasOptions::from(self.txn_options.gas_options),
-            }
-        )
+        Ok(SupraCommandArguments {
+            payload,
+            sender_account: self.txn_options.sender_account,
+            profile_options: supra_aptos::ProfileOptions::from(self.txn_options.profile_options),
+            rest_options: supra_aptos::RestOptions::from(self.txn_options.rest_options),
+            gas_options: supra_aptos::GasOptions::from(self.txn_options.gas_options),
+        })
     }
 }
 
@@ -210,7 +212,7 @@ impl SupraCommand for CreateTransaction {
                 multisig_transaction_payload_bytes,
             )
         };
-        Ok(SupraCommandArguments{
+        Ok(SupraCommandArguments {
             payload,
             sender_account: self.txn_options.sender_account,
             profile_options: supra_aptos::ProfileOptions::from(self.txn_options.profile_options),
@@ -480,7 +482,9 @@ impl SupraCommand for ExecuteWithPayload {
         Ok(SupraCommandArguments {
             payload,
             sender_account: self.execute.txn_options.sender_account,
-            profile_options: supra_aptos::ProfileOptions::from(self.execute.txn_options.profile_options),
+            profile_options: supra_aptos::ProfileOptions::from(
+                self.execute.txn_options.profile_options,
+            ),
             rest_options: supra_aptos::RestOptions::from(self.execute.txn_options.rest_options),
             gas_options: supra_aptos::GasOptions::from(self.execute.txn_options.gas_options),
         })

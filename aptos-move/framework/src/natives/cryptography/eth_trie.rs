@@ -1,17 +1,20 @@
-use std::collections::VecDeque;
-use std::sync::Arc;
+use aptos_gas_schedule::gas_params::natives::aptos_framework::{
+    ETH_TRIE_PROOF_BASE, ETH_TRIE_PROOF_DECODE_BASE, ETH_TRIE_PROOF_DECODE_PER_BYTE,
+    ETH_TRIE_PROOF_HASH_BASE, ETH_TRIE_PROOF_HASH_PER_BYTE,
+};
+use aptos_native_interface::{
+    safely_pop_arg, safely_pop_vec_arg, RawSafeNative, SafeNativeBuilder, SafeNativeContext,
+    SafeNativeResult,
+};
+use eth_trie::{EthTrie, MemoryDB, Trie, DB};
 use keccak_hash::{keccak, H256};
-use move_vm_types::values::Value;
-use move_vm_types::loaded_data::runtime_types::Type;
-use eth_trie::{EthTrie, Trie, DB};
-use eth_trie::MemoryDB;
-use smallvec::{smallvec, SmallVec};
 use move_core_types::gas_algebra::{NumArgs, NumBytes};
 use move_vm_runtime::native_functions::NativeFunction;
-use aptos_native_interface::{safely_pop_arg, safely_pop_vec_arg, RawSafeNative, SafeNativeBuilder, SafeNativeContext, SafeNativeResult};
-use aptos_gas_schedule::gas_params::natives::aptos_framework::{ETH_TRIE_PROOF_BASE, ETH_TRIE_PROOF_DECODE_BASE, ETH_TRIE_PROOF_DECODE_PER_BYTE, ETH_TRIE_PROOF_HASH_BASE, ETH_TRIE_PROOF_HASH_PER_BYTE};
+use move_vm_types::{loaded_data::runtime_types::Type, values::Value};
 #[cfg(feature = "testing")]
 use rand::Rng;
+use smallvec::{smallvec, SmallVec};
+use std::{collections::VecDeque, sync::Arc};
 
 /// The minimum length (in bytes) for an encoded node to be stored by hash.
 const HASHED_LENGTH: usize = 32;
@@ -43,8 +46,10 @@ pub fn native_verify_proof_eth_trie(
 
     let total_proof_bytes = proof.iter().map(|node| node.len() as u64).sum::<u64>();
     context.charge(
-            (ETH_TRIE_PROOF_HASH_BASE + ETH_TRIE_PROOF_DECODE_BASE) * NumArgs::new(proof.len() as u64) +
-            (ETH_TRIE_PROOF_HASH_PER_BYTE + ETH_TRIE_PROOF_DECODE_PER_BYTE) * NumBytes::new(total_proof_bytes))?;
+        (ETH_TRIE_PROOF_HASH_BASE + ETH_TRIE_PROOF_DECODE_BASE) * NumArgs::new(proof.len() as u64)
+            + (ETH_TRIE_PROOF_HASH_PER_BYTE + ETH_TRIE_PROOF_DECODE_PER_BYTE)
+                * NumBytes::new(total_proof_bytes),
+    )?;
 
     // Convert the root (a Vec<u8>) into a H256 hash.
     let root_hash = H256::from_slice(&root);
@@ -153,12 +158,10 @@ pub fn make_all(
         native_generate_random_trie as RawSafeNative,
     )]);
 
-    natives.extend([
-        (
-            "native_verify_proof_eth_trie",
-            native_verify_proof_eth_trie as RawSafeNative,
-        ),
-    ]);
+    natives.extend([(
+        "native_verify_proof_eth_trie",
+        native_verify_proof_eth_trie as RawSafeNative,
+    )]);
 
     builder.make_named_natives(natives)
 }

@@ -1,24 +1,21 @@
 // Copyright (c) 2024 Supra.
 
+use crate::natives::cryptography::bulletproofs::abort_codes;
 use aptos_crypto::bulletproofs::MAX_RANGE_BITS;
 use aptos_gas_schedule::gas_params::natives::aptos_framework::*;
 use aptos_native_interface::{
     safely_pop_arg, RawSafeNative, SafeNativeBuilder, SafeNativeContext, SafeNativeError,
     SafeNativeResult,
 };
+use blsttc::G1Projective;
 use bulletproofs_bls12381::{BulletproofGens, PedersenGens, RangeProof};
 use merlin::Transcript;
 use move_core_types::gas_algebra::{NumArgs, NumBytes};
 use move_vm_runtime::native_functions::NativeFunction;
-use move_vm_types::{
-    loaded_data::runtime_types::Type,
-    values::{Value},
-};
+use move_vm_types::{loaded_data::runtime_types::Type, values::Value};
 use once_cell::sync::Lazy;
 use smallvec::{smallvec, SmallVec};
 use std::collections::VecDeque;
-use blsttc::G1Projective;
-use crate::natives::cryptography::bulletproofs::abort_codes;
 
 /// The Bulletproofs library only seems to support proving [0, 2^{num_bits}) ranges where num_bits is
 /// either 8, 16, 32 or 64.
@@ -30,9 +27,7 @@ fn deserialize_g1(vec: Vec<u8>) -> Result<G1Projective, ()> {
     if vec.len() != 48 {
         return Err(());
     }
-    let array: [u8; 48] = vec
-        .try_into()
-        .map_err(|_| ())?;
+    let array: [u8; 48] = vec.try_into().map_err(|_| ())?;
 
     let g1_option = G1Projective::from_compressed(&array);
 
@@ -73,7 +68,6 @@ fn native_verify_range_proof(
     })?;
 
     let pg = {
-
         let rand_base = deserialize_g1(rand_base_bytes).map_err(|_| SafeNativeError::Abort {
             abort_code: abort_codes::NFE_DESERIALIZE_RANGE_PROOF,
         })?;
@@ -107,7 +101,7 @@ fn verify_range_proof(
     context.charge(
         BULLETPROOFS_BASE
             + BULLETPROOFS_PER_BYTE_RANGEPROOF_DESERIALIZE
-            * NumBytes::new(proof_bytes.len() as u64),
+                * NumBytes::new(proof_bytes.len() as u64),
     )?;
 
     let range_proof = match RangeProof::from_bytes(proof_bytes) {

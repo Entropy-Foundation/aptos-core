@@ -7,4 +7,3 @@ tic_tac_toe = "_"
 
 [dependencies]
 SupraFramework = { local = "../../framework/supra-framework" }
-

@@ -1,7 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{validator_public_keys::ConsensusPublicKey, dkg::dkg_committee::DkgCommittee};
+use crate::{dkg::dkg_committee::DkgCommittee, validator_public_keys::ConsensusPublicKey};
 use anyhow::{anyhow, Result};
 use aptos_crypto::bls12381::PublicKey;
 use crypto::utils::get_clan_node_indices;
@@ -35,16 +35,17 @@ pub fn get_clan_nodes_bls_keys_from_indices(
         }
 
         for signer in signers {
-            let clan_node_index = clan_committee_indices.get(*signer as usize)
+            let clan_node_index = clan_committee_indices
+                .get(*signer as usize)
                 .ok_or(anyhow!("dkg::node Invalid signer index: {signer}"))?;
-            let clan_node_key = committee.get(*clan_node_index)
+            let clan_node_key = committee
+                .get(*clan_node_index)
                 .ok_or(anyhow!("dkg::node Invalid clan node index: {signer}"))?
-                .dkg_pubkey.clone();
-            let clan_node_pk =
-                ConsensusPublicKey::try_from(clan_node_key)
-                    .map_err(|e| {
-                        anyhow!("dkg::node consensus public key deserialization failed: {e}")
-                    })?;
+                .dkg_pubkey
+                .clone();
+            let clan_node_pk = ConsensusPublicKey::try_from(clan_node_key).map_err(|e| {
+                anyhow!("dkg::node consensus public key deserialization failed: {e}")
+            })?;
             let clan_node_bls_pubkey_bytes = clan_node_pk
                 .bls_key
                 .ok_or_else(|| anyhow!("dkg::node consensus bls key not found"))?;

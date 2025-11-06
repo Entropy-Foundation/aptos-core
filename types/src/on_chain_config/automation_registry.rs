@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::on_chain_config::OnChainConfig;
-use move_core_types::account_address::AccountAddress;
-use move_core_types::value::{serialize_values, MoveValue};
+use move_core_types::{
+    account_address::AccountAddress,
+    value::{serialize_values, MoveValue},
+};
 use serde::{Deserialize, Serialize};
 
 const ONE_MONTH_IN_SECS: u64 = 2_626_560;
@@ -67,6 +69,7 @@ impl AutomationRegistryConfigV1 {
     pub fn automation_base_fee_in_quants_per_sec(&self) -> u64 {
         self.automation_base_fee_in_quants_per_sec
     }
+
     pub fn flat_registration_fee_in_quants(&self) -> u64 {
         self.flat_registration_fee_in_quants
     }
@@ -74,6 +77,7 @@ impl AutomationRegistryConfigV1 {
     pub fn congestion_threshold_percentage(&self) -> u8 {
         self.congestion_threshold_percentage
     }
+
     pub fn congestion_base_fee_in_quants_per_sec(&self) -> u64 {
         self.congestion_base_fee_in_quants_per_sec
     }

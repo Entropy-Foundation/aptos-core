@@ -13,11 +13,12 @@ use aptos_temppath::TempPath;
 use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
-    on_chain_config::{Features, OnChainJWKConsensusConfig, OnChainRandomnessConfig},
+    on_chain_config::{
+        AutomationRegistryConfig, Features, OnChainJWKConsensusConfig, OnChainRandomnessConfig,
+    },
     transaction::Transaction,
     waypoint::Waypoint,
 };
-use aptos_types::on_chain_config::AutomationRegistryConfig;
 use aptos_vm::AptosVM;
 use aptos_vm_genesis::{AccountBalance, EmployeePool, ValidatorWithCommissionRate};
 

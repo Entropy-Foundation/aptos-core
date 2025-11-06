@@ -23,6 +23,7 @@ use std::{collections::HashMap, fmt, fmt::Debug, sync::Arc};
 mod approved_execution_hashes;
 mod aptos_features;
 mod aptos_version;
+mod automation_registry;
 mod chain_id;
 mod commit_history;
 mod consensus_config;
@@ -36,7 +37,6 @@ mod timed_features;
 mod timestamp;
 mod transaction_fee;
 mod validator_set;
-mod automation_registry;
 
 pub use self::{
     approved_execution_hashes::ApprovedExecutionHashes,
@@ -44,11 +44,15 @@ pub use self::{
     aptos_version::{
         AptosVersion, APTOS_MAX_KNOWN_VERSION, APTOS_VERSION_2, APTOS_VERSION_3, APTOS_VERSION_4,
     },
+    automation_registry::{AutomationRegistryConfig, AutomationRegistryConfigV1},
     commit_history::CommitHistoryResource,
     consensus_config::{
         AnchorElectionMode, ConsensusAlgorithmConfig, ConsensusConfigV1, DagConsensusConfigV1,
         LeaderReputationType, OnChainConsensusConfig, ProposerAndVoterConfig, ProposerElectionType,
         ValidatorTxnConfig,
+    },
+    evm_genesis_config::{
+        GenesisEvmContract, GenesisEvmEOA, OnChainEvmGenesisConfig, EVM_GENESIS_EVENT_MOVE_TYPE_TAG,
     },
     execution_config::{
         BlockGasLimitType, ExecutionConfigV1, ExecutionConfigV2, ExecutionConfigV4,
@@ -65,8 +69,6 @@ pub use self::{
     timestamp::CurrentTimeMicroseconds,
     transaction_fee::TransactionFeeBurnCap,
     validator_set::{ConsensusScheme, ValidatorSet},
-    evm_genesis_config::{OnChainEvmGenesisConfig, GenesisEvmContract, GenesisEvmEOA, EVM_GENESIS_EVENT_MOVE_TYPE_TAG},
-    automation_registry::{AutomationRegistryConfig, AutomationRegistryConfigV1}
 };
 
 /// To register an on-chain config in Rust:
