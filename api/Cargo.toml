@@ -25,16 +25,15 @@ aptos-logger = { workspace = true }
 aptos-mempool = { workspace = true }
 aptos-metrics-core = { workspace = true }
 aptos-runtimes = { workspace = true }
+aptos-sdk = { workspace = true }
 aptos-storage-interface = { workspace = true }
 aptos-types = { workspace = true }
 aptos-vm = { workspace = true }
-async-trait = { workspace = true }
 bcs = { workspace = true }
 bytes = { workspace = true }
 fail = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
-hyper = { workspace = true }
 itertools = { workspace = true }
 mime = { workspace = true }
 mini-moka = { workspace = true }
@@ -57,7 +56,7 @@ aptos-gas-meter = { workspace = true }
 aptos-gas-schedule = { workspace = true, features = ["testing"] }
 aptos-move-stdlib = { workspace = true }
 aptos-proptest-helpers = { workspace = true }
-aptos-sdk = { workspace = true }
+aptos-transaction-filters = { workspace = true, features = ["fuzzing"] }
 move-package = { workspace = true }
 passkey-types = { workspace = true }
 percent-encoding = { workspace = true }

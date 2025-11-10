@@ -9,7 +9,7 @@ use aptos_types::{
 };
 use aptos_vm::natives;
 use move_cli::base::test::{run_move_unit_tests, UnitTestResult};
-use move_package::CompilerConfig;
+use move_package::{source_package::std_lib::StdVersion, CompilerConfig};
 use move_unit_test::UnitTestingConfig;
 use move_vm_runtime::native_functions::NativeFunctionTable;
 use std::{collections::BTreeMap, path::PathBuf};
@@ -34,6 +34,7 @@ pub fn run_tests_for_pkg(
         move_package::BuildConfig {
             test_mode: true,
             install_dir: Some(tempdir().unwrap().path().to_path_buf()),
+            override_std: Some(StdVersion::Local(get_local_framework_path())),
             additional_named_addresses: named_addr,
             compiler_config: CompilerConfig {
                 known_attributes: extended_checks::get_all_attribute_names().clone(),
@@ -41,16 +42,16 @@ pub fn run_tests_for_pkg(
             },
             ..Default::default()
         },
-        UnitTestingConfig::default_with_bound(Some(100_000)),
+        UnitTestingConfig::default(),
         // TODO(Gas): we may want to switch to non-zero costs in the future
         aptos_test_natives(),
         aptos_test_feature_flags_genesis(),
+        /* gas limit */ Some(100_000),
         /* cost_table */ None,
         /* compute_coverage */ false,
         &mut std::io::stdout(),
-    )
-    .unwrap();
-    if ok != UnitTestResult::Success {
+    );
+    if ok.is_err() || ok.is_ok_and(|r| r == UnitTestResult::Failure) {
         panic!("move unit tests failed")
     }
 }
@@ -65,6 +66,18 @@ pub fn aptos_test_natives() -> NativeFunctionTable {
         TimedFeaturesBuilder::enable_all().build(),
         Features::default(),
     )
+}
+
+/// Get the local framework path based on this source file's location.
+/// Note: If this source file is moved to a different location, this function
+/// may need to be updated.
+fn get_local_framework_path() -> String {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .map(|p| p.join("framework"))
+        .expect("framework path")
+        .to_string_lossy()
+        .to_string()
 }
 
 fn test_common(pkg: &str) {
@@ -84,12 +97,21 @@ fn test_resource_account_common(pkg: &str) {
 }
 
 #[test]
-fn test_veiled_coin() {
-    let named_address = BTreeMap::from([(
-        String::from("veiled_coin"),
-        AccountAddress::from_hex_literal("0x1").unwrap(),
-    )]);
-    run_tests_for_pkg("veiled_coin", named_address);
+fn test_vector_pushback() {
+    let named_address = BTreeMap::new();
+    run_tests_for_pkg("vector_pushback", named_address);
+}
+
+#[test]
+fn test_fixed_point64() {
+    let named_address = BTreeMap::new();
+    run_tests_for_pkg("fixed_point64", named_address);
+}
+
+#[test]
+#[should_panic(expected = "move unit tests failed")]
+fn test_duplicate_scripts() {
+    run_tests_for_pkg("duplicate_scripts", BTreeMap::new());
 }
 
 #[test]
@@ -135,6 +157,11 @@ fn test_marketplace() {
 #[test]
 fn test_message_board() {
     test_common("message_board");
+}
+
+#[test]
+fn test_dispatching() {
+    test_common("dispatching");
 }
 
 #[test]

@@ -311,6 +311,8 @@ message WriteTableItem {
   WriteTableData data = 4;
 }
 
+// Question: Not sure if this is the correct way to add extra config in protobuf here. 
+// Not sure about the numbering as well. Please double check.
 message TransactionPayload {
   enum Type {
     TYPE_UNSPECIFIED = 0;
@@ -334,6 +336,15 @@ message TransactionPayload {
     AutomationPayloadExtensions automation_payloads = 8;
   }
   reserved 4;
+
+  oneof extra_config {
+    ExtraConfigV1 extra_config_v1 = 9;
+  }
+}
+
+message ExtraConfigV1 {
+  optional string multisig_address = 1;
+  optional uint64 replay_protection_nonce = 2;
 }
 
 message EntryFunctionPayload {
@@ -436,6 +447,7 @@ message MoveFunction {
 message MoveStruct {
   string name = 1;
   bool is_native = 2;
+  bool is_event = 6;
   repeated MoveAbility abilities = 3;
   repeated MoveStructGenericTypeParam generic_type_params = 4;
   repeated MoveStructField fields = 5;
@@ -573,6 +585,7 @@ message AnyPublicKey {
     TYPE_SECP256K1_ECDSA = 2;
     TYPE_SECP256R1_ECDSA = 3;
     TYPE_KEYLESS = 4;
+    TYPE_FEDERATED_KEYLESS = 5;
   }
 
   Type type = 1;
@@ -635,6 +648,11 @@ message MultiKeySignature {
   uint32 signatures_required = 3;
 }
 
+message AbstractionSignature {
+  string function_info = 1;
+  bytes signature = 2;
+}
+
 message SingleSender {
   AccountSignature sender = 1;
 }
@@ -646,6 +664,7 @@ message AccountSignature {
     TYPE_MULTI_ED25519 = 2;
     TYPE_SINGLE_KEY = 4;
     TYPE_MULTI_KEY = 5;
+    TYPE_ABSTRACTION = 6;
 
     reserved 3;
   }
@@ -657,6 +676,7 @@ message AccountSignature {
     // 4 is reserved.
     SingleKeySignature single_key_signature = 5;
     MultiKeySignature multi_key_signature = 6;
+    AbstractionSignature abstraction = 7;
   }
 }
 

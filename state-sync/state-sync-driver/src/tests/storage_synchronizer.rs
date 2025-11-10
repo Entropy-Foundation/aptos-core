@@ -35,7 +35,7 @@ use aptos_storage_interface::{AptosDbError, DbReaderWriter};
 use aptos_storage_service_notifications::StorageServiceNotificationListener;
 use aptos_types::{
     ledger_info::LedgerInfoWithSignatures,
-    transaction::{TransactionOutputListWithProof, Version},
+    transaction::{TransactionOutputListWithProofV2, Version},
 };
 use claims::assert_matches;
 use futures::StreamExt;
@@ -626,8 +626,11 @@ async fn test_execute_transactions_commit_send_error() {
 #[should_panic]
 async fn test_initialize_state_synchronizer_missing_info() {
     // Create test data that is missing transaction infos
-    let mut output_list_with_proof = create_output_list_with_proof();
+    let mut output_list_with_proof =
+        create_output_list_with_proof().consume_output_list_with_proof();
     output_list_with_proof.proof.transaction_infos = vec![]; // This is invalid!
+    let output_list_with_proof =
+        TransactionOutputListWithProofV2::new_from_v1(output_list_with_proof);
 
     // Create the storage synchronizer
     let (_, _, _, _, _, mut storage_synchronizer, _) = create_storage_synchronizer(
@@ -641,7 +644,6 @@ async fn test_initialize_state_synchronizer_missing_info() {
             vec![create_epoch_ending_ledger_info()],
             create_epoch_ending_ledger_info(),
             output_list_with_proof,
-            None,
         )
         .unwrap();
 
@@ -674,7 +676,6 @@ async fn test_initialize_state_synchronizer_receiver_error() {
             vec![create_epoch_ending_ledger_info()],
             create_epoch_ending_ledger_info(),
             create_output_list_with_proof(),
-            None,
         )
         .unwrap();
 
@@ -718,7 +719,7 @@ async fn test_save_states_completion() {
         .expect_finalize_state_snapshot()
         .withf(
             move |version: &Version,
-                  output_with_proof: &TransactionOutputListWithProof,
+                  output_with_proof: &TransactionOutputListWithProofV2,
                   ledger_infos: &[LedgerInfoWithSignatures]| {
                 version == &target_ledger_info_clone.ledger_info().version()
                     && output_with_proof == &output_list_with_proof_clone
@@ -735,7 +736,9 @@ async fn test_save_states_completion() {
         );
 
     // Subscribe to the expected event
-    let expected_event = output_list_with_proof.transactions_and_outputs[0]
+    let expected_event = output_list_with_proof
+        .get_output_list_with_proof()
+        .transactions_and_outputs[0]
         .1
         .events()[0]
         .clone();
@@ -746,7 +749,6 @@ async fn test_save_states_completion() {
             epoch_change_proofs.to_vec(),
             target_ledger_info,
             output_list_with_proof.clone(),
-            None,
         )
         .unwrap();
 
@@ -761,7 +763,11 @@ async fn test_save_states_completion() {
         .unwrap();
 
     // Verify we get a commit notification
-    let expected_transaction = output_list_with_proof.transactions_and_outputs[0].0.clone();
+    let expected_transaction = output_list_with_proof
+        .get_output_list_with_proof()
+        .transactions_and_outputs[0]
+        .0
+        .clone();
     let expected_committed_transactions = CommittedTransactions {
         events: vec![expected_event.clone()],
         transactions: vec![expected_transaction.clone()],
@@ -806,7 +812,6 @@ async fn test_save_states_dropped_error_listener() {
             vec![create_epoch_ending_ledger_info()],
             create_epoch_ending_ledger_info(),
             create_output_list_with_proof(),
-            None,
         )
         .unwrap();
 
@@ -849,7 +854,6 @@ async fn test_save_states_invalid_chunk() {
             vec![create_epoch_ending_ledger_info()],
             create_epoch_ending_ledger_info(),
             create_output_list_with_proof(),
-            None,
         )
         .unwrap();
 

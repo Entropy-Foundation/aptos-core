@@ -28,7 +28,7 @@ def test_move_publish(run_helper: RunHelper, test_name=None):
             "--package-dir",
             package_dir,
             "--named-addresses",
-            f"addr={run_helper.get_account_info().account_address}",
+            f"addr={str(run_helper.get_account_info().account_address)}",
         ],
     )
 
@@ -40,7 +40,7 @@ def test_move_publish(run_helper: RunHelper, test_name=None):
             "account",
             "list",
             "--account",
-            run_helper.get_account_info().account_address,
+            str(run_helper.get_account_info().account_address),
             "--query",
             "modules",
         ],
@@ -51,7 +51,7 @@ def test_move_publish(run_helper: RunHelper, test_name=None):
     for module in response["Result"]:
         if (
             module["abi"]["address"]
-            == f"0x{run_helper.get_account_info().account_address}"
+            == str(run_helper.get_account_info().account_address)
             and module["abi"]["name"] == "cli_e2e_tests"
         ):
             return
@@ -76,11 +76,11 @@ def test_move_compile(run_helper: RunHelper, test_name=None):
             "--package-dir",
             package_dir,
             "--named-addresses",
-            f"addr={account_info.account_address}",
+            f"addr={str(account_info.account_address)}",
         ],
     )
 
-    if f"{account_info.account_address}::cli_e2e_tests" not in response.stdout:
+    if f"{str(account_info.account_address)[2:]}::cli_e2e_tests" not in response.stdout:
         raise TestError("Module did not compile successfully")
 
 
@@ -104,6 +104,28 @@ def test_move_compile_dev_mode(run_helper: RunHelper, test_name=None):
 
     if f"{account_info.account_address}::cli_e2e_tests" not in response.stdout:
         raise TestError("Module did not compile successfully")
+
+
+@test_case
+def test_move_compile_fetch_deps_only(run_helper: RunHelper, test_name=None):
+    package_dir = f"move/cli-e2e-tests/{run_helper.base_network}"
+    account_info = run_helper.get_account_info()
+
+    # Compile the module. Compilation should not be invoked, and return should be [].
+    response = run_helper.run_command(
+        test_name,
+        [
+            "aptos",
+            "move",
+            "compile",
+            "--package-dir",
+            package_dir,
+            "--fetch-deps-only"
+        ],
+    )
+
+    if f"{account_info.account_address}::cli_e2e_tests" in response.stdout:
+        raise TestError("Module compilation should not be invoked")
 
 
 @test_case
@@ -164,9 +186,9 @@ def test_move_run(run_helper: RunHelper, test_name=None):
             "view",
             "--assume-yes",
             "--function-id",
-            f"0x{account_info.account_address}::cli_e2e_tests::view_hero",
+            f"{str(account_info.account_address)}::cli_e2e_tests::view_hero",
             "--args",
-            f"address:0x{account_info.account_address}",
+            f"address:{str(account_info.account_address)}",
             "string:Hero Quest",
             "string:Jin",
         ],

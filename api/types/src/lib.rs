@@ -23,7 +23,7 @@ pub mod transaction;
 mod view;
 mod wrappers;
 
-pub use account::AccountData;
+pub use account::{AccountData, AssetType};
 pub use address::Address;
 pub use block::{BcsBlock, Block};
 pub use bytecode::Bytecode;
@@ -45,14 +45,15 @@ pub use state::RawStateValueRequest;
 use std::str::FromStr;
 pub use table::{RawTableItemRequest, TableItemRequest};
 pub use transaction::{
-    AccountSignature, BlockMetadataTransaction, DeleteModule, DeleteResource, DeleteTableItem,
-    DirectWriteSet, Ed25519Signature, EncodeSubmissionRequest, EntryFunctionPayload, Event,
-    FeePayerSignature, GasEstimation, GasEstimationBcs, GenesisPayload, GenesisTransaction,
-    MultiAgentSignature, MultiEd25519Signature, MultiKeySignature, MultisigPayload,
-    MultisigTransactionPayload, PendingTransaction, PublicKey, ScriptPayload, ScriptWriteSet,
-    Signature, SingleKeySignature, SubmitTransactionRequest, Transaction, TransactionData,
-    TransactionId, TransactionInfo, TransactionOnChainData, TransactionPayload,
-    TransactionSignature, TransactionSigningMessage, TransactionsBatchSingleSubmissionFailure,
+    AbstractionSignature, AccountSignature, BlockMetadataTransaction, DeleteModule, DeleteResource,
+    DeleteTableItem, DirectWriteSet, Ed25519Signature, EncodeSubmissionRequest,
+    EntryFunctionPayload, Event, FeePayerSignature, GasEstimation, GasEstimationBcs,
+    GenesisPayload, GenesisTransaction, MultiAgentSignature, MultiEd25519Signature,
+    MultiKeySignature, MultisigPayload, MultisigTransactionPayload, NoAccountSignature,
+    PendingTransaction, PublicKey, ScriptPayload, ScriptWriteSet, Signature, SingleKeySignature,
+    SubmitTransactionRequest, Transaction, TransactionData, TransactionId, TransactionInfo,
+    TransactionOnChainData, TransactionPayload, TransactionSignature, TransactionSigningMessage,
+    TransactionSummary, TransactionsBatchSingleSubmissionFailure,
     TransactionsBatchSubmissionResult, UserCreateSigningMessageRequest, UserTransaction,
     UserTransactionRequest, VersionedEvent, WriteModule, WriteResource, WriteSet, WriteSetChange,
     WriteSetPayload, WriteTableItem,

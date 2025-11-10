@@ -18,6 +18,15 @@ use std::{cmp::Ordering, fmt};
 #[derive(DeserializeKey, Clone, SerializeKey)]
 pub struct Ed25519Signature(pub(crate) ed25519_dalek::Signature);
 
+#[cfg(any(test, feature = "fuzzing"))]
+impl<'a> arbitrary::Arbitrary<'a> for Ed25519Signature {
+    fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+        let bytes: [u8; ED25519_SIGNATURE_LENGTH] = u.arbitrary()?;
+        Ed25519Signature::from_bytes_unchecked(&bytes)
+            .map_err(|_| arbitrary::Error::IncorrectFormat)
+    }
+}
+
 impl Ed25519Signature {
     /// The length of the Ed25519Signature
     pub const LENGTH: usize = ED25519_SIGNATURE_LENGTH;
@@ -156,6 +165,8 @@ impl Length for Ed25519Signature {
 }
 
 impl ValidCryptoMaterial for Ed25519Signature {
+    const AIP_80_PREFIX: &'static str = "ed25519-sig-";
+
     fn to_bytes(&self) -> Vec<u8> {
         self.to_bytes().to_vec()
     }

@@ -15,18 +15,15 @@ use aptos_types::{
     account_config::{CoinStoreResource, DepositEvent, WithdrawEvent},
     block_metadata_ext::BlockMetadataExt,
     contract_event, event,
-    state_store::{
-        state_key::StateKey,
-        state_value::{PersistedStateValueMetadata, StateValueMetadata},
-    },
-    transaction,
+    state_store::{state_key::StateKey, state_value::PersistedStateValueMetadata},
     transaction::{
+        self,
         authenticator::{AccountAuthenticator, TransactionAuthenticator},
         block_epilogue::BlockEpiloguePayload,
     },
     validator_txn::ValidatorTransaction,
     vm_status::AbortLocation,
-    write_set,
+    write_set, AptosCoinType,
 };
 use move_core_types::language_storage;
 use rand::{rngs::StdRng, SeedableRng};
@@ -95,13 +92,12 @@ pub fn get_registry() -> Result<Registry> {
     // 1. Record samples for types with custom deserializers.
     trace_crypto_values(&mut tracer, &mut samples)?;
     tracer.trace_value(&mut samples, &event::EventKey::random())?;
-    tracer.trace_value(&mut samples, &write_set::WriteOp::Deletion {
-        metadata: StateValueMetadata::none(),
-    })?;
+    tracer.trace_value(&mut samples, &write_set::WriteOp::legacy_deletion())?;
 
     // 2. Trace the main entry point(s) + every enum separately.
     // stdlib types
     tracer.trace_type::<contract_event::ContractEvent>(&samples)?;
+    tracer.trace_type::<language_storage::FunctionParamOrReturnTag>(&samples)?;
     tracer.trace_type::<language_storage::TypeTag>(&samples)?;
     tracer.trace_type::<ValidatorTransaction>(&samples)?;
     tracer.trace_type::<BlockMetadataExt>(&samples)?;
@@ -109,6 +105,9 @@ pub fn get_registry() -> Result<Registry> {
     tracer.trace_type::<transaction::Transaction>(&samples)?;
     tracer.trace_type::<transaction::TransactionArgument>(&samples)?;
     tracer.trace_type::<transaction::TransactionPayload>(&samples)?;
+    tracer.trace_type::<transaction::TransactionPayloadInner>(&samples)?;
+    tracer.trace_type::<transaction::TransactionExecutable>(&samples)?;
+    tracer.trace_type::<transaction::TransactionExtraConfig>(&samples)?;
     tracer.trace_type::<transaction::WriteSetPayload>(&samples)?;
     tracer.trace_type::<transaction::BlockEpiloguePayload>(&samples)?;
     tracer.trace_type::<StateKey>(&samples)?;
@@ -122,6 +121,7 @@ pub fn get_registry() -> Result<Registry> {
     tracer.trace_type::<transaction::authenticator::AnySignature>(&samples)?;
     tracer.trace_type::<transaction::webauthn::AssertionSignature>(&samples)?;
     tracer.trace_type::<aptos_types::keyless::EphemeralCertificate>(&samples)?;
+    tracer.trace_type::<transaction::authenticator::AbstractionAuthData>(&samples)?;
 
     // events
     tracer.trace_type::<WithdrawEvent>(&samples)?;
@@ -136,7 +136,7 @@ pub fn get_registry() -> Result<Registry> {
     tracer.trace_type::<aptos_api_types::TransactionOnChainData>(&samples)?;
 
     // output types
-    tracer.trace_type::<CoinStoreResource>(&samples)?;
+    tracer.trace_type::<CoinStoreResource<AptosCoinType>>(&samples)?;
 
     // aliases within StructTag
     tracer.ignore_aliases("StructTag", &["type_params"])?;

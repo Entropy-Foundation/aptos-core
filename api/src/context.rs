@@ -13,36 +13,41 @@ use crate::{
 };
 use anyhow::{anyhow, bail, ensure, format_err, Context as AnyhowContext, Result};
 use aptos_api_types::{
-    AptosErrorCode, AsConverter, BcsBlock, GasEstimation, LedgerInfo, ResourceGroup,
-    TransactionOnChainData,
+    transaction::ReplayProtector, AptosErrorCode, AsConverter, BcsBlock, GasEstimation, LedgerInfo,
+    ResourceGroup, TransactionOnChainData, TransactionSummary,
 };
-use aptos_config::config::{NodeConfig, RoleType};
+use aptos_config::config::{GasEstimationConfig, NodeConfig, RoleType};
 use aptos_crypto::HashValue;
 use aptos_gas_schedule::{AptosGasParameters, FromOnChainGasSchedule};
 use aptos_logger::{error, info, Schema};
 use aptos_mempool::{MempoolClientRequest, MempoolClientSender, SubmissionStatus};
 use aptos_storage_interface::{
-    state_view::{DbStateView, DbStateViewAtVersion, LatestDbStateCheckpointView},
-    DbReader, Order, MAX_REQUEST_LIMIT,
+    state_store::state_view::db_state_view::{
+        DbStateView, DbStateViewAtVersion, LatestDbStateCheckpointView,
+    },
+    AptosDbError, DbReader, Order, MAX_REQUEST_LIMIT,
 };
 use aptos_types::{
     access_path::{AccessPath, Path},
     account_address::AccountAddress,
     account_config::{AccountResource, NewBlockEvent},
-    block_executor::config::BlockExecutorConfigFromOnchain,
     chain_id::ChainId,
-    contract_event::EventWithVersion,
+    contract_event::{ContractEvent, ContractEventV1, EventWithVersion},
     event::EventKey,
     indexer::indexer_db_reader::IndexerReader,
     ledger_info::LedgerInfoWithSignatures,
-    on_chain_config::{GasSchedule, GasScheduleV2, OnChainConfig, OnChainExecutionConfig},
+    on_chain_config::{
+        FeatureFlag, Features, GasSchedule, GasScheduleV2, OnChainConfig, OnChainExecutionConfig,
+    },
     state_store::{
         state_key::{inner::StateKeyInner, prefix::StateKeyPrefix, StateKey},
         state_value::StateValue,
         TStateView,
     },
     transaction::{
-        block_epilogue::BlockEndInfo, SignedTransaction, Transaction, TransactionWithProof, Version,
+        block_epilogue::BlockEndInfo,
+        use_case::{UseCaseAwareTransaction, UseCaseKey},
+        IndexedTransactionSummary, SignedTransaction, Transaction, TransactionWithProof, Version,
     },
 };
 use futures::{channel::oneshot, SinkExt};
@@ -124,8 +129,7 @@ impl Context {
             })),
             gas_limit_cache: Arc::new(RwLock::new(GasLimitCache {
                 last_updated_epoch: None,
-                block_executor_onchain_config: OnChainExecutionConfig::default_if_missing()
-                    .block_executor_onchain_config(),
+                execution_onchain_config: OnChainExecutionConfig::default_if_missing(),
             })),
             view_function_stats,
             simulate_txn_stats,
@@ -162,6 +166,13 @@ impl Context {
             .latest_state_checkpoint_view()
             .context("Failed to read latest state checkpoint from DB")
             .map_err(|e| E::internal_with_code(e, AptosErrorCode::InternalError, ledger_info))
+    }
+
+    pub fn feature_enabled(&self, feature: FeatureFlag) -> Result<bool> {
+        let state_view = self.latest_state_view()?;
+        let features = Features::fetch_config(&state_view)
+            .ok_or_else(|| anyhow::anyhow!("Failed to fetch features from state view"))?;
+        Ok(features.is_enabled(feature))
     }
 
     pub fn state_view<E: StdApiError>(
@@ -221,20 +232,26 @@ impl Context {
             .map_err(|e| e.into())
     }
 
-    pub fn get_latest_ledger_info<E: ServiceUnavailableError>(&self) -> Result<LedgerInfo, E> {
+    pub fn get_oldest_version_and_block_height<E: ServiceUnavailableError>(
+        &self,
+    ) -> Result<(Version, u64), E> {
+        self.db
+            .get_first_viable_block()
+            .context("Failed to retrieve oldest block information")
+            .map_err(|e| E::service_unavailable_with_code_no_info(e, AptosErrorCode::InternalError))
+    }
+
+    pub fn get_latest_storage_ledger_info<E: ServiceUnavailableError>(
+        &self,
+    ) -> Result<LedgerInfo, E> {
         let ledger_info = self
             .get_latest_ledger_info_with_signatures()
             .context("Failed to retrieve latest ledger info")
             .map_err(|e| {
                 E::service_unavailable_with_code_no_info(e, AptosErrorCode::InternalError)
             })?;
-        let (oldest_version, oldest_block_height) = self
-            .db
-            .get_first_viable_block()
-            .context("Failed to retrieve oldest block information")
-            .map_err(|e| {
-                E::service_unavailable_with_code_no_info(e, AptosErrorCode::InternalError)
-            })?;
+
+        let (oldest_version, oldest_block_height) = self.get_oldest_version_and_block_height()?;
         let (_, _, newest_block_event) = self
             .db
             .get_block_info_by_version(ledger_info.ledger_info().version())
@@ -250,6 +267,29 @@ impl Context {
             oldest_block_height,
             newest_block_event.height(),
         ))
+    }
+
+    pub fn get_latest_ledger_info<E: ServiceUnavailableError>(&self) -> Result<LedgerInfo, E> {
+        if let Some(indexer_reader) = self.indexer_reader.as_ref() {
+            if indexer_reader.is_internal_indexer_enabled() {
+                return self.get_latest_internal_indexer_ledger_info();
+            }
+        }
+        self.get_latest_storage_ledger_info()
+    }
+
+    pub fn get_latest_internal_and_storage_ledger_info<E: ServiceUnavailableError>(
+        &self,
+    ) -> Result<(Option<LedgerInfo>, LedgerInfo), E> {
+        if let Some(indexer_reader) = self.indexer_reader.as_ref() {
+            if indexer_reader.is_internal_indexer_enabled() {
+                return Ok((
+                    Some(self.get_latest_internal_indexer_ledger_info()?),
+                    self.get_latest_storage_ledger_info()?,
+                ));
+            }
+        }
+        Ok((None, self.get_latest_storage_ledger_info()?))
     }
 
     pub fn get_latest_ledger_info_and_verify_lookup_version<E: StdApiError>(
@@ -275,6 +315,57 @@ impl Context {
         }
 
         Ok((latest_ledger_info, requested_ledger_version))
+    }
+
+    pub fn get_latest_internal_indexer_ledger_info<E: ServiceUnavailableError>(
+        &self,
+    ) -> Result<LedgerInfo, E> {
+        if let Some(indexer_reader) = self.indexer_reader.as_ref() {
+            if indexer_reader.is_internal_indexer_enabled() {
+                if let Some(mut latest_version) = indexer_reader
+                    .get_latest_internal_indexer_ledger_version()
+                    .map_err(|err| {
+                        E::service_unavailable_with_code_no_info(err, AptosErrorCode::InternalError)
+                    })?
+                {
+                    // The internal indexer version can be ahead of the storage committed version since it syncs to db's latest synced version
+                    let last_storage_version =
+                        self.get_latest_storage_ledger_info()?.ledger_version.0;
+                    latest_version = std::cmp::min(latest_version, last_storage_version);
+                    let (_, block_end_version, new_block_event) = self
+                        .db
+                        .get_block_info_by_version(latest_version)
+                        .map_err(|_| {
+                            E::service_unavailable_with_code_no_info(
+                                "Failed to get block",
+                                AptosErrorCode::InternalError,
+                            )
+                        })?;
+                    let (oldest_version, oldest_block_height) =
+                        self.get_oldest_version_and_block_height()?;
+                    return Ok(LedgerInfo::new_ledger_info(
+                        &self.chain_id(),
+                        new_block_event.epoch(),
+                        block_end_version,
+                        oldest_version,
+                        oldest_block_height,
+                        new_block_event.height(),
+                        new_block_event.proposed_time(),
+                    ));
+                } else {
+                    // Indexer doesn't have data yet as DB is boostrapping.
+                    return Err(E::service_unavailable_with_code_no_info(
+                        "DB is bootstrapping",
+                        AptosErrorCode::InternalError,
+                    ));
+                }
+            }
+        }
+
+        Err(E::service_unavailable_with_code_no_info(
+            "Indexer reader doesn't exist",
+            AptosErrorCode::InternalError,
+        ))
     }
 
     pub fn get_latest_ledger_info_with_signatures(&self) -> Result<LedgerInfoWithSignatures> {
@@ -350,19 +441,26 @@ impl Context {
         address: AccountAddress,
         version: u64,
     ) -> Result<HashMap<StateKey, StateValue>> {
-        let mut iter = self.db.get_prefixed_state_value_iterator(
-            &StateKeyPrefix::from(address),
-            None,
-            version,
-        )?;
+        let mut iter = if !db_sharding_enabled(&self.node_config) {
+            Box::new(
+                self.db
+                    .get_prefixed_state_value_iterator(
+                        &StateKeyPrefix::from(address),
+                        None,
+                        version,
+                    )?
+                    .map(|item| item.map_err(|err| anyhow!(err.to_string()))),
+            )
+        } else {
+            self.indexer_reader
+                .as_ref()
+                .ok_or_else(|| format_err!("Indexer reader doesn't exist"))?
+                .get_prefixed_state_value_iterator(&StateKeyPrefix::from(address), None, version)?
+        };
 
         let kvs = iter
             .by_ref()
             .take(MAX_REQUEST_LIMIT as usize)
-            .map(|res| match res {
-                Ok((k, v)) => Ok((k, v)),
-                Err(res) => Err(anyhow::Error::from(res)),
-            })
             .collect::<Result<_>>()?;
         if iter.next().transpose()?.is_some() {
             bail!("Too many state items under account ({:?}).", address);
@@ -377,11 +475,26 @@ impl Context {
         version: u64,
         limit: u64,
     ) -> Result<(Vec<(StructTag, Vec<u8>)>, Option<StateKey>)> {
-        let account_iter = self.db.get_prefixed_state_value_iterator(
-            &StateKeyPrefix::from(address),
-            prev_state_key,
-            version,
-        )?;
+        let account_iter = if !db_sharding_enabled(&self.node_config) {
+            Box::new(
+                self.db
+                    .get_prefixed_state_value_iterator(
+                        &StateKeyPrefix::from(address),
+                        prev_state_key,
+                        version,
+                    )?
+                    .map(|item| item.map_err(|err| anyhow!(err.to_string()))),
+            )
+        } else {
+            self.indexer_reader
+                .as_ref()
+                .ok_or_else(|| format_err!("Indexer reader doesn't exist"))?
+                .get_prefixed_state_value_iterator(
+                    &StateKeyPrefix::from(address),
+                    prev_state_key,
+                    version,
+                )?
+        };
         // TODO: Consider rewriting this to consider resource groups:
         // * If a resource group is found, expand
         // * Return Option<Result<(PathType, StructTag, Vec<u8>)>>
@@ -408,7 +521,7 @@ impl Context {
                         Some(Err(format_err!( "storage prefix scan return inconsistent key ({:?})", k )))
                     }
                 },
-                Err(e) => Some(Err(e.into())),
+                Err(e) => Some(Err(e)),
             })
             .take(limit as usize + 1);
         let kvs = resource_iter
@@ -453,11 +566,26 @@ impl Context {
         version: u64,
         limit: u64,
     ) -> Result<(Vec<(ModuleId, Vec<u8>)>, Option<StateKey>)> {
-        let account_iter = self.db.get_prefixed_state_value_iterator(
-            &StateKeyPrefix::from(address),
-            prev_state_key,
-            version,
-        )?;
+        let account_iter = if !db_sharding_enabled(&self.node_config) {
+            Box::new(
+                self.db
+                    .get_prefixed_state_value_iterator(
+                        &StateKeyPrefix::from(address),
+                        prev_state_key,
+                        version,
+                    )?
+                    .map(|item| item.map_err(|err| anyhow!(err.to_string()))),
+            )
+        } else {
+            self.indexer_reader
+                .as_ref()
+                .ok_or_else(|| format_err!("Indexer reader doesn't exist"))?
+                .get_prefixed_state_value_iterator(
+                    &StateKeyPrefix::from(address),
+                    prev_state_key,
+                    version,
+                )?
+        };
         let mut module_iter = account_iter
             .filter_map(|res| match res {
                 Ok((k, v)) => match k.inner() {
@@ -473,7 +601,7 @@ impl Context {
                         Some(Err(format_err!( "storage prefix scan return inconsistent key ({:?})", k )))
                     }
                 },
-                Err(e) => Some(Err(e.into())),
+                Err(e) => Some(Err(e)),
             })
             .take(limit as usize + 1);
         let kvs = module_iter
@@ -667,6 +795,40 @@ impl Context {
         Ok(txns)
     }
 
+    pub fn render_transaction_summaries<E: InternalError>(
+        &self,
+        ledger_info: &LedgerInfo,
+        data: Vec<IndexedTransactionSummary>,
+    ) -> Result<Vec<aptos_api_types::TransactionSummary>, E> {
+        if data.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let txn_summaries: Vec<aptos_api_types::TransactionSummary> = data
+            .into_iter()
+            .map(|t| {
+                Ok(TransactionSummary {
+                    sender: t.sender().into(),
+                    version: t.version().into(),
+                    transaction_hash: t.transaction_hash().into(),
+                    replay_protector: match t.replay_protector() {
+                        aptos_types::transaction::ReplayProtector::Nonce(nonce) => {
+                            ReplayProtector::Nonce(nonce.into())
+                        },
+                        aptos_types::transaction::ReplayProtector::SequenceNumber(seq_num) => {
+                            ReplayProtector::SequenceNumber(seq_num.into())
+                        },
+                    },
+                })
+            })
+            .collect::<Result<_, anyhow::Error>>()
+            .context("Failed to convert transaction summary data from storage")
+            .map_err(|err| {
+                E::internal_with_code(err, AptosErrorCode::InternalError, ledger_info)
+            })?;
+        Ok(txn_summaries)
+    }
+
     pub fn get_transactions(
         &self,
         start_version: u64,
@@ -675,10 +837,11 @@ impl Context {
     ) -> Result<Vec<TransactionOnChainData>> {
         let data = self
             .db
-            .get_transaction_outputs(start_version, limit as u64, ledger_version)?;
+            .get_transaction_outputs(start_version, limit as u64, ledger_version)?
+            .consume_output_list_with_proof();
 
         let txn_start_version = data
-            .first_transaction_output_version
+            .get_first_output_version()
             .ok_or_else(|| format_err!("no start version from database"))?;
         ensure!(
             txn_start_version == start_version,
@@ -701,16 +864,20 @@ impl Context {
             .into_iter()
             .zip(infos)
             .enumerate()
-            .map(|(i, ((txn, txn_output), info))| {
-                let version = start_version + i as u64;
-                let (write_set, events, _, _, _) = txn_output.unpack();
-                self.get_accumulator_root_hash(version)
-                    .map(|h| (version, txn, info, events, h, write_set).into())
-            })
+            .map(
+                |(i, ((txn, txn_output), info))| -> Result<TransactionOnChainData> {
+                    let version = start_version + i as u64;
+                    let (write_set, events, _, _, _) = txn_output.unpack();
+                    let h = self.get_accumulator_root_hash(version)?;
+                    let txn: TransactionOnChainData =
+                        (version, txn, info, events, h, write_set).into();
+                    Ok(self.maybe_translate_v2_to_v1_events(txn))
+                },
+            )
             .collect()
     }
 
-    pub fn get_account_transactions<E: NotFoundError + InternalError>(
+    pub fn get_account_ordered_transactions<E: NotFoundError + InternalError>(
         &self,
         address: AccountAddress,
         start_seq_number: Option<u64>,
@@ -721,33 +888,74 @@ impl Context {
         let start_seq_number = if let Some(start_seq_number) = start_seq_number {
             start_seq_number
         } else {
-            self.expect_resource_poem::<AccountResource, E>(
+            self.get_resource_poem::<AccountResource, E>(
                 address,
                 ledger_info.version(),
                 ledger_info,
             )?
-            .sequence_number()
+            .map(|r| r.sequence_number())
+            .unwrap_or(0)
             .saturating_sub(limit as u64)
         };
 
-        let txns = self
-            .db
-            .get_account_transactions(
+        let txns_res = if !db_sharding_enabled(&self.node_config) {
+            self.db.get_account_ordered_transactions(
                 address,
                 start_seq_number,
                 limit as u64,
                 true,
                 ledger_version,
             )
+        } else {
+            self.indexer_reader
+                .as_ref()
+                .ok_or_else(|| anyhow!("Indexer reader is None"))
+                .map_err(|err| {
+                    E::internal_with_code(err, AptosErrorCode::InternalError, ledger_info)
+                })?
+                .get_account_ordered_transactions(
+                    address,
+                    start_seq_number,
+                    limit as u64,
+                    true,
+                    ledger_version,
+                )
+                .map_err(|e| AptosDbError::Other(e.to_string()))
+        };
+        let txns = txns_res
             .context("Failed to retrieve account transactions")
             .map_err(|err| {
                 E::internal_with_code(err, AptosErrorCode::InternalError, ledger_info)
             })?;
         txns.into_inner()
             .into_iter()
-            .map(|t| self.convert_into_transaction_on_chain_data(t))
+            .map(|t| -> Result<TransactionOnChainData> {
+                let txn = self.convert_into_transaction_on_chain_data(t)?;
+                Ok(self.maybe_translate_v2_to_v1_events(txn))
+            })
             .collect::<Result<Vec<_>>>()
             .context("Failed to parse account transactions")
+            .map_err(|err| E::internal_with_code(err, AptosErrorCode::InternalError, ledger_info))
+    }
+
+    pub fn get_account_transaction_summaries<E: NotFoundError + InternalError>(
+        &self,
+        address: AccountAddress,
+        start_version: Option<u64>,
+        end_version: Option<u64>,
+        limit: u16,
+        ledger_version: u64,
+        ledger_info: &LedgerInfo,
+    ) -> Result<Vec<IndexedTransactionSummary>, E> {
+        self.db
+            .get_account_transaction_summaries(
+                address,
+                start_version,
+                end_version,
+                limit as u64,
+                ledger_version,
+            )
+            .context("Failed to retrieve account transaction summaries")
             .map_err(|err| E::internal_with_code(err, AptosErrorCode::InternalError, ledger_info))
     }
 
@@ -756,10 +964,15 @@ impl Context {
         hash: HashValue,
         ledger_version: u64,
     ) -> Result<Option<TransactionOnChainData>> {
-        self.db
+        if let Some(t) = self
+            .db
             .get_transaction_by_hash(hash, ledger_version, true)?
-            .map(|t| self.convert_into_transaction_on_chain_data(t))
-            .transpose()
+        {
+            let txn: TransactionOnChainData = self.convert_into_transaction_on_chain_data(t)?;
+            Ok(Some(self.maybe_translate_v2_to_v1_events(txn)))
+        } else {
+            Ok(None)
+        }
     }
 
     pub async fn get_pending_transaction_by_hash(
@@ -782,11 +995,73 @@ impl Context {
         version: u64,
         ledger_version: u64,
     ) -> Result<TransactionOnChainData> {
-        self.convert_into_transaction_on_chain_data(self.db.get_transaction_by_version(
-            version,
-            ledger_version,
-            true,
-        )?)
+        let txn = self.convert_into_transaction_on_chain_data(
+            self.db
+                .get_transaction_by_version(version, ledger_version, true)?,
+        )?;
+        Ok(self.maybe_translate_v2_to_v1_events(txn))
+    }
+
+    fn maybe_translate_v2_to_v1_events(
+        &self,
+        mut txn: TransactionOnChainData,
+    ) -> TransactionOnChainData {
+        if self.indexer_reader.is_some()
+            && self
+                .node_config
+                .indexer_db_config
+                .enable_event_v2_translation
+        {
+            self.translate_v2_to_v1_events_for_version(txn.version, &mut txn.events)
+                .ok();
+        }
+        txn
+    }
+
+    fn translate_v2_to_v1_events_for_version(
+        &self,
+        version: u64,
+        events: &mut [ContractEvent],
+    ) -> Result<()> {
+        for (idx, event) in events.iter_mut().enumerate() {
+            let translated_event = self
+                .indexer_reader
+                .as_ref()
+                .ok_or(anyhow!("Internal indexer reader doesn't exist"))?
+                .get_translated_v1_event_by_version_and_index(version, idx as u64);
+            if let Ok(translated_event) = translated_event {
+                *event = ContractEvent::V1(translated_event);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn translate_v2_to_v1_events_for_simulation(
+        &self,
+        events: &mut [ContractEvent],
+    ) -> Result<()> {
+        let mut count_map: HashMap<EventKey, u64> = HashMap::new();
+        for event in events.iter_mut() {
+            if let ContractEvent::V2(v2) = event {
+                let translated_event = self
+                    .indexer_reader
+                    .as_ref()
+                    .ok_or(anyhow!("Internal indexer reader doesn't exist"))?
+                    .translate_event_v2_to_v1(v2)?;
+                if let Some(v1) = translated_event {
+                    let count = count_map.get(v1.key()).unwrap_or(&0);
+                    let v1_adjusted = ContractEventV1::new(
+                        *v1.key(),
+                        v1.sequence_number() + count,
+                        v1.type_tag().clone(),
+                        v1.event_data().to_vec(),
+                    )?;
+                    *event = ContractEvent::V1(v1_adjusted);
+                    count_map.insert(*v1.key(), count + 1);
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn get_accumulator_root_hash(&self, version: u64) -> Result<HashValue> {
@@ -801,6 +1076,7 @@ impl Context {
         let (_, txn_output) = &self
             .db
             .get_transaction_outputs(txn.version, 1, txn.version)?
+            .consume_output_list_with_proof()
             .transactions_and_outputs[0];
         self.get_accumulator_root_hash(txn.version)
             .map(|h| (txn, h, txn_output).into())
@@ -813,29 +1089,30 @@ impl Context {
         limit: u16,
         ledger_version: u64,
     ) -> Result<Vec<EventWithVersion>> {
-        if let Some(start) = start {
-            Ok(self.db.get_events(
-                event_key,
-                start,
-                Order::Ascending,
-                limit as u64,
-                ledger_version,
-            )?)
+        let (start, order) = if let Some(start) = start {
+            (start, Order::Ascending)
         } else {
-            Ok(self
-                .db
-                .get_events(
-                    event_key,
-                    u64::MAX,
-                    Order::Descending,
-                    limit as u64,
-                    ledger_version,
-                )
-                .map(|mut result| {
-                    result.reverse();
-                    result
-                })?)
+            (u64::MAX, Order::Descending)
+        };
+        let mut res = if !db_sharding_enabled(&self.node_config) {
+            self.db
+                .get_events(event_key, start, order, limit as u64, ledger_version)?
+        } else {
+            self.indexer_reader
+                .as_ref()
+                .ok_or_else(|| anyhow!("Internal indexer reader doesn't exist"))?
+                .get_events(event_key, start, order, limit as u64, ledger_version)?
+        };
+        if order == Order::Descending {
+            res.reverse();
+            Ok(res)
+        } else {
+            Ok(res)
         }
+    }
+
+    pub fn get_indexer_reader(&self) -> Option<&Arc<dyn IndexerReader>> {
+        self.indexer_reader.as_ref()
     }
 
     fn next_bucket(&self, gas_unit_price: u64) -> u64 {
@@ -894,9 +1171,10 @@ impl Context {
         start_version: Version,
         limit: u64,
         ledger_version: Version,
-    ) -> Result<(Vec<(u64, u64)>, Vec<BlockEndInfo>)> {
+        count_majority_use_case: bool,
+    ) -> Result<(Vec<(u64, u64)>, Vec<BlockEndInfo>, Option<f32>)> {
         if start_version > ledger_version || limit == 0 {
-            return Ok((vec![], vec![]));
+            return Ok((vec![], vec![], None));
         }
 
         // This is just an estimation, so we can just skip over errors
@@ -908,11 +1186,16 @@ impl Context {
 
         let mut gas_prices = Vec::new();
         let mut block_end_infos = Vec::new();
+        let mut count_by_use_case = HashMap::new();
         for (txn, info) in txns.zip(infos) {
             match txn.as_ref() {
                 Ok(Transaction::UserTransaction(txn)) => {
                     if let Ok(info) = info.as_ref() {
                         gas_prices.push((txn.gas_unit_price(), info.gas_used()));
+                        if count_majority_use_case {
+                            let use_case_key = txn.parse_use_case();
+                            *count_by_use_case.entry(use_case_key).or_insert(0) += 1;
+                        }
                     }
                 },
                 Ok(Transaction::BlockEpilogue(txn)) => {
@@ -924,7 +1207,80 @@ impl Context {
             }
         }
 
-        Ok((gas_prices, block_end_infos))
+        let majority_use_case_fraction = if count_majority_use_case {
+            count_by_use_case.iter().max_by_key(|(_, v)| *v).and_then(
+                |(max_use_case, max_value)| {
+                    if let UseCaseKey::ContractAddress(_) = max_use_case {
+                        Some(*max_value as f32 / count_by_use_case.values().sum::<u64>() as f32)
+                    } else {
+                        None
+                    }
+                },
+            )
+        } else {
+            None
+        };
+        Ok((gas_prices, block_end_infos, majority_use_case_fraction))
+    }
+
+    fn block_min_inclusion_price(
+        &self,
+        ledger_info: &LedgerInfo,
+        first: Version,
+        last: Version,
+        gas_estimation_config: &GasEstimationConfig,
+        execution_config: &OnChainExecutionConfig,
+    ) -> Option<u64> {
+        let user_use_case_spread_factor = if gas_estimation_config.incorporate_reordering_effects {
+            execution_config
+                .transaction_shuffler_type()
+                .user_use_case_spread_factor()
+        } else {
+            None
+        };
+
+        match self.get_gas_prices_and_used(
+            first,
+            last - first,
+            ledger_info.ledger_version.0,
+            user_use_case_spread_factor.is_some(),
+        ) {
+            Ok((prices_and_used, block_end_infos, majority_use_case_fraction)) => {
+                let is_full_block =
+                    if majority_use_case_fraction.is_some_and(|fraction| fraction > 0.5) {
+                        // If majority use case is above half of transactions, UseCaseAware block reordering
+                        // will allow other transactions to get in the block (AIP-68)
+                        false
+                    } else if prices_and_used.len() >= gas_estimation_config.full_block_txns {
+                        true
+                    } else if !block_end_infos.is_empty() {
+                        assert_eq!(1, block_end_infos.len());
+                        block_end_infos.first().unwrap().limit_reached()
+                    } else if let Some(block_gas_limit) =
+                        execution_config.block_gas_limit_type().block_gas_limit()
+                    {
+                        let gas_used = prices_and_used.iter().map(|(_, used)| *used).sum::<u64>();
+                        gas_used >= block_gas_limit
+                    } else {
+                        false
+                    };
+
+                if is_full_block {
+                    Some(
+                        self.next_bucket(
+                            prices_and_used
+                                .iter()
+                                .map(|(price, _)| *price)
+                                .min()
+                                .unwrap(),
+                        ),
+                    )
+                } else {
+                    None
+                }
+            },
+            Err(_) => None,
+        }
     }
 
     pub fn estimate_gas_price<E: InternalError>(
@@ -933,7 +1289,7 @@ impl Context {
     ) -> Result<GasEstimation, E> {
         let config = &self.node_config.api.gas_estimation;
         let min_gas_unit_price = self.min_gas_unit_price(ledger_info)?;
-        let block_config = self.block_executor_onchain_config(ledger_info)?;
+        let execution_config = self.execution_onchain_config(ledger_info)?;
         if !config.enabled {
             return Ok(self.default_gas_estimation(min_gas_unit_price));
         }
@@ -1014,40 +1370,9 @@ impl Context {
         let mut min_inclusion_prices = vec![];
         // TODO: if multiple calls to db is a perf issue, combine into a single call and then split
         for (first, last) in blocks {
-            let min_inclusion_price = match self.get_gas_prices_and_used(
-                first,
-                last - first,
-                ledger_info.ledger_version.0,
-            ) {
-                Ok((prices_and_used, block_end_infos)) => {
-                    let is_full_block = if prices_and_used.len() >= config.full_block_txns {
-                        true
-                    } else if !block_end_infos.is_empty() {
-                        assert_eq!(1, block_end_infos.len());
-                        block_end_infos.first().unwrap().limit_reached()
-                    } else if let Some(block_gas_limit) =
-                        block_config.block_gas_limit_type.block_gas_limit()
-                    {
-                        let gas_used = prices_and_used.iter().map(|(_, used)| *used).sum::<u64>();
-                        gas_used >= block_gas_limit
-                    } else {
-                        false
-                    };
-
-                    if is_full_block {
-                        self.next_bucket(
-                            prices_and_used
-                                .iter()
-                                .map(|(price, _)| *price)
-                                .min()
-                                .unwrap(),
-                        )
-                    } else {
-                        min_gas_unit_price
-                    }
-                },
-                Err(_) => min_gas_unit_price,
-            };
+            let min_inclusion_price = self
+                .block_min_inclusion_price(ledger_info, first, last, config, &execution_config)
+                .unwrap_or(min_gas_unit_price);
             min_inclusion_prices.push(min_inclusion_price);
             cache
                 .min_inclusion_prices
@@ -1215,16 +1540,16 @@ impl Context {
         }
     }
 
-    pub fn block_executor_onchain_config<E: InternalError>(
+    pub fn execution_onchain_config<E: InternalError>(
         &self,
         ledger_info: &LedgerInfo,
-    ) -> Result<BlockExecutorConfigFromOnchain, E> {
+    ) -> Result<OnChainExecutionConfig, E> {
         // If it's the same epoch, use the cached results
         {
             let cache = self.gas_limit_cache.read().unwrap();
             if let Some(ref last_updated_epoch) = cache.last_updated_epoch {
                 if *last_updated_epoch == ledger_info.epoch.0 {
-                    return Ok(cache.block_executor_onchain_config.clone());
+                    return Ok(cache.execution_onchain_config.clone());
                 }
             }
         }
@@ -1235,7 +1560,7 @@ impl Context {
             // If a different thread updated the cache, we can exit early
             if let Some(ref last_updated_epoch) = cache.last_updated_epoch {
                 if *last_updated_epoch == ledger_info.epoch.0 {
-                    return Ok(cache.block_executor_onchain_config.clone());
+                    return Ok(cache.execution_onchain_config.clone());
                 }
             }
 
@@ -1247,14 +1572,13 @@ impl Context {
                     E::internal_with_code(e, AptosErrorCode::InternalError, ledger_info)
                 })?;
 
-            let block_executor_onchain_config = OnChainExecutionConfig::fetch_config(&state_view)
-                .unwrap_or_else(OnChainExecutionConfig::default_if_missing)
-                .block_executor_onchain_config();
+            let execution_onchain_config = OnChainExecutionConfig::fetch_config(&state_view)
+                .unwrap_or_else(OnChainExecutionConfig::default_if_missing);
 
             // Update the cache
-            cache.block_executor_onchain_config = block_executor_onchain_config.clone();
+            cache.execution_onchain_config = execution_onchain_config.clone();
             cache.last_updated_epoch = Some(ledger_info.epoch.0);
-            Ok(block_executor_onchain_config)
+            Ok(execution_onchain_config)
         }
     }
 
@@ -1314,7 +1638,7 @@ pub struct GasEstimationCache {
 
 pub struct GasLimitCache {
     last_updated_epoch: Option<u64>,
-    block_executor_onchain_config: BlockExecutorConfigFromOnchain,
+    execution_onchain_config: OnChainExecutionConfig,
 }
 
 /// This function just calls tokio::task::spawn_blocking with the given closure and in
@@ -1443,4 +1767,8 @@ impl FunctionStats {
             stats.invalidate_all();
         }
     }
+}
+
+fn db_sharding_enabled(node_config: &NodeConfig) -> bool {
+    node_config.storage.rocksdb_configs.enable_storage_sharding
 }

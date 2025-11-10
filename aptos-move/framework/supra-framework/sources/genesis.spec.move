@@ -110,6 +110,14 @@ spec supra_framework::genesis {
         ensures exists<transaction_fee::SupraCoinCapabilities>(@supra_framework);
     }
 
+    spec initialize_validator {
+        pragma verify_duration_estimate = 120;
+    }
+
+    spec initialize_validator {
+        pragma verify_duration_estimate = 120;
+    }
+
     spec create_initialize_validators_with_commission {
         pragma verify_duration_estimate = 120;
 
@@ -129,6 +137,7 @@ spec supra_framework::genesis {
     }
 
     spec create_initialize_validator {
+        pragma verify_duration_estimate = 120;
         include stake::ResourceRequirement;
     }
 
@@ -182,10 +191,8 @@ spec supra_framework::genesis {
         requires chain_status::is_operating();
         requires len(execution_config) > 0;
         requires exists<staking_config::StakingRewardsConfig>(@supra_framework);
-        requires exists<stake::ValidatorFees>(@supra_framework);
         requires exists<coin::CoinInfo<SupraCoin>>(@supra_framework);
         include CompareTimeRequires;
-        include transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply;
     }
 
     spec schema CompareTimeRequires {

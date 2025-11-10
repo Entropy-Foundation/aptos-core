@@ -11,24 +11,28 @@ use std::process::Command;
 
 /// Default flags passed to boogie. Additional flags will be added to this via the -B option.
 const DEFAULT_BOOGIE_FLAGS: &[&str] = &[
-    "-doModSetAnalysis",
     "-printVerifiedProceduresCount:0",
     "-printModel:1",
     "-enhancedErrorMessages:1",
     "-proverOpt:O:model_validate=true",
 ];
 
+const MOD_SET_ANALYSIS_LEGACY_FLAG: &str = "-doModSetAnalysis";
+
+const MOD_SET_ANALYSIS_NEW_FLAG_SINCE_3_5_1: &str = "-inferModifies";
+
 /// Versions for boogie, z3, and cvc5. The upgrade of boogie and z3 is mostly backward compatible,
 /// but not always. Setting the max version allows Prover to warn users for the higher version of
 /// boogie and z3 because those may be incompatible.
-const MIN_BOOGIE_VERSION: Option<&str> = Some("3.0.1.0");
-const MAX_BOOGIE_VERSION: Option<&str> = Some("3.0.9.0");
+pub const MIN_BOOGIE_VERSION: Option<&str> = Some("3.0.1.0");
+pub const MAX_BOOGIE_VERSION: Option<&str> = Some("3.5.1.0");
+pub const MIN_BOOGIE_VERSION_NEW_MOD_SET_ANALYSIS: Option<&str> = Some("3.5.1.0");
 
-const MIN_Z3_VERSION: Option<&str> = Some("4.11.2");
-const MAX_Z3_VERSION: Option<&str> = Some("4.11.2");
+pub const MIN_Z3_VERSION: Option<&str> = Some("4.11.2");
+pub const MAX_Z3_VERSION: Option<&str> = Some("4.11.2");
 
-const MIN_CVC5_VERSION: Option<&str> = Some("0.0.3");
-const MAX_CVC5_VERSION: Option<&str> = None;
+pub const MIN_CVC5_VERSION: Option<&str> = Some("0.0.3");
+pub const MAX_CVC5_VERSION: Option<&str> = None;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum VectorTheory {
@@ -56,6 +60,21 @@ pub struct CustomNativeOptions {
     /// List of (module name, module instance key, single_type_expected) tuples,
     /// used to generate instantiated versions of generic native functions.
     pub module_instance_names: Vec<(String, String, bool)>,
+}
+
+pub fn custom_native_options() -> Vec<(String, String, bool)> {
+    vec![
+        (
+            "0x1::object".to_string(),
+            "object_instances".to_string(),
+            true,
+        ),
+        (
+            "0x1::aggregator_v2".to_string(),
+            "aggregator_v2_instances".to_string(),
+            true,
+        ),
+    ]
 }
 
 /// Contains information about a native method implementing mutable borrow semantics for a given
@@ -125,6 +144,11 @@ pub struct BoogieOptions {
     pub random_seed: usize,
     /// The number of cores to use for parallel processing of verification conditions.
     pub proc_cores: usize,
+    /// The number of shards to split the verification problem into.
+    pub shards: usize,
+    /// If there are shards, specifies to only run the given shard. Shards are numbered
+    /// starting at 1.
+    pub only_shard: Option<usize>,
     /// A (soft) timeout for the solver, per verification condition, in seconds.
     pub vc_timeout: usize,
     /// Whether allow local timeout overwrites the global one
@@ -144,6 +168,11 @@ pub struct BoogieOptions {
     /// A hard timeout for boogie execution; if the process does not terminate within
     /// this time frame, it will be killed. Zero for no timeout.
     pub hard_timeout_secs: u64,
+    /// Whether to skip verification of type instantiations of functions. This may miss
+    /// some verification conditions if different type instantiations can create
+    /// different behavior via type reflection or storage access, but can speed up
+    /// verification.
+    pub skip_instance_check: bool,
     /// What vector theory to use.
     pub vector_theory: VectorTheory,
     /// Whether to generate a z3 trace file and where to put it.
@@ -157,6 +186,7 @@ pub struct BoogieOptions {
 }
 
 impl Default for BoogieOptions {
+    #[allow(clippy::literal_string_with_formatting_args)]
     fn default() -> Self {
         Self {
             bench_repeat: 1,
@@ -178,7 +208,9 @@ impl Default for BoogieOptions {
             vector_using_sequences: false,
             random_seed: 1,
             proc_cores: 4,
-            vc_timeout: 80,
+            shards: 1,
+            only_shard: None,
+            vc_timeout: 40,
             global_timeout_overwrite: true,
             keep_artifacts: false,
             eager_threshold: 100,
@@ -192,6 +224,7 @@ impl Default for BoogieOptions {
             custom_natives: None,
             loop_unroll: None,
             borrow_aggregates: vec![],
+            skip_instance_check: false,
         }
     }
 }
@@ -222,6 +255,7 @@ impl BoogieOptions {
 
         let mut add = |sl: &[&str]| result.extend(sl.iter().map(|s| (*s).to_string()));
         add(DEFAULT_BOOGIE_FLAGS);
+        add(&[self.get_mod_analysis_flag()?]);
         if self.use_cvc5 {
             add(&[
                 "-proverOpt:SOLVER=cvc5",
@@ -297,6 +331,28 @@ impl BoogieOptions {
         }
     }
 
+    /// Get the mod set analysis flag based on the boogie version.
+    pub fn get_mod_analysis_flag(&self) -> anyhow::Result<&str> {
+        let version = Self::get_version(
+            "boogie",
+            &self.boogie_exe,
+            &["/version"],
+            r"version ([0-9.]*)",
+        )?;
+        if Self::check_version_is_compatible(
+            "boogie",
+            &version,
+            MIN_BOOGIE_VERSION_NEW_MOD_SET_ANALYSIS,
+            None,
+        )
+        .is_ok()
+        {
+            Ok(MOD_SET_ANALYSIS_NEW_FLAG_SINCE_3_5_1)
+        } else {
+            Ok(MOD_SET_ANALYSIS_LEGACY_FLAG)
+        }
+    }
+
     /// Checks whether the expected tool versions are installed in the environment.
     pub fn check_tool_versions(&self) -> anyhow::Result<()> {
         if !self.boogie_exe.is_empty() {
@@ -357,7 +413,7 @@ impl BoogieOptions {
         }
     }
 
-    fn check_version_is_compatible(
+    pub fn check_version_is_compatible(
         tool: &str,
         given: &str,
         expected_min: Option<&str>,

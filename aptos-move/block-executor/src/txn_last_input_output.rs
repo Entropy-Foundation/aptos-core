@@ -2,39 +2,44 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    captured_reads::CapturedReads,
+    captured_reads::{CapturedReads, DataRead, ReadKind},
     errors::ParallelBlockExecutionError,
     explicit_sync_wrapper::ExplicitSyncWrapper,
     task::{ExecutionStatus, TransactionOutput},
     types::{InputOutputKey, ReadWriteSummary},
 };
-use aptos_aggregator::types::code_invariant_error;
 use aptos_logger::error;
-use aptos_mvhashmap::types::{TxnIndex, ValueWithLayout};
+use aptos_mvhashmap::types::TxnIndex;
 use aptos_types::{
-    delayed_fields::PanicError, fee_statement::FeeStatement,
+    error::{code_invariant_error, PanicError},
+    fee_statement::FeeStatement,
     state_store::state_value::StateValueMetadata,
-    transaction::BlockExecutableTransaction as Transaction, write_set::WriteOp,
+    transaction::BlockExecutableTransaction as Transaction,
+    vm::modules::AptosModuleExtension,
+    write_set::WriteOp,
 };
+use aptos_vm_types::module_write_set::ModuleWrite;
 use arc_swap::ArcSwapOption;
 use crossbeam::utils::CachePadded;
-use dashmap::DashSet;
-use move_core_types::value::MoveTypeLayout;
+use move_binary_format::CompiledModule;
+use move_core_types::{language_storage::ModuleId, value::MoveTypeLayout};
+use move_vm_runtime::Module;
+use move_vm_types::delayed_values::delayed_field_id::DelayedFieldID;
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::HashSet,
     fmt::Debug,
     iter::{empty, Iterator},
     sync::Arc,
 };
 
-type TxnInput<T> = CapturedReads<T>;
+type TxnInput<T> = CapturedReads<T, ModuleId, CompiledModule, Module, AptosModuleExtension>;
 
 macro_rules! forward_on_success_or_skip_rest {
     ($self:ident, $txn_idx:ident, $f:ident) => {{
         $self.outputs[$txn_idx as usize]
             .load()
             .as_ref()
-            .map_or(vec![], |txn_output| match txn_output.as_ref() {
+            .map_or_else(Vec::new, |txn_output| match txn_output.as_ref() {
                 ExecutionStatus::Success(t) | ExecutionStatus::SkipRest(t) => t.$f(),
                 ExecutionStatus::Abort(_)
                 | ExecutionStatus::SpeculativeExecutionAbortError(_)
@@ -44,21 +49,8 @@ macro_rules! forward_on_success_or_skip_rest {
     }};
 }
 
-pub(crate) enum KeyKind {
-    Resource,
-    Module,
-    Group,
-}
-
 pub struct TxnLastInputOutput<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug> {
     inputs: Vec<CachePadded<ArcSwapOption<TxnInput<T>>>>, // txn_idx -> input.
-    // Set once when the group outputs are committed sequentially, to be processed later by
-    // concurrent materialization / output preparation.
-    finalized_groups: Vec<
-        CachePadded<
-            ExplicitSyncWrapper<Vec<(T::Key, T::Value, Vec<(T::Tag, ValueWithLayout<T::Value>)>)>>,
-        >,
-    >,
 
     // TODO: Consider breaking down the outputs when storing (avoid traversals, cache below).
     outputs: Vec<CachePadded<ArcSwapOption<ExecutionStatus<O, E>>>>, // txn_idx -> output.
@@ -68,12 +60,6 @@ pub struct TxnLastInputOutput<T: Transaction, O: TransactionOutput<Txn = T>, E: 
     arced_resource_writes: Vec<
         CachePadded<ExplicitSyncWrapper<Vec<(T::Key, Arc<T::Value>, Option<Arc<MoveTypeLayout>>)>>>,
     >,
-
-    // Record all writes and reads to access paths corresponding to modules (code) in any
-    // (speculative) executions. Used to avoid a potential race with module publishing and
-    // Move-VM loader cache - see 'record' function comment for more information.
-    module_writes: DashSet<T::Key>,
-    module_reads: DashSet<T::Key>,
 }
 
 impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
@@ -90,83 +76,47 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
             arced_resource_writes: (0..num_txns)
                 .map(|_| CachePadded::new(ExplicitSyncWrapper::<Vec<_>>::new(vec![])))
                 .collect(),
-            finalized_groups: (0..num_txns)
-                .map(|_| CachePadded::new(ExplicitSyncWrapper::<Vec<_>>::new(vec![])))
-                .collect(),
-            module_writes: DashSet::new(),
-            module_reads: DashSet::new(),
         }
     }
 
-    fn append_and_check<'a>(
-        paths: impl Iterator<Item = &'a T::Key>,
-        set_to_append: &DashSet<T::Key>,
-        set_to_check: &DashSet<T::Key>,
-    ) -> bool {
-        for path in paths {
-            // Standard flags, first show, then look.
-            set_to_append.insert(path.clone());
-
-            if set_to_check.contains(path) {
-                return true;
-            }
-        }
-        false
-    }
-
-    /// Returns false on an error - if a module path that was read was previously written to, and vice versa.
-    /// Since parallel executor is instantiated per block, any module that is in the Move-VM loader
-    /// cache must previously be read and would be recorded in the 'module_reads' set. Any module
-    /// that is written (published or re-published) goes through transaction output write-set and
-    /// gets recorded in the 'module_writes' set. If these sets have an intersection, it is currently
-    /// possible that Move-VM loader cache loads a module and incorrectly uses it for another
-    /// transaction (e.g. a smaller transaction, or if the speculative execution of the publishing
-    /// transaction later aborts). The intersection is guaranteed to be found because we first
-    /// record the paths then check the other set (flags principle), and in this case we return an
-    /// error that ensures a fallback to a correct sequential execution.
-    /// When the sets do not have an intersection, it is impossible for the race to occur as any
-    /// module in the loader cache may not be published by a transaction in the ongoing block.
     pub(crate) fn record(
         &self,
         txn_idx: TxnIndex,
-        input: CapturedReads<T>,
+        input: TxnInput<T>,
         output: ExecutionStatus<O, E>,
         arced_resource_writes: Vec<(T::Key, Arc<T::Value>, Option<Arc<MoveTypeLayout>>)>,
-    ) -> bool {
-        let written_modules = match &output {
-            ExecutionStatus::Success(output) | ExecutionStatus::SkipRest(output) => {
-                output.module_write_set()
-            },
-            ExecutionStatus::Abort(_)
-            | ExecutionStatus::SpeculativeExecutionAbortError(_)
-            | ExecutionStatus::DelayedFieldsCodeInvariantError(_)
-            | ExecutionStatus::MissingNativeFunction(_) => BTreeMap::new(),
-        };
-
-        if self
-            .check_and_append_module_rw_conflict(input.module_reads.iter(), written_modules.keys())
-        {
-            return false;
-        }
-
+    ) {
         *self.arced_resource_writes[txn_idx as usize].acquire() = arced_resource_writes;
         self.inputs[txn_idx as usize].store(Some(Arc::new(input)));
         self.outputs[txn_idx as usize].store(Some(Arc::new(output)));
-
-        true
     }
 
-    pub(crate) fn check_and_append_module_rw_conflict<'a>(
+    pub fn fetch_exchanged_data(
         &self,
-        module_reads_keys: impl Iterator<Item = &'a T::Key>,
-        module_writes_keys: impl Iterator<Item = &'a T::Key>,
-    ) -> bool {
-        // Check if adding new read & write modules leads to intersections.
-        Self::append_and_check(module_reads_keys, &self.module_reads, &self.module_writes)
-            || Self::append_and_check(module_writes_keys, &self.module_writes, &self.module_reads)
+        key: &T::Key,
+        txn_idx: TxnIndex,
+    ) -> Result<(Arc<T::Value>, Arc<MoveTypeLayout>), PanicError> {
+        self.inputs[txn_idx as usize].load().as_ref().map_or_else(
+            || {
+                Err(code_invariant_error(
+                    "Read must be recorded before fetching exchanged data".to_string(),
+                ))
+            },
+            |input| {
+                let data_read = input.get_by_kind(key, None, ReadKind::Value);
+                if let Some(DataRead::Versioned(_, value, Some(layout))) = data_read {
+                    Ok((value, layout))
+                } else {
+                    Err(code_invariant_error(format!(
+                        "Read value needing exchange {:?} not in Exchanged format",
+                        data_read
+                    )))
+                }
+            },
+        )
     }
 
-    pub(crate) fn read_set(&self, txn_idx: TxnIndex) -> Option<Arc<CapturedReads<T>>> {
+    pub(crate) fn read_set(&self, txn_idx: TxnIndex) -> Option<Arc<TxnInput<T>>> {
         self.inputs[txn_idx as usize].load_full()
     }
 
@@ -197,7 +147,7 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
         }
     }
 
-    /// Does a transaction at txn_idx have SkipRest or Abort status.
+    /// Does a transaction at txn_idx have SkipRest.
     pub(crate) fn block_skips_rest_at_idx(&self, txn_idx: TxnIndex) -> bool {
         matches!(
             self.outputs[txn_idx as usize]
@@ -255,18 +205,21 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
         }
     }
 
-    pub(crate) fn update_to_skip_rest(&self, txn_idx: TxnIndex) {
+    pub(crate) fn update_to_skip_rest(&self, txn_idx: TxnIndex) -> Result<(), PanicError> {
         if self.block_skips_rest_at_idx(txn_idx) {
             // Already skipping.
-            return;
+            return Ok(());
         }
 
         // check_execution_status_during_commit must be used for checks re:status.
         // Hence, since the status is not SkipRest, it must be Success.
-        if let ExecutionStatus::Success(output) = self.take_output(txn_idx) {
+        if let ExecutionStatus::Success(output) = self.take_output(txn_idx)? {
             self.outputs[txn_idx as usize].store(Some(Arc::new(ExecutionStatus::SkipRest(output))));
+            Ok(())
         } else {
-            unreachable!("Unexpected status, must be Success");
+            Err(code_invariant_error(
+                "Unexpected status to change to SkipRest, must be Success",
+            ))
         }
     }
 
@@ -274,36 +227,56 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
         self.outputs[txn_idx as usize].load_full()
     }
 
-    // Extracts a set of paths (keys) written or updated during execution from transaction
-    // output, .1 for each item is false for non-module paths and true for module paths.
-    pub(crate) fn modified_keys(
+    /// Returns an error if callback returns an error.
+    pub(crate) fn for_each_resource_group_key_and_tags<F>(
         &self,
         txn_idx: TxnIndex,
-    ) -> Option<impl Iterator<Item = (T::Key, KeyKind)>> {
+        callback: F,
+    ) -> Result<(), PanicError>
+    where
+        F: FnMut(&T::Key, HashSet<&T::Tag>) -> Result<(), PanicError>,
+    {
+        if let Some(txn_output) = self.outputs[txn_idx as usize].load().as_ref() {
+            match txn_output.as_ref() {
+                ExecutionStatus::Success(t) | ExecutionStatus::SkipRest(t) => {
+                    t.for_each_resource_group_key_and_tags(callback)?;
+                },
+                ExecutionStatus::Abort(_)
+                | ExecutionStatus::SpeculativeExecutionAbortError(_)
+                | ExecutionStatus::DelayedFieldsCodeInvariantError(_) => {
+                    // No resource group keys for failed transactions
+                },
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn modified_group_key_and_tags_cloned(
+        &self,
+        txn_idx: TxnIndex,
+    ) -> Vec<(T::Key, HashSet<T::Tag>)> {
+        forward_on_success_or_skip_rest!(self, txn_idx, resource_group_tags)
+    }
+
+    // Extracts a set of resource paths (keys) written or updated during execution from
+    // transaction output. The group keys are not included, and the boolean indicates
+    // whether the resource is used as an AggregatorV1.
+    pub(crate) fn modified_resource_keys(
+        &self,
+        txn_idx: TxnIndex,
+    ) -> Option<impl Iterator<Item = (T::Key, bool)>> {
         self.outputs[txn_idx as usize]
             .load_full()
             .and_then(|txn_output| match txn_output.as_ref() {
                 ExecutionStatus::Success(t) | ExecutionStatus::SkipRest(t) => Some(
                     t.resource_write_set()
                         .into_iter()
-                        .map(|(k, _, _)| k)
-                        .chain(t.aggregator_v1_write_set().into_keys())
+                        .map(|(k, _, _)| (k, false))
+                        .chain(t.aggregator_v1_write_set().into_keys().map(|k| (k, true)))
                         .chain(
                             t.aggregator_v1_delta_set()
                                 .into_iter()
-                                .map(|(k, _)| k)
-                                .collect::<Vec<_>>(),
-                        )
-                        .map(|k| (k, KeyKind::Resource))
-                        .chain(
-                            t.module_write_set()
-                                .into_keys()
-                                .map(|k| (k, KeyKind::Module)),
-                        )
-                        .chain(
-                            t.resource_group_metadata_ops()
-                                .into_iter()
-                                .map(|(k, _)| (k, KeyKind::Group)),
+                                .map(|(k, _)| (k, true)),
                         ),
                 ),
                 ExecutionStatus::Abort(_)
@@ -313,10 +286,46 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
             })
     }
 
+    pub(crate) fn module_write_set(&self, txn_idx: TxnIndex) -> Vec<ModuleWrite<T::Value>> {
+        use ExecutionStatus as E;
+
+        match self.outputs[txn_idx as usize]
+            .load()
+            .as_ref()
+            .map(|status| status.as_ref())
+        {
+            Some(E::Success(t) | E::SkipRest(t)) => t.module_write_set(),
+            Some(
+                E::Abort(_)
+                | E::DelayedFieldsCodeInvariantError(_)
+                | E::SpeculativeExecutionAbortError(_),
+            )
+            | None => Vec::new(),
+        }
+    }
+
+    pub(crate) fn module_write_set(&self, txn_idx: TxnIndex) -> Vec<ModuleWrite<T::Value>> {
+        use ExecutionStatus as E;
+
+        match self.outputs[txn_idx as usize]
+            .load()
+            .as_ref()
+            .map(|status| status.as_ref())
+        {
+            Some(E::Success(t) | E::SkipRest(t)) => t.module_write_set(),
+            Some(
+                E::Abort(_)
+                | E::DelayedFieldsCodeInvariantError(_)
+                | E::SpeculativeExecutionAbortError(_),
+            )
+            | None => Vec::new(),
+        }
+    }
+
     pub(crate) fn delayed_field_keys(
         &self,
         txn_idx: TxnIndex,
-    ) -> Option<impl Iterator<Item = T::Identifier>> {
+    ) -> Option<impl Iterator<Item = DelayedFieldID>> {
         self.outputs[txn_idx as usize]
             .load()
             .as_ref()
@@ -360,9 +369,9 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
         &self,
         txn_idx: TxnIndex,
     ) -> Box<dyn Iterator<Item = (T::Event, Option<MoveTypeLayout>)>> {
-        self.outputs[txn_idx as usize].load().as_ref().map_or(
-            Box::new(empty::<(T::Event, Option<MoveTypeLayout>)>()),
-            |txn_output| match txn_output.as_ref() {
+        match self.outputs[txn_idx as usize].load().as_ref() {
+            None => Box::new(empty::<(T::Event, Option<MoveTypeLayout>)>()),
+            Some(txn_output) => match txn_output.as_ref() {
                 ExecutionStatus::Success(t) | ExecutionStatus::SkipRest(t) => {
                     let events = t.get_events();
                     Box::new(events.into_iter())
@@ -374,22 +383,7 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
                     Box::new(empty::<(T::Event, Option<MoveTypeLayout>)>())
                 },
             },
-        )
-    }
-
-    pub(crate) fn record_finalized_group(
-        &self,
-        txn_idx: TxnIndex,
-        finalized_groups: Vec<(T::Key, T::Value, Vec<(T::Tag, ValueWithLayout<T::Value>)>)>,
-    ) {
-        *self.finalized_groups[txn_idx as usize].acquire() = finalized_groups;
-    }
-
-    pub(crate) fn take_finalized_group(
-        &self,
-        txn_idx: TxnIndex,
-    ) -> Vec<(T::Key, T::Value, Vec<(T::Tag, ValueWithLayout<T::Value>)>)> {
-        std::mem::take(&mut self.finalized_groups[txn_idx as usize].acquire())
+        }
     }
 
     pub(crate) fn take_resource_write_set(
@@ -440,7 +434,7 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
     pub(crate) fn get_write_summary(
         &self,
         txn_idx: TxnIndex,
-    ) -> HashSet<InputOutputKey<T::Key, T::Tag, T::Identifier>> {
+    ) -> HashSet<InputOutputKey<T::Key, T::Tag>> {
         match self.outputs[txn_idx as usize]
             .load_full()
             .expect("Output must exist")
@@ -456,12 +450,16 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
 
     // Must be executed after parallel execution is done, grabs outputs. Will panic if
     // other outstanding references to the recorded outputs exist.
-    pub(crate) fn take_output(&self, txn_idx: TxnIndex) -> ExecutionStatus<O, E> {
-        let owning_ptr = self.outputs[txn_idx as usize]
-            .swap(None)
-            .expect("[BlockSTM]: Output must be recorded after execution");
+    pub(crate) fn take_output(
+        &self,
+        txn_idx: TxnIndex,
+    ) -> Result<ExecutionStatus<O, E>, PanicError> {
+        let owning_ptr = self.outputs[txn_idx as usize].swap(None).ok_or_else(|| {
+            code_invariant_error("[BlockSTM]: Output must be recorded after execution")
+        })?;
 
-        Arc::try_unwrap(owning_ptr)
-            .expect("[BlockSTM]: Output should be uniquely owned after execution")
+        Arc::try_unwrap(owning_ptr).map_err(|_| {
+            code_invariant_error("[BlockSTM]: Output must be uniquely owned after execution")
+        })
     }
 }

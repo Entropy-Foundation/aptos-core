@@ -38,7 +38,7 @@ module supra_framework::randomness_api_v0_config {
     public fun on_new_epoch(framework: &signer) acquires RequiredGasDeposit, AllowCustomMaxGasFlag {
         system_addresses::assert_supra_framework(framework);
         if (config_buffer::does_exist<RequiredGasDeposit>()) {
-            let new_config = config_buffer::extract<RequiredGasDeposit>();
+            let new_config = config_buffer::extract_v2<RequiredGasDeposit>();
             if (exists<RequiredGasDeposit>(@supra_framework)) {
                 *borrow_global_mut<RequiredGasDeposit>(@supra_framework) = new_config;
             } else {
@@ -46,7 +46,7 @@ module supra_framework::randomness_api_v0_config {
             }
         };
         if (config_buffer::does_exist<AllowCustomMaxGasFlag>()) {
-            let new_config = config_buffer::extract<AllowCustomMaxGasFlag>();
+            let new_config = config_buffer::extract_v2<AllowCustomMaxGasFlag>();
             if (exists<AllowCustomMaxGasFlag>(@supra_framework)) {
                 *borrow_global_mut<AllowCustomMaxGasFlag>(@supra_framework) = new_config;
             } else {

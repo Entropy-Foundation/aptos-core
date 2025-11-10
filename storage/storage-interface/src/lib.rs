@@ -2,8 +2,8 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cached_state_view::ShardedStateCache;
-use aptos_crypto::{hash::CryptoHash, HashValue};
+use crate::state_store::state_view::hot_state_view::HotStateView;
+use aptos_crypto::HashValue;
 pub use aptos_types::indexer::indexer_db_reader::Order;
 use aptos_types::{
     account_address::AccountAddress,
@@ -23,36 +23,35 @@ use aptos_types::{
         state_storage_usage::StateStorageUsage,
         state_value::{StateValue, StateValueChunkWithProof},
         table::{TableHandle, TableInfo},
-        ShardedStateUpdates,
     },
     transaction::{
-        AccountTransactionsWithProof, Transaction, TransactionAuxiliaryData, TransactionInfo,
-        TransactionListWithProof, TransactionOutputListWithProof, TransactionToCommit,
-        TransactionWithProof, Version,
+        AccountOrderedTransactionsWithProof, IndexedTransactionSummary, PersistedAuxiliaryInfo,
+        Transaction, TransactionAuxiliaryData, TransactionInfo, TransactionListWithProofV2,
+        TransactionOutputListWithProofV2, TransactionToCommit, TransactionWithProof, Version,
     },
     write_set::WriteSet,
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use thiserror::Error;
 
-pub mod async_proof_fetcher;
 pub mod block_info;
-pub mod cached_state_view;
+pub mod chunk_to_commit;
 pub mod errors;
-mod executed_trees;
+mod ledger_summary;
 mod metrics;
 #[cfg(any(test, feature = "fuzzing"))]
 pub mod mock;
-pub mod state_delta;
-pub mod state_view;
+pub mod state_store;
 
-use crate::state_delta::StateDelta;
-use aptos_scratchpad::SparseMerkleTree;
+use crate::{
+    chunk_to_commit::ChunkToCommit,
+    state_store::{state::State, state_summary::StateSummary},
+};
 pub use aptos_types::block_info::BlockHeight;
 use aptos_types::state_store::state_key::prefix::StateKeyPrefix;
 pub use errors::AptosDbError;
-pub use executed_trees::ExecutedTrees;
+pub use ledger_summary::LedgerSummary;
 
 pub type Result<T, E = AptosDbError> = std::result::Result<T, E>;
 // This is last line of defense against large queries slipping through external facing interfaces,
@@ -101,7 +100,7 @@ impl From<aptos_secure_net::Error> for Error {
 macro_rules! delegate_read {
     ($(
         $(#[$($attr:meta)*])*
-        fn $name:ident(&self $(, $arg: ident : $ty: ty $(,)?)*) -> $return_type:ty;
+        fn $name:ident(&self $(, $arg: ident : $ty: ty)* $(,)?) -> $return_type:ty;
     )+) => {
         $(
             $(#[$($attr)*])*
@@ -140,7 +139,7 @@ pub trait DbReader: Send + Sync {
             batch_size: u64,
             ledger_version: Version,
             fetch_events: bool,
-        ) -> Result<TransactionListWithProof>;
+        ) -> Result<TransactionListWithProofV2>;
 
         /// See [AptosDB::get_transaction_by_hash].
         ///
@@ -167,6 +166,15 @@ pub trait DbReader: Send + Sync {
             version: Version,
         ) -> Result<Option<TransactionAuxiliaryData>>;
 
+        /// See [AptosDB::get_persisted_auxiliary_info_iterator].
+        ///
+        /// [AptosDB::get_persisted_auxiliary_info_iterator]: ../aptosdb/struct.AptosDB.html#method.get_persisted_auxiliary_info_iterator
+        fn get_persisted_auxiliary_info_iterator(
+            &self,
+            start_version: Version,
+            num_persisted_auxiliary_info: usize,
+        ) -> Result<Box<dyn Iterator<Item = Result<PersistedAuxiliaryInfo>> + '_>>;
+
         /// See [AptosDB::get_first_txn_version].
         ///
         /// [AptosDB::get_first_txn_version]: ../aptosdb/struct.AptosDB.html#method.get_first_txn_version
@@ -190,7 +198,7 @@ pub trait DbReader: Send + Sync {
             start_version: Version,
             limit: u64,
             ledger_version: Version,
-        ) -> Result<TransactionOutputListWithProof>;
+        ) -> Result<TransactionOutputListWithProofV2>;
 
         /// Returns events by given event key
         fn get_events(
@@ -282,7 +290,12 @@ pub trait DbReader: Send + Sync {
         fn get_latest_ledger_info_option(&self) -> Result<Option<LedgerInfoWithSignatures>>;
 
         /// Returns the latest "synced" transaction version, potentially not "committed" yet.
-        fn get_synced_version(&self) -> Result<Version>;
+        fn get_synced_version(&self) -> Result<Option<Version>>;
+
+        /// Returns the latest "pre-committed" transaction version, which includes those written to
+        /// the DB but yet to be certified by consensus or a verified LedgerInfo from a state sync
+        /// peer.
+        fn get_pre_committed_version(&self) -> Result<Option<Version>>;
 
         /// Returns the latest state checkpoint version if any.
         fn get_latest_state_checkpoint_version(&self) -> Result<Option<Version>>;
@@ -293,9 +306,9 @@ pub trait DbReader: Send + Sync {
             next_version: Version,
         ) -> Result<Option<(Version, HashValue)>>;
 
-        /// Returns a transaction that is the `seq_num`-th one associated with the given account. If
-        /// the transaction with given `seq_num` doesn't exist, returns `None`.
-        fn get_account_transaction(
+        /// Returns a transaction that is the `sequence_number`-th one associated with the given account. If
+        /// the transaction with given `sequence_number` doesn't exist, returns `None`.
+        fn get_account_ordered_transaction(
             &self,
             address: AccountAddress,
             seq_num: u64,
@@ -303,18 +316,35 @@ pub trait DbReader: Send + Sync {
             ledger_version: Version,
         ) -> Result<Option<TransactionWithProof>>;
 
-        /// Returns the list of transactions sent by an account with `address` starting
+        /// Returns the list of ordered transactions (transactions that include a sequence number)
+        /// sent by an account with `address` starting
         /// at sequence number `seq_num`. Will return no more than `limit` transactions.
         /// Will ignore transactions with `txn.version > ledger_version`. Optionally
         /// fetch events for each transaction when `fetch_events` is `true`.
-        fn get_account_transactions(
+        fn get_account_ordered_transactions(
             &self,
             address: AccountAddress,
             seq_num: u64,
             limit: u64,
             include_events: bool,
             ledger_version: Version,
-        ) -> Result<AccountTransactionsWithProof>;
+        ) -> Result<AccountOrderedTransactionsWithProof>;
+
+        /// Returns the list of summaries of transactions committed by an account.
+        /// Each transaction summary contains the sender address, transaction hash, version, replay protector
+        /// of the committed transaction.
+        /// If `start_version` is provided, the returned list contains transactions starting from `start_version`.
+        /// Or else if `end_version` is provided, the returned list contains transactions ending at `end_version`.
+        /// The returned list contains at most `limit` transactions.
+        /// The returned list is always sorted by version in ascending order.
+        fn get_account_transaction_summaries(
+            &self,
+            address: AccountAddress,
+            start_version: Option<u64>,
+            end_version: Option<u64>,
+            limit: u64,
+            ledger_version: Version,
+        ) -> Result<Vec<IndexedTransactionSummary>>;
 
         /// Returns proof of new state for a given ledger info with signatures relative to version known
         /// to client
@@ -353,7 +383,7 @@ pub trait DbReader: Send + Sync {
         /// Returns the proof of the given state key and version.
         fn get_state_proof_by_version_ext(
             &self,
-            state_key: &StateKey,
+            key_hash: &HashValue,
             version: Version,
             root_depth: usize,
         ) -> Result<SparseMerkleProofExt>;
@@ -368,17 +398,18 @@ pub trait DbReader: Send + Sync {
         /// This is used by aptos core (executor) internally.
         fn get_state_value_with_proof_by_version_ext(
             &self,
-            state_key: &StateKey,
+            key_hash: &HashValue,
             version: Version,
             root_depth: usize,
         ) -> Result<(Option<StateValue>, SparseMerkleProofExt)>;
 
-        /// Gets the latest ExecutedTrees no matter if db has been bootstrapped.
+        /// Gets the latest LedgerView no matter if db has been bootstrapped.
         /// Used by the Db-bootstrapper.
-        fn get_latest_executed_trees(&self) -> Result<ExecutedTrees>;
+        fn get_pre_committed_ledger_summary(&self) -> Result<LedgerSummary>;
 
-        /// Get the oldest in memory state tree.
-        fn get_buffered_state_base(&self) -> Result<SparseMerkleTree<StateValue>>;
+        fn get_persisted_state(&self) -> Result<(Arc<dyn HotStateView>, State)>;
+
+        fn get_persisted_state_summary(&self) -> Result<StateSummary>;
 
         /// Get the ledger info of the epoch that `known_version` belongs to.
         fn get_epoch_ending_ledger_info(
@@ -419,8 +450,8 @@ pub trait DbReader: Send + Sync {
             ledger_version: Version,
         ) -> Result<TransactionAccumulatorSummary>;
 
-        /// Returns total number of leaves in state store at given version.
-        fn get_state_leaf_count(&self, version: Version) -> Result<usize>;
+        /// Returns total number of state items in state store at given version.
+        fn get_state_item_count(&self, version: Version) -> Result<usize>;
 
         /// Get a chunk of state store value, addressed by the index.
         fn get_state_value_chunk_with_proof(
@@ -484,8 +515,23 @@ pub trait DbReader: Send + Sync {
         state_key: &StateKey,
         version: Version,
     ) -> Result<(Option<StateValue>, SparseMerkleProof)> {
-        self.get_state_value_with_proof_by_version_ext(state_key, version, 0)
+        self.get_state_value_with_proof_by_version_ext(state_key.crypto_hash_ref(), version, 0)
             .map(|(value, proof_ext)| (value, proof_ext.into()))
+    }
+
+    fn ensure_synced_version(&self) -> Result<Version> {
+        self.get_synced_version()?
+            .ok_or_else(|| AptosDbError::NotFound("Synced version not found.".to_string()))
+    }
+
+    fn expect_synced_version(&self) -> Version {
+        self.ensure_synced_version()
+            .expect("Failed to get synced version.")
+    }
+
+    fn ensure_pre_committed_version(&self) -> Result<Version> {
+        self.get_pre_committed_version()?
+            .ok_or_else(|| AptosDbError::NotFound("Pre-committed version not found.".to_string()))
     }
 }
 
@@ -513,27 +559,57 @@ pub trait DbWriter: Send + Sync {
     fn finalize_state_snapshot(
         &self,
         version: Version,
-        output_with_proof: TransactionOutputListWithProof,
+        output_with_proof: TransactionOutputListWithProofV2,
         ledger_infos: &[LedgerInfoWithSignatures],
     ) -> Result<()> {
         unimplemented!()
     }
 
-    /// Persist transactions. Called by the executor module when either syncing nodes or committing
-    /// blocks during normal operation.
-    /// See [`AptosDB::save_transactions`].
-    ///
-    /// [`AptosDB::save_transactions`]: ../aptosdb/struct.AptosDB.html#method.save_transactions
+    /// Persist transactions. Called by state sync to save verified transactions to the DB.
     fn save_transactions(
         &self,
-        txns_to_commit: &[TransactionToCommit],
-        first_version: Version,
-        base_state_version: Option<Version>,
+        chunk: ChunkToCommit,
         ledger_info_with_sigs: Option<&LedgerInfoWithSignatures>,
         sync_commit: bool,
-        latest_in_memory_state: StateDelta,
-        state_updates_until_last_checkpoint: Option<ShardedStateUpdates>,
-        sharded_state_cache: Option<&ShardedStateCache>,
+    ) -> Result<()> {
+        // For reconfig suffix.
+        if ledger_info_with_sigs.is_none() && chunk.is_empty() {
+            return Ok(());
+        }
+
+        if !chunk.is_empty() {
+            self.pre_commit_ledger(chunk.clone(), sync_commit)?;
+        }
+        let version_to_commit = if let Some(ledger_info_with_sigs) = ledger_info_with_sigs {
+            ledger_info_with_sigs.ledger_info().version()
+        } else {
+            chunk.expect_last_version()
+        };
+        self.commit_ledger(version_to_commit, ledger_info_with_sigs, Some(chunk))
+    }
+
+    /// Optimistically persist transactions to the ledger.
+    ///
+    /// Called by consensus to pre-commit blocks before execution result is agreed on by the
+    /// validators.
+    ///
+    ///   If these blocks are later confirmed to be included in the ledger, commit_ledger should be
+    ///       called with a `LedgerInfoWithSignatures`.
+    ///   If not, the consensus needs to panic, resulting in a reboot of the node where the DB will
+    ///       truncate the unconfirmed data.
+    fn pre_commit_ledger(&self, chunk: ChunkToCommit, sync_commit: bool) -> Result<()> {
+        unimplemented!()
+    }
+
+    /// Commit pre-committed transactions to the ledger.
+    ///
+    /// If a LedgerInfoWithSigs is provided, both the "synced version" and "committed version" will
+    /// advance, otherwise only the synced version will advance.
+    fn commit_ledger(
+        &self,
+        version: Version,
+        ledger_info_with_sigs: Option<&LedgerInfoWithSignatures>,
+        chunk_opt: Option<ChunkToCommit>,
     ) -> Result<()> {
         unimplemented!()
     }
@@ -610,15 +686,6 @@ impl SaveTransactionsRequest {
             ledger_info_with_signatures,
         }
     }
-}
-
-pub fn jmt_updates(
-    state_updates: &HashMap<&StateKey, Option<&StateValue>>,
-) -> Vec<(HashValue, Option<(HashValue, StateKey)>)> {
-    state_updates
-        .iter()
-        .map(|(k, v_opt)| (k.hash(), v_opt.as_ref().map(|v| (v.hash(), (*k).clone()))))
-        .collect()
 }
 
 pub fn jmt_update_refs<K>(

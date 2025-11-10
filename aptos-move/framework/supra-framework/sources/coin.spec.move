@@ -60,6 +60,7 @@ spec supra_framework::coin {
     ///
     spec module {
         pragma verify = true;
+        pragma aborts_if_is_partial;
         global supply<CoinType>: num;
         global aggregate_supply<CoinType>: num;
         apply TotalSupplyTracked<CoinType> to *<CoinType> except
@@ -121,21 +122,21 @@ spec supra_framework::coin {
 
     /// Can only be initialized once.
     /// Can only be published by reserved addresses.
-    spec initialize_supply_config(supra_framework: &signer) {
-        let aptos_addr = signer::address_of(supra_framework);
-        aborts_if !system_addresses::is_supra_framework_address(aptos_addr);
+    spec initialize_supply_config(aptos_framework: &signer) {
+        let aptos_addr = signer::address_of(aptos_framework);
+        aborts_if !system_addresses::is_aptos_framework_address(aptos_addr);
         aborts_if exists<SupplyConfig>(aptos_addr);
         ensures !global<SupplyConfig>(aptos_addr).allow_upgrades;
         ensures exists<SupplyConfig>(aptos_addr);
     }
 
-    /// Can only be updated by `@supra_framework`.
-    spec allow_supply_upgrades(supra_framework: &signer, allowed: bool) {
-        modifies global<SupplyConfig>(@supra_framework);
-        let aptos_addr = signer::address_of(supra_framework);
-        aborts_if !system_addresses::is_supra_framework_address(aptos_addr);
+    /// Can only be updated by `@aptos_framework`.
+    spec allow_supply_upgrades(aptos_framework: &signer, allowed: bool) {
+        modifies global<SupplyConfig>(@aptos_framework);
+        let aptos_addr = signer::address_of(aptos_framework);
+        aborts_if !system_addresses::is_aptos_framework_address(aptos_addr);
         aborts_if !exists<SupplyConfig>(aptos_addr);
-        let post allow_upgrades_post = global<SupplyConfig>(@supra_framework);
+        let post allow_upgrades_post = global<SupplyConfig>(@aptos_framework);
         ensures allow_upgrades_post.allow_upgrades == allowed;
     }
 
@@ -174,11 +175,12 @@ spec supra_framework::coin {
         }
     }
 
-    spec fun spec_is_account_registered<CoinType>(account_addr: address): bool {
-        let paired_metadata_opt = spec_paired_metadata<CoinType>();
-        exists<CoinStore<CoinType>>(account_addr) || (option::spec_is_some(
-            paired_metadata_opt
-        ) && primary_fungible_store::spec_primary_store_exists(account_addr, option::spec_borrow(paired_metadata_opt)))
+    spec fun spec_is_account_registered<CoinType>(account_addr:address): bool;
+
+    spec is_account_registered<CoinType>(account_addr: address): bool {
+        pragma aborts_if_is_partial;
+        aborts_if false;
+        ensures [abstract] result == spec_is_account_registered<CoinType>(account_addr);
     }
 
     spec schema CoinSubAbortsIf<CoinType> {
@@ -347,7 +349,7 @@ spec supra_framework::coin {
         aborts_if coin_store.frozen;
     }
 
-    spec force_deposit<CoinType>(account_addr: address, coin: Coin<CoinType>) {
+    spec deposit_for_gas_fee<CoinType>(account_addr: address, coin: Coin<CoinType>) {
         // TODO(fa_migration)
         pragma verify = false;
         modifies global<CoinStore<CoinType>>(account_addr);
@@ -407,11 +409,11 @@ spec supra_framework::coin {
         let account_addr = signer::address_of(account);
         let coin_address = type_info::type_of<CoinType>().account_address;
         aborts_if coin_address != account_addr;
-        aborts_if !exists<SupplyConfig>(@supra_framework);
+        aborts_if !exists<SupplyConfig>(@aptos_framework);
         /// [high-level-req-1.1]
         aborts_if !exists<CoinInfo<CoinType>>(account_addr);
 
-        let supply_config = global<SupplyConfig>(@supra_framework);
+        let supply_config = global<SupplyConfig>(@aptos_framework);
         aborts_if !supply_config.allow_upgrades;
         modifies global<CoinInfo<CoinType>>(account_addr);
 
@@ -426,7 +428,7 @@ spec supra_framework::coin {
         let supply_no_parallel = option::spec_is_some(maybe_supply) &&
             !optional_aggregator::is_parallelizable(supply);
 
-        aborts_if supply_no_parallel && !exists<aggregator_factory::AggregatorFactory>(@supra_framework);
+        aborts_if supply_no_parallel && !exists<aggregator_factory::AggregatorFactory>(@aptos_framework);
         ensures supply_no_parallel ==>
             optional_aggregator::is_parallelizable(post_supply) && post_value == value;
     }
@@ -590,8 +592,8 @@ spec supra_framework::coin {
         aborts_if balance < amount;
     }
 
-    spec initialize_aggregatable_coin<CoinType>(supra_framework: &signer): AggregatableCoin<CoinType> {
-        include system_addresses::AbortsIfNotSupraFramework { account: supra_framework };
+    spec initialize_aggregatable_coin<CoinType>(aptos_framework: &signer): AggregatableCoin<CoinType> {
+        include system_addresses::AbortsIfNotAptosFramework { account: aptos_framework };
         include aggregator_factory::CreateAggregatorInternalAbortsIf;
     }
 

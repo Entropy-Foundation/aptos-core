@@ -4,9 +4,12 @@
 
 use crate::{
     consensus_observer::{
-        network_client::ConsensusObserverClient, network_events::ConsensusObserverNetworkEvents,
-        network_message::ConsensusObserverMessage, observer::ConsensusObserver,
-        publisher::ConsensusPublisher,
+        network::{
+            network_handler::ConsensusObserverNetworkMessage,
+            observer_client::ConsensusObserverClient, observer_message::ConsensusObserverMessage,
+        },
+        observer::consensus_observer::ConsensusObserver,
+        publisher::consensus_publisher::ConsensusPublisher,
     },
     counters,
     epoch_manager::EpochManager,
@@ -17,30 +20,29 @@ use crate::{
     quorum_store::quorum_store_db::QuorumStoreDB,
     rand::rand_gen::storage::db::RandDb,
     state_computer::ExecutionProxy,
-    transaction_filter::TransactionFilter,
     txn_notifier::MempoolNotifier,
     util::time_service::ClockTimeService,
 };
 use aptos_bounded_executor::BoundedExecutor;
+use aptos_channels::aptos_channel::Receiver;
 use aptos_config::config::NodeConfig;
 use aptos_consensus_notifications::ConsensusNotificationSender;
 use aptos_event_notifications::{DbBackedOnChainConfig, ReconfigNotificationListener};
 use aptos_executor::block_executor::BlockExecutor;
 use aptos_logger::prelude::*;
 use aptos_mempool::QuorumStoreRequest;
-use aptos_network::application::interface::{
-    NetworkClient, NetworkClientInterface, NetworkServiceEvents,
-};
+use aptos_network::application::interface::{NetworkClient, NetworkServiceEvents};
 use aptos_storage_interface::DbReaderWriter;
 use aptos_time_service::TimeService;
 use aptos_validator_transaction_pool::VTxnPoolState;
-use aptos_vm::AptosVM;
+use aptos_vm::aptos_vm::AptosVMBlockExecutor;
 use futures::channel::mpsc;
 use move_core_types::account_address::AccountAddress;
 use std::{collections::HashMap, sync::Arc};
 use tokio::runtime::Runtime;
 
 /// Helper function to start consensus based on configuration and return the runtime
+#[allow(clippy::unwrap_used)]
 pub fn start_consensus(
     node_config: &NodeConfig,
     network_client: NetworkClient<ConsensusMsg>,
@@ -62,11 +64,11 @@ pub fn start_consensus(
     ));
 
     let execution_proxy = ExecutionProxy::new(
-        Arc::new(BlockExecutor::<AptosVM>::new(aptos_db)),
+        Arc::new(BlockExecutor::<AptosVMBlockExecutor>::new(aptos_db)),
         txn_notifier,
         state_sync_notifier,
-        runtime.handle(),
-        TransactionFilter::new(node_config.execution.transaction_filter.clone()),
+        node_config.transaction_filters.execution_filter.clone(),
+        node_config.consensus.enable_pre_commit,
     );
 
     let time_service = Arc::new(ClockTimeService::new(runtime.handle().clone()));
@@ -76,7 +78,10 @@ pub fn start_consensus(
     let (self_sender, self_receiver) =
         aptos_channels::new_unbounded(&counters::PENDING_SELF_MESSAGES);
     let consensus_network_client = ConsensusNetworkClient::new(network_client);
-    let bounded_executor = BoundedExecutor::new(8, runtime.handle().clone());
+    let bounded_executor = BoundedExecutor::new(
+        node_config.consensus.num_bounded_executor_tasks as usize,
+        runtime.handle().clone(),
+    );
     let rand_storage = Arc::new(RandDb::new(node_config.storage.dir()));
 
     let execution_client = Arc::new(ExecutionProxyClient::new(
@@ -121,32 +126,17 @@ pub fn start_consensus(
 /// A helper function to start the consensus observer
 pub fn start_consensus_observer(
     node_config: &NodeConfig,
-    observer_network_client: NetworkClient<ConsensusObserverMessage>,
-    observer_network_service_events: NetworkServiceEvents<ConsensusObserverMessage>,
+    consensus_observer_runtime: &Runtime,
+    consensus_observer_client: Arc<
+        ConsensusObserverClient<NetworkClient<ConsensusObserverMessage>>,
+    >,
+    consensus_observer_message_receiver: Receiver<(), ConsensusObserverNetworkMessage>,
     consensus_publisher: Option<Arc<ConsensusPublisher>>,
     state_sync_notifier: Arc<dyn ConsensusNotificationSender>,
     consensus_to_mempool_sender: mpsc::Sender<QuorumStoreRequest>,
     aptos_db: DbReaderWriter,
     reconfig_events: Option<ReconfigNotificationListener<DbBackedOnChainConfig>>,
-) -> Runtime {
-    // Create a consensus observer runtime
-    let runtime = aptos_runtimes::spawn_named_runtime("observer".into(), None);
-
-    // Create the consensus observer client
-    let consensus_observer_client = if let Some(consensus_publisher) = &consensus_publisher {
-        // Get the consensus observer client from the consensus publisher
-        consensus_publisher.get_consensus_observer_client()
-    } else {
-        // Otherwise, create a new client (the publisher is not enabled)
-        Arc::new(ConsensusObserverClient::new(
-            observer_network_client.clone(),
-        ))
-    };
-
-    // Create the consensus observer network events
-    let observer_network_events =
-        ConsensusObserverNetworkEvents::new(observer_network_service_events);
-
+) {
     // Create the (dummy) consensus network client
     let (self_sender, _self_receiver) =
         aptos_channels::new_unbounded(&counters::PENDING_SELF_MESSAGES);
@@ -154,7 +144,7 @@ pub fn start_consensus_observer(
         vec![],
         vec![],
         HashMap::new(),
-        observer_network_client.get_peers_and_metadata(),
+        consensus_observer_client.get_peers_and_metadata(),
     ));
 
     // If the consensus observer is enabled, create the execution client.
@@ -166,15 +156,16 @@ pub fn start_consensus_observer(
             node_config.consensus.mempool_executed_txn_timeout_ms,
         ));
         let execution_proxy = ExecutionProxy::new(
-            Arc::new(BlockExecutor::<AptosVM>::new(aptos_db.clone())),
+            Arc::new(BlockExecutor::<AptosVMBlockExecutor>::new(aptos_db.clone())),
             txn_notifier,
             state_sync_notifier,
-            runtime.handle(),
-            TransactionFilter::new(node_config.execution.transaction_filter.clone()),
+            node_config.transaction_filters.execution_filter.clone(),
+            node_config.consensus.enable_pre_commit,
         );
 
         // Create the execution proxy client
-        let bounded_executor = BoundedExecutor::new(32, runtime.handle().clone());
+        let bounded_executor =
+            BoundedExecutor::new(32, consensus_observer_runtime.handle().clone());
         let rand_storage = Arc::new(RandDb::new(node_config.storage.dir()));
         let execution_proxy_client = Arc::new(ExecutionProxyClient::new(
             node_config.consensus.clone(),
@@ -193,20 +184,23 @@ pub fn start_consensus_observer(
     };
 
     // Create the consensus observer
-    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    let (state_sync_notification_sender, state_sync_notification_listener) =
+        tokio::sync::mpsc::unbounded_channel();
     let consensus_observer = ConsensusObserver::new(
-        node_config.consensus_observer,
+        node_config.clone(),
         consensus_observer_client,
         aptos_db.reader.clone(),
         execution_client,
-        tx,
+        state_sync_notification_sender,
         reconfig_events,
         consensus_publisher,
         TimeService::real(),
     );
 
     // Start the consensus observer
-    runtime.spawn(consensus_observer.start(observer_network_events, rx));
-
-    runtime
+    consensus_observer_runtime.spawn(consensus_observer.start(
+        node_config.consensus_observer,
+        consensus_observer_message_receiver,
+        state_sync_notification_listener,
+    ));
 }

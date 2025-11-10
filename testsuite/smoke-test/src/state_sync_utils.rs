@@ -51,6 +51,7 @@ pub fn enable_consensus_observer(use_consensus_observer: bool, node_config: &mut
             },
             aptos_config::config::RoleType::FullNode => {
                 node_config.consensus_observer.observer_enabled = true;
+                node_config.consensus_observer.publisher_enabled = true;
             },
         }
     }
@@ -198,7 +199,7 @@ fn verify_first_ledger_info(node: &mut LocalNode) {
     node.stop();
 
     // Verify that the ledger info exists at version 0
-    let aptos_db = AptosDB::new_for_test(db_path_buf.as_path());
+    let aptos_db = AptosDB::new_for_test_with_sharding(db_path_buf.as_path(), 1 << 13);
     aptos_db.get_epoch_ending_ledger_info(0).unwrap();
 
     // Restart the node

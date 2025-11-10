@@ -278,7 +278,7 @@ impl StateApi {
         resource_type: MoveStructTag,
         ledger_version: Option<u64>,
     ) -> BasicResultWith404<MoveResource> {
-        let tag: StructTag = resource_type
+        let tag: StructTag = (&resource_type)
             .try_into()
             .context("Failed to parse given resource type")
             .map_err(|err| {
@@ -291,7 +291,8 @@ impl StateApi {
             .find_resource(&state_view, address, &tag)
             .context(format!(
                 "Failed to query DB to check for {} at {}",
-                tag, address
+                tag.to_canonical_string(),
+                address
             ))
             .map_err(|err| {
                 BasicErrorWith404::internal_with_code(
@@ -385,16 +386,14 @@ impl StateApi {
         ledger_version: Option<U64>,
     ) -> BasicResultWith404<MoveValue> {
         // Parse the key and value types for the table
-        let key_type = table_item_request
-            .key_type
+        let key_type = (&table_item_request.key_type)
             .try_into()
             .context("Failed to parse key_type")
             .map_err(|err| {
                 BasicErrorWith404::bad_request_with_code_no_info(err, AptosErrorCode::InvalidInput)
             })?;
         let key = table_item_request.key;
-        let value_type = table_item_request
-            .value_type
+        let value_type = (&table_item_request.value_type)
             .try_into()
             .context("Failed to parse value_type")
             .map_err(|err| {

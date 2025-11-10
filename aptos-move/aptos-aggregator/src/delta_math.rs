@@ -4,10 +4,11 @@
 use crate::{
     bounded_math::{ok_overflow, ok_underflow, BoundedMath, SignedU128},
     types::{
-        expect_ok, DelayedFieldsSpeculativeError, DeltaApplicationFailureReason,
-        DeltaHistoryMergeOffsetFailureReason, PanicOr,
+        DelayedFieldsSpeculativeError, DeltaApplicationFailureReason,
+        DeltaHistoryMergeOffsetFailureReason,
     },
 };
+use aptos_types::error::{expect_ok, PanicOr};
 
 /// Tracks values seen by aggregator. In particular, stores information about
 /// the biggest and the smallest deltas that were applied successfully during
@@ -316,11 +317,11 @@ impl DeltaHistory {
             && self.min_achieved_negative_delta >= other.min_achieved_negative_delta
             && other.min_overflow_positive_delta.map_or(true, |other_v| {
                 self.min_overflow_positive_delta
-                    .map_or(false, |self_v| self_v <= other_v)
+                    .is_some_and(|self_v| self_v <= other_v)
             })
             && other.max_underflow_negative_delta.map_or(true, |other_v| {
                 self.max_underflow_negative_delta
-                    .map_or(false, |self_v| self_v <= other_v)
+                    .is_some_and(|self_v| self_v <= other_v)
             })
     }
 }

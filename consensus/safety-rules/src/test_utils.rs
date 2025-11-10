@@ -24,7 +24,7 @@ use aptos_types::{
     block_info::BlockInfo,
     epoch_change::EpochChangeProof,
     epoch_state::EpochState,
-    ledger_info::{LedgerInfo, LedgerInfoWithPartialSignatures, LedgerInfoWithSignatures},
+    ledger_info::{LedgerInfo, LedgerInfoWithSignatures, LedgerInfoWithVerifiedSignatures},
     on_chain_config::ValidatorSet,
     proof::AccumulatorExtensionProof,
     validator_info::ValidatorInfo,
@@ -168,7 +168,7 @@ pub fn make_proposal_with_parent_and_overrides(
     )
     .unwrap();
 
-    let mut ledger_info_with_signatures = LedgerInfoWithPartialSignatures::new(
+    let mut ledger_info_with_signatures = LedgerInfoWithVerifiedSignatures::new(
         vote.ledger_info().clone(),
         PartialSignatures::empty(),
     );
@@ -248,7 +248,7 @@ pub fn test_safety_rules() -> SafetyRules {
     let storage = test_storage(&signer);
     let (epoch_change_proof, _) = make_genesis(&signer);
 
-    let mut safety_rules = SafetyRules::new(storage);
+    let mut safety_rules = SafetyRules::new(storage, false);
     safety_rules.initialize(&epoch_change_proof).unwrap();
     safety_rules
 }
@@ -257,7 +257,7 @@ pub fn test_safety_rules() -> SafetyRules {
 pub fn test_safety_rules_uninitialized() -> SafetyRules {
     let signer = ValidatorSigner::from_int(0);
     let storage = test_storage(&signer);
-    SafetyRules::new(storage)
+    SafetyRules::new(storage, false)
 }
 
 /// Returns a simple serializer for testing purposes.

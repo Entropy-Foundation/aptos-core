@@ -1,4 +1,3 @@
-# :!:>manifest
 [package]
 name = 'UpgradeAndGovern'
 version = '1.0.0'
@@ -7,4 +6,4 @@ version = '1.0.0'
 upgrade_and_govern = '_'
 
 [dependencies.SupraFramework]
-local = '../../../framework/supra-framework' # <:!:manifest
+local = '../../../framework/supra-framework'

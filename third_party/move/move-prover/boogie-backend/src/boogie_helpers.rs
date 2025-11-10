@@ -13,12 +13,15 @@ use move_core_types::account_address::AccountAddress;
 use move_model::{
     ast::{Address, MemoryLabel, TempIndex, Value},
     model::{
-        FieldEnv, FunctionEnv, GlobalEnv, ModuleEnv, QualifiedInstId, SpecFunId, StructEnv,
-        StructId, SCRIPT_MODULE_NAME,
+        FieldEnv, FieldId, FunctionEnv, GlobalEnv, Loc, ModuleEnv, QualifiedInstId, SpecFunId,
+        StructEnv, StructId, SCRIPT_MODULE_NAME,
     },
     pragmas::INTRINSIC_TYPE_MAP,
     symbol::Symbol,
     ty::{PrimitiveType, Type},
+};
+use move_prover_bytecode_pipeline::number_operation::{
+    GlobalNumberOperationState, NumOperation::Bitwise,
 };
 use move_stackless_bytecode::{function_target::FunctionTarget, stackless_bytecode::Constant};
 use num::BigUint;
@@ -26,6 +29,7 @@ use num::BigUint;
 pub const MAX_MAKE_VEC_ARGS: usize = 4;
 pub const TABLE_NATIVE_SPEC_ERROR: &str =
     "Native functions defined in Table cannot be used as specification functions";
+const NUM_TYPE_BASE_ERROR: &str = "cannot infer concrete integer type from `num`, consider using a concrete integer type or explicit type cast";
 
 /// Return boogie name of given module.
 pub fn boogie_module_name(env: &ModuleEnv<'_>) -> String {
@@ -49,6 +53,16 @@ pub fn boogie_struct_name(struct_env: &StructEnv<'_>, inst: &[Type]) -> String {
     boogie_struct_name_bv(struct_env, inst, false)
 }
 
+pub fn boogie_struct_variant_name(
+    struct_env: &StructEnv<'_>,
+    inst: &[Type],
+    variant: Symbol,
+) -> String {
+    let struct_name = boogie_struct_name(struct_env, inst);
+    let variant_name = variant.display(struct_env.symbol_pool());
+    format!("{}_{}", struct_name, variant_name)
+}
+
 pub fn boogie_struct_name_bv(struct_env: &StructEnv<'_>, inst: &[Type], bv_flag: bool) -> String {
     if struct_env.is_intrinsic_of(INTRINSIC_TYPE_MAP) {
         // Map to the theory type representation, which is `Table int V`. The key
@@ -70,9 +84,23 @@ pub fn boogie_struct_name_bv(struct_env: &StructEnv<'_>, inst: &[Type], bv_flag:
 /// Return field selector for given field.
 pub fn boogie_field_sel(field_env: &FieldEnv<'_>) -> String {
     let struct_env = &field_env.struct_env;
+    // Attach variant name to field name if it is an enum field
+    // to distinguish fields with the same name but different types in different variants
+    let variant = if field_env.get_variant().is_some() {
+        format!(
+            "_{}",
+            field_env
+                .get_variant()
+                .unwrap()
+                .display(struct_env.symbol_pool())
+        )
+    } else {
+        "".to_string()
+    };
     format!(
-        "${}",
+        "${}{}",
         field_env.get_name().display(struct_env.symbol_pool()),
+        variant
     )
 }
 
@@ -85,6 +113,65 @@ pub fn boogie_field_update(field_env: &FieldEnv<'_>, inst: &[Type]) -> String {
         suffix,
         field_env.get_name().display(struct_env.symbol_pool()),
     )
+}
+
+/// Return field update for given field in variant.
+pub fn boogie_variant_field_update(
+    field_env: &FieldEnv<'_>,
+    field_type_name: String,
+    inst: &[Type],
+) -> String {
+    let struct_env = &field_env.struct_env;
+    let suffix = boogie_type_suffix_for_struct(struct_env, inst, false);
+    format!(
+        "$Update'{}'_{}_{}",
+        suffix,
+        // remove parentheses and spaces from field type name
+        field_type_name.replace(['(', ')'], "").replace(' ', "_"),
+        field_env.get_name().display(struct_env.symbol_pool()),
+    )
+}
+
+/// Return true if the field is a bitwise field
+pub fn field_bv_flag_global_state(
+    global_state: &GlobalNumberOperationState,
+    field_env: &FieldEnv,
+) -> bool {
+    let operation_map = &global_state.struct_operation_map;
+    let mid = field_env.struct_env.module_env.get_id();
+    let sid = field_env.struct_env.get_id();
+    let field_id = if field_env.struct_env.has_variants() {
+        let variant = field_env
+            .get_variant()
+            .expect("each field of enum must have a corresponding variant");
+        let pool = field_env.struct_env.symbol_pool();
+        FieldId::new(pool.make(&FieldId::make_variant_field_id_str(
+            pool.string(variant).as_str(),
+            pool.string(field_env.get_name()).as_str(),
+        )))
+    } else {
+        field_env.get_id()
+    };
+    if let Some(struct_info) = operation_map.get(&(mid, sid)) {
+        matches!(struct_info.get(&field_id), Some(&Bitwise))
+    } else {
+        false
+    }
+}
+
+/// Return boogie type for given field
+pub fn boogie_type_for_struct_field(
+    global_state: &GlobalNumberOperationState,
+    field: &FieldEnv,
+    env: &GlobalEnv,
+    ty: &Type,
+) -> String {
+    let bv_flag = field_bv_flag_global_state(global_state, field);
+    if bv_flag {
+        boogie_bv_type(env, ty)
+    } else {
+        boogie_type(env, ty)
+    }
 }
 
 /// Return boogie name of given function.
@@ -261,7 +348,10 @@ pub fn boogie_bv_type(env: &GlobalEnv, ty: &Type) -> String {
             Signer => "$signer".to_string(),
             Bool => "bool".to_string(),
             Range | EventStore => panic!("unexpected type"),
-            Num => "<<num is not unsupported here>>".to_string(),
+            Num => {
+                //TODO(tengzhang): add error message with accurate location info
+                "<<num is not unsupported here>>".to_string()
+            },
         },
         Vector(et) => format!("Vec ({})", boogie_bv_type(env, et)),
         Struct(mid, sid, inst) => {
@@ -273,6 +363,24 @@ pub fn boogie_bv_type(env: &GlobalEnv, ty: &Type) -> String {
             format!("<<unsupported: {:?}>>", ty)
         },
     }
+}
+
+/// Return boogie BV type for a number type.
+pub fn boogie_num_type_base_bv(env: &GlobalEnv, loc: Option<Loc>, ty: &Type) -> String {
+    let base = match ty.skip_reference() {
+        Type::Primitive(PrimitiveType::U8) => "Bv8",
+        Type::Primitive(PrimitiveType::U16) => "Bv16",
+        Type::Primitive(PrimitiveType::U32) => "Bv32",
+        Type::Primitive(PrimitiveType::U64) => "Bv64",
+        Type::Primitive(PrimitiveType::U128) => "Bv128",
+        Type::Primitive(PrimitiveType::U256) => "Bv256",
+        Type::Primitive(PrimitiveType::Num) => {
+            env.error(&loc.unwrap_or_default(), NUM_TYPE_BASE_ERROR);
+            "<<num is not unsupported here>>"
+        },
+        _ => unreachable!(),
+    };
+    base.to_string()
 }
 
 pub fn boogie_type_param(_env: &GlobalEnv, idx: u16) -> String {
@@ -306,7 +414,7 @@ pub fn boogie_num_type_string_capital(num: &str, bv_flag: bool) -> String {
     [pre, num].join("")
 }
 
-pub fn boogie_num_type_base(ty: &Type) -> String {
+pub fn boogie_num_type_base(env: &GlobalEnv, loc: Option<Loc>, ty: &Type) -> String {
     use PrimitiveType::*;
     use Type::*;
     match ty {
@@ -317,7 +425,10 @@ pub fn boogie_num_type_base(ty: &Type) -> String {
             U64 => "64".to_string(),
             U128 => "128".to_string(),
             U256 => "256".to_string(),
-            Num => "<<num is not unsupported here>>".to_string(),
+            Num => {
+                env.error(&loc.unwrap_or_default(), NUM_TYPE_BASE_ERROR);
+                "<<num is not unsupported here>>".to_string()
+            },
             _ => format!("<<unsupported {:?}>>", ty),
         },
         _ => format!("<<unsupported {:?}>>", ty),
@@ -339,6 +450,7 @@ pub fn boogie_type_suffix_bv(env: &GlobalEnv, ty: &Type, bv_flag: bool) -> Strin
             U256 => boogie_num_type_string("256", bv_flag),
             Num => {
                 if bv_flag {
+                    //TODO(tengzhang): add error message with accurate location info
                     "<<num is not unsupported here>>".to_string()
                 } else {
                     "num".to_string()
@@ -383,6 +495,14 @@ pub fn boogie_type_suffix_for_struct(
     } else {
         boogie_struct_name(struct_env, inst)
     }
+}
+
+pub fn boogie_type_suffix_for_struct_variant(
+    struct_env: &StructEnv<'_>,
+    inst: &[Type],
+    variant: &Symbol,
+) -> String {
+    boogie_struct_variant_name(struct_env, inst, *variant)
 }
 
 /// Generate suffix after instantiation of type parameters

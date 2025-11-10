@@ -68,7 +68,7 @@ module supra_framework::jwk_consensus_config {
     public(friend) fun on_new_epoch(framework: &signer) acquires JWKConsensusConfig {
         system_addresses::assert_supra_framework(framework);
         if (config_buffer::does_exist<JWKConsensusConfig>()) {
-            let new_config = config_buffer::extract<JWKConsensusConfig>();
+            let new_config = config_buffer::extract_v2<JWKConsensusConfig>();
             if (exists<JWKConsensusConfig>(@supra_framework)) {
                 *borrow_global_mut<JWKConsensusConfig>(@supra_framework) = new_config;
             } else {

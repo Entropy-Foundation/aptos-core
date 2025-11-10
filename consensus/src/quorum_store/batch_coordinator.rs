@@ -2,17 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
+    monitor,
     network::{NetworkSender, QuorumStoreSender},
     quorum_store::{
         batch_generator::BatchGeneratorCommand,
         batch_store::{BatchStore, BatchWriter},
         counters,
         proof_manager::ProofManagerCommand,
+        tracing::{observe_batch, BatchStage},
         types::{Batch, PersistedValue},
     },
 };
 use anyhow::ensure;
+use aptos_config::config::BatchTransactionFilterConfig;
+use aptos_consensus_types::payload::TDataInfo;
 use aptos_logger::prelude::*;
+use aptos_short_hex_str::AsShortHexStr;
 use aptos_types::PeerId;
 use std::sync::Arc;
 use tokio::sync::{
@@ -37,6 +42,8 @@ pub struct BatchCoordinator {
     max_batch_bytes: u64,
     max_total_txns: u64,
     max_total_bytes: u64,
+    batch_expiry_gap_when_init_usecs: u64,
+    transaction_filter_config: BatchTransactionFilterConfig,
 }
 
 impl BatchCoordinator {
@@ -50,6 +57,8 @@ impl BatchCoordinator {
         max_batch_bytes: u64,
         max_total_txns: u64,
         max_total_bytes: u64,
+        batch_expiry_gap_when_init_usecs: u64,
+        transaction_filter_config: BatchTransactionFilterConfig,
     ) -> Self {
         Self {
             my_peer_id,
@@ -61,10 +70,16 @@ impl BatchCoordinator {
             max_batch_bytes,
             max_total_txns,
             max_total_bytes,
+            batch_expiry_gap_when_init_usecs,
+            transaction_filter_config,
         }
     }
 
-    fn persist_and_send_digests(&self, persist_requests: Vec<PersistedValue>) {
+    fn persist_and_send_digests(
+        &self,
+        persist_requests: Vec<PersistedValue>,
+        approx_created_ts_usecs: u64,
+    ) {
         if persist_requests.is_empty() {
             return;
         }
@@ -80,6 +95,9 @@ impl BatchCoordinator {
                 .collect();
             let signed_batch_infos = batch_store.persist(persist_requests);
             if !signed_batch_infos.is_empty() {
+                if approx_created_ts_usecs > 0 {
+                    observe_batch(approx_created_ts_usecs, peer_id, BatchStage::SIGNED);
+                }
                 network_sender
                     .send_signed_batch_info_msg(signed_batch_infos, vec![peer_id])
                     .await;
@@ -126,11 +144,55 @@ impl BatchCoordinator {
         Ok(())
     }
 
-    async fn handle_batches_msg(&mut self, author: PeerId, batches: Vec<Batch>) {
+    pub(crate) async fn handle_batches_msg(&mut self, author: PeerId, batches: Vec<Batch>) {
         if let Err(e) = self.ensure_max_limits(&batches) {
             error!("Batch from {}: {}", author, e);
             counters::RECEIVED_BATCH_MAX_LIMIT_FAILED.inc();
             return;
+        }
+
+        let Some(batch) = batches.first() else {
+            error!("Empty batch received from {}", author.short_str().as_str());
+            return;
+        };
+
+        // Filter the transactions in the batches. If any transaction is rejected,
+        // the message will be dropped, and all batches will be rejected.
+        if self.transaction_filter_config.is_enabled() {
+            let transaction_filter = &self.transaction_filter_config.batch_transaction_filter();
+            for batch in batches.iter() {
+                for transaction in batch.txns() {
+                    if !transaction_filter.allows_transaction(
+                        batch.batch_info().batch_id(),
+                        batch.author(),
+                        batch.digest(),
+                        transaction,
+                    ) {
+                        error!(
+                            "Transaction {}, in batch {}, from {}, was rejected by the filter. Dropping {} batches!",
+                            transaction.committed_hash(),
+                            batch.batch_info().batch_id(),
+                            author.short_str().as_str(),
+                            batches.len()
+                        );
+                        counters::RECEIVED_BATCH_REJECTED_BY_FILTER.inc();
+                        return;
+                    }
+                }
+            }
+        }
+
+        let approx_created_ts_usecs = batch
+            .info()
+            .expiration()
+            .saturating_sub(self.batch_expiry_gap_when_init_usecs);
+
+        if approx_created_ts_usecs > 0 {
+            observe_batch(
+                approx_created_ts_usecs,
+                batch.author(),
+                BatchStage::RECEIVED,
+            );
         }
 
         let mut persist_requests = vec![];
@@ -149,7 +211,7 @@ impl BatchCoordinator {
         if author != self.my_peer_id {
             counters::RECEIVED_REMOTE_BATCH_COUNT.inc_by(persist_requests.len() as u64);
         }
-        self.persist_and_send_digests(persist_requests);
+        self.persist_and_send_digests(persist_requests, approx_created_ts_usecs);
     }
 
     pub(crate) async fn start(mut self, mut command_rx: Receiver<BatchCoordinatorCommand>) {
@@ -162,7 +224,10 @@ impl BatchCoordinator {
                     break;
                 },
                 BatchCoordinatorCommand::NewBatches(author, batches) => {
-                    self.handle_batches_msg(author, batches).await;
+                    monitor!(
+                        "qs_handle_batches_msg",
+                        self.handle_batches_msg(author, batches).await
+                    );
                 },
             }
         }

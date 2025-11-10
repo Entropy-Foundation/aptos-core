@@ -10,26 +10,26 @@ use crate::{
     },
 };
 use aptos_logger::info;
-use aptos_schemadb::{SchemaBatch, DB};
+use aptos_schemadb::{batch::SchemaBatch, DB};
 use aptos_storage_interface::Result;
 use aptos_types::transaction::Version;
 use std::sync::Arc;
 
 // This pruner is only used when enable_sharding flag is true
 pub(in crate::pruner) struct StateKvShardPruner {
-    shard_id: u8,
+    shard_id: usize,
     db_shard: Arc<DB>,
 }
 
 impl StateKvShardPruner {
     pub(in crate::pruner) fn new(
-        shard_id: u8,
+        shard_id: usize,
         db_shard: Arc<DB>,
         metadata_progress: Version,
     ) -> Result<Self> {
         let progress = get_or_initialize_subpruner_progress(
             &db_shard,
-            &DbMetadataKey::StateKvShardPrunerProgress(shard_id as usize),
+            &DbMetadataKey::StateKvShardPrunerProgress(shard_id),
             metadata_progress,
         )?;
         let myself = Self { shard_id, db_shard };
@@ -49,7 +49,7 @@ impl StateKvShardPruner {
         current_progress: Version,
         target_version: Version,
     ) -> Result<()> {
-        let batch = SchemaBatch::new();
+        let mut batch = SchemaBatch::new();
 
         let mut iter = self
             .db_shard
@@ -64,14 +64,14 @@ impl StateKvShardPruner {
             batch.delete::<StateValueByKeyHashSchema>(&(index.state_key_hash, index.version))?;
         }
         batch.put::<DbMetadataSchema>(
-            &DbMetadataKey::StateKvShardPrunerProgress(self.shard_id as usize),
+            &DbMetadataKey::StateKvShardPrunerProgress(self.shard_id),
             &DbMetadataValue::Version(target_version),
         )?;
 
         self.db_shard.write_schemas(batch)
     }
 
-    pub(in crate::pruner) fn shard_id(&self) -> u8 {
+    pub(in crate::pruner) fn shard_id(&self) -> usize {
         self.shard_id
     }
 }

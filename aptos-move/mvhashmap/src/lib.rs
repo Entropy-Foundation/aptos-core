@@ -3,23 +3,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    versioned_data::VersionedData, versioned_delayed_fields::VersionedDelayedFields,
-    versioned_group_data::VersionedGroupData, versioned_modules::VersionedModules,
+    types::TxnIndex, versioned_data::VersionedData,
+    versioned_delayed_fields::VersionedDelayedFields, versioned_group_data::VersionedGroupData,
 };
 use aptos_types::{
-    executable::{Executable, ModulePath},
-    write_set::TransactionWrite,
+    executable::ModulePath, vm::modules::AptosModuleExtension, write_set::TransactionWrite,
 };
+use move_binary_format::{file_format::CompiledScript, CompiledModule};
+use move_core_types::language_storage::ModuleId;
+use move_vm_runtime::{Module, Script};
+use move_vm_types::code::{ModuleCache, ModuleCode, SyncModuleCache, SyncScriptCache};
 use serde::Serialize;
-use std::{fmt::Debug, hash::Hash};
+use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 pub mod types;
 pub mod unsync_map;
-mod utils;
 pub mod versioned_data;
 pub mod versioned_delayed_fields;
 pub mod versioned_group_data;
-pub mod versioned_modules;
 
 #[cfg(test)]
 mod unit_tests;
@@ -31,32 +32,39 @@ mod unit_tests;
 /// given key, it holds exclusive access and doesn't need to explicitly synchronize
 /// with other reader/writers.
 ///
-/// TODO: separate V into different generic types for data and code modules with specialized
-/// traits (currently both WriteOp for executor).
-pub struct MVHashMap<K, T, V: TransactionWrite, X: Executable, I: Clone> {
+/// TODO(BlockSTMv2): consider handling the baseline retrieval inside MVHashMap, by
+/// providing a lambda during construction. This would simplify the caller logic and
+/// allow unifying initialization logic e.g. for resource groups that span two
+/// different multi-version data-structures (MVData and MVGroupData). It would also
+/// allow performing a check on the path once during initialization (to determine
+/// if the path is for a resource or a group), and then checking invariants.
+pub struct MVHashMap<K, T, V: TransactionWrite, I: Clone> {
     data: VersionedData<K, V>,
     group_data: VersionedGroupData<K, T, V>,
     delayed_fields: VersionedDelayedFields<I>,
-    modules: VersionedModules<K, V, X>,
+
+    module_cache:
+        SyncModuleCache<ModuleId, CompiledModule, Module, AptosModuleExtension, Option<TxnIndex>>,
+    script_cache: SyncScriptCache<[u8; 32], CompiledScript, Script>,
 }
 
-impl<
-        K: ModulePath + Hash + Clone + Eq + Debug,
-        T: Hash + Clone + Eq + Debug + Serialize,
-        V: TransactionWrite,
-        X: Executable,
-        I: Copy + Clone + Eq + Hash + Debug,
-    > MVHashMap<K, T, V, X, I>
+impl<K, T, V, I> MVHashMap<K, T, V, I>
+where
+    K: ModulePath + Hash + Clone + Eq + Debug,
+    T: Hash + Clone + Eq + Debug + Serialize,
+    V: TransactionWrite + PartialEq,
+    I: Copy + Clone + Eq + Hash + Debug,
 {
-    // -----------------------------------
-    // Functions shared for data and modules.
-
-    pub fn new() -> MVHashMap<K, T, V, X, I> {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> MVHashMap<K, T, V, I> {
+        #[allow(deprecated)]
         MVHashMap {
-            data: VersionedData::new(),
-            group_data: VersionedGroupData::new(),
-            delayed_fields: VersionedDelayedFields::new(),
-            modules: VersionedModules::new(),
+            data: VersionedData::empty(),
+            group_data: VersionedGroupData::empty(),
+            delayed_fields: VersionedDelayedFields::empty(),
+
+            module_cache: SyncModuleCache::empty(),
+            script_cache: SyncScriptCache::empty(),
         }
     }
 
@@ -65,7 +73,7 @@ impl<
             num_resources: self.data.num_keys(),
             num_resource_groups: self.group_data.num_keys(),
             num_delayed_fields: self.delayed_fields.num_keys(),
-            num_modules: self.modules.num_keys(),
+            num_modules: self.module_cache.num_modules(),
             base_resources_size: self.data.total_base_value_size(),
             base_delayed_fields_size: self.delayed_fields.total_base_value_size(),
         }
@@ -86,21 +94,42 @@ impl<
         &self.delayed_fields
     }
 
-    pub fn modules(&self) -> &VersionedModules<K, V, X> {
-        &self.modules
+    /// Returns the module cache. While modules in it are associated with versions, at any point
+    /// in time throughout block execution the cache contains 1) modules from pre-block state or,
+    /// 2) committed modules.
+    pub fn module_cache(
+        &self,
+    ) -> &SyncModuleCache<ModuleId, CompiledModule, Module, AptosModuleExtension, Option<TxnIndex>>
+    {
+        &self.module_cache
     }
-}
 
-impl<
-        K: ModulePath + Hash + Clone + Debug + Eq,
-        T: Hash + Clone + Debug + Eq + Serialize,
-        V: TransactionWrite,
-        X: Executable,
-        I: Copy + Clone + Eq + Hash + Debug,
-    > Default for MVHashMap<K, T, V, X, I>
-{
-    fn default() -> Self {
-        Self::new()
+    /// Takes module from module cache and returns an iterator to the taken keys and modules.
+    pub fn take_modules_iter(
+        &mut self,
+    ) -> impl Iterator<
+        Item = (
+            ModuleId,
+            Arc<ModuleCode<CompiledModule, Module, AptosModuleExtension>>,
+        ),
+    > {
+        self.module_cache.take_modules_iter()
+    }
+
+    /// Returns the script cache.
+    pub fn script_cache(&self) -> &SyncScriptCache<[u8; 32], CompiledScript, Script> {
+        &self.script_cache
+    }
+
+    pub fn remove_all_at_or_after_for_epilogue(
+        &self,
+        txn_idx: TxnIndex,
+        epilogue_txn_idx: TxnIndex,
+    ) {
+        self.data.remove_all_at_or_after(txn_idx);
+        self.group_data.remove_all_at_or_after(txn_idx);
+        self.delayed_fields
+            .remove_all_at_or_after_for_epilogue(txn_idx, epilogue_txn_idx);
     }
 }
 

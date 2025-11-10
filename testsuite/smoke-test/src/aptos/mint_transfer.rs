@@ -1,15 +1,23 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::smoke_test_environment::new_local_swarm_with_aptos;
+use crate::smoke_test_environment::SwarmBuilder;
 use aptos_cached_packages::aptos_stdlib;
 use aptos_forge::Swarm;
 use aptos_move_debugger::aptos_debugger::AptosDebugger;
 use aptos_types::transaction::{ExecutionStatus, TransactionStatus};
+use std::sync::Arc;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_mint_transfer() {
-    let swarm = new_local_swarm_with_aptos(1).await;
+    let swarm = SwarmBuilder::new_local(1)
+        .with_aptos()
+        .with_init_config(Arc::new(|_, conf, _| {
+            conf.indexer_db_config.enable_event = true;
+            conf.indexer_db_config.enable_transaction = true;
+        }))
+        .build()
+        .await;
     let mut info = swarm.aptos_public_info();
 
     let account1 = info.random_account();
@@ -36,11 +44,10 @@ async fn test_mint_transfer() {
     info.client().submit_and_wait(&transfer_txn).await.unwrap();
     assert_eq!(
         info.client()
-            .get_account_balance(account2.address())
+            .view_apt_account_balance(account2.address())
             .await
             .unwrap()
-            .into_inner()
-            .get(),
+            .into_inner(),
         40000
     );
 
@@ -81,7 +88,7 @@ async fn test_mint_transfer() {
         .unwrap();
 
     let output = debugger
-        .execute_past_transactions(txn_ver, 1, 1)
+        .execute_past_transactions(txn_ver, 1, false, 1, &[1])
         .await
         .unwrap()
         .pop()

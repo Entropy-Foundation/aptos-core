@@ -1,0 +1,14 @@
+[package]
+name = "fixed_point64"
+version = "1.0.0"
+authors = []
+
+[addresses]
+fixed_point64 = "0xdeadbeef"
+
+[dev-addresses]
+
+[dependencies]
+SupraFramework = { local = "../../../framework/supra-framework" }
+
+[dev-dependencies]

@@ -4,6 +4,7 @@
 mod event_store_pruner;
 mod ledger_metadata_pruner;
 pub(crate) mod ledger_pruner_manager;
+mod persisted_auxiliary_info_pruner;
 mod transaction_accumulator_pruner;
 mod transaction_auxiliary_data_pruner;
 mod transaction_info_pruner;
@@ -18,6 +19,7 @@ use crate::{
         db_sub_pruner::DBSubPruner,
         ledger_pruner::{
             event_store_pruner::EventStorePruner, ledger_metadata_pruner::LedgerMetadataPruner,
+            persisted_auxiliary_info_pruner::PersistedAuxiliaryInfoPruner,
             transaction_accumulator_pruner::TransactionAccumulatorPruner,
             transaction_auxiliary_data_pruner::TransactionAuxiliaryDataPruner,
             transaction_info_pruner::TransactionInfoPruner, transaction_pruner::TransactionPruner,
@@ -27,6 +29,7 @@ use crate::{
     transaction_store::TransactionStore,
 };
 use anyhow::anyhow;
+use aptos_db_indexer::db_indexer::InternalIndexerDB;
 use aptos_experimental_runtimes::thread_manager::THREAD_MANAGER;
 use aptos_logger::info;
 use aptos_storage_interface::Result;
@@ -112,7 +115,10 @@ impl DBPruner for LedgerPruner {
 }
 
 impl LedgerPruner {
-    pub fn new(ledger_db: Arc<LedgerDb>) -> Result<Self> {
+    pub fn new(
+        ledger_db: Arc<LedgerDb>,
+        internal_indexer_db: Option<InternalIndexerDB>,
+    ) -> Result<Self> {
         info!(name = LEDGER_PRUNER_NAME, "Initializing...");
 
         let ledger_metadata_pruner = Box::new(
@@ -130,6 +136,11 @@ impl LedgerPruner {
         let transaction_store = Arc::new(TransactionStore::new(Arc::clone(&ledger_db)));
 
         let event_store_pruner = Box::new(EventStorePruner::new(
+            Arc::clone(&ledger_db),
+            metadata_progress,
+            internal_indexer_db.clone(),
+        )?);
+        let persisted_auxiliary_info_pruner = Box::new(PersistedAuxiliaryInfoPruner::new(
             Arc::clone(&ledger_db),
             metadata_progress,
         )?);
@@ -151,6 +162,7 @@ impl LedgerPruner {
             Arc::clone(&transaction_store),
             Arc::clone(&ledger_db),
             metadata_progress,
+            internal_indexer_db,
         )?);
         let write_set_pruner = Box::new(WriteSetPruner::new(
             Arc::clone(&ledger_db),
@@ -163,6 +175,7 @@ impl LedgerPruner {
             ledger_metadata_pruner,
             sub_pruners: vec![
                 event_store_pruner,
+                persisted_auxiliary_info_pruner,
                 transaction_accumulator_pruner,
                 transaction_auxiliary_data_pruner,
                 transaction_info_pruner,

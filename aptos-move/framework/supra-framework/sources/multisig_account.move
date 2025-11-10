@@ -491,7 +491,7 @@ module supra_framework::multisig_account {
     #[view]
     /// Return the id of the last transaction that was executed (successful or failed) or removed.
     public fun last_resolved_sequence_number(multisig_account: address): u64 acquires MultisigAccount {
-        let multisig_account_resource = borrow_global_mut<MultisigAccount>(multisig_account);
+        let multisig_account_resource = borrow_global<MultisigAccount>(multisig_account);
         multisig_account_resource.last_executed_sequence_number
     }
 
@@ -506,7 +506,7 @@ module supra_framework::multisig_account {
     #[view]
     /// Return the id of the next transaction created.
     public fun next_sequence_number(multisig_account: address): u64 acquires MultisigAccount {
-        let multisig_account_resource = borrow_global_mut<MultisigAccount>(multisig_account);
+        let multisig_account_resource = borrow_global<MultisigAccount>(multisig_account);
         multisig_account_resource.next_sequence_number
     }
 
@@ -514,7 +514,7 @@ module supra_framework::multisig_account {
     /// Return a bool tuple indicating whether an owner has voted and if so, whether they voted yes or no.
     public fun vote(
         multisig_account: address, sequence_number: u64, owner: address): (bool, bool) acquires MultisigAccount {
-        let multisig_account_resource = borrow_global_mut<MultisigAccount>(multisig_account);
+        let multisig_account_resource = borrow_global<MultisigAccount>(multisig_account);
         assert!(
             sequence_number != 0 && sequence_number < multisig_account_resource.next_sequence_number,
             error::invalid_argument(EINVALID_SEQUENCE_NUMBER),
@@ -528,7 +528,7 @@ module supra_framework::multisig_account {
 
     #[view]
     public fun available_transaction_queue_capacity(multisig_account: address): u64 acquires MultisigAccount {
-        let multisig_account_resource = borrow_global_mut<MultisigAccount>(multisig_account);
+        let multisig_account_resource = borrow_global<MultisigAccount>(multisig_account);
         let num_pending_transactions = multisig_account_resource.next_sequence_number - multisig_account_resource.last_executed_sequence_number - 1;
         if (num_pending_transactions > MAX_PENDING_TRANSACTIONS) {
             0
@@ -538,6 +538,30 @@ module supra_framework::multisig_account {
     }
 
     ////////////////////////// Multisig account creation functions ///////////////////////////////
+
+    /// Private entry function that creates a new multisig account on top of an existing account.
+    ///
+    /// This offers a migration path for an existing account with any type of auth key.
+    ///
+    /// Note that this does not revoke auth key-based control over the account. Owners should separately rotate the auth
+    /// key after they are fully migrated to the new multisig account. Alternatively, they can call
+    /// create_with_existing_account_and_revoke_auth_key_call instead.
+    entry fun create_with_existing_account_call(
+        multisig_account: &signer,
+        owners: vector<address>,
+        num_signatures_required: u64,
+        metadata_keys: vector<String>,
+        metadata_values: vector<vector<u8>>,
+    ) acquires MultisigAccount {
+        create_with_owners_internal(
+            multisig_account,
+            owners,
+            num_signatures_required,
+            option::none<SignerCapability>(),
+            metadata_keys,
+            metadata_values,
+        );
+    }
 
     /// Creates a new multisig account on top of an existing account.
     ///
@@ -590,6 +614,41 @@ module supra_framework::multisig_account {
             metadata_values,
             timeout_duration
         );
+    }
+
+    /// Private entry function that creates a new multisig account on top of an existing account and immediately rotate
+    /// the origin auth key to 0x0.
+    ///
+    /// Note: If the original account is a resource account, this does not revoke all control over it as if any
+    /// SignerCapability of the resource account still exists, it can still be used to generate the signer for the
+    /// account.
+    entry fun create_with_existing_account_and_revoke_auth_key_call(
+        multisig_account: &signer,
+        owners: vector<address>,
+        num_signatures_required: u64,
+        metadata_keys: vector<String>,
+        metadata_values:vector<vector<u8>>,
+    ) acquires MultisigAccount {
+        create_with_owners_internal(
+            multisig_account,
+            owners,
+            num_signatures_required,
+            option::none<SignerCapability>(),
+            metadata_keys,
+            metadata_values,
+        );
+
+        // Rotate the account's auth key to 0x0, which effectively revokes control via auth key.
+        let multisig_address = address_of(multisig_account);
+        account::rotate_authentication_key_internal(multisig_account, ZERO_AUTH_KEY);
+        // This also needs to revoke any signer capability or rotation capability that exists for the account to
+        // completely remove all access to the account.
+        if (account::is_signer_capability_offered(multisig_address)) {
+            account::revoke_any_signer_capability(multisig_account);
+        };
+        if (account::is_rotation_capability_offered(multisig_address)) {
+            account::revoke_any_rotation_capability(multisig_account);
+        };
     }
 
     /// Creates a new multisig account on top of an existing account and immediately rotate the origin auth key to 0x0.
@@ -934,14 +993,15 @@ module supra_framework::multisig_account {
                         new_metadata: multisig_account_resource.metadata,
                     }
                 )
+            } else {
+                emit_event(
+                    &mut multisig_account_resource.metadata_updated_events,
+                    MetadataUpdatedEvent {
+                        old_metadata,
+                        new_metadata: multisig_account_resource.metadata,
+                    }
+                );
             };
-            emit_event(
-                &mut multisig_account_resource.metadata_updated_events,
-                MetadataUpdatedEvent {
-                    old_metadata,
-                    new_metadata: multisig_account_resource.metadata,
-                }
-            );
         };
     }
 
@@ -1056,15 +1116,16 @@ module supra_framework::multisig_account {
                     approved,
                 }
             );
+        } else {
+            emit_event(
+                &mut multisig_account_resource.vote_events,
+                VoteEvent {
+                    owner: owner_addr,
+                    sequence_number,
+                    approved,
+                }
+            );
         };
-        emit_event(
-            &mut multisig_account_resource.vote_events,
-            VoteEvent {
-                owner: owner_addr,
-                sequence_number,
-                approved,
-            }
-        );
     }
 
     /// Generic function that can be used to either approve or reject a multisig transaction
@@ -1120,15 +1181,16 @@ module supra_framework::multisig_account {
                     executor: address_of(owner),
                 }
             );
+        } else {
+            emit_event(
+                &mut multisig_account_resource.execute_rejected_transaction_events,
+                ExecuteRejectedTransactionEvent {
+                    sequence_number,
+                    num_rejections,
+                    executor: owner_addr,
+                }
+            );
         };
-        emit_event(
-            &mut multisig_account_resource.execute_rejected_transaction_events,
-            ExecuteRejectedTransactionEvent {
-                sequence_number,
-                num_rejections,
-                executor: owner_addr,
-            }
-        );
     }
 
     /// Remove the next transactions until the final_sequence_number if they have sufficient owner rejections.
@@ -1221,16 +1283,17 @@ module supra_framework::multisig_account {
                     executor,
                 }
             );
+        } else {
+            emit_event(
+                &mut multisig_account_resource.execute_transaction_events,
+                TransactionExecutionSucceededEvent {
+                    sequence_number: multisig_account_resource.last_executed_sequence_number,
+                    transaction_payload,
+                    num_approvals,
+                    executor,
+                }
+            );
         };
-        emit_event(
-            &mut multisig_account_resource.execute_transaction_events,
-            TransactionExecutionSucceededEvent {
-                sequence_number: multisig_account_resource.last_executed_sequence_number,
-                transaction_payload,
-                num_approvals,
-                executor,
-            }
-        );
     }
 
     /// Post-execution cleanup for a failed multisig transaction execution.
@@ -1254,17 +1317,18 @@ module supra_framework::multisig_account {
                     execution_error,
                 }
             );
+        } else {
+            emit_event(
+                &mut multisig_account_resource.transaction_execution_failed_events,
+                TransactionExecutionFailedEvent {
+                    executor,
+                    sequence_number: multisig_account_resource.last_executed_sequence_number,
+                    transaction_payload,
+                    num_approvals,
+                    execution_error,
+                }
+            );
         };
-        emit_event(
-            &mut multisig_account_resource.transaction_execution_failed_events,
-            TransactionExecutionFailedEvent {
-                executor,
-                sequence_number: multisig_account_resource.last_executed_sequence_number,
-                transaction_payload,
-                num_approvals,
-                execution_error,
-            }
-        );
     }
 
     ////////////////////////// Private functions ///////////////////////////////
@@ -1286,16 +1350,17 @@ module supra_framework::multisig_account {
                         approved: true,
                     }
                 );
+            } else {
+                emit_event(
+                    &mut multisig_account_resource.vote_events,
+                    VoteEvent {
+                        owner: executor,
+                        sequence_number,
+                        approved: true,
+                    }
+                );
             };
             num_approvals = num_approvals + 1;
-            emit_event(
-                &mut multisig_account_resource.vote_events,
-                VoteEvent {
-                    owner: executor,
-                    sequence_number,
-                    approved: true,
-                }
-            );
         };
 
         num_approvals
@@ -1333,11 +1398,12 @@ module supra_framework::multisig_account {
             emit(
                 CreateTransaction { multisig_account: multisig_account, creator, sequence_number, transaction }
             );
+        } else {
+            emit_event(
+                &mut multisig_account_resource.create_transaction_events,
+                CreateTransactionEvent { creator, sequence_number, transaction },
+            );
         };
-        emit_event(
-            &mut multisig_account_resource.create_transaction_events,
-            CreateTransactionEvent { creator, sequence_number, transaction },
-        );
     }
 
     fun create_multisig_account(owner: &signer): (signer, SignerCapability) {
@@ -1465,11 +1531,12 @@ module supra_framework::multisig_account {
             );
             if (std::features::module_event_migration_enabled()) {
                 emit(AddOwners { multisig_account: multisig_address, owners_added: new_owners });
+            } else {
+                emit_event(
+                    &mut multisig_account_ref_mut.add_owners_events,
+                    AddOwnersEvent { owners_added: new_owners }
+                );
             };
-            emit_event(
-                &mut multisig_account_ref_mut.add_owners_events,
-                AddOwnersEvent { owners_added: new_owners }
-            );
         };
         // If owners to remove provided, try to remove them.
         if (vector::length(&owners_to_remove) != 0) {
@@ -1491,11 +1558,12 @@ module supra_framework::multisig_account {
                     emit(
                         RemoveOwners { multisig_account: multisig_address, owners_removed }
                     );
+                } else {
+                    emit_event(
+                        &mut multisig_account_ref_mut.remove_owners_events,
+                        RemoveOwnersEvent { owners_removed }
+                    );
                 };
-                emit_event(
-                    &mut multisig_account_ref_mut.remove_owners_events,
-                    RemoveOwnersEvent { owners_removed }
-                );
             }
         };
         // If new signature count provided, try to update count.
@@ -1520,14 +1588,15 @@ module supra_framework::multisig_account {
                             new_num_signatures_required,
                         }
                     );
-                };
-                emit_event(
-                    &mut multisig_account_ref_mut.update_signature_required_events,
-                    UpdateSignaturesRequiredEvent {
-                        old_num_signatures_required,
-                        new_num_signatures_required,
-                    }
-                );
+                } else {
+                    emit_event(
+                        &mut multisig_account_ref_mut.update_signature_required_events,
+                        UpdateSignaturesRequiredEvent {
+                            old_num_signatures_required,
+                            new_num_signatures_required,
+                        }
+                    );
+                }
             }
         };
         // Verify number of owners.
@@ -1777,6 +1846,26 @@ module supra_framework::multisig_account {
     }
 
     #[test]
+    public entry fun test_create_multisig_account_on_top_of_existing_with_signer()
+    acquires MultisigAccount {
+        setup();
+
+        let multisig_address = @0xabc;
+        create_account(multisig_address);
+
+        let expected_owners = vector[@0x123, @0x124, @0x125];
+        create_with_existing_account_call(
+            &create_signer(multisig_address),
+            expected_owners,
+            2,
+            vector[],
+            vector[],
+        );
+        assert_multisig_account_exists(multisig_address);
+        assert!(owners(multisig_address) == expected_owners, 0);
+    }
+
+    #[test]
     public entry fun test_create_multisig_account_on_top_of_existing_multi_ed25519_account()
     acquires MultisigAccount {
         setup();
@@ -1808,6 +1897,34 @@ module supra_framework::multisig_account {
         );
         assert_multisig_account_exists(multisig_address);
         assert!(owners(multisig_address) == expected_owners, 0);
+    }
+
+    #[test]
+    public entry fun test_create_multisig_account_on_top_of_existing_and_revoke_auth_key_with_signer()
+    acquires MultisigAccount {
+        setup();
+
+        let multisig_address = @0xabc;
+        create_account(multisig_address);
+
+        // Create both a signer capability and rotation capability offers
+        account::set_rotation_capability_offer(multisig_address, @0x123);
+        account::set_signer_capability_offer(multisig_address, @0x123);
+
+        let expected_owners = vector[@0x123, @0x124, @0x125];
+        create_with_existing_account_and_revoke_auth_key_call(
+            &create_signer(multisig_address),
+            expected_owners,
+            2,
+            vector[],
+            vector[],
+        );
+        assert_multisig_account_exists(multisig_address);
+        assert!(owners(multisig_address) == expected_owners, 0);
+        assert!(account::get_authentication_key(multisig_address) == ZERO_AUTH_KEY, 1);
+        // Verify that all capability offers have been wiped.
+        assert!(!account::is_rotation_capability_offered(multisig_address), 2);
+        assert!(!account::is_signer_capability_offered(multisig_address), 3);
     }
 
     #[test]

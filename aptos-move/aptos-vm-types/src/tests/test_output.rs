@@ -3,12 +3,17 @@
 
 use crate::{
     output::VMOutput,
-    tests::utils::{as_state_key, build_vm_output, mock_add, mock_create_with_layout, mock_modify},
+    tests::utils::{
+        as_state_key, build_vm_output, mock_add, mock_create_with_layout, mock_modify,
+        mock_module_modify,
+    },
 };
 use aptos_aggregator::delta_change_set::serialize;
-use aptos_language_e2e_tests::data_store::FakeDataStore;
+use aptos_transaction_simulation::{InMemoryStateStore, SimulationStateStore};
 use aptos_types::{
-    state_store::state_key::StateKey, transaction::TransactionOutput, write_set::WriteOp,
+    state_store::{state_key::StateKey, state_value::StateValue},
+    transaction::TransactionOutput,
+    write_set::WriteOp,
 };
 use claims::{assert_err, assert_matches, assert_ok};
 use move_core_types::vm_status::{AbortLocation, VMStatus};
@@ -16,7 +21,6 @@ use std::collections::BTreeMap;
 
 fn assert_eq_outputs(vm_output: &VMOutput, txn_output: TransactionOutput) {
     let vm_output_writes = &vm_output
-        .change_set()
         .concrete_write_set_iter()
         .map(|(k, v)| {
             (
@@ -37,10 +41,10 @@ fn assert_eq_outputs(vm_output: &VMOutput, txn_output: TransactionOutput) {
 
 #[test]
 fn test_ok_output_equality_no_deltas() {
-    let state_view = FakeDataStore::default();
+    let state_view = InMemoryStateStore::new();
     let vm_output = build_vm_output(
         vec![mock_create_with_layout("0", 0, None)],
-        vec![mock_modify("1", 1)],
+        vec![mock_module_modify("1", 1)],
         vec![],
         vec![mock_modify("2", 2)],
         vec![],
@@ -70,12 +74,17 @@ fn test_ok_output_equality_no_deltas() {
 #[test]
 fn test_ok_output_equality_with_deltas() {
     let delta_key = "3";
-    let mut state_view = FakeDataStore::default();
-    state_view.set_legacy(as_state_key!(delta_key), serialize(&100));
+    let state_view = InMemoryStateStore::new();
+    state_view
+        .set_state_value(
+            as_state_key!(delta_key),
+            StateValue::new_legacy(serialize(&100).into()),
+        )
+        .unwrap();
 
     let vm_output = build_vm_output(
         vec![mock_create_with_layout("0", 0, None)],
-        vec![mock_modify("1", 1)],
+        vec![mock_module_modify("1", 1)],
         vec![],
         vec![mock_modify("2", 2)],
         vec![mock_add(delta_key, 300)],
@@ -97,23 +106,18 @@ fn test_ok_output_equality_with_deltas() {
     let expected_aggregator_write_set =
         BTreeMap::from([mock_modify("2", 2), mock_modify("3", 400)]);
     assert_eq!(
-        materialized_vm_output.change_set().resource_write_set(),
-        vm_output.change_set().resource_write_set()
+        materialized_vm_output.resource_write_set(),
+        vm_output.resource_write_set()
     );
     assert_eq!(
-        materialized_vm_output.change_set().module_write_set(),
-        vm_output.change_set().module_write_set()
+        materialized_vm_output.module_write_set(),
+        vm_output.module_write_set()
     );
     assert_eq!(
-        materialized_vm_output
-            .change_set()
-            .aggregator_v1_write_set(),
+        materialized_vm_output.aggregator_v1_write_set(),
         &expected_aggregator_write_set
     );
-    assert!(materialized_vm_output
-        .change_set()
-        .aggregator_v1_delta_set()
-        .is_empty());
+    assert!(materialized_vm_output.aggregator_v1_delta_set().is_empty());
     assert_eq!(
         vm_output.fee_statement(),
         materialized_vm_output.fee_statement()
@@ -126,8 +130,13 @@ fn test_ok_output_equality_with_deltas() {
 #[test]
 fn test_err_output_equality_with_deltas() {
     let delta_key = "3";
-    let mut state_view = FakeDataStore::default();
-    state_view.set_legacy(as_state_key!(delta_key), serialize(&900));
+    let state_view = InMemoryStateStore::new();
+    state_view
+        .set_state_value(
+            as_state_key!(delta_key),
+            StateValue::new_legacy(serialize(&900).into()),
+        )
+        .unwrap();
 
     let vm_output = build_vm_output(vec![], vec![], vec![], vec![], vec![mock_add(
         delta_key, 300,

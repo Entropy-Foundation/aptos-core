@@ -19,6 +19,7 @@ use serde_generate::{
 };
 use std::{
     collections::BTreeMap,
+    io,
     io::{Result, Write},
     path::PathBuf,
     str::FromStr,
@@ -40,7 +41,7 @@ pub fn output(
     };
 
     // Some functions have complex types which are not currently supported in bcs or in this
-    // generator. Disable those functiosn for now.
+    // generator. Disable those functions for now.
     let abis_vec = abis
         .iter()
         .filter(|abi| {
@@ -468,8 +469,17 @@ func DecodeEntryFunctionPayload(script aptostypes.TransactionPayload) (EntryFunc
         for (index, arg) in abi.args().iter().enumerate() {
             let decoding = match Self::bcs_primitive_type_name(arg.type_tag()) {
                 None => {
-                    let type_tag_str = format!("{}", (arg.type_tag()));
-                    if "vector<0x1::string::String>".eq(&type_tag_str) {
+                    let vec_string_tag =
+                        TypeTag::from_str("vector<0x1::string::String>").map_err(|err| {
+                            io::Error::new(
+                                io::ErrorKind::Other,
+                                format!(
+                                    "Failed to construct a type tag for vector of strings: {:?}",
+                                    err
+                                ),
+                            )
+                        })?;
+                    if arg.type_tag() == &vec_string_tag {
                         format!(
                             "bcs.NewDeserializer(script.Value.Args[{}]).DeserializeVecBytes()",
                             index,
@@ -672,7 +682,7 @@ func encode_{}_argument(arg {}) []byte {{
                 U8 => ("U8Vector", default_stmt),
                 _ => common::type_not_allowed(type_tag),
             },
-            Struct(_) | Signer => common::type_not_allowed(type_tag),
+            Struct(_) | Signer | Function(..) => common::type_not_allowed(type_tag),
         };
         writeln!(
             self.out,
@@ -793,7 +803,7 @@ func decode_{0}_argument(arg aptostypes.TransactionArgument) (value {1}, err err
                 tag if &**tag == Lazy::force(&str_tag) => "[]uint8".into(),
                 _ => common::type_not_allowed(type_tag),
             },
-            Signer => common::type_not_allowed(type_tag),
+            Signer | Function(..) => common::type_not_allowed(type_tag),
         }
     }
 
@@ -820,7 +830,7 @@ func decode_{0}_argument(arg aptostypes.TransactionArgument) (value {1}, err err
                 U8 => format!("(*aptostypes.TransactionArgument__U8Vector)(&{})", name),
                 _ => common::type_not_allowed(type_tag),
             },
-            Struct(_) | Signer => common::type_not_allowed(type_tag),
+            Struct(_) | Signer | Function(..) => common::type_not_allowed(type_tag),
         }
     }
 
@@ -854,7 +864,7 @@ func decode_{0}_argument(arg aptostypes.TransactionArgument) (value {1}, err err
                 tag if &**tag == Lazy::force(&str_tag) => Some("Bytes"),
                 _ => common::type_not_allowed(type_tag),
             },
-            Signer => common::type_not_allowed(type_tag),
+            Signer | Function(..) => common::type_not_allowed(type_tag),
         }
     }
 }

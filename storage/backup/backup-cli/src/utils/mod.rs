@@ -21,10 +21,11 @@ use aptos_db::{
     db::AptosDB,
     get_restore_handler::GetRestoreHandler,
     state_restore::{
-        StateSnapshotProgress, StateSnapshotRestore, StateSnapshotRestoreMode, StateValueBatch,
-        StateValueWriter,
+        StateSnapshotRestore, StateSnapshotRestoreMode, StateValueBatch, StateValueWriter,
     },
 };
+use aptos_db_indexer_schemas::metadata::StateSnapshotProgress;
+use aptos_indexer_grpc_table_info::internal_indexer_db_service::InternalIndexerDBService;
 use aptos_infallible::duration_since_epoch;
 use aptos_jellyfish_merkle::{NodeBatch, TreeWriter};
 use aptos_logger::info;
@@ -86,6 +87,8 @@ pub struct RocksdbOpt {
     index_db_max_total_wal_size: u64,
     #[clap(long, hide(true), default_value_t = 16)]
     max_background_jobs: i32,
+    #[clap(long, hide(true), default_value_t = 1024)]
+    block_cache_size: u64,
 }
 
 impl From<RocksdbOpt> for RocksdbConfigs {
@@ -95,12 +98,14 @@ impl From<RocksdbOpt> for RocksdbConfigs {
                 max_open_files: opt.ledger_db_max_open_files,
                 max_total_wal_size: opt.ledger_db_max_total_wal_size,
                 max_background_jobs: opt.max_background_jobs,
+                block_cache_size: opt.block_cache_size,
                 ..Default::default()
             },
             state_merkle_db_config: RocksdbConfig {
                 max_open_files: opt.state_merkle_db_max_open_files,
                 max_total_wal_size: opt.state_merkle_db_max_total_wal_size,
                 max_background_jobs: opt.max_background_jobs,
+                block_cache_size: opt.block_cache_size,
                 ..Default::default()
             },
             enable_storage_sharding: opt.enable_storage_sharding,
@@ -108,12 +113,14 @@ impl From<RocksdbOpt> for RocksdbConfigs {
                 max_open_files: opt.state_kv_db_max_open_files,
                 max_total_wal_size: opt.state_kv_db_max_total_wal_size,
                 max_background_jobs: opt.max_background_jobs,
+                block_cache_size: opt.block_cache_size,
                 ..Default::default()
             },
             index_db_config: RocksdbConfig {
                 max_open_files: opt.index_db_max_open_files,
                 max_total_wal_size: opt.index_db_max_total_wal_size,
                 max_background_jobs: opt.max_background_jobs,
+                block_cache_size: opt.block_cache_size,
                 ..Default::default()
             },
         }
@@ -157,6 +164,9 @@ pub struct GlobalRestoreOpt {
 
     #[clap(flatten)]
     pub replay_concurrency_level: ReplayConcurrencyLevelOpt,
+
+    #[clap(long, help = "Restore the state indices when restore the snapshot")]
+    pub enable_state_indices: bool,
 }
 
 pub enum RestoreRunMode {
@@ -182,7 +192,7 @@ impl StateValueWriter<StateKey, StateValue> for MockStore {
         Ok(())
     }
 
-    fn write_usage(&self, _version: Version, _usage: StateStorageUsage) -> Result<()> {
+    fn kv_finish(&self, _version: Version, _usage: StateStorageUsage) -> Result<()> {
         Ok(())
     }
 
@@ -284,12 +294,17 @@ impl TryFrom<GlobalRestoreOpt> for GlobalRestoreOptions {
     type Error = anyhow::Error;
 
     fn try_from(opt: GlobalRestoreOpt) -> anyhow::Result<Self> {
-        let target_version = opt.target_version.unwrap_or(Version::max_value());
+        let target_version = opt.target_version.unwrap_or(Version::MAX);
         let concurrent_downloads = opt.concurrent_downloads.get();
         let replay_concurrency_level = opt.replay_concurrency_level.get();
         let run_mode = if let Some(db_dir) = &opt.db_dir {
             // for restore, we can always start state store with empty buffered_state since we will restore
             // TODO(grao): Support path override here.
+            let internal_indexer_db = if opt.enable_state_indices {
+                InternalIndexerDBService::get_indexer_db_for_restore(db_dir.as_path())
+            } else {
+                None
+            };
             let restore_handler = Arc::new(AptosDB::open_kv_only(
                 StorageDirPaths::from_path(db_dir),
                 false,                       /* read_only */
@@ -298,6 +313,7 @@ impl TryFrom<GlobalRestoreOpt> for GlobalRestoreOptions {
                 false, /* indexer */
                 BUFFERED_STATE_TARGET_ITEMS,
                 DEFAULT_MAX_NUM_NODES_PER_LRU_CACHE_SHARD,
+                internal_indexer_db,
             )?)
             .get_restore_handler();
 

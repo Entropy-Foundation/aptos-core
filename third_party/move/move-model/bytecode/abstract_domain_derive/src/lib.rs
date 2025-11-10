@@ -21,7 +21,7 @@ fn gen_join_field(field: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
 
 #[proc_macro_derive(AbstractDomain, attributes(no_join))]
 /// Derives `AbstractDomain` for structs. The derived `join` method pair-wise joins selected fields of a struct,
-/// or all fields for structs with anonymous fields, and returns the combined join results.
+/// or all fields for structs with positional fields, and returns the combined join results.
 /// The joined fields must implement `AbstractDomain`.
 /// # Usage
 ///
@@ -37,7 +37,6 @@ fn gen_join_field(field: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
 /// use abstract_domain_derive::AbstractDomain;
 /// pub struct BorrowInfo {
 ///     live_nodes: SetDomain<BorrowNode>,
-
 ///     borrowed_by: MapDomain<BorrowNode, SetDomain<(BorrowNode, BorrowEdge)>>,
 ///     /// Backward borrow information. This field is not used during analysis, but computed once
 ///     /// analysis is done.

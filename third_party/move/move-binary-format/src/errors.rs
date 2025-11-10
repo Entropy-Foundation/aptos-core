@@ -10,11 +10,44 @@ use move_core_types::{
     language_storage::ModuleId,
     vm_status::{self, StatusCode, StatusType, VMStatus},
 };
+use once_cell::sync::{Lazy, OnceCell};
 use std::fmt;
 
 pub type VMResult<T> = ::std::result::Result<T, VMError>;
 pub type BinaryLoaderResult<T> = ::std::result::Result<T, PartialVMError>;
 pub type PartialVMResult<T> = ::std::result::Result<T, PartialVMError>;
+
+static STABLE_TEST_DISPLAY: OnceCell<bool> = OnceCell::new();
+
+/// Call this function if display of errors should be stable for baseline tests.
+/// Specifically, no stack traces should be generated, as they contain transitive
+/// file locations.
+pub fn set_stable_test_display() {
+    STABLE_TEST_DISPLAY.set(true).unwrap_or(())
+}
+
+/// Check whether stable test display is enabled. This can be used by other components
+/// to adjust their output.
+pub fn is_stable_test_display() -> bool {
+    STABLE_TEST_DISPLAY.get().copied().unwrap_or(false)
+}
+
+/// This macro is used to panic while debugging fuzzing crashes obtaining the right stack trace.
+/// e.g. DEBUG_VM_STATUS=ABORTED,UNKNOWN_INVARIANT_VIOLATION_ERROR ./fuzz.sh run move_aptosvm_publish_and_run <testcase>
+/// third_party/move/move-core/types/src/vm_status.rs:506 for the list of status codes.
+#[cfg(feature = "fuzzing")]
+macro_rules! fuzzing_maybe_panic {
+    ($major_status:expr, $message:expr) => {{
+        if let Ok(debug_statuses) = std::env::var("DEBUG_VM_STATUS") {
+            if debug_statuses
+                .split(',')
+                .any(|s| s.trim() == format!("{:?}", $major_status))
+            {
+                panic!("PartialVMError: {:?} {:?}", $major_status, $message);
+            }
+        }
+    }};
+}
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Location {
@@ -104,18 +137,7 @@ impl VMError {
                         };
                     },
                 };
-                // Errors for OUT_OF_GAS do not always have index set: if it does not, it should already return above.
-                debug_assert!(
-                    offsets.len() == 1,
-                    "Unexpected offsets. major_status: {:?}\
-                    sub_status: {:?}\
-                    location: {:?}\
-                    offsets: {:#?}",
-                    major_status,
-                    sub_status,
-                    location,
-                    offsets
-                );
+                // offset can be None if it comes from `check_dependencies_and_charge_gas` for example
                 let (function, code_offset) = match offsets.pop() {
                     None => {
                         return VMStatus::Error {
@@ -239,7 +261,7 @@ impl VMError {
         }))
     }
 
-    pub fn format_test_output(&self, verbose: bool, comparison_mode: bool) -> String {
+    pub fn format_test_output(&self, verbose: bool) -> String {
         let location_string = match &self.location() {
             Location::Undefined => "undefined".to_owned(),
             Location::Script => "script".to_owned(),
@@ -247,18 +269,8 @@ impl VMError {
                 format!("0x{}::{}", id.address().short_str_lossless(), id.name())
             },
         };
-        let indices = if comparison_mode {
-            // During comparison testing, abstract this data.
-            "redacted".to_string()
-        } else {
-            format!("{:?}", self.indices())
-        };
-        let offsets = if comparison_mode {
-            // During comparison testing, abstract this data.
-            "redacted".to_string()
-        } else {
-            format!("{:?}", self.offsets())
-        };
+        let indices = format!("{:?}", self.indices());
+        let offsets = format!("{:?}", self.offsets());
 
         if verbose {
             let message_str = match &self.message() {
@@ -386,12 +398,21 @@ impl PartialVMError {
             indices,
             offsets,
         } = *self.0;
-        let bt = std::backtrace::Backtrace::capture();
-        let message = if std::backtrace::BacktraceStatus::Captured == bt.status() {
-            if let Some(message) = message {
-                Some(format!("{}\nBacktrace: {:#?}", message, bt).to_string())
+        static MOVE_TEST_DEBUG: Lazy<bool> = Lazy::new(|| {
+            std::env::var("MOVE_TEST_DEBUG").map_or(false, |v| matches!(v.as_str(), "true" | "1"))
+        });
+        let message = if *MOVE_TEST_DEBUG {
+            // Do this only if env var is set. Otherwise, we cannot use the output in baseline files
+            // since it is not deterministic.
+            let bt = std::backtrace::Backtrace::capture();
+            if std::backtrace::BacktraceStatus::Captured == bt.status() {
+                if let Some(message) = message {
+                    Some(format!("{}\nBacktrace: {:#?}", message, bt).to_string())
+                } else {
+                    Some(format!("Backtrace: {:#?}", bt).to_string())
+                }
             } else {
-                Some(format!("Backtrace: {:#?}", bt).to_string())
+                message
             }
         } else {
             message
@@ -410,7 +431,9 @@ impl PartialVMError {
 
     pub fn new(major_status: StatusCode) -> Self {
         debug_assert!(major_status != StatusCode::EXECUTED);
-        let message = if major_status == StatusCode::UNKNOWN_INVARIANT_VIOLATION_ERROR {
+        let message = if major_status == StatusCode::UNKNOWN_INVARIANT_VIOLATION_ERROR
+            && !is_stable_test_display()
+        {
             let mut len = 5;
             let mut trace: String = "Unknown invariant violation generated:\n".to_string();
             backtrace::trace(|frame| {
@@ -438,6 +461,10 @@ impl PartialVMError {
         } else {
             None
         };
+
+        #[cfg(feature = "fuzzing")]
+        fuzzing_maybe_panic!(major_status, message);
+
         Self(Box::new(PartialVMError_ {
             major_status,
             sub_status: None,
@@ -446,6 +473,10 @@ impl PartialVMError {
             indices: vec![],
             offsets: vec![],
         }))
+    }
+
+    pub fn new_invariant_violation(msg: impl ToString) -> PartialVMError {
+        Self::new(StatusCode::UNKNOWN_INVARIANT_VIOLATION_ERROR).with_message(msg.to_string())
     }
 
     pub fn major_status(&self) -> StatusCode {
@@ -462,8 +493,11 @@ impl PartialVMError {
         self
     }
 
-    pub fn with_message(mut self, mut message: String) -> Self {
+    pub fn with_message(mut self, message: impl ToString) -> Self {
+        let mut message = message.to_string();
         if self.0.major_status == StatusCode::UNKNOWN_INVARIANT_VIOLATION_ERROR {
+            // If there is already something in the message, interpret as stack  trace
+            // and append at the end
             if let Some(stacktrace) = self.0.message.take() {
                 message = format!("{} @{}", message, stacktrace);
             }
@@ -545,7 +579,7 @@ impl fmt::Display for PartialVMError {
         }
 
         if let Some(msg) = &self.0.message {
-            status = format!("{} and message {}", status, msg);
+            status = format!("{} and message '{}'", status, msg);
         }
 
         for (kind, index) in &self.0.indices {

@@ -49,19 +49,15 @@ spec supra_framework::gas_schedule {
     spec set_gas_schedule(supra_framework: &signer, gas_schedule_blob: vector<u8>) {
         use std::signer;
         use supra_framework::util;
-        use supra_framework::stake;
         use supra_framework::coin::CoinInfo;
         use supra_framework::supra_coin::SupraCoin;
-        use supra_framework::transaction_fee;
         use supra_framework::staking_config;
         use supra_framework::chain_status;
 
         // TODO: set because of timeout (property proved)
         pragma verify_duration_estimate = 600;
-        requires exists<stake::ValidatorFees>(@supra_framework);
         requires exists<CoinInfo<SupraCoin>>(@supra_framework);
         requires chain_status::is_genesis();
-        include transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply;
         include staking_config::StakingRewardsConfigRequirement;
 
         /// [high-level-req-2]
@@ -77,18 +73,14 @@ spec supra_framework::gas_schedule {
     }
 
     spec set_storage_gas_config(supra_framework: &signer, config: StorageGasConfig) {
-        use supra_framework::stake;
         use supra_framework::coin::CoinInfo;
         use supra_framework::supra_coin::SupraCoin;
-        use supra_framework::transaction_fee;
         use supra_framework::staking_config;
 
         // TODO: set because of timeout (property proved).
         pragma verify_duration_estimate = 600;
-        requires exists<stake::ValidatorFees>(@supra_framework);
         requires exists<CoinInfo<SupraCoin>>(@supra_framework);
         include system_addresses::AbortsIfNotSupraFramework{ account: supra_framework };
-        include transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply;
         include staking_config::StakingRewardsConfigRequirement;
         aborts_if !exists<StorageGasConfig>(@supra_framework);
         ensures global<StorageGasConfig>(@supra_framework) == config;

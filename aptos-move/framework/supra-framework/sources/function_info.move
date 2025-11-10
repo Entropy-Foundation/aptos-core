@@ -7,6 +7,7 @@ module supra_framework::function_info {
 
     friend supra_framework::fungible_asset;
     friend supra_framework::dispatchable_fungible_asset;
+    friend supra_framework::account_abstraction;
 
     /// String is not a valid Move identifier
     const EINVALID_IDENTIFIER: u64 = 1;
@@ -35,7 +36,7 @@ module supra_framework::function_info {
         )
     }
 
-    public(friend) fun new_function_info_from_address(
+    public fun new_function_info_from_address(
         module_address: address,
         module_name: String,
         function_name: String,

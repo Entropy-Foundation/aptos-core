@@ -37,7 +37,7 @@ mod safety_rules_config;
 mod secure_backend_config;
 mod state_sync_config;
 mod storage_config;
-pub mod transaction_filter_type;
+mod transaction_filters_config;
 mod utils;
 
 // All public usage statements should be declared below
@@ -60,7 +60,7 @@ pub use mempool_config::*;
 pub use netbench_config::*;
 pub use network_config::*;
 pub use node_config::*;
-pub use node_config_loader::sanitize_node_config;
+pub use node_config_loader::{sanitize_node_config, NodeType};
 pub use override_node_config::*;
 pub use peer_monitoring_config::*;
 pub use persistable_config::*;
@@ -69,3 +69,4 @@ pub use safety_rules_config::*;
 pub use secure_backend_config::*;
 pub use state_sync_config::*;
 pub use storage_config::*;
+pub use transaction_filters_config::*;

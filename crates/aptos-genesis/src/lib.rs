@@ -24,13 +24,15 @@ use aptos_temppath::TempPath;
 use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
+    jwks::patch::IssuerJWK,
+    keyless::Groth16VerificationKey,
     on_chain_config::{
         Features, GasScheduleV2, OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig
     },
     transaction::Transaction,
     waypoint::Waypoint,
 };
-use aptos_vm::AptosVM;
+use aptos_vm::aptos_vm::AptosVMBlockExecutor;
 use aptos_vm_genesis::Validator;
 use std::convert::TryInto;
 use aptos_types::on_chain_config::AutomationRegistryConfig;
@@ -82,6 +84,8 @@ pub struct GenesisInfo {
     pub randomness_config_override: Option<OnChainRandomnessConfig>,
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     pub automation_registry_config: Option<AutomationRegistryConfig>,
+    pub initial_jwks: Vec<IssuerJWK>,
+    pub keyless_groth16_vk: Option<Groth16VerificationKey>,
 }
 
 impl GenesisInfo {
@@ -124,6 +128,8 @@ impl GenesisInfo {
             randomness_config_override: genesis_config.randomness_config_override.clone(),
             jwk_consensus_config_override: genesis_config.jwk_consensus_config_override.clone(),
             automation_registry_config: genesis_config.automation_registry_config.clone(),
+            initial_jwks: genesis_config.initial_jwks.clone(),
+            keyless_groth16_vk: genesis_config.keyless_groth16_vk.clone(),
         })
     }
 
@@ -167,6 +173,8 @@ impl GenesisInfo {
                 jwk_consensus_config_override: self.jwk_consensus_config_override.clone(),
                 genesis_timestamp_in_microseconds: self.genesis_timestamp_in_microseconds,
                 automation_registry_config: self.automation_registry_config.clone(),
+                initial_jwks: self.initial_jwks.clone(),
+                keyless_groth16_vk: self.keyless_groth16_vk.clone(),
             },
             &self.consensus_config,
             &self.execution_config,
@@ -187,8 +195,9 @@ impl GenesisInfo {
             false, /* indexer */
             BUFFERED_STATE_TARGET_ITEMS,
             DEFAULT_MAX_NUM_NODES_PER_LRU_CACHE_SHARD,
+            None,
         )?;
         let db_rw = DbReaderWriter::new(aptosdb);
-        aptos_executor::db_bootstrapper::generate_waypoint::<AptosVM>(&db_rw, genesis)
+        aptos_executor::db_bootstrapper::generate_waypoint::<AptosVMBlockExecutor>(&db_rw, genesis)
     }
 }

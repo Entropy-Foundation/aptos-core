@@ -3,25 +3,30 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    config::{config_sanitizer::ConfigSanitizer, node_config_loader::NodeType, Error, NodeConfig},
+    config::{
+        config_optimizer::ConfigOptimizer, config_sanitizer::ConfigSanitizer,
+        node_config_loader::NodeType, Error, NodeConfig,
+    },
     utils,
 };
-use anyhow::{ensure, Result};
+use anyhow::{bail, ensure, Result};
 use aptos_logger::warn;
 use aptos_types::chain_id::ChainId;
 use arr_macro::arr;
-use number_range::NumberRangeOptions;
 use serde::{Deserialize, Serialize};
+use serde_yaml::Value;
 use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 // Lru cache will consume about 2G RAM based on this default value.
 pub const DEFAULT_MAX_NUM_NODES_PER_LRU_CACHE_SHARD: usize = 1 << 13;
 
 pub const BUFFERED_STATE_TARGET_ITEMS: usize = 100_000;
+pub const BUFFERED_STATE_TARGET_ITEMS_FOR_TEST: usize = 10;
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -29,6 +34,7 @@ pub struct DbPathConfig {
     pub ledger_db_path: Option<PathBuf>,
     pub state_kv_db_path: Option<ShardedDbPathConfig>,
     pub state_merkle_db_path: Option<ShardedDbPathConfig>,
+    pub hot_state_kv_db_path: Option<ShardedDbPathConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -49,11 +55,7 @@ impl ShardedDbPathConfig {
     pub fn get_shard_paths(&self) -> Result<HashMap<u8, PathBuf>> {
         let mut result = HashMap::new();
         for shard_path in &self.shard_paths {
-            let shard_ids = NumberRangeOptions::<u8>::new()
-                .with_list_sep(',')
-                .with_range_sep('-')
-                .parse(shard_path.shards.as_str())?
-                .collect::<Vec<u8>>();
+            let shard_ids = Self::parse(shard_path.shards.as_str())?;
             let path = &shard_path.path;
             ensure!(
                 path.is_absolute(),
@@ -73,6 +75,31 @@ impl ShardedDbPathConfig {
         }
 
         Ok(result)
+    }
+
+    fn parse(path: &str) -> Result<Vec<u8>> {
+        let mut shard_ids = vec![];
+        for p in path.split(',') {
+            let num_or_range: Vec<&str> = p.split('-').collect();
+            match num_or_range.len() {
+                1 => {
+                    let num = u8::from_str(num_or_range[0])?;
+                    ensure!(num < 16);
+                    shard_ids.push(num);
+                },
+                2 => {
+                    let range_start = u8::from_str(num_or_range[0])?;
+                    let range_end = u8::from_str(num_or_range[1])?;
+                    ensure!(range_start <= range_end && range_end < 16);
+                    for num in range_start..=range_end {
+                        shard_ids.push(num);
+                    }
+                },
+                _ => bail!("Invalid path: {path}."),
+            }
+        }
+
+        Ok(shard_ids)
     }
 }
 
@@ -125,7 +152,6 @@ pub struct RocksdbConfigs {
     pub state_merkle_db_config: RocksdbConfig,
     pub state_kv_db_config: RocksdbConfig,
     pub index_db_config: RocksdbConfig,
-    // Note: Not ready for production use yet.
     pub enable_storage_sharding: bool,
 }
 
@@ -175,6 +201,10 @@ pub struct StorageConfig {
     /// If not specificed, will use `dir` as default.
     /// Only allowed when sharding is enabled.
     pub db_path_overrides: Option<DbPathConfig>,
+    /// ensure `ulimit -n`, set to 0 to not ensure.
+    pub ensure_rlimit_nofile: u64,
+    /// panic if failed to ensure `ulimit -n`
+    pub assert_rlimit_nofile: bool,
 }
 
 pub const NO_OP_STORAGE_PRUNER_CONFIG: PrunerConfig = PrunerConfig {
@@ -262,9 +292,7 @@ impl Default for LedgerPrunerConfig {
     fn default() -> Self {
         LedgerPrunerConfig {
             enable: true,
-            // This assumes we have 1T disk, minus the space needed by state merkle db and the
-            // overhead in storage.
-            prune_window: 150_000_000,
+            prune_window: 90_000_000,
             batch_size: 5_000,
             user_pruning_window_offset: 200_000,
         }
@@ -324,6 +352,8 @@ impl Default for StorageConfig {
             db_path_overrides: None,
             buffered_state_target_items: BUFFERED_STATE_TARGET_ITEMS,
             max_num_nodes_per_lru_cache_shard: DEFAULT_MAX_NUM_NODES_PER_LRU_CACHE_SHARD,
+            ensure_rlimit_nofile: 0,
+            assert_rlimit_nofile: false,
         }
     }
 }
@@ -342,6 +372,7 @@ impl StorageConfig {
         let mut ledger_db_path = None;
         let mut state_kv_db_paths = ShardedDbPaths::default();
         let mut state_merkle_db_paths = ShardedDbPaths::default();
+        let mut hot_state_kv_db_paths = ShardedDbPaths::default();
 
         if let Some(db_path_overrides) = self.db_path_overrides.as_ref() {
             db_path_overrides
@@ -355,6 +386,10 @@ impl StorageConfig {
             if let Some(state_merkle_db_path) = db_path_overrides.state_merkle_db_path.as_ref() {
                 state_merkle_db_paths = ShardedDbPaths::new(state_merkle_db_path);
             }
+
+            if let Some(hot_state_kv_db_path) = db_path_overrides.hot_state_kv_db_path.as_ref() {
+                hot_state_kv_db_paths = ShardedDbPaths::new(hot_state_kv_db_path);
+            }
         }
 
         StorageDirPaths::new(
@@ -362,6 +397,7 @@ impl StorageConfig {
             ledger_db_path,
             state_kv_db_paths,
             state_merkle_db_paths,
+            hot_state_kv_db_paths,
         )
     }
 
@@ -375,11 +411,13 @@ impl StorageConfig {
     }
 }
 
+#[derive(Debug)]
 pub struct StorageDirPaths {
     default_path: PathBuf,
     ledger_db_path: Option<PathBuf>,
     state_kv_db_paths: ShardedDbPaths,
     state_merkle_db_paths: ShardedDbPaths,
+    hot_state_kv_db_paths: ShardedDbPaths,
 }
 
 impl StorageDirPaths {
@@ -401,7 +439,7 @@ impl StorageDirPaths {
             .unwrap_or(&self.default_path)
     }
 
-    pub fn state_kv_db_shard_root_path(&self, shard_id: u8) -> &PathBuf {
+    pub fn state_kv_db_shard_root_path(&self, shard_id: usize) -> &PathBuf {
         self.state_kv_db_paths
             .shard_path(shard_id)
             .unwrap_or(&self.default_path)
@@ -413,8 +451,14 @@ impl StorageDirPaths {
             .unwrap_or(&self.default_path)
     }
 
-    pub fn state_merkle_db_shard_root_path(&self, shard_id: u8) -> &PathBuf {
+    pub fn state_merkle_db_shard_root_path(&self, shard_id: usize) -> &PathBuf {
         self.state_merkle_db_paths
+            .shard_path(shard_id)
+            .unwrap_or(&self.default_path)
+    }
+
+    pub fn hot_state_kv_db_shard_root_path(&self, shard_id: usize) -> &PathBuf {
+        self.hot_state_kv_db_paths
             .shard_path(shard_id)
             .unwrap_or(&self.default_path)
     }
@@ -425,6 +469,7 @@ impl StorageDirPaths {
             ledger_db_path: None,
             state_kv_db_paths: Default::default(),
             state_merkle_db_paths: Default::default(),
+            hot_state_kv_db_paths: Default::default(),
         }
     }
 
@@ -433,17 +478,19 @@ impl StorageDirPaths {
         ledger_db_path: Option<PathBuf>,
         state_kv_db_paths: ShardedDbPaths,
         state_merkle_db_paths: ShardedDbPaths,
+        hot_state_kv_db_paths: ShardedDbPaths,
     ) -> Self {
         Self {
             default_path,
             ledger_db_path,
             state_kv_db_paths,
             state_merkle_db_paths,
+            hot_state_kv_db_paths,
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct ShardedDbPaths {
     metadata_path: Option<PathBuf>,
     shard_paths: [Option<PathBuf>; 16],
@@ -466,8 +513,36 @@ impl ShardedDbPaths {
         self.metadata_path.as_ref()
     }
 
-    fn shard_path(&self, shard_id: u8) -> Option<&PathBuf> {
-        self.shard_paths[shard_id as usize].as_ref()
+    fn shard_path(&self, shard_id: usize) -> Option<&PathBuf> {
+        self.shard_paths[shard_id].as_ref()
+    }
+}
+
+impl ConfigOptimizer for StorageConfig {
+    fn optimize(
+        node_config: &mut NodeConfig,
+        local_config_yaml: &Value,
+        _node_type: NodeType,
+        chain_id: Option<ChainId>,
+    ) -> Result<bool, Error> {
+        let config = &mut node_config.storage;
+        let config_yaml = &local_config_yaml["storage"];
+
+        let mut modified_config = false;
+        if let Some(chain_id) = chain_id {
+            if (chain_id.is_testnet() || chain_id.is_mainnet())
+                && config_yaml["ensure_rlimit_nofile"].is_null()
+            {
+                config.ensure_rlimit_nofile = 999_999;
+                modified_config = true;
+            }
+            if chain_id.is_testnet() && config_yaml["assert_rlimit_nofile"].is_null() {
+                config.assert_rlimit_nofile = true;
+                modified_config = true;
+            }
+        }
+
+        Ok(modified_config)
     }
 }
 
@@ -576,7 +651,11 @@ impl ConfigSanitizer for StorageConfig {
 
 #[cfg(test)]
 mod test {
-    use crate::config::{PrunerConfig, ShardPathConfig, ShardedDbPathConfig};
+    use crate::config::{
+        config_optimizer::ConfigOptimizer, NodeConfig, NodeType, PrunerConfig, ShardPathConfig,
+        ShardedDbPathConfig, StorageConfig,
+    };
+    use aptos_types::chain_id::ChainId;
 
     #[test]
     pub fn test_default_prune_window() {
@@ -651,5 +730,36 @@ mod test {
         };
 
         assert!(path_overrides.get_shard_paths().is_err());
+    }
+
+    #[test]
+    fn test_optimize_ensure_rlimit_nofile() {
+        let mut node_config = NodeConfig::default();
+        assert_eq!(node_config.storage.ensure_rlimit_nofile, 0);
+        assert!(!node_config.storage.assert_rlimit_nofile);
+
+        let modified_config = StorageConfig::optimize(
+            &mut node_config,
+            &serde_yaml::from_str("{}").unwrap(), // An empty local config,
+            NodeType::Validator,
+            Some(ChainId::mainnet()),
+        )
+        .unwrap();
+        assert!(modified_config);
+
+        assert_eq!(node_config.storage.ensure_rlimit_nofile, 999_999);
+        assert!(!node_config.storage.assert_rlimit_nofile);
+
+        let modified_config = StorageConfig::optimize(
+            &mut node_config,
+            &serde_yaml::from_str("{}").unwrap(), // An empty local config,
+            NodeType::Validator,
+            Some(ChainId::testnet()),
+        )
+        .unwrap();
+        assert!(modified_config);
+
+        assert_eq!(node_config.storage.ensure_rlimit_nofile, 999_999);
+        assert!(node_config.storage.assert_rlimit_nofile);
     }
 }

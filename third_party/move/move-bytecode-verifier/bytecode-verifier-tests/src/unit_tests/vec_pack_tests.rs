@@ -41,6 +41,7 @@ fn test_vec_pack() {
         return_: SignatureIndex(0),
         type_parameters: vec![],
         access_specifiers: None,
+        attributes: vec![],
     });
     m.identifiers
         .push(Identifier::new("foo".to_string()).unwrap());
@@ -66,5 +67,5 @@ fn test_vec_pack() {
         &m,
     )
     .unwrap_err();
-    assert_eq!(res.major_status(), StatusCode::VALUE_STACK_PUSH_OVERFLOW);
+    assert_eq!(res.major_status(), StatusCode::TOO_MANY_TYPE_NODES);
 }

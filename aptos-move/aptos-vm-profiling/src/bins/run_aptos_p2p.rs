@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use anyhow::Result;
-use aptos_language_e2e_tests::{account::AccountData, data_store::FakeDataStore};
+use aptos_block_executor::txn_provider::default::DefaultTxnProvider;
+use aptos_transaction_simulation::{AccountData, InMemoryStateStore, SimulationStateStore};
 use aptos_types::{
     transaction::{signature_verified_transaction::SignatureVerifiedTransaction, Transaction},
     write_set::WriteSet,
 };
-use aptos_vm::{AptosVM, VMExecutor};
-use std::{
-    collections::HashMap,
-    io::{self, Read},
-};
+use aptos_vm::{aptos_vm::AptosVMBlockExecutor, VMBlockExecutor};
+use std::io::{self, Read};
 
 fn main() -> Result<()> {
     let mut blob = vec![];
@@ -20,13 +18,13 @@ fn main() -> Result<()> {
 
     println!("Start running");
 
-    let mut state_store = FakeDataStore::new(HashMap::new());
-    state_store.add_write_set(&genesis_write_set);
+    let state_store = InMemoryStateStore::new();
+    state_store.apply_write_set(&genesis_write_set)?;
 
     let alice = AccountData::new(100_000_000, 0);
     let bob = AccountData::new(100_000_000, 0);
-    state_store.add_account_data(&alice);
-    state_store.add_account_data(&bob);
+    state_store.add_account_data(&alice)?;
+    state_store.add_account_data(&bob)?;
 
     const NUM_TXNS: u64 = 100;
 
@@ -48,9 +46,11 @@ fn main() -> Result<()> {
         })
         .collect();
 
-    let res = AptosVM::execute_block_no_limit(&txns, &state_store)?;
+    let txn_provider = DefaultTxnProvider::new_without_info(txns);
+    let outputs =
+        AptosVMBlockExecutor::new().execute_block_no_limit(&txn_provider, &state_store)?;
     for i in 0..NUM_TXNS {
-        assert!(res[i as usize].status().status().unwrap().is_success());
+        assert!(outputs[i as usize].status().status().unwrap().is_success());
     }
 
     Ok(())

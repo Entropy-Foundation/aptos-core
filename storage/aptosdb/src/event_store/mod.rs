@@ -7,20 +7,14 @@
 #![allow(unused)]
 
 use super::AptosDB;
-use crate::{
-    schema::{event::EventSchema, event_accumulator::EventAccumulatorSchema},
-    utils::iterators::EventsByVersionIter,
-};
+use crate::schema::{event::EventSchema, event_accumulator::EventAccumulatorSchema};
 use anyhow::anyhow;
-use aptos_accumulator::{HashReader, MerkleAccumulator};
-use aptos_crypto::{
-    hash::{CryptoHash, EventAccumulatorHasher},
-    HashValue,
-};
+use aptos_accumulator::HashReader;
+use aptos_crypto::{hash::CryptoHash, HashValue};
 use aptos_db_indexer_schemas::schema::{
     event_by_key::EventByKeySchema, event_by_version::EventByVersionSchema,
 };
-use aptos_schemadb::{iterator::SchemaIterator, schema::ValueCodec, ReadOptions, SchemaBatch, DB};
+use aptos_schemadb::{batch::SchemaBatch, schema::ValueCodec, DB};
 use aptos_storage_interface::{db_ensure as ensure, db_other_bail, AptosDbError, Result};
 use aptos_types::{
     account_address::AccountAddress,
@@ -31,9 +25,8 @@ use aptos_types::{
     transaction::Version,
 };
 use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::HashMap,
     convert::{TryFrom, TryInto},
-    iter::Peekable,
     sync::Arc,
 };
 
@@ -88,7 +81,7 @@ impl EventStore {
         event_key: &EventKey,
     ) -> Result<Option<u64>> {
         let mut iter = self.event_db.iter::<EventByVersionSchema>()?;
-        iter.seek_for_prev(&(*event_key, ledger_version, u64::max_value()));
+        iter.seek_for_prev(&(*event_key, ledger_version, u64::MAX));
 
         Ok(iter.next().transpose()?.and_then(
             |((key, _version, seq), _idx)| if &key == event_key { Some(seq) } else { None },
@@ -329,7 +322,7 @@ impl EventStore {
         &self,
         begin: Version,
         end: Version,
-        db_batch: &SchemaBatch,
+        db_batch: &mut SchemaBatch,
     ) -> anyhow::Result<()> {
         let mut iter = self.event_db.iter::<EventAccumulatorSchema>()?;
         iter.seek(&(begin, Position::from_inorder_index(0)))?;
@@ -354,7 +347,7 @@ impl<'a> EventHashReader<'a> {
     }
 }
 
-impl<'a> HashReader for EventHashReader<'a> {
+impl HashReader for EventHashReader<'_> {
     fn get(&self, position: Position) -> Result<HashValue, anyhow::Error> {
         self.store
             .event_db

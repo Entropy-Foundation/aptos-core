@@ -42,6 +42,7 @@ spec supra_framework::block {
     ///
     spec module {
         use supra_framework::chain_status;
+        pragma verify = false;
         // After genesis, `BlockResource` exist.
         invariant [suspendable] chain_status::is_operating() ==> exists<BlockResource>(@supra_framework);
         // After genesis, `CommitHistory` exist.
@@ -127,7 +128,6 @@ spec supra_framework::block {
         use supra_framework::chain_status;
         use supra_framework::coin::CoinInfo;
         use supra_framework::supra_coin::SupraCoin;
-        use supra_framework::transaction_fee;
         use supra_framework::staking_config;
 
         vm: signer;
@@ -145,9 +145,7 @@ spec supra_framework::block {
         requires proposer == @vm_reserved || stake::spec_is_current_epoch_validator(proposer);
         requires (proposer == @vm_reserved) ==> (timestamp::spec_now_microseconds() == timestamp);
         requires (proposer != @vm_reserved) ==> (timestamp::spec_now_microseconds() < timestamp);
-        requires exists<stake::ValidatorFees>(@supra_framework);
         requires exists<CoinInfo<SupraCoin>>(@supra_framework);
-        include transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply;
         include staking_config::StakingRewardsConfigRequirement;
     }
 

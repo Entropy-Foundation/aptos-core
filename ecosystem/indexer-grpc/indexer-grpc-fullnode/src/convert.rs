@@ -17,10 +17,13 @@ use aptos_bitvec::BitVec;
 use aptos_logger::warn;
 use aptos_protos::{
     transaction::v1::{
-        self as transaction, any_signature, validator_transaction,
-        validator_transaction::observed_jwk_update::exported_provider_jw_ks::{
-            jwk::{JwkType, Rsa, UnsupportedJwk},
-            Jwk as ProtoJwk,
+        self as transaction, any_signature,
+        validator_transaction::{
+            self,
+            observed_jwk_update::exported_provider_jw_ks::{
+                jwk::{JwkType, Rsa, UnsupportedJwk},
+                Jwk as ProtoJwk,
+            },
         },
         Ed25519, Keyless, Secp256k1Ecdsa, TransactionSizeInfo, WebAuthn,
     },
@@ -28,7 +31,7 @@ use aptos_protos::{
 };
 use aptos_types::jwks::jwk::JWK;
 use hex;
-use move_binary_format::file_format::Ability;
+use move_core_types::ability::Ability;
 use std::time::Duration;
 use aptos_protos::transaction::v1::automation_payload_extensions;
 use aptos_protos::transaction::v1::AutomationPayloadExtensions;
@@ -60,6 +63,7 @@ pub fn convert_move_struct(move_struct: &MoveStruct) -> transaction::MoveStruct 
     transaction::MoveStruct {
         name: move_struct.name.0.to_string(),
         is_native: move_struct.is_native,
+        is_event: move_struct.is_event,
         abilities: move_struct
             .abilities
             .iter()
@@ -158,6 +162,7 @@ pub fn convert_entry_function_id(
 
 pub fn convert_transaction_payload(
     payload: &TransactionPayload,
+    nonce: Option<u64>,
 ) -> transaction::TransactionPayload {
     match payload {
         TransactionPayload::EntryFunctionPayload(sfp) => transaction::TransactionPayload {
@@ -167,18 +172,42 @@ pub fn convert_transaction_payload(
                     convert_entry_function_payload(sfp),
                 ),
             ),
+            extra_config: Some(
+                transaction::transaction_payload::ExtraConfig::ExtraConfigV1(
+                    transaction::ExtraConfigV1 {
+                        multisig_address: None,
+                        replay_protection_nonce: nonce,
+                    },
+                ),
+            ),
         },
         TransactionPayload::ScriptPayload(sp) => transaction::TransactionPayload {
             r#type: transaction::transaction_payload::Type::ScriptPayload as i32,
             payload: Some(transaction::transaction_payload::Payload::ScriptPayload(
                 convert_script_payload(sp),
             )),
+            extra_config: Some(
+                transaction::transaction_payload::ExtraConfig::ExtraConfigV1(
+                    transaction::ExtraConfigV1 {
+                        multisig_address: None,
+                        replay_protection_nonce: nonce,
+                    },
+                ),
+            ),
         },
         TransactionPayload::MultisigPayload(mp) => transaction::TransactionPayload {
             r#type: transaction::transaction_payload::Type::MultisigPayload as i32,
             payload: Some(transaction::transaction_payload::Payload::MultisigPayload(
                 convert_multisig_payload(mp),
             )),
+            extra_config: Some(
+                transaction::transaction_payload::ExtraConfig::ExtraConfigV1(
+                    transaction::ExtraConfigV1 {
+                        multisig_address: Some(mp.multisig_address.to_string()),
+                        replay_protection_nonce: nonce,
+                    },
+                ),
+            ),
         },
 
         // Deprecated.
@@ -252,6 +281,7 @@ pub fn convert_move_type(move_type: &MoveType) -> transaction::MoveType {
         MoveType::Struct(_) => transaction::MoveTypes::Struct,
         MoveType::GenericTypeParam { .. } => transaction::MoveTypes::GenericTypeParam,
         MoveType::Reference { .. } => transaction::MoveTypes::Reference,
+        MoveType::Function { .. } => transaction::MoveTypes::Unparsable,
         MoveType::Unparsable(_) => transaction::MoveTypes::Unparsable,
     };
     let content = match move_type {
@@ -278,6 +308,9 @@ pub fn convert_move_type(move_type: &MoveType) -> transaction::MoveType {
                 mutable: *mutable,
                 to: Some(Box::new(convert_move_type(to))),
             }),
+        )),
+        MoveType::Function { .. } => Some(transaction::move_type::Content::Unparsable(
+            "function".to_string(),
         )),
         MoveType::Unparsable(string) => {
             Some(transaction::move_type::Content::Unparsable(string.clone()))
@@ -573,6 +606,7 @@ pub fn convert_event(event: &Event) -> transaction::Event {
 }
 
 pub fn convert_timestamp_secs(timestamp: u64) -> timestamp::Timestamp {
+    let timestamp = std::cmp::min(timestamp, i64::MAX as u64);
     timestamp::Timestamp {
         seconds: timestamp as i64,
         nanos: 0,
@@ -580,7 +614,7 @@ pub fn convert_timestamp_secs(timestamp: u64) -> timestamp::Timestamp {
 }
 
 pub fn convert_timestamp_usecs(timestamp: u64) -> timestamp::Timestamp {
-    let ts = Duration::from_nanos(timestamp * 1000);
+    let ts = Duration::from_micros(timestamp);
     timestamp::Timestamp {
         seconds: ts.as_secs() as i64,
         nanos: ts.subsec_nanos() as i32,
@@ -703,6 +737,10 @@ fn convert_public_key(public_key: &PublicKey) -> transaction::AnyPublicKey {
             r#type: transaction::any_public_key::Type::Keyless as i32,
             public_key: p.value.clone().into(),
         },
+        PublicKey::FederatedKeyless(p) => transaction::AnyPublicKey {
+            r#type: transaction::any_public_key::Type::FederatedKeyless as i32,
+            public_key: p.value.clone().into(),
+        },
     }
 }
 
@@ -732,6 +770,20 @@ pub fn convert_account_signature(
                 convert_multi_key_signature(s),
             ),
         ),
+        AccountSignature::NoAccountSignature(_) => {
+            unreachable!(
+                "[Indexer Fullnode] Indexer should never see transactions with NoAccountSignature"
+            )
+        },
+        AccountSignature::AbstractionSignature(s) => (
+            transaction::account_signature::Type::Abstraction,
+            transaction::account_signature::Signature::Abstraction(
+                transaction::AbstractionSignature {
+                    function_info: s.function_info.to_owned(),
+                    signature: s.auth_data.inner().to_owned(),
+                },
+            ),
+        ),
     };
 
     transaction::AccountSignature {
@@ -755,16 +807,19 @@ pub fn convert_transaction_signature(
         TransactionSignature::MultiAgentSignature(_) => transaction::signature::Type::MultiAgent,
         TransactionSignature::FeePayerSignature(_) => transaction::signature::Type::FeePayer,
         TransactionSignature::SingleSender(_) => transaction::signature::Type::SingleSender,
+        TransactionSignature::NoAccountSignature(_) => {
+            unreachable!("No account signature can't be committed onchain")
+        },
     };
 
     let signature = match signature {
-        TransactionSignature::Ed25519Signature(s) => {
-            transaction::signature::Signature::Ed25519(convert_ed25519_signature(s))
-        },
-        TransactionSignature::MultiEd25519Signature(s) => {
-            transaction::signature::Signature::MultiEd25519(convert_multi_ed25519_signature(s))
-        },
-        TransactionSignature::MultiAgentSignature(s) => {
+        TransactionSignature::Ed25519Signature(s) => Some(
+            transaction::signature::Signature::Ed25519(convert_ed25519_signature(s)),
+        ),
+        TransactionSignature::MultiEd25519Signature(s) => Some(
+            transaction::signature::Signature::MultiEd25519(convert_multi_ed25519_signature(s)),
+        ),
+        TransactionSignature::MultiAgentSignature(s) => Some(
             transaction::signature::Signature::MultiAgent(transaction::MultiAgentSignature {
                 sender: Some(convert_account_signature(&s.sender)),
                 secondary_signer_addresses: s
@@ -777,9 +832,9 @@ pub fn convert_transaction_signature(
                     .iter()
                     .map(convert_account_signature)
                     .collect(),
-            })
-        },
-        TransactionSignature::FeePayerSignature(s) => {
+            }),
+        ),
+        TransactionSignature::FeePayerSignature(s) => Some(
             transaction::signature::Signature::FeePayer(transaction::FeePayerSignature {
                 sender: Some(convert_account_signature(&s.sender)),
                 secondary_signer_addresses: s
@@ -794,18 +849,19 @@ pub fn convert_transaction_signature(
                     .collect(),
                 fee_payer_address: s.fee_payer_address.to_string(),
                 fee_payer_signer: Some(convert_account_signature(&s.fee_payer_signer)),
-            })
-        },
-        TransactionSignature::SingleSender(s) => {
+            }),
+        ),
+        TransactionSignature::SingleSender(s) => Some(
             transaction::signature::Signature::SingleSender(transaction::SingleSender {
                 sender: Some(convert_account_signature(s)),
-            })
-        },
+            }),
+        ),
+        TransactionSignature::NoAccountSignature(_) => None,
     };
 
     Some(transaction::Signature {
         r#type: r#type as i32,
-        signature: Some(signature),
+        signature,
     })
 }
 
@@ -841,10 +897,9 @@ pub fn convert_transaction(
     let txn_data = match &transaction {
         Transaction::UserTransaction(ut) => {
             timestamp = Some(convert_timestamp_usecs(ut.timestamp.0));
-            let expiration_timestamp_secs = Some(convert_timestamp_secs(std::cmp::min(
+            let expiration_timestamp_secs = Some(convert_timestamp_secs(
                 ut.request.expiration_timestamp_secs.0,
-                chrono::NaiveDateTime::MAX.timestamp() as u64,
-            )));
+            ));
             transaction::transaction::TxnData::User(transaction::UserTransaction {
                 request: Some(transaction::UserTransactionRequest {
                     sender: ut.request.sender.to_string(),
@@ -852,7 +907,10 @@ pub fn convert_transaction(
                     max_gas_amount: ut.request.max_gas_amount.0,
                     gas_unit_price: ut.request.gas_unit_price.0,
                     expiration_timestamp_secs,
-                    payload: Some(convert_transaction_payload(&ut.request.payload)),
+                    payload: Some(convert_transaction_payload(
+                        &ut.request.payload,
+                        ut.request.replay_protection_nonce.map(|n| n.into()),
+                    )),
                     signature: convert_transaction_signature(&ut.request.signature),
                 }),
                 events: convert_events(&ut.events),

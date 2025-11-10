@@ -6,13 +6,13 @@
 
 use anyhow::{anyhow, bail, Result};
 use clap::*;
+use legacy_move_compiler::shared::NumericalAddress;
 use move_command_line_common::{
     address::ParsedAddress,
     files::{MOVE_EXTENSION, MOVE_IR_EXTENSION},
     types::{ParsedStructType, ParsedType},
     values::{ParsableValue, ParsedValue},
 };
-use move_compiler::shared::NumericalAddress;
 use move_core_types::identifier::Identifier;
 use std::{convert::TryInto, fmt::Debug, path::Path, str::FromStr};
 use tempfile::NamedTempFile;
@@ -190,6 +190,7 @@ impl<T> TaskInput<T> {
 pub enum SyntaxChoice {
     Source,
     IR,
+    ASM,
 }
 
 /// When printing bytecode, the input program must either be a script or a module.
@@ -206,7 +207,8 @@ pub struct PrintBytecodeCommand {
     /// The kind of input: either a script, or a module.
     #[clap(long = "input", value_enum, ignore_case = true, default_value_t = PrintBytecodeInputChoice::Script)]
     pub input: PrintBytecodeInputChoice,
-    /// Select Move source ("move") source or MoveIR ("mvir").  Is inferred from filename if absent.
+    /// Select Move source ("move"), MoveIR ("mvir"), or Move Assembler ("masm").  Is inferred
+    /// from filename if absent.
     #[clap(long = "syntax")]
     pub syntax: Option<SyntaxChoice>,
 }
@@ -216,7 +218,7 @@ pub struct InitCommand {
     /// Supply a space-separated list of name=number addresses.
     #[clap(
         long = "addresses",
-        value_parser = move_compiler::shared::parse_named_address,
+        value_parser = legacy_move_compiler::shared::parse_named_address,
         num_args = 0..,
     )]
     pub named_addresses: Vec<(String, NumericalAddress)>,

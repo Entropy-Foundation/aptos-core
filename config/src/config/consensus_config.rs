@@ -2,22 +2,31 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(unexpected_cfgs)]
+
+use super::DEFEAULT_MAX_BATCH_TXNS;
 use crate::config::{
-    config_sanitizer::ConfigSanitizer, node_config_loader::NodeType, Error, NodeConfig,
-    QuorumStoreConfig, ReliableBroadcastConfig, SafetyRulesConfig, BATCH_PADDING_BYTES,
+    config_optimizer::ConfigOptimizer, config_sanitizer::ConfigSanitizer,
+    node_config_loader::NodeType, Error, NodeConfig, QuorumStoreConfig, ReliableBroadcastConfig,
+    SafetyRulesConfig, BATCH_PADDING_BYTES,
 };
 use aptos_crypto::_once_cell::sync::Lazy;
 use aptos_types::chain_id::ChainId;
 use cfg_if::cfg_if;
 use serde::{Deserialize, Serialize};
+use serde_yaml::Value;
 use std::path::PathBuf;
 
 // NOTE: when changing, make sure to update QuorumStoreBackPressureConfig::backlog_txn_limit_count as well.
-const MAX_SENDING_BLOCK_TXNS: u64 = 1900;
+const MAX_SENDING_BLOCK_TXNS_AFTER_FILTERING: u64 = 1800;
+const MAX_SENDING_OPT_BLOCK_TXNS_AFTER_FILTERING: u64 = 1000;
+const MAX_SENDING_BLOCK_TXNS: u64 = 5000;
 pub(crate) static MAX_RECEIVING_BLOCK_TXNS: Lazy<u64> =
     Lazy::new(|| 10000.max(2 * MAX_SENDING_BLOCK_TXNS));
 // stop reducing size at this point, so 1MB transactions can still go through
 const MIN_BLOCK_BYTES_OVERRIDE: u64 = 1024 * 1024 + BATCH_PADDING_BYTES as u64;
+// We should reduce block size only until two QS batch sizes.
+const MIN_BLOCK_TXNS_AFTER_FILTERING: u64 = DEFEAULT_MAX_BATCH_TXNS as u64 * 2;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -25,6 +34,8 @@ pub struct ConsensusConfig {
     // length of inbound queue of messages
     pub max_network_channel_size: usize,
     pub max_sending_block_txns: u64,
+    pub max_sending_block_txns_after_filtering: u64,
+    pub max_sending_opt_block_txns_after_filtering: u64,
     pub max_sending_block_bytes: u64,
     pub max_sending_inline_txns: u64,
     pub max_sending_inline_bytes: u64,
@@ -63,11 +74,17 @@ pub struct ConsensusConfig {
     pub intra_consensus_channel_buffer_size: usize,
     pub quorum_store: QuorumStoreConfig,
     pub vote_back_pressure_limit: u64,
+    /// If backpressure target block size is below it, update `max_txns_to_execute` instead.
+    /// Applied to execution, pipeline and chain health backpressure.
+    /// Needed as we cannot subsplit QS batches.
+    pub min_max_txns_in_block_after_filtering_from_backpressure: u64,
+    pub execution_backpressure: Option<ExecutionBackpressureConfig>,
     pub pipeline_backpressure: Vec<PipelineBackpressureValues>,
     // Used to decide if backoff is needed.
     // must match one of the CHAIN_HEALTH_WINDOW_SIZES values.
     pub window_for_chain_health: usize,
     pub chain_health_backoff: Vec<ChainHealthBackoffValues>,
+    // Deprecated
     pub qc_aggregator_type: QcAggregatorType,
     // Max blocks allowed for block retrieval requests
     pub max_blocks_per_sending_request: u64,
@@ -77,56 +94,110 @@ pub struct ConsensusConfig {
     pub broadcast_vote: bool,
     pub proof_cache_capacity: u64,
     pub rand_rb_config: ReliableBroadcastConfig,
+    pub num_bounded_executor_tasks: u64,
+    pub enable_pre_commit: bool,
+    pub max_pending_rounds_in_commit_vote_cache: u64,
+    pub optimistic_sig_verification: bool,
+    pub enable_round_timeout_msg: bool,
+    pub enable_optimistic_proposal_rx: bool,
+    pub enable_optimistic_proposal_tx: bool,
 }
 
+/// Deprecated
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum QcAggregatorType {
     #[default]
     NoDelay,
-    Delayed(DelayedQcAggregatorConfig),
 }
 
-impl QcAggregatorType {
-    pub fn default_delayed() -> Self {
-        // TODO: Enable the delayed aggregation by default once we have tested it more.
-        Self::Delayed(DelayedQcAggregatorConfig::default())
-    }
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub enum ExecutionBackpressureMetric {
+    Mean,
+    Percentile(f64),
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct DelayedQcAggregatorConfig {
-    // Maximum Delay for a QC to be aggregated after round start (in milliseconds). This assumes that
-    // we have enough voting power to form a QC. If we don't have enough voting power, we will wait
-    // until we have enough voting power to form a QC.
-    pub max_delay_after_round_start_ms: u64,
-    // Percentage of aggregated voting power to wait for before aggregating a QC. For example, if this
-    // is set to 95% then, a QC is formed as soon as we have 95% of the voting power aggregated without
-    // any additional waiting.
-    pub aggregated_voting_power_pct_to_wait: usize,
-    // This knob control what is the % of the time (as compared to time between round start and time when we
-    // have enough voting power to form a QC) we wait after we have enough voting power to form a QC. In a sense,
-    // this knobs controls how much slower we are willing to make consensus to wait for more votes.
-    pub pct_delay_after_qc_aggregated: usize,
-    // In summary, let's denote the time we have enough voting power (2f + 1) to form a QC as T1 and
-    // the time we have aggregated `aggregated_voting_power_pct_to_wait` as T2. Then, we wait for
-    // min((T1 + `pct_delay_after_qc_aggregated` * T1 / 100), `max_delay_after_round_start_ms`, T2)
-    // before forming a QC.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ExecutionBackpressureLookbackConfig {
+    /// Look at execution time for this many last blocks
+    pub num_blocks_to_look_at: usize,
+
+    /// Only blocks above this threshold are treated as potentially needed recalibration
+    /// This is needed as small blocks have overheads that are irrelevant to the transactions
+    /// being executed.
+    pub min_block_time_ms_to_activate: usize,
+
+    /// Backpressure has a second check, where it only activates if
+    /// at least `min_blocks_to_activate` are above `min_block_time_ms_to_activate`
+    pub min_blocks_to_activate: usize,
+
+    /// Out of blocks in the window, the metric to use for calibration.
+    /// i.e. Percentile(0.5) means take a median of last `num_blocks_to_look_at` blocks.
+    pub metric: ExecutionBackpressureMetric,
+    /// Recalibrating max block size, to target blocks taking this long.
+    pub target_block_time_ms: usize,
 }
 
-impl Default for DelayedQcAggregatorConfig {
+/// Execution backpressure which handles txn/s variance,
+/// and adjusts block sizes to "recalibrate it" to wanted range.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ExecutionBackpressureTxnLimitConfig {
+    pub lookback_config: ExecutionBackpressureLookbackConfig,
+    /// A minimal number of transactions per block, even if calibration suggests otherwise
+    /// To make sure backpressure doesn't become too aggressive.
+    pub min_calibrated_txns_per_block: u64,
+}
+
+impl Default for ExecutionBackpressureTxnLimitConfig {
     fn default() -> Self {
         Self {
-            max_delay_after_round_start_ms: 700,
-            aggregated_voting_power_pct_to_wait: 90,
-            pct_delay_after_qc_aggregated: 30,
+            lookback_config: ExecutionBackpressureLookbackConfig {
+                num_blocks_to_look_at: 18,
+                min_block_time_ms_to_activate: 50,
+                min_blocks_to_activate: 4,
+                metric: ExecutionBackpressureMetric::Percentile(0.5),
+                target_block_time_ms: 90,
+            },
+            min_calibrated_txns_per_block: 8,
         }
     }
 }
 
+/// Execution backpressure which handles gas/s variance,
+/// and adjusts gas limit to "recalibrate it" to wanted range.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ExecutionBackpressureGasLimitConfig {
+    pub lookback_config: ExecutionBackpressureLookbackConfig,
+    pub block_execution_overhead_ms: u64,
+    pub min_calibrated_block_gas_limit: u64,
+}
+
+impl Default for ExecutionBackpressureGasLimitConfig {
+    fn default() -> Self {
+        Self {
+            lookback_config: ExecutionBackpressureLookbackConfig {
+                num_blocks_to_look_at: 30,
+                min_block_time_ms_to_activate: 10,
+                min_blocks_to_activate: 4,
+                metric: ExecutionBackpressureMetric::Mean,
+                target_block_time_ms: 90,
+            },
+            block_execution_overhead_ms: 10,
+            min_calibrated_block_gas_limit: 2000,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ExecutionBackpressureConfig {
+    pub txn_limit: Option<ExecutionBackpressureTxnLimitConfig>,
+    pub gas_limit: Option<ExecutionBackpressureGasLimitConfig>,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct PipelineBackpressureValues {
+    // At what latency does this backpressure level activate
     pub back_pressure_pipeline_latency_limit_ms: u64,
-    pub max_sending_block_txns_override: u64,
+    pub max_sending_block_txns_after_filtering_override: u64,
     pub max_sending_block_bytes_override: u64,
     // If there is backpressure, giving some more breathing room to go through the backlog,
     // and making sure rounds don't go extremely fast (even if they are smaller blocks)
@@ -134,18 +205,16 @@ pub struct PipelineBackpressureValues {
     // If we want to dynamically increase it beyond quorum_store_poll_time,
     // we need to adjust timeouts other nodes use for the backpressured round.
     pub backpressure_proposal_delay_ms: u64,
-    pub max_txns_from_block_to_execute: Option<usize>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct ChainHealthBackoffValues {
     pub backoff_if_below_participating_voting_power_percentage: usize,
 
-    pub max_sending_block_txns_override: u64,
+    pub max_sending_block_txns_after_filtering_override: u64,
     pub max_sending_block_bytes_override: u64,
 
     pub backoff_proposal_delay_ms: u64,
-    pub max_txns_from_block_to_execute: Option<usize>,
 }
 
 impl Default for ConsensusConfig {
@@ -153,6 +222,8 @@ impl Default for ConsensusConfig {
         ConsensusConfig {
             max_network_channel_size: 1024,
             max_sending_block_txns: MAX_SENDING_BLOCK_TXNS,
+            max_sending_block_txns_after_filtering: MAX_SENDING_BLOCK_TXNS_AFTER_FILTERING,
+            max_sending_opt_block_txns_after_filtering: MAX_SENDING_OPT_BLOCK_TXNS_AFTER_FILTERING,
             max_sending_block_bytes: 3 * 1024 * 1024, // 3MB
             max_receiving_block_txns: *MAX_RECEIVING_BLOCK_TXNS,
             max_sending_inline_txns: 100,
@@ -161,7 +232,7 @@ impl Default for ConsensusConfig {
             max_pruned_blocks_in_mem: 100,
             mempool_executed_txn_timeout_ms: 1000,
             mempool_txn_pull_timeout_ms: 1000,
-            round_initial_timeout_ms: 1500,
+            round_initial_timeout_ms: 1000,
             // 1.2^6 ~= 3
             // Timeout goes from initial_timeout to initial_timeout*3 in 6 steps
             round_timeout_backoff_exponent_base: 1.2,
@@ -183,7 +254,12 @@ impl Default for ConsensusConfig {
             // increase uncontrollably, and we know when to go to state sync.
             // Considering block gas limit and pipeline backpressure should keep number of blocks
             // in the pipline very low, we can keep this limit pretty low, too.
-            vote_back_pressure_limit: 7,
+            vote_back_pressure_limit: 12,
+            min_max_txns_in_block_after_filtering_from_backpressure: MIN_BLOCK_TXNS_AFTER_FILTERING,
+            execution_backpressure: Some(ExecutionBackpressureConfig {
+                txn_limit: Some(ExecutionBackpressureTxnLimitConfig::default()),
+                gas_limit: Some(ExecutionBackpressureGasLimitConfig::default()),
+            }),
             pipeline_backpressure: vec![
                 PipelineBackpressureValues {
                     // pipeline_latency looks how long has the oldest block still in pipeline
@@ -191,123 +267,100 @@ impl Default for ConsensusConfig {
                     // Block enters the pipeline after consensus orders it, and leaves the
                     // pipeline once quorum on execution result among validators has been reached
                     // (so-(badly)-called "commit certificate"), meaning 2f+1 validators have finished execution.
-                    back_pressure_pipeline_latency_limit_ms: 800,
-                    max_sending_block_txns_override: MAX_SENDING_BLOCK_TXNS,
+                    back_pressure_pipeline_latency_limit_ms: 1200,
+                    max_sending_block_txns_after_filtering_override:
+                        MAX_SENDING_BLOCK_TXNS_AFTER_FILTERING,
+                    max_sending_block_bytes_override: 5 * 1024 * 1024,
+                    backpressure_proposal_delay_ms: 50,
+                },
+                PipelineBackpressureValues {
+                    back_pressure_pipeline_latency_limit_ms: 1500,
+                    max_sending_block_txns_after_filtering_override:
+                        MAX_SENDING_BLOCK_TXNS_AFTER_FILTERING,
                     max_sending_block_bytes_override: 5 * 1024 * 1024,
                     backpressure_proposal_delay_ms: 100,
-                    max_txns_from_block_to_execute: None,
                 },
                 PipelineBackpressureValues {
-                    back_pressure_pipeline_latency_limit_ms: 1100,
-                    max_sending_block_txns_override: MAX_SENDING_BLOCK_TXNS,
+                    back_pressure_pipeline_latency_limit_ms: 1900,
+                    max_sending_block_txns_after_filtering_override:
+                        MAX_SENDING_BLOCK_TXNS_AFTER_FILTERING,
                     max_sending_block_bytes_override: 5 * 1024 * 1024,
                     backpressure_proposal_delay_ms: 200,
-                    max_txns_from_block_to_execute: None,
                 },
+                // with execution backpressure, only later start reducing block size
                 PipelineBackpressureValues {
-                    back_pressure_pipeline_latency_limit_ms: 1400,
-                    max_sending_block_txns_override: 2000,
+                    back_pressure_pipeline_latency_limit_ms: 2500,
+                    max_sending_block_txns_after_filtering_override: 1000,
                     max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
                     backpressure_proposal_delay_ms: 300,
-                    max_txns_from_block_to_execute: None,
-                },
-                PipelineBackpressureValues {
-                    back_pressure_pipeline_latency_limit_ms: 1700,
-                    max_sending_block_txns_override: 1000,
-                    max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
-                    backpressure_proposal_delay_ms: 400,
-                    max_txns_from_block_to_execute: None,
-                },
-                PipelineBackpressureValues {
-                    back_pressure_pipeline_latency_limit_ms: 2000,
-                    max_sending_block_txns_override: 1000,
-                    max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
-                    backpressure_proposal_delay_ms: 500,
-                    max_txns_from_block_to_execute: Some(400),
-                },
-                PipelineBackpressureValues {
-                    back_pressure_pipeline_latency_limit_ms: 2300,
-                    max_sending_block_txns_override: 1000,
-                    max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
-                    backpressure_proposal_delay_ms: 500,
-                    max_txns_from_block_to_execute: Some(150),
-                },
-                PipelineBackpressureValues {
-                    back_pressure_pipeline_latency_limit_ms: 2700,
-                    max_sending_block_txns_override: 1000,
-                    max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
-                    backpressure_proposal_delay_ms: 500,
-                    max_txns_from_block_to_execute: Some(50),
-                },
-                PipelineBackpressureValues {
-                    back_pressure_pipeline_latency_limit_ms: 3100,
-                    max_sending_block_txns_override: 1000,
-                    max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
-                    backpressure_proposal_delay_ms: 500,
-                    max_txns_from_block_to_execute: Some(20),
                 },
                 PipelineBackpressureValues {
                     back_pressure_pipeline_latency_limit_ms: 3500,
-                    max_sending_block_txns_override: 1000,
+                    max_sending_block_txns_after_filtering_override: 200,
                     max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
-                    backpressure_proposal_delay_ms: 500,
+                    backpressure_proposal_delay_ms: 300,
+                },
+                PipelineBackpressureValues {
+                    back_pressure_pipeline_latency_limit_ms: 4500,
+                    max_sending_block_txns_after_filtering_override: 30,
+                    max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
+                    backpressure_proposal_delay_ms: 300,
+                },
+                PipelineBackpressureValues {
+                    back_pressure_pipeline_latency_limit_ms: 6000,
                     // in practice, latencies and delay make it such that ~2 blocks/s is max,
                     // meaning that most aggressively we limit to ~10 TPS
                     // For transactions that are more expensive than that, we should
                     // instead rely on max gas per block to limit latency.
-                    max_txns_from_block_to_execute: Some(5),
+                    max_sending_block_txns_after_filtering_override: 5,
+                    max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
+                    backpressure_proposal_delay_ms: 300,
                 },
             ],
             window_for_chain_health: 100,
             chain_health_backoff: vec![
                 ChainHealthBackoffValues {
                     backoff_if_below_participating_voting_power_percentage: 80,
-                    max_sending_block_txns_override: 10000,
+                    max_sending_block_txns_after_filtering_override:
+                        MAX_SENDING_BLOCK_TXNS_AFTER_FILTERING,
                     max_sending_block_bytes_override: 5 * 1024 * 1024,
                     backoff_proposal_delay_ms: 150,
-                    max_txns_from_block_to_execute: None,
                 },
                 ChainHealthBackoffValues {
                     backoff_if_below_participating_voting_power_percentage: 78,
-                    max_sending_block_txns_override: 2000,
+                    max_sending_block_txns_after_filtering_override: 2000,
                     max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
                     backoff_proposal_delay_ms: 300,
-                    max_txns_from_block_to_execute: None,
                 },
                 ChainHealthBackoffValues {
                     backoff_if_below_participating_voting_power_percentage: 76,
-                    max_sending_block_txns_override: 500,
+                    max_sending_block_txns_after_filtering_override: 500,
                     max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
                     backoff_proposal_delay_ms: 300,
-                    max_txns_from_block_to_execute: None,
                 },
                 ChainHealthBackoffValues {
                     backoff_if_below_participating_voting_power_percentage: 74,
-                    max_sending_block_txns_override: 500,
+                    max_sending_block_txns_after_filtering_override: 100,
                     max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
-                    backoff_proposal_delay_ms: 500,
-                    max_txns_from_block_to_execute: Some(100),
+                    backoff_proposal_delay_ms: 300,
                 },
                 ChainHealthBackoffValues {
                     backoff_if_below_participating_voting_power_percentage: 72,
-                    max_sending_block_txns_override: 500,
+                    max_sending_block_txns_after_filtering_override: 25,
                     max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
-                    backoff_proposal_delay_ms: 500,
-                    max_txns_from_block_to_execute: Some(25),
+                    backoff_proposal_delay_ms: 300,
                 },
                 ChainHealthBackoffValues {
                     backoff_if_below_participating_voting_power_percentage: 70,
-                    max_sending_block_txns_override: 500,
-                    max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
-                    backoff_proposal_delay_ms: 500,
                     // in practice, latencies and delay make it such that ~2 blocks/s is max,
                     // meaning that most aggressively we limit to ~10 TPS
                     // For transactions that are more expensive than that, we should
                     // instead rely on max gas per block to limit latency.
-                    max_txns_from_block_to_execute: Some(5),
+                    max_sending_block_txns_after_filtering_override: 5,
+                    max_sending_block_bytes_override: MIN_BLOCK_BYTES_OVERRIDE,
+                    backoff_proposal_delay_ms: 300,
                 },
             ],
-
             qc_aggregator_type: QcAggregatorType::default(),
             // This needs to fit into the network message size, so with quorum store it can be much bigger
             max_blocks_per_sending_request: 10,
@@ -323,6 +376,13 @@ impl Default for ConsensusConfig {
                 backoff_policy_max_delay_ms: 10000,
                 rpc_timeout_ms: 10000,
             },
+            num_bounded_executor_tasks: 16,
+            enable_pre_commit: true,
+            max_pending_rounds_in_commit_vote_cache: 100,
+            optimistic_sig_verification: true,
+            enable_round_timeout_msg: true,
+            enable_optimistic_proposal_rx: true,
+            enable_optimistic_proposal_tx: false,
         }
     }
 }
@@ -360,12 +420,12 @@ impl ConsensusConfig {
             (
                 config.max_sending_block_txns,
                 config.max_receiving_block_txns,
-                "txns",
+                "send < recv for txns",
             ),
             (
                 config.max_sending_block_bytes,
                 config.max_receiving_block_bytes,
-                "bytes",
+                "send < recv for bytes",
             ),
         ];
         for (send, recv, label) in &send_recv_pairs {
@@ -388,46 +448,41 @@ impl ConsensusConfig {
             (
                 config.quorum_store.receiver_max_batch_txns as u64,
                 config.max_sending_block_txns,
-                "txns".to_string(),
+                "QS recv batch txns < max_sending_block_txns".to_string(),
+            ),
+            (
+                config.quorum_store.receiver_max_batch_txns as u64,
+                config.max_sending_block_txns_after_filtering,
+                "QS recv batch txns < max_sending_block_txns_after_filtering ".to_string(),
+            ),
+            (
+                config.quorum_store.receiver_max_batch_txns as u64,
+                config.min_max_txns_in_block_after_filtering_from_backpressure,
+                "QS recv batch txns < min_max_txns_in_block_after_filtering_from_backpressure"
+                    .to_string(),
             ),
             (
                 config.quorum_store.receiver_max_batch_bytes as u64,
                 config.max_sending_block_bytes,
-                "bytes".to_string(),
+                "QS recv batch bytes < max_sending_block_bytes".to_string(),
             ),
         ];
         for backpressure_values in &config.pipeline_backpressure {
             recv_batch_send_block_pairs.push((
-                config.quorum_store.receiver_max_batch_txns as u64,
-                backpressure_values.max_sending_block_txns_override,
-                format!(
-                    "backpressure {} ms: txns",
-                    backpressure_values.back_pressure_pipeline_latency_limit_ms,
-                ),
-            ));
-            recv_batch_send_block_pairs.push((
                 config.quorum_store.receiver_max_batch_bytes as u64,
                 backpressure_values.max_sending_block_bytes_override,
                 format!(
-                    "backpressure {} ms: bytes",
+                    "backpressure {} ms: QS recv batch bytes < max_sending_block_bytes_override",
                     backpressure_values.back_pressure_pipeline_latency_limit_ms,
                 ),
             ));
         }
         for backoff_values in &config.chain_health_backoff {
             recv_batch_send_block_pairs.push((
-                config.quorum_store.receiver_max_batch_txns as u64,
-                backoff_values.max_sending_block_txns_override,
-                format!(
-                    "backoff {} %: txns",
-                    backoff_values.backoff_if_below_participating_voting_power_percentage,
-                ),
-            ));
-            recv_batch_send_block_pairs.push((
                 config.quorum_store.receiver_max_batch_bytes as u64,
                 backoff_values.max_sending_block_bytes_override,
                 format!(
-                    "backoff {} %: bytes",
+                    "backoff {} %: bytes: QS recv batch bytes < max_sending_block_bytes_override",
                     backoff_values.backoff_if_below_participating_voting_power_percentage,
                 ),
             ));
@@ -474,6 +529,29 @@ impl ConfigSanitizer for ConsensusConfig {
         Self::sanitize_batch_block_limits(&sanitizer_name, &node_config.consensus)?;
 
         Ok(())
+    }
+}
+
+// TODO: Re-enable pre-commit for VFNs and PFNs once the feature supports
+// a rollback mechanism (to tolerate execution divergence in fullnodes).
+impl ConfigOptimizer for ConsensusConfig {
+    fn optimize(
+        node_config: &mut NodeConfig,
+        local_config_yaml: &Value,
+        node_type: NodeType,
+        _chain_id: Option<ChainId>,
+    ) -> Result<bool, Error> {
+        let consensus_config = &mut node_config.consensus;
+        let local_consensus_config_yaml = &local_config_yaml["consensus"];
+
+        // Disable pre-commit for VFNs and PFNs (if they are not manually set)
+        let mut modified_config = false;
+        if local_consensus_config_yaml["enable_pre_commit"].is_null() && !node_type.is_validator() {
+            consensus_config.enable_pre_commit = false;
+            modified_config = true;
+        }
+
+        Ok(modified_config)
     }
 }
 
@@ -637,10 +715,9 @@ mod test {
             consensus: ConsensusConfig {
                 pipeline_backpressure: vec![PipelineBackpressureValues {
                     back_pressure_pipeline_latency_limit_ms: 0,
-                    max_sending_block_txns_override: 350,
+                    max_sending_block_txns_after_filtering_override: 350,
                     max_sending_block_bytes_override: 0,
                     backpressure_proposal_delay_ms: 0,
-                    max_txns_from_block_to_execute: None,
                 }],
                 quorum_store: QuorumStoreConfig {
                     receiver_max_batch_txns: 250,
@@ -668,10 +745,9 @@ mod test {
             consensus: ConsensusConfig {
                 pipeline_backpressure: vec![PipelineBackpressureValues {
                     back_pressure_pipeline_latency_limit_ms: 0,
-                    max_sending_block_txns_override: 251,
+                    max_sending_block_txns_after_filtering_override: 251,
                     max_sending_block_bytes_override: 100,
                     backpressure_proposal_delay_ms: 0,
-                    max_txns_from_block_to_execute: None,
                 }],
                 quorum_store: QuorumStoreConfig {
                     receiver_max_batch_bytes: 2_000_000,
@@ -695,10 +771,9 @@ mod test {
             consensus: ConsensusConfig {
                 chain_health_backoff: vec![ChainHealthBackoffValues {
                     backoff_if_below_participating_voting_power_percentage: 0,
-                    max_sending_block_txns_override: 100,
+                    max_sending_block_txns_after_filtering_override: 100,
                     max_sending_block_bytes_override: 0,
                     backoff_proposal_delay_ms: 0,
-                    max_txns_from_block_to_execute: None,
                 }],
                 quorum_store: QuorumStoreConfig {
                     receiver_max_batch_txns: 251,
@@ -722,10 +797,9 @@ mod test {
             consensus: ConsensusConfig {
                 chain_health_backoff: vec![ChainHealthBackoffValues {
                     backoff_if_below_participating_voting_power_percentage: 0,
-                    max_sending_block_txns_override: 0,
+                    max_sending_block_txns_after_filtering_override: 0,
                     max_sending_block_bytes_override: 100,
                     backoff_proposal_delay_ms: 0,
-                    max_txns_from_block_to_execute: None,
                 }],
                 quorum_store: QuorumStoreConfig {
                     receiver_max_batch_bytes: 2_000_000,
@@ -740,5 +814,73 @@ mod test {
         let error =
             ConsensusConfig::sanitize(&node_config, NodeType::ValidatorFullnode, None).unwrap_err();
         assert!(matches!(error, Error::ConfigSanitizerFailed(_, _)));
+    }
+
+    #[test]
+    fn test_optimize_pre_commit() {
+        // Create a node config with pre-commit enabled
+        let mut node_config = create_config_with_pre_commit_enabled();
+
+        // Optimize the config for a validator
+        let modified_config = ConsensusConfig::optimize(
+            &mut node_config,
+            &serde_yaml::from_str("{}").unwrap(), // An empty local config,
+            NodeType::Validator,
+            None,
+        )
+        .unwrap();
+
+        // Verify that the config was not modified, and that pre-commit is still enabled
+        assert!(!modified_config);
+        assert!(node_config.consensus.enable_pre_commit);
+
+        // Next, optimize the config for a validator fullnode
+        let modified_config = ConsensusConfig::optimize(
+            &mut node_config,
+            &serde_yaml::from_str("{}").unwrap(), // An empty local config,
+            NodeType::ValidatorFullnode,
+            None,
+        )
+        .unwrap();
+
+        // Verify that the config was modified, and that pre-commit is disabled
+        assert!(modified_config);
+        assert!(!node_config.consensus.enable_pre_commit);
+
+        // Create a node config with pre-commit enabled
+        let mut node_config = create_config_with_pre_commit_enabled();
+
+        // Create a local config with pre-commit manually enabled
+        let local_config_yaml = serde_yaml::from_str(
+            r#"
+            consensus:
+                enable_pre_commit: false
+            "#,
+        )
+        .unwrap();
+
+        // Optimize the config for a public fullnode (using the local config)
+        let modified_config = ConsensusConfig::optimize(
+            &mut node_config,
+            &local_config_yaml,
+            NodeType::PublicFullnode,
+            None,
+        )
+        .unwrap();
+
+        // Verify that the config was not modified, and that pre-commit is still enabled
+        assert!(!modified_config);
+        assert!(node_config.consensus.enable_pre_commit);
+    }
+
+    /// Creates a node config with pre-commit enabled
+    fn create_config_with_pre_commit_enabled() -> NodeConfig {
+        NodeConfig {
+            consensus: ConsensusConfig {
+                enable_pre_commit: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
     }
 }

@@ -23,7 +23,6 @@ use std::sync::Arc;
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(10))]
-
     #[test]
     fn test_txn_store_pruner(txns in vec(
         prop_oneof![
@@ -58,10 +57,10 @@ fn verify_write_set_pruner(write_sets: Vec<WriteSet>) {
     });
 
     // write sets
-    let batch = SchemaBatch::new();
+    let mut batch = SchemaBatch::new();
     for (ver, ws) in write_sets.iter().enumerate() {
         transaction_store
-            .put_write_set(ver as Version, ws, &batch)
+            .put_write_set(ver as Version, ws, &mut batch)
             .unwrap();
     }
     aptos_db
@@ -106,7 +105,7 @@ fn verify_txn_store_pruner(
         &txns,
     );
 
-    let batch = SchemaBatch::new();
+    let mut batch = SchemaBatch::new();
     for i in 0..=num_transaction as u64 {
         let usage = StateStorageUsage::zero();
         batch.put::<VersionDataSchema>(&i, &usage.into()).unwrap();
@@ -173,10 +172,13 @@ fn verify_txn_not_in_store(
     assert!(transaction_store.get_transaction(index).is_err());
     // Ensure that transaction by account store has been pruned
     if let Some(txn) = txns.get(index as usize).unwrap().try_as_signed_user_txn() {
-        assert!(transaction_store
-            .get_account_transaction_version(txn.sender(), txn.sequence_number(), ledger_version,)
-            .unwrap()
-            .is_none());
+        if let ReplayProtector::SequenceNumber(seq_num) = txn.replay_protector() {
+            assert!(transaction_store
+                .get_account_ordered_transaction_version(txn.sender(), seq_num, ledger_version)
+                .unwrap()
+                .is_none()
+            );
+        }
     }
 }
 
@@ -193,13 +195,15 @@ fn verify_txn_in_store(
         index,
     );
     if let Some(txn) = txns.get(index as usize).unwrap().try_as_signed_user_txn() {
-        verify_transaction_in_account_txn_by_version_index(
-            transaction_store,
-            index,
-            txn.sender(),
-            txn.sequence_number(),
-            ledger_version,
-        );
+        if let ReplayProtector::SequenceNumber(seq_num) = txn.replay_protector() {
+            verify_transaction_in_account_txn_by_version_index(
+                transaction_store,
+                index,
+                txn.sender(),
+                txn.sequence_number(),
+                ledger_version,
+            );
+        }
     }
     // Ensure that transaction accumulator is in DB. This can be done by trying
     // to read transaction proof
@@ -234,7 +238,7 @@ fn put_txn_in_store(
     txn_infos: &[TransactionInfo],
     txns: &[Transaction],
 ) {
-    let transaction_batch = SchemaBatch::new();
+    let mut transaction_batch = SchemaBatch::new();
     for i in 0..txns.len() {
         transaction_store
             .put_transaction(
@@ -250,8 +254,8 @@ fn put_txn_in_store(
         .transaction_db()
         .write_schemas(transaction_batch)
         .unwrap();
-    let transaction_info_batch = SchemaBatch::new();
-    let transaction_accumulator_batch = SchemaBatch::new();
+    let mut transaction_info_batch = SchemaBatch::new();
+    let mut transaction_accumulator_batch = SchemaBatch::new();
     ledger_store
         .put_transaction_infos(
             0,
@@ -289,7 +293,7 @@ fn verify_transaction_in_account_txn_by_version_index(
     ledger_version: Version,
 ) {
     let transaction = transaction_store
-        .get_account_transaction_version(address, sequence_number, ledger_version)
+        .get_account_ordered_transaction_version(address, sequence_number, ledger_version)
         .unwrap()
         .unwrap();
     assert_eq!(transaction, expected_value)

@@ -15,8 +15,17 @@ pub static ACCOUNT_MODULE: Lazy<ModuleId> = Lazy::new(|| {
     )
 });
 
+pub static ACCOUNT_ABSTRACTION_MODULE: Lazy<ModuleId> = Lazy::new(|| {
+    ModuleId::new(
+        account_config::CORE_CODE_ADDRESS,
+        ident_str!("account_abstraction").to_owned(),
+    )
+});
+
 pub const CREATE_ACCOUNT_IF_DOES_NOT_EXIST: &IdentStr =
     ident_str!("create_account_if_does_not_exist");
+
+pub const AUTHENTICATE: &IdentStr = ident_str!("authenticate");
 
 // Data to resolve basic account and transaction flow functions and structs
 /// The ModuleId for the aptos block module
@@ -29,6 +38,7 @@ pub static BLOCK_MODULE: Lazy<ModuleId> = Lazy::new(|| {
 
 pub const BLOCK_PROLOGUE: &IdentStr = ident_str!("block_prologue");
 pub const BLOCK_PROLOGUE_EXT: &IdentStr = ident_str!("block_prologue_ext");
+pub const BLOCK_EPILOGUE: &IdentStr = ident_str!("block_epilogue");
 
 pub static RECONFIGURATION_WITH_DKG_MODULE: Lazy<ModuleId> = Lazy::new(|| {
     ModuleId::new(

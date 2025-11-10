@@ -1,0 +1,17 @@
+processed 2 tasks
+
+task 0 'publish'. lines 1-6:
+
+== BEGIN Bytecode ==
+// Bytecode version v7
+module 0x66::m
+// Function definition at index 0
+public fun f(l0: u64): u64
+    move_loc l0
+    ret
+
+
+== END Bytecode ==
+
+task 1 'run'. lines 8-8:
+return values: 1

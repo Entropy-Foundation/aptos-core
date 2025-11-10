@@ -1,4 +1,4 @@
-// -- Model dump before bytecode pipeline
+// -- Model dump before first bytecode pipeline
 module 0xc0ffee::m {
     public fun test(): u8 {
         {
@@ -14,7 +14,17 @@ module 0xc0ffee::m {
     }
 } // end 0xc0ffee::m
 
-============ initial bytecode ================
+// -- Sourcified model before first bytecode pipeline
+module 0xc0ffee::m {
+    public fun test(): u8 {
+        let x = 40u8;
+        let y = move x;
+        let _ = x;
+        y
+    }
+}
+
+============ bytecode before first stackless bytecode pipeline ================
 
 [variant baseline]
 public fun m::test(): u8 {

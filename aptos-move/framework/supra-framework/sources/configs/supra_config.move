@@ -39,7 +39,7 @@ module supra_framework::supra_config {
     public(friend) fun on_new_epoch(framework: &signer) acquires SupraConfig {
         system_addresses::assert_supra_framework(framework);
         if (config_buffer::does_exist<SupraConfig>()) {
-            let new_config = config_buffer::extract<SupraConfig>();
+            let new_config = config_buffer::extract_v2<SupraConfig>();
             if (exists<SupraConfig>(@supra_framework)) {
                 *borrow_global_mut<SupraConfig>(@supra_framework) = new_config;
             } else {

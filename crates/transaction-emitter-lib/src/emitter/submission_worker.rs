@@ -8,7 +8,7 @@ use crate::{
     },
     EmitModeParams,
 };
-use aptos_logger::{debug, info, sample, sample::SampleRate, warn};
+use aptos_logger::{sample, sample::SampleRate};
 use aptos_rest_client::Client as RestClient;
 use aptos_sdk::{
     move_types::account_address::AccountAddress,
@@ -23,6 +23,7 @@ use core::{
 };
 use futures::future::join_all;
 use itertools::Itertools;
+use log::{debug, error, info, warn};
 use rand::seq::IteratorRandom;
 use std::{
     borrow::Borrow,
@@ -30,11 +31,15 @@ use std::{
     sync::{atomic::AtomicU64, Arc},
     time::Instant,
 };
-use tokio::time::sleep;
+use tokio::time::{sleep, sleep_until};
+
+const ALLOWED_EARLY: Duration = Duration::from_micros(500);
 
 pub struct SubmissionWorker {
     pub(crate) accounts: Vec<Arc<LocalAccount>>,
-    client: RestClient,
+    clients: Arc<Vec<RestClient>>,
+    /// Main one is used to submit requests, all are used for querying/latency
+    main_client_index: usize,
     stop: Arc<AtomicBool>,
     params: EmitModeParams,
     stats: Arc<DynamicStatsTracking>,
@@ -47,7 +52,8 @@ pub struct SubmissionWorker {
 impl SubmissionWorker {
     pub fn new(
         accounts: Vec<LocalAccount>,
-        client: RestClient,
+        clients: Arc<Vec<RestClient>>,
+        main_client_index: usize,
         stop: Arc<AtomicBool>,
         params: EmitModeParams,
         stats: Arc<DynamicStatsTracking>,
@@ -59,7 +65,8 @@ impl SubmissionWorker {
         let accounts = accounts.into_iter().map(Arc::new).collect();
         Self {
             accounts,
-            client,
+            clients,
+            main_client_index,
             stop,
             params,
             stats,
@@ -70,35 +77,26 @@ impl SubmissionWorker {
         }
     }
 
+    fn client(&self) -> &RestClient {
+        &self.clients[self.main_client_index]
+    }
+
     #[allow(clippy::collapsible_if)]
     pub(crate) async fn run(mut self, start_instant: Instant) -> Vec<LocalAccount> {
         let mut wait_until = start_instant + self.start_sleep_duration;
 
-        let now = Instant::now();
-        if wait_until > now {
-            self.sleep_check_done(wait_until - now).await;
-        }
+        self.sleep_check_done(wait_until).await;
         let wait_duration = Duration::from_millis(self.params.wait_millis);
 
         while !self.stop.load(Ordering::Relaxed) {
+            let loop_start_time = Instant::now();
+
+            if wait_duration.as_secs() > 0 {
+                self.verify_loop_start_drift(loop_start_time, wait_until);
+            }
+
             let stats_clone = self.stats.clone();
             let loop_stats = stats_clone.get_cur();
-
-            let loop_start_time = Instant::now();
-            if wait_duration.as_secs() > 0
-                && loop_start_time.duration_since(wait_until) > Duration::from_secs(5)
-            {
-                sample!(
-                    SampleRate::Duration(Duration::from_secs(120)),
-                    warn!(
-                        "[{:?}] txn_emitter worker drifted out of sync too much: {}s",
-                        self.client.path_prefix_string(),
-                        loop_start_time.duration_since(wait_until).as_secs()
-                    )
-                );
-            }
-            // always add expected cycle duration, to not drift from expected pace.
-            wait_until += wait_duration;
 
             let requests = self.gen_requests();
             if !requests.is_empty() {
@@ -123,7 +121,7 @@ impl SubmissionWorker {
                     SampleRate::Duration(Duration::from_secs(300)),
                     info!(
                         "[{:?}] txn_emitter worker: handling {} accounts, generated txns for: {}",
-                        self.client.path_prefix_string(),
+                        self.client().path_prefix_string(),
                         self.accounts.len(),
                         account_to_start_and_end_seq_num.len(),
                     )
@@ -142,7 +140,7 @@ impl SubmissionWorker {
                         .chunks(self.params.max_submit_batch_size)
                         .map(|reqs| {
                             submit_transactions(
-                                &self.client,
+                                self.client(),
                                 reqs,
                                 loop_start_time,
                                 txn_offset_time.clone(),
@@ -155,10 +153,10 @@ impl SubmissionWorker {
                 let submitted_after = loop_start_time.elapsed();
                 if submitted_after.as_secs() > 5 {
                     sample!(
-                        SampleRate::Duration(Duration::from_secs(120)),
+                        SampleRate::Duration(Duration::from_secs(30)),
                         warn!(
                             "[{:?}] txn_emitter worker waited for more than 5s to submit transactions: {}s after loop start",
-                            self.client.path_prefix_string(),
+                            self.client().path_prefix_string(),
                             submitted_after.as_secs(),
                         )
                     );
@@ -167,9 +165,10 @@ impl SubmissionWorker {
                 if self.skip_latency_stats {
                     // we also don't want to be stuck waiting for txn_expiration_time_secs
                     // after stop is called, so we sleep until time or stop is set.
-                    self.sleep_check_done(Duration::from_secs(
-                        self.params.txn_expiration_time_secs + 20,
-                    ))
+                    self.sleep_check_done(
+                        Instant::now()
+                            + Duration::from_secs(self.params.txn_expiration_time_secs + 3),
+                    )
                     .await
                 }
 
@@ -195,9 +194,11 @@ impl SubmissionWorker {
                 .await;
             }
 
-            let now = Instant::now();
-            if wait_until > now {
-                self.sleep_check_done(wait_until - now).await;
+            if wait_duration.as_secs() > 0 {
+                // always add expected cycle duration, to not drift from expected pace,
+                // irrespectively of how long our iteration lasted.
+                wait_until += wait_duration;
+                self.sleep_check_done(wait_until).await;
             }
         }
 
@@ -208,15 +209,62 @@ impl SubmissionWorker {
     }
 
     // returns true if it returned early
-    async fn sleep_check_done(&self, duration: Duration) {
-        let start_time = Instant::now();
+    async fn sleep_check_done(&self, sleep_until_time: Instant) {
+        // sleep has millisecond granularity - so round the sleep
+        let sleep_poll_interval = Duration::from_secs(1);
         loop {
-            sleep(Duration::from_secs(1)).await;
             if self.stop.load(Ordering::Relaxed) {
                 return;
             }
-            if start_time.elapsed() >= duration {
+
+            let now = Instant::now();
+            if now + ALLOWED_EARLY > sleep_until_time {
                 return;
+            }
+
+            if sleep_until_time > now + sleep_poll_interval {
+                sleep(sleep_poll_interval).await;
+            } else {
+                sleep_until(sleep_until_time.into()).await;
+            }
+        }
+    }
+
+    fn verify_loop_start_drift(&self, loop_start_time: Instant, wait_until: Instant) {
+        if loop_start_time > wait_until {
+            let delay_s = loop_start_time
+                .saturating_duration_since(wait_until)
+                .as_secs_f32();
+            if delay_s > 5.0 {
+                sample!(
+                    SampleRate::Duration(Duration::from_secs(2)),
+                    error!(
+                        "[{:?}] txn_emitter worker drifted out of sync too much: {:.3}s. Is machine underprovisioned? Is expiration too short, or 5s buffer on top of it?",
+                        self.client().path_prefix_string(),
+                        delay_s,
+                    )
+                );
+            } else if delay_s > 0.3 {
+                sample!(
+                    SampleRate::Duration(Duration::from_secs(5)),
+                    error!(
+                        "[{:?}] txn_emitter worker called a bit out of sync: {:.3}s. Is machine underprovisioned? Is expiration too short, or 5s buffer on top of it?",
+                        self.client().path_prefix_string(),
+                        delay_s,
+                    )
+                );
+            }
+        } else {
+            let early_s = wait_until.saturating_duration_since(loop_start_time);
+            if early_s > ALLOWED_EARLY {
+                sample!(
+                    SampleRate::Duration(Duration::from_secs(5)),
+                    error!(
+                        "[{:?}] txn_emitter worker called too early: {:.3}s. There is some bug in waiting.",
+                        self.client().path_prefix_string(),
+                        early_s.as_secs_f32(),
+                    )
+                );
             }
         }
     }
@@ -241,7 +289,7 @@ impl SubmissionWorker {
         let (latest_fetched_counts, sum_of_completion_timestamps_millis) =
             wait_for_accounts_sequence(
                 start_time,
-                &self.client,
+                self.client(),
                 &account_to_start_and_end_seq_num,
                 txn_expiration_ts_secs,
                 check_account_sleep_duration,
@@ -263,10 +311,10 @@ impl SubmissionWorker {
                 .expired
                 .fetch_add(num_expired as u64, Ordering::Relaxed);
             sample!(
-                SampleRate::Duration(Duration::from_secs(120)),
+                SampleRate::Duration(Duration::from_secs(60)),
                 warn!(
                     "[{:?}] Transactions were not committed before expiration: {:?}, for {:?}",
-                    self.client.path_prefix_string(),
+                    self.client().path_prefix_string(),
                     num_expired,
                     self.accounts
                         .iter()
@@ -444,12 +492,22 @@ pub async fn submit_transactions(
                 .counts();
             if let Some(failure) = failures.first() {
                 sample!(SampleRate::Duration(Duration::from_secs(60)), {
-                    let sender = txns[failure.transaction_index].sender();
+                    let first_failed_txn = &txns[failure.transaction_index];
+                    let sender = first_failed_txn.sender();
+                    let payload = first_failed_txn.payload().payload_type();
+
+                    let first_failed_txn_info = format!(
+                        "due to {:?}, for account {}, max gas {}, payload {}",
+                        failure,
+                        first_failed_txn.sender(),
+                        first_failed_txn.max_gas_amount(),
+                        payload,
+                    );
 
                     let last_transactions =
                         if let Ok(account) = client.get_account_bcs(sender).await {
                             client
-                                .get_account_transactions_bcs(
+                                .get_account_ordered_transactions_bcs(
                                     sender,
                                     Some(account.into_inner().sequence_number().saturating_sub(1)),
                                     Some(5),
@@ -461,16 +519,15 @@ pub async fn submit_transactions(
                             None
                         };
                     let balance = client
-                        .get_account_balance(sender)
+                        .view_apt_account_balance(sender)
                         .await
-                        .map_or(-1, |v| v.into_inner().get() as i64);
+                        .map_or(-1, |v| v.into_inner() as i64);
 
                     warn!(
-                        "[{:?}] Failed to submit {} txns in a batch, first failure due to {:?}, for account {}, chain id: {:?}, first asked: {}, failed seq nums: {:?}, failed error codes: {:?}, balance of {} and last transaction for account: {:?}",
+                        "[{:?}] Failed to submit {} txns in a batch, first failure: {}, chain id: {:?}, first asked: {}, failed seq nums: {:?}, failed error codes: {:?}, balance of {} and last transaction for account: {:?}",
                         client.path_prefix_string(),
                         failures.len(),
-                        failure,
-                        sender,
+                        first_failed_txn_info,
                         txns[0].chain_id(),
                         txns[0].sequence_number(),
                         failures.iter().map(|f| txns[f.transaction_index].sequence_number()).collect::<Vec<_>>(),

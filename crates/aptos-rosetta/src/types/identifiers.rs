@@ -36,6 +36,7 @@ impl AccountIdentifier {
         str_to_account_address(self.address.as_str())
     }
 
+    /// Retrieve the pool address from an [`AccountIdentifier`], if it exists
     pub fn pool_address(&self) -> ApiResult<Option<AccountAddress>> {
         if let Some(sub_account) = &self.sub_account {
             if let Some(metadata) = &sub_account.metadata {
@@ -46,6 +47,7 @@ impl AccountIdentifier {
         Ok(None)
     }
 
+    /// Builds a normal account [`AccountIdentifier`] for a given address
     pub fn base_account(address: AccountAddress) -> Self {
         AccountIdentifier {
             address: to_hex_lower(&address),
@@ -53,6 +55,7 @@ impl AccountIdentifier {
         }
     }
 
+    /// Builds a stake account [`AccountIdentifier`] for a given address to retrieve stake balances
     pub fn total_stake_account(address: AccountAddress) -> Self {
         AccountIdentifier {
             address: to_hex_lower(&address),
@@ -60,6 +63,7 @@ impl AccountIdentifier {
         }
     }
 
+    /// Builds a pending active stake account [`AccountIdentifier`] for a given address to retrieve pending active stake balances
     pub fn pending_active_stake_account(address: AccountAddress) -> Self {
         AccountIdentifier {
             address: to_hex_lower(&address),
@@ -67,6 +71,7 @@ impl AccountIdentifier {
         }
     }
 
+    /// Builds a active stake account [`AccountIdentifier`] for a given address to retrieve active stake balances
     pub fn active_stake_account(address: AccountAddress) -> Self {
         AccountIdentifier {
             address: to_hex_lower(&address),
@@ -74,6 +79,7 @@ impl AccountIdentifier {
         }
     }
 
+    /// Builds a pending inactive stake account [`AccountIdentifier`] for a given address to retrieve pending inactive stake balances
     pub fn pending_inactive_stake_account(address: AccountAddress) -> Self {
         AccountIdentifier {
             address: to_hex_lower(&address),
@@ -81,6 +87,7 @@ impl AccountIdentifier {
         }
     }
 
+    /// Builds a inactive stake account [`AccountIdentifier`] for a given address to retrieve inactive stake balances
     pub fn inactive_stake_account(address: AccountAddress) -> Self {
         AccountIdentifier {
             address: to_hex_lower(&address),
@@ -88,6 +95,7 @@ impl AccountIdentifier {
         }
     }
 
+    /// Builds an operator stake account [`AccountIdentifier`] for a given address to retrieve operator stake balances
     pub fn operator_stake_account(
         address: AccountAddress,
         operator_address: AccountAddress,
@@ -98,6 +106,7 @@ impl AccountIdentifier {
         }
     }
 
+    /// Returns true if the account doesn't have a sub account
     pub fn is_base_account(&self) -> bool {
         self.sub_account.is_none()
     }
@@ -105,6 +114,22 @@ impl AccountIdentifier {
     pub fn is_total_stake(&self) -> bool {
         if let Some(ref inner) = self.sub_account {
             inner.is_total_stake()
+        } else {
+            false
+        }
+    }
+
+    pub fn is_commission(&self) -> bool {
+        if let Some(ref inner) = self.sub_account {
+            inner.is_commission()
+        } else {
+            false
+        }
+    }
+
+    pub fn is_rewards(&self) -> bool {
+        if let Some(ref inner) = self.sub_account {
+            inner.is_rewards()
         } else {
             false
         }
@@ -178,6 +203,7 @@ impl AccountIdentifier {
         }
     }
 
+    /// Retrieves the operator address if it has one in the sub-account
     pub fn operator_address(&self) -> ApiResult<AccountAddress> {
         if let Some(ref inner) = self.sub_account {
             inner.operator_address()
@@ -189,14 +215,16 @@ impl AccountIdentifier {
     }
 }
 
+/// Converts a string to an account address with error handling
 fn str_to_account_address(address: &str) -> Result<AccountAddress, ApiError> {
     AccountAddress::from_str(address)
         .map_err(|_| ApiError::InvalidInput(Some("Invalid account address".to_string())))
 }
 
-/// There are two types of SubAccountIdentifiers
+/// There are many types of SubAccountIdentifiers
 /// 1. `stake` which is the total stake
 /// 2. `stake-<operator>` which is the stake on the operator
+/// 3. And more for pool addresses and various stake types
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct SubAccountIdentifier {
     /// Hex encoded AccountAddress beginning with 0x
@@ -211,6 +239,8 @@ const PENDING_ACTIVE_STAKE: &str = "pending_active_stake";
 const ACTIVE_STAKE: &str = "active_stake";
 const PENDING_INACTIVE_STAKE: &str = "pending_inactive_stake";
 const INACTIVE_STAKE: &str = "inactive_stake";
+const COMMISSION: &str = "commission";
+const REWARDS: &str = "rewards";
 const ACCOUNT_SEPARATOR: char = '-';
 
 impl SubAccountIdentifier {
@@ -292,6 +322,20 @@ impl SubAccountIdentifier {
         }
     }
 
+    pub fn new_commission() -> SubAccountIdentifier {
+        SubAccountIdentifier {
+            address: COMMISSION.to_string(),
+            metadata: None,
+        }
+    }
+
+    pub fn new_rewards() -> SubAccountIdentifier {
+        SubAccountIdentifier {
+            address: REWARDS.to_string(),
+            metadata: None,
+        }
+    }
+
     pub fn is_total_stake(&self) -> bool {
         self.address.as_str() == STAKE
     }
@@ -310,6 +354,14 @@ impl SubAccountIdentifier {
 
     pub fn is_inactive_stake(&self) -> bool {
         self.address.as_str() == INACTIVE_STAKE && self.metadata.is_none()
+    }
+
+    pub fn is_commission(&self) -> bool {
+        self.address.as_str() == COMMISSION && self.metadata.is_none()
+    }
+
+    pub fn is_rewards(&self) -> bool {
+        self.address.as_str() == REWARDS && self.metadata.is_none()
     }
 
     pub fn is_delegator_active_stake(&self) -> bool {
@@ -356,7 +408,7 @@ impl SubAccountIdentifierMetadata {
     }
 }
 
-/// Identifier for a "block".  In aptos, we use a transaction model, so the index
+/// Identifier for a "block".  On Aptos, we use a transaction model, so the index
 /// represents multiple transactions in a "block" grouping of transactions
 ///
 /// [API Spec](https://www.rosetta-api.org/docs/models/BlockIdentifier.html)
@@ -364,7 +416,7 @@ impl SubAccountIdentifierMetadata {
 pub struct BlockIdentifier {
     /// Block index, which points to a txn at the beginning of a "block"
     pub index: u64,
-    /// Accumulator hash at the beginning of the block
+    /// A fake hash, that is actually `chain_id-block_height`
     pub hash: String,
 }
 

@@ -1,7 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{assert_success, build_package, AptosPackageHooks};
+use crate::{assert_success, AptosPackageHooks};
 use aptos_cached_packages::aptos_stdlib;
 use aptos_framework::{natives::code::PackageMetadata, BuildOptions, BuiltPackage};
 use aptos_gas_profiling::TransactionGasLog;
@@ -9,9 +9,11 @@ use aptos_gas_schedule::{
     AptosGasParameters, FromOnChainGasSchedule, InitialGasSchedule, ToOnChainGasSchedule,
 };
 use aptos_language_e2e_tests::{
-    account::{Account, AccountData, TransactionBuilder},
+    account::{Account, TransactionBuilder},
     executor::FakeExecutor,
 };
+use aptos_rest_client::AptosBaseUrl;
+use aptos_transaction_simulation::SimulationStateStore;
 use aptos_types::{
     account_address::AccountAddress,
     account_config::{
@@ -20,6 +22,7 @@ use aptos_types::{
     },
     chain_id::ChainId,
     contract_event::ContractEvent,
+    fee_statement::FeeStatement,
     move_utils::MemberId,
     on_chain_config::{FeatureFlag, GasScheduleV2, OnChainConfig},
     state_store::{
@@ -31,7 +34,7 @@ use aptos_types::{
         TransactionArgument, TransactionOutput, TransactionPayload, TransactionStatus,
         ViewFunctionOutput,
     },
-    vm_status::VMStatus,
+    AptosCoinType,
 };
 use claims::assert_ok;
 use move_core_types::{
@@ -134,6 +137,59 @@ impl MoveHarness {
         }
     }
 
+    /// Creates a [`MoveHarness`] from a remote network state at the version specified by the
+    /// transaction id, with support for a custom API key to access node APIs.
+    ///
+    /// Simulations based on remote states rely heavily on API calls, which can easily run into
+    /// rate limits if executed repeatedly or in parallel.
+    /// Providing an API key raises these limits significantly.
+    ///
+    /// If you hit rate limits, you can create a free Aptos Build account and generate an API key:
+    /// - https://build.aptoslabs.com/docs/start#api-quick-start
+    fn new_with_remote_state_impl(
+        network_url: AptosBaseUrl,
+        txn_id: u64,
+        api_key: Option<&str>,
+    ) -> Self {
+        register_package_hooks(Box::new(AptosPackageHooks {}));
+
+        let executor = match api_key {
+            Some(api_key) => {
+                FakeExecutor::from_remote_state_with_api_key(network_url, txn_id, api_key)
+            },
+            None => FakeExecutor::from_remote_state(network_url, txn_id),
+        };
+
+        let gas_schedule: GasScheduleV2 = executor.state_store().get_on_chain_config().unwrap();
+        let feature_version = gas_schedule.feature_version;
+        let gas_params = AptosGasParameters::from_on_chain_gas_schedule(
+            &gas_schedule.into_btree_map(),
+            feature_version,
+        )
+        .unwrap();
+
+        Self {
+            executor,
+            txn_seq_no: BTreeMap::default(),
+            default_gas_unit_price: gas_params.vm.txn.min_price_per_gas_unit.into(),
+            max_gas_per_txn: Self::DEFAULT_MAX_GAS_PER_TXN,
+        }
+    }
+
+    /// Creates a [`MoveHarness`] from a remote network state at the version specified by the
+    /// transaction id.
+    pub fn new_with_remote_state(network_url: AptosBaseUrl, txn_id: u64) -> Self {
+        Self::new_with_remote_state_impl(network_url, txn_id, None)
+    }
+
+    pub fn new_with_remote_state_with_api_key(
+        network_url: AptosBaseUrl,
+        txn_id: u64,
+        api_key: &str,
+    ) -> Self {
+        Self::new_with_remote_state_impl(network_url, txn_id, Some(api_key))
+    }
+
     pub fn new_with_features(
         enabled_features: Vec<FeatureFlag>,
         disabled_features: Vec<FeatureFlag>,
@@ -154,8 +210,9 @@ impl MoveHarness {
     }
 
     pub fn store_and_fund_account(&mut self, acc: &Account, balance: u64, seq_num: u64) -> Account {
-        let data = AccountData::with_account(acc.clone(), balance, seq_num);
-        self.executor.add_account_data(&data);
+        let data = self
+            .executor
+            .store_and_fund_account(acc.clone(), balance, seq_num);
         self.txn_seq_no.insert(*acc.address(), seq_num);
         data.account().clone()
     }
@@ -194,12 +251,11 @@ impl MoveHarness {
 
     /// Runs a signed transaction. On success, applies the write set.
     pub fn run_raw(&mut self, txn: SignedTransaction) -> TransactionOutput {
-        let mut output = self.executor.execute_transaction(txn);
+        let output = self.executor.execute_transaction(txn);
         if matches!(output.status(), TransactionStatus::Keep(_)) {
             self.executor.apply_write_set(output.write_set());
             self.executor.append_events(output.events().to_vec());
         }
-        output.fill_error_status();
         output
     }
 
@@ -248,12 +304,11 @@ impl MoveHarness {
         &mut self,
         txn_block: Vec<SignedTransaction>,
     ) -> Vec<TransactionOutput> {
-        let mut result = assert_ok!(self.executor.execute_block(txn_block));
-        for output in &mut result {
+        let result = assert_ok!(self.executor.execute_block(txn_block));
+        for output in &result {
             if matches!(output.status(), TransactionStatus::Keep(_)) {
                 self.executor.apply_write_set(output.write_set());
             }
-            output.fill_error_status();
         }
         result
     }
@@ -264,12 +319,16 @@ impl MoveHarness {
         account: &Account,
         payload: TransactionPayload,
     ) -> TransactionBuilder {
-        let on_chain_seq_no = self.sequence_number(account.address());
-        let seq_no_ref = self.txn_seq_no.get_mut(account.address()).unwrap();
+        let on_chain_seq_no = self.sequence_number_opt(account.address()).unwrap_or(0);
+        let seq_no_ref = self.txn_seq_no.entry(*account.address()).or_insert(0);
         let seq_no = std::cmp::max(on_chain_seq_no, *seq_no_ref);
         *seq_no_ref = seq_no + 1;
         account
             .transaction()
+            .chain_id(self.executor.get_chain_id())
+            .ttl(
+                self.executor.get_block_time() + 3_600_000_000, /* an hour after the current time */
+            )
             .sequence_number(seq_no)
             .max_gas_amount(self.max_gas_per_txn)
             .gas_unit_price(self.default_gas_unit_price)
@@ -333,7 +392,7 @@ impl MoveHarness {
         &mut self,
         account: &Account,
         payload: TransactionPayload,
-    ) -> (TransactionGasLog, u64) {
+    ) -> (TransactionGasLog, u64, Option<FeeStatement>) {
         let txn = self.create_transaction_payload(account, payload);
         let (output, gas_log) = self
             .executor
@@ -342,7 +401,11 @@ impl MoveHarness {
         if matches!(output.status(), TransactionStatus::Keep(_)) {
             self.executor.apply_write_set(output.write_set());
         }
-        (gas_log, output.gas_used())
+        (
+            gas_log,
+            output.gas_used(),
+            output.try_extract_fee_statement().unwrap(),
+        )
     }
 
     /// Creates a transaction which runs the specified entry point `fun`. Arguments need to be
@@ -547,7 +610,7 @@ impl MoveHarness {
         code_object: AccountAddress,
     ) -> SignedTransaction {
         let package =
-            build_package(path.to_owned(), options).expect("building package must succeed");
+            BuiltPackage::build(path.to_owned(), options).expect("building package must succeed");
         self.create_object_code_upgrade_built_package(
             account,
             &package,
@@ -564,7 +627,7 @@ impl MoveHarness {
         patch_metadata: impl FnMut(&mut PackageMetadata),
     ) -> SignedTransaction {
         let package =
-            build_package(path.to_owned(), options).expect("building package must succeed");
+            BuiltPackage::build(path.to_owned(), options).expect("building package must succeed");
         self.create_object_code_deployment_built_package(account, &package, patch_metadata)
     }
 
@@ -578,7 +641,10 @@ impl MoveHarness {
             let mut cache = CACHED_BUILT_PACKAGES.lock().unwrap();
 
             Arc::clone(cache.entry(path.to_owned()).or_insert_with(|| {
-                Arc::new(build_package(path.to_owned(), BuildOptions::default()))
+                Arc::new(BuiltPackage::build(
+                    path.to_owned(),
+                    BuildOptions::default(),
+                ))
             }))
         };
         let package_ref = package_arc
@@ -655,7 +721,7 @@ impl MoveHarness {
         &mut self,
         account: &Account,
         path: &Path,
-    ) -> (TransactionGasLog, u64) {
+    ) -> (TransactionGasLog, u64, Option<FeeStatement>) {
         let txn = self.create_publish_package(account, path, None, |_| {});
         let (output, gas_log) = self
             .executor
@@ -664,7 +730,11 @@ impl MoveHarness {
         if matches!(output.status(), TransactionStatus::Keep(_)) {
             self.executor.apply_write_set(output.write_set());
         }
-        (gas_log, output.gas_used())
+        (
+            gas_log,
+            output.gas_used(),
+            output.try_extract_fee_statement().unwrap(),
+        )
     }
 
     /// Runs transaction which publishes the Move Package.
@@ -806,12 +876,15 @@ impl MoveHarness {
     }
 
     pub fn read_aptos_balance(&self, addr: &AccountAddress) -> u64 {
-        self.read_resource::<CoinStoreResource>(addr, CoinStoreResource::struct_tag())
-            .map(|c| c.coin())
-            .unwrap_or(0)
+        self.read_resource::<CoinStoreResource<AptosCoinType>>(
+            addr,
+            CoinStoreResource::<AptosCoinType>::struct_tag(),
+        )
+        .map(|c| c.coin())
+        .unwrap_or(0)
             + self
                 .read_resource_from_resource_group::<FungibleStoreResource>(
-                    &aptos_types::account_config::fungible_store::primary_store(addr),
+                    &aptos_types::account_config::fungible_store::primary_apt_store(*addr),
                     ObjectGroupResource::struct_tag(),
                     FungibleStoreResource::struct_tag(),
                 )
@@ -893,10 +966,14 @@ impl MoveHarness {
         self.override_one_gas_param("txn.max_transaction_size_in_bytes", 1000 * 1024);
     }
 
-    pub fn sequence_number(&self, addr: &AccountAddress) -> u64 {
+    pub fn sequence_number_opt(&self, addr: &AccountAddress) -> Option<u64> {
         self.read_resource::<AccountResource>(addr, AccountResource::struct_tag())
-            .unwrap()
-            .sequence_number()
+            .as_ref()
+            .map(AccountResource::sequence_number)
+    }
+
+    pub fn sequence_number(&self, addr: &AccountAddress) -> u64 {
+        self.sequence_number_opt(addr).unwrap()
     }
 
     fn chain_id_is_mainnet(&self, addr: &AccountAddress) -> bool {
@@ -986,11 +1063,7 @@ impl MoveHarness {
                 offset,
                 txns.len()
             );
-            let mut outputs = harness.run_block_get_output(txns);
-            let _ = outputs
-                .iter_mut()
-                .map(|t| t.fill_error_status())
-                .collect::<Vec<_>>();
+            let outputs = harness.run_block_get_output(txns);
             for (idx, (error, output)) in errors.into_iter().zip(outputs.iter()).enumerate() {
                 if error == SUCCESS {
                     assert_success!(

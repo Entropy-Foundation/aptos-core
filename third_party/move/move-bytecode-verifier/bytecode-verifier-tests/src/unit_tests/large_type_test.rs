@@ -39,6 +39,7 @@ fn test_large_types() {
         return_: SignatureIndex(0),
         type_parameters: vec![],
         access_specifiers: None,
+        attributes: vec![],
     });
     m.function_defs.push(FunctionDefinition {
         function: FunctionHandleIndex(0),
@@ -59,6 +60,7 @@ fn test_large_types() {
         parameters: SignatureIndex(0),
         return_: SignatureIndex(1),
         type_parameters: vec![],
+        attributes: vec![],
         access_specifiers: None,
     });
     m.function_defs.push(FunctionDefinition {
@@ -82,6 +84,7 @@ fn test_large_types() {
         return_: SignatureIndex(1),
         type_parameters: vec![],
         access_specifiers: None,
+        attributes: vec![],
     });
     m.function_defs.push(FunctionDefinition {
         function: FunctionHandleIndex(2),
@@ -103,6 +106,7 @@ fn test_large_types() {
         return_: SignatureIndex(0),
         type_parameters: vec![],
         access_specifiers: None,
+        attributes: vec![],
     });
     m.function_defs.push(FunctionDefinition {
         function: FunctionHandleIndex(3),
@@ -126,6 +130,7 @@ fn test_large_types() {
             return_: SignatureIndex(0),
             type_parameters: vec![],
             access_specifiers: None,
+            attributes: vec![],
         });
         m.function_defs.push(FunctionDefinition {
             function: FunctionHandleIndex(i + 4),
@@ -155,6 +160,6 @@ fn test_large_types() {
     );
     assert_eq!(
         result.unwrap_err().major_status(),
-        StatusCode::CONSTRAINT_NOT_SATISFIED,
+        StatusCode::TOO_MANY_TYPE_NODES,
     );
 }

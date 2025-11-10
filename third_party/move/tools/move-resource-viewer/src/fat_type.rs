@@ -4,14 +4,12 @@
 //! Loaded representation for runtime types.
 
 use crate::limit::Limiter;
-use move_binary_format::{
-    errors::{PartialVMError, PartialVMResult},
-    file_format::AbilitySet,
-};
+use move_binary_format::errors::{PartialVMError, PartialVMResult};
 use move_core_types::{
+    ability::AbilitySet,
     account_address::AccountAddress,
     identifier::Identifier,
-    language_storage::{StructTag, TypeTag},
+    language_storage::{FunctionParamOrReturnTag, FunctionTag, StructTag, TypeTag},
     value::{MoveStructLayout, MoveTypeLayout},
     vm_status::StatusCode,
 };
@@ -50,7 +48,20 @@ pub(crate) struct FatStructType {
     pub name: Identifier,
     pub abilities: WrappedAbilitySet,
     pub ty_args: Vec<FatType>,
-    pub layout: Vec<FatType>,
+    pub layout: FatStructLayout,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) enum FatStructLayout {
+    Singleton(Vec<FatType>),
+    Variants(Vec<Vec<FatType>>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct FatFunctionType {
+    pub args: Vec<FatType>,
+    pub results: Vec<FatType>,
+    pub abilities: AbilitySet,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,6 +81,13 @@ pub(crate) enum FatType {
     U16,
     U32,
     U256,
+    // NOTE: Added in bytecode version v8, do not reorder!
+    Function(Box<FatFunctionType>),
+    // `Runtime` and `RuntimeVariants` are used for typing
+    // captured structures in closures, for which we only know
+    // the raw layout (no struct name, no field names).
+    Runtime(Vec<FatType>),
+    RuntimeVariants(Vec<Vec<FatType>>),
 }
 
 impl FatStructType {
@@ -88,11 +106,25 @@ impl FatStructType {
                 .iter()
                 .map(|ty| ty.clone_with_limit(limit))
                 .collect::<PartialVMResult<_>>()?,
-            layout: self
-                .layout
-                .iter()
-                .map(|ty| ty.clone_with_limit(limit))
-                .collect::<PartialVMResult<_>>()?,
+            layout: match &self.layout {
+                FatStructLayout::Singleton(fields) => FatStructLayout::Singleton(
+                    fields
+                        .iter()
+                        .map(|ty| ty.clone_with_limit(limit))
+                        .collect::<PartialVMResult<_>>()?,
+                ),
+                FatStructLayout::Variants(variants) => FatStructLayout::Variants(
+                    variants
+                        .iter()
+                        .map(|fields| {
+                            fields
+                                .iter()
+                                .map(|ty| ty.clone_with_limit(limit))
+                                .collect::<PartialVMResult<Vec<_>>>()
+                        })
+                        .collect::<PartialVMResult<_>>()?,
+                ),
+            },
         })
     }
 
@@ -114,11 +146,25 @@ impl FatStructType {
                 .iter()
                 .map(|ty| ty.subst(ty_args, limiter))
                 .collect::<PartialVMResult<_>>()?,
-            layout: self
-                .layout
-                .iter()
-                .map(|ty| ty.subst(ty_args, limiter))
-                .collect::<PartialVMResult<_>>()?,
+            layout: match &self.layout {
+                FatStructLayout::Singleton(fields) => FatStructLayout::Singleton(
+                    fields
+                        .iter()
+                        .map(|ty| ty.subst(ty_args, limiter))
+                        .collect::<PartialVMResult<_>>()?,
+                ),
+                FatStructLayout::Variants(variants) => FatStructLayout::Variants(
+                    variants
+                        .iter()
+                        .map(|fields| {
+                            fields
+                                .iter()
+                                .map(|ty| ty.subst(ty_args, limiter))
+                                .collect::<PartialVMResult<_>>()
+                        })
+                        .collect::<PartialVMResult<_>>()?,
+                ),
+            },
         })
     }
 
@@ -142,6 +188,57 @@ impl FatStructType {
     }
 }
 
+impl FatFunctionType {
+    fn clone_with_limit(&self, limiter: &mut Limiter) -> PartialVMResult<Self> {
+        let clone_slice = |limiter: &mut Limiter, tys: &[FatType]| {
+            tys.iter()
+                .map(|ty| ty.clone_with_limit(limiter))
+                .collect::<PartialVMResult<Vec<_>>>()
+        };
+        Ok(FatFunctionType {
+            args: clone_slice(limiter, &self.args)?,
+            results: clone_slice(limiter, &self.results)?,
+            abilities: self.abilities,
+        })
+    }
+
+    pub fn subst(&self, ty_args: &[FatType], limiter: &mut Limiter) -> PartialVMResult<Self> {
+        let subst_slice = |limiter: &mut Limiter, tys: &[FatType]| {
+            tys.iter()
+                .map(|ty| ty.subst(ty_args, limiter))
+                .collect::<PartialVMResult<Vec<_>>>()
+        };
+        Ok(FatFunctionType {
+            args: subst_slice(limiter, &self.args)?,
+            results: subst_slice(limiter, &self.results)?,
+            abilities: self.abilities,
+        })
+    }
+
+    pub fn fun_tag(&self, limiter: &mut Limiter) -> PartialVMResult<FunctionTag> {
+        let tag_slice = |limiter: &mut Limiter, tys: &[FatType]| {
+            tys.iter()
+                .map(|ty| {
+                    Ok(match ty {
+                        FatType::Reference(ty) => {
+                            FunctionParamOrReturnTag::Reference(ty.type_tag(limiter)?)
+                        },
+                        FatType::MutableReference(ty) => {
+                            FunctionParamOrReturnTag::MutableReference(ty.type_tag(limiter)?)
+                        },
+                        ty => FunctionParamOrReturnTag::Value(ty.type_tag(limiter)?),
+                    })
+                })
+                .collect::<PartialVMResult<Vec<_>>>()
+        };
+        Ok(FunctionTag {
+            args: tag_slice(limiter, &self.args)?,
+            results: tag_slice(limiter, &self.results)?,
+            abilities: self.abilities,
+        })
+    }
+}
+
 impl FatType {
     fn clone_with_limit(&self, limit: &mut Limiter) -> PartialVMResult<Self> {
         use FatType::*;
@@ -160,7 +257,18 @@ impl FatType {
             Reference(ty) => Reference(Box::new(ty.clone_with_limit(limit)?)),
             MutableReference(ty) => MutableReference(Box::new(ty.clone_with_limit(limit)?)),
             Struct(struct_ty) => Struct(Box::new(struct_ty.clone_with_limit(limit)?)),
+            Function(fun_ty) => Function(Box::new(fun_ty.clone_with_limit(limit)?)),
+            Runtime(tys) => Runtime(Self::clone_with_limit_slice(tys, limit)?),
+            RuntimeVariants(vars) => RuntimeVariants(
+                vars.iter()
+                    .map(|tys| Self::clone_with_limit_slice(tys, limit))
+                    .collect::<PartialVMResult<Vec<_>>>()?,
+            ),
         })
+    }
+
+    fn clone_with_limit_slice(tys: &[Self], limit: &mut Limiter) -> PartialVMResult<Vec<Self>> {
+        tys.iter().map(|ty| ty.clone_with_limit(limit)).collect()
     }
 
     pub fn subst(&self, ty_args: &[FatType], limit: &mut Limiter) -> PartialVMResult<FatType> {
@@ -195,6 +303,22 @@ impl FatType {
             MutableReference(ty) => MutableReference(Box::new(ty.subst(ty_args, limit)?)),
 
             Struct(struct_ty) => Struct(Box::new(struct_ty.subst(ty_args, limit)?)),
+
+            Function(fun_ty) => Function(Box::new(fun_ty.subst(ty_args, limit)?)),
+            Runtime(tys) => Runtime(
+                tys.iter()
+                    .map(|ty| ty.subst(ty_args, limit))
+                    .collect::<PartialVMResult<Vec<_>>>()?,
+            ),
+            RuntimeVariants(vars) => RuntimeVariants(
+                vars.iter()
+                    .map(|tys| {
+                        tys.iter()
+                            .map(|ty| ty.subst(ty_args, limit))
+                            .collect::<PartialVMResult<Vec<_>>>()
+                    })
+                    .collect::<PartialVMResult<Vec<Vec<_>>>>()?,
+            ),
         };
 
         Ok(res)
@@ -215,8 +339,9 @@ impl FatType {
             Signer => TypeTag::Signer,
             Vector(ty) => TypeTag::Vector(Box::new(ty.type_tag(limit)?)),
             Struct(struct_ty) => TypeTag::Struct(Box::new(struct_ty.struct_tag(limit)?)),
+            Function(fun_ty) => TypeTag::Function(Box::new(fun_ty.fun_tag(limit)?)),
 
-            Reference(_) | MutableReference(_) | TyParam(_) => {
+            Reference(_) | MutableReference(_) | TyParam(_) | RuntimeVariants(_) | Runtime(..) => {
                 return Err(
                     PartialVMError::new(StatusCode::UNKNOWN_INVARIANT_VIOLATION_ERROR)
                         .with_message(format!("cannot derive type tag for {:?}", self)),
@@ -225,6 +350,50 @@ impl FatType {
         };
 
         Ok(res)
+    }
+
+    pub(crate) fn from_runtime_layout(
+        layout: &MoveTypeLayout,
+        limit: &mut Limiter,
+    ) -> PartialVMResult<FatType> {
+        use MoveTypeLayout::*;
+        Ok(match layout {
+            Bool => FatType::Bool,
+            U8 => FatType::U8,
+            U16 => FatType::U16,
+            U32 => FatType::U32,
+            U64 => FatType::U64,
+            U128 => FatType::U128,
+            U256 => FatType::U256,
+            Address => FatType::Address,
+            Signer => FatType::Signer,
+            Vector(ty) => FatType::Vector(Box::new(Self::from_runtime_layout(ty, limit)?)),
+            Struct(MoveStructLayout::Runtime(tys)) => {
+                FatType::Runtime(Self::from_layout_slice(tys, limit)?)
+            },
+            Struct(MoveStructLayout::RuntimeVariants(vars)) => FatType::RuntimeVariants(
+                vars.iter()
+                    .map(|tys| Self::from_layout_slice(tys, limit))
+                    .collect::<PartialVMResult<Vec<Vec<_>>>>()?,
+            ),
+            // TODO(#15664): get rid of fat type to support captured functions.
+            Native(..) | Struct(_) | Function => {
+                return Err(PartialVMError::new_invariant_violation(format!(
+                    "cannot derive fat type for {:?}",
+                    layout
+                )))
+            },
+        })
+    }
+
+    fn from_layout_slice(
+        layouts: &[MoveTypeLayout],
+        limit: &mut Limiter,
+    ) -> PartialVMResult<Vec<FatType>> {
+        layouts
+            .iter()
+            .map(|l| Self::from_runtime_layout(l, limit))
+            .collect()
     }
 }
 
@@ -242,6 +411,7 @@ impl From<&TypeTag> for FatType {
             TypeTag::Signer => Signer,
             TypeTag::Vector(inner) => Vector(Box::new(inner.as_ref().into())),
             TypeTag::Struct(inner) => Struct(Box::new(inner.as_ref().into())),
+            TypeTag::Function(inner) => Function(Box::new(inner.as_ref().into())),
             TypeTag::U256 => U256,
         }
     }
@@ -259,7 +429,33 @@ impl From<&StructTag> for FatStructType {
                 .iter()
                 .map(|inner| inner.into())
                 .collect(),
-            layout: vec![], // We can't get field types from struct tag
+            layout: FatStructLayout::Singleton(vec![]), // We can't get field types from struct tag
+        }
+    }
+}
+
+impl From<&FunctionParamOrReturnTag> for FatType {
+    fn from(tag: &FunctionParamOrReturnTag) -> FatType {
+        use FatType::*;
+        match tag {
+            FunctionParamOrReturnTag::Reference(tag) => Reference(Box::new(tag.into())),
+            FunctionParamOrReturnTag::MutableReference(tag) => {
+                MutableReference(Box::new(tag.into()))
+            },
+            FunctionParamOrReturnTag::Value(tag) => tag.into(),
+        }
+    }
+}
+
+impl From<&FunctionTag> for FatFunctionType {
+    fn from(fun_tag: &FunctionTag) -> FatFunctionType {
+        let into_slice = |tys: &[FunctionParamOrReturnTag]| {
+            tys.iter().map(|ty| ty.into()).collect::<Vec<FatType>>()
+        };
+        FatFunctionType {
+            args: into_slice(&fun_tag.args),
+            results: into_slice(&fun_tag.results),
+            abilities: fun_tag.abilities,
         }
     }
 }
@@ -268,19 +464,35 @@ impl TryInto<MoveStructLayout> for &FatStructType {
     type Error = PartialVMError;
 
     fn try_into(self) -> Result<MoveStructLayout, Self::Error> {
-        Ok(MoveStructLayout::new(
-            self.layout
-                .iter()
-                .map(|ty| ty.try_into())
-                .collect::<PartialVMResult<Vec<_>>>()?,
-        ))
+        Ok(match &self.layout {
+            FatStructLayout::Singleton(fields) => MoveStructLayout::new(into_types(fields.iter())?),
+            FatStructLayout::Variants(variants) => MoveStructLayout::new_variants(
+                variants
+                    .iter()
+                    .map(|fields| into_types(fields.iter()))
+                    .collect::<PartialVMResult<_>>()?,
+            ),
+        })
     }
+}
+
+fn into_types<'a>(
+    types: impl Iterator<Item = &'a FatType>,
+) -> PartialVMResult<Vec<MoveTypeLayout>> {
+    types
+        .map(|ty| ty.try_into())
+        .collect::<PartialVMResult<Vec<_>>>()
 }
 
 impl TryInto<MoveTypeLayout> for &FatType {
     type Error = PartialVMError;
 
     fn try_into(self) -> Result<MoveTypeLayout, Self::Error> {
+        let slice_into = |tys: &[FatType]| {
+            tys.iter()
+                .map(|ty| ty.try_into())
+                .collect::<PartialVMResult<Vec<MoveTypeLayout>>>()
+        };
         Ok(match self {
             FatType::Address => MoveTypeLayout::Address,
             FatType::U8 => MoveTypeLayout::U8,
@@ -291,12 +503,18 @@ impl TryInto<MoveTypeLayout> for &FatType {
             FatType::U256 => MoveTypeLayout::U256,
             FatType::Bool => MoveTypeLayout::Bool,
             FatType::Vector(v) => MoveTypeLayout::Vector(Box::new(v.as_ref().try_into()?)),
-            FatType::Struct(s) => MoveTypeLayout::Struct(MoveStructLayout::new(
-                s.layout
-                    .iter()
-                    .map(|ty| ty.try_into())
-                    .collect::<PartialVMResult<Vec<_>>>()?,
-            )),
+            FatType::Struct(s) => MoveTypeLayout::Struct(s.as_ref().try_into()?),
+            FatType::Function(_) => MoveTypeLayout::Function,
+            FatType::Runtime(tys) => {
+                MoveTypeLayout::Struct(MoveStructLayout::Runtime(slice_into(tys)?))
+            },
+            FatType::RuntimeVariants(vars) => {
+                MoveTypeLayout::Struct(MoveStructLayout::RuntimeVariants(
+                    vars.iter()
+                        .map(|tys| slice_into(tys))
+                        .collect::<Result<Vec<_>, _>>()?,
+                ))
+            },
             FatType::Signer => MoveTypeLayout::Signer,
             FatType::Reference(_) | FatType::MutableReference(_) | FatType::TyParam(_) => {
                 return Err(PartialVMError::new(StatusCode::ABORT_TYPE_MISMATCH_ERROR))

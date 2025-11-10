@@ -5,10 +5,7 @@
 #[cfg(any(debug_assertions, feature = "debugging"))]
 use crate::debug::DebugContext;
 #[cfg(any(debug_assertions, feature = "debugging"))]
-use crate::{
-    interpreter::Interpreter,
-    loader::{Function, Loader},
-};
+use crate::{interpreter::InterpreterDebugInterface, loader::LoadedFunction, RuntimeEnvironment};
 #[cfg(any(debug_assertions, feature = "debugging"))]
 use ::{
     move_binary_format::file_format::Bytecode,
@@ -67,27 +64,35 @@ static DEBUG_CONTEXT: Lazy<Mutex<DebugContext>> = Lazy::new(|| Mutex::new(DebugC
 // Only include in debug builds
 #[cfg(any(debug_assertions, feature = "debugging"))]
 pub(crate) fn trace(
-    function_desc: &Function,
+    function: &LoadedFunction,
     locals: &Locals,
     pc: u16,
     instr: &Bytecode,
-    loader: &Loader,
-    interp: &Interpreter,
+    runtime_environment: &RuntimeEnvironment,
+    interpreter: &dyn InterpreterDebugInterface,
 ) {
     if *TRACING_ENABLED {
         let buf_writer = &mut *LOGGING_FILE_WRITER.lock().unwrap();
         buf_writer
-            .write_fmt(format_args!("{},{}\n", function_desc.pretty_string(), pc,))
+            .write_fmt(format_args!(
+                "{},{}\n",
+                function.name_as_pretty_string(),
+                pc,
+            ))
             .unwrap();
         if *SINGLE_STEP_FLUSHING {
             buf_writer.flush().unwrap();
         }
     }
     if *DEBUGGING_ENABLED {
-        DEBUG_CONTEXT
-            .lock()
-            .unwrap()
-            .debug_loop(function_desc, locals, pc, instr, loader, interp);
+        DEBUG_CONTEXT.lock().unwrap().debug_loop(
+            function,
+            locals,
+            pc,
+            instr,
+            runtime_environment,
+            interpreter,
+        );
     }
 }
 
@@ -96,13 +101,6 @@ macro_rules! trace {
     ($function_desc:expr, $locals:expr, $pc:expr, $instr:tt, $resolver:expr, $interp:expr) => {
         // Only include this code in debug releases
         #[cfg(any(debug_assertions, feature = "debugging"))]
-        $crate::tracing::trace(
-            &$function_desc,
-            $locals,
-            $pc,
-            &$instr,
-            $resolver.loader(),
-            $interp,
-        )
+        $crate::tracing::trace(&$function_desc, $locals, $pc, &$instr, $resolver, $interp)
     };
 }

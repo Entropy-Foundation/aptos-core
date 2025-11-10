@@ -15,15 +15,17 @@ use aptos_executor_test_helpers::{
     bootstrap_genesis, gen_ledger_info_with_sigs, get_test_signed_transaction,
 };
 use aptos_executor_types::BlockExecutorTrait;
-use aptos_storage_interface::{state_view::LatestDbStateCheckpointView, DbReaderWriter};
+use aptos_storage_interface::{
+    state_store::state_view::db_state_view::LatestDbStateCheckpointView, DbReaderWriter,
+};
 use aptos_temppath::TempPath;
 use aptos_types::{
     account_address::AccountAddress,
     account_config::{
-        aptos_test_root_address, new_block_event_key, CoinStoreResource, NewBlockEvent,
+        aptos_test_root_address, new_block_event_key, primary_apt_store, FungibleStoreResource,
+        NewBlockEvent, ObjectGroupResource, NEW_EPOCH_EVENT_V2_MOVE_TYPE_TAG,
     },
     contract_event::ContractEvent,
-    event::EventHandle,
     on_chain_config::{ConfigurationResource, OnChainConfig, ValidatorSet},
     state_store::{state_key::StateKey, MoveResourceExt},
     test_helpers::transaction_test_helpers::{block, TEST_BLOCK_EXECUTOR_ONCHAIN_CONFIG},
@@ -33,9 +35,10 @@ use aptos_types::{
     waypoint::Waypoint,
     write_set::{WriteOp, WriteSetMut},
 };
-use aptos_vm::AptosVM;
+use aptos_vm::aptos_vm::AptosVMBlockExecutor;
 use move_core_types::{language_storage::TypeTag, move_resource::MoveStructType};
 use rand::SeedableRng;
+use std::sync::Arc;
 
 #[test]
 fn test_empty_db() {
@@ -51,8 +54,9 @@ fn test_empty_db() {
         .is_none());
 
     // Bootstrap empty DB.
-    let waypoint = generate_waypoint::<AptosVM>(&db_rw, &genesis_txn).expect("Should not fail.");
-    maybe_bootstrap::<AptosVM>(&db_rw, &genesis_txn, waypoint).unwrap();
+    let waypoint =
+        generate_waypoint::<AptosVMBlockExecutor>(&db_rw, &genesis_txn).expect("Should not fail.");
+    maybe_bootstrap::<AptosVMBlockExecutor>(&db_rw, &genesis_txn, waypoint).unwrap();
     let ledger_info = db_rw.reader.get_latest_ledger_info().unwrap();
     assert_eq!(
         Waypoint::new_epoch_boundary(ledger_info.ledger_info()).unwrap(),
@@ -68,9 +72,11 @@ fn test_empty_db() {
     assert!(trusted_state_change.is_epoch_change());
 
     // `maybe_bootstrap()` does nothing on non-empty DB.
-    assert!(maybe_bootstrap::<AptosVM>(&db_rw, &genesis_txn, waypoint)
-        .unwrap()
-        .is_none());
+    assert!(
+        maybe_bootstrap::<AptosVMBlockExecutor>(&db_rw, &genesis_txn, waypoint)
+            .unwrap()
+            .is_none()
+    );
 }
 
 fn execute_and_commit(txns: Vec<Transaction>, db: &DbReaderWriter, signer: &ValidatorSigner) {
@@ -79,7 +85,7 @@ fn execute_and_commit(txns: Vec<Transaction>, db: &DbReaderWriter, signer: &Vali
     let version = li.ledger_info().version();
     let epoch = li.ledger_info().next_block_epoch();
     let target_version = version + txns.len() as u64 + 1; // Due to StateCheckpoint txn
-    let executor = BlockExecutor::<AptosVM>::new(db.clone());
+    let executor = BlockExecutor::<AptosVMBlockExecutor>::new(db.clone());
     let output = executor
         .execute_block(
             (block_id, block(txns)).into(),
@@ -87,7 +93,7 @@ fn execute_and_commit(txns: Vec<Transaction>, db: &DbReaderWriter, signer: &Vali
             TEST_BLOCK_EXECUTOR_ONCHAIN_CONFIG,
         )
         .unwrap();
-    assert_eq!(output.num_leaves(), target_version + 1);
+    assert_eq!(output.next_version(), target_version + 1);
     let ledger_info_with_sigs =
         gen_ledger_info_with_sigs(epoch, &output, block_id, &[signer.clone()]);
     executor
@@ -166,10 +172,14 @@ fn get_aptos_coin_transfer_transaction(
 
 fn get_balance(account: &AccountAddress, db: &DbReaderWriter) -> u64 {
     let db_state_view = db.reader.latest_state_checkpoint_view().unwrap();
-    CoinStoreResource::fetch_move_resource(&db_state_view, account)
-        .unwrap()
-        .unwrap()
-        .coin()
+    FungibleStoreResource::fetch_move_resource_from_group(
+        &db_state_view,
+        &primary_apt_store(*account),
+        &ObjectGroupResource::struct_tag(),
+    )
+    .unwrap()
+    .unwrap()
+    .balance()
 }
 
 fn get_configuration(db: &DbReaderWriter) -> ConfigurationResource {
@@ -186,10 +196,10 @@ fn test_new_genesis() {
     // Create bootstrapped DB.
     let tmp_dir = TempPath::new();
     let db = DbReaderWriter::new(AptosDB::new_for_test(&tmp_dir));
-    let waypoint = bootstrap_genesis::<AptosVM>(&db, &genesis_txn).unwrap();
+    let waypoint = bootstrap_genesis::<AptosVMBlockExecutor>(&db, &genesis_txn).unwrap();
     let signer = ValidatorSigner::new(
         genesis.1[0].data.owner_address,
-        genesis.1[0].consensus_key.clone(),
+        Arc::new(genesis.1[0].consensus_key.clone()),
     );
 
     // Mint for 2 demo accounts.
@@ -226,15 +236,19 @@ fn test_new_genesis() {
                 ),
             ),
             (
-                StateKey::resource_typed::<CoinStoreResource>(&account1).unwrap(),
+                StateKey::resource_group(
+                    &primary_apt_store(account1),
+                    &ObjectGroupResource::struct_tag(),
+                ),
                 WriteOp::legacy_modification(
-                    bcs::to_bytes(&CoinStoreResource::new(
+                    aptos_transaction_simulation::FungibleStore::new(
+                        account1,
+                        AccountAddress::TEN,
                         100_000_000,
                         false,
-                        EventHandle::random(0),
-                        EventHandle::random(0),
-                    ))
-                    .unwrap()
+                        false,
+                    )
+                    .to_bytes()
                     .into(),
                 ),
             ),
@@ -242,28 +256,24 @@ fn test_new_genesis() {
         .freeze()
         .unwrap(),
         vec![
-            ContractEvent::new_v1(
-                *configuration.events().key(),
-                0,
-                TypeTag::Struct(Box::new(
-                    <ConfigurationResource as MoveStructType>::struct_tag(),
-                )),
-                vec![],
-            ),
+            ContractEvent::new_v2(NEW_EPOCH_EVENT_V2_MOVE_TYPE_TAG.clone(), vec![]).unwrap(),
             ContractEvent::new_v1(
                 new_block_event_key(),
                 0,
                 TypeTag::Struct(Box::new(NewBlockEvent::struct_tag())),
                 vec![],
-            ),
+            )
+            .expect("Should always be able to create a new block event"),
         ],
     )));
 
     // Bootstrap DB into new genesis.
-    let waypoint = generate_waypoint::<AptosVM>(&db, &genesis_txn).unwrap();
-    assert!(maybe_bootstrap::<AptosVM>(&db, &genesis_txn, waypoint)
-        .unwrap()
-        .is_some());
+    let waypoint = generate_waypoint::<AptosVMBlockExecutor>(&db, &genesis_txn).unwrap();
+    assert!(
+        maybe_bootstrap::<AptosVMBlockExecutor>(&db, &genesis_txn, waypoint)
+            .unwrap()
+            .is_some()
+    );
     assert_eq!(waypoint.version(), 6);
 
     // Client bootable from waypoint.

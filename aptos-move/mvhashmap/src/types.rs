@@ -1,19 +1,12 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use aptos_aggregator::{
-    delta_change_set::DeltaOp,
-    types::{DelayedFieldsSpeculativeError, PanicOr},
-};
-use aptos_crypto::hash::HashValue;
+use aptos_aggregator::{delta_change_set::DeltaOp, types::DelayedFieldsSpeculativeError};
 use aptos_types::{
-    executable::ExecutableDescriptor,
+    error::PanicOr,
     write_set::{TransactionWrite, WriteOpKind},
 };
-use aptos_vm_types::resolver::ResourceGroupSize;
-use bytes::Bytes;
-use derivative::Derivative;
-use move_binary_format::errors::PartialVMError;
+use fail::fail_point;
 use move_core_types::value::MoveTypeLayout;
 use std::sync::{atomic::AtomicU32, Arc};
 
@@ -30,14 +23,7 @@ pub struct StorageVersion;
 // TODO: Find better representations for this, a similar one for TxnIndex.
 pub type Version = Result<(TxnIndex, Incarnation), StorageVersion>;
 
-#[derive(Clone, Copy, PartialEq)]
-pub(crate) enum Flag {
-    Done,
-    Estimate,
-}
-
-#[derive(Debug, Derivative)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum MVGroupError {
     /// The base group contents are not initialized.
     Uninitialized,
@@ -45,8 +31,6 @@ pub enum MVGroupError {
     TagNotFound,
     /// A dependency on other transaction has been found during the read.
     Dependency(TxnIndex),
-    /// Tag serialization is needed for group size computation.
-    TagSerializationError(#[derivative(PartialEq = "ignore")] PartialVMError),
 }
 
 /// Returned as Err(..) when failed to read from the multi-version data-structure.
@@ -62,37 +46,6 @@ pub enum MVDataError {
     DeltaApplicationFailure,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum MVModulesError {
-    /// No prior entry is found.
-    NotFound,
-    /// A dependency on other transaction has been found during the read.
-    Dependency(TxnIndex),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum GroupReadResult {
-    Value(Option<Bytes>, Option<Arc<MoveTypeLayout>>),
-    Size(ResourceGroupSize),
-    Uninitialized,
-}
-
-impl GroupReadResult {
-    pub fn into_value(self) -> (Option<Bytes>, Option<Arc<MoveTypeLayout>>) {
-        match self {
-            GroupReadResult::Value(maybe_bytes, maybe_layout) => (maybe_bytes, maybe_layout),
-            _ => unreachable!("Expected a value"),
-        }
-    }
-
-    pub fn into_size(self) -> ResourceGroupSize {
-        match self {
-            GroupReadResult::Size(size) => size,
-            _ => unreachable!("Expected size"),
-        }
-    }
-}
-
 /// Returned as Ok(..) when read successfully from the multi-version data-structure.
 #[derive(Debug, PartialEq, Eq)]
 pub enum MVDataOutput<V> {
@@ -103,19 +56,6 @@ pub enum MVDataOutput<V> {
     /// Information from the last versioned-write. Note that the version is returned
     /// and not the data to avoid copying big values around.
     Versioned(Version, ValueWithLayout<V>),
-}
-
-/// Returned as Ok(..) when read successfully from the multi-version data-structure.
-#[derive(Debug, PartialEq, Eq)]
-pub enum MVModulesOutput<M, X> {
-    /// Arc to the executable corresponding to the latest module, and a descriptor
-    /// with either the module hash or indicator that the module is from storage.
-    Executable((Arc<X>, ExecutableDescriptor)),
-    /// Arc to the latest module, together with its (cryptographic) hash. Note that
-    /// this can't be a storage-level module, as it's from multi-versioned modules map.
-    /// The Option can be None if HashValue can't be computed, currently may happen
-    /// if the latest entry corresponded to the module deletion.
-    Module((Arc<M>, HashValue)),
 }
 
 // TODO[agg_v2](cleanup): once VersionedAggregators is separated from the MVHashMap,
@@ -220,6 +160,7 @@ impl<V: TransactionWrite> ValueWithLayout<V> {
     }
 
     pub fn bytes_len(&self) -> Option<usize> {
+        fail_point!("value_with_layout_bytes_len", |_| { Some(10) });
         match self {
             ValueWithLayout::RawFromStorage(value) | ValueWithLayout::Exchanged(value, _) => {
                 value.bytes().map(|b| b.len())
@@ -239,6 +180,7 @@ impl<V: TransactionWrite> ValueWithLayout<V> {
 #[derive(Clone, Debug)]
 pub enum UnknownOrLayout<'a> {
     Unknown,
+    // TODO: Make this Arc<MoveTypeLayout> to avoid deep cloning.
     Known(Option<&'a MoveTypeLayout>),
 }
 
@@ -247,13 +189,13 @@ pub(crate) mod test {
     use super::*;
     use aptos_aggregator::delta_change_set::serialize;
     use aptos_types::{
-        access_path::AccessPath,
         executable::ModulePath,
         state_store::state_value::StateValue,
         write_set::{TransactionWrite, WriteOpKind},
     };
     use bytes::Bytes;
     use claims::{assert_err, assert_ok_eq};
+    use move_core_types::{account_address::AccountAddress, identifier::IdentStr};
     use std::{fmt::Debug, hash::Hash, sync::Arc};
 
     #[derive(Clone, Eq, Hash, PartialEq, Debug)]
@@ -263,8 +205,15 @@ pub(crate) mod test {
     );
 
     impl<K: Hash + Clone + Eq + Debug> ModulePath for KeyType<K> {
-        fn module_path(&self) -> Option<AccessPath> {
-            None
+        fn is_module_path(&self) -> bool {
+            false
+        }
+
+        fn from_address_and_module_name(
+            _address: &AccountAddress,
+            _module_name: &IdentStr,
+        ) -> Self {
+            unreachable!("Irrelevant for test")
         }
     }
 

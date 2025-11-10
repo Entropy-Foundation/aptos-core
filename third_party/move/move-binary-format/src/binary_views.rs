@@ -7,17 +7,20 @@ use crate::{
     control_flow_graph::VMControlFlowGraph,
     errors::{PartialVMError, PartialVMResult},
     file_format::{
-        AbilitySet, AddressIdentifierIndex, CodeUnit, CompiledScript, Constant, ConstantPoolIndex,
-        FieldHandle, FieldHandleIndex, FieldInstantiation, FieldInstantiationIndex,
-        FunctionDefinition, FunctionDefinitionIndex, FunctionHandle, FunctionHandleIndex,
-        FunctionInstantiation, FunctionInstantiationIndex, IdentifierIndex, ModuleHandle,
-        ModuleHandleIndex, Signature, SignatureIndex, SignatureToken, StructDefInstantiation,
-        StructDefInstantiationIndex, StructDefinition, StructDefinitionIndex, StructHandle,
-        StructHandleIndex,
+        AddressIdentifierIndex, CodeUnit, CompiledScript, Constant, ConstantPoolIndex, FieldHandle,
+        FieldHandleIndex, FieldInstantiation, FieldInstantiationIndex, FunctionDefinition,
+        FunctionDefinitionIndex, FunctionHandle, FunctionHandleIndex, FunctionInstantiation,
+        FunctionInstantiationIndex, IdentifierIndex, ModuleHandle, ModuleHandleIndex, Signature,
+        SignatureIndex, SignatureToken, StructDefInstantiation, StructDefInstantiationIndex,
+        StructDefinition, StructDefinitionIndex, StructHandle, StructHandleIndex,
+        StructVariantHandle, StructVariantHandleIndex, StructVariantInstantiation,
+        StructVariantInstantiationIndex, VariantFieldHandle, VariantFieldHandleIndex,
+        VariantFieldInstantiation, VariantFieldInstantiationIndex,
     },
     CompiledModule,
 };
 use move_core_types::{
+    ability::AbilitySet,
     account_address::AccountAddress,
     identifier::{IdentStr, Identifier},
     language_storage::ModuleId,
@@ -34,7 +37,7 @@ pub enum BinaryIndexedView<'a> {
     Script(&'a CompiledScript),
 }
 
-impl<'a> BinaryIndexedView<'a> {
+impl BinaryIndexedView<'_> {
     pub fn module_handles(&self) -> &[ModuleHandle] {
         match self {
             BinaryIndexedView::Module(module) => module.module_handles(),
@@ -157,9 +160,52 @@ impl<'a> BinaryIndexedView<'a> {
         }
     }
 
+    pub fn variant_field_handles(&self) -> Option<&[VariantFieldHandle]> {
+        match self {
+            BinaryIndexedView::Module(module) => Some(&module.variant_field_handles),
+            BinaryIndexedView::Script(_) => None,
+        }
+    }
+
     pub fn field_handle_at(&self, idx: FieldHandleIndex) -> PartialVMResult<&FieldHandle> {
         match self {
             BinaryIndexedView::Module(module) => Ok(module.field_handle_at(idx)),
+            BinaryIndexedView::Script(_) => {
+                Err(PartialVMError::new(StatusCode::INVALID_OPERATION_IN_SCRIPT))
+            },
+        }
+    }
+
+    pub fn variant_field_handle_at(
+        &self,
+        idx: VariantFieldHandleIndex,
+    ) -> PartialVMResult<&VariantFieldHandle> {
+        match self {
+            BinaryIndexedView::Module(module) => Ok(module.variant_field_handle_at(idx)),
+            BinaryIndexedView::Script(_) => {
+                Err(PartialVMError::new(StatusCode::INVALID_OPERATION_IN_SCRIPT))
+            },
+        }
+    }
+
+    pub fn struct_variant_handle_at(
+        &self,
+        idx: StructVariantHandleIndex,
+    ) -> PartialVMResult<&StructVariantHandle> {
+        match self {
+            BinaryIndexedView::Module(module) => Ok(module.struct_variant_handle_at(idx)),
+            BinaryIndexedView::Script(_) => {
+                Err(PartialVMError::new(StatusCode::INVALID_OPERATION_IN_SCRIPT))
+            },
+        }
+    }
+
+    pub fn struct_variant_instantiation_at(
+        &self,
+        idx: StructVariantInstantiationIndex,
+    ) -> PartialVMResult<&StructVariantInstantiation> {
+        match self {
+            BinaryIndexedView::Module(module) => Ok(module.struct_variant_instantiation_at(idx)),
             BinaryIndexedView::Script(_) => {
                 Err(PartialVMError::new(StatusCode::INVALID_OPERATION_IN_SCRIPT))
             },
@@ -199,12 +245,31 @@ impl<'a> BinaryIndexedView<'a> {
         }
     }
 
+    pub fn variant_field_instantiations(&self) -> Option<&[VariantFieldInstantiation]> {
+        match self {
+            BinaryIndexedView::Module(module) => Some(&module.variant_field_instantiations),
+            BinaryIndexedView::Script(_) => None,
+        }
+    }
+
     pub fn field_instantiation_at(
         &self,
         idx: FieldInstantiationIndex,
     ) -> PartialVMResult<&FieldInstantiation> {
         match self {
             BinaryIndexedView::Module(module) => Ok(module.field_instantiation_at(idx)),
+            BinaryIndexedView::Script(_) => {
+                Err(PartialVMError::new(StatusCode::INVALID_OPERATION_IN_SCRIPT))
+            },
+        }
+    }
+
+    pub fn variant_field_instantiation_at(
+        &self,
+        idx: VariantFieldInstantiationIndex,
+    ) -> PartialVMResult<&VariantFieldInstantiation> {
+        match self {
+            BinaryIndexedView::Module(module) => Ok(module.variant_field_instantiation_at(idx)),
             BinaryIndexedView::Script(_) => {
                 Err(PartialVMError::new(StatusCode::INVALID_OPERATION_IN_SCRIPT))
             },
@@ -224,6 +289,20 @@ impl<'a> BinaryIndexedView<'a> {
             BinaryIndexedView::Script(_) => {
                 Err(PartialVMError::new(StatusCode::INVALID_OPERATION_IN_SCRIPT))
             },
+        }
+    }
+
+    pub fn struct_variant_handles(&self) -> Option<&[StructVariantHandle]> {
+        match self {
+            BinaryIndexedView::Module(module) => Some(&module.struct_variant_handles),
+            BinaryIndexedView::Script(_) => None,
+        }
+    }
+
+    pub fn struct_variant_instantiations(&self) -> Option<&[StructVariantInstantiation]> {
+        match self {
+            BinaryIndexedView::Module(module) => Some(&module.struct_variant_instantiations),
+            BinaryIndexedView::Script(_) => None,
         }
     }
 
@@ -264,7 +343,12 @@ impl<'a> BinaryIndexedView<'a> {
             TypeParameter(idx) => Ok(constraints[*idx as usize]),
             Vector(ty) => AbilitySet::polymorphic_abilities(AbilitySet::VECTOR, vec![false], vec![
                 self.abilities(ty, constraints)?,
-            ]),
+            ])
+            .map_err(|e| {
+                PartialVMError::new(StatusCode::VERIFIER_INVARIANT_VIOLATION)
+                    .with_message(e.to_string())
+            }),
+            Function(_, _, abilities) => Ok(*abilities),
             Struct(idx) => {
                 let sh = self.struct_handle_at(*idx);
                 Ok(sh.abilities)
@@ -281,6 +365,10 @@ impl<'a> BinaryIndexedView<'a> {
                     sh.type_parameters.iter().map(|param| param.is_phantom),
                     type_arguments,
                 )
+                .map_err(|e| {
+                    PartialVMError::new(StatusCode::VERIFIER_INVARIANT_VIOLATION)
+                        .with_message(e.to_string())
+                })
             },
         }
     }

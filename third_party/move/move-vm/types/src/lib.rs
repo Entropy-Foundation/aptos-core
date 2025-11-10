@@ -4,6 +4,15 @@
 
 #![forbid(unsafe_code)]
 
+/// Returns the hash (SHA-3-256) of the bytes.
+pub fn sha3_256(bytes: &[u8]) -> [u8; 32] {
+    use sha3::{Digest, Sha3_256};
+
+    let mut sha3_256 = Sha3_256::new();
+    sha3_256.update(bytes);
+    sha3_256.finalize().into()
+}
+
 #[macro_export]
 macro_rules! debug_write {
     ($($toks: tt)*) => {
@@ -24,10 +33,12 @@ macro_rules! debug_writeln {
     };
 }
 
+pub mod code;
 pub mod delayed_values;
 pub mod gas;
 pub mod loaded_data;
 pub mod natives;
+pub mod resolver;
 pub mod value_serde;
 pub mod value_traversal;
 pub mod values;

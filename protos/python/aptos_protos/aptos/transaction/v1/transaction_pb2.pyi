@@ -830,6 +830,7 @@ class TransactionPayload(_message.Message):
         "multisig_payload",
         "automation_payload",
         "automation_payloads",
+        "extra_config_v1",
     ]
 
     class Type(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -855,6 +856,7 @@ class TransactionPayload(_message.Message):
     MULTISIG_PAYLOAD_FIELD_NUMBER: _ClassVar[int]
     AUTOMATION_PAYLOAD_FIELD_NUMBER: _ClassVar[int]
     AUTOMATION_PAYLOADS_FIELD_NUMBER: _ClassVar[int]
+    EXTRA_CONFIG_V1_FIELD_NUMBER: _ClassVar[int]
     type: TransactionPayload.Type
     entry_function_payload: EntryFunctionPayload
     script_payload: ScriptPayload
@@ -862,6 +864,7 @@ class TransactionPayload(_message.Message):
     multisig_payload: MultisigPayload
     automation_payload: AutomationPayload
     automation_payloads: AutomationPayloadExtensions
+    extra_config_v1: ExtraConfigV1
     def __init__(
         self,
         type: _Optional[_Union[TransactionPayload.Type, str]] = ...,
@@ -873,6 +876,19 @@ class TransactionPayload(_message.Message):
         automation_payloads: _Optional[
             _Union[AutomationPayloadExtensions, _Mapping]
         ] = ...,
+        extra_config_v1: _Optional[_Union[ExtraConfigV1, _Mapping]] = ...,
+    ) -> None: ...
+
+class ExtraConfigV1(_message.Message):
+    __slots__ = ["multisig_address", "replay_protection_nonce"]
+    MULTISIG_ADDRESS_FIELD_NUMBER: _ClassVar[int]
+    REPLAY_PROTECTION_NONCE_FIELD_NUMBER: _ClassVar[int]
+    multisig_address: str
+    replay_protection_nonce: int
+    def __init__(
+        self,
+        multisig_address: _Optional[str] = ...,
+        replay_protection_nonce: _Optional[int] = ...,
     ) -> None: ...
 
 class EntryFunctionPayload(_message.Message):
@@ -1114,14 +1130,23 @@ class MoveFunction(_message.Message):
     ) -> None: ...
 
 class MoveStruct(_message.Message):
-    __slots__ = ["name", "is_native", "abilities", "generic_type_params", "fields"]
+    __slots__ = [
+        "name",
+        "is_native",
+        "is_event",
+        "abilities",
+        "generic_type_params",
+        "fields",
+    ]
     NAME_FIELD_NUMBER: _ClassVar[int]
     IS_NATIVE_FIELD_NUMBER: _ClassVar[int]
+    IS_EVENT_FIELD_NUMBER: _ClassVar[int]
     ABILITIES_FIELD_NUMBER: _ClassVar[int]
     GENERIC_TYPE_PARAMS_FIELD_NUMBER: _ClassVar[int]
     FIELDS_FIELD_NUMBER: _ClassVar[int]
     name: str
     is_native: bool
+    is_event: bool
     abilities: _containers.RepeatedScalarFieldContainer[MoveAbility]
     generic_type_params: _containers.RepeatedCompositeFieldContainer[
         MoveStructGenericTypeParam
@@ -1131,6 +1156,7 @@ class MoveStruct(_message.Message):
         self,
         name: _Optional[str] = ...,
         is_native: bool = ...,
+        is_event: bool = ...,
         abilities: _Optional[_Iterable[_Union[MoveAbility, str]]] = ...,
         generic_type_params: _Optional[
             _Iterable[_Union[MoveStructGenericTypeParam, _Mapping]]
@@ -1389,11 +1415,13 @@ class AnyPublicKey(_message.Message):
         TYPE_SECP256K1_ECDSA: _ClassVar[AnyPublicKey.Type]
         TYPE_SECP256R1_ECDSA: _ClassVar[AnyPublicKey.Type]
         TYPE_KEYLESS: _ClassVar[AnyPublicKey.Type]
+        TYPE_FEDERATED_KEYLESS: _ClassVar[AnyPublicKey.Type]
     TYPE_UNSPECIFIED: AnyPublicKey.Type
     TYPE_ED25519: AnyPublicKey.Type
     TYPE_SECP256K1_ECDSA: AnyPublicKey.Type
     TYPE_SECP256R1_ECDSA: AnyPublicKey.Type
     TYPE_KEYLESS: AnyPublicKey.Type
+    TYPE_FEDERATED_KEYLESS: AnyPublicKey.Type
     TYPE_FIELD_NUMBER: _ClassVar[int]
     PUBLIC_KEY_FIELD_NUMBER: _ClassVar[int]
     type: AnyPublicKey.Type
@@ -1511,6 +1539,16 @@ class MultiKeySignature(_message.Message):
         signatures_required: _Optional[int] = ...,
     ) -> None: ...
 
+class AbstractionSignature(_message.Message):
+    __slots__ = ["function_info", "signature"]
+    FUNCTION_INFO_FIELD_NUMBER: _ClassVar[int]
+    SIGNATURE_FIELD_NUMBER: _ClassVar[int]
+    function_info: str
+    signature: bytes
+    def __init__(
+        self, function_info: _Optional[str] = ..., signature: _Optional[bytes] = ...
+    ) -> None: ...
+
 class SingleSender(_message.Message):
     __slots__ = ["sender"]
     SENDER_FIELD_NUMBER: _ClassVar[int]
@@ -1526,6 +1564,7 @@ class AccountSignature(_message.Message):
         "multi_ed25519",
         "single_key_signature",
         "multi_key_signature",
+        "abstraction",
     ]
 
     class Type(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -1535,21 +1574,25 @@ class AccountSignature(_message.Message):
         TYPE_MULTI_ED25519: _ClassVar[AccountSignature.Type]
         TYPE_SINGLE_KEY: _ClassVar[AccountSignature.Type]
         TYPE_MULTI_KEY: _ClassVar[AccountSignature.Type]
+        TYPE_ABSTRACTION: _ClassVar[AccountSignature.Type]
     TYPE_UNSPECIFIED: AccountSignature.Type
     TYPE_ED25519: AccountSignature.Type
     TYPE_MULTI_ED25519: AccountSignature.Type
     TYPE_SINGLE_KEY: AccountSignature.Type
     TYPE_MULTI_KEY: AccountSignature.Type
+    TYPE_ABSTRACTION: AccountSignature.Type
     TYPE_FIELD_NUMBER: _ClassVar[int]
     ED25519_FIELD_NUMBER: _ClassVar[int]
     MULTI_ED25519_FIELD_NUMBER: _ClassVar[int]
     SINGLE_KEY_SIGNATURE_FIELD_NUMBER: _ClassVar[int]
     MULTI_KEY_SIGNATURE_FIELD_NUMBER: _ClassVar[int]
+    ABSTRACTION_FIELD_NUMBER: _ClassVar[int]
     type: AccountSignature.Type
     ed25519: Ed25519Signature
     multi_ed25519: MultiEd25519Signature
     single_key_signature: SingleKeySignature
     multi_key_signature: MultiKeySignature
+    abstraction: AbstractionSignature
     def __init__(
         self,
         type: _Optional[_Union[AccountSignature.Type, str]] = ...,
@@ -1557,6 +1600,7 @@ class AccountSignature(_message.Message):
         multi_ed25519: _Optional[_Union[MultiEd25519Signature, _Mapping]] = ...,
         single_key_signature: _Optional[_Union[SingleKeySignature, _Mapping]] = ...,
         multi_key_signature: _Optional[_Union[MultiKeySignature, _Mapping]] = ...,
+        abstraction: _Optional[_Union[AbstractionSignature, _Mapping]] = ...,
     ) -> None: ...
 
 class TransactionSizeInfo(_message.Message):

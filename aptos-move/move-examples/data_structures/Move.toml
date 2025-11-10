@@ -3,7 +3,8 @@ name = "DataStructure"
 version = "0.0.1"
 
 [dependencies]
-AptosStdlib = { local = "../../framework/aptos-stdlib" }
+AptosStdlib = { local = ".../../../framework/aptos-std" }
+SupraFramework = { local = ".../../../framework/supra-framework" }
 
 [addresses]
 std = "0x1"

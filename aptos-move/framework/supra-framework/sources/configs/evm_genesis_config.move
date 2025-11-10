@@ -50,7 +50,7 @@ module supra_framework::evm_genesis_config {
     public(friend) fun on_new_epoch(framework: &signer) {
         system_addresses::assert_supra_framework(framework);
         if (config_buffer::does_exist<EvmGenesisConfig>()) {
-            let new_config = config_buffer::extract<EvmGenesisConfig>();
+            let new_config = config_buffer::extract_v2<EvmGenesisConfig>();
             if (!exists<EvmGenesisConfig>(@supra_framework)) {
                 move_to(framework, new_config);
                 event::emit(EvmGenesisEvent {});

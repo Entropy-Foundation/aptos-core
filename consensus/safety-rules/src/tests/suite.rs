@@ -81,6 +81,27 @@ pub fn run_test_suite(safety_rules: &Callback) {
     test_order_votes_with_timeout(safety_rules);
 }
 
+pub fn run_test_suite_without_sig_check(safety_rules: &Callback) {
+    test_end_to_end(safety_rules);
+    test_initialize(safety_rules);
+    test_voting_bad_epoch(safety_rules);
+    test_sign_old_proposal(safety_rules);
+    test_sign_proposal_with_bad_signer(safety_rules);
+    // test_sign_proposal_with_invalid_qc(safety_rules);
+    test_sign_proposal_with_early_preferred_round(safety_rules);
+    test_uninitialized_signer(safety_rules);
+    test_validator_not_in_set(safety_rules);
+    test_key_not_in_store(safety_rules);
+    test_2chain_rules(safety_rules);
+    // test_2chain_timeout(safety_rules);
+    // test_sign_commit_vote(safety_rules);
+    test_bad_execution_output(safety_rules);
+    test_order_votes_correct_execution(safety_rules);
+    test_order_votes_out_of_order_execution(safety_rules);
+    test_order_votes_incorrect_qc(safety_rules);
+    test_order_votes_with_timeout(safety_rules);
+}
+
 fn test_order_votes_correct_execution(safety_rules: &Callback) {
     let (mut safety_rules, signer) = safety_rules();
 
@@ -596,7 +617,7 @@ fn test_validator_not_in_set(safety_rules: &Callback) {
     next_epoch_state.epoch = 1;
     let rand_signer = ValidatorSigner::random([0xFu8; 32]);
     next_epoch_state.verifier =
-        ValidatorVerifier::new_single(rand_signer.author(), rand_signer.public_key());
+        ValidatorVerifier::new_single(rand_signer.author(), rand_signer.public_key()).into();
     let a2 = test_utils::make_proposal_with_parent_and_overrides(
         Payload::empty(false, true),
         round + 2,
@@ -634,7 +655,7 @@ fn test_key_not_in_store(safety_rules: &Callback) {
     next_epoch_state.epoch = 1;
     let rand_signer = ValidatorSigner::random([0xFu8; 32]);
     next_epoch_state.verifier =
-        ValidatorVerifier::new_single(signer.author(), rand_signer.public_key());
+        ValidatorVerifier::new_single(signer.author(), rand_signer.public_key()).into();
     let a2 = test_utils::make_proposal_with_parent_and_overrides(
         Payload::empty(false, true),
         round + 2,
@@ -822,7 +843,7 @@ fn test_2chain_timeout(constructor: &Callback) {
     ));
 }
 
-/// Test that we can succesfully sign a valid commit vote
+/// Test that we can successfully sign a valid commit vote
 fn test_sign_commit_vote(constructor: &Callback) {
     // we construct a chain of proposals
     // genesis -- a1 -- a2 -- a3

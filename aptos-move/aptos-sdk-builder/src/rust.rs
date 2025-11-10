@@ -2,6 +2,7 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+// TODO[Orderless]: Update the sdk builder to generate transactions with new payload format
 use crate::common;
 use aptos_types::transaction::{
     ArgumentABI, EntryABI, EntryFunctionABI, TransactionScriptABI, TypeArgumentABI,
@@ -737,7 +738,7 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
                 U8 => ("U8Vector", "Some(value)".to_string()),
                 _ => common::type_not_allowed(type_tag),
             },
-            Struct(_) | Signer => common::type_not_allowed(type_tag),
+            Struct(_) | Signer | Function(..) => common::type_not_allowed(type_tag),
         };
         writeln!(
             self.out,
@@ -880,7 +881,7 @@ fn decode_{}_argument(arg: TransactionArgument) -> Option<{}> {{
                 tag if &**tag == Lazy::force(&str_tag) => "Vec<u8>".into(),
                 _ => common::type_not_allowed(type_tag),
             },
-            Signer => common::type_not_allowed(type_tag),
+            Signer | Function(..) => common::type_not_allowed(type_tag),
         }
     }
 
@@ -909,7 +910,7 @@ fn decode_{}_argument(arg: TransactionArgument) -> Option<{}> {{
                 _ => common::type_not_allowed(type_tag),
             },
 
-            Struct(_) | Signer => common::type_not_allowed(type_tag),
+            Struct(_) | Signer | Function(..) => common::type_not_allowed(type_tag),
         }
     }
 }

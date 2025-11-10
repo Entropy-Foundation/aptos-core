@@ -19,7 +19,7 @@ use aptos_sdk::move_types::{
 use aptos_types::{account_address::AccountAddress, chain_id::ChainId};
 use futures::future::BoxFuture;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{convert::Infallible, fmt::LowerHex, future::Future, str::FromStr};
+use std::{collections::HashSet, convert::Infallible, fmt::LowerHex, future::Future, str::FromStr};
 use warp::Filter;
 
 /// The year 2000 in milliseconds, as this is the lower limit for Rosetta API implementations
@@ -27,6 +27,9 @@ pub const Y2K_MS: u64 = 946713600000;
 pub const BLOCKCHAIN: &str = "aptos";
 
 /// Checks the request network matches the server network
+///
+/// These fields are passed in on every request, and basically prevents non-Aptos and matching chain-id
+/// requests from going through and messing things up.
 pub fn check_network(
     network_identifier: NetworkIdentifier,
     server_context: &RosettaContext,
@@ -49,6 +52,7 @@ pub fn with_context(
     warp::any().map(move || context.clone())
 }
 
+/// Fills in an empty request for any REST API path that doesn't take any input body
 pub fn with_empty_request() -> impl Filter<Extract = (MetadataRequest,), Error = Infallible> + Clone
 {
     warp::any().map(move || MetadataRequest {})
@@ -92,6 +96,7 @@ where
     }
 }
 
+/// Retrieves an account's information by its address
 pub async fn get_account(
     rest_client: &aptos_rest_client::Client,
     address: AccountAddress,
@@ -119,16 +124,20 @@ pub fn strip_hex_prefix(str: &str) -> &str {
     str.strip_prefix("0x").unwrap_or(str)
 }
 
+/// Encodes the object into BCS, handling errors
 pub fn encode_bcs<T: Serialize>(obj: &T) -> ApiResult<String> {
     let bytes = bcs::to_bytes(obj)?;
     Ok(hex::encode(bytes))
 }
 
+/// Decodes the object from BCS, handling errors
 pub fn decode_bcs<T: DeserializeOwned>(str: &str, type_name: &'static str) -> ApiResult<T> {
     let bytes = hex::decode(str)?;
     bcs::from_bytes(&bytes).map_err(|_| ApiError::deserialization_failed(type_name))
 }
 
+/// Decodes a CryptoMaterial (key, signature, etc.) from Hex
+/// TODO: Rename to decode_crypto_material
 pub fn decode_key<T: DeserializeOwned + ValidCryptoMaterial>(
     str: &str,
     type_name: &'static str,
@@ -136,19 +145,24 @@ pub fn decode_key<T: DeserializeOwned + ValidCryptoMaterial>(
     T::from_encoded_string(str).map_err(|_| ApiError::deserialization_failed(type_name))
 }
 
-const DEFAULT_COIN: &str = "SUPRA";
-const DEFAULT_DECIMALS: u8 = 8;
+const APT_SYMBOL: &str = "SUPRA";
+const APT_DECIMALS: u8 = 8;
 
+/// Provides the [Currency] for 0x1::aptos_coin::AptosCoin aka APT
+///
+/// Note that 0xA is the address for FA, but it has to be skipped in order to have backwards compatibility
 pub fn native_coin() -> Currency {
     Currency {
-        symbol: DEFAULT_COIN.to_string(),
-        decimals: DEFAULT_DECIMALS,
+        symbol: APT_SYMBOL.to_string(),
+        decimals: APT_DECIMALS,
         metadata: Some(CurrencyMetadata {
-            move_type: native_coin_tag().to_string(),
+            move_type: Some(native_coin_tag().to_canonical_string()),
+            fa_address: None,
         }),
     }
 }
 
+/// Provides the [TypeTag] for 0x1::aptos_coin::AptosCoin aka APT
 pub fn native_coin_tag() -> TypeTag {
     TypeTag::Struct(Box::new(StructTag {
         address: AccountAddress::ONE,
@@ -158,34 +172,112 @@ pub fn native_coin_tag() -> TypeTag {
     }))
 }
 
-pub fn is_native_coin(currency: &Currency) -> ApiResult<()> {
-    if currency == &native_coin() {
-        Ok(())
+#[inline]
+pub fn is_native_coin(fa_address: AccountAddress) -> bool {
+    fa_address == AccountAddress::TEN
+}
+
+const USDC_SYMBOL: &str = "USDC";
+const USDC_DECIMALS: u8 = 6;
+const USDC_ADDRESS: &str = "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b";
+const USDC_TESTNET_ADDRESS: &str =
+    "0x69091fbab5f7d635ee7ac5098cf0c1efbe31d68fec0f2cd565e8d168daf52832";
+pub fn usdc_currency() -> Currency {
+    Currency {
+        symbol: USDC_SYMBOL.to_string(),
+        decimals: USDC_DECIMALS,
+        metadata: Some(CurrencyMetadata {
+            move_type: None,
+            fa_address: Some(USDC_ADDRESS.to_string()),
+        }),
+    }
+}
+
+pub fn usdc_testnet_currency() -> Currency {
+    Currency {
+        symbol: USDC_SYMBOL.to_string(),
+        decimals: USDC_DECIMALS,
+        metadata: Some(CurrencyMetadata {
+            move_type: None,
+            fa_address: Some(USDC_TESTNET_ADDRESS.to_string()),
+        }),
+    }
+}
+
+pub fn find_coin_currency(currencies: &HashSet<Currency>, type_tag: &TypeTag) -> Option<Currency> {
+    currencies
+        .iter()
+        .find(|currency| {
+            if let Some(CurrencyMetadata {
+                move_type: Some(ref move_type),
+                fa_address: _,
+            }) = currency.metadata
+            {
+                move_type == &type_tag.to_canonical_string()
+            } else {
+                false
+            }
+        })
+        .cloned()
+}
+pub fn find_fa_currency(
+    currencies: &HashSet<Currency>,
+    metadata_address: AccountAddress,
+) -> Option<Currency> {
+    if is_native_coin(metadata_address) {
+        Some(native_coin())
     } else {
-        Err(ApiError::UnsupportedCurrency(Some(currency.symbol.clone())))
+        let val = currencies
+            .iter()
+            .find(|currency| {
+                if let Some(CurrencyMetadata {
+                    move_type: _,
+                    fa_address: Some(ref fa_address),
+                }) = currency.metadata
+                {
+                    // TODO: Probably want to cache this
+                    AccountAddress::from_str(fa_address)
+                        .map(|addr| addr == metadata_address)
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
+            })
+            .cloned();
+        val
     }
 }
 
 /// Determines which block to pull for the request
+///
+/// Inputs can give hash, index, or both
 pub async fn get_block_index_from_request(
     server_context: &RosettaContext,
     partial_block_identifier: Option<PartialBlockIdentifier>,
 ) -> ApiResult<u64> {
     Ok(match partial_block_identifier {
+        // If Index and hash are provided, we use index, because it's easier to use.
+        // Note, we don't handle if they mismatch.
+        //
+        // This is required.  Rosetta originally only took one or the other, and this failed in
+        // integration testing.
         Some(PartialBlockIdentifier {
             index: Some(block_index),
             hash: Some(_),
         }) => block_index,
+
         // Lookup by block index
         Some(PartialBlockIdentifier {
             index: Some(block_index),
             hash: None,
         }) => block_index,
+
         // Lookup by block hash
         Some(PartialBlockIdentifier {
             index: None,
             hash: Some(hash),
         }) => BlockHash::from_str(&hash)?.block_height(server_context.chain_id)?,
+
         // Lookup latest version
         _ => {
             let response = server_context
@@ -199,6 +291,10 @@ pub async fn get_block_index_from_request(
     })
 }
 
+/// BlockHash is not actually the block hash!  This was a hack put in, since we don't actually have
+/// [BlockHash] indexable.  Instead, it just returns the combination of [ChainId] and the block_height (aka index).
+///
+/// The [BlockHash] string format is `chain_id-block_height`
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct BlockHash {
     chain_id: ChainId,
@@ -213,6 +309,9 @@ impl BlockHash {
         }
     }
 
+    /// Fetch the block height
+    ///
+    /// We verify the chain_id to ensure it is the correct network
     pub fn block_height(&self, expected_chain_id: ChainId) -> ApiResult<u64> {
         if expected_chain_id != self.chain_id {
             Err(ApiError::InvalidInput(Some(format!(
@@ -228,9 +327,11 @@ impl BlockHash {
 impl FromStr for BlockHash {
     type Err = ApiError;
 
+    /// Parses `chain_id-block_height`
     fn from_str(str: &str) -> Result<Self, Self::Err> {
         let mut iter = str.split('-');
 
+        // It must start with a chain-id
         let chain_id = if let Some(maybe_chain_id) = iter.next() {
             ChainId::from_str(maybe_chain_id).map_err(|_| {
                 ApiError::InvalidInput(Some(format!(
@@ -245,6 +346,7 @@ impl FromStr for BlockHash {
             ))));
         };
 
+        // Chain id must be followed after a `-` with block height
         let block_height = if let Some(maybe_block_height) = iter.next() {
             u64::from_str(maybe_block_height).map_err(|_| {
                 ApiError::InvalidInput(Some(format!(
@@ -259,6 +361,7 @@ impl FromStr for BlockHash {
             ))));
         };
 
+        // Don't allow any more hyphens or characters
         if iter.next().is_some() {
             Err(ApiError::InvalidInput(Some(format!(
                 "Invalid block hash, too many hyphens {}",
@@ -281,14 +384,27 @@ pub fn to_hex_lower<T: LowerHex>(obj: &T) -> String {
 }
 
 /// Retrieves the currency from the given parameters
-/// TODO: What do do about the type params?
-pub fn parse_currency(address: AccountAddress, module: &str, name: &str) -> ApiResult<Currency> {
-    match (address, module, name) {
-        (AccountAddress::ONE, APTOS_COIN_MODULE, APTOS_COIN_RESOURCE) => Ok(native_coin()),
-        _ => Err(ApiError::TransactionParseError(Some(format!(
-            "Invalid coin for transfer {}::{}::{}",
-            address, module, name
-        )))),
+pub fn parse_coin_currency(
+    server_context: &RosettaContext,
+    struct_tag: &StructTag,
+) -> ApiResult<Currency> {
+    if let Some(currency) = server_context.currencies.iter().find(|currency| {
+        if let Some(move_type) = currency
+            .metadata
+            .as_ref()
+            .and_then(|inner| inner.move_type.as_ref())
+        {
+            struct_tag.to_canonical_string() == *move_type
+        } else {
+            false
+        }
+    }) {
+        Ok(currency.clone())
+    } else {
+        Err(ApiError::TransactionParseError(Some(format!(
+            "Invalid coin for transfer {}",
+            struct_tag.to_canonical_string()
+        ))))
     }
 }
 

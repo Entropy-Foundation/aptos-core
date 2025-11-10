@@ -44,17 +44,15 @@ impl TransactionGenerator for PublishPackageGenerator {
             .package_handler
             .write()
             .pick_package(&mut self.rng, account.address());
-        let txn = account.sign_with_transaction_builder(
-            self.txn_factory
-                .payload(package.publish_transaction_payload()),
-        );
-        requests.push(txn);
-        // use module published
-        // for _ in 1..transactions_per_account - 1 {
-        for _ in 1..num_to_create {
-            let request = package.use_random_transaction(&mut self.rng, account, &self.txn_factory);
-            requests.push(request);
+
+        for payload in package.publish_transaction_payload(&self.txn_factory.get_chain_id()) {
+            let txn = account.sign_with_transaction_builder(self.txn_factory.payload(payload));
+            requests.push(txn);
         }
+        // for _ in 1..num_to_create {
+        //     let request = package.use_random_transaction(&mut self.rng, account, &self.txn_factory);
+        //     requests.push(request);
+        // }
         // republish
         // let package = self
         //     .package_handler
@@ -72,10 +70,10 @@ pub struct PublishPackageCreator {
 }
 
 impl PublishPackageCreator {
-    pub fn new(txn_factory: TransactionFactory) -> Self {
+    pub fn new(txn_factory: TransactionFactory, package_handler: PackageHandler) -> Self {
         Self {
             txn_factory,
-            package_handler: Arc::new(RwLock::new(PackageHandler::new("simple"))),
+            package_handler: Arc::new(RwLock::new(package_handler)),
         }
     }
 }

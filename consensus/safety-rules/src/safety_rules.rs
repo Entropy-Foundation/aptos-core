@@ -32,7 +32,7 @@ use aptos_types::{
     waypoint::Waypoint,
 };
 use serde::Serialize;
-use std::cmp::Ordering;
+use std::{cmp::Ordering, sync::Arc};
 
 pub(crate) fn next_round(round: Round) -> Result<Round, Error> {
     u64::checked_add(round, 1).ok_or(Error::IncorrectRound(round))
@@ -43,16 +43,20 @@ pub struct SafetyRules {
     pub(crate) persistent_storage: PersistentSafetyStorage,
     pub(crate) validator_signer: Option<ValidatorSigner>,
     pub(crate) epoch_state: Option<EpochState>,
+    // Skip verification of signatures and well-formed, this can be set if it's used in local mode
+    // where consensus already verifies.
+    pub(crate) skip_sig_verify: bool,
 }
 
 impl SafetyRules {
     /// Constructs a new instance of SafetyRules with the given persistent storage and the
     /// consensus private keys
-    pub fn new(persistent_storage: PersistentSafetyStorage) -> Self {
+    pub fn new(persistent_storage: PersistentSafetyStorage, skip_sig_verify: bool) -> Self {
         Self {
             persistent_storage,
             validator_signer: None,
             epoch_state: None,
+            skip_sig_verify,
         }
     }
 
@@ -67,9 +71,11 @@ impl SafetyRules {
         self.verify_epoch(proposed_block.epoch(), &safety_data)?;
 
         self.verify_qc(proposed_block.quorum_cert())?;
-        proposed_block
-            .validate_signature(&self.epoch_state()?.verifier)
-            .map_err(|error| Error::InvalidProposal(error.to_string()))?;
+        if !self.skip_sig_verify {
+            proposed_block
+                .validate_signature(&self.epoch_state()?.verifier)
+                .map_err(|error| Error::InvalidProposal(error.to_string()))?;
+        }
         proposed_block
             .verify_well_formed()
             .map_err(|error| Error::InvalidProposal(error.to_string()))?;
@@ -230,8 +236,10 @@ impl SafetyRules {
     pub(crate) fn verify_qc(&self, qc: &QuorumCert) -> Result<(), Error> {
         let epoch_state = self.epoch_state()?;
 
-        qc.verify(&epoch_state.verifier)
-            .map_err(|e| Error::InvalidQuorumCertificate(e.to_string()))?;
+        if !self.skip_sig_verify {
+            qc.verify(&epoch_state.verifier)
+                .map_err(|e| Error::InvalidQuorumCertificate(e.to_string()))?;
+        }
         Ok(())
     }
 
@@ -316,13 +324,10 @@ impl SafetyRules {
                     Ok(())
                 } else {
                     // Try to export the consensus key directly from storage.
-                    match self
-                        .persistent_storage
-                        .consensus_key_for_version(expected_key)
-                    {
+                    match self.persistent_storage.consensus_sk_by_pk(expected_key) {
                         Ok(consensus_key) => {
                             self.validator_signer =
-                                Some(ValidatorSigner::new(author, consensus_key));
+                                Some(ValidatorSigner::new(author, Arc::new(consensus_key)));
                             Ok(())
                         },
                         Err(Error::SecureStorageMissingDataError(error)) => {
@@ -333,12 +338,9 @@ impl SafetyRules {
                 }
             },
         };
-        initialize_result.map_err(|error| {
-            info!(
-                SafetyLogSchema::new(LogEntry::KeyReconciliation, LogEvent::Error).error(&error),
-            );
+        initialize_result.inspect_err(|error| {
+            info!(SafetyLogSchema::new(LogEntry::KeyReconciliation, LogEvent::Error).error(error),);
             self.validator_signer = None;
-            error
         })
     }
 
@@ -377,7 +379,17 @@ impl SafetyRules {
 
         let old_ledger_info = ledger_info.ledger_info();
 
-        if !old_ledger_info.commit_info().is_ordered_only() {
+        if !old_ledger_info.commit_info().is_ordered_only()
+            // When doing fast forward sync, we pull the latest blocks and quorum certs from peers
+            // and store them in storage. We then compute the root ordered cert and root commit cert
+            // from storage and start the consensus from there. But given that we are not storing the
+            // ordered cert obtained from order votes in storage, instead of obtaining the root ordered cert
+            // from storage, we set root ordered cert to commit certificate.
+            // This means, the root ordered cert will not have a dummy executed_state_id in this case.
+            // To handle this, we do not raise error if the old_ledger_info.commit_info() matches with
+            // new_ledger_info.commit_info().
+            && old_ledger_info.commit_info() != new_ledger_info.commit_info()
+        {
             return Err(Error::InvalidOrderedLedgerInfo(old_ledger_info.to_string()));
         }
 
@@ -392,9 +404,11 @@ impl SafetyRules {
         }
 
         // Verify that ledger_info contains at least 2f + 1 dostinct signatures
-        ledger_info
-            .verify_signatures(&self.epoch_state()?.verifier)
-            .map_err(|error| Error::InvalidQuorumCertificate(error.to_string()))?;
+        if !self.skip_sig_verify {
+            ledger_info
+                .verify_signatures(&self.epoch_state()?.verifier)
+                .map_err(|error| Error::InvalidQuorumCertificate(error.to_string()))?;
+        }
 
         // TODO: add guarding rules in unhappy path
         // TODO: add extension check
@@ -476,14 +490,12 @@ where
     trace!(log_cb(SafetyLogSchema::new(log_entry, LogEvent::Request)));
     counters::increment_query(log_entry.as_str(), "request");
     callback()
-        .map(|v| {
+        .inspect(|_v| {
             trace!(log_cb(SafetyLogSchema::new(log_entry, LogEvent::Success)));
             counters::increment_query(log_entry.as_str(), "success");
-            v
         })
-        .map_err(|err| {
-            warn!(log_cb(SafetyLogSchema::new(log_entry, LogEvent::Error)).error(&err));
+        .inspect_err(|err| {
+            warn!(log_cb(SafetyLogSchema::new(log_entry, LogEvent::Error)).error(err));
             counters::increment_query(log_entry.as_str(), "error");
-            err
         })
 }

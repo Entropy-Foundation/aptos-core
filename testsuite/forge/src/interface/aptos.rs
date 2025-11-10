@@ -9,7 +9,6 @@ use aptos_logger::info;
 use aptos_rest_client::{Client as RestClient, PendingTransaction, State, Transaction};
 use aptos_sdk::{
     crypto::ed25519::Ed25519PublicKey,
-    move_types::identifier::Identifier,
     transaction_builder::TransactionFactory,
     types::{
         account_address::AccountAddress,
@@ -104,7 +103,7 @@ impl<'t> AptosContext<'t> {
             .await
     }
 
-    pub async fn get_balance(&self, address: AccountAddress) -> Option<u64> {
+    pub async fn get_balance(&self, address: AccountAddress) -> u64 {
         self.public_info.get_balance(address).await
     }
 
@@ -113,6 +112,7 @@ impl<'t> AptosContext<'t> {
     }
 }
 
+#[derive(Clone)]
 pub struct AptosPublicInfo {
     chain_id: ChainId,
     inspection_service_url: Url,
@@ -248,25 +248,12 @@ impl AptosPublicInfo {
         execution_hash
     }
 
-    pub async fn get_balance(&self, address: AccountAddress) -> Option<u64> {
-        let module = Identifier::new("coin".to_string()).unwrap();
-        let name = Identifier::new("CoinStore".to_string()).unwrap();
+    pub async fn get_balance(&self, address: AccountAddress) -> u64 {
         self.rest_client
-            .get_account_resources(address)
+            .get_account_balance(address, "0x1::aptos_coin::AptosCoin")
             .await
             .unwrap()
             .into_inner()
-            .into_iter()
-            .find(|r| r.resource_type.name == name && r.resource_type.module == module)
-            .and_then(|coin| {
-                coin.data
-                    .get("coin")
-                    .unwrap()
-                    .get("value")
-                    .unwrap()
-                    .as_str()
-                    .and_then(|s| s.parse::<u64>().ok())
-            })
     }
 
     pub async fn account_exists(&self, address: AccountAddress) -> Result<()> {
@@ -331,20 +318,12 @@ pub async fn reconfig(
     transaction_factory: &TransactionFactory,
     root_account: Arc<LocalAccount>,
 ) -> State {
-    let aptos_version = client.get_aptos_version().await.unwrap();
-    let current = aptos_version.into_inner();
-    let current_version = *current.major.inner();
     let txns = {
-        vec![
-            root_account.sign_with_transaction_builder(transaction_factory.clone().payload(
-                aptos_stdlib::version_set_for_next_epoch(current_version + 1),
-            )),
-            root_account.sign_with_transaction_builder(
-                transaction_factory
-                    .clone()
-                    .payload(aptos_stdlib::supra_governance_force_end_epoch_test_only()),
-            ),
-        ]
+        vec![root_account.sign_with_transaction_builder(
+            transaction_factory
+                .clone()
+                .payload(aptos_stdlib::supra_governance_force_end_epoch_test_only()),
+        )]
     };
 
     submit_and_wait_reconfig(client, txns).await
@@ -362,7 +341,7 @@ pub async fn submit_and_wait_reconfig(
     let result = client.submit_and_wait(&last_txn).await;
     if let Err(e) = result {
         let last_transactions = client
-            .get_account_transactions(last_txn.sender(), None, None)
+            .get_account_ordered_transactions(last_txn.sender(), None, None)
             .await
             .map(|result| {
                 result

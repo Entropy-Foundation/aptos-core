@@ -1,20 +1,18 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{emitter::query_sequence_number, instance::Instance, ClusterArgs};
+use crate::{emitter::load_specific_account, instance::Instance, ClusterArgs};
 use anyhow::{anyhow, bail, format_err, Result};
 use aptos_crypto::{
     ed25519::{Ed25519PrivateKey, Ed25519PublicKey},
     test_utils::KeyPair,
 };
-use aptos_logger::{info, warn};
 use aptos_rest_client::{Client as RestClient, State};
-use aptos_sdk::types::{
-    account_config::aptos_test_root_address, chain_id::ChainId, AccountKey, LocalAccount,
-};
+use aptos_sdk::types::{chain_id::ChainId, AccountKey, LocalAccount};
 use futures::{stream::FuturesUnordered, StreamExt};
+use log::{info, warn};
 use rand::seq::SliceRandom;
-use std::{convert::TryFrom, time::Instant};
+use std::convert::TryFrom;
 use url::Url;
 
 #[derive(Debug)]
@@ -44,7 +42,7 @@ impl Cluster {
 
         let mut instance_states = Vec::new();
         let mut errors = Vec::new();
-        let start = Instant::now();
+        let fetch_timestamp = aptos_infallible::duration_since_epoch().as_secs();
         let futures = FuturesUnordered::new();
         for url in &peers {
             let instance = Instance::new(
@@ -64,7 +62,7 @@ impl Cluster {
         }
 
         let results: Vec<_> = futures.collect().await;
-        let fetch_time_s = start.elapsed().as_secs();
+
         for (instance, result) in results {
             match result {
                 Ok(v) => instance_states.push((instance, v.into_inner())),
@@ -91,6 +89,13 @@ impl Cluster {
             .map(|(_, s)| s.timestamp_usecs / 1000000)
             .max()
             .unwrap();
+        if max_timestamp + 10 < fetch_timestamp {
+            return Err(anyhow!(
+                "None of the rest endpoints provided have chain timestamp within 10s of local time: {} < {}",
+                max_timestamp,
+                fetch_timestamp,
+            ));
+        }
 
         let chain_id_from_instances = get_chain_id_from_instances(instance_states.clone())?;
         let chain_id: ChainId = match maybe_chain_id {
@@ -113,18 +118,19 @@ impl Cluster {
                     state.chain_id,
                     chain_id.id(),
                 );
-            } else if state_timestamp + 20 + fetch_time_s < max_timestamp {
+            } else if state_timestamp + 10 < fetch_timestamp {
                 warn!(
-                    "Excluding Client {} too stale, {}, while chain at {} (delta of {}s)",
+                    "Excluding Client {} too stale, {}, while current time when fetching is {} (delta of {}s)",
                     instance.peer_name(),
                     state_timestamp,
-                    max_timestamp,
-                    max_timestamp - state_timestamp,
+                    fetch_timestamp,
+                    fetch_timestamp - state_timestamp,
                 );
             } else {
                 info!(
-                    "Client {} is healthy, adding to the list of end points for load testing",
-                    instance.peer_name()
+                    "Client {} is healthy ({}s delay), adding to the list of end points for load testing",
+                    instance.peer_name(),
+                    fetch_timestamp.saturating_sub(state_timestamp),
                 );
                 instances.push(instance);
             }
@@ -200,22 +206,7 @@ impl Cluster {
     }
 
     pub async fn load_coin_source_account(&self, client: &RestClient) -> Result<LocalAccount> {
-        let account_key = self.account_key();
-        let address = if self.coin_source_is_root {
-            aptos_test_root_address()
-        } else {
-            account_key.authentication_key().account_address()
-        };
-
-        let sequence_number = query_sequence_number(client, address).await.map_err(|e| {
-            format_err!(
-                "query_sequence_number on {:?} for account {} failed: {:?}",
-                client,
-                address,
-                e
-            )
-        })?;
-        Ok(LocalAccount::new(address, account_key, sequence_number))
+        load_specific_account(self.account_key(), self.coin_source_is_root, client).await
     }
 
     pub fn random_instance(&self) -> Instance {

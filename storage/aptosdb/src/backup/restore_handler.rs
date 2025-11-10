@@ -17,7 +17,7 @@ use aptos_types::{
     ledger_info::LedgerInfoWithSignatures,
     proof::definition::LeafCount,
     state_store::{state_key::StateKey, state_value::StateValue},
-    transaction::{Transaction, TransactionInfo, Version},
+    transaction::{PersistedAuxiliaryInfo, Transaction, TransactionInfo, Version},
     write_set::WriteSet,
 };
 use std::sync::Arc;
@@ -80,6 +80,7 @@ impl RestoreHandler {
         &self,
         first_version: Version,
         txns: &[Transaction],
+        persisted_aux_info: &[PersistedAuxiliaryInfo],
         txn_infos: &[TransactionInfo],
         events: &[Vec<ContractEvent>],
         write_sets: Vec<WriteSet>,
@@ -89,6 +90,7 @@ impl RestoreHandler {
             self.ledger_db.clone(),
             first_version,
             txns,
+            persisted_aux_info,
             txn_infos,
             events,
             write_sets,
@@ -97,10 +99,15 @@ impl RestoreHandler {
         )
     }
 
+    pub fn force_state_version_for_kv_restore(&self, version: Option<Version>) -> Result<()> {
+        self.state_store.init_state_ignoring_summary(version)
+    }
+
     pub fn save_transactions_and_replay_kv(
         &self,
         first_version: Version,
         txns: &[Transaction],
+        persisted_aux_info: &[PersistedAuxiliaryInfo],
         txn_infos: &[TransactionInfo],
         events: &[Vec<ContractEvent>],
         write_sets: Vec<WriteSet>,
@@ -110,6 +117,7 @@ impl RestoreHandler {
             self.ledger_db.clone(),
             first_version,
             txns,
+            persisted_aux_info,
             txn_infos,
             events,
             write_sets,
@@ -119,24 +127,22 @@ impl RestoreHandler {
     }
 
     pub fn get_next_expected_transaction_version(&self) -> Result<Version> {
-        Ok(self.aptosdb.get_synced_version().map_or(0, |ver| ver + 1))
+        Ok(self.aptosdb.get_synced_version()?.map_or(0, |ver| ver + 1))
     }
 
     pub fn get_state_snapshot_before(
         &self,
         version: Version,
     ) -> Result<Option<(Version, HashValue)>> {
-        self.aptosdb
-            .get_state_snapshot_before(version)
-            .map_err(Into::into)
+        self.aptosdb.get_state_snapshot_before(version)
     }
 
     pub fn get_in_progress_state_kv_snapshot_version(&self) -> Result<Option<Version>> {
-        let db = self.aptosdb.ledger_db.metadata_db_arc();
+        let db = self.aptosdb.state_kv_db.metadata_db_arc();
         let mut iter = db.iter::<DbMetadataSchema>()?;
         iter.seek_to_first();
         while let Some((k, _v)) = iter.next().transpose()? {
-            if let DbMetadataKey::StateSnapshotRestoreProgress(version) = k {
+            if let DbMetadataKey::StateSnapshotKvRestoreProgress(version) = k {
                 return Ok(Some(version));
             }
         }

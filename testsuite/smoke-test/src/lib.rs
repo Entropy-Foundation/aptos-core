@@ -5,6 +5,8 @@
 extern crate core;
 
 #[cfg(test)]
+mod account_abstraction;
+#[cfg(test)]
 mod aptos;
 #[cfg(test)]
 mod aptos_cli;
@@ -12,6 +14,8 @@ mod aptos_cli;
 mod client;
 #[cfg(test)]
 mod consensus;
+#[cfg(test)]
+mod consensus_key_rotation;
 #[cfg(test)]
 mod consensus_observer;
 #[cfg(test)]
@@ -32,6 +36,10 @@ mod jwks;
 mod keyless;
 #[cfg(test)]
 mod network;
+#[cfg(test)]
+mod permissioned_delegation;
+#[cfg(test)]
+mod priority_fee;
 #[cfg(test)]
 mod randomness;
 #[cfg(test)]
@@ -64,5 +72,7 @@ mod utils;
 #[cfg(test)]
 mod validator_txns;
 
+#[cfg(test)]
+mod execution_pool;
 #[cfg(test)]
 mod workspace_builder;

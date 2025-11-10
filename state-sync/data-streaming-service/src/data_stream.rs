@@ -555,8 +555,9 @@ impl<T: AptosDataClientInterface + Send + Clone + 'static> DataStream<T> {
         // Get the highest version sent in the subscription response
         let highest_response_version = match response_payload {
             ResponsePayload::NewTransactionsWithProof((transactions_with_proof, _)) => {
-                if let Some(first_version) = transactions_with_proof.first_transaction_version {
-                    let num_transactions = transactions_with_proof.transactions.len();
+                if let Some(first_version) = transactions_with_proof.get_first_transaction_version()
+                {
+                    let num_transactions = transactions_with_proof.get_num_transactions();
                     first_version
                         .saturating_add(num_transactions as u64)
                         .saturating_sub(1) // first_version + num_txns - 1
@@ -567,8 +568,8 @@ impl<T: AptosDataClientInterface + Send + Clone + 'static> DataStream<T> {
                 }
             },
             ResponsePayload::NewTransactionOutputsWithProof((outputs_with_proof, _)) => {
-                if let Some(first_version) = outputs_with_proof.first_transaction_output_version {
-                    let num_outputs = outputs_with_proof.transactions_and_outputs.len();
+                if let Some(first_version) = outputs_with_proof.get_first_output_version() {
+                    let num_outputs = outputs_with_proof.get_num_outputs();
                     first_version
                         .saturating_add(num_outputs as u64)
                         .saturating_sub(1) // first_version + num_outputs - 1
@@ -588,9 +589,12 @@ impl<T: AptosDataClientInterface + Send + Clone + 'static> DataStream<T> {
             .advertised_data
             .highest_synced_ledger_info()
             .map(|ledger_info| ledger_info.ledger_info().version())
-            .ok_or(aptos_data_client::error::Error::UnexpectedErrorEncountered(
-                "The highest synced ledger info is missing from the global data summary!".into(),
-            ))?;
+            .ok_or_else(|| {
+                aptos_data_client::error::Error::UnexpectedErrorEncountered(
+                    "The highest synced ledger info is missing from the global data summary!"
+                        .into(),
+                )
+            })?;
 
         // If the stream is not lagging behind, reset the lag and return
         if highest_response_version >= highest_advertised_version {
@@ -837,16 +841,6 @@ impl<T: AptosDataClientInterface + Send + Clone + 'static> DataStream<T> {
                 .ok_or_else(|| {
                     Error::IntegerOverflow("Number of entries to remove has overflown!".into())
                 })?;
-
-            debug!(
-                (LogSchema::new(LogEntry::StreamNotification)
-                    .stream_id(self.data_stream_id)
-                    .event(LogEvent::Success)
-                    .message(&format!(
-                        "Garbage collecting {:?} items from the notification response map.",
-                        num_entries_to_remove
-                    )))
-            );
 
             // Collect all the keys that need to removed. Note: BTreeMap keys
             // are sorted, so we'll remove the lowest notification IDs. These
@@ -1172,7 +1166,7 @@ fn create_missing_transactions_request(
     match response_payload {
         ResponsePayload::TransactionsWithProof(transactions_with_proof) => {
             // Check if the request was satisfied
-            let num_received_transactions = transactions_with_proof.transactions.len() as u64;
+            let num_received_transactions = transactions_with_proof.get_num_transactions() as u64;
             if num_received_transactions < num_requested_transactions {
                 let start_version = request
                     .start_version
@@ -1217,9 +1211,7 @@ fn create_missing_transaction_outputs_request(
     match response_payload {
         ResponsePayload::TransactionOutputsWithProof(transaction_outputs_with_proof) => {
             // Check if the request was satisfied
-            let num_received_outputs = transaction_outputs_with_proof
-                .transactions_and_outputs
-                .len() as u64;
+            let num_received_outputs = transaction_outputs_with_proof.get_num_outputs() as u64;
             if num_received_outputs < num_requested_outputs {
                 let start_version = request
                     .start_version
@@ -1264,12 +1256,10 @@ fn create_missing_transactions_or_outputs_request(
     // Calculate the number of received data items
     let num_received_data_items = match response_payload {
         ResponsePayload::TransactionsWithProof(transactions_with_proof) => {
-            transactions_with_proof.transactions.len() as u64
+            transactions_with_proof.get_num_transactions() as u64
         },
         ResponsePayload::TransactionOutputsWithProof(transaction_outputs_with_proof) => {
-            transaction_outputs_with_proof
-                .transactions_and_outputs
-                .len() as u64
+            transaction_outputs_with_proof.get_num_outputs() as u64
         },
         payload => {
             return Err(Error::AptosDataClientResponseIsInvalid(format!(

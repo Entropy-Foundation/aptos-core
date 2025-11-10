@@ -3,7 +3,10 @@
 
 //! This module defines the gas parameters for all Move instructions.
 
-use crate::gas_schedule::VMGasParameters;
+use crate::{
+    gas_feature_versions::{RELEASE_V1_18, RELEASE_V1_33},
+    gas_schedule::VMGasParameters,
+};
 use aptos_gas_algebra::{
     InternalGas, InternalGasPerAbstractValueUnit, InternalGasPerArg, InternalGasPerByte,
     InternalGasPerTypeNode,
@@ -43,8 +46,23 @@ crate::gas_schedule::macros::define_gas_parameters!(
         [mut_borrow_loc: InternalGas, "mut_borrow_loc", 220],
         [imm_borrow_field: InternalGas, "imm_borrow_field", 735],
         [mut_borrow_field: InternalGas, "mut_borrow_field", 735],
-        [imm_borrow_field_generic: InternalGas, "imm_borrow_field_generic", 735],
+        [imm_borrow_field_generic: InternalGas, "imm_borrow_field_generic" , 735],
         [mut_borrow_field_generic: InternalGas, "mut_borrow_field_generic", 735],
+        [imm_borrow_variant_field: InternalGas,
+            { RELEASE_V1_18.. => "imm_borrow_variant_field" }, 835],
+        [mut_borrow_variant_field: InternalGas,
+            { RELEASE_V1_18.. => "mut_borrow_variant_field" }, 835],
+        [imm_borrow_variant_field_generic: InternalGas,
+            { RELEASE_V1_18.. => "imm_borrow_variant_field_generic" }, 835],
+        [mut_borrow_variant_field_generic: InternalGas,
+            { RELEASE_V1_18.. => "mut_borrow_variant_field_generic" }, 835],
+
+        // variant testing
+        [test_variant: InternalGas,
+            { RELEASE_V1_18.. => "test_variant" }, 535],
+        [test_variant_generic: InternalGas,
+            { RELEASE_V1_18.. => "test_variant_generic" }, 535],
+
         // locals
         [copy_loc_base: InternalGas, "copy_loc.base", 294],
         [copy_loc_per_abs_val_unit: InternalGasPerAbstractValueUnit, "copy_loc.per_abs_val_unit", 14],
@@ -67,6 +85,10 @@ crate::gas_schedule::macros::define_gas_parameters!(
         [unpack_per_field: InternalGasPerArg, "unpack.per_field", 147],
         [unpack_generic_base: InternalGas, "unpack_generic.base", 808],
         [unpack_generic_per_field: InternalGasPerArg, "unpack_generic.per_field", 147],
+        [pack_closure_base: InternalGas, { RELEASE_V1_33.. => "pack_closure.base" }, 908],
+        [pack_closure_per_arg: InternalGasPerArg,  { RELEASE_V1_33.. => "pack.closure.per_arg" }, 147],
+        [pack_closure_generic_base: InternalGas,  { RELEASE_V1_33.. => "pack_closure_generic.base" }, 908],
+        [pack_closure_generic_per_arg: InternalGasPerArg,  { RELEASE_V1_33.. => "pack_closure_generic.per_arg" }, 147],
         // ref
         [read_ref_base: InternalGas, "read_ref.base", 735],
         [read_ref_per_abs_val_unit: InternalGasPerAbstractValueUnit, "read_ref.per_abs_val_unit", 14],

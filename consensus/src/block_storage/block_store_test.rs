@@ -6,11 +6,10 @@ use crate::{
     block_storage::{block_store::sync_manager::NeedFetchResult, BlockReader},
     pending_votes::{PendingVotes, VoteReceptionResult},
     test_utils::{
-        build_empty_tree, build_simple_tree, consensus_runtime, timed_block_on, TreeInserter,
+        build_default_empty_tree, build_simple_tree, consensus_runtime, timed_block_on,
+        TreeInserter,
     },
-    util::mock_time_service::SimulatedTimeService,
 };
-use aptos_config::config::QcAggregatorType;
 use aptos_consensus_types::{
     block::{
         block_test_utils::{
@@ -27,9 +26,8 @@ use aptos_crypto::{HashValue, PrivateKey};
 use aptos_types::{
     validator_signer::ValidatorSigner, validator_verifier::random_validator_verifier,
 };
-use futures_channel::mpsc::unbounded;
 use proptest::prelude::*;
-use std::{cmp::min, collections::HashSet, sync::Arc};
+use std::{cmp::min, collections::HashSet};
 
 #[tokio::test]
 async fn test_highest_block_and_quorum_cert() {
@@ -124,7 +122,7 @@ proptest! {
             |key| Author::from_bytes(&key.public_key().to_bytes()[0..32]).unwrap()
         ).collect();
         let runtime = consensus_runtime();
-        let block_store = build_empty_tree();
+        let block_store = build_default_empty_tree();
         for block in blocks {
             if block.round() > 0 && authors.contains(&block.author().unwrap()) {
                 let known_parent = block_store.block_exists(block.parent_id());
@@ -157,6 +155,9 @@ proptest! {
 
 #[tokio::test]
 async fn test_block_store_prune() {
+    //       ╭--> A1--> A2--> A3
+    // Genesis--> B1--> B2
+    //             ╰--> C1
     let (blocks, block_store) = build_simple_tree().await;
     // Attempt to prune genesis block (should be no-op)
     assert_eq!(block_store.prune_tree(blocks[0].id()).len(), 0);
@@ -284,11 +285,8 @@ async fn test_insert_vote() {
     let block = inserter
         .insert_block_with_qc(certificate_for_genesis(), &genesis, 1)
         .await;
-    let time_service = Arc::new(SimulatedTimeService::new());
-    let (delayed_qc_tx, _) = unbounded();
 
-    let mut pending_votes =
-        PendingVotes::new(time_service, delayed_qc_tx, QcAggregatorType::NoDelay);
+    let mut pending_votes = PendingVotes::new();
 
     assert!(block_store.get_quorum_cert_for_block(block.id()).is_none());
     for (i, voter) in signers.iter().enumerate().take(10).skip(1) {
@@ -296,7 +294,7 @@ async fn test_insert_vote() {
             VoteData::new(
                 block.block().gen_block_info(
                     block.compute_result().root_hash(),
-                    block.compute_result().version(),
+                    block.compute_result().last_version_or_0(),
                     block.compute_result().epoch_state().clone(),
                 ),
                 block.quorum_cert().certified_block().clone(),
@@ -325,7 +323,7 @@ async fn test_insert_vote() {
         VoteData::new(
             block.block().gen_block_info(
                 block.compute_result().root_hash(),
-                block.compute_result().version(),
+                block.compute_result().last_version_or_0(),
                 block.compute_result().epoch_state().clone(),
             ),
             block.quorum_cert().certified_block().clone(),
@@ -354,7 +352,7 @@ async fn test_insert_vote() {
 #[tokio::test]
 async fn test_illegal_timestamp() {
     let signer = ValidatorSigner::random(None);
-    let block_store = build_empty_tree();
+    let block_store = build_default_empty_tree();
     let genesis = block_store.ordered_root();
     let block_with_illegal_timestamp = Block::new_proposal(
         Payload::empty(false, true),

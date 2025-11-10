@@ -3,29 +3,30 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![allow(deprecated)]
+//! Defines normalized representations of Move types, fields, kinds, structs, functions, and
+//! modules. These representations are useful in situations that require require comparing
+//! functions, resources, and types across modules. This arises in linking, compatibility checks
+//! (e.g., "is it safe to deploy this new module without updating its dependents and/or restarting
+//! genesis?"), defining schemas for resources stored on-chain, and (possibly in the future)
+//! allowing module updates transactions.
 
 use crate::{
     access::ModuleAccess,
+    errors::{PartialVMError, PartialVMResult},
     file_format::{
-        AbilitySet, CompiledModule, FieldDefinition, FunctionDefinition, SignatureToken,
-        StructDefinition, StructFieldInformation, StructTypeParameter, TypeParameterIndex,
-        Visibility,
+        CompiledModule, FieldDefinition, FunctionDefinition, SignatureToken, StructDefinition,
+        StructFieldInformation, StructTypeParameter, TypeParameterIndex, Visibility,
     },
 };
 use move_core_types::{
+    ability::AbilitySet,
     account_address::AccountAddress,
     identifier::{IdentStr, Identifier},
     language_storage::{ModuleId, StructTag, TypeTag},
+    vm_status::StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-
-/// Defines normalized representations of Move types, fields, kinds, structs, functions, and
-/// modules. These representations are useful in situations that require require comparing
-/// functions, resources, and types across modules. This arises in linking, compatibility checks
-/// (e.g., "is it safe to deploy this new module without updating its dependents and/or restarting
-/// genesis?"), defining schemas for resources stored on-chain, and (possibly in the future)
-/// allowing module updates transactions.
 
 /// A normalized version of `SignatureToken`, a type expression appearing in struct or function
 /// declarations. Unlike `SignatureToken`s, `normalized::Type`s from different modules can safely be
@@ -115,9 +116,13 @@ impl Module {
     /// Extract a normalized module from a `CompiledModule`. The module `m` should be verified.
     /// Nothing will break here if that is not the case, but there is little point in computing a
     /// normalized representation of a module that won't verify (since it can't be published).
-    pub fn new(m: &CompiledModule) -> Self {
+    pub fn new(m: &CompiledModule) -> PartialVMResult<Self> {
         let friends = m.immediate_friends();
-        let structs = m.struct_defs().iter().map(|d| Struct::new(m, d)).collect();
+        let structs = m
+            .struct_defs()
+            .iter()
+            .map(|d| Struct::new(m, d))
+            .collect::<PartialVMResult<BTreeMap<_, _>>>()?;
         let exposed_functions = m
             .function_defs()
             .iter()
@@ -132,14 +137,14 @@ impl Module {
             .map(|func_def| Function::new(m, func_def))
             .collect();
 
-        Self {
+        Ok(Self {
             file_format_version: m.version(),
             address: *m.address(),
             name: m.name().to_owned(),
             friends,
             structs,
             exposed_functions,
-        }
+        })
     }
 
     pub fn module_id(&self) -> ModuleId {
@@ -186,6 +191,8 @@ impl Type {
             TypeParameter(i) => Type::TypeParameter(*i),
             Reference(t) => Type::Reference(Box::new(Type::new(m, t))),
             MutableReference(t) => Type::MutableReference(Box::new(Type::new(m, t))),
+
+            Function(..) => panic!("normalized representation does not support function types"),
         }
     }
 
@@ -302,7 +309,7 @@ impl Field {
 impl Struct {
     /// Create a `Struct` for `StructDefinition` `def` in module `m`. Panics if `def` is a
     /// a native struct definition.
-    pub fn new(m: &CompiledModule, def: &StructDefinition) -> (Identifier, Self) {
+    pub fn new(m: &CompiledModule, def: &StructDefinition) -> PartialVMResult<(Identifier, Self)> {
         let handle = m.struct_handle_at(def.struct_handle);
         let fields = match &def.field_information {
             StructFieldInformation::Native => {
@@ -312,6 +319,13 @@ impl Struct {
             StructFieldInformation::Declared(fields) => {
                 fields.iter().map(|f| Field::new(m, f)).collect()
             },
+            StructFieldInformation::DeclaredVariants(..) => {
+                // If we run into this it means that the legacy compatibility checker is run
+                // which is based on deprecated normalized representation since the new one
+                // is feature gated.
+                return Err(PartialVMError::new(StatusCode::FEATURE_NOT_ENABLED)
+                    .with_message("enum types".to_string()));
+            },
         };
         let name = m.identifier_at(handle.name).to_owned();
         let s = Struct {
@@ -319,7 +333,7 @@ impl Struct {
             type_parameters: handle.type_parameters.clone(),
             fields,
         };
-        (name, s)
+        Ok((name, s))
     }
 
     pub fn type_param_constraints(&self) -> impl ExactSizeIterator<Item = &AbilitySet> {
@@ -383,6 +397,7 @@ impl From<TypeTag> for Type {
                 name: s.name,
                 type_arguments: s.type_args.into_iter().map(|ty| ty.into()).collect(),
             },
+            TypeTag::Function(_) => panic!("function types not supported in normalized types"),
         }
     }
 }

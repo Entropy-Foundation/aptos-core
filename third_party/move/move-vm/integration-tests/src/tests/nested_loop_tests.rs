@@ -1,19 +1,34 @@
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::compiler::{as_module, as_script, compile_units};
+use crate::{
+    compiler::{as_module, as_script, compile_units},
+    tests::execute_script_for_test,
+};
+use claims::{assert_err, assert_ok};
 use move_bytecode_verifier::VerifierConfig;
 use move_core_types::account_address::AccountAddress;
-use move_vm_runtime::{config::VMConfig, module_traversal::*, move_vm::MoveVM};
+use move_vm_runtime::{
+    config::VMConfig, AsUnsyncModuleStorage, RuntimeEnvironment, StagingModuleStorage,
+};
 use move_vm_test_utils::InMemoryStorage;
-use move_vm_types::gas::UnmeteredGasMeter;
 
 const TEST_ADDR: AccountAddress = AccountAddress::new([42; AccountAddress::LENGTH]);
 
+fn initialize_storage(max_loop_depth: usize) -> InMemoryStorage {
+    let vm_config = VMConfig {
+        verifier_config: VerifierConfig {
+            max_loop_depth: Some(max_loop_depth),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let runtime_environment = RuntimeEnvironment::new_with_config(vec![], vm_config);
+    InMemoryStorage::new_with_runtime_environment(runtime_environment)
+}
+
 #[test]
 fn test_publish_module_with_nested_loops() {
-    // Compile the modules and scripts.
-    // TODO: find a better way to include the Signer module.
     let code = r#"
         module {{ADDR}}::M {
             fun foo() {
@@ -37,53 +52,27 @@ fn test_publish_module_with_nested_loops() {
 
     // Should succeed with max_loop_depth = 2
     {
-        let storage = InMemoryStorage::new();
-        let vm = MoveVM::new_with_config(
-            move_stdlib::natives::all_natives(
-                AccountAddress::from_hex_literal("0x1").unwrap(),
-                move_stdlib::natives::GasParameters::zeros(),
-            ),
-            VMConfig {
-                verifier_config: VerifierConfig {
-                    max_loop_depth: Some(2),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-        );
+        let storage = initialize_storage(2);
 
-        let mut sess = vm.new_session(&storage);
-        sess.publish_module(m_blob.clone(), TEST_ADDR, &mut UnmeteredGasMeter)
-            .unwrap();
+        let module_storage = storage.as_unsync_module_storage();
+        let result =
+            StagingModuleStorage::create(&TEST_ADDR, &module_storage, vec![m_blob.clone().into()]);
+        assert_ok!(result);
     }
 
     // Should fail with max_loop_depth = 1
     {
-        let storage = InMemoryStorage::new();
-        let vm = MoveVM::new_with_config(
-            move_stdlib::natives::all_natives(
-                AccountAddress::from_hex_literal("0x1").unwrap(),
-                move_stdlib::natives::GasParameters::zeros(),
-            ),
-            VMConfig {
-                verifier_config: VerifierConfig {
-                    max_loop_depth: Some(1),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-        );
+        let storage = initialize_storage(1);
 
-        let mut sess = vm.new_session(&storage);
-        sess.publish_module(m_blob, TEST_ADDR, &mut UnmeteredGasMeter)
-            .unwrap_err();
+        let module_storage = storage.as_unsync_module_storage();
+        let result =
+            StagingModuleStorage::create(&TEST_ADDR, &module_storage, vec![m_blob.clone().into()]);
+        assert!(result.is_err());
     }
 }
 
 #[test]
 fn test_run_script_with_nested_loops() {
-    // Compile the modules and scripts.
-    // TODO: find a better way to include the Signer module.
     let code = r#"
         script {
             fun main() {
@@ -104,63 +93,18 @@ fn test_run_script_with_nested_loops() {
     let s = as_script(units.pop().unwrap());
     let mut s_blob: Vec<u8> = vec![];
     s.serialize(&mut s_blob).unwrap();
-    let traversal_storage = TraversalStorage::new();
 
     // Should succeed with max_loop_depth = 2
     {
-        let storage = InMemoryStorage::new();
-        let vm = MoveVM::new_with_config(
-            move_stdlib::natives::all_natives(
-                AccountAddress::from_hex_literal("0x1").unwrap(),
-                move_stdlib::natives::GasParameters::zeros(),
-            ),
-            VMConfig {
-                verifier_config: VerifierConfig {
-                    max_loop_depth: Some(2),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-        );
-
-        let mut sess = vm.new_session(&storage);
-        let args: Vec<Vec<u8>> = vec![];
-        sess.execute_script(
-            s_blob.clone(),
-            vec![],
-            args,
-            &mut UnmeteredGasMeter,
-            &mut TraversalContext::new(&traversal_storage),
-        )
-        .unwrap();
+        let storage = initialize_storage(2);
+        let result = execute_script_for_test(&storage, &s_blob, &[], vec![]);
+        assert_ok!(result);
     }
 
     // Should fail with max_loop_depth = 1
     {
-        let storage = InMemoryStorage::new();
-        let vm = MoveVM::new_with_config(
-            move_stdlib::natives::all_natives(
-                AccountAddress::from_hex_literal("0x1").unwrap(),
-                move_stdlib::natives::GasParameters::zeros(),
-            ),
-            VMConfig {
-                verifier_config: VerifierConfig {
-                    max_loop_depth: Some(1),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-        );
-
-        let mut sess = vm.new_session(&storage);
-        let args: Vec<Vec<u8>> = vec![];
-        sess.execute_script(
-            s_blob,
-            vec![],
-            args,
-            &mut UnmeteredGasMeter,
-            &mut TraversalContext::new(&traversal_storage),
-        )
-        .unwrap_err();
+        let storage = initialize_storage(1);
+        let result = execute_script_for_test(&storage, &s_blob, &[], vec![]);
+        assert_err!(result);
     }
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::views::{TypeView, ValueView};
+use ambassador::delegatable_trait;
 use move_binary_format::{
     errors::PartialVMResult, file_format::CodeOffset, file_format_common::Opcodes,
 };
@@ -31,6 +32,12 @@ pub enum SimpleInstruction {
     MutBorrowField,
     ImmBorrowFieldGeneric,
     MutBorrowFieldGeneric,
+    ImmBorrowVariantField,
+    MutBorrowVariantField,
+    ImmBorrowVariantFieldGeneric,
+    MutBorrowVariantFieldGeneric,
+    TestVariant,
+    TestVariantGeneric,
 
     CastU8,
     CastU64,
@@ -89,6 +96,12 @@ impl SimpleInstruction {
             MutBorrowField => MUT_BORROW_FIELD,
             ImmBorrowFieldGeneric => IMM_BORROW_FIELD_GENERIC,
             MutBorrowFieldGeneric => MUT_BORROW_FIELD_GENERIC,
+            ImmBorrowVariantField => IMM_BORROW_VARIANT_FIELD,
+            MutBorrowVariantField => MUT_BORROW_VARIANT_FIELD,
+            ImmBorrowVariantFieldGeneric => IMM_BORROW_VARIANT_FIELD_GENERIC,
+            MutBorrowVariantFieldGeneric => MUT_BORROW_VARIANT_FIELD_GENERIC,
+            TestVariant => TEST_VARIANT,
+            TestVariantGeneric => TEST_VARIANT_GENERIC,
 
             CastU8 => CAST_U8,
             CastU64 => CAST_U64,
@@ -126,9 +139,38 @@ impl SimpleInstruction {
     }
 }
 
+/// Metering API for module or script dependencies. Defined as a stand-alone trait so it can be
+/// used in native context.
+///
+/// Note: because native functions are trait objects, it is not possible to make [GasMeter] a trait
+/// object as well as it has APIs that are generic.
+#[delegatable_trait]
+pub trait DependencyGasMeter {
+    fn charge_dependency(
+        &mut self,
+        is_new: bool,
+        addr: &AccountAddress,
+        name: &IdentStr,
+        size: NumBytes,
+    ) -> PartialVMResult<()>;
+}
+
+/// Gas meter to use to meter native function.
+pub trait NativeGasMeter: DependencyGasMeter {
+    /// Returns the remaining gas budget of the meter. Same as [GasMeter::balance_internal] and
+    /// will be removed in the future.
+    fn legacy_gas_budget_in_native_context(&self) -> InternalGas;
+
+    /// Charges the given gas amount. Only used if metering in native context is enabled.
+    fn charge_native_execution(&mut self, amount: InternalGas) -> PartialVMResult<()>;
+
+    /// Tracks heap memory usage.
+    fn use_heap_memory_in_native_context(&mut self, amount: u64) -> PartialVMResult<()>;
+}
+
 /// Trait that defines a generic gas meter interface, allowing clients of the Move VM to implement
 /// their own metering scheme.
-pub trait GasMeter {
+pub trait GasMeter: NativeGasMeter {
     fn balance_internal(&self) -> InternalGas;
 
     /// Charge an instruction and fail if not enough gas units are left.
@@ -176,7 +218,31 @@ pub trait GasMeter {
         args: impl ExactSizeIterator<Item = impl ValueView> + Clone,
     ) -> PartialVMResult<()>;
 
+    fn charge_pack_variant(
+        &mut self,
+        is_generic: bool,
+        args: impl ExactSizeIterator<Item = impl ValueView> + Clone,
+    ) -> PartialVMResult<()> {
+        // Currently mapped to pack, can be specialized if needed
+        self.charge_pack(is_generic, args)
+    }
+
     fn charge_unpack(
+        &mut self,
+        is_generic: bool,
+        args: impl ExactSizeIterator<Item = impl ValueView> + Clone,
+    ) -> PartialVMResult<()>;
+
+    fn charge_unpack_variant(
+        &mut self,
+        is_generic: bool,
+        args: impl ExactSizeIterator<Item = impl ValueView> + Clone,
+    ) -> PartialVMResult<()> {
+        // Currently mapped to pack, can be specialized if needed
+        self.charge_unpack(is_generic, args)
+    }
+
+    fn charge_pack_closure(
         &mut self,
         is_generic: bool,
         args: impl ExactSizeIterator<Item = impl ValueView> + Clone,
@@ -300,19 +366,37 @@ pub trait GasMeter {
     ) -> PartialVMResult<()>;
 
     fn charge_create_ty(&mut self, num_nodes: NumTypeNodes) -> PartialVMResult<()>;
-
-    fn charge_dependency(
-        &mut self,
-        is_new: bool,
-        addr: &AccountAddress,
-        name: &IdentStr,
-        size: NumBytes,
-    ) -> PartialVMResult<()>;
 }
 
 /// A dummy gas meter that does not meter anything.
 /// Charge operations will always succeed.
 pub struct UnmeteredGasMeter;
+
+impl DependencyGasMeter for UnmeteredGasMeter {
+    fn charge_dependency(
+        &mut self,
+        _is_new: bool,
+        _addr: &AccountAddress,
+        _name: &IdentStr,
+        _size: NumBytes,
+    ) -> PartialVMResult<()> {
+        Ok(())
+    }
+}
+
+impl NativeGasMeter for UnmeteredGasMeter {
+    fn legacy_gas_budget_in_native_context(&self) -> InternalGas {
+        u64::MAX.into()
+    }
+
+    fn charge_native_execution(&mut self, _amount: InternalGas) -> PartialVMResult<()> {
+        Ok(())
+    }
+
+    fn use_heap_memory_in_native_context(&mut self, _amount: u64) -> PartialVMResult<()> {
+        Ok(())
+    }
+}
 
 impl GasMeter for UnmeteredGasMeter {
     fn balance_internal(&self) -> InternalGas {
@@ -392,6 +476,14 @@ impl GasMeter for UnmeteredGasMeter {
     }
 
     fn charge_unpack(
+        &mut self,
+        _is_generic: bool,
+        _args: impl ExactSizeIterator<Item = impl ValueView>,
+    ) -> PartialVMResult<()> {
+        Ok(())
+    }
+
+    fn charge_pack_closure(
         &mut self,
         _is_generic: bool,
         _args: impl ExactSizeIterator<Item = impl ValueView>,
@@ -541,16 +633,6 @@ impl GasMeter for UnmeteredGasMeter {
     }
 
     fn charge_create_ty(&mut self, _num_nodes: NumTypeNodes) -> PartialVMResult<()> {
-        Ok(())
-    }
-
-    fn charge_dependency(
-        &mut self,
-        _is_new: bool,
-        _addr: &AccountAddress,
-        _name: &IdentStr,
-        _size: NumBytes,
-    ) -> PartialVMResult<()> {
         Ok(())
     }
 }

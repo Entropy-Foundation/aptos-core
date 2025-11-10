@@ -5,18 +5,22 @@ use crate::{
     args::{ClusterArgs, EmitArgs},
     cluster::Cluster,
     emitter::{
-        create_accounts, local_account_generator::PrivateKeyAccountGenerator, parse_seed,
-        stats::TxnStats, EmitJobMode, EmitJobRequest, NumAccountsMode, TxnEmitter,
+        account_minter::bulk_create_accounts,
+        get_needed_balance_per_account_from_req,
+        local_account_generator::{create_keyless_account_generator, PrivateKeyAccountGenerator},
+        stats::TxnStats,
+        transaction_executor::RestApiReliableTransactionSubmitter,
+        EmitJobMode, EmitJobRequest, NumAccountsMode, TxnEmitter,
     },
     instance::Instance,
     CreateAccountsArgs,
 };
 use anyhow::{bail, Context, Result};
-use aptos_config::config::DEFAULT_MAX_SUBMIT_TRANSACTION_BATCH_SIZE;
-use aptos_logger::{error, info};
 use aptos_sdk::transaction_builder::TransactionFactory;
-use aptos_transaction_generator_lib::{args::TransactionTypeArg, WorkflowProgress};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use aptos_transaction_generator_lib::{AccountType, TransactionType};
+use aptos_types::{account_address::AccountAddress, keyless::test_utils::get_sample_esk};
+use log::{error, info};
+use rand::{rngs::StdRng, SeedableRng};
 use std::{
     sync::Arc,
     time::{Duration, Instant},
@@ -25,12 +29,13 @@ use std::{
 pub async fn emit_transactions(
     cluster_args: &ClusterArgs,
     emit_args: &EmitArgs,
+    transaction_mix_per_phase: Vec<Vec<(TransactionType, usize)>>,
 ) -> Result<TxnStats> {
     if emit_args.coordination_delay_between_instances.is_none() {
         let cluster = Cluster::try_from_cluster_args(cluster_args)
             .await
             .context("Failed to build cluster")?;
-        emit_transactions_with_cluster(&cluster, emit_args).await
+        emit_transactions_with_cluster(&cluster, emit_args, transaction_mix_per_phase).await
     } else {
         let initial_delay_after_minting = emit_args.coordination_delay_between_instances.unwrap();
         let start_time = Instant::now();
@@ -57,7 +62,12 @@ pub async fn emit_transactions(
                 .await
                 .context("Failed to build cluster")?;
 
-            let result = emit_transactions_with_cluster(&cluster, &cur_emit_args).await;
+            let result = emit_transactions_with_cluster(
+                &cluster,
+                &cur_emit_args,
+                transaction_mix_per_phase.clone(),
+            )
+            .await;
             match result {
                 Ok(value) => return Ok(value),
                 Err(e) => {
@@ -72,6 +82,7 @@ pub async fn emit_transactions(
 pub async fn emit_transactions_with_cluster(
     cluster: &Cluster,
     args: &EmitArgs,
+    transaction_mix_per_phase: Vec<Vec<(TransactionType, usize)>>,
 ) -> Result<TxnStats> {
     let emitter_mode = EmitJobMode::create(args.mempool_backlog, args.target_tps);
 
@@ -83,16 +94,9 @@ pub async fn emit_transactions_with_cluster(
             .with_transaction_expiration_time(args.txn_expiration_time_secs)
             .with_gas_unit_price(aptos_global_constants::GAS_UNIT_PRICE),
         StdRng::from_entropy(),
+        client,
     );
 
-    let transaction_mix_per_phase = TransactionTypeArg::args_to_transaction_mix_per_phase(
-        &args.transaction_type,
-        &args.transaction_weights,
-        &args.transaction_phases,
-        args.module_working_set_size.unwrap_or(1),
-        args.sender_use_account_pool.unwrap_or(false),
-        WorkflowProgress::when_done_default(),
-    );
     let mut emit_job_request =
         EmitJobRequest::new(cluster.all_instances().map(Instance::rest_client).collect())
             .mode(emitter_mode)
@@ -101,6 +105,29 @@ pub async fn emit_transactions_with_cluster(
             .coordination_delay_between_instances(Duration::from_secs(
                 args.coordination_delay_between_instances.unwrap_or(0),
             ));
+
+    if let Some(keyless_ephem_secret_key) = &args.account_type_args.keyless_ephem_secret_key {
+        emit_job_request = emit_job_request
+            .account_type(AccountType::Keyless)
+            .keyless_ephem_secret_key(keyless_ephem_secret_key.private_key());
+        emit_job_request = emit_job_request.epk_expiry_date_secs(
+            args.account_type_args
+                .epk_expiry_date_secs
+                .expect("epk expiry should be set"),
+        );
+        emit_job_request = emit_job_request.proof_file_path(
+            args.account_type_args
+                .proof_file_path
+                .as_ref()
+                .expect("proof file path should be set"),
+        );
+        emit_job_request = emit_job_request.keyless_jwt(
+            args.account_type_args
+                .keyless_jwt
+                .as_ref()
+                .expect("jwt should be set"),
+        )
+    }
 
     let num_accounts =
         NumAccountsMode::create(args.num_accounts, args.max_transactions_per_account);
@@ -156,8 +183,8 @@ pub async fn emit_transactions_with_cluster(
             .latency_polling_interval(Duration::from_secs_f32(latency_polling_interval_s));
     }
 
-    if args.skip_minting_accounts {
-        emit_job_request = emit_job_request.skip_minting_accounts();
+    if args.skip_funding_accounts {
+        emit_job_request = emit_job_request.skip_funding_accounts();
     }
 
     let coin_source_account = std::sync::Arc::new(coin_source_account);
@@ -185,30 +212,50 @@ pub async fn create_accounts_command(
     let txn_factory = TransactionFactory::new(cluster.chain_id)
         .with_transaction_expiration_time(60)
         .with_max_gas_amount(create_accounts_args.max_gas_per_txn);
-    let emit_job_request =
-        EmitJobRequest::new(cluster.all_instances().map(Instance::rest_client).collect())
-            .init_gas_price_multiplier(1)
-            .expected_gas_per_txn(create_accounts_args.max_gas_per_txn)
-            .max_gas_per_txn(create_accounts_args.max_gas_per_txn)
-            .coins_per_account_override(0)
-            .expected_max_txns(0)
-            .prompt_before_spending();
-    let seed = match &create_accounts_args.account_minter_seed {
-        Some(str) => parse_seed(str),
-        None => StdRng::from_entropy().gen(),
+    let rest_clients = cluster
+        .all_instances()
+        .map(Instance::rest_client)
+        .collect::<Vec<_>>();
+    let mut emit_job_request = EmitJobRequest::new(rest_clients.clone())
+        .init_gas_price_multiplier(1)
+        .expected_gas_per_txn(create_accounts_args.max_gas_per_txn)
+        .max_gas_per_txn(create_accounts_args.max_gas_per_txn)
+        .coins_per_account_override(0)
+        .expected_max_txns(0)
+        .prompt_before_spending();
+
+    if let Some(seed) = &create_accounts_args.account_minter_seed {
+        emit_job_request = emit_job_request.account_minter_seed(seed);
+    }
+
+    let account_generator = if let Some(jwt) = &create_accounts_args.keyless_jwt {
+        emit_job_request = emit_job_request.keyless_jwt(jwt);
+        let keyless_config = client
+            .get_resource(AccountAddress::ONE, "0x1::keyless_account::Configuration")
+            .await?
+            .into_inner();
+
+        create_keyless_account_generator(
+            get_sample_esk(),
+            0,
+            jwt,
+            create_accounts_args.proof_file_path.as_deref(),
+            keyless_config,
+        )?
+    } else {
+        Box::new(PrivateKeyAccountGenerator)
     };
 
-    create_accounts(
+    bulk_create_accounts(
         coin_source_account,
+        &RestApiReliableTransactionSubmitter::new(rest_clients, 6, Duration::from_secs(10)),
         &txn_factory,
-        Box::new(PrivateKeyAccountGenerator),
-        &emit_job_request,
-        DEFAULT_MAX_SUBMIT_TRANSACTION_BATCH_SIZE,
-        false,
-        seed,
+        account_generator,
+        (&emit_job_request).into(),
         create_accounts_args.count,
-        4,
+        get_needed_balance_per_account_from_req(&emit_job_request, create_accounts_args.count),
     )
     .await?;
+
     Ok(())
 }

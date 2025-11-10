@@ -3,11 +3,14 @@
 
 use anyhow::ensure;
 use aptos_consensus_types::{
-    common::BatchPayload,
-    proof_of_store::{BatchId, BatchInfo},
+    common::{BatchPayload, TxnSummaryWithExpiration},
+    proof_of_store::BatchInfo,
 };
 use aptos_crypto::{hash::CryptoHash, HashValue};
-use aptos_types::{ledger_info::LedgerInfoWithSignatures, transaction::SignedTransaction, PeerId};
+use aptos_types::{
+    ledger_info::LedgerInfoWithSignatures, quorum_store::BatchId, transaction::SignedTransaction,
+    PeerId,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
@@ -56,6 +59,27 @@ impl PersistedValue {
 
     pub fn payload(&self) -> &Option<Vec<SignedTransaction>> {
         &self.maybe_payload
+    }
+
+    pub fn summary(&self) -> Vec<TxnSummaryWithExpiration> {
+        if let Some(payload) = &self.maybe_payload {
+            return payload
+                .iter()
+                .map(|txn| {
+                    TxnSummaryWithExpiration::new(
+                        txn.sender(),
+                        txn.replay_protector(),
+                        txn.expiration_timestamp_secs(),
+                        txn.committed_hash(),
+                    )
+                })
+                .collect();
+        }
+        vec![]
+    }
+
+    pub fn unpack(self) -> (BatchInfo, Option<Vec<SignedTransaction>>) {
+        (self.info, self.maybe_payload)
     }
 }
 
@@ -170,6 +194,10 @@ impl Batch {
 
     pub fn into_transactions(self) -> Vec<SignedTransaction> {
         self.payload.into_transactions()
+    }
+
+    pub fn txns(&self) -> &[SignedTransaction] {
+        self.payload.txns()
     }
 
     pub fn batch_info(&self) -> &BatchInfo {
@@ -294,8 +322,8 @@ impl BatchMsg {
         Ok(epoch)
     }
 
-    pub fn author(&self) -> PeerId {
-        self.batches[0].author()
+    pub fn author(&self) -> Option<PeerId> {
+        self.batches.first().map(|batch| batch.author())
     }
 
     pub fn take(self) -> Vec<Batch> {

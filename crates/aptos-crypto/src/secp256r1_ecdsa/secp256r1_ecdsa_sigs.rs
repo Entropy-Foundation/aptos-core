@@ -35,7 +35,7 @@ impl Signature {
 
     /// Deserialize an P256Signature, without checking for malleability
     /// Uses the SEC1 serialization format.
-    pub(crate) fn from_bytes_unchecked(
+    pub fn from_bytes_unchecked(
         bytes: &[u8],
     ) -> std::result::Result<Signature, CryptoMaterialError> {
         match p256::ecdsa::Signature::try_from(bytes) {
@@ -152,6 +152,8 @@ impl Length for Signature {
 }
 
 impl ValidCryptoMaterial for Signature {
+    const AIP_80_PREFIX: &'static str = "secp256r1-sig-";
+
     fn to_bytes(&self) -> Vec<u8> {
         self.to_bytes().to_vec()
     }

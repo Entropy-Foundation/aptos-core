@@ -1,0 +1,27 @@
+
+============ disassembled file-format ==================
+// Move bytecode v8
+module cafe.Module0 {
+struct S {
+	x: bool
+}
+
+public f(): S /* def_idx: 0 */ {
+L0:	s: S
+L1:	$t5: bool
+B0:
+	0: LdFalse
+	1: Pack[0](S)
+	2: StLoc[0](s: S)
+	3: LdTrue
+	4: ImmBorrowLoc[0](s: S)
+	5: ImmBorrowField[0](S.x: bool)
+	6: ReadRef
+	7: StLoc[1]($t5: bool)
+	8: MutBorrowLoc[1]($t5: bool)
+	9: WriteRef
+	10: MoveLoc[0](s: S)
+	11: Ret
+}
+}
+============ bytecode verification succeeded ========

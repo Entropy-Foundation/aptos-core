@@ -3,6 +3,7 @@
 
 use crate::{built_package::BuiltPackage, natives::code::PackageMetadata, path_in_crate};
 use anyhow::Context;
+use aptos_crypto::HashValue;
 use aptos_types::account_address::AccountAddress;
 use move_binary_format::{access::ModuleAccess, errors::PartialVMError, CompiledModule};
 use move_command_line_common::files::{extension_equals, find_filenames, MOVE_EXTENSION};
@@ -167,7 +168,7 @@ impl ReleasePackage {
         out: PathBuf,
         function_name: String,
     ) -> anyhow::Result<()> {
-        self.generate_script_proposal_impl(for_address, out, false, false, None, function_name)
+        self.generate_script_proposal_impl(for_address, out, false, false, None)
     }
 
     pub fn generate_script_proposal_testnet(
@@ -176,7 +177,7 @@ impl ReleasePackage {
         out: PathBuf,
         function_name: String,
     ) -> anyhow::Result<()> {
-        self.generate_script_proposal_impl(for_address, out, true, false, None, function_name)
+        self.generate_script_proposal_impl(for_address, out, true, false, None)
     }
 
     pub fn generate_script_proposal_multi_step(
@@ -184,7 +185,6 @@ impl ReleasePackage {
         for_address: AccountAddress,
         out: PathBuf,
         next_execution_hash: Option<HashValue>,
-        function_name: String
     ) -> anyhow::Result<()> {
         self.generate_script_proposal_impl(for_address, out, true, true, next_execution_hash, function_name)
     }
@@ -196,7 +196,6 @@ impl ReleasePackage {
         is_testnet: bool,
         is_multi_step: bool,
         next_execution_hash: Option<HashValue>,
-        function_name: String,
     ) -> anyhow::Result<()> {
         let writer = CodeWriter::new(Loc::default());
         emitln!(
@@ -234,14 +233,14 @@ impl ReleasePackage {
         } else {
             emitln!(writer, "fun {} (proposal_id: u64) {{", function_name);
             writer.indent();
-            Self::generate_next_execution_hash_blob(&writer, for_address, next_execution_hash);
+            generate_next_execution_hash_blob(&writer, for_address, next_execution_hash);
         }
 
         emitln!(writer, "let code = vector::empty();");
 
         for i in 0..self.code.len() {
             emitln!(writer, "let chunk{} = ", i);
-            Self::generate_blob_as_hex_string(&writer, &self.code[i]);
+            generate_blob_as_hex_string(&writer, &self.code[i]);
             emitln!(writer, ";");
             emitln!(writer, "vector::push_back(&mut code, chunk{});", i);
         }
@@ -262,7 +261,7 @@ impl ReleasePackage {
             };
             let chunk = metadata.drain(0..to_drain).collect::<Vec<_>>();
             emit!(writer, "let chunk{} = ", i);
-            Self::generate_blob_as_hex_string(&writer, &chunk);
+            generate_blob_as_hex_string(&writer, &chunk);
             emitln!(writer, ";")
         }
 
@@ -281,21 +280,31 @@ impl ReleasePackage {
         writer.process_result(|s| std::fs::write(&out, s))?;
         Ok(())
     }
+}
 
-    fn generate_blob_as_hex_string(writer: &CodeWriter, data: &[u8]) {
-        emit!(writer, "x\"");
-        for b in data.iter() {
-            emit!(writer, "{:02x}", b);
-        }
-        emit!(writer, "\"");
+pub fn generate_blob_as_hex_string(writer: &CodeWriter, data: &[u8]) {
+    emit!(writer, "x\"");
+    for b in data.iter() {
+        emit!(writer, "{:02x}", b);
     }
+    emit!(writer, "\"");
+}
 
-    fn generate_next_execution_hash_blob(
-        writer: &CodeWriter,
-        for_address: AccountAddress,
-        next_execution_hash: Option<HashValue>,
-    ) {
-        if let Some(hash) = next_execution_hash {
+pub fn generate_next_execution_hash_blob(
+    writer: &CodeWriter,
+    for_address: AccountAddress,
+    next_execution_hash: Option<HashValue>,
+) {
+    match next_execution_hash {
+        None => {
+            emitln!(
+            writer,
+            "let framework_signer = supra_governance::resolve_supra_multi_step_proposal(proposal_id, @{}, {});\n",
+            for_address,
+            "x\"\"",
+        );
+        },
+        Some(next_execution_hash) => {
             emitln!(
                 writer,
                 "let framework_signer = supra_governance::resolve_supra_multi_step_proposal("
@@ -303,17 +312,11 @@ impl ReleasePackage {
             writer.indent();
             emitln!(writer, "proposal_id,");
             emitln!(writer, "@{},", for_address);
-            emitln!(writer, "x\"{:x}\"", hash);
+            generate_blob_as_hex_string(writer, next_execution_hash.as_slice());
+            emit!(writer, ",");
             writer.unindent();
             emitln!(writer, ");");
-        } else {
-            emitln!(
-                writer,
-                "let framework_signer = supra_governance::resolve_supra_multi_step_proposal(proposal_id, @{}, {});\n",
-                for_address,
-                "vector::empty<u8>()",
-            );
-        }
+        },
     }
 }
 

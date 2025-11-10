@@ -89,10 +89,10 @@ impl fmt::Display for Path {
                 write!(f, "Code({})", module_id)
             },
             Path::Resource(struct_tag) => {
-                write!(f, "Resource({})", struct_tag)
+                write!(f, "Resource({})", struct_tag.to_canonical_string())
             },
             Path::ResourceGroup(struct_tag) => {
-                write!(f, "ResourceGroup({})", struct_tag)
+                write!(f, "ResourceGroup({})", struct_tag.to_canonical_string())
             },
         }
     }
@@ -158,6 +158,14 @@ impl AccessPath {
             Path::Resource(s) => Some(s),
             Path::ResourceGroup(s) => Some(s),
             Path::Code(_) => None,
+        }
+    }
+
+    /// Extracts a [ModuleId]. Returns [None] if this is not a module access.
+    pub fn try_get_module_id(&self) -> Option<ModuleId> {
+        match self.get_path() {
+            Path::Code(module_id) => Some(module_id),
+            Path::Resource(_) | Path::ResourceGroup(_) => None,
         }
     }
 

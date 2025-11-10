@@ -9,29 +9,29 @@
 //! - It infers the `AssignKind` in the assign statement. This will be `Move` if
 //!   the source is not used after the assignment and is not borrowed. It will
 //!   be Copy otherwise.
-//! - It inserts a `Copy` assignment for every function argument which is used later or borrowed
-//!   (same condition as above)
+//! - It inserts a `Copy` assignment for every function or operator argument which is
+//!   borrowed.
 //! - It inserts a `Drop` instruction for values which go out of scope and are not
 //!   consumed by any call and no longer borrowed.
 //!
 //! For the checking part, consider the transformation to have happened,
 //! then:
 //!
-//! - Every copied value must have the `copy` ability
+//! - Every copied value must have the `copy` ability. This includes values for which we do
+//!   not generate a `Copy` instruction, but for every temporary which is used later
+//!   or is borrowed.
 //! - Every dropped value must have the `drop` ability
-//! - Every type used in storage operations must have the `key` ability (TODO(#12036): this check should
-//!   go the frontend where also `store` is checked)
-//! - All type instantiations in the program must satisfy ability constraints (TODO: also frontend)
 //!
 //! Precondition: LiveVarAnnotation, LifetimeAnnotation, ExitStateAnnotation
 
 use crate::pipeline::{
     exit_state_analysis::ExitStateAnnotation, livevar_analysis_processor::LiveVarAnnotation,
-    reference_safety_processor::LifetimeAnnotation,
+    reference_safety::LifetimeAnnotation,
 };
 use abstract_domain_derive::AbstractDomain;
 use codespan_reporting::diagnostic::Severity;
-use move_binary_format::file_format::{Ability, CodeOffset};
+use move_binary_format::file_format::CodeOffset;
+use move_core_types::ability::Ability;
 use move_model::{
     ast::TempIndex,
     exp_generator::ExpGenerator,
@@ -145,9 +145,9 @@ struct CopyDropAnalysis<'a> {
     exit_state: &'a ExitStateAnnotation,
 }
 
-impl<'a> DataflowAnalysis for CopyDropAnalysis<'a> {}
+impl DataflowAnalysis for CopyDropAnalysis<'_> {}
 
-impl<'a> TransferFunctions for CopyDropAnalysis<'a> {
+impl TransferFunctions for CopyDropAnalysis<'_> {
     type State = CopyDropState;
 
     const BACKWARD: bool = false;
@@ -161,15 +161,9 @@ impl<'a> TransferFunctions for CopyDropAnalysis<'a> {
         let live_var = self.live_var.get_info_at(offset);
         let lifetime = self.lifetime.get_info_at(offset);
         let exit_state = self.exit_state.get_state_at(offset);
-        // Only non-primitive types need a copy
-        let type_needs_copy = |temp: &TempIndex| {
-            let ty = self.target.get_local_type(*temp);
-            !ty.is_primitive()
-        };
         // Only temps which are used after or borrowed need a copy
-        let temp_needs_copy = |temp, instr| {
-            live_var.is_temp_used_after(temp, instr) || lifetime.before.is_borrowed(*temp)
-        };
+        let temp_needs_copy =
+            |temp, instr| live_var.is_temp_used_after(temp, instr) || lifetime.is_borrowed(*temp);
         // References always need to be dropped to satisfy bytecode verifier borrow analysis, other values
         // only if this execution path can return.
         let temp_needs_drop = |temp: &TempIndex| {
@@ -190,18 +184,15 @@ impl<'a> TransferFunctions for CopyDropAnalysis<'a> {
                 // Operation does not consume operands.
             },
             Call(_, _, op, srcs, ..) => {
-                // If this is an equality we need to check drop for the operands, even though we do not need
-                // to emit a drop.
+                // If this is an equality we need to check drop for the operands,
+                // even though we do not need to emit a drop.
                 if matches!(op, Operation::Eq | Operation::Neq) {
                     state.check_drop.extend(srcs.iter().cloned())
                 }
-                // For arguments, we also need to check the case that a src, even if not used after this program
-                // point, is again used in the argument list. Also, in difference to assign inference, we only need
-                // to copy the argument if its not primitive.
+                // For arguments, we also need to check the case that a src, even
+                // if not used after this program point, is again used in the argument list.
                 for (i, src) in srcs.iter().enumerate() {
-                    if (temp_needs_copy(src, instr) || srcs[i + 1..].contains(src))
-                        && type_needs_copy(src)
-                    {
+                    if temp_needs_copy(src, instr) || srcs[i + 1..].contains(src) {
                         state.needs_copy.insert(*src);
                     } else {
                         state.moved.insert(*src);
@@ -246,7 +237,7 @@ struct Transformer<'a> {
     copy_drop: BTreeMap<CodeOffset, CopyDropState>,
 }
 
-impl<'a> Transformer<'a> {
+impl Transformer<'_> {
     fn run(&mut self, code: Vec<Bytecode>) {
         // Check and insert drop for parameters before the first instruction if it is a return
         if !code.is_empty() && code.first().unwrap().is_return() {
@@ -295,14 +286,8 @@ impl<'a> Transformer<'a> {
                 },
             },
             Call(id, dests, op, srcs, ai) => {
-                use Operation::*;
-                match &op {
-                    Function(..) => {
-                        let new_srcs = self.copy_args_if_needed(code_offset, id, srcs);
-                        self.check_and_emit_bytecode(code_offset, Call(id, dests, op, new_srcs, ai))
-                    },
-                    _ => self.check_and_emit_bytecode(code_offset, bc.clone()),
-                }
+                let new_srcs = self.copy_args_if_needed(code_offset, id, srcs);
+                self.check_and_emit_bytecode(code_offset, Call(id, dests, op, new_srcs, ai))
             },
             _ => self.check_and_emit_bytecode(code_offset, bc.clone()),
         }
@@ -350,7 +335,7 @@ impl<'a> Transformer<'a> {
 // ---------------------------------------------------------------------------------------------------------
 // Copy and Move
 
-impl<'a> Transformer<'a> {
+impl Transformer<'_> {
     fn check_implicit_copy(&self, code_offset: CodeOffset, id: AttrId, src: TempIndex) {
         self.check_copy(id, src, || {
             (
@@ -377,10 +362,17 @@ impl<'a> Transformer<'a> {
         for src in srcs.iter() {
             if copy_drop_at.needs_copy.contains(src) {
                 self.check_implicit_copy(code_offset, id, *src);
-                let ty = self.builder.get_local_type(*src);
-                let temp = self.builder.new_temp(ty);
-                self.builder.emit(Assign(id, temp, *src, AssignKind::Copy));
-                new_srcs.push(temp)
+                // Only need to perform the actual copy if src is borrowed, as this
+                // information cannot be determined from live-var analysis in later
+                // phases.
+                if self.lifetime.get_info_at(code_offset).is_borrowed(*src) {
+                    let ty = self.builder.get_local_type(*src);
+                    let temp = self.builder.new_temp(ty);
+                    self.builder.emit(Assign(id, temp, *src, AssignKind::Copy));
+                    new_srcs.push(temp)
+                } else {
+                    new_srcs.push(*src)
+                }
             } else {
                 new_srcs.push(*src)
             }
@@ -425,7 +417,7 @@ impl<'a> Transformer<'a> {
 // ---------------------------------------------------------------------------------------------------------
 // Drop
 
-impl<'a> Transformer<'a> {
+impl Transformer<'_> {
     /// Add implicit drops at the given code offset.
     fn check_and_add_implicit_drops(
         &mut self,
@@ -447,11 +439,7 @@ impl<'a> Transformer<'a> {
             }
             for temp in copy_drop_at.needs_drop.iter() {
                 // Give a better error message if we know its borrowed
-                let is_borrowed = self
-                    .lifetime
-                    .get_info_at(code_offset)
-                    .after
-                    .is_borrowed(*temp);
+                let is_borrowed = self.lifetime.get_info_at(code_offset).is_borrowed(*temp);
                 self.check_drop(bytecode.get_attr_id(), *temp, || {
                     (
                         if is_borrowed {
@@ -503,7 +491,7 @@ impl<'a> Transformer<'a> {
 /// at the arrow to the location), the 2nd vector is a list of location-based additional hints.
 type Description = (String, Vec<(Loc, String)>);
 
-impl<'a> Transformer<'a> {
+impl Transformer<'_> {
     /// Checks whether the type as the ability and if not reports an error. An optional temp is
     /// provided in the case the type is associated with a value. A function to describe
     /// the reason and possible a list of hints is provided as well.

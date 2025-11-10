@@ -9,19 +9,20 @@ use anyhow::Result;
 use aptos_channels::{aptos_channel, message_queues::QueueStyle};
 use aptos_config::{
     config::{StateSyncConfig, StorageServiceConfig},
-    network_id::NetworkId,
+    network_id::{NetworkId, PeerNetworkId},
 };
 use aptos_crypto::HashValue;
 use aptos_network::{
     application::{interface::NetworkServiceEvents, storage::PeersAndMetadata},
-    peer_manager::PeerManagerNotification,
     protocols::{
-        network::{NetworkEvents, NewNetworkEvents},
-        rpc::InboundRpcRequest,
-        wire::handshake::v1::ProtocolId,
+        network::{NetworkEvents, NewNetworkEvents, ReceivedMessage},
+        wire::{
+            handshake::v1::ProtocolId,
+            messaging::v1::{NetworkMessage, RpcRequest},
+        },
     },
 };
-use aptos_storage_interface::{DbReader, ExecutedTrees, Order};
+use aptos_storage_interface::{DbReader, LedgerSummary, Order};
 use aptos_storage_service_notifications::StorageServiceNotifier;
 use aptos_storage_service_types::{
     requests::StorageServiceRequest, responses::StorageServiceResponse, StorageServiceError,
@@ -41,8 +42,8 @@ use aptos_types::{
         state_value::{StateValue, StateValueChunkWithProof},
     },
     transaction::{
-        AccountTransactionsWithProof, TransactionListWithProof, TransactionOutputListWithProof,
-        TransactionWithProof, Version,
+        AccountOrderedTransactionsWithProof, PersistedAuxiliaryInfo, TransactionListWithProofV2,
+        TransactionOutputListWithProofV2, TransactionWithProof, Version,
     },
     PeerId,
 };
@@ -59,7 +60,7 @@ const MAX_RESPONSE_TIMEOUT_SECS: u64 = 60;
 /// mock client requests to a [`StorageServiceServer`].
 pub struct MockClient {
     peer_manager_notifiers:
-        HashMap<NetworkId, aptos_channel::Sender<(PeerId, ProtocolId), PeerManagerNotification>>,
+        HashMap<NetworkId, aptos_channel::Sender<(PeerId, ProtocolId), ReceivedMessage>>,
 }
 
 impl MockClient {
@@ -161,12 +162,17 @@ impl MockClient {
             .to_bytes(&StorageServiceMessage::Request(request))
             .unwrap();
         let (res_tx, res_rx) = oneshot::channel();
-        let inbound_rpc = InboundRpcRequest {
-            protocol_id,
-            data: data.into(),
-            res_tx,
+        let notification = ReceivedMessage {
+            message: NetworkMessage::RpcRequest(RpcRequest {
+                protocol_id,
+                request_id: 0,
+                priority: 0,
+                raw_request: data,
+            }),
+            sender: PeerNetworkId::new(network_id, peer_id),
+            receive_timestamp_micros: 0,
+            rpc_replier: Some(Arc::new(res_tx)),
         };
-        let notification = PeerManagerNotification::RecvRpc(peer_id, inbound_rpc);
 
         // Push the request up to the storage service
         self.peer_manager_notifiers
@@ -234,7 +240,7 @@ mock! {
             batch_size: u64,
             ledger_version: Version,
             fetch_events: bool,
-        ) -> aptos_storage_interface::Result<TransactionListWithProof>;
+        ) -> aptos_storage_interface::Result<TransactionListWithProofV2>;
 
         fn get_transaction_by_hash(
             &self,
@@ -259,7 +265,7 @@ mock! {
             start_version: Version,
             limit: u64,
             ledger_version: Version,
-        ) -> aptos_storage_interface::Result<TransactionOutputListWithProof>;
+        ) -> aptos_storage_interface::Result<TransactionOutputListWithProofV2>;
 
         fn get_events(
             &self,
@@ -282,13 +288,13 @@ mock! {
 
         fn get_latest_ledger_info(&self) -> aptos_storage_interface::Result<LedgerInfoWithSignatures>;
 
-        fn get_synced_version(&self) -> aptos_storage_interface::Result<Version>;
+        fn get_synced_version(&self) -> aptos_storage_interface::Result<Option<Version>>;
 
         fn get_latest_ledger_info_version(&self) -> aptos_storage_interface::Result<Version>;
 
         fn get_latest_commit_metadata(&self) -> aptos_storage_interface::Result<(Version, u64)>;
 
-        fn get_account_transaction(
+        fn get_account_ordered_transaction(
             &self,
             address: AccountAddress,
             seq_num: u64,
@@ -296,14 +302,14 @@ mock! {
             ledger_version: Version,
         ) -> aptos_storage_interface::Result<Option<TransactionWithProof>>;
 
-        fn get_account_transactions(
+        fn get_account_ordered_transactions(
             &self,
             address: AccountAddress,
             seq_num: u64,
             limit: u64,
             include_events: bool,
             ledger_version: Version,
-        ) -> aptos_storage_interface::Result<AccountTransactionsWithProof>;
+        ) -> aptos_storage_interface::Result<AccountOrderedTransactionsWithProof>;
 
         fn get_state_proof_with_ledger_info(
             &self,
@@ -319,7 +325,7 @@ mock! {
             version: Version,
         ) -> aptos_storage_interface::Result<(Option<StateValue>, SparseMerkleProof)>;
 
-        fn get_latest_executed_trees(&self) -> aptos_storage_interface::Result<ExecutedTrees>;
+        fn get_pre_committed_ledger_summary(&self) -> aptos_storage_interface::Result<LedgerSummary>;
 
         fn get_epoch_ending_ledger_info(&self, known_version: u64) ->aptos_storage_interface::Result<LedgerInfoWithSignatures>;
 
@@ -336,7 +342,7 @@ mock! {
             ledger_version: Version,
         ) -> aptos_storage_interface::Result<TransactionAccumulatorSummary>;
 
-        fn get_state_leaf_count(&self, version: Version) -> aptos_storage_interface::Result<usize>;
+        fn get_state_item_count(&self, version: Version) -> aptos_storage_interface::Result<usize>;
 
         fn get_state_value_chunk_with_proof(
             &self,
@@ -348,6 +354,12 @@ mock! {
         fn get_epoch_snapshot_prune_window(&self) -> aptos_storage_interface::Result<usize>;
 
         fn is_state_merkle_pruner_enabled(&self) -> aptos_storage_interface::Result<bool>;
+
+        fn get_persisted_auxiliary_info_iterator(
+            &self,
+            start_version: Version,
+            num_persisted_auxiliary_info: usize,
+        ) -> aptos_storage_interface::Result<Box<dyn Iterator<Item = aptos_storage_interface::Result<PersistedAuxiliaryInfo>>>>;
     }
 }
 

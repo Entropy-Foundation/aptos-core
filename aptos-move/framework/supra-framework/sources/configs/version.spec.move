@@ -26,20 +26,16 @@ spec supra_framework::version {
         use std::signer;
         use supra_framework::chain_status;
         use supra_framework::timestamp;
-        use supra_framework::stake;
         use supra_framework::coin::CoinInfo;
         use supra_framework::supra_coin::SupraCoin;
-        use supra_framework::transaction_fee;
         use supra_framework::staking_config;
         use supra_framework::reconfiguration;
 
         // TODO: set because of timeout (property proved)
         pragma verify_duration_estimate = 120;
-        include transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply;
         include staking_config::StakingRewardsConfigRequirement;
         requires chain_status::is_genesis();
         requires timestamp::spec_now_microseconds() >= reconfiguration::last_reconfiguration_time();
-        requires exists<stake::ValidatorFees>(@supra_framework);
         requires exists<CoinInfo<SupraCoin>>(@supra_framework);
 
         aborts_if !exists<SetVersionCapability>(signer::address_of(account));

@@ -1,32 +1,32 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use aptos_language_e2e_tests::data_store::FakeDataStore;
+use aptos_transaction_simulation::InMemoryStateStore;
 use aptos_types::{
     state_store::{
         state_key::StateKey, state_storage_usage::StateStorageUsage, state_value::StateValue,
-        Result as StateViewResult, TStateView,
+        StateViewResult, TStateView,
     },
     transaction::Version,
 };
 use aptos_validator_interface::{AptosValidatorInterface, DebuggerStateView};
 use std::{
     collections::HashMap,
+    ops::DerefMut,
     sync::{Arc, Mutex},
 };
 
 pub struct DataStateView {
     debugger_view: DebuggerStateView,
-    code_data: Option<FakeDataStore>,
+    code_data: Option<InMemoryStateStore>,
     data_read_state_keys: Option<Arc<Mutex<HashMap<StateKey, StateValue>>>>,
 }
-use std::ops::DerefMut;
 
 impl DataStateView {
     pub fn new(
         db: Arc<dyn AptosValidatorInterface + Send>,
         version: Version,
-        code_data: FakeDataStore,
+        code_data: InMemoryStateStore,
     ) -> Self {
         Self {
             debugger_view: DebuggerStateView::new(db, version),
@@ -56,8 +56,8 @@ impl TStateView for DataStateView {
 
     fn get_state_value(&self, state_key: &StateKey) -> StateViewResult<Option<StateValue>> {
         if let Some(code) = &self.code_data {
-            if code.contains_key(state_key) {
-                return code.get_state_value(state_key).map_err(Into::into);
+            if code.contains_state_value(state_key)? {
+                return code.get_state_value(state_key);
             }
         }
         let ret = self.debugger_view.get_state_value(state_key);

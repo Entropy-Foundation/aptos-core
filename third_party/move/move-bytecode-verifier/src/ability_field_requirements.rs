@@ -8,10 +8,10 @@ use move_binary_format::{
     access::ModuleAccess,
     binary_views::BinaryIndexedView,
     errors::{verification_error, Location, PartialVMResult, VMResult},
-    file_format::{AbilitySet, CompiledModule, StructFieldInformation, TableIndex},
+    file_format::{CompiledModule, FieldDefinition, StructFieldInformation, TableIndex},
     IndexKind,
 };
-use move_core_types::vm_status::StatusCode;
+use move_core_types::{ability::AbilitySet, vm_status::StatusCode};
 
 pub fn verify_module(module: &CompiledModule) -> VMResult<()> {
     verify_module_impl(module).map_err(|e| e.finish(Location::Module(module.self_id())))
@@ -21,10 +21,6 @@ fn verify_module_impl(module: &CompiledModule) -> PartialVMResult<()> {
     let view = BinaryIndexedView::Module(module);
     for (idx, struct_def) in module.struct_defs().iter().enumerate() {
         let sh = module.struct_handle_at(struct_def.struct_handle);
-        let fields = match &struct_def.field_information {
-            StructFieldInformation::Native => continue,
-            StructFieldInformation::Declared(fields) => fields,
-        };
         let required_abilities = sh
             .abilities
             .into_iter()
@@ -37,15 +33,42 @@ fn verify_module_impl(module: &CompiledModule) -> PartialVMResult<()> {
             .iter()
             .map(|_| AbilitySet::ALL)
             .collect::<Vec<_>>();
-        for field in fields {
-            let field_abilities = view.abilities(&field.signature.0, &type_parameter_abilities)?;
-            if !required_abilities.is_subset(field_abilities) {
-                return Err(verification_error(
-                    StatusCode::FIELD_MISSING_TYPE_ABILITY,
-                    IndexKind::StructDefinition,
-                    idx as TableIndex,
-                ));
-            }
+        match &struct_def.field_information {
+            StructFieldInformation::Native => continue,
+            StructFieldInformation::Declared(fields) => check_field_abilities(
+                view,
+                idx,
+                required_abilities,
+                &type_parameter_abilities,
+                fields.iter(),
+            )?,
+            StructFieldInformation::DeclaredVariants(variants) => check_field_abilities(
+                view,
+                idx,
+                required_abilities,
+                &type_parameter_abilities,
+                variants.iter().flat_map(|v| v.fields.iter()),
+            )?,
+        }
+    }
+    Ok(())
+}
+
+fn check_field_abilities<'a>(
+    view: BinaryIndexedView,
+    idx: usize,
+    required_abilities: AbilitySet,
+    type_parameter_abilities: &[AbilitySet],
+    fields: impl Iterator<Item = &'a FieldDefinition>,
+) -> PartialVMResult<()> {
+    for field in fields {
+        let field_abilities = view.abilities(&field.signature.0, type_parameter_abilities)?;
+        if !required_abilities.is_subset(field_abilities) {
+            return Err(verification_error(
+                StatusCode::FIELD_MISSING_TYPE_ABILITY,
+                IndexKind::StructDefinition,
+                idx as TableIndex,
+            ));
         }
     }
     Ok(())

@@ -3,22 +3,33 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    accounts::AccountsApi, basic::BasicApi, blocks::BlocksApi, check_size::PostSizeLimit,
-    context::Context, error_converter::convert_error, events::EventsApi, index::IndexApi,
-    log::middleware_log, set_failpoints, state::StateApi, transactions::TransactionsApi,
+    accounts::AccountsApi,
+    basic::BasicApi,
+    blocks::BlocksApi,
+    check_size::PostSizeLimit,
+    context::Context,
+    error_converter::convert_error,
+    events::EventsApi,
+    index::IndexApi,
+    log::middleware_log,
+    set_failpoints,
+    spec::{spec_endpoint_json, spec_endpoint_yaml},
+    state::StateApi,
+    transactions::TransactionsApi,
     view_function::ViewFunctionApi,
 };
-use anyhow::Context as AnyhowContext;
+use anyhow::{anyhow, Context as AnyhowContext};
 use aptos_config::config::{ApiConfig, NodeConfig};
 use aptos_logger::info;
 use aptos_mempool::MempoolClientSender;
 use aptos_storage_interface::DbReader;
 use aptos_types::{chain_id::ChainId, indexer::indexer_db_reader::IndexerReader};
+use futures::channel::oneshot;
 use poem::{
     handler,
     http::Method,
     listener::{Listener, RustlsCertificate, RustlsConfig, TcpListener},
-    middleware::Cors,
+    middleware::{Compression, Cors},
     web::Html,
     EndpointExt, Route, Server,
 };
@@ -35,13 +46,14 @@ pub fn bootstrap(
     db: Arc<dyn DbReader>,
     mp_sender: MempoolClientSender,
     indexer_reader: Option<Arc<dyn IndexerReader>>,
+    port_tx: Option<oneshot::Sender<u16>>,
 ) -> anyhow::Result<Runtime> {
     let max_runtime_workers = get_max_runtime_workers(&config.api);
     let runtime = aptos_runtimes::spawn_named_runtime("api".into(), Some(max_runtime_workers));
 
     let context = Context::new(chain_id, db, mp_sender, config.clone(), indexer_reader);
 
-    attach_poem_to_runtime(runtime.handle(), context.clone(), config, false)
+    attach_poem_to_runtime(runtime.handle(), context.clone(), config, false, port_tx)
         .context("Failed to attach poem to runtime")?;
 
     let context_cloned = context.clone();
@@ -157,6 +169,7 @@ pub fn attach_poem_to_runtime(
     context: Context,
     config: &NodeConfig,
     random_port: bool,
+    port_tx: Option<oneshot::Sender<u16>>,
 ) -> anyhow::Result<SocketAddr> {
     let context = Arc::new(context);
 
@@ -164,9 +177,10 @@ pub fn attach_poem_to_runtime(
 
     let api_service = get_api_service(context.clone());
 
-    let spec_json = api_service.spec_endpoint();
-    let spec_yaml = api_service.spec_endpoint_yaml();
+    let spec_json = spec_endpoint_json(&api_service);
+    let spec_yaml = spec_endpoint_yaml(&api_service);
 
+    let config = config.clone();
     let mut address = config.api.address;
 
     if random_port {
@@ -206,6 +220,13 @@ pub fn attach_poem_to_runtime(
     let actual_address = *actual_address
         .as_socket_addr()
         .context("Failed to get socket addr from local addr for Poem webserver")?;
+
+    if let Some(port_tx) = port_tx {
+        port_tx
+            .send(actual_address.port())
+            .map_err(|_| anyhow!("Failed to send port"))?;
+    }
+
     runtime_handle.spawn(async move {
         let cors = Cors::new()
             // To allow browsers to use cookies (for cookie-based sticky
@@ -231,6 +252,7 @@ pub fn attach_poem_to_runtime(
                     ),
             )
             .with(cors)
+            .with_if(config.api.compression_enabled, Compression::new())
             .with(PostSizeLimit::new(size_limit))
             // NOTE: Make sure to keep this after all the `with` middleware.
             .catch_all_error(convert_error)
@@ -340,6 +362,7 @@ mod tests {
             ChainId::test(),
             context.db.clone(),
             context.mempool.ac_client.clone(),
+            None,
             None,
         );
         assert!(ret.is_ok());

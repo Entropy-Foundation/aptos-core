@@ -9,8 +9,11 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Formatter;
 use warp::{http::StatusCode, reply::Reply};
 
+/// Result for Rosetta API errors
 pub type ApiResult<T> = Result<T, ApiError>;
 
+/// All Rosetta API errors.  Note that all details must be `Option<T>` to make it easier to list all
+/// error messages in the `ApiError::all()` call required by the Rosetta spec.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub enum ApiError {
     TransactionIsPending,
@@ -49,6 +52,7 @@ pub enum ApiError {
     SequenceNumberTooOld(Option<String>),
     VmError(Option<String>),
     MempoolIsFull(Option<String>),
+    RejectedByFilter(Option<String>),
 }
 
 impl std::fmt::Display for ApiError {
@@ -60,6 +64,7 @@ impl std::fmt::Display for ApiError {
 impl std::error::Error for ApiError {}
 
 impl ApiError {
+    /// Returns every single API errors so the messages can be returned
     pub fn all() -> Vec<ApiError> {
         use ApiError::*;
         vec![
@@ -100,6 +105,7 @@ impl ApiError {
         ]
     }
 
+    /// All errors are required to have a code.  These are just in order that they were added, and no specific grouping.
     pub fn code(&self) -> u32 {
         use ApiError::*;
         match self {
@@ -137,9 +143,12 @@ impl ApiError {
             MempoolIsFull(_) => 32,
             CoinTypeFailedToBeFetched(_) => 33,
             StateValueNotFound(_) => 34,
+            RejectedByFilter(_) => 35,
         }
     }
 
+    /// Retriable errors will allow for Rosetta upstreams to retry.  These are only for temporary
+    /// state blockers.  Note, there is a possibility that some of these could be retriable forever (e.g. an account is never created).
     pub fn retriable(&self) -> bool {
         use ApiError::*;
         matches!(
@@ -152,8 +161,8 @@ impl ApiError {
         )
     }
 
+    /// All Rosetta errors must be 500s (and retriable tells you if it's actually retriable)
     pub fn status_code(&self) -> StatusCode {
-        // Per Rosetta guidelines, all errors are 500s
         StatusCode::INTERNAL_SERVER_ERROR
     }
 
@@ -194,9 +203,11 @@ impl ApiError {
             ApiError::VmError(_) => "Transaction submission failed due to VM error",
             ApiError::MempoolIsFull(_) => "Mempool is full all accounts",
             ApiError::GasEstimationFailed(_) => "Gas estimation failed",
+            ApiError::RejectedByFilter(_) => "Transaction was rejected by the transaction filter",
         }
     }
 
+    /// Details are optional, but give more details for each error message
     pub fn details(self) -> Option<ErrorDetails> {
         match self {
             ApiError::DeserializationFailed(inner) => inner,
@@ -233,6 +244,7 @@ impl ApiError {
         ApiError::DeserializationFailed(Some(type_.to_string()))
     }
 
+    /// Converts API Error into the wire representation
     pub fn into_error(self) -> types::Error {
         self.into()
     }
@@ -253,6 +265,7 @@ impl From<ApiError> for types::Error {
     }
 }
 
+// Converts Node API errors to Rosetta API errors
 impl From<RestError> for ApiError {
     fn from(err: RestError) -> Self {
         match err {
@@ -290,6 +303,9 @@ impl From<RestError> for ApiError {
                     ApiError::SequenceNumberTooOld(Some(err.error.message))
                 },
                 AptosErrorCode::VmError => ApiError::VmError(Some(err.error.message)),
+                AptosErrorCode::RejectedByFilter => {
+                    ApiError::RejectedByFilter(Some(err.error.message))
+                },
                 AptosErrorCode::HealthCheckFailed => {
                     ApiError::InternalError(Some(err.error.message))
                 },
@@ -344,6 +360,7 @@ impl From<std::num::ParseIntError> for ApiError {
     }
 }
 
+// Must implement to ensure rejections are provided when returning errors
 impl warp::reject::Reject for ApiError {}
 
 impl Reply for ApiError {

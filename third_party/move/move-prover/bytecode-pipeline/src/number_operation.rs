@@ -11,9 +11,7 @@ use move_model::{
     ast::{PropertyValue, TempIndex, Value},
     model::{FieldId, FunId, FunctionEnv, ModuleId, NodeId, SpecFunId, StructEnv, StructId},
     pragmas::{BV_PARAM_PROP, BV_RET_PROP},
-    ty::Type,
 };
-use move_stackless_bytecode::COMPILED_MODULE_AVAILABLE;
 use std::{collections::BTreeMap, ops::Deref, str};
 
 static PARSING_ERROR: &str = "error happened when parsing the bv pragma";
@@ -215,21 +213,9 @@ impl GlobalNumberOperationState {
             if para_idx_vec.contains(&i) {
                 default_map.insert(i, Bitwise);
             } else {
-                // If not appearing in the pragma, mark it as Arithmetic or Bottom
+                // If not appearing in the pragma, mark it as Bottom
                 // Similar logic when populating ret_operation_map below
-                let local_ty = func_env.get_local_type(i).expect(COMPILED_MODULE_AVAILABLE);
-                let arith_flag = if let Type::Reference(_, tr) = local_ty {
-                    tr.is_number()
-                } else if let Type::Vector(tr) = local_ty {
-                    tr.is_number()
-                } else {
-                    local_ty.is_number()
-                };
-                if arith_flag {
-                    default_map.insert(i, Arithmetic);
-                } else {
-                    default_map.insert(i, Bottom);
-                }
+                default_map.insert(i, Bottom);
             }
         }
 
@@ -238,19 +224,7 @@ impl GlobalNumberOperationState {
             if ret_idx_vec.contains(&i) {
                 default_ret_operation_map.insert(i, Bitwise);
             } else {
-                let ret_ty = func_env.get_result_type_at(i);
-                let arith_flag = if let Type::Reference(_, tr) = ret_ty {
-                    tr.is_number()
-                } else if let Type::Vector(tr) = ret_ty {
-                    tr.is_number()
-                } else {
-                    ret_ty.is_number()
-                };
-                if arith_flag {
-                    default_ret_operation_map.insert(i, Arithmetic);
-                } else {
-                    default_ret_operation_map.insert(i, Bottom);
-                }
+                default_ret_operation_map.insert(i, Bottom);
             }
         }
 
@@ -277,26 +251,46 @@ impl GlobalNumberOperationState {
         let struct_env = struct_env.module_env.env.get_module(mid).into_struct(sid);
         let mut field_oper_map = BTreeMap::new();
 
-        for (i, field) in struct_env.get_fields().enumerate() {
-            if field_idx_vec.contains(&i) {
-                field_oper_map.insert(field.get_id(), Bitwise);
-            } else {
-                let field_ty = field.get_type();
-                let arith_flag = if let Type::Reference(_, tr) = field_ty {
-                    tr.is_number()
-                } else if let Type::Vector(tr) = field_ty {
-                    tr.is_number()
+        let update_field_map =
+            |field_id: FieldId, field_oper_map: &mut BTreeMap<FieldId, NumOperation>| {
+                field_oper_map.insert(field_id, Bottom);
+            };
+
+        if !struct_env.has_variants() {
+            for (i, field) in struct_env.get_fields().enumerate() {
+                if field_idx_vec.contains(&i) {
+                    field_oper_map.insert(field.get_id(), Bitwise);
                 } else {
-                    field_ty.is_number()
-                };
-                if arith_flag {
-                    field_oper_map.insert(field.get_id(), Arithmetic);
-                } else {
-                    field_oper_map.insert(field.get_id(), Bottom);
+                    update_field_map(field.get_id(), &mut field_oper_map);
                 }
             }
+            self.struct_operation_map.insert((mid, sid), field_oper_map);
+        } else {
+            if !field_idx_vec.is_empty() {
+                let loc = if let Some(loc) = &struct_env.get_spec().loc {
+                    loc.clone()
+                } else {
+                    struct_env.get_loc()
+                };
+                // enum does support "pragma bv"
+                struct_env.module_env.env.warning(
+                    &loc,
+                    "pragma bv is currently not support in enum types and will be ignored",
+                );
+            }
+            for variant in struct_env.get_variants() {
+                for field in struct_env.get_fields_of_variant(variant) {
+                    let pool = struct_env.symbol_pool();
+                    let new_field_id =
+                        FieldId::new(pool.make(&FieldId::make_variant_field_id_str(
+                            pool.string(variant).as_str(),
+                            pool.string(field.get_name()).as_str(),
+                        )));
+                    update_field_map(new_field_id, &mut field_oper_map);
+                }
+            }
+            self.struct_operation_map.insert((mid, sid), field_oper_map);
         }
-        self.struct_operation_map.insert((mid, sid), field_oper_map);
     }
 
     /// Updates the number operation for the given node id.
@@ -314,6 +308,19 @@ impl GlobalNumberOperationState {
             *oper = num_oper;
             true
         }
+    }
+
+    pub fn get_num_operation_field(
+        &self,
+        mid: &ModuleId,
+        sid: &StructId,
+        field_id: &FieldId,
+    ) -> &NumOperation {
+        self.struct_operation_map
+            .get(&(*mid, *sid))
+            .expect("struct must have a struct operation state")
+            .get(field_id)
+            .expect("expect to get the state")
     }
 
     /// Gets the number operation of the given node.

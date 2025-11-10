@@ -1,4 +1,4 @@
-// -- Model dump before bytecode pipeline
+// -- Model dump before first bytecode pipeline
 module 0x2::X {
     public entry fun foo() {
         Tuple()
@@ -9,3 +9,14 @@ module <SELF>_0 {
         X::foo()
     }
 } // end <SELF>_0
+
+// -- Sourcified model before first bytecode pipeline
+module 0x2::X {
+    public entry fun foo() {
+    }
+}
+script {
+    fun main() {
+        0x2::X::foo()
+    }
+}

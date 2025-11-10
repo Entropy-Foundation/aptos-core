@@ -8,15 +8,45 @@ use crate::{
     },
     payload_manager::TPayloadManager,
 };
-use aptos_consensus_types::common::{Author, Payload, Round};
-use aptos_types::aggregate_signature::AggregateSignature;
+use aptos_bitvec::BitVec;
+use aptos_config::config::BlockTransactionFilterConfig;
+use aptos_consensus_types::{
+    block::Block,
+    common::{Author, Payload, Round},
+};
+use aptos_executor_types::ExecutorResult;
+use aptos_types::{aggregate_signature::AggregateSignature, transaction::SignedTransaction};
+use async_trait::async_trait;
 
 pub(super) const TEST_DAG_WINDOW: u64 = 5;
 
 pub(super) struct MockPayloadManager {}
 
+#[async_trait]
 impl TPayloadManager for MockPayloadManager {
-    fn prefetch_payload_data(&self, _payload: &Payload, _timestamp: u64) {}
+    fn prefetch_payload_data(&self, _payload: &Payload, _author: Author, _timestamp: u64) {}
+
+    fn notify_commit(&self, _block_timestamp: u64, _payloads: Vec<Payload>) {}
+
+    fn check_denied_inline_transactions(
+        &self,
+        _block: &Block,
+        _block_txn_filter_config: &BlockTransactionFilterConfig,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn check_payload_availability(&self, _block: &Block) -> Result<(), BitVec> {
+        unimplemented!()
+    }
+
+    async fn get_transactions(
+        &self,
+        _block: &Block,
+        _block_signers: Option<BitVec>,
+    ) -> ExecutorResult<(Vec<SignedTransaction>, Option<u64>, Option<u64>)> {
+        Ok((Vec::new(), None, None))
+    }
 }
 
 pub(super) struct MockOrderRule {}

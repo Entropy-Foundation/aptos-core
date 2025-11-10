@@ -29,7 +29,7 @@ pub struct DealingArgs<T: Transcript> {
     pub dpk: T::DealtPubKey,
 }
 
-/// Helper function that, given a sharing configuration for `n` players, returns an a tuple of:
+/// Helper function that, given a sharing configuration for `n` players, returns a tuple of:
 ///  - public parameters
 ///  - a vector of `n` signing SKs
 ///  - a vector of `n` signing PKs
@@ -172,7 +172,11 @@ pub fn get_weighted_configs_for_testing() -> Vec<WeightedConfig> {
 }
 
 pub fn get_threshold_configs_for_benchmarking() -> Vec<ThresholdConfig> {
+    // [XDL+24] The Latency Price of Threshold Cryptosystem in Blockchains; by Zhuolun Xiang et al; 2024
     vec![
+        ThresholdConfig::new(143, 254).unwrap(), // from XDL+24
+        ThresholdConfig::new(184, 254).unwrap(), // from XDL+24
+        ThresholdConfig::new(548, 821).unwrap(), // from initial deployment
         ThresholdConfig::new(333, 1_000).unwrap(),
         ThresholdConfig::new(666, 1_000).unwrap(),
         ThresholdConfig::new(3_333, 10_000).unwrap(),

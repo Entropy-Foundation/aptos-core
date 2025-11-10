@@ -198,9 +198,7 @@ impl FunctionTargetProcessor for LiveVarAnalysisProcessor {
 impl LiveVarAnalysisProcessor {
     /// Create a new instance of live variable analysis.
     /// `track_all_usages` determines whether both primary and secondary usages of a variable are
-    /// tracked (when true), or only the primary usages (when false). Also, if set, all usages
-    /// of temporaries in specifications are tracked, which are considered as secondary because
-    /// they are not part of the execution semantics.
+    /// tracked (when true), or only the primary usages (when false).
     /// Unless all usages are needed, it is recommended to set `track_all_usages` to false.
     pub fn new(track_all_usages: bool) -> Self {
         Self { track_all_usages }
@@ -335,7 +333,7 @@ struct LiveVarAnalysis<'a> {
 }
 
 /// Implements the necessary transfer function to instantiate the data flow framework
-impl<'a> TransferFunctions for LiveVarAnalysis<'a> {
+impl TransferFunctions for LiveVarAnalysis<'_> {
     type State = LiveVarState;
 
     const BACKWARD: bool = true;
@@ -373,14 +371,22 @@ impl<'a> TransferFunctions for LiveVarAnalysis<'a> {
             Branch(id, _, _, src) => {
                 state.insert_or_update(*src, self.livevar_info(id, offset), self.track_all_usages);
             },
-            Prop(id, _, exp) if self.track_all_usages => {
+            Prop(id, _, exp) => {
                 for idx in exp.used_temporaries() {
-                    state.insert_or_update(idx, self.livevar_info(id, offset), true);
+                    state.insert_or_update(
+                        idx,
+                        self.livevar_info(id, offset),
+                        self.track_all_usages,
+                    );
                 }
             },
-            SpecBlock(id, spec) if self.track_all_usages => {
+            SpecBlock(id, spec) => {
                 for idx in spec.used_temporaries() {
-                    state.insert_or_update(idx, self.livevar_info(id, offset), true);
+                    state.insert_or_update(
+                        idx,
+                        self.livevar_info(id, offset),
+                        self.track_all_usages,
+                    );
                 }
             },
             _ => {},
@@ -389,9 +395,9 @@ impl<'a> TransferFunctions for LiveVarAnalysis<'a> {
 }
 
 /// Implements various entry points to the framework based on the transfer function.
-impl<'a> DataflowAnalysis for LiveVarAnalysis<'a> {}
+impl DataflowAnalysis for LiveVarAnalysis<'_> {}
 
-impl<'a> LiveVarAnalysis<'a> {
+impl LiveVarAnalysis<'_> {
     fn livevar_info(&self, id: &AttrId, offset: CodeOffset) -> LiveVarInfo {
         LiveVarInfo {
             usages: once((self.func_target.get_bytecode_loc(*id), offset)).collect(),
@@ -409,15 +415,17 @@ pub fn format_livevar_annotation(
 ) -> Option<String> {
     if let Some(LiveVarAnnotation(map)) = target.get_annotations().get::<LiveVarAnnotation>() {
         if let Some(map_at) = map.get(&code_offset) {
-            let mut res = map_at
-                .before
-                .keys()
-                .map(|idx| {
-                    let name = target.get_local_raw_name(*idx);
-                    format!("{}", name.display(target.symbol_pool()))
-                })
-                .join(", ");
-            res.insert_str(0, "live vars: ");
+            let mut res = "live vars: ".to_string();
+            res.push_str(
+                &map_at
+                    .before
+                    .keys()
+                    .map(|idx| {
+                        let name = target.get_local_raw_name(*idx);
+                        format!("{}", name.display(target.symbol_pool()))
+                    })
+                    .join(", "),
+            );
             return Some(res);
         }
     }

@@ -266,33 +266,24 @@ module defi::locked_coins {
     }
 
     #[test_only]
-    use std::string;
-    #[test_only]
     use supra_framework::account;
     #[test_only]
     use supra_framework::coin::BurnCapability;
     #[test_only]
-    use supra_framework::supra_coin::SupraCoin;
+    use supra_framework::supra_coin::{Self, SupraCoin};
     #[test_only]
     use supra_framework::aptos_account;
 
     #[test_only]
     fun setup(supra_framework: &signer, sponsor: &signer): BurnCapability<SupraCoin> {
         timestamp::set_time_has_started_for_testing(supra_framework);
+        let (burn_cap, mint_cap) = supra_coin::initialize_for_test(supra_framework);
 
-        let (burn_cap, freeze_cap, mint_cap) = coin::initialize<SupraCoin>(
-            supra_framework,
-            string::utf8(b"TC"),
-            string::utf8(b"TC"),
-            8,
-            false,
-        );
         account::create_account_for_test(signer::address_of(sponsor));
         coin::register<SupraCoin>(sponsor);
         let coins = coin::mint<SupraCoin>(2000, &mint_cap);
         coin::deposit(signer::address_of(sponsor), coins);
         coin::destroy_mint_cap(mint_cap);
-        coin::destroy_freeze_cap(freeze_cap);
 
         burn_cap
     }

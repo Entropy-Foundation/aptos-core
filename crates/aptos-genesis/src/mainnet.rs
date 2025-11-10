@@ -18,7 +18,7 @@ use aptos_types::{
     waypoint::Waypoint,
 };
 use aptos_types::on_chain_config::AutomationRegistryConfig;
-use aptos_vm::AptosVM;
+use aptos_vm::aptos_vm::AptosVMBlockExecutor;
 use aptos_vm_genesis::{AccountBalance, EmployeePool, ValidatorWithCommissionRate};
 
 /// Holder object for all pieces needed to generate a genesis transaction
@@ -161,6 +161,8 @@ impl MainnetGenesisInfo {
                 randomness_config_override: self.randomness_config_override.clone(),
                 jwk_consensus_config_override: self.jwk_consensus_config_override.clone(),
                 automation_registry_config: self.automation_registry_config.clone(),
+                initial_jwks: vec![],
+                keyless_groth16_vk: None,
             },
             b"test".to_vec(),
         )
@@ -177,8 +179,9 @@ impl MainnetGenesisInfo {
             false, /* indexer */
             BUFFERED_STATE_TARGET_ITEMS,
             DEFAULT_MAX_NUM_NODES_PER_LRU_CACHE_SHARD,
+            None,
         )?;
         let db_rw = DbReaderWriter::new(aptosdb);
-        aptos_executor::db_bootstrapper::generate_waypoint::<AptosVM>(&db_rw, genesis)
+        aptos_executor::db_bootstrapper::generate_waypoint::<AptosVMBlockExecutor>(&db_rw, genesis)
     }
 }

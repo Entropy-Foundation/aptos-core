@@ -3,22 +3,26 @@
 
 use super::{health_checker::HealthChecker, traits::ServiceManager, RunLocalnet};
 use anyhow::{bail, Context, Result};
+use aptos_indexer_processor_sdk::{
+    aptos_indexer_transaction_stream::TransactionStreamConfig,
+    postgres::utils::database::run_pending_migrations, server_framework::RunnableConfig,
+};
+pub use aptos_localnet::processors::get_processor_config;
 use async_trait::async_trait;
 use clap::Parser;
 use diesel::Connection;
 use diesel_async::{async_connection_wrapper::AsyncConnectionWrapper, pg::AsyncPgConnection};
 use maplit::hashset;
 use processor::{
-    processors::{
-        objects_processor::ObjectsProcessorConfig, stake_processor::StakeProcessorConfig,
-        token_processor::TokenProcessorConfig, token_v2_processor::TokenV2ProcessorConfig,
-        ProcessorConfig, ProcessorName,
+    config::{
+        db_config::{DbConfig, PostgresConfig},
+        indexer_processor_config::IndexerProcessorConfig,
+        processor_config::ProcessorName,
+        processor_mode::{BootStrapConfig, ProcessorMode},
     },
-    utils::database::run_pending_migrations,
-    IndexerGrpcProcessorConfig,
+    MIGRATIONS,
 };
 use reqwest::Url;
-use server_framework::RunnableConfig;
 use std::collections::HashSet;
 use tokio::sync::OnceCell;
 use tracing::info;
@@ -36,16 +40,14 @@ pub struct ProcessorArgs {
         long,
         value_enum,
         default_values_t = vec![
+            ProcessorName::AccountRestorationProcessor,
             ProcessorName::AccountTransactionsProcessor,
-            ProcessorName::CoinProcessor,
             ProcessorName::DefaultProcessor,
             ProcessorName::EventsProcessor,
             ProcessorName::FungibleAssetProcessor,
             ProcessorName::ObjectsProcessor,
             ProcessorName::StakeProcessor,
-            ProcessorName::TokenProcessor,
             ProcessorName::TokenV2Processor,
-            ProcessorName::TransactionMetadataProcessor,
             ProcessorName::UserTransactionProcessor,
         ],
         requires = "with_indexer_api"
@@ -55,7 +57,7 @@ pub struct ProcessorArgs {
 
 #[derive(Debug)]
 pub struct ProcessorManager {
-    config: IndexerGrpcProcessorConfig,
+    config: IndexerProcessorConfig,
     prerequisite_health_checkers: HashSet<HealthChecker>,
 }
 
@@ -66,72 +68,30 @@ impl ProcessorManager {
         data_service_url: Url,
         postgres_connection_string: String,
     ) -> Result<Self> {
-        let processor_config = match processor_name {
-            ProcessorName::AccountTransactionsProcessor => {
-                ProcessorConfig::AccountTransactionsProcessor
-            },
-            ProcessorName::AnsProcessor => {
-                bail!("ANS processor is not supported in the localnet")
-            },
-            ProcessorName::CoinProcessor => ProcessorConfig::CoinProcessor,
-            ProcessorName::DefaultProcessor => ProcessorConfig::DefaultProcessor,
-            ProcessorName::EventsProcessor => ProcessorConfig::EventsProcessor,
-            ProcessorName::FungibleAssetProcessor => ProcessorConfig::FungibleAssetProcessor,
-            ProcessorName::MonitoringProcessor => {
-                bail!("Monitoring processor is not supported in the localnet")
-            },
-            ProcessorName::NftMetadataProcessor => {
-                bail!("NFT Metadata processor is not supported in the localnet")
-            },
-            ProcessorName::ObjectsProcessor => {
-                ProcessorConfig::ObjectsProcessor(ObjectsProcessorConfig {
-                    query_retries: Default::default(),
-                    query_retry_delay_ms: Default::default(),
-                })
-            },
-            ProcessorName::StakeProcessor => {
-                ProcessorConfig::StakeProcessor(StakeProcessorConfig {
-                    query_retries: Default::default(),
-                    query_retry_delay_ms: Default::default(),
-                })
-            },
-            ProcessorName::TokenProcessor => {
-                ProcessorConfig::TokenProcessor(TokenProcessorConfig {
-                    // This NFT points contract doesn't exist on localnets.
-                    nft_points_contract: None,
-                    query_retries: Default::default(),
-                    query_retry_delay_ms: Default::default(),
-                })
-            },
-            ProcessorName::TokenV2Processor => {
-                ProcessorConfig::TokenV2Processor(TokenV2ProcessorConfig {
-                    query_retries: Default::default(),
-                    query_retry_delay_ms: Default::default(),
-                })
-            },
-            ProcessorName::TransactionMetadataProcessor => {
-                ProcessorConfig::TransactionMetadataProcessor
-            },
-            ProcessorName::UserTransactionProcessor => ProcessorConfig::UserTransactionProcessor,
-        };
-        let config = IndexerGrpcProcessorConfig {
+        let processor_config = get_processor_config(processor_name)?;
+        let config = IndexerProcessorConfig {
             processor_config,
-            postgres_connection_string,
-            indexer_grpc_data_service_address: data_service_url,
-            auth_token: "notused".to_string(),
-            grpc_http2_config: Default::default(),
-            starting_version: None,
-            ending_version: None,
-            number_concurrent_processing_tasks: None,
-            enable_verbose_logging: None,
-            // The default at the time of writing is 30 but we don't need that
-            // many in a localnet environment.
-            db_pool_size: Some(8),
-            gap_detection_batch_size: 50,
-            pb_channel_txn_chunk_size: 100_000,
-            per_table_chunk_sizes: Default::default(),
-            transaction_filter: Default::default(),
-            grpc_response_item_timeout_in_secs: 10,
+            transaction_stream_config: TransactionStreamConfig {
+                indexer_grpc_data_service_address: data_service_url,
+                auth_token: "notused".to_string(),
+                starting_version: Some(0),
+                request_ending_version: None,
+                request_name_header: "notused".to_string(),
+                additional_headers: Default::default(),
+                indexer_grpc_http2_ping_interval_secs: Default::default(),
+                indexer_grpc_http2_ping_timeout_secs: 60,
+                indexer_grpc_reconnection_timeout_secs: 60,
+                indexer_grpc_response_item_timeout_secs: 60,
+                indexer_grpc_reconnection_max_retries: Default::default(),
+                transaction_filter: Default::default(),
+            },
+            db_config: DbConfig::PostgresConfig(PostgresConfig {
+                connection_string: postgres_connection_string,
+                db_pool_size: 8,
+            }),
+            processor_mode: ProcessorMode::Default(BootStrapConfig {
+                initial_starting_version: 0,
+            }),
         };
         let manager = Self {
             config,
@@ -164,7 +124,13 @@ impl ProcessorManager {
 
     /// Create the necessary tables in the DB for the processors to work.
     async fn run_migrations(&self) -> Result<()> {
-        let connection_string = self.config.postgres_connection_string.clone();
+        let connection_string = match &self.config.db_config {
+            DbConfig::PostgresConfig(postgres_config) => postgres_config.connection_string.clone(),
+            DbConfig::ParquetConfig(_) => {
+                bail!("Parquet is not supported in the localnet");
+            },
+        };
+
         tokio::task::spawn_blocking(move || {
             // This lets us use the connection like a normal diesel connection. See more:
             // https://docs.rs/diesel-async/latest/diesel_async/async_connection_wrapper/type.AsyncConnectionWrapper.html
@@ -172,7 +138,7 @@ impl ProcessorManager {
                 AsyncConnectionWrapper::establish(&connection_string).with_context(|| {
                     format!("Failed to connect to postgres at {}", connection_string)
                 })?;
-            run_pending_migrations(&mut conn);
+            run_pending_migrations(&mut conn, MIGRATIONS);
             anyhow::Ok(())
         })
         .await??;
@@ -187,8 +153,14 @@ impl ServiceManager for ProcessorManager {
     }
 
     fn get_health_checkers(&self) -> HashSet<HealthChecker> {
+        let connection_string = match &self.config.db_config {
+            DbConfig::PostgresConfig(postgres_config) => postgres_config.connection_string.clone(),
+            DbConfig::ParquetConfig(_) => {
+                panic!("Parquet is not supported in the localnet");
+            },
+        };
         hashset! {HealthChecker::Processor(
-            self.config.postgres_connection_string.to_string(),
+            connection_string,
             self.config.processor_config.name().to_string(),
         ) }
     }

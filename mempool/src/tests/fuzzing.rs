@@ -4,10 +4,13 @@
 
 use crate::{
     core_mempool::{CoreMempool, TimelineState},
-    network::MempoolSyncMsg,
+    network::{BroadcastPeerPriority, MempoolSyncMsg},
     shared_mempool::{tasks, types::SharedMempool},
 };
-use aptos_config::{config::NodeConfig, network_id::NetworkId};
+use aptos_config::{
+    config::{NodeConfig, NodeType},
+    network_id::NetworkId,
+};
 use aptos_infallible::{Mutex, RwLock};
 use aptos_network::{
     application::{interface::NetworkClient, storage::PeersAndMetadata},
@@ -23,10 +26,38 @@ use proptest::{
 };
 use std::{collections::HashMap, sync::Arc};
 
-pub fn mempool_incoming_transactions_strategy(
-) -> impl Strategy<Value = (Vec<SignedTransaction>, TimelineState)> {
+impl Arbitrary for BroadcastPeerPriority {
+    type Parameters = ();
+    type Strategy = BoxedStrategy<Self>;
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        prop_oneof![
+            Just(BroadcastPeerPriority::Primary),
+            Just(BroadcastPeerPriority::Failover),
+        ]
+        .boxed()
+    }
+}
+
+pub fn mempool_incoming_transactions_strategy() -> impl Strategy<
+    Value = (
+        Vec<(
+            SignedTransaction,
+            Option<u64>,
+            Option<BroadcastPeerPriority>,
+        )>,
+        TimelineState,
+    ),
+> {
     (
-        proptest::collection::vec(any::<SignedTransaction>(), 0..100),
+        proptest::collection::vec(
+            any::<(
+                SignedTransaction,
+                Option<u64>,
+                Option<BroadcastPeerPriority>,
+            )>(),
+            0..100,
+        ),
         prop_oneof![
             Just(TimelineState::NotReady),
             Just(TimelineState::NonQualified)
@@ -35,7 +66,11 @@ pub fn mempool_incoming_transactions_strategy(
 }
 
 pub fn test_mempool_process_incoming_transactions_impl(
-    txns: Vec<SignedTransaction>,
+    txns: Vec<(
+        SignedTransaction,
+        Option<u64>,
+        Option<BroadcastPeerPriority>,
+    )>,
     timeline_state: TimelineState,
 ) {
     let config = NodeConfig::default();
@@ -47,14 +82,16 @@ pub fn test_mempool_process_incoming_transactions_impl(
         HashMap::new(),
         PeersAndMetadata::new(&[NetworkId::Validator]),
     );
+    let transaction_filter_config = config.transaction_filters.mempool_filter.clone();
     let smp: SharedMempool<NetworkClient<MempoolSyncMsg>, MockVMValidator> = SharedMempool::new(
         Arc::new(Mutex::new(CoreMempool::new(&config))),
         config.mempool.clone(),
+        transaction_filter_config,
         network_client,
         Arc::new(mock_db),
         vm_validator,
         vec![],
-        config.base.role,
+        NodeType::extract_from_config(&config),
     );
 
     let _ = tasks::process_incoming_transactions(&smp, txns, timeline_state, false);

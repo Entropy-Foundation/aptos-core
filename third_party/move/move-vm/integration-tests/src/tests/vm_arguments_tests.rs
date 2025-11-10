@@ -2,17 +2,19 @@
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::tests::{execute_function_with_single_storage_for_test, execute_script_for_test};
 use move_binary_format::{
     errors::VMResult,
     file_format::{
-        empty_module, AbilitySet, AddressIdentifierIndex, Bytecode, CodeUnit, CompiledModule,
-        CompiledScript, FieldDefinition, FunctionDefinition, FunctionHandle, FunctionHandleIndex,
-        IdentifierIndex, ModuleHandle, ModuleHandleIndex, Signature, SignatureIndex,
-        SignatureToken, StructDefinition, StructFieldInformation, StructHandle, StructHandleIndex,
-        TableIndex, TypeSignature, Visibility,
+        empty_module, AddressIdentifierIndex, Bytecode, CodeUnit, CompiledModule, CompiledScript,
+        FieldDefinition, FunctionDefinition, FunctionHandle, FunctionHandleIndex, IdentifierIndex,
+        ModuleHandle, ModuleHandleIndex, Signature, SignatureIndex, SignatureToken,
+        StructDefinition, StructFieldInformation, StructHandle, StructHandleIndex, TableIndex,
+        TypeSignature, Visibility,
     },
 };
 use move_core_types::{
+    ability::AbilitySet,
     account_address::AccountAddress,
     ident_str,
     identifier::Identifier,
@@ -21,9 +23,7 @@ use move_core_types::{
     value::{serialize_values, MoveValue},
     vm_status::{StatusCode, StatusType},
 };
-use move_vm_runtime::{module_traversal::*, move_vm::MoveVM};
 use move_vm_test_utils::InMemoryStorage;
-use move_vm_types::gas::UnmeteredGasMeter;
 
 // make a script with a given signature for main.
 fn make_script(parameters: Signature) -> Vec<u8> {
@@ -61,6 +61,7 @@ fn make_script(parameters: Signature) -> Vec<u8> {
             locals: SignatureIndex(0),
             code: vec![Bytecode::LdU64(0), Bytecode::Abort],
         },
+        access_specifiers: None,
     }
     .serialize(&mut blob)
     .expect("script must serialize");
@@ -105,6 +106,7 @@ fn make_script_with_non_linking_structs(parameters: Signature) -> Vec<u8> {
             return_: SignatureIndex(0),
             type_parameters: vec![],
             access_specifiers: None,
+            attributes: vec![],
         }],
 
         function_instantiations: vec![],
@@ -122,6 +124,7 @@ fn make_script_with_non_linking_structs(parameters: Signature) -> Vec<u8> {
 
         type_parameters: vec![],
         parameters: parameters_idx,
+        access_specifiers: None,
         code: CodeUnit {
             locals: SignatureIndex(0),
             code: vec![Bytecode::LdU64(0), Bytecode::Abort],
@@ -179,6 +182,7 @@ fn make_module_with_function(
             return_: return_idx,
             type_parameters,
             access_specifiers: None,
+            attributes: vec![],
         }],
         field_handles: vec![],
         friend_decls: vec![],
@@ -215,6 +219,10 @@ fn make_module_with_function(
                 code: vec![Bytecode::LdU64(0), Bytecode::Abort],
             }),
         }],
+        struct_variant_handles: vec![],
+        struct_variant_instantiations: vec![],
+        variant_field_handles: vec![],
+        variant_field_instantiations: vec![],
     };
     (module, function_name)
 }
@@ -247,50 +255,36 @@ fn call_script_with_args_ty_args_signers(
     ty_args: Vec<TypeTag>,
     signers: Vec<AccountAddress>,
 ) -> VMResult<()> {
-    let move_vm = MoveVM::new(vec![]);
-    let remote_view = InMemoryStorage::new();
-    let mut session = move_vm.new_session(&remote_view);
-    let traversal_storage = TraversalStorage::new();
-
-    session
-        .execute_script(
-            script,
-            ty_args,
-            combine_signers_and_args(signers, non_signer_args),
-            &mut UnmeteredGasMeter,
-            &mut TraversalContext::new(&traversal_storage),
-        )
-        .map(|_| ())
+    let storage = InMemoryStorage::new();
+    let args = combine_signers_and_args(signers, non_signer_args);
+    execute_script_for_test(&storage, &script, &ty_args, args)
 }
 
 fn call_script(script: Vec<u8>, args: Vec<Vec<u8>>) -> VMResult<()> {
     call_script_with_args_ty_args_signers(script, args, vec![], vec![])
 }
 
-fn call_script_function_with_args_ty_args_signers(
+fn call_function_with_args_ty_args_signers(
     module: CompiledModule,
     function_name: Identifier,
     non_signer_args: Vec<Vec<u8>>,
     ty_args: Vec<TypeTag>,
     signers: Vec<AccountAddress>,
 ) -> VMResult<()> {
-    let move_vm = MoveVM::new(vec![]);
-    let mut remote_view = InMemoryStorage::new();
+    let mut storage = InMemoryStorage::new();
 
     let module_id = module.self_id();
     let mut module_blob = vec![];
     module.serialize(&mut module_blob).unwrap();
 
-    remote_view.publish_or_overwrite_module(module_id.clone(), module_blob);
-    let mut session = move_vm.new_session(&remote_view);
-    let traversal_storage = TraversalStorage::new();
-    session.execute_function_bypass_visibility(
+    storage.add_module_bytes(module_id.address(), module_id.name(), module_blob.into());
+
+    execute_function_with_single_storage_for_test(
+        &storage,
         &module_id,
         function_name.as_ident_str(),
-        ty_args,
+        &ty_args,
         combine_signers_and_args(signers, non_signer_args),
-        &mut UnmeteredGasMeter,
-        &mut TraversalContext::new(&traversal_storage),
     )?;
     Ok(())
 }
@@ -300,7 +294,7 @@ fn call_script_function(
     function_name: Identifier,
     args: Vec<Vec<u8>>,
 ) -> VMResult<()> {
-    call_script_function_with_args_ty_args_signers(module, function_name, args, vec![], vec![])
+    call_function_with_args_ty_args_signers(module, function_name, args, vec![], vec![])
 }
 
 // these signatures used to be bad, but there are no bad signatures for scripts at the VM
@@ -705,7 +699,7 @@ fn check_script_function() {
         let expected_status = expected_status_opt.unwrap_or(StatusCode::ABORTED);
         let (module, function_name) = make_script_function(signature);
         assert_eq!(
-            call_script_function_with_args_ty_args_signers(
+            call_function_with_args_ty_args_signers(
                 module,
                 function_name,
                 serialize_values(&args),
@@ -732,16 +726,10 @@ fn check_script_function() {
         vec![],
     );
     assert_eq!(
-        call_script_function_with_args_ty_args_signers(
-            module,
-            function_name,
-            vec![],
-            vec![],
-            vec![],
-        )
-        .err()
-        .unwrap()
-        .major_status(),
+        call_function_with_args_ty_args_signers(module, function_name, vec![], vec![], vec![],)
+            .err()
+            .unwrap()
+            .major_status(),
         StatusCode::ABORTED,
     );
     // private
@@ -753,16 +741,10 @@ fn check_script_function() {
         vec![],
     );
     assert_eq!(
-        call_script_function_with_args_ty_args_signers(
-            module,
-            function_name,
-            vec![],
-            vec![],
-            vec![],
-        )
-        .err()
-        .unwrap()
-        .major_status(),
+        call_function_with_args_ty_args_signers(module, function_name, vec![], vec![], vec![],)
+            .err()
+            .unwrap()
+            .major_status(),
         StatusCode::ABORTED,
     );
 }
@@ -775,49 +757,28 @@ fn call_missing_item() {
     module.serialize(&mut module_blob).unwrap();
 
     // missing module
-    let function_name = ident_str!("foo");
-    let move_vm = MoveVM::new(vec![]);
-    let mut remote_view = InMemoryStorage::new();
-    let mut session = move_vm.new_session(&remote_view);
-    let traversal_storage = TraversalStorage::new();
-    let error = session
-        .execute_function_bypass_visibility(
-            &module_id,
-            function_name,
-            vec![],
-            Vec::<Vec<u8>>::new(),
-            &mut UnmeteredGasMeter,
-            &mut TraversalContext::new(&traversal_storage),
-        )
-        .err()
-        .unwrap();
-    assert_eq!(
-        error.major_status(),
-        StatusCode::LINKER_ERROR,
-        "Linker Error: Call to item at a non-existent external module {:?}",
-        module
-    );
-    assert_eq!(error.status_type(), StatusType::Verification);
-    drop(session);
+    let mut storage = InMemoryStorage::new();
+    let err = execute_function_with_single_storage_for_test(
+        &storage,
+        &module_id,
+        ident_str!("foo"),
+        &[],
+        vec![],
+    )
+    .unwrap_err();
+    assert_eq!(err.major_status(), StatusCode::LINKER_ERROR);
+    assert_eq!(err.status_type(), StatusType::Verification);
 
     // missing function
-    remote_view.publish_or_overwrite_module(module_id.clone(), module_blob);
-    let mut session = move_vm.new_session(&remote_view);
-    let traversal_storage = TraversalStorage::new();
-    let error = session
-        .execute_function_bypass_visibility(
-            &module_id,
-            function_name,
-            vec![],
-            Vec::<Vec<u8>>::new(),
-            &mut UnmeteredGasMeter,
-            &mut TraversalContext::new(&traversal_storage),
-        )
-        .err()
-        .unwrap();
-    assert_eq!(
-        error.major_status(),
-        StatusCode::FUNCTION_RESOLUTION_FAILURE
-    );
-    assert_eq!(error.status_type(), StatusType::Verification);
+    storage.add_module_bytes(module_id.address(), module_id.name(), module_blob.into());
+    let err = execute_function_with_single_storage_for_test(
+        &storage,
+        &module_id,
+        ident_str!("foo"),
+        &[],
+        vec![],
+    )
+    .unwrap_err();
+    assert_eq!(err.major_status(), StatusCode::FUNCTION_RESOLUTION_FAILURE);
+    assert_eq!(err.status_type(), StatusType::Verification);
 }

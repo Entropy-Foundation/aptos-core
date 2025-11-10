@@ -80,7 +80,6 @@ target-out-docker
 docker/compose/indexer-grpc/data-service-grpc-server.crt
 docker/compose/indexer-grpc/data-service-grpc-server.key
 
-
 # Doc generation output
 *.md.old
 
@@ -130,6 +129,7 @@ run_*
 # test files for indexer GRPC
 test_indexer_grpc_*.yaml
 test_indexer_grpc/*
+ecosystem/indexer-grpc/indexer-transaction-generator/*.yaml
 
 # ignore compiler artifacts
 *.dot
@@ -140,3 +140,15 @@ test_indexer_grpc/*
 *supra_history
 **/supra_node_logs
 aptos-move/framework/supra-framework/doc/supra_poll.md
+
+# ignore antithesis
+genesis_antithesis_*/
+
+# ignore cursor rules
+.cursor/rules
+
+#ignore proptest regressions
+**/proptest_regressions/*
+
+# Ignore generated credentials from google-github-actions/auth
+gha-creds-*.json

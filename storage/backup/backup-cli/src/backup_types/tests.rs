@@ -2,6 +2,8 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(unexpected_cfgs)]
+
 use crate::{
     backup_types::{
         state_snapshot::{
@@ -41,7 +43,7 @@ struct TestData {
 
 fn test_data_strategy() -> impl Strategy<Value = TestData> {
     let db = test_execution_with_storage_impl();
-    let latest_ver = db.get_synced_version().unwrap();
+    let latest_ver = db.expect_synced_version();
 
     let latest_epoch_state = db.get_latest_epoch_state().unwrap();
     let epoch_ending_lis = db
@@ -125,6 +127,7 @@ fn test_end_to_end_impl(d: TestData) {
         rocksdb_opt: RocksdbOpt::default(),
         concurrent_downloads: ConcurrentDownloadsOpt::default(),
         replay_concurrency_level: ReplayConcurrencyLevelOpt::default(),
+        enable_state_indices: false,
     }
     .try_into()
     .unwrap();
@@ -149,9 +152,7 @@ fn test_end_to_end_impl(d: TestData) {
         TransactionRestoreController::new(
             TransactionRestoreOpt {
                 manifest_handle: txn_manifest,
-                replay_from_version: Some(
-                    d.state_snapshot_ver.unwrap_or(Version::max_value() - 1) + 1,
-                ),
+                replay_from_version: Some(d.state_snapshot_ver.unwrap_or(Version::MAX - 1) + 1),
                 kv_only_replay: Some(false),
             },
             global_restore_opt,

@@ -1,6 +1,9 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(clippy::unwrap_used)]
+
+use aptos_consensus_types::block::Block;
 use aptos_metrics_core::{
     exponential_buckets, op_counters::DurationHistogram, register_avg_counter, register_histogram,
     register_histogram_vec, register_int_counter, register_int_counter_vec, Histogram,
@@ -100,14 +103,74 @@ pub static BATCH_GENERATOR_MAIN_LOOP: Lazy<DurationHistogram> = Lazy::new(|| {
 /// Histograms
 
 /// Histogram for the number of batches per (committed) blocks.
-pub static NUM_BATCH_PER_BLOCK: Lazy<Histogram> = Lazy::new(|| {
-    register_histogram!(
-        "quorum_store_num_batch_per_block",
+/// types: proof, inline_batch, opt_batch
+pub static BATCH_NUM_PER_BLOCK: Lazy<HistogramVec> = Lazy::new(|| {
+    register_histogram_vec!(
+        "quorum_store_batch_num_per_block",
         "Histogram for the number of batches per (committed) blocks.",
+        &["type"],
         TRANSACTION_COUNT_BUCKETS.clone(),
     )
     .unwrap()
 });
+
+/// Histogram for the number of txns per batch type in (committed) blocks.
+/// types: proof, inline_batch, opt_batch
+pub static TXN_NUM_PER_BATCH_TYPE_PER_BLOCK: Lazy<HistogramVec> = Lazy::new(|| {
+    register_histogram_vec!(
+        "quorum_store_txn_num_per_batch_type_per_block",
+        "Histogram for the number of txns per batch type in (committed) blocks.",
+        &["type"],
+        TRANSACTION_COUNT_BUCKETS.clone(),
+    )
+    .unwrap()
+});
+
+/// Histogram for the txn bytes per batch type in (committed) blocks.
+/// types: proof, inline_batch, opt_batch
+pub static TXN_BYTES_PER_BATCH_TYPE_PER_BLOCK: Lazy<HistogramVec> = Lazy::new(|| {
+    register_histogram_vec!(
+        "quorum_store_txn_bytes_per_batch_type_per_block",
+        "Histogram for the txn bytes per batch type in (committed) blocks.",
+        &["type"],
+        BYTE_BUCKETS.clone(),
+    )
+    .unwrap()
+});
+
+pub fn update_batch_stats(block: &Block) {
+    let (proof_num, proof_txn_num, proof_txn_bytes) = block.proof_stats();
+    BATCH_NUM_PER_BLOCK
+        .with_label_values(&["proof"])
+        .observe(proof_num as f64);
+    TXN_NUM_PER_BATCH_TYPE_PER_BLOCK
+        .with_label_values(&["proof"])
+        .observe(proof_txn_num as f64);
+    TXN_BYTES_PER_BATCH_TYPE_PER_BLOCK
+        .with_label_values(&["proof"])
+        .observe(proof_txn_bytes as f64);
+    let (inline_batch_num, inline_batch_txn_num, inline_batch_txn_bytes) =
+        block.inline_batch_stats();
+    BATCH_NUM_PER_BLOCK
+        .with_label_values(&["inline_batch"])
+        .observe(inline_batch_num as f64);
+    TXN_NUM_PER_BATCH_TYPE_PER_BLOCK
+        .with_label_values(&["inline_batch"])
+        .observe(inline_batch_txn_num as f64);
+    TXN_BYTES_PER_BATCH_TYPE_PER_BLOCK
+        .with_label_values(&["inline_batch"])
+        .observe(inline_batch_txn_bytes as f64);
+    let (opt_batch_num, opt_batch_txn_num, opt_batch_txn_bytes) = block.opt_batch_stats();
+    BATCH_NUM_PER_BLOCK
+        .with_label_values(&["opt_batch"])
+        .observe(opt_batch_num as f64);
+    TXN_NUM_PER_BATCH_TYPE_PER_BLOCK
+        .with_label_values(&["opt_batch"])
+        .observe(opt_batch_txn_num as f64);
+    TXN_BYTES_PER_BATCH_TYPE_PER_BLOCK
+        .with_label_values(&["opt_batch"])
+        .observe(opt_batch_txn_bytes as f64);
+}
 
 /// Histogram for the number of transactions per batch.
 static NUM_TXN_PER_BATCH: Lazy<HistogramVec> = Lazy::new(|| {
@@ -130,7 +193,57 @@ pub fn num_txn_per_batch(bucket_start: &str, num: usize) {
 pub static BLOCK_SIZE_WHEN_PULL: Lazy<Histogram> = Lazy::new(|| {
     register_histogram!(
         "quorum_store_block_size_when_pull",
-        "Histogram for the number of transactions per block when pulled for consensus.",
+        "Histogram for the number of unique transactions per block when pulled for consensus.",
+        TRANSACTION_COUNT_BUCKETS.clone(),
+    )
+    .unwrap()
+});
+
+pub static TOTAL_BLOCK_SIZE_WHEN_PULL: Lazy<Histogram> = Lazy::new(|| {
+    register_histogram!(
+        "quorum_store_total_block_size_when_pull",
+        "Histogram for the total number of transactions including duplicates per block when pulled for consensus.",
+        BYTE_BUCKETS.clone(),
+    )
+    .unwrap()
+});
+
+/// Histogram for the number of transactions per block when pulled for consensus.
+pub static CONSENSUS_PULL_NUM_TXNS: Lazy<HistogramVec> = Lazy::new(|| {
+    register_histogram_vec!(
+        "quorum_store_consensus_pull_num_txns",
+        "Histogram for the number of transactions including duplicates when pulled for consensus.",
+        &["pull_kind"],
+        TRANSACTION_COUNT_BUCKETS.clone(),
+    )
+    .unwrap()
+});
+
+/// Histogram for the number of transactions per block when pulled for consensus.
+pub static CONSENSUS_PULL_NUM_UNIQUE_TXNS: Lazy<HistogramVec> = Lazy::new(|| {
+    register_histogram_vec!(
+        "quorum_store_consensus_pull_num_unique_txns",
+        "Histogram for the number of unique transactions when pulled for consensus.",
+        &["pull_kind"],
+        TRANSACTION_COUNT_BUCKETS.clone(),
+    )
+    .unwrap()
+});
+
+pub static CONSENSUS_PULL_SIZE_IN_BYTES: Lazy<HistogramVec> = Lazy::new(|| {
+    register_histogram_vec!(
+        "quorum_store_consensus_pull_size_in_bytes",
+        "Histogram for the size of the pulled transactions for consensus.",
+        &["pull_kind"],
+        TRANSACTION_COUNT_BUCKETS.clone(),
+    )
+    .unwrap()
+});
+
+pub static KNOWN_DUPLICATE_TXNS_WHEN_PULL: Lazy<Histogram> = Lazy::new(|| {
+    register_histogram!(
+        "quorum_store_known_duplicate_txns_when_pull",
+        "Histogram for the number of known duplicate transactions in a block when pulled for consensus.",
         TRANSACTION_COUNT_BUCKETS.clone(),
     )
     .unwrap()
@@ -303,6 +416,71 @@ pub fn pos_to_commit(bucket: u64, secs: f64) {
         .with_label_values(&[bucket.to_string().as_str()])
         .observe(secs);
 }
+
+//////////////////////
+// Proof Queue
+//////////////////////
+
+pub static PROOFS_WITHOUT_BATCH_SUMMARY: Lazy<Histogram> = Lazy::new(|| {
+    register_histogram!(
+        "quorum_store_proofs_without_batch_data",
+        "Number of proofs received without batch data",
+        PROOF_COUNT_BUCKETS.clone(),
+    )
+    .unwrap()
+});
+
+pub static PROOFS_WITH_BATCH_SUMMARY: Lazy<Histogram> = Lazy::new(|| {
+    register_histogram!(
+        "quorum_store_proofs_with_batch_data",
+        "Number of proofs received without batch data",
+        PROOF_COUNT_BUCKETS.clone(),
+    )
+    .unwrap()
+});
+
+pub static TXNS_WITH_DUPLICATE_BATCHES: Lazy<Histogram> = Lazy::new(|| {
+    register_histogram!(
+        "quorum_store_txns_with_duplicate_batches",
+        "Number of transactions received with duplicate batches",
+        TRANSACTION_COUNT_BUCKETS.clone(),
+    )
+    .unwrap()
+});
+
+pub static TXNS_IN_PROOFS_WITH_SUMMARIES: Lazy<Histogram> = Lazy::new(|| {
+    register_histogram!(
+        "quorum_store_txns_in_proof_queue_with_summaries",
+        "Number of transactions in the proof queue",
+        TRANSACTION_COUNT_BUCKETS.clone(),
+    )
+    .unwrap()
+});
+
+pub static TXNS_IN_PROOFS_WITHOUT_SUMMARIES: Lazy<Histogram> = Lazy::new(|| {
+    register_histogram!(
+        "quorum_store_txns_in_proof_queue_without_summaries",
+        "Number of transactions in the proof queue",
+        TRANSACTION_COUNT_BUCKETS.clone(),
+    )
+    .unwrap()
+});
+
+pub static NUM_PROOFS_IN_PROOF_QUEUE_AFTER_PULL: Lazy<Histogram> = Lazy::new(|| {
+    register_histogram!(
+        "quorum_store_num_proofs_left_in_proof_queue_after_pull",
+        "Histogram for the number of proofs left in the proof queue after block proposal generation.",
+        PROOF_COUNT_BUCKETS.clone(),
+    ).unwrap()
+});
+
+pub static NUM_TXNS_IN_PROOF_QUEUE_AFTER_PULL: Lazy<Histogram> = Lazy::new(|| {
+    register_histogram!(
+        "quorum_store_num_txns_left_in_proof_queue_after_pull",
+        "Histogram for the number of transactions left in the proof queue after block proposal generation.",
+        TRANSACTION_COUNT_BUCKETS.clone(),
+    ).unwrap()
+});
 
 /// Histogram for the number of total txns left after adding or cleaning batches.
 pub static NUM_TOTAL_TXNS_LEFT_ON_UPDATE: Lazy<Histogram> = Lazy::new(|| {
@@ -479,6 +657,15 @@ pub static RECEIVED_BATCH_MAX_LIMIT_FAILED: Lazy<IntCounter> = Lazy::new(|| {
     .unwrap()
 });
 
+/// Count of the batch messages that contained transactions rejected by the filter
+pub static RECEIVED_BATCH_REJECTED_BY_FILTER: Lazy<IntCounter> = Lazy::new(|| {
+    register_int_counter!(
+        "quorum_store_received_batch_rejected_by_filter",
+        "Count of the batch messages that contained transactions rejected by the filter"
+    )
+    .unwrap()
+});
+
 /// Count of the missed batches when execute.
 pub static MISSED_BATCHES_COUNT: Lazy<IntCounter> = Lazy::new(|| {
     register_int_counter!(
@@ -606,10 +793,25 @@ pub static RECEIVED_BATCH_RESPONSE_ERROR_COUNT: Lazy<IntCounter> = Lazy::new(|| 
     .unwrap()
 });
 
+pub static RECEIVED_BATCH_FROM_SUBSCRIPTION_COUNT: Lazy<IntCounter> = Lazy::new(|| {
+    register_int_counter!(
+        "quorum_store_batch_from_subscription_count",
+        "Count of the number of batches received via batch store subscription."
+    )
+    .unwrap()
+});
+
 pub static QS_BACKPRESSURE_TXN_COUNT: Lazy<Histogram> = Lazy::new(|| {
     register_avg_counter(
         "quorum_store_backpressure_txn_count",
         "Indicator of whether Quorum Store is backpressured due to txn count exceeding threshold.",
+    )
+});
+
+pub static QS_BACKPRESSURE_MAKE_STRICTER_TXN_COUNT: Lazy<Histogram> = Lazy::new(|| {
+    register_avg_counter(
+        "quorum_store_backpressure_make_stricter_txn_count",
+        "Indicator of whether Quorum Store txn count backpressure is being made stricter.",
     )
 });
 
@@ -653,6 +855,15 @@ pub static EMPTY_BATCH_CREATION_DURATION: Lazy<DurationHistogram> = Lazy::new(||
     )
 });
 
+pub static GARBAGE_COLLECTED_IN_PROOF_QUEUE_COUNTER: Lazy<IntCounterVec> = Lazy::new(|| {
+    register_int_counter_vec!(
+        "quorum_store_garbage_collected_batch_count",
+        "Count of the number of garbage collected batches.",
+        &["reason"]
+    )
+    .unwrap()
+});
+
 /// Histogram of the time it takes to compute bucketed batches after txns are pulled from mempool.
 pub static BATCH_CREATION_COMPUTE_LATENCY: Lazy<DurationHistogram> = Lazy::new(|| {
     DurationHistogram::new(
@@ -687,10 +898,39 @@ pub static BATCH_TO_POS_DURATION: Lazy<DurationHistogram> = Lazy::new(|| {
     )
 });
 
+pub static SIGNED_BATCH_INFO_VERIFY_DURATION: Lazy<DurationHistogram> = Lazy::new(|| {
+    DurationHistogram::new(
+        register_histogram!(
+            "quorum_store_signed_batch_info_verify_duration",
+            "Histogram of the time durations for verifying signed batch info.",
+        )
+        .unwrap(),
+    )
+});
+
 pub static BATCH_SUCCESSFUL_CREATION: Lazy<Histogram> = Lazy::new(|| {
     register_avg_counter(
         "quorum_store_batch_successful_creation",
         "Counter for whether we are successfully creating batches",
+    )
+});
+
+pub static QUORUM_STORE_MSG_COUNT: Lazy<IntCounterVec> = Lazy::new(|| {
+    register_int_counter_vec!(
+        "quorum_store_msg_count",
+        "Count of messages received by various quoroum store components",
+        &["type"]
+    )
+    .unwrap()
+});
+
+pub static TIME_LAG_IN_BATCH_PROOF_QUEUE: Lazy<DurationHistogram> = Lazy::new(|| {
+    DurationHistogram::new(
+        register_histogram!(
+            "quorum_store_time_lag_in_proof_queue",
+            "Time lag between txn timestamp and current time when txn is added to proof queue",
+        )
+        .unwrap(),
     )
 });
 
@@ -718,6 +958,54 @@ pub static BATCH_RECEIVED_LATE_REPLIES_COUNT: Lazy<IntCounter> = Lazy::new(|| {
     register_int_counter!(
         "quorum_store_batch_received_late_replies",
         "Number of votes that came late."
+    )
+    .unwrap()
+});
+
+pub static BATCH_COORDINATOR_NUM_BATCH_REQS: Lazy<IntCounterVec> = Lazy::new(|| {
+    register_int_counter_vec!(
+        "quorum_store_batch_coord_requests",
+        "Number of requests to batch coordinator.",
+        &["bucket"]
+    )
+    .unwrap()
+});
+
+// Histogram buckets that expand DEFAULT_BUCKETS with more granularity:
+// * 0.3 to 2.0: step 0.1
+// * 2.0 to 4.0: step 0.2
+// * 4.0 to 7.5: step 0.5
+const BATCH_TRACING_BUCKETS: &[f64] = &[
+    0.005, 0.01, 0.025, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1,
+    1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0,
+    4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 10.0,
+];
+
+pub static BATCH_TRACING: Lazy<HistogramVec> = Lazy::new(|| {
+    register_histogram_vec!(
+        "quorum_store_batch_tracing",
+        "Histogram for different stages of a QS batch",
+        &["author", "stage"],
+        BATCH_TRACING_BUCKETS.to_vec()
+    )
+    .unwrap()
+});
+
+pub static BATCH_VOTE_PROGRESS: Lazy<HistogramVec> = Lazy::new(|| {
+    register_histogram_vec!(
+        "quorum_store_batch_vote_progress",
+        "Histogram for vote collection of a QS batch",
+        &["author", "vote_pct"],
+        BATCH_TRACING_BUCKETS.to_vec()
+    )
+    .unwrap()
+});
+
+pub static PROOF_MANAGER_OUT_OF_ORDER_PROOF_INSERTION: Lazy<IntCounterVec> = Lazy::new(|| {
+    register_int_counter_vec!(
+        "quorum_store_proof_manager_ooo_proof_insert",
+        "Number of ooo proof insertions into proof manager",
+        &["author"]
     )
     .unwrap()
 });

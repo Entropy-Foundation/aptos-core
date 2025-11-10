@@ -2,8 +2,11 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(clippy::unwrap_used)]
+
 use crate::{
     block_storage::{pending_blocks::PendingBlocks, BlockStore},
+    counters,
     liveness::{
         proposal_generator::{
             ChainHealthBackoffConfig, PipelineBackpressureConfig, ProposalGenerator,
@@ -14,19 +17,21 @@ use crate::{
     metrics_safety_rules::MetricsSafetyRules,
     network::NetworkSender,
     network_interface::{ConsensusNetworkClient, DIRECT_SEND, RPC},
-    payload_manager::PayloadManager,
+    payload_manager::DirectMempoolPayloadManager,
     persistent_liveness_storage::{PersistentLivenessStorage, RecoveryData},
     pipeline::execution_client::DummyExecutionClient,
     round_manager::RoundManager,
-    test_utils::{MockPayloadManager, MockStorage},
+    test_utils::{
+        MockOptQSPayloadProvider, MockPastProposalStatusTracker, MockPayloadManager, MockStorage,
+    },
     util::{mock_time_service::SimulatedTimeService, time_service::TimeService},
 };
 use aptos_channels::{self, aptos_channel, message_queues::QueueStyle};
 use aptos_config::{
-    config::{ConsensusConfig, QcAggregatorType},
+    config::{BlockTransactionFilterConfig, ConsensusConfig},
     network_id::NetworkId,
 };
-use aptos_consensus_types::proposal_msg::ProposalMsg;
+use aptos_consensus_types::{proposal_msg::ProposalMsg, utils::PayloadTxnsSize};
 use aptos_infallible::Mutex;
 use aptos_network::{
     application::{interface::NetworkClient, storage::PeersAndMetadata},
@@ -41,14 +46,13 @@ use aptos_types::{
     ledger_info::{LedgerInfo, LedgerInfoWithSignatures},
     on_chain_config::{
         OnChainConsensusConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig, ValidatorSet,
-        ValidatorTxnConfig,
+        ValidatorTxnConfig, DEFAULT_ENABLED_WINDOW_SIZE,
     },
     validator_info::ValidatorInfo,
     validator_signer::ValidatorSigner,
     validator_verifier::ValidatorVerifier,
 };
 use futures::{channel::mpsc, executor::block_on};
-use futures_channel::mpsc::unbounded;
 use maplit::hashmap;
 use once_cell::sync::Lazy;
 use std::{sync::Arc, time::Duration};
@@ -56,10 +60,10 @@ use tokio::runtime::Runtime;
 
 // This generates a proposal for round 1
 pub fn generate_corpus_proposal() -> Vec<u8> {
-    let mut round_manager = create_node_for_fuzzing();
+    let round_manager = create_node_for_fuzzing();
     block_on(async {
         let proposal = round_manager
-            .generate_proposal(NewRoundEvent {
+            .generate_proposal_for_test(NewRoundEvent {
                 round: 1,
                 reason: NewRoundReason::QCReady,
                 timeout: std::time::Duration::new(5, 0),
@@ -90,9 +94,11 @@ fn build_empty_store(
         10, // max pruned blocks in mem
         Arc::new(SimulatedTimeService::new()),
         10,
-        Arc::from(PayloadManager::DirectMempool),
+        Arc::from(DirectMempoolPayloadManager::new()),
         false,
+        DEFAULT_ENABLED_WINDOW_SIZE,
         Arc::new(Mutex::new(PendingBlocks::new())),
+        None,
     ))
 }
 
@@ -111,16 +117,9 @@ fn create_round_state() -> RoundState {
     let base_timeout = std::time::Duration::new(60, 0);
     let time_interval = Box::new(ExponentialTimeInterval::fixed(base_timeout));
     let (round_timeout_sender, _) = aptos_channels::new_test(1_024);
-    let (delayed_qc_tx, _) = unbounded();
     let time_service = Arc::new(SimulatedTimeService::new());
 
-    RoundState::new(
-        time_interval,
-        time_service,
-        round_timeout_sender,
-        delayed_qc_tx,
-        QcAggregatorType::NoDelay,
-    )
+    RoundState::new(time_interval, time_service, round_timeout_sender)
 }
 
 // Creates an RoundManager for fuzzing
@@ -137,7 +136,7 @@ fn create_node_for_fuzzing() -> RoundManager {
 
     // TODO: remove
     let proof = make_initial_epoch_change_proof(&signer);
-    let mut safety_rules = SafetyRules::new(test_utils::test_storage(&signer));
+    let mut safety_rules = SafetyRules::new(test_utils::test_storage(&signer), false);
     safety_rules.initialize(&proof).unwrap();
 
     // TODO: mock channels
@@ -157,10 +156,7 @@ fn create_node_for_fuzzing() -> RoundManager {
 
     let (self_sender, _self_receiver) = aptos_channels::new_unbounded_test();
 
-    let epoch_state = Arc::new(EpochState {
-        epoch: 1,
-        verifier: storage.get_validator_set().into(),
-    });
+    let epoch_state = Arc::new(EpochState::new(1, storage.get_validator_set().into()));
     let network = Arc::new(NetworkSender::new(
         signer.author(),
         consensus_network_client,
@@ -182,16 +178,18 @@ fn create_node_for_fuzzing() -> RoundManager {
         Arc::new(MockPayloadManager::new(None)),
         time_service,
         Duration::ZERO,
+        PayloadTxnsSize::new(1, 1024),
         1,
-        1024,
-        1,
-        1024,
+        PayloadTxnsSize::new(1, 1024),
         10,
+        1,
+        Some(30_000),
         PipelineBackpressureConfig::new_no_backoff(),
         ChainHealthBackoffConfig::new_no_backoff(),
         false,
         ValidatorTxnConfig::default_disabled(),
         true,
+        Arc::new(MockOptQSPayloadProvider {}),
     );
 
     //
@@ -201,6 +199,9 @@ fn create_node_for_fuzzing() -> RoundManager {
     let proposer_election = Arc::new(RotatingProposer::new(vec![signer.author()], 1));
 
     let (round_manager_tx, _) = aptos_channel::new(QueueStyle::LIFO, 1, None);
+
+    let (opt_proposal_loopback_tx, _) =
+        aptos_channels::new_unbounded(&counters::OP_COUNTERS.gauge("opt_proposal_loopback_queue"));
 
     // event processor
     RoundManager::new(
@@ -217,10 +218,13 @@ fn create_node_for_fuzzing() -> RoundManager {
         storage,
         OnChainConsensusConfig::default(),
         round_manager_tx,
+        BlockTransactionFilterConfig::default(),
         ConsensusConfig::default(),
         OnChainRandomnessConfig::default_enabled(),
         OnChainJWKConsensusConfig::default_enabled(),
         None,
+        Arc::new(MockPastProposalStatusTracker {}),
+        opt_proposal_loopback_tx,
     )
 }
 

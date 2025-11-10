@@ -6,13 +6,12 @@
 mod resolver;
 pub mod session;
 mod vm;
-mod warm_vm_cache;
 pub(crate) mod write_op_converter;
 
 pub use crate::move_vm_ext::{
     resolver::{AptosMoveResolver, AsExecutorView, AsResourceGroupView, ResourceGroupResolver},
-    session::SessionExt,
-    vm::{GenesisMoveVM, MoveVmExt},
+    session::{convert_modules_into_write_ops, SessionExt},
+    vm::{GenesisMoveVm, GenesisRuntimeBuilder, MoveVmExt},
 };
 use aptos_types::state_store::state_key::StateKey;
 pub use aptos_types::transaction::user_transaction_context::UserTransactionContext;

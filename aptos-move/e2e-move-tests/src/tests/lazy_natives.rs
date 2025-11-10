@@ -3,25 +3,23 @@
 
 use crate::{assert_success, MoveHarness};
 use aptos_package_builder::PackageBuilder;
-use aptos_types::account_address::AccountAddress;
 use move_core_types::vm_status::StatusCode;
 
 #[test]
 fn lazy_natives() {
     let mut h = MoveHarness::new();
-    let acc = h.new_account_at(AccountAddress::from_hex_literal("0xcafe").unwrap());
-
+    let acc = h.aptos_framework_account();
     let mut builder = PackageBuilder::new("LazyNatives");
     builder.add_source(
         "test",
         "
-module 0xcafe::test {
-    native fun undefined();
+            module 0x1::test {
+                native fun undefined();
 
-    public entry fun nothing() {}
-    public entry fun something() { undefined() }
-}
-    ",
+                public entry fun nothing() {}
+                public entry fun something() { undefined() }
+            }
+            ",
     );
     let dir = builder.write_to_temp().unwrap();
 
@@ -31,7 +29,7 @@ module 0xcafe::test {
     // Should be able to call nothing entry
     assert_success!(h.run_entry_function(
         &acc,
-        str::parse("0xcafe::test::nothing").unwrap(),
+        str::parse("0x1::test::nothing").unwrap(),
         vec![],
         vec![]
     ));
@@ -39,7 +37,7 @@ module 0xcafe::test {
     // Should not be able to call something entry
     let result = h.try_run_entry_function(
         &acc,
-        str::parse("0xcafe::test::something").unwrap(),
+        str::parse("0x1::test::something").unwrap(),
         vec![],
         vec![],
     );

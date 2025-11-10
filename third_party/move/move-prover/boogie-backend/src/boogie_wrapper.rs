@@ -109,7 +109,7 @@ static INCONCLUSIVE_DIAG_STARTS: Lazy<Regex> = Lazy::new(|| {
 static INCONSISTENCY_DIAG_STARTS: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?m)^inconsistency_detected\((?P<args>[^)]*)\)").unwrap());
 
-impl<'env> BoogieWrapper<'env> {
+impl BoogieWrapper<'_> {
     /// Calls boogie on the given file. On success, returns a struct representing the analyzed
     /// output of boogie.
     pub fn call_boogie(&self, boogie_file: &str) -> anyhow::Result<BoogieOutput> {
@@ -270,7 +270,8 @@ impl<'env> BoogieWrapper<'env> {
                 // Brute-force filter out "at" entries which look alike. This is cheaper than
                 // avoiding producing them, because of the step of converting locations to line
                 // numbers.
-                let display_str = format!("    {}{}", loc.display_line_only(self.env), info);
+                let display_str =
+                    format!("    {}{}", loc.display_file_name_and_line(self.env), info);
                 if (display.is_empty() || display[display.len() - 1] != display_str)
                     && !display_str.contains("<internal>")
                 {
@@ -1435,7 +1436,7 @@ impl ModelValue {
             },
             Type::Tuple(_)
             | Type::Primitive(_)
-            | Type::Fun(_, _)
+            | Type::Fun(..)
             | Type::TypeDomain(_)
             | Type::ResourceDomain(_, _, _)
             | Type::Error
@@ -1658,7 +1659,7 @@ impl From<ParseIntError> for ModelParseError {
 
 const MODEL_END_MARKER: &str = "*** END_MODEL";
 
-impl<'s> ModelParser<'s> {
+impl ModelParser<'_> {
     fn skip_space(&mut self) {
         while self.input[self.at..].starts_with(|ch| [' ', '\r', '\n', '\t'].contains(&ch)) {
             self.at = usize::saturating_add(self.at, 1);

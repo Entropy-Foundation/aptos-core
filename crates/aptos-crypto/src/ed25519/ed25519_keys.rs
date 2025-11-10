@@ -38,6 +38,15 @@ impl Clone for Ed25519PrivateKey {
 #[derive(DeserializeKey, Clone, SerializeKey)]
 pub struct Ed25519PublicKey(pub(crate) ed25519_dalek::PublicKey);
 
+#[cfg(any(test, feature = "fuzzing"))]
+impl<'a> arbitrary::Arbitrary<'a> for Ed25519PublicKey {
+    fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+        let bytes: [u8; ED25519_PUBLIC_KEY_LENGTH] = u.arbitrary()?;
+        Ed25519PublicKey::from_bytes_unchecked(&bytes)
+            .map_err(|_| arbitrary::Error::IncorrectFormat)
+    }
+}
+
 impl Ed25519PrivateKey {
     /// The length of the Ed25519PrivateKey
     pub const LENGTH: usize = ED25519_PRIVATE_KEY_LENGTH;
@@ -220,6 +229,8 @@ impl Length for Ed25519PrivateKey {
 }
 
 impl ValidCryptoMaterial for Ed25519PrivateKey {
+    const AIP_80_PREFIX: &'static str = "ed25519-priv-";
+
     fn to_bytes(&self) -> Vec<u8> {
         self.to_bytes().to_vec()
     }
@@ -305,6 +316,8 @@ impl Length for Ed25519PublicKey {
 }
 
 impl ValidCryptoMaterial for Ed25519PublicKey {
+    const AIP_80_PREFIX: &'static str = "ed25519-pub-";
+
     fn to_bytes(&self) -> Vec<u8> {
         self.0.to_bytes().to_vec()
     }

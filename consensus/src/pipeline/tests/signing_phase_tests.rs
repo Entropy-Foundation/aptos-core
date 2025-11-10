@@ -65,6 +65,7 @@ fn add_signing_phase_test_cases(
         SigningRequest {
             ordered_ledger_info: ordered_ledger_info.clone(),
             commit_ledger_info: commit_ledger_info.clone(),
+            blocks: vecblocks.clone(),
         },
         Box::new(move |resp| {
             assert!(resp.signature_result.is_ok());
@@ -73,6 +74,7 @@ fn add_signing_phase_test_cases(
     );
 
     let (_, executed_ledger_info) = prepare_executed_blocks_with_executed_ledger_info(&signers[0]);
+    let executed_commit_ledger_info = executed_ledger_info.ledger_info().clone();
     let inconsistent_commit_ledger_info =
         LedgerInfo::new(BlockInfo::random(1), HashValue::from_u64(0xBEEF));
 
@@ -81,6 +83,7 @@ fn add_signing_phase_test_cases(
         SigningRequest {
             ordered_ledger_info: ordered_ledger_info.clone(),
             commit_ledger_info: inconsistent_commit_ledger_info,
+            blocks: vecblocks.clone(),
         },
         Box::new(move |resp| {
             assert!(matches!(
@@ -90,17 +93,16 @@ fn add_signing_phase_test_cases(
         }),
     );
 
-    // not ordered-only
+    // ordered ledger info same as commit ledger info
     phase_tester.add_test_case(
         SigningRequest {
             ordered_ledger_info: executed_ledger_info.clone(),
             commit_ledger_info: executed_ledger_info.ledger_info().clone(),
+            blocks: vecblocks.clone(),
         },
         Box::new(move |resp| {
-            assert!(matches!(
-                resp.signature_result,
-                Err(Error::InvalidOrderedLedgerInfo(_))
-            ));
+            assert!(resp.signature_result.is_ok());
+            assert_eq!(resp.commit_ledger_info, executed_commit_ledger_info);
         }),
     );
 
@@ -112,6 +114,7 @@ fn add_signing_phase_test_cases(
                 AggregateSignature::empty(),
             ),
             commit_ledger_info: executed_ledger_info.ledger_info().clone(),
+            blocks: vecblocks.clone(),
         },
         Box::new(move |resp| {
             assert!(matches!(

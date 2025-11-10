@@ -8,11 +8,14 @@ use aptos_native_interface::SafeNativeBuilder;
 use aptos_table_natives::NativeTableContext;
 use aptos_types::on_chain_config::{Features, TimedFeaturesBuilder};
 use move_binary_format::CompiledModule;
-use move_core_types::{account_address::AccountAddress, ident_str, identifier::Identifier};
+use move_core_types::{
+    account_address::AccountAddress, ident_str, identifier::Identifier, language_storage::ModuleId,
+};
 use move_ir_compiler::Compiler;
 use move_vm_runtime::{
-    module_traversal::*, move_vm::MoveVM, native_extensions::NativeContextExtensions,
-    native_functions::NativeFunction,
+    data_cache::TransactionDataCache, module_traversal::*, move_vm::MoveVM,
+    native_extensions::NativeContextExtensions, native_functions::NativeFunction,
+    AsUnsyncCodeStorage, CodeStorage, ModuleStorage, RuntimeEnvironment,
 };
 use move_vm_test_utils::InMemoryStorage;
 use move_vm_types::{
@@ -22,6 +25,12 @@ use move_vm_types::{
 use smallvec::smallvec;
 use std::{collections::VecDeque, env, fs, sync::Arc};
 
+/// For profiling, we can use scripts or "run" entry functions.
+enum Entrypoint {
+    Module(ModuleId),
+    Script(Vec<u8>),
+}
+
 fn make_native_create_signer() -> NativeFunction {
     Arc::new(|_context, ty_args: Vec<Type>, mut args: VecDeque<Value>| {
         assert!(ty_args.is_empty());
@@ -29,7 +38,7 @@ fn make_native_create_signer() -> NativeFunction {
 
         let address = pop_arg!(args, AccountAddress);
 
-        Ok(NativeResult::ok(0.into(), smallvec![Value::signer(
+        Ok(NativeResult::ok(0.into(), smallvec![Value::master_signer(
             address
         )]))
     })
@@ -151,53 +160,54 @@ fn main() -> Result<()> {
         &mut builder,
     ));
 
-    let vm = MoveVM::new(natives);
-    let mut storage = InMemoryStorage::new();
+    let runtime_environment = RuntimeEnvironment::new(natives);
+    let mut storage = InMemoryStorage::new_with_runtime_environment(runtime_environment);
 
     let test_modules = compile_test_modules();
     for module in &test_modules {
         let mut blob = vec![];
         module.serialize(&mut blob).unwrap();
-        storage.publish_or_overwrite_module(module.self_id(), blob);
+        storage.add_module_bytes(module.self_addr(), module.self_name(), blob.into())
     }
 
-    let mut extensions = NativeContextExtensions::default();
-    extensions.add(NativeTableContext::new([0; 32], &storage));
-
-    let mut sess = vm.new_session_with_extensions(&storage, extensions);
-    let traversal_storage = TraversalStorage::new();
-
     let src = fs::read_to_string(&args[1])?;
-    if let Ok(script_blob) = Compiler::new(test_modules.iter().collect()).into_script_blob(&src) {
-        let args: Vec<Vec<u8>> = vec![];
-        sess.execute_script(
-            script_blob,
-            vec![],
-            args,
-            &mut UnmeteredGasMeter,
-            &mut TraversalContext::new(&traversal_storage),
-        )?;
+    let entrypoint = if let Ok(script_blob) =
+        Compiler::new(test_modules.iter().collect()).into_script_blob(&src)
+    {
+        Entrypoint::Script(script_blob)
     } else {
         let module = Compiler::new(test_modules.iter().collect()).into_compiled_module(&src)?;
         let mut module_blob = vec![];
         module.serialize(&mut module_blob)?;
+        storage.add_module_bytes(module.self_addr(), module.self_name(), module_blob.into());
+        Entrypoint::Module(module.self_id())
+    };
 
-        sess.publish_module(
-            module_blob,
-            *module.self_id().address(),
-            &mut UnmeteredGasMeter,
-        )?;
-        let args: Vec<Vec<u8>> = vec![];
-        let res = sess.execute_function_bypass_visibility(
-            &module.self_id(),
-            ident_str!("run"),
-            vec![],
-            args,
-            &mut UnmeteredGasMeter,
-            &mut TraversalContext::new(&traversal_storage),
-        )?;
-        println!("{:?}", res);
-    }
+    let mut extensions = NativeContextExtensions::default();
+    extensions.add(NativeTableContext::new([0; 32], &storage));
+
+    let traversal_storage = TraversalStorage::new();
+    let code_storage = storage.as_unsync_code_storage();
+
+    let func = match &entrypoint {
+        Entrypoint::Script(script_blob) => code_storage.load_script(script_blob, &[])?,
+        Entrypoint::Module(module_id) => {
+            code_storage.load_function(module_id, ident_str!("run"), &[])?
+        },
+    };
+    let args: Vec<Vec<u8>> = vec![];
+
+    let return_values = MoveVM::execute_loaded_function(
+        func,
+        args,
+        &mut TransactionDataCache::empty(),
+        &mut UnmeteredGasMeter,
+        &mut TraversalContext::new(&traversal_storage),
+        &mut extensions,
+        &code_storage,
+        &storage,
+    )?;
+    println!("{:?}", return_values);
 
     Ok(())
 }

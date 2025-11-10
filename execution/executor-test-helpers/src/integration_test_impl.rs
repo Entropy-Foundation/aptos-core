@@ -16,14 +16,16 @@ use aptos_sdk::{
     types::{AccountKey, LocalAccount},
 };
 use aptos_storage_interface::{
-    state_view::{DbStateViewAtVersion, VerifiedStateViewAtVersion},
-    DbReaderWriter, Order,
+    state_store::state_view::db_state_view::{DbStateViewAtVersion, VerifiedStateViewAtVersion},
+    DbReaderWriter,
 };
 use aptos_types::{
-    account_config::{aptos_test_root_address, AccountResource, CoinStoreResource},
+    account_config::{
+        aptos_test_root_address, primary_apt_store, AccountResource, FungibleStoreResource,
+        ObjectGroupResource,
+    },
     block_metadata::BlockMetadata,
     chain_id::ChainId,
-    event::EventKey,
     ledger_info::LedgerInfo,
     state_store::{MoveResourceExt, StateView},
     test_helpers::transaction_test_helpers::{block, TEST_BLOCK_EXECUTOR_ONCHAIN_CONFIG},
@@ -31,14 +33,15 @@ use aptos_types::{
         signature_verified_transaction::{
             into_signature_verified_block, SignatureVerifiedTransaction,
         },
-        Transaction,
-        Transaction::UserTransaction,
-        TransactionListWithProof, TransactionWithProof, WriteSetPayload,
+        AuxiliaryInfo, EphemeralAuxiliaryInfo, PersistedAuxiliaryInfo,
+        Transaction::{self, UserTransaction},
+        TransactionListWithProofV2, TransactionWithProof, WriteSetPayload,
     },
     trusted_state::{TrustedState, TrustedStateChange},
     waypoint::Waypoint,
 };
-use aptos_vm::AptosVM;
+use aptos_vm::aptos_vm::AptosVMBlockExecutor;
+use move_core_types::move_resource::MoveStructType;
 use rand::SeedableRng;
 use std::{path::Path, sync::Arc};
 
@@ -69,7 +72,7 @@ pub fn test_execution_with_storage_impl_inner(
     let parent_block_id = executor.committed_block_id();
     let signer = aptos_types::validator_signer::ValidatorSigner::new(
         validators[0].data.owner_address,
-        validators[0].consensus_key.clone(),
+        Arc::new(validators[0].consensus_key.clone()),
     );
 
     // This generates accounts that do not overlap with genesis
@@ -161,7 +164,7 @@ pub fn test_execution_with_storage_impl_inner(
     let reconfig2 = core_resources_account.sign_with_transaction_builder(
         txn_factory.payload(aptos_stdlib::supra_governance_force_end_epoch_test_only()),
     );
-    let block2 = vec![block2_meta, UserTransaction(reconfig2)];
+    let block2 = into_signature_verified_block(vec![block2_meta, UserTransaction(reconfig2)]);
 
     let block3_id = gen_block_id(3);
     let block3_meta = Transaction::BlockMetadata(BlockMetadata::new(
@@ -180,11 +183,16 @@ pub fn test_execution_with_storage_impl_inner(
             txn_factory.transfer(account3.address(), 10 * B),
         )));
     }
-    let block3 = block(block3); // append state checkpoint txn
+    let block3 = block(block3);
 
     let output1 = executor
         .execute_block(
-            (block1_id, block1.clone()).into(),
+            (
+                block1_id,
+                block1.clone(),
+                gen_auxiliary_info_for_block(&block1),
+            )
+                .into(),
             parent_block_id,
             TEST_BLOCK_EXECUTOR_ONCHAIN_CONFIG,
         )
@@ -285,104 +293,23 @@ pub fn test_execution_with_storage_impl_inner(
 
     // With sharding enabled, we won't have indices for event, skip the checks.
     if !force_sharding {
-        let account1_sent_events = db
-            .reader
-            .get_events(
-                &account1.sent_event_key(),
-                0,
-                Order::Ascending,
-                10,
-                current_version,
-            )
-            .unwrap();
-        assert_eq!(account1_sent_events.len(), 2);
-
-        let account2_sent_events = db
-            .reader
-            .get_events(
-                &account2.sent_event_key(),
-                0,
-                Order::Ascending,
-                10,
-                current_version,
-            )
-            .unwrap();
-        assert_eq!(account2_sent_events.len(), 1);
-
-        let account3_sent_events = db
-            .reader
-            .get_events(
-                &account3.sent_event_key(),
-                0,
-                Order::Ascending,
-                10,
-                current_version,
-            )
-            .unwrap();
-        assert_eq!(account3_sent_events.len(), 0);
-
-        let account1_received_events = db
-            .reader
-            .get_events(
-                &account1.received_event_key(),
-                0,
-                Order::Ascending,
-                10,
-                current_version,
-            )
-            .unwrap();
-        // Account1 has one deposit event since AptosCoin was minted to it.
-        assert_eq!(account1_received_events.len(), 1);
-
-        let account2_received_events = db
-            .reader
-            .get_events(
-                &account2.received_event_key(),
-                0,
-                Order::Ascending,
-                10,
-                current_version,
-            )
-            .unwrap();
-        // Account2 has two deposit events: from being minted to and from one transfer.
-        assert_eq!(account2_received_events.len(), 2);
-
-        let account3_received_events = db
-            .reader
-            .get_events(
-                &account3.received_event_key(),
-                0,
-                Order::Ascending,
-                10,
-                current_version,
-            )
-            .unwrap();
-        // Account3 has three deposit events: from being minted to and from two transfers.
-        assert_eq!(account3_received_events.len(), 3);
         let view = db
             .reader
             .verified_state_view_at_version(Some(current_version), latest_li)
             .unwrap();
         let account4_resource = AccountResource::fetch_move_resource(&view, &addr4).unwrap();
         assert!(account4_resource.is_none());
-
-        let account4_sent_events = db
-            .reader
-            .get_events(
-                &account4.sent_event_key(),
-                0,
-                Order::Ascending,
-                10,
-                current_version,
-            )
-            .unwrap();
-        assert!(account4_sent_events.is_empty());
     }
 
     // Execute block 2, 3, 4
     let output2 = executor
         .execute_block(
-            (block2_id, block2).into(),
+            (
+                block2_id,
+                block2.clone(),
+                gen_auxiliary_info_for_block(&block2),
+            )
+                .into(),
             epoch2_genesis_id,
             TEST_BLOCK_EXECUTOR_ONCHAIN_CONFIG,
         )
@@ -403,7 +330,12 @@ pub fn test_execution_with_storage_impl_inner(
 
     let output3 = executor
         .execute_block(
-            (block3_id, block3.clone()).into(),
+            (
+                block3_id,
+                block3.clone(),
+                gen_auxiliary_info_for_block(&block3),
+            )
+                .into(),
             epoch3_genesis_id,
             TEST_BLOCK_EXECUTOR_ONCHAIN_CONFIG,
         )
@@ -454,74 +386,6 @@ pub fn test_execution_with_storage_impl_inner(
     let expected_txns: Vec<Transaction> = block3.iter().map(|t| t.expect_valid().clone()).collect();
     verify_transactions(&transaction_list_with_proof, &expected_txns).unwrap();
 
-    // With sharding enabled, we won't have indices for event, skip the checks.
-    if !force_sharding {
-        let account1_sent_events_batch1 = db
-            .reader
-            .get_events(
-                &EventKey::new(3, account1.address()),
-                0,
-                Order::Ascending,
-                10,
-                current_version,
-            )
-            .unwrap();
-        assert_eq!(account1_sent_events_batch1.len(), 10);
-
-        let account1_sent_events_batch2 = db
-            .reader
-            .get_events(
-                &EventKey::new(3, account1.address()),
-                10,
-                Order::Ascending,
-                10,
-                current_version,
-            )
-            .unwrap();
-        assert_eq!(account1_sent_events_batch2.len(), 6);
-
-        let account3_received_events_batch1 = db
-            .reader
-            .get_events(
-                &EventKey::new(2, account3.address()),
-                u64::MAX,
-                Order::Descending,
-                10,
-                current_version,
-            )
-            .unwrap();
-        assert_eq!(account3_received_events_batch1.len(), 10);
-        // Account3 has one extra deposit event from being minted to.
-        assert_eq!(
-            account3_received_events_batch1[0]
-                .event
-                .v1()
-                .unwrap()
-                .sequence_number(),
-            16
-        );
-
-        let account3_received_events_batch2 = db
-            .reader
-            .get_events(
-                &EventKey::new(2, account3.address()),
-                6,
-                Order::Descending,
-                10,
-                current_version,
-            )
-            .unwrap();
-        assert_eq!(account3_received_events_batch2.len(), 7);
-        assert_eq!(
-            account3_received_events_batch2[0]
-                .event
-                .v1()
-                .unwrap()
-                .sequence_number(),
-            6
-        );
-    }
-
     aptos_db
 }
 
@@ -537,7 +401,7 @@ pub fn create_db_and_executor<P: AsRef<std::path::Path>>(
 ) -> (
     Arc<AptosDB>,
     DbReaderWriter,
-    BlockExecutor<AptosVM>,
+    BlockExecutor<AptosVMBlockExecutor>,
     Waypoint,
 ) {
     let (db, dbrw) = force_sharding
@@ -548,16 +412,20 @@ pub fn create_db_and_executor<P: AsRef<std::path::Path>>(
             ))
         })
         .unwrap_or_else(|| DbReaderWriter::wrap(AptosDB::new_for_test(&path)));
-    let waypoint = bootstrap_genesis::<AptosVM>(&dbrw, genesis).unwrap();
+    let waypoint = bootstrap_genesis::<AptosVMBlockExecutor>(&dbrw, genesis).unwrap();
     let executor = BlockExecutor::new(dbrw.clone());
 
     (db, dbrw, executor, waypoint)
 }
 
 pub fn get_account_balance(state_view: &dyn StateView, address: &AccountAddress) -> u64 {
-    CoinStoreResource::fetch_move_resource(state_view, address)
-        .unwrap()
-        .map_or(0, |coin_store| coin_store.coin())
+    FungibleStoreResource::fetch_move_resource_from_group(
+        state_view,
+        &primary_apt_store(*address),
+        &ObjectGroupResource::struct_tag(),
+    )
+    .unwrap()
+    .map_or(0, |fa_store| fa_store.balance())
 }
 
 pub fn verify_account_balance<F>(balance: u64, f: F) -> Result<()>
@@ -573,10 +441,12 @@ where
 }
 
 pub fn verify_transactions(
-    txn_list_with_proof: &TransactionListWithProof,
+    txn_list_with_proof: &TransactionListWithProofV2,
     expected_txns: &[Transaction],
 ) -> Result<()> {
-    let txns = &txn_list_with_proof.transactions;
+    let txns = &txn_list_with_proof
+        .get_transaction_list_with_proof()
+        .transactions;
     ensure!(
         *txns == expected_txns,
         "expected txns {:?} doesn't equal to returned txns {:?}",
@@ -605,4 +475,21 @@ pub fn verify_committed_txn_status(
     );
 
     Ok(())
+}
+
+fn gen_auxiliary_info_for_block(block: &[SignatureVerifiedTransaction]) -> Vec<AuxiliaryInfo> {
+    block
+        .iter()
+        .map(|txn| {
+            txn.borrow_into_inner().try_as_signed_user_txn().map_or(
+                AuxiliaryInfo::new_empty(),
+                |_| {
+                    AuxiliaryInfo::new(
+                        PersistedAuxiliaryInfo::None,
+                        Some(EphemeralAuxiliaryInfo { proposer_index: 0 }),
+                    )
+                },
+            )
+        })
+        .collect()
 }

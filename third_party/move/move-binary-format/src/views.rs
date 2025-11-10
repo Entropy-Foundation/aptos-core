@@ -12,8 +12,8 @@
 //!   immediately -- the views are a convenience to make that simpler. They've been written as lazy
 //!   iterators to aid understanding of the file format and to make it easy to generate views.
 
-use crate::{access::ModuleAccess, file_format::*, SignatureTokenKind};
-use move_core_types::{identifier::IdentStr, language_storage::ModuleId};
+use crate::{access::ModuleAccess, file_format::*};
+use move_core_types::{ability::AbilitySet, identifier::IdentStr, language_storage::ModuleId};
 use std::{
     collections::{BTreeMap, BTreeSet},
     iter::DoubleEndedIterator,
@@ -251,7 +251,7 @@ pub struct FunctionHandleView<'a, T> {
     function_handle: &'a FunctionHandle,
 }
 
-impl<'a, T> Clone for FunctionHandleView<'a, T> {
+impl<T> Clone for FunctionHandleView<'_, T> {
     fn clone(&self) -> Self {
         Self {
             module: self.module,
@@ -326,6 +326,10 @@ impl<'a, T: ModuleAccess> FunctionHandleView<'a, T> {
     pub fn module_id(&self) -> ModuleId {
         self.module.module_id_for_handle(self.module_handle())
     }
+
+    pub fn attributes(&self) -> &[FunctionAttribute] {
+        &self.function_handle.attributes
+    }
 }
 
 pub struct StructDefinitionView<'a, T> {
@@ -349,10 +353,16 @@ impl<'a, T: ModuleAccess> StructDefinitionView<'a, T> {
         self.struct_handle_view.abilities()
     }
 
+    pub fn handle_idx(&self) -> StructHandleIndex {
+        self.struct_def.struct_handle
+    }
+
     pub fn is_native(&self) -> bool {
         match &self.struct_def.field_information {
             StructFieldInformation::Native => true,
-            StructFieldInformation::Declared { .. } => false,
+            StructFieldInformation::Declared(..) | StructFieldInformation::DeclaredVariants(..) => {
+                false
+            },
         }
     }
 
@@ -363,19 +373,32 @@ impl<'a, T: ModuleAccess> StructDefinitionView<'a, T> {
     pub fn fields(
         &self,
     ) -> Option<impl DoubleEndedIterator<Item = FieldDefinitionView<'a, T>> + Send> {
+        Some(self.fields_optional_variant(None))
+    }
+
+    pub fn fields_optional_variant(
+        &self,
+        variant: Option<VariantIndex>,
+    ) -> impl DoubleEndedIterator<Item = FieldDefinitionView<'a, T>> + Send {
         let module = self.module;
-        match &self.struct_def.field_information {
-            StructFieldInformation::Native => None,
-            StructFieldInformation::Declared(fields) => Some(
-                fields
-                    .iter()
-                    .map(move |field_def| FieldDefinitionView::new(module, field_def)),
-            ),
-        }
+        self.struct_def
+            .field_information
+            .fields(variant)
+            .into_iter()
+            .map(move |field_def| FieldDefinitionView::new(module, field_def))
     }
 
     pub fn name(&self) -> &'a IdentStr {
         self.struct_handle_view.name()
+    }
+
+    pub fn variant_count(&self) -> usize {
+        self.struct_def.field_information.variant_count()
+    }
+
+    pub fn variant_name(&self, idx: VariantIndex) -> &IdentStr {
+        self.module
+            .identifier_at(self.struct_def.field_information.variants()[idx as usize].name)
     }
 }
 
@@ -455,7 +478,7 @@ pub struct FunctionDefinitionView<'a, T> {
     function_handle_view: FunctionHandleView<'a, T>,
 }
 
-impl<'a, T> Clone for FunctionDefinitionView<'a, T> {
+impl<T> Clone for FunctionDefinitionView<'_, T> {
     fn clone(&self) -> Self {
         Self {
             module: self.module,
@@ -476,8 +499,16 @@ impl<'a, T: ModuleAccess> FunctionDefinitionView<'a, T> {
         }
     }
 
+    pub fn handle_idx(&self) -> FunctionHandleIndex {
+        self.function_def.function
+    }
+
     pub fn visibility(&self) -> Visibility {
         self.function_def.visibility
+    }
+
+    pub fn attributes(&self) -> &[FunctionAttribute] {
+        self.function_handle_view.attributes()
     }
 
     pub fn is_entry(&self) -> bool {
@@ -500,7 +531,7 @@ impl<'a, T: ModuleAccess> FunctionDefinitionView<'a, T> {
         self.function_handle_view.parameters()
     }
 
-    pub fn return_(&self) -> &'a Signature {
+    pub fn return_type(&self) -> &'a Signature {
         self.function_handle_view.return_()
     }
 
@@ -663,11 +694,6 @@ impl<'a, T: ModuleAccess> SignatureTokenView<'a, T> {
     }
 
     #[inline]
-    pub fn signature_token_kind(&self) -> SignatureTokenKind {
-        self.token.signature_token_kind()
-    }
-
-    #[inline]
     pub fn is_reference(&self) -> bool {
         self.token.is_reference()
     }
@@ -729,3 +755,10 @@ impl_view_internals!(FieldDefinitionView, FieldDefinition, field_def);
 impl_view_internals!(TypeSignatureView, TypeSignature, type_signature);
 impl_view_internals!(SignatureView, Signature, signature);
 impl_view_internals!(SignatureTokenView, SignatureToken, token);
+
+/// A type to represent either a FieldHandleIndex or a VariantFieldHandleIndex.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum FieldOrVariantIndex {
+    FieldIndex(FieldHandleIndex),
+    VariantFieldIndex(VariantFieldHandleIndex),
+}

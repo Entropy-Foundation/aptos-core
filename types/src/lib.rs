@@ -19,6 +19,7 @@ pub mod error;
 pub mod event;
 pub mod executable;
 pub mod fee_statement;
+pub mod function_info;
 pub mod governance;
 pub mod indexer;
 pub mod jwks;
@@ -34,6 +35,7 @@ pub mod on_chain_config;
 pub mod proof;
 #[cfg(any(test, feature = "fuzzing"))]
 pub mod proptest_types;
+pub mod quorum_store;
 pub mod randomness;
 pub mod serde_helper;
 pub mod stake_pool;

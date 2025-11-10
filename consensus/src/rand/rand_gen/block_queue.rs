@@ -8,7 +8,10 @@ use crate::{
 use aptos_consensus_types::{common::Round, pipelined_block::PipelinedBlock};
 use aptos_reliable_broadcast::DropGuard;
 use aptos_types::randomness::{FullRandMetadata, Randomness};
-use std::collections::{BTreeMap, HashMap};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+};
 
 /// Maintain the ordered blocks received from consensus and corresponding randomness
 pub struct QueueItem {
@@ -40,12 +43,16 @@ impl QueueItem {
         self.blocks().len()
     }
 
+    #[allow(clippy::unwrap_used)]
     pub fn first_round(&self) -> u64 {
         self.blocks().first().unwrap().block().round()
     }
 
     pub fn offset(&self, round: Round) -> usize {
-        *self.offsets_by_round.get(&round).unwrap()
+        *self
+            .offsets_by_round
+            .get(&round)
+            .expect("Round should be in the queue")
     }
 
     pub fn num_undecided(&self) -> usize {
@@ -74,11 +81,11 @@ impl QueueItem {
         }
     }
 
-    fn blocks(&self) -> &[PipelinedBlock] {
+    fn blocks(&self) -> &[Arc<PipelinedBlock>] {
         &self.ordered_blocks.ordered_blocks
     }
 
-    fn blocks_mut(&mut self) -> &mut [PipelinedBlock] {
+    fn blocks_mut(&mut self) -> &mut [Arc<PipelinedBlock>] {
         &mut self.ordered_blocks.ordered_blocks
     }
 }
@@ -106,6 +113,8 @@ impl BlockQueue {
     }
 
     /// Dequeue all ordered blocks prefix that have randomness
+    /// Unwrap is safe because the queue is not empty
+    #[allow(clippy::unwrap_used)]
     pub fn dequeue_rand_ready_prefix(&mut self) -> Vec<OrderedBlocks> {
         let mut rand_ready_prefix = vec![];
         while let Some((_starting_round, item)) = self.queue.first_key_value() {
@@ -193,7 +202,7 @@ mod tests {
             assert_eq!(
                 queue
                     .item_mut(round)
-                    .map_or(false, |item| item.offsets_by_round.contains_key(&round)),
+                    .is_some_and(|item| item.offsets_by_round.contains_key(&round)),
                 exists_rounds.contains(&round)
             );
         }

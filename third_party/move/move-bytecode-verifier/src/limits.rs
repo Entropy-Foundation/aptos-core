@@ -9,6 +9,7 @@ use move_binary_format::{
     IndexKind,
 };
 use move_core_types::vm_status::StatusCode;
+use std::cmp;
 
 pub struct LimitsVerifier<'a> {
     resolver: BinaryIndexedView<'a>,
@@ -80,7 +81,14 @@ impl<'a> LimitsVerifier<'a> {
                     return Err(PartialVMError::new(StatusCode::TOO_MANY_PARAMETERS)
                         .at_index(IndexKind::FunctionHandle, idx as u16));
                 }
+            }
+            if let Some(limit) = config.max_function_return_values {
+                if self.resolver.signature_at(function_handle.return_).0.len() > limit {
+                    return Err(PartialVMError::new(StatusCode::TOO_MANY_PARAMETERS)
+                        .at_index(IndexKind::FunctionHandle, idx as u16));
+                }
             };
+            // Note: the size of `attributes` is limited by the deserializer.
         }
         Ok(())
     }
@@ -96,10 +104,20 @@ impl<'a> LimitsVerifier<'a> {
         }
         if let Some(sdefs) = self.resolver.struct_defs() {
             for sdef in sdefs {
-                if let StructFieldInformation::Declared(fdefs) = &sdef.field_information {
-                    for fdef in fdefs {
-                        self.verify_type_node(config, &fdef.signature.0)?
-                    }
+                match &sdef.field_information {
+                    StructFieldInformation::Native => {},
+                    StructFieldInformation::Declared(fdefs) => {
+                        for fdef in fdefs {
+                            self.verify_type_node(config, &fdef.signature.0)?
+                        }
+                    },
+                    StructFieldInformation::DeclaredVariants(variants) => {
+                        for variant in variants {
+                            for fdef in &variant.fields {
+                                self.verify_type_node(config, &fdef.signature.0)?
+                            }
+                        }
+                    },
                 }
             }
         }
@@ -111,24 +129,59 @@ impl<'a> LimitsVerifier<'a> {
         config: &VerifierConfig,
         ty: &SignatureToken,
     ) -> PartialVMResult<()> {
-        if let Some(max) = &config.max_type_nodes {
-            // Structs and Parameters can expand to an unknown number of nodes, therefore
-            // we give them a higher size weight here.
-            const STRUCT_SIZE_WEIGHT: usize = 4;
-            const PARAM_SIZE_WEIGHT: usize = 4;
-            let mut size = 0;
-            for t in ty.preorder_traversal() {
-                // Notice that the preorder traversal will iterate all type instantiations, so we
-                // why we can ignore them below.
-                match t {
-                    SignatureToken::Struct(..) | SignatureToken::StructInstantiation(..) => {
-                        size += STRUCT_SIZE_WEIGHT
-                    },
-                    SignatureToken::TypeParameter(..) => size += PARAM_SIZE_WEIGHT,
-                    _ => size += 1,
+        if config.max_type_nodes.is_none()
+            && config.max_function_parameters.is_none()
+            && config.max_function_return_values.is_none()
+            && config.max_type_depth.is_none()
+        {
+            // If no type-related limits are set, we do not need to verify the type nodes.
+            return Ok(());
+        }
+        // Structs and Parameters can expand to an unknown number of nodes, therefore
+        // we give them a higher size weight here.
+        const STRUCT_SIZE_WEIGHT: usize = 4;
+        const PARAM_SIZE_WEIGHT: usize = 4;
+        let mut type_size = 0;
+        for (token, depth) in ty.preorder_traversal_with_depth() {
+            if let Some(limit) = config.max_type_depth {
+                if depth > limit {
+                    return Err(PartialVMError::new(StatusCode::TOO_MANY_TYPE_NODES));
                 }
             }
-            if size > *max {
+            match token {
+                SignatureToken::Struct(..) | SignatureToken::StructInstantiation(..) => {
+                    type_size += STRUCT_SIZE_WEIGHT
+                },
+                SignatureToken::TypeParameter(..) => type_size += PARAM_SIZE_WEIGHT,
+                SignatureToken::Function(params, ret, _) => {
+                    if let Some(limit) = config.max_function_parameters {
+                        if params.len() > limit {
+                            return Err(PartialVMError::new(StatusCode::TOO_MANY_PARAMETERS));
+                        }
+                    }
+                    if let Some(limit) = config.max_function_return_values {
+                        if ret.len() > limit {
+                            return Err(PartialVMError::new(StatusCode::TOO_MANY_PARAMETERS));
+                        }
+                    }
+                    type_size += 1;
+                },
+                SignatureToken::Bool
+                | SignatureToken::U8
+                | SignatureToken::U16
+                | SignatureToken::U32
+                | SignatureToken::U64
+                | SignatureToken::U128
+                | SignatureToken::U256
+                | SignatureToken::Address
+                | SignatureToken::Signer
+                | SignatureToken::Vector(_)
+                | SignatureToken::Reference(_)
+                | SignatureToken::MutableReference(_) => type_size += 1,
+            }
+        }
+        if let Some(limit) = config.max_type_nodes {
+            if type_size > limit {
                 return Err(PartialVMError::new(StatusCode::TOO_MANY_TYPE_NODES));
             }
         }
@@ -155,15 +208,35 @@ impl<'a> LimitsVerifier<'a> {
             }
             if let Some(max_fields_in_struct) = config.max_fields_in_struct {
                 for def in defs {
+                    let mut max = 0;
                     match &def.field_information {
-                        StructFieldInformation::Native => (),
-                        StructFieldInformation::Declared(fields) => {
-                            if fields.len() > max_fields_in_struct {
-                                return Err(PartialVMError::new(
-                                    StatusCode::MAX_FIELD_DEFINITIONS_REACHED,
-                                ));
+                        StructFieldInformation::Native => {},
+                        StructFieldInformation::Declared(fields) => max += fields.len(),
+                        StructFieldInformation::DeclaredVariants(variants) => {
+                            // Notice we interpret the bound as a maximum of the combined
+                            // size of fields of a given variant, not the
+                            // sum of all fields in all variants. An upper bound for
+                            // overall fields of a variant struct is given by
+                            // `max_fields_in_struct * max_struct_variants`
+                            for variant in variants {
+                                let count = variant.fields.len();
+                                max = cmp::max(max, count)
                             }
                         },
+                    }
+                    if max > max_fields_in_struct {
+                        return Err(PartialVMError::new(
+                            StatusCode::MAX_FIELD_DEFINITIONS_REACHED,
+                        ));
+                    }
+                }
+            }
+            if let Some(max_struct_variants) = config.max_struct_variants {
+                for def in defs {
+                    if matches!(&def.field_information,
+                        StructFieldInformation::DeclaredVariants(variants) if variants.len() > max_struct_variants)
+                    {
+                        return Err(PartialVMError::new(StatusCode::MAX_STRUCT_VARIANTS_REACHED));
                     }
                 }
             }

@@ -1,6 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+use super::{TransactionExecutable, TransactionExecutableRef};
 use crate::transaction::{user_transaction_context::MultisigPayload, EntryFunction};
 use move_core_types::{account_address::AccountAddress, vm_status::VMStatus};
 use serde::{Deserialize, Serialize};
@@ -49,6 +50,24 @@ impl Multisig {
                     is_automation_registration: Some(false),
                 }
             }
+        }
+    }
+
+    pub fn as_transaction_executable(&self) -> TransactionExecutable {
+        match &self.transaction_payload {
+            Some(MultisigTransactionPayload::EntryFunction(entry)) => {
+                TransactionExecutable::EntryFunction(entry.clone())
+            },
+            None => TransactionExecutable::Empty,
+        }
+    }
+
+    pub fn as_transaction_executable_ref(&self) -> TransactionExecutableRef {
+        match &self.transaction_payload {
+            Some(MultisigTransactionPayload::EntryFunction(entry)) => {
+                TransactionExecutableRef::EntryFunction(entry)
+            },
+            None => TransactionExecutableRef::Empty,
         }
     }
 }

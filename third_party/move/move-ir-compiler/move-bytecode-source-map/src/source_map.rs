@@ -7,13 +7,15 @@ use move_binary_format::{
     access::ModuleAccess,
     binary_views::BinaryIndexedView,
     file_format::{
-        AbilitySet, CodeOffset, CodeUnit, ConstantPoolIndex, FunctionDefinitionIndex, LocalIndex,
-        MemberCount, ModuleHandleIndex, SignatureIndex, StructDefinition, StructDefinitionIndex,
-        TableIndex,
+        CodeOffset, CodeUnit, ConstantPoolIndex, FunctionDefinitionIndex, LocalIndex, MemberCount,
+        ModuleHandleIndex, SignatureIndex, StructDefinition, StructDefinitionIndex, TableIndex,
+        VariantIndex,
     },
 };
 use move_command_line_common::files::FileHash;
-use move_core_types::{account_address::AccountAddress, identifier::Identifier};
+use move_core_types::{
+    ability::AbilitySet, account_address::AccountAddress, identifier::Identifier,
+};
 use move_ir_types::{
     ast::{ConstantName, ModuleIdent, ModuleName, NopLabel},
     location::Loc,
@@ -37,8 +39,9 @@ pub struct StructSourceMap {
     pub type_parameters: Vec<SourceName>,
 
     /// Note that fields to a struct source map need to be added in the order of the fields in the
-    /// struct definition.
-    pub fields: Vec<Loc>,
+    /// struct definition, variant by variant. If the struct has no variant, there is only
+    /// one outer vector.
+    pub fields: Vec<Vec<Loc>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -82,7 +85,7 @@ pub struct SourceMap {
     // A mapping of `StructDefinitionIndex` to source map for each struct/resource.
     struct_map: BTreeMap<TableIndex, StructSourceMap>,
 
-    // A mapping of `FunctionDefinitionIndex` to the soure map for that function.
+    // A mapping of `FunctionDefinitionIndex` to the source map for that function.
     // For scripts, this map has a single element that points to a source map corresponding to the
     // script's "main" function.
     function_map: BTreeMap<TableIndex, FunctionSourceMap>,
@@ -108,12 +111,24 @@ impl StructSourceMap {
         self.type_parameters.get(type_parameter_idx).cloned()
     }
 
-    pub fn add_field_location(&mut self, field_loc: Loc) {
-        self.fields.push(field_loc)
+    pub fn add_field_location(&mut self, variant: Option<VariantIndex>, field_loc: Loc) {
+        let variant = variant.unwrap_or_default() as usize;
+        while self.fields.len() <= variant {
+            self.fields.push(vec![])
+        }
+        self.fields[variant].push(field_loc)
     }
 
-    pub fn get_field_location(&self, field_index: MemberCount) -> Option<Loc> {
-        self.fields.get(field_index as usize).cloned()
+    pub fn get_field_location(
+        &self,
+        variant: Option<VariantIndex>,
+        field_index: MemberCount,
+    ) -> Option<Loc> {
+        let variant = variant.unwrap_or_default() as usize;
+        self.fields
+            .get(variant)
+            .and_then(|v| v.get(field_index as usize))
+            .cloned()
     }
 
     pub fn dummy_struct_map(
@@ -125,11 +140,24 @@ impl StructSourceMap {
         let struct_handle = view.struct_handle_at(struct_def.struct_handle);
 
         // Add dummy locations for the fields
-        match struct_def.declared_field_count() {
-            Err(_) => (),
-            Ok(count) => (0..count).for_each(|_| self.fields.push(default_loc)),
+        let variant_count = struct_def.field_information.variant_count();
+        if variant_count > 0 {
+            for variant in 0..variant_count {
+                self.fields.push(
+                    (0..struct_def
+                        .field_information
+                        .field_count(Some(variant as VariantIndex)))
+                        .map(|_| default_loc)
+                        .collect(),
+                )
+            }
+        } else {
+            self.fields.push(
+                (0..struct_def.field_information.field_count(None))
+                    .map(|_| default_loc)
+                    .collect(),
+            )
         }
-
         for i in 0..struct_handle.type_parameters.len() {
             let name = format!("Ty{}", i);
             self.add_type_parameter((name, default_loc))
@@ -174,6 +202,31 @@ impl FunctionSourceMap {
             },
             _ => (),
         };
+    }
+
+    /// Remap the code map based on the given `remap`.
+    /// If `remap[i] == j`, then the code location associated with code offset `j`
+    /// will now be associated with code offset `i`.
+    pub fn remap_code_map(&mut self, remap: &[CodeOffset]) {
+        let mut prev_loc = None;
+        let new_code_map = remap
+            .iter()
+            .map(|old_offset| self.get_code_location(*old_offset))
+            .enumerate()
+            .filter_map(|(new_offset, loc)| {
+                if prev_loc == loc {
+                    // optimization: if a series of instructions map to the same location, we only need
+                    // to add code mapping for the first one, because the code map is a segment map.
+                    None
+                } else if let Some(loc) = loc {
+                    prev_loc = Some(loc);
+                    Some((new_offset as CodeOffset, loc))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        self.code_map = new_code_map;
     }
 
     /// Record the code offset for an Nop label
@@ -336,6 +389,22 @@ impl SourceMap {
         Ok(())
     }
 
+    /// Remap the code map for the function given by `fdef_idx`, according to `remap`.
+    /// If `remap[i] == j`, then the code location associated with code offset `j`
+    /// will now be associated with code offset `i`.
+    pub fn remap_code_map(
+        &mut self,
+        fdef_idx: FunctionDefinitionIndex,
+        remap: &[CodeOffset],
+    ) -> Result<()> {
+        let func_entry = self
+            .function_map
+            .get_mut(&fdef_idx.0)
+            .ok_or_else(|| format_err!("Tried to remap code map of undefined function index"))?;
+        func_entry.remap_code_map(remap);
+        Ok(())
+    }
+
     pub fn add_nop_mapping(
         &mut self,
         fdef_idx: FunctionDefinitionIndex,
@@ -426,24 +495,26 @@ impl SourceMap {
     pub fn add_struct_field_mapping(
         &mut self,
         struct_def_idx: StructDefinitionIndex,
+        variant: Option<VariantIndex>,
         location: Loc,
     ) -> Result<()> {
         let struct_entry = self
             .struct_map
             .get_mut(&struct_def_idx.0)
             .ok_or_else(|| format_err!("Tried to add file mapping to undefined struct index"))?;
-        struct_entry.add_field_location(location);
+        struct_entry.add_field_location(variant, location);
         Ok(())
     }
 
     pub fn get_struct_field_name(
         &self,
         struct_def_idx: StructDefinitionIndex,
+        variant: Option<VariantIndex>,
         field_idx: MemberCount,
     ) -> Option<Loc> {
         self.struct_map
             .get(&struct_def_idx.0)
-            .and_then(|struct_source_map| struct_source_map.get_field_location(field_idx))
+            .and_then(|struct_source_map| struct_source_map.get_field_location(variant, field_idx))
     }
 
     pub fn add_struct_type_parameter_mapping(

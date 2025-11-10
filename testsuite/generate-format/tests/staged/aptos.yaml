@@ -1,4 +1,19 @@
 ---
+AbilitySet:
+  NEWTYPESTRUCT: U8
+AbstractionAuthData:
+  ENUM:
+    0:
+      V1:
+        STRUCT:
+          - signing_message_digest: BYTES
+          - authenticator: BYTES
+    1:
+      DerivableV1:
+        STRUCT:
+          - signing_message_digest: BYTES
+          - abstract_signature: BYTES
+          - abstract_public_key: BYTES
 AccessPath:
   STRUCT:
     - address:
@@ -35,6 +50,15 @@ AccountAuthenticator:
         STRUCT:
           - authenticator:
               TYPENAME: MultiKeyAuthenticator
+    4:
+      NoAccountAuthenticator: UNIT
+    5:
+      Abstraction:
+        STRUCT:
+          - function_info:
+              TYPENAME: FunctionInfo
+          - auth_data:
+              TYPENAME: AbstractionAuthData
 AggregateSignature:
   STRUCT:
     - validator_bitmask:
@@ -68,6 +92,11 @@ AnyPublicKey:
         STRUCT:
           - public_key:
               TYPENAME: KeylessPublicKey
+    4:
+      FederatedKeyless:
+        STRUCT:
+          - public_key:
+              TYPENAME: FederatedKeylessPublicKey
 AnySignature:
   ENUM:
     0:
@@ -118,6 +147,15 @@ BlockEpiloguePayload:
               TYPENAME: HashValue
           - block_end_info:
               TYPENAME: BlockEndInfo
+    1:
+      V1:
+        STRUCT:
+          - block_id:
+              TYPENAME: HashValue
+          - block_end_info:
+              TYPENAME: BlockEndInfo
+          - fee_distribution:
+              TYPENAME: FeeDistribution
 BlockMetadata:
   STRUCT:
     - id:
@@ -254,6 +292,51 @@ EventKey:
     - creation_number: U64
     - account_address:
         TYPENAME: AccountAddress
+FederatedKeylessPublicKey:
+  STRUCT:
+    - jwk_addr:
+        TYPENAME: AccountAddress
+    - pk:
+        TYPENAME: KeylessPublicKey
+FeeDistribution:
+  ENUM:
+    0:
+      V0:
+        STRUCT:
+          - amount:
+              MAP:
+                KEY: U64
+                VALUE: U64
+FunctionParamOrReturnTag:
+  ENUM:
+    0:
+      Reference:
+        NEWTYPE:
+          TYPENAME: TypeTag
+    1:
+      MutableReference:
+        NEWTYPE:
+          TYPENAME: TypeTag
+    2:
+      Value:
+        NEWTYPE:
+          TYPENAME: TypeTag
+FunctionInfo:
+  STRUCT:
+    - module_address:
+        TYPENAME: AccountAddress
+    - module_name: STR
+    - function_name: STR
+FunctionTag:
+  STRUCT:
+    - args:
+        SEQ:
+          TYPENAME: FunctionParamOrReturnTag
+    - results:
+        SEQ:
+          TYPENAME: FunctionParamOrReturnTag
+    - abilities:
+        TYPENAME: AbilitySet
 G1Bytes:
   NEWTYPESTRUCT:
     TUPLEARRAY:
@@ -538,6 +621,9 @@ TransactionArgument:
           TUPLEARRAY:
             CONTENT: U8
             SIZE: 32
+    9:
+      Serialized:
+        NEWTYPE: BYTES
 TransactionAuthenticator:
   ENUM:
     0:
@@ -585,6 +671,28 @@ TransactionAuthenticator:
         STRUCT:
           - sender:
               TYPENAME: AccountAuthenticator
+TransactionExecutable:
+  ENUM:
+    0:
+      Script:
+        NEWTYPE:
+          TYPENAME: Script
+    1:
+      EntryFunction:
+        NEWTYPE:
+          TYPENAME: EntryFunction
+    2:
+      Empty: UNIT
+TransactionExtraConfig:
+  ENUM:
+    0:
+      V1:
+        STRUCT:
+          - multisig_address:
+              OPTION:
+                TYPENAME: AccountAddress
+          - replay_protection_nonce:
+              OPTION: U64
 TransactionPayload:
   ENUM:
     0:
@@ -603,6 +711,19 @@ TransactionPayload:
       Multisig:
         NEWTYPE:
           TYPENAME: Multisig
+    4:
+      Payload:
+        NEWTYPE:
+          TYPENAME: TransactionPayloadInner
+TransactionPayloadInner:
+  ENUM:
+    0:
+      V1:
+        STRUCT:
+          - executable:
+              TYPENAME: TransactionExecutable
+          - extra_config:
+              TYPENAME: TransactionExtraConfig
 TypeTag:
   ENUM:
     0:
@@ -631,6 +752,10 @@ TypeTag:
       u32: UNIT
     10:
       u256: UNIT
+    11:
+      Function:
+        NEWTYPE:
+          TYPENAME: FunctionTag
 ValidatorTransaction:
   ENUM:
     0:

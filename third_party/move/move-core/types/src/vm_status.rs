@@ -740,16 +740,39 @@ pub enum StatusCode {
     UNSTABLE_BYTECODE_REJECTED = 1125,
     // Reserved error code for future use
     PROGRAM_TOO_COMPLEX = 1126,
-    RESERVED_VERIFICATION_ERROR_1 = 1127,
-    RESERVED_VERIFICATION_ERROR_2 = 1128,
-    RESERVED_VERIFICATION_ERROR_3 = 1129,
-    RESERVED_VERIFICATION_ERROR_4 = 1130,
-    RESERVED_VERIFICATION_ERROR_5 = 1131,
+
+    USER_DEFINED_NATIVE_NOT_ALLOWED = 1127,
+    // Bound on the number of struct variants per struct exceeded.
+    MAX_STRUCT_VARIANTS_REACHED = 1128,
+    // A variant test has wrong argument type
+    TEST_VARIANT_TYPE_MISMATCH_ERROR = 1129,
+    // A variant list is empty
+    ZERO_VARIANTS_ERROR = 1130,
+    // A feature is not enabled, and transaction will abort and be committed on chain.
+    // Use only when there is no backward incompatibility concern - as it is
+    // double-gated by an additional flag, i.e. new bytecode version introduces new things,
+    // but we don't want all the be enabled at the same time, such that it is safe to abort.
+    //
+    // If we are introducing code, that previous binary would discard such a transaction,
+    // you need to use FEATURE_UNDER_GATING flag instead.
+    FEATURE_NOT_ENABLED = 1131,
     // Verification errors related to automation registration transaction
     // Validation of the entry function to be automated failed.
     INVALID_AUTOMATION_INNER_PAYLOAD = 1132,
     // Automated transaction validation failures
     INVALID_AUTOMATED_PAYLOAD = 1133,
+    // Closure mask invalid
+    INVALID_CLOSURE_MASK = 1134,
+    // Closure eval type is not a function
+    CLOSURE_CALL_REQUIRES_FUNCTION = 1135,
+    // Returned if init_module function is not valid during code publishing.
+    INVALID_INIT_MODULE = 1136,
+
+    // Reserved error code for future use
+    RESERVED_VERIFICATION_ERROR_1 = 1137,
+    RESERVED_VERIFICATION_ERROR_2 = 1138,
+    RESERVED_VERIFICATION_ERROR_3 = 1139,
+    RESERVED_VERIFICATION_ERROR_4 = 1140,
 
 
     // These are errors that the VM might raise if a violation of internal

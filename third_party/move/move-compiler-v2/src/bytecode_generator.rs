@@ -2,13 +2,15 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::{Options, COMPILER_BUG_REPORT_MSG};
 use codespan_reporting::diagnostic::Severity;
 use ethnum::U256;
 use itertools::Itertools;
-use move_binary_format::file_format::Ability;
+use move_core_types::ability::Ability;
 use move_model::{
     ast::{Exp, ExpData, MatchArm, Operation, Pattern, SpecBlockTarget, TempIndex, Value},
     exp_rewriter::{ExpRewriter, ExpRewriterFunctions, RewriteTarget},
+    metadata::LanguageVersion,
     model::{
         FieldId, FunId, FunctionEnv, GlobalEnv, Loc, NodeId, Parameter, QualifiedId,
         QualifiedInstId, StructId,
@@ -29,7 +31,6 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     fmt,
 };
-
 // ======================================================================================
 // Entry
 
@@ -316,7 +317,14 @@ impl<'env> Generator<'env> {
 
     /// Report an (internal) error at the location associated with the node.
     fn internal_error(&self, id: NodeId, msg: impl AsRef<str>) {
-        self.diag(id, Severity::Bug, msg)
+        let env = self.env();
+        let loc = env.get_node_loc(id);
+        env.diag_with_notes(
+            Severity::Bug,
+            loc.as_ref(),
+            &format!("compiler internal error: {}", msg.as_ref()),
+            vec![COMPILER_BUG_REPORT_MSG.to_string()],
+        );
     }
 
     fn diag(&self, id: NodeId, severity: Severity, msg: impl AsRef<str>) {
@@ -324,12 +332,32 @@ impl<'env> Generator<'env> {
         let loc = env.get_node_loc(id);
         env.diag(severity, &loc, msg.as_ref())
     }
+
+    fn check_if_lambdas_enabled(&self) -> bool {
+        let options = self
+            .env()
+            .get_extension::<Options>()
+            .expect("Options is available");
+        options
+            .language_version
+            .unwrap_or_default()
+            .is_at_least(LanguageVersion::V2_2)
+    }
+
+    fn expect_function_values_enabled(&self, id: NodeId) {
+        if !self.check_if_lambdas_enabled() {
+            self.error(
+                id,
+                "function values outside of inline functions not supported in this language version",
+            )
+        }
+    }
 }
 
 // ======================================================================================
 // Dispatcher
 
-impl<'env> Generator<'env> {
+impl Generator<'_> {
     fn gen(&mut self, targets: Vec<TempIndex>, exp: &Exp) {
         match exp.as_ref() {
             ExpData::Invalid(id) => self.internal_error(*id, "invalid expression"),
@@ -337,6 +365,20 @@ impl<'env> Generator<'env> {
             ExpData::Value(id, val) => self.gen_value(targets, *id, val),
             ExpData::LocalVar(id, name) => self.gen_local(targets, *id, *name),
             ExpData::Call(id, op, args) => self.gen_call(targets, *id, op, args),
+            ExpData::Invoke(id, fun, args) => {
+                self.expect_function_values_enabled(*id);
+                self.gen_invoke(targets, *id, fun, args)
+            },
+            ExpData::Lambda(id, ..) => {
+                if self.check_if_lambdas_enabled() {
+                    self.internal_error(
+                        *id,
+                        "unexpected lambda, expected to be eliminated by lambda lifting",
+                    )
+                } else {
+                    self.expect_function_values_enabled(*id)
+                }
+            },
             ExpData::Sequence(_, exps) => {
                 for step in exps.iter().take(exps.len() - 1) {
                     // Result is thrown away, but for typing reasons, we need to introduce
@@ -383,10 +425,7 @@ impl<'env> Generator<'env> {
                 self.scopes.pop();
             },
             ExpData::Mutate(id, lhs, rhs) => {
-                // Notice that we cannot be in reference mode here for reasons
-                // of typing: the result of the Mutate operator is `()` and cannot
-                // appear where references are processed.
-                let rhs_temp = self.gen_arg(rhs, false);
+                let rhs_temp = self.gen_escape_auto_ref_arg(rhs, false);
                 let lhs_temp = self.gen_auto_ref_arg(lhs, ReferenceKind::Mutable);
                 let lhs_type = self.get_node_type(lhs.node_id());
 
@@ -447,11 +486,11 @@ impl<'env> Generator<'env> {
                 self.emit_with(*id, |attr| Bytecode::Jump(attr, continue_label));
                 self.emit_with(*id, |attr| Bytecode::Label(attr, break_label));
             },
-            ExpData::LoopCont(id, do_continue) => {
+            ExpData::LoopCont(id, nest, do_continue) => {
                 if let Some(LoopContext {
                     continue_label,
                     break_label,
-                }) = self.loops.last()
+                }) = self.loops.iter().rev().nth(*nest)
                 {
                     let target = if *do_continue {
                         *continue_label
@@ -476,9 +515,6 @@ impl<'env> Generator<'env> {
                     .rewrite_spec_descent(&SpecBlockTarget::Inline, spec);
                 self.emit_with(*id, |attr| Bytecode::SpecBlock(attr, spec));
             },
-            ExpData::Invoke(id, _, _) | ExpData::Lambda(id, _, _) => {
-                self.internal_error(*id, format!("not yet implemented: {:?}", exp))
-            },
             ExpData::Quant(id, _, _, _, _, _) => {
                 self.internal_error(*id, "unsupported specification construct")
             },
@@ -489,7 +525,7 @@ impl<'env> Generator<'env> {
 // ======================================================================================
 // Values
 
-impl<'env> Generator<'env> {
+impl Generator<'_> {
     fn gen_value(&mut self, target: Vec<TempIndex>, id: NodeId, val: &Value) {
         let target = self.require_unary_target(id, target);
         let ty = self.get_node_type(id);
@@ -561,26 +597,94 @@ impl<'env> Generator<'env> {
 // ======================================================================================
 // Locals
 
-impl<'env> Generator<'env> {
+impl Generator<'_> {
     fn gen_local(&mut self, targets: Vec<TempIndex>, id: NodeId, name: Symbol) {
         let target = self.require_unary_target(id, targets);
-        let attr = self.new_loc_attr(id);
         let temp = self.find_local(id, name);
-        self.emit(Bytecode::Assign(attr, target, temp, AssignKind::Inferred));
+        self.emit_assign_with_convert(id, target, temp, AssignKind::Inferred)
     }
 
     fn gen_temporary(&mut self, targets: Vec<TempIndex>, id: NodeId, temp: TempIndex) {
         let target = self.require_unary_target(id, targets);
-        self.emit_with(id, |attr| {
-            Bytecode::Assign(attr, target, temp, AssignKind::Inferred)
-        })
+        self.emit_assign_with_convert(id, target, temp, AssignKind::Inferred)
+    }
+
+    fn emit_assign_with_convert(
+        &mut self,
+        id: NodeId,
+        target: TempIndex,
+        mut temp: TempIndex,
+        kind: AssignKind,
+    ) {
+        let temp_ty = self.temp_type(temp).clone();
+        let target_ty = self.temp_type(target).clone();
+        if let Some((new_temp, oper)) = self.get_conversion(&target_ty, &temp_ty) {
+            self.emit_call(id, vec![new_temp], oper, vec![temp]);
+            temp = new_temp
+        }
+        self.emit_with(id, |attr| Bytecode::Assign(attr, target, temp, kind))
+    }
+
+    fn get_conversion(
+        &mut self,
+        expected_type: &Type,
+        actual_type: &Type,
+    ) -> Option<(TempIndex, BytecodeOperation)> {
+        if actual_type.is_mutable_reference() && expected_type.is_immutable_reference() {
+            let new_temp = self.new_temp(actual_type.clone());
+            Some((new_temp, BytecodeOperation::FreezeRef(false)))
+        } else {
+            None
+        }
     }
 }
 
 // ======================================================================================
 // Calls
 
-impl<'env> Generator<'env> {
+impl Generator<'_> {
+    fn gen_invoke(&mut self, targets: Vec<TempIndex>, id: NodeId, fun: &Exp, args: &[Exp]) {
+        // Arguments are first computed, finally the function. (On a stack machine, the
+        // function is on the top).
+        let mut arg_temps = self.gen_arg_list(args);
+        let fun_temp = self.gen_escape_auto_ref_arg(fun, false);
+
+        // The function can be a wrapper `struct W(|T|S|)` which we need to unpack first.
+        let fun_ty = self.get_node_type(fun.node_id());
+        if let Some(raw_fun_ty) = fun_ty.get_function_wrapper_ty(self.env()) {
+            let raw_fun_temp = self.new_temp(raw_fun_ty);
+            // This here should be well-defined because only structs can be wrappers.
+            let (wrapper_struct, inst) = fun_ty.get_struct(self.env()).unwrap();
+            let struct_id = wrapper_struct.get_qualified_id();
+            if struct_id.module_id != self.func_env.module_env.get_id() {
+                self.error(
+                    id,
+                    format!(
+                    "cannot unpack a wrapper struct `{}` (defined in a different module `{}`) and invoke the wrapped function value ",
+                    wrapper_struct.get_full_name_str(),
+                    self.func_env.env().get_module(struct_id.module_id).get_full_name_str(),
+                    ),
+                )
+            }
+            let inst = inst.to_vec();
+            self.emit_with(id, |attr| {
+                Bytecode::Call(
+                    attr,
+                    vec![raw_fun_temp],
+                    BytecodeOperation::Unpack(struct_id.module_id, struct_id.id, inst),
+                    vec![fun_temp],
+                    None,
+                )
+            });
+            arg_temps.push(raw_fun_temp)
+        } else {
+            arg_temps.push(fun_temp)
+        };
+        self.emit_with(id, |attr| {
+            Bytecode::Call(attr, targets, BytecodeOperation::Invoke, arg_temps, None)
+        });
+    }
+
     fn gen_call(&mut self, targets: Vec<TempIndex>, id: NodeId, op: &Operation, args: &[Exp]) {
         match op {
             Operation::Vector => self.gen_op_call(targets, id, BytecodeOperation::Vector, args),
@@ -626,7 +730,28 @@ impl<'env> Generator<'env> {
                         target,
                         id,
                         mid.qualified_inst(*sid, inst.to_vec()),
-                        *fid,
+                        &[*fid],
+                        &arg,
+                    )
+                } else {
+                    self.internal_error(id, "inconsistent type in select expression")
+                }
+            },
+            Operation::SelectVariants(mid, sid, fids) => {
+                let target = self.require_unary_target(id, targets);
+                let arg = self.require_unary_arg(id, args);
+                // Get the instantiation of the struct. It is not contained in the select
+                // expression but in the type of it's operand.
+                if let Some((_, inst)) = self
+                    .get_node_type(arg.node_id())
+                    .skip_reference()
+                    .get_struct(self.env())
+                {
+                    self.gen_select(
+                        target,
+                        id,
+                        mid.qualified_inst(*sid, inst.to_vec()),
+                        fids,
                         &arg,
                     )
                 } else {
@@ -704,7 +829,7 @@ impl<'env> Generator<'env> {
                 } else {
                     AssignKind::Move
                 };
-                self.emit_with(id, |attr| Bytecode::Assign(attr, target, arg, assign_kind))
+                self.emit_assign_with_convert(id, target, arg, assign_kind)
             },
             Operation::Borrow(kind) => {
                 let target = self.require_unary_target(id, targets);
@@ -728,6 +853,61 @@ impl<'env> Generator<'env> {
             Operation::MoveFunction(m, f) => {
                 self.gen_function_call(targets, id, m.qualified(*f), args)
             },
+            Operation::Closure(mid, fid, mask) => {
+                self.expect_function_values_enabled(id);
+                let inst = self.env().get_node_instantiation(id);
+                debug_assert_eq!(
+                    inst.len(),
+                    self.env()
+                        .get_function(mid.qualified(*fid))
+                        .get_type_parameter_count(),
+                );
+                let target_ty = self.temp_type(targets[0]).clone();
+                if let Type::Struct(wrapper_mid, wrapper_sid, wrapper_inst) = target_ty.clone() {
+                    if wrapper_mid != *mid {
+                        self.error(
+                            id,
+                            format!(
+                                "cannot implicitly pack a wrapper struct `{}` defined in a different module `{}`",
+                                target_ty.display(&self.func_env.get_type_display_ctx()),
+                                self.func_env.env().get_module(wrapper_mid).get_full_name_str(),
+                                ),
+                        );
+                    }
+                    // Implicitly convert to a function wrapper.
+                    let fun_ty = self
+                        .env()
+                        .get_struct(wrapper_mid.qualified(wrapper_sid))
+                        .get_function_wrapper_type(&wrapper_inst)
+                        .expect("function wrapper type");
+                    let temp = self.new_temp(fun_ty);
+                    self.gen_op_call(
+                        vec![temp],
+                        id,
+                        BytecodeOperation::Closure(*mid, *fid, inst, *mask),
+                        args,
+                    );
+                    self.emit_with(id, |attr| {
+                        Bytecode::Call(
+                            attr,
+                            targets,
+                            BytecodeOperation::Pack(wrapper_mid, wrapper_sid, wrapper_inst),
+                            vec![temp],
+                            None,
+                        )
+                    })
+                } else {
+                    self.gen_op_call(
+                        targets,
+                        id,
+                        BytecodeOperation::Closure(*mid, *fid, inst, *mask),
+                        args,
+                    )
+                }
+            },
+            Operation::TestVariants(mid, sid, variants) => {
+                self.gen_test_variants(targets, id, mid.qualified(*sid), variants, args)
+            },
             Operation::Cast => self.gen_cast_call(targets, id, args),
             Operation::Add => self.gen_op_call(targets, id, BytecodeOperation::Add, args),
             Operation::Sub => self.gen_op_call(targets, id, BytecodeOperation::Sub, args),
@@ -741,17 +921,17 @@ impl<'env> Generator<'env> {
             Operation::Shr => self.gen_op_call(targets, id, BytecodeOperation::Shr, args),
             Operation::And => self.gen_logical_shortcut(true, targets, id, args),
             Operation::Or => self.gen_logical_shortcut(false, targets, id, args),
-            Operation::Eq => self.gen_op_call(targets, id, BytecodeOperation::Eq, args),
-            Operation::Neq => self.gen_op_call(targets, id, BytecodeOperation::Neq, args),
-            Operation::Lt => self.gen_op_call(targets, id, BytecodeOperation::Lt, args),
-            Operation::Gt => self.gen_op_call(targets, id, BytecodeOperation::Gt, args),
-            Operation::Le => self.gen_op_call(targets, id, BytecodeOperation::Le, args),
-            Operation::Ge => self.gen_op_call(targets, id, BytecodeOperation::Ge, args),
+            Operation::Eq => self.gen_op_call_auto_freeze(targets, id, BytecodeOperation::Eq, args),
+            Operation::Neq => {
+                self.gen_op_call_auto_freeze(targets, id, BytecodeOperation::Neq, args)
+            },
+            Operation::Lt => self.gen_op_call_auto_freeze(targets, id, BytecodeOperation::Lt, args),
+            Operation::Gt => self.gen_op_call_auto_freeze(targets, id, BytecodeOperation::Gt, args),
+            Operation::Le => self.gen_op_call_auto_freeze(targets, id, BytecodeOperation::Le, args),
+            Operation::Ge => self.gen_op_call_auto_freeze(targets, id, BytecodeOperation::Ge, args),
             Operation::Not => self.gen_op_call(targets, id, BytecodeOperation::Not, args),
 
             Operation::NoOp => {}, // do nothing
-
-            Operation::Closure(..) => self.internal_error(id, "closure not yet implemented"),
 
             // Non-supported specification related operations
             Operation::Exists(Some(_))
@@ -804,6 +984,31 @@ impl<'env> Generator<'env> {
         }
     }
 
+    fn gen_test_variants(
+        &mut self,
+        targets: Vec<TempIndex>,
+        id: NodeId,
+        struct_id: QualifiedId<StructId>,
+        variants: &[Symbol],
+        args: &[Exp],
+    ) {
+        let target = self.require_unary_target(id, targets);
+        let temp =
+            self.gen_auto_ref_arg(&self.require_unary_arg(id, args), ReferenceKind::Immutable);
+        let mut bool_temp = Some(target);
+        let success_label = self.new_label(id);
+        let inst = self.env().get_node_instantiation(id);
+        self.gen_test_variants_operation(
+            id,
+            &mut bool_temp,
+            success_label,
+            &struct_id.instantiate(inst),
+            variants.to_vec(),
+            temp,
+        );
+        self.emit_with(id, |attr| Bytecode::Label(attr, success_label))
+    }
+
     fn gen_cast_call(&mut self, targets: Vec<TempIndex>, id: NodeId, args: &[Exp]) {
         let ty = self.get_node_type(id);
         let bytecode_op = match ty {
@@ -819,6 +1024,28 @@ impl<'env> Generator<'env> {
             },
         };
         self.gen_op_call(targets, id, bytecode_op, args)
+    }
+
+    fn gen_op_call_auto_freeze(
+        &mut self,
+        targets: Vec<TempIndex>,
+        id: NodeId,
+        op: BytecodeOperation,
+        args: &[Exp],
+    ) {
+        // Freeze arguments if needed
+        let args = args
+            .iter()
+            .map(|e| {
+                let ty = self.env().get_node_type(e.node_id());
+                if let Type::Reference(ReferenceKind::Mutable, elem_ty) = ty {
+                    self.maybe_convert(e, &Type::Reference(ReferenceKind::Immutable, elem_ty))
+                } else {
+                    e.clone()
+                }
+            })
+            .collect::<Vec<_>>();
+        self.gen_op_call(targets, id, op, &args)
     }
 
     fn gen_op_call(
@@ -894,9 +1121,8 @@ impl<'env> Generator<'env> {
             .unwrap_or_default();
         // Function calls can have implicit conversion of &mut to &, need to compute implicit
         // conversions.
-        let param_types: Vec<Type> = self
-            .env()
-            .get_function(fun)
+        let fun_env = self.env().get_function(fun);
+        let param_types: Vec<Type> = fun_env
             .get_parameters()
             .into_iter()
             .map(|Parameter(_, ty, _)| ty.instantiate(&type_args))
@@ -911,19 +1137,36 @@ impl<'env> Generator<'env> {
             .map(|(e, t)| self.maybe_convert(e, &t))
             .collect::<Vec<_>>();
         let args = self.gen_arg_list(&args);
+        // Targets may need conversion as well.
+        let fun_env = self.env().get_function(fun);
+        let mut actual_targets = vec![];
+        let mut conversion_ops = vec![];
+        for (target, actual_type) in targets.iter().zip(fun_env.get_result_type().flatten()) {
+            let target_ty = self.temp_type(*target).clone();
+            if let Some((new_target, oper)) = self.get_conversion(&target_ty, &actual_type) {
+                // Conversion required
+                actual_targets.push(new_target);
+                conversion_ops.push((*target, oper, new_target))
+            } else {
+                actual_targets.push(*target)
+            }
+        }
         self.emit_with(id, |attr| {
             Bytecode::Call(
                 attr,
-                targets,
+                actual_targets,
                 BytecodeOperation::Function(fun.module_id, fun.id, type_args),
                 args,
                 None,
             )
-        })
+        });
+        for (target, oper, new_target) in conversion_ops {
+            self.emit_call(id, vec![target], oper, vec![new_target])
+        }
     }
 
     /// Convert the expression so it matches the expected type. This is currently only needed
-    /// for `&mut` to `&` conversion, in which case we need to to introduce a Freeze operation.
+    /// for `&mut` to `&` conversion, in which case we need to introduce a Freeze operation.
     fn maybe_convert(&self, exp: &Exp, expected_ty: &Type) -> Exp {
         let id = exp.node_id();
         let exp_ty = self.get_node_type(id);
@@ -946,15 +1189,12 @@ impl<'env> Generator<'env> {
     /// Generate the code for a list of arguments.
     /// Note that the arguments are evaluated in left-to-right order.
     fn gen_arg_list(&mut self, exps: &[Exp]) -> Vec<TempIndex> {
-        // If all args are side-effect free, we don't need to force temporary generation
-        // to get left-to-right evaluation.
-        let with_forced_temp = !exps.iter().all(is_definitely_pure);
         let len = exps.len();
-        // Generate code with (potentially) forced creation of temporaries for all except last arg.
+        // Generate code with forced creation of temporaries for all except last arg.
         let mut args = exps
             .iter()
             .take(if len == 0 { 0 } else { len - 1 })
-            .map(|exp| self.gen_escape_auto_ref_arg(exp, with_forced_temp))
+            .map(|exp| self.gen_escape_auto_ref_arg(exp, true))
             .collect::<Vec<_>>();
         // If there is a last arg, we don't need to force create a temporary for it.
         if let Some(last_arg) = exps
@@ -974,7 +1214,9 @@ impl<'env> Generator<'env> {
         match exp.as_ref() {
             ExpData::Temporary(_, temp) if !with_forced_temp => *temp,
             ExpData::LocalVar(id, sym) if !with_forced_temp => self.find_local(*id, *sym),
-            ExpData::Call(id, Operation::Select(..), _) if self.reference_mode() => {
+            ExpData::Call(id, Operation::Select(..) | Operation::SelectVariants(..), _)
+                if self.reference_mode() =>
+            {
                 // In reference mode, a selection is interpreted as selecting a reference to the
                 // field.
                 let ty =
@@ -1006,7 +1248,9 @@ impl<'env> Generator<'env> {
     // nested.
     fn gen_tuple(&mut self, exp: &Exp, with_forced_temp: bool) -> Vec<TempIndex> {
         if let ExpData::Call(_, Operation::Tuple, args) = exp.as_ref() {
-            args.iter().map(|arg| self.gen_arg(arg, false)).collect()
+            args.iter()
+                .map(|arg| self.gen_escape_auto_ref_arg(arg, false))
+                .collect()
         } else {
             let exp_ty = self.env().get_node_type(exp.node_id());
             if exp_ty.is_tuple() {
@@ -1019,7 +1263,7 @@ impl<'env> Generator<'env> {
                 self.gen(temps.clone(), exp);
                 temps
             } else {
-                vec![self.gen_arg(exp, with_forced_temp)]
+                vec![self.gen_escape_auto_ref_arg(exp, with_forced_temp)]
             }
         }
     }
@@ -1064,7 +1308,7 @@ impl<'env> Generator<'env> {
 // ======================================================================================
 // References
 
-impl<'env> Generator<'env> {
+impl Generator<'_> {
     fn gen_borrow(&mut self, target: TempIndex, id: NodeId, kind: ReferenceKind, arg: &Exp) {
         match arg.as_ref() {
             ExpData::Call(_arg_id, Operation::Select(mid, sid, fid), args) => {
@@ -1073,13 +1317,29 @@ impl<'env> Generator<'env> {
                     id,
                     kind,
                     mid.qualified(*sid),
-                    *fid,
+                    &[*fid],
+                    &self.require_unary_arg(id, args),
+                )
+            },
+            ExpData::Call(_arg_id, Operation::SelectVariants(mid, sid, fids), args) => {
+                return self.gen_borrow_field(
+                    target,
+                    id,
+                    kind,
+                    mid.qualified(*sid),
+                    fids,
                     &self.require_unary_arg(id, args),
                 )
             },
             ExpData::Call(_arg_id, Operation::Deref, args) => {
                 // Optimize `Borrow(Deref(x)) => x`
-                return self.gen(vec![target], &args[0]);
+                // only when `kind` is equal to the reference kind of `x`
+                let arg_type = self.env().get_node_type(args[0].node_id());
+                if let Type::Reference(ref_kind, _) = arg_type {
+                    if ref_kind == kind {
+                        return self.gen(vec![target], &args[0]);
+                    }
+                }
             },
             ExpData::LocalVar(_arg_id, sym) => return self.gen_borrow_local(target, id, *sym),
             ExpData::Temporary(_arg_id, temp) => return self.gen_borrow_temp(target, id, *temp),
@@ -1088,7 +1348,7 @@ impl<'env> Generator<'env> {
         // Borrow the temporary, allowing to do e.g. `&(1+2)`. Note to match
         // this capability in the stack machine, we need to keep those temps in locals
         // and can't manage them on the stack during stackification.
-        let temp = self.gen_arg(arg, false);
+        let temp = self.gen_escape_auto_ref_arg(arg, false);
         self.gen_borrow_temp(target, id, temp)
     }
 
@@ -1106,14 +1366,9 @@ impl<'env> Generator<'env> {
         id: NodeId,
         kind: ReferenceKind,
         struct_id: QualifiedId<StructId>,
-        field_id: FieldId,
+        fields: &[FieldId],
         oper: &Exp,
     ) {
-        let field_offset = {
-            let struct_env = self.env().get_struct(struct_id);
-            let field_env = struct_env.get_field(field_id);
-            field_env.get_offset()
-        };
         let temp = self.gen_auto_ref_arg(oper, kind);
         // Get instantiation of field. It is not contained in the select expression but in the
         // type of its operand.
@@ -1122,17 +1377,13 @@ impl<'env> Generator<'env> {
             .skip_reference()
             .get_struct(self.env())
         {
-            self.emit_call(
+            self.gen_borrow_field_operation(
                 id,
-                vec![target],
-                BytecodeOperation::BorrowField(
-                    struct_id.module_id,
-                    struct_id.id,
-                    inst.to_vec(),
-                    field_offset,
-                ),
-                vec![temp],
-            );
+                target,
+                struct_id.instantiate(inst.to_vec()),
+                fields,
+                temp,
+            )
         } else {
             self.internal_error(id, "inconsistent type in select expression")
         }
@@ -1142,7 +1393,7 @@ impl<'env> Generator<'env> {
 // ======================================================================================
 // Structs
 
-impl<'env> Generator<'env> {
+impl Generator<'_> {
     /// Generate code for a field selection. This needs to deal with the combination of the
     /// following cases which the type checker allows:
     /// (1) the operand is a reference or is not.
@@ -1152,12 +1403,9 @@ impl<'env> Generator<'env> {
         target: TempIndex,
         id: NodeId,
         str: QualifiedInstId<StructId>,
-        field: FieldId,
+        fields: &[FieldId],
         oper: &Exp,
     ) {
-        let struct_env = self.env().get_struct(str.to_qualified_id());
-        let field_offset = struct_env.get_field(field).get_offset();
-
         // Compile operand in reference mode, defaulting to immutable mode.
         let oper_temp = self.gen_auto_ref_arg(oper, ReferenceKind::Immutable);
         let oper_type = self.get_node_type(oper.node_id());
@@ -1194,17 +1442,158 @@ impl<'env> Generator<'env> {
         } else {
             target
         };
-        self.emit_call(
-            id,
-            vec![borrow_dest],
-            BytecodeOperation::BorrowField(str.module_id, str.id, str.inst, field_offset),
-            vec![oper_temp],
-        );
+        self.gen_borrow_field_operation(id, borrow_dest, str, fields, oper_temp);
         if need_read_ref {
             self.emit_call(id, vec![target], BytecodeOperation::ReadRef, vec![
                 borrow_dest,
             ])
         }
+    }
+
+    /// Generate a borrow field operation, possibly for a variant struct, which may require
+    /// switching over variants.
+    fn gen_borrow_field_operation(
+        &mut self,
+        id: NodeId,
+        dest: TempIndex,
+        str: QualifiedInstId<StructId>,
+        fields: &[FieldId],
+        src: TempIndex,
+    ) {
+        let struct_env = self.env().get_struct(str.to_qualified_id());
+        if struct_env.has_variants() {
+            // Not all the fields in this operation maybe at the same offset, however,
+            // bytecode only supports selection of multiple variant fields at the same
+            // offset. A switch need to be generated over fields at the same offset.
+            let mut fields_by_offset: BTreeMap<usize, BTreeSet<FieldId>> = BTreeMap::new();
+            for field in fields {
+                fields_by_offset
+                    .entry(struct_env.get_field(*field).get_offset())
+                    .or_default()
+                    .insert(*field);
+            }
+            // Go over the groups, with the smallest group
+            // first, so the largest group is handled as the default, and directly maps
+            // to the native BorrowVariantField. This reduces the number of tests
+            // generated.
+            let mut ordered_groups = fields_by_offset
+                .iter()
+                .sorted_by(|g1, g2| g1.1.len().cmp(&g2.1.len()))
+                .collect_vec();
+            let mut bool_temp: Option<TempIndex> = None;
+            let end_label = if ordered_groups.len() > 1 {
+                Some(self.new_label(id))
+            } else {
+                None
+            };
+            while let Some((offset, group_fields)) = ordered_groups.pop() {
+                let next_group_label = if !ordered_groups.is_empty() {
+                    let next_group_label = self.new_label(id);
+                    let this_group_label = self.new_label(id);
+                    self.gen_test_variants_operation(
+                        id,
+                        &mut bool_temp,
+                        this_group_label,
+                        &str,
+                        group_fields
+                            .iter()
+                            .map(|fid| {
+                                self.env()
+                                    .get_struct(str.to_qualified_id())
+                                    .get_field(*fid)
+                                    .get_variant()
+                                    .expect("variant name defined")
+                            })
+                            .collect(),
+                        src,
+                    );
+                    // Ending here means no test succeeded
+                    self.emit_with(id, |attr| Bytecode::Jump(attr, next_group_label));
+                    // Ending here means some test succeeded
+                    self.emit_with(id, |attr| Bytecode::Label(attr, this_group_label));
+                    Some(next_group_label)
+                } else {
+                    None
+                };
+                // Generate the underlying borrow operation with all fields at the same offset.
+                let fields = group_fields.iter().cloned().collect_vec();
+                self.gen_borrow_field_same_offset(id, dest, str.clone(), &fields, *offset, src);
+                if let Some(label) = next_group_label {
+                    // Jump to end label
+                    self.emit_with(id, |attr| Bytecode::Jump(attr, end_label.unwrap()));
+                    // Next group continues here
+                    self.emit_with(id, |attr| Bytecode::Label(attr, label))
+                }
+            }
+            if let Some(label) = end_label {
+                self.emit_with(id, |attr| Bytecode::Label(attr, label))
+            }
+        } else {
+            assert_eq!(fields.len(), 1);
+            self.gen_borrow_field_same_offset(
+                id,
+                dest,
+                str.clone(),
+                fields,
+                struct_env.get_field(fields[0]).get_offset(),
+                src,
+            );
+        }
+    }
+
+    /// Generate a test for variants.
+    fn gen_test_variants_operation(
+        &mut self,
+        id: NodeId,
+        bool_temp: &mut Option<TempIndex>,
+        success_label: Label,
+        str: &QualifiedInstId<StructId>,
+        variants: Vec<Symbol>,
+        src: TempIndex,
+    ) {
+        let bool_temp =
+            *bool_temp.get_or_insert_with(|| self.new_temp(Type::new_prim(PrimitiveType::Bool)));
+        for variant in variants {
+            self.emit_call(
+                id,
+                vec![bool_temp],
+                BytecodeOperation::TestVariant(str.module_id, str.id, variant, str.inst.clone()),
+                vec![src],
+            );
+            self.branch_to_exit_if_true(id, bool_temp, success_label)
+        }
+    }
+
+    /// Generate field borrow for fields at the same offset.
+    fn gen_borrow_field_same_offset(
+        &mut self,
+        id: NodeId,
+        dest: TempIndex,
+        str: QualifiedInstId<StructId>,
+        fields: &[FieldId],
+        offset: usize,
+        src: TempIndex,
+    ) {
+        let struct_env = self.env().get_struct(str.to_qualified_id());
+        debug_assert!(fields
+            .iter()
+            .all(|id| struct_env.get_field(*id).get_offset() == offset));
+        let oper = if struct_env.has_variants() {
+            let variants = fields
+                .iter()
+                .map(|id| {
+                    struct_env
+                        .get_field(*id)
+                        .get_variant()
+                        .expect("variant field has variant name")
+                })
+                .collect_vec();
+            BytecodeOperation::BorrowVariantField(str.module_id, str.id, variants, str.inst, offset)
+        } else {
+            // Regular BorrowField
+            BytecodeOperation::BorrowField(str.module_id, str.id, str.inst, offset)
+        };
+        self.emit_call(id, vec![dest], oper, vec![src])
     }
 }
 
@@ -1277,7 +1666,7 @@ impl MatchMode {
     }
 }
 
-impl<'env> Generator<'env> {
+impl Generator<'_> {
     /// Generate code for assignment of an expression to a pattern. This involves
     /// flattening nested patterns as needed. The optional `next_scope` is a
     /// scope to enter after the rhs exp has been compiled.
@@ -1536,17 +1925,13 @@ impl<'env> Generator<'env> {
                 let pat_ty = self.env().get_node_type(*id);
                 if !match_mode.is_probing() {
                     let temp = self.new_temp(pat_ty);
-                    self.emit_with(*id, |attr| {
-                        Bytecode::Assign(attr, temp, values[0], AssignKind::Inferred)
-                    })
+                    self.emit_assign_with_convert(*id, temp, values[0], AssignKind::Inferred)
                 }
             },
             Pattern::Var(var_id, sym) => {
                 if match_mode.shall_bind_var(*sym) {
                     let local = self.find_local_for_pattern(*var_id, *sym, next_scope);
-                    self.emit_with(id, |attr| {
-                        Bytecode::Assign(attr, local, values[0], AssignKind::Inferred)
-                    })
+                    self.emit_assign_with_convert(id, local, values[0], AssignKind::Inferred)
                 }
             },
             Pattern::Struct(id, str, variant, args) => {
@@ -1678,10 +2063,10 @@ impl<'env> Generator<'env> {
                     *id,
                     vec![*temp],
                     if let Some(var) = variant {
-                        BytecodeOperation::BorrowFieldVariant(
+                        BytecodeOperation::BorrowVariantField(
                             str.module_id,
                             str.id,
-                            var,
+                            vec![var],
                             str.inst.to_owned(),
                             field_offset,
                         )
@@ -1811,6 +2196,14 @@ impl<'env> Generator<'env> {
         self.emit_with(id, |attr| Bytecode::Label(attr, fall_through))
     }
 
+    fn branch_to_exit_if_true(&mut self, id: NodeId, cond: TempIndex, exit_path: Label) {
+        let fall_through = self.new_label(id);
+        self.emit_with(id, |attr| {
+            Bytecode::Branch(attr, exit_path, fall_through, cond)
+        });
+        self.emit_with(id, |attr| Bytecode::Label(attr, fall_through))
+    }
+
     fn create_scope(
         &mut self,
         vars: impl Iterator<Item = (NodeId, Symbol)>,
@@ -1903,7 +2296,7 @@ impl ValueShape {
         let mut values = BTreeSet::new();
         for (_, shape) in &pattern_shapes {
             for partial_value in shape.possible_values(env) {
-                Self::join_value_shape(&mut values, partial_value)
+                values = Self::join_value_shape(values, partial_value);
             }
         }
         // Now go over all patterns in sequence and incrementally remove matched
@@ -2019,6 +2412,7 @@ impl ValueShape {
             for (s1, s2) in shapes1.iter().zip(shapes2) {
                 if let Some(s) = s1.try_join(s2) {
                     result.push(s);
+                } else {
                     break;
                 }
             }
@@ -2043,16 +2437,21 @@ impl ValueShape {
 
     /// Given a list of value shapes, join a new one. This attempts specializing existing shapes
     /// via the join operator in order to keep the list minimal.
-    fn join_value_shape(set: &mut BTreeSet<ValueShape>, value: ValueShape) {
-        for v in set.iter() {
+    fn join_value_shape(set: BTreeSet<ValueShape>, value: ValueShape) -> BTreeSet<ValueShape> {
+        let mut new_set = BTreeSet::new();
+        let mut joined = false;
+        for v in set.into_iter() {
             if let Some(unified) = v.try_join(&value) {
-                let v = v.clone(); // to free set
-                set.remove(&v);
-                set.insert(unified);
-                return;
+                new_set.insert(unified);
+                joined = true;
+            } else {
+                new_set.insert(v);
             }
         }
-        set.insert(value);
+        if !joined {
+            new_set.insert(value);
+        }
+        new_set
     }
 
     /// Checks whether one shape is instance of another. It holds that
@@ -2078,7 +2477,7 @@ impl ValueShape {
     }
 }
 
-impl<'a> fmt::Display for ValueShapeDisplay<'a> {
+impl fmt::Display for ValueShapeDisplay<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use ValueShape::*;
         let fmt_list = |list: &[ValueShape], sep: &str| {
@@ -2125,6 +2524,7 @@ impl<'a> fmt::Display for ValueShapeDisplay<'a> {
 // Helpers
 
 /// Is this a leaf expression which cannot contain another expression?
+#[allow(dead_code)]
 fn is_leaf_exp(exp: &Exp) -> bool {
     matches!(
         exp.as_ref(),
@@ -2133,6 +2533,7 @@ fn is_leaf_exp(exp: &Exp) -> bool {
 }
 
 /// Can we be certain that this expression is side-effect free?
+#[allow(dead_code)]
 fn is_definitely_pure(exp: &Exp) -> bool {
     is_leaf_exp(exp) // A leaf expression is pure.
         || match exp.as_ref() {

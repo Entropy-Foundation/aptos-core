@@ -18,11 +18,11 @@ use std::{
 pub(crate) fn type_not_allowed(type_tag: &TypeTag) -> ! {
     panic!(
         "Transaction scripts cannot take arguments of type {}.",
-        type_tag
+        type_tag.to_canonical_string()
     );
 }
 
-/// Clean up doc comments extracter by the Move prover.
+/// Clean up doc comments extracted by the Move prover.
 pub(crate) fn prepare_doc_string(doc: &str) -> String {
     doc.replace("\n ", "\n").trim().to_string()
 }
@@ -45,7 +45,7 @@ fn quote_type_as_format(type_tag: &TypeTag) -> Format {
             tag if &**tag == Lazy::force(&str_tag) => Format::Seq(Box::new(Format::U8)),
             _ => type_not_allowed(type_tag),
         },
-        Signer => type_not_allowed(type_tag),
+        Signer | Function(..) => type_not_allowed(type_tag),
     }
 }
 
@@ -122,7 +122,7 @@ pub(crate) fn mangle_type(type_tag: &TypeTag) -> String {
             tag if &**tag == Lazy::force(&str_tag) => "string".into(),
             _ => type_not_allowed(type_tag),
         },
-        Signer => type_not_allowed(type_tag),
+        Signer | Function(..) => type_not_allowed(type_tag),
     }
 }
 

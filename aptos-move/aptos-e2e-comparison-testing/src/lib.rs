@@ -4,7 +4,7 @@
 use aptos_framework::{
     natives::code::PackageMetadata, unzip_metadata_str, BuiltPackage, APTOS_PACKAGES,
 };
-use aptos_language_e2e_tests::data_store::FakeDataStore;
+use aptos_transaction_simulation::InMemoryStateStore;
 use aptos_types::{
     account_address::AccountAddress,
     state_store::{state_key::StateKey, state_value::StateValue},
@@ -14,7 +14,7 @@ use aptos_types::{
 use rocksdb::{DBWithThreadMode, SingleThreaded, DB};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     fmt,
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, BufWriter, Read, Write},
@@ -30,7 +30,7 @@ mod online_execution;
 
 pub use data_collection::*;
 pub use execution::*;
-use move_compiler::compiled_unit::CompiledUnitEnum;
+use legacy_move_compiler::compiled_unit::CompiledUnitEnum;
 use move_core_types::language_storage::ModuleId;
 use move_model::metadata::CompilerVersion;
 use move_package::{
@@ -227,9 +227,9 @@ impl DataManager {
         let state_path = self.state_data_dir_path.join(format!("{}_state", version));
         if !state_path.exists() {
             let mut data_state_file = File::create(state_path).unwrap();
-            let state_store = FakeDataStore::new_with_state_value(state.to_owned());
+            let state_store = InMemoryStateStore::new_with_state_values(state.to_owned());
             data_state_file
-                .write_all(&bcs::to_bytes(&state_store).unwrap())
+                .write_all(&bcs::to_bytes(&state_store.to_btree_map()).unwrap())
                 .unwrap();
         }
     }
@@ -265,12 +265,14 @@ impl DataManager {
         }
     }
 
-    pub fn get_state(&self, version: u64) -> FakeDataStore {
+    pub fn get_state(&self, version: u64) -> InMemoryStateStore {
         let state_path = self.state_data_dir_path.join(format!("{}_state", version));
         let mut data_state_file = File::open(state_path).unwrap();
         let mut buffer = Vec::<u8>::new();
         data_state_file.read_to_end(&mut buffer).unwrap();
-        bcs::from_bytes::<FakeDataStore>(&buffer).unwrap()
+        InMemoryStateStore::new_with_state_values(
+            bcs::from_bytes::<BTreeMap<StateKey, StateValue>>(&buffer).unwrap(),
+        )
     }
 }
 
@@ -410,7 +412,7 @@ fn compile_aptos_packages(
     for package in APTOS_PACKAGES {
         let root_package_dir = aptos_commons_path.join(get_aptos_dir(package).unwrap());
         let compiler_version = if v2_flag {
-            Some(CompilerVersion::V2_0)
+            Some(CompilerVersion::latest_stable())
         } else {
             Some(CompilerVersion::V1)
         };
@@ -575,8 +577,11 @@ fn dump_and_compile_from_package_metadata(
             return Err(anyhow::Error::msg("compilation failed at v1"));
         }
         if execution_mode.is_some_and(|mode| mode.is_v2_or_compare()) {
-            let package_v2 =
-                compile_package(root_package_dir, &package_info, Some(CompilerVersion::V2_0));
+            let package_v2 = compile_package(
+                root_package_dir,
+                &package_info,
+                Some(CompilerVersion::latest_stable()),
+            );
             if let Ok(built_package) = package_v2 {
                 generate_compiled_blob(
                     &package_info,

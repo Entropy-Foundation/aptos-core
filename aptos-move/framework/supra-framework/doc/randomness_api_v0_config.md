@@ -176,17 +176,17 @@ Only used in reconfigurations to apply the pending <code><a href="randomness_api
 <pre><code><b>public</b> <b>fun</b> <a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_on_new_epoch">on_new_epoch</a>(framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) <b>acquires</b> <a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_RequiredGasDeposit">RequiredGasDeposit</a>, <a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_AllowCustomMaxGasFlag">AllowCustomMaxGasFlag</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(framework);
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_RequiredGasDeposit">RequiredGasDeposit</a>&gt;()) {
-        <b>let</b> new_config = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_RequiredGasDeposit">RequiredGasDeposit</a>&gt;();
-        <b>if</b> (<b>exists</b>&lt;<a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_RequiredGasDeposit">RequiredGasDeposit</a>&gt;(@supra_framework)) {
-            *<b>borrow_global_mut</b>&lt;<a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_RequiredGasDeposit">RequiredGasDeposit</a>&gt;(@supra_framework) = new_config;
+        <b>let</b> new_config = <a href="config_buffer.md#0x1_config_buffer_extract_v2">config_buffer::extract_v2</a>&lt;<a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_RequiredGasDeposit">RequiredGasDeposit</a>&gt;();
+        <b>if</b> (<b>exists</b>&lt;<a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_RequiredGasDeposit">RequiredGasDeposit</a>&gt;(@aptos_framework)) {
+            *<b>borrow_global_mut</b>&lt;<a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_RequiredGasDeposit">RequiredGasDeposit</a>&gt;(@aptos_framework) = new_config;
         } <b>else</b> {
             <b>move_to</b>(framework, new_config);
         }
     };
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_AllowCustomMaxGasFlag">AllowCustomMaxGasFlag</a>&gt;()) {
-        <b>let</b> new_config = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_AllowCustomMaxGasFlag">AllowCustomMaxGasFlag</a>&gt;();
-        <b>if</b> (<b>exists</b>&lt;<a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_AllowCustomMaxGasFlag">AllowCustomMaxGasFlag</a>&gt;(@supra_framework)) {
-            *<b>borrow_global_mut</b>&lt;<a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_AllowCustomMaxGasFlag">AllowCustomMaxGasFlag</a>&gt;(@supra_framework) = new_config;
+        <b>let</b> new_config = <a href="config_buffer.md#0x1_config_buffer_extract_v2">config_buffer::extract_v2</a>&lt;<a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_AllowCustomMaxGasFlag">AllowCustomMaxGasFlag</a>&gt;();
+        <b>if</b> (<b>exists</b>&lt;<a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_AllowCustomMaxGasFlag">AllowCustomMaxGasFlag</a>&gt;(@aptos_framework)) {
+            *<b>borrow_global_mut</b>&lt;<a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_AllowCustomMaxGasFlag">AllowCustomMaxGasFlag</a>&gt;(@aptos_framework) = new_config;
         } <b>else</b> {
             <b>move_to</b>(framework, new_config);
         }

@@ -1,9 +1,30 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use aptos_types::block_info::BlockHeight;
+use aptos_storage_interface::state_store::{
+    state::State, state_summary::StateSummary, state_view::hot_state_view::HotStateView,
+};
+use aptos_types::{
+    block_info::BlockHeight,
+    transaction::{
+        IndexedTransactionSummary, TransactionListWithAuxiliaryInfos, TransactionListWithProofV2,
+        TransactionOutputListWithAuxiliaryInfos, TransactionOutputListWithProof,
+    },
+};
 
 impl DbReader for AptosDB {
+    fn get_persisted_state(&self) -> Result<(Arc<dyn HotStateView>, State)> {
+        gauged_api("get_persisted_state", || {
+            self.state_store.get_persisted_state()
+        })
+    }
+
+    fn get_persisted_state_summary(&self) -> Result<StateSummary> {
+        gauged_api("get_persisted_state_summary", || {
+            self.state_store.get_persisted_state_summary()
+        })
+    }
+
     fn get_epoch_ending_ledger_infos(
         &self,
         start_epoch: u64,
@@ -23,6 +44,10 @@ impl DbReader for AptosDB {
         version: Version,
     ) -> Result<Box<dyn Iterator<Item = Result<(StateKey, StateValue)>> + '_>> {
         gauged_api("get_prefixed_state_value_iterator", || {
+            ensure!(
+                !self.state_kv_db.enabled_sharding(),
+                "This API is not supported with sharded DB"
+            );
             self.error_if_state_kv_pruned("StateValue", version)?;
 
             Ok(Box::new(
@@ -40,7 +65,8 @@ impl DbReader for AptosDB {
         gauged_api("get_transaction_auxiliary_data_by_version", || {
             self.error_if_ledger_pruned("Transaction", version)?;
             self.ledger_db
-                .transaction_auxiliary_data_db().get_transaction_auxiliary_data(version)
+                .transaction_auxiliary_data_db()
+                .get_transaction_auxiliary_data(version)
         })
     }
 
@@ -50,13 +76,19 @@ impl DbReader for AptosDB {
         })
     }
 
-    fn get_synced_version(&self) -> Result<Version> {
+    fn get_synced_version(&self) -> Result<Option<Version>> {
         gauged_api("get_synced_version", || {
             self.ledger_db.metadata_db().get_synced_version()
         })
     }
 
-    fn get_account_transaction(
+    fn get_pre_committed_version(&self) -> Result<Option<Version>> {
+        gauged_api("get_pre_committed_version", || {
+            Ok(self.state_store.current_state_locked().version())
+        })
+    }
+
+    fn get_account_ordered_transaction(
         &self,
         address: AccountAddress,
         seq_num: u64,
@@ -64,8 +96,12 @@ impl DbReader for AptosDB {
         ledger_version: Version,
     ) -> Result<Option<TransactionWithProof>> {
         gauged_api("get_account_transaction", || {
+            ensure!(
+                !self.state_kv_db.enabled_sharding(),
+                "This API is not supported with sharded DB"
+            );
             self.transaction_store
-                .get_account_transaction_version(address, seq_num, ledger_version)?
+                .get_account_ordered_transaction_version(address, seq_num, ledger_version)?
                 .map(|txn_version| {
                     self.get_transaction_with_proof(txn_version, ledger_version, include_events)
                 })
@@ -73,20 +109,24 @@ impl DbReader for AptosDB {
         })
     }
 
-    fn get_account_transactions(
+    fn get_account_ordered_transactions(
         &self,
         address: AccountAddress,
         start_seq_num: u64,
         limit: u64,
         include_events: bool,
         ledger_version: Version,
-    ) -> Result<AccountTransactionsWithProof> {
-        gauged_api("get_account_transactions", || {
+    ) -> Result<AccountOrderedTransactionsWithProof> {
+        gauged_api("get_account_ordered_transactions", || {
+            ensure!(
+                !self.state_kv_db.enabled_sharding(),
+                "This API is not supported with sharded DB"
+            );
             error_if_too_many_requested(limit, MAX_REQUEST_LIMIT)?;
 
             let txns_with_proofs = self
                 .transaction_store
-                .get_account_transaction_version_iter(
+                .get_account_ordered_transactions_iter(
                     address,
                     start_seq_num,
                     limit,
@@ -98,7 +138,41 @@ impl DbReader for AptosDB {
                 })
                 .collect::<Result<Vec<_>>>()?;
 
-            Ok(AccountTransactionsWithProof::new(txns_with_proofs))
+            Ok(AccountOrderedTransactionsWithProof::new(txns_with_proofs))
+        })
+    }
+
+    fn get_account_transaction_summaries(
+        &self,
+        address: AccountAddress,
+        start_version: Option<u64>,
+        end_version: Option<u64>,
+        limit: u64,
+        ledger_version: Version,
+    ) -> Result<Vec<IndexedTransactionSummary>> {
+        gauged_api("get_account_transaction_summaries", || {
+            error_if_too_many_requested(limit, MAX_REQUEST_LIMIT)?;
+
+            let txn_summaries_iter = self
+                .transaction_store
+                .get_account_transaction_summaries_iter(
+                    address,
+                    start_version,
+                    end_version,
+                    limit,
+                    ledger_version,
+                )?
+                .map(|result| {
+                    let (_version, txn_summary) = result?;
+                    Ok(txn_summary)
+                });
+
+            if start_version.is_some() {
+                txn_summaries_iter.collect::<Result<Vec<_>>>()
+            } else {
+                let txn_summaries = txn_summaries_iter.collect::<Result<Vec<_>>>()?;
+                Ok(txn_summaries.into_iter().rev().collect::<Vec<_>>())
+            }
         })
     }
 
@@ -144,12 +218,12 @@ impl DbReader for AptosDB {
         limit: u64,
         ledger_version: Version,
         fetch_events: bool,
-    ) -> Result<TransactionListWithProof> {
+    ) -> Result<TransactionListWithProofV2> {
         gauged_api("get_transactions", || {
             error_if_too_many_requested(limit, MAX_REQUEST_LIMIT)?;
 
             if start_version > ledger_version || limit == 0 {
-                return Ok(TransactionListWithProof::new_empty());
+                return Ok(TransactionListWithProofV2::new_empty());
             }
             self.error_if_ledger_pruned("Transaction", start_version)?;
 
@@ -174,6 +248,15 @@ impl DbReader for AptosDB {
             } else {
                 None
             };
+            let persisted_aux_info = (start_version..start_version + limit)
+                .map(|version| {
+                    Ok(self
+                        .ledger_db
+                        .persisted_auxiliary_info_db()
+                        .get_persisted_auxiliary_info(version)?
+                        .unwrap_or(PersistedAuxiliaryInfo::None))
+                })
+                .collect::<Result<Vec<_>>>()?;
             let proof = TransactionInfoListWithProof::new(
                 self.ledger_db
                     .transaction_accumulator_db()
@@ -181,11 +264,11 @@ impl DbReader for AptosDB {
                 txn_infos,
             );
 
-            Ok(TransactionListWithProof::new(
-                txns,
-                events,
-                Some(start_version),
-                proof,
+            Ok(TransactionListWithProofV2::new(
+                TransactionListWithAuxiliaryInfos::new(
+                    TransactionListWithProof::new(txns, events, Some(start_version), proof),
+                    persisted_aux_info,
+                ),
             ))
         })
     }
@@ -205,13 +288,19 @@ impl DbReader for AptosDB {
                 let (block_version, index, _seq_num) = self
                     .event_store
                     .lookup_event_at_or_after_version(&new_block_event_key(), min_version)?
-                    .ok_or_else(|| AptosDbError::NotFound(format!("NewBlockEvent at or after version {}", min_version)))?;
-                let event = self.event_store.get_event_by_version_and_index(block_version, index)?;
+                    .ok_or_else(|| {
+                        AptosDbError::NotFound(format!(
+                            "NewBlockEvent at or after version {}",
+                            min_version
+                        ))
+                    })?;
+                let event = self
+                    .event_store
+                    .get_event_by_version_and_index(block_version, index)?;
                 return Ok((block_version, event.expect_new_block_event()?.height()));
             }
 
-            self
-                .ledger_db
+            self.ledger_db
                 .metadata_db()
                 .get_block_height_at_or_after_version(min_version)
         })
@@ -235,19 +324,20 @@ impl DbReader for AptosDB {
         start_version: Version,
         limit: u64,
         ledger_version: Version,
-    ) -> Result<TransactionOutputListWithProof> {
-        gauged_api("get_transactions_outputs", || {
+    ) -> Result<TransactionOutputListWithProofV2> {
+        gauged_api("get_transaction_outputs", || {
             error_if_too_many_requested(limit, MAX_REQUEST_LIMIT)?;
 
             if start_version > ledger_version || limit == 0 {
-                return Ok(TransactionOutputListWithProof::new_empty());
+                return Ok(TransactionOutputListWithProofV2::new_empty());
             }
 
             self.error_if_ledger_pruned("Transaction", start_version)?;
 
             let limit = std::cmp::min(limit, ledger_version - start_version + 1);
 
-            let (txn_infos, txns_and_outputs) = (start_version..start_version + limit)
+            let (txn_infos, txns_and_outputs, persisted_aux_info) = (start_version
+                ..start_version + limit)
                 .map(|version| {
                     let txn_info = self
                         .ledger_db
@@ -256,7 +346,11 @@ impl DbReader for AptosDB {
                     let events = self.ledger_db.event_db().get_events_by_version(version)?;
                     let write_set = self.ledger_db.write_set_db().get_write_set(version)?;
                     let txn = self.ledger_db.transaction_db().get_transaction(version)?;
-                    let auxiliary_data = self.ledger_db.transaction_auxiliary_data_db().get_transaction_auxiliary_data(version)?.unwrap_or_default();
+                    let auxiliary_data = self
+                        .ledger_db
+                        .transaction_auxiliary_data_db()
+                        .get_transaction_auxiliary_data(version)?
+                        .unwrap_or_default();
                     let txn_output = TransactionOutput::new(
                         write_set,
                         events,
@@ -264,11 +358,16 @@ impl DbReader for AptosDB {
                         txn_info.status().clone().into(),
                         auxiliary_data,
                     );
-                    Ok((txn_info, (txn, txn_output)))
+                    let persisted_aux_info = self
+                        .ledger_db
+                        .persisted_auxiliary_info_db()
+                        .get_persisted_auxiliary_info(version)?
+                        .unwrap_or(PersistedAuxiliaryInfo::None);
+                    Ok((txn_info, (txn, txn_output), persisted_aux_info))
                 })
                 .collect::<Result<Vec<_>>>()?
                 .into_iter()
-                .unzip();
+                .multiunzip();
             let proof = TransactionInfoListWithProof::new(
                 self.ledger_db
                     .transaction_accumulator_db()
@@ -276,11 +375,36 @@ impl DbReader for AptosDB {
                 txn_infos,
             );
 
-            Ok(TransactionOutputListWithProof::new(
-                txns_and_outputs,
-                Some(start_version),
-                proof,
+            Ok(TransactionOutputListWithProofV2::new(
+                TransactionOutputListWithAuxiliaryInfos::new(
+                    TransactionOutputListWithProof::new(
+                        txns_and_outputs,
+                        Some(start_version),
+                        proof,
+                    ),
+                    persisted_aux_info,
+                ),
             ))
+        })
+    }
+
+    /// Returns an iterator that yields the requested number of persisted auxiliary
+    /// info's starting from the specified version. Note: the caller should ensure
+    /// that the iterator does not query data beyond the latest version.
+    fn get_persisted_auxiliary_info_iterator(
+        &self,
+        start_version: Version,
+        num_persisted_auxiliary_info: usize,
+    ) -> Result<Box<dyn Iterator<Item = Result<PersistedAuxiliaryInfo>> + '_>> {
+        gauged_api("get_persisted_auxiliary_info_iterator", || {
+            let iter = self
+                .ledger_db
+                .persisted_auxiliary_info_db()
+                .get_persisted_auxiliary_info_iter(start_version, num_persisted_auxiliary_info)?;
+            Ok(Box::new(iter)
+                as Box<
+                    dyn Iterator<Item = Result<PersistedAuxiliaryInfo>> + '_,
+                >)
         })
     }
 
@@ -456,7 +580,7 @@ impl DbReader for AptosDB {
     /// Returns the proof of the given state key and version.
     fn get_state_proof_by_version_ext(
         &self,
-        state_key: &StateKey,
+        key_hash: &HashValue,
         version: Version,
         root_depth: usize,
     ) -> Result<SparseMerkleProofExt> {
@@ -464,13 +588,13 @@ impl DbReader for AptosDB {
             self.error_if_state_merkle_pruned("State merkle", version)?;
 
             self.state_store
-                .get_state_proof_by_version_ext(state_key, version, root_depth)
+                .get_state_proof_by_version_ext(key_hash, version, root_depth)
         })
     }
 
     fn get_state_value_with_proof_by_version_ext(
         &self,
-        state_store_key: &StateKey,
+        key_hash: &HashValue,
         version: Version,
         root_depth: usize,
     ) -> Result<(Option<StateValue>, SparseMerkleProofExt)> {
@@ -478,7 +602,7 @@ impl DbReader for AptosDB {
             self.error_if_state_merkle_pruned("State merkle", version)?;
 
             self.state_store
-                .get_state_value_with_proof_by_version_ext(state_store_key, version, root_depth)
+                .get_state_value_with_proof_by_version_ext(key_hash, version, root_depth)
         })
     }
 
@@ -495,13 +619,13 @@ impl DbReader for AptosDB {
         })
     }
 
-    fn get_latest_executed_trees(&self) -> Result<ExecutedTrees> {
-        gauged_api("get_latest_executed_trees", || {
-            let buffered_state = self.state_store.buffered_state().lock();
-            let num_txns = buffered_state
-                .current_state()
-                .current_version
-                .map_or(0, |v| v + 1);
+    fn get_pre_committed_ledger_summary(&self) -> Result<LedgerSummary> {
+        gauged_api("get_pre_committed_ledger_summary", || {
+            let (state, state_summary) = self
+                .state_store
+                .current_state_locked()
+                .to_state_and_summary();
+            let num_txns = state.next_version();
 
             let frozen_subtrees = self
                 .ledger_db
@@ -509,17 +633,11 @@ impl DbReader for AptosDB {
                 .get_frozen_subtree_hashes(num_txns)?;
             let transaction_accumulator =
                 Arc::new(InMemoryAccumulator::new(frozen_subtrees, num_txns)?);
-            let executed_trees = ExecutedTrees::new(
-                buffered_state.current_state().clone(),
+            Ok(LedgerSummary {
+                state,
+                state_summary,
                 transaction_accumulator,
-            );
-            Ok(executed_trees)
-        })
-    }
-
-    fn get_buffered_state_base(&self) -> Result<SparseMerkleTree<StateValue>> {
-        gauged_api("get_buffered_state_base", || {
-            self.state_store.get_buffered_state_base()
+            })
         })
     }
 
@@ -536,13 +654,14 @@ impl DbReader for AptosDB {
     // TODO(grao): Remove after DAG.
     fn get_latest_block_events(&self, num_events: usize) -> Result<Vec<EventWithVersion>> {
         gauged_api("get_latest_block_events", || {
+            let latest_version = self.get_synced_version()?;
             if !self.skip_index_and_usage {
                 return self.get_events(
                     &new_block_event_key(),
-                    u64::max_value(),
+                    u64::MAX,
                     Order::Descending,
                     num_events as u64,
-                    self.get_synced_version().unwrap_or(0),
+                    latest_version.unwrap_or(0),
                 );
             }
 
@@ -551,11 +670,19 @@ impl DbReader for AptosDB {
             iter.seek_to_last();
 
             let mut events = Vec::with_capacity(num_events);
-            for item in iter.take(num_events) {
+            for item in iter {
                 let (_block_height, block_info) = item?;
                 let first_version = block_info.first_version();
-                let event = self.ledger_db.event_db().expect_new_block_event(first_version)?;
-                events.push(EventWithVersion::new(first_version, event));
+                if latest_version.as_ref().is_some_and(|v| first_version <= *v) {
+                    let event = self
+                        .ledger_db
+                        .event_db()
+                        .expect_new_block_event(first_version)?;
+                    events.push(EventWithVersion::new(first_version, event));
+                    if events.len() == num_events {
+                        break;
+                    }
+                }
             }
 
             Ok(events)
@@ -599,9 +726,9 @@ impl DbReader for AptosDB {
         gauged_api("get_latest_state_checkpoint_version", || {
             Ok(self
                 .state_store
-                .buffered_state()
-                .lock()
-                .current_checkpoint_version())
+                .current_state_locked()
+                .last_checkpoint()
+                .version())
         })
     }
 
@@ -653,10 +780,13 @@ impl DbReader for AptosDB {
             .map_err(Into::into)
     }
 
-    fn get_state_leaf_count(&self, version: Version) -> Result<usize> {
-        gauged_api("get_state_leaf_count", || {
+    fn get_state_item_count(&self, version: Version) -> Result<usize> {
+        gauged_api("get_state_item_count", || {
             self.error_if_state_merkle_pruned("State merkle", version)?;
-            self.state_store.get_value_count(version)
+            self.ledger_db
+                .metadata_db()
+                .get_usage(version)
+                .map(|usage| usage.items())
         })
     }
 
@@ -726,7 +856,6 @@ impl DbReader for AptosDB {
         })
     }
 
-
     fn get_event_by_version_and_index(
         &self,
         version: Version,
@@ -734,9 +863,9 @@ impl DbReader for AptosDB {
     ) -> Result<ContractEvent> {
         gauged_api("get_event_by_version_and_index", || {
             self.error_if_ledger_pruned("Event", version)?;
-            self.event_store.get_event_by_version_and_index(version, index)
+            self.event_store
+                .get_event_by_version_and_index(version, index)
         })
-
     }
 }
 
@@ -852,8 +981,12 @@ impl AptosDB {
         limit: u64,
         ledger_version: Version,
     ) -> Result<Vec<EventWithVersion>> {
+        ensure!(
+            !self.state_kv_db.enabled_sharding(),
+            "This API is deprecated for sharded DB"
+        );
         error_if_too_many_requested(limit, MAX_REQUEST_LIMIT)?;
-        let get_latest = order == Order::Descending && start_seq_num == u64::max_value();
+        let get_latest = order == Order::Descending && start_seq_num == u64::MAX;
 
         let cursor = if get_latest {
             // Caller wants the latest, figure out the latest seq_num.

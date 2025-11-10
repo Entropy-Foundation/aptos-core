@@ -454,7 +454,8 @@ impl MockDbReader {
                     *self.last_timestamp.lock(),
                 ))
                 .unwrap(),
-            ),
+            )
+            .expect("Should always be able to create a new block event"),
         ));
         *self.last_timestamp.lock() += 100;
         (*epoch, *round)
@@ -655,7 +656,8 @@ fn test_extract_epoch_to_proposers_impl() {
                     .iter()
                     .map(|author| ValidatorConsensusInfo::new(*author, public_key.clone(), 1))
                     .collect::<Vec<_>>(),
-            ),
+            )
+            .into(),
         }
     }
 

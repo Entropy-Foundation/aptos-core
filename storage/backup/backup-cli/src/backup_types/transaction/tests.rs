@@ -107,6 +107,7 @@ fn end_to_end() {
                 rocksdb_opt: RocksdbOpt::default(),
                 concurrent_downloads: ConcurrentDownloadsOpt::default(),
                 replay_concurrency_level: ReplayConcurrencyLevelOpt::default(),
+                enable_state_indices: false,
             }
             .try_into()
             .unwrap(),
@@ -127,7 +128,8 @@ fn end_to_end() {
     let tgt_db = AptosDB::new_readonly_for_test(&tgt_db_dir);
     let ouptputlist = tgt_db
         .get_transaction_outputs(0, target_version, target_version)
-        .unwrap();
+        .unwrap()
+        .consume_output_list_with_proof();
 
     for (restore_ws, org_ws) in zip_eq(
         ouptputlist
@@ -143,7 +145,8 @@ fn end_to_end() {
         assert_eq!(restore_ws, org_ws);
     }
 
-    assert_eq!(tgt_db.get_synced_version().unwrap(), target_version);
+    assert_eq!(tgt_db.expect_synced_version(), target_version);
+    // TODO(grao): Test PersistedAuxiliaryInfo here.
     let recovered_transactions = tgt_db
         .get_transactions(
             0,
@@ -151,7 +154,8 @@ fn end_to_end() {
             target_version,
             true, /* fetch_events */
         )
-        .unwrap();
+        .unwrap()
+        .consume_transaction_list_with_proof();
 
     assert_eq!(
         recovered_transactions.transactions,

@@ -82,7 +82,8 @@ fn speculation_disabled() -> bool {
 /// Initializes the storage of speculative logs for num_txns many transactions.
 pub fn init_speculative_logs(num_txns: usize) {
     if !speculation_disabled() {
-        BUFFERED_LOG_EVENTS.swap(Some(Arc::new(SpeculativeEvents::new(num_txns))));
+        // +1 for potential BlockEpilogue transaction.
+        BUFFERED_LOG_EVENTS.swap(Some(Arc::new(SpeculativeEvents::new(num_txns + 1))));
     }
 }
 
@@ -140,7 +141,7 @@ pub fn flush_speculative_logs(num_to_flush: usize) {
     }
 }
 
-/// Clear speculative logs recorded for a specific transction, useful when transaction
+/// Clear speculative logs recorded for a specific transaction, useful when transaction
 /// execution fails validation and aborts - setting stage for the re-execution.
 pub fn clear_speculative_txn_logs(txn_idx: usize) {
     if speculation_disabled() {

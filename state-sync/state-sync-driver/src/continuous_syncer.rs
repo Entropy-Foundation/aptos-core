@@ -23,7 +23,7 @@ use aptos_logger::{prelude::*, sample, sample::SampleRate};
 use aptos_storage_interface::DbReader;
 use aptos_types::{
     ledger_info::LedgerInfoWithSignatures,
-    transaction::{TransactionListWithProof, TransactionOutputListWithProof, Version},
+    transaction::{TransactionListWithProofV2, TransactionOutputListWithProofV2, Version},
 };
 use std::{sync::Arc, time::Duration};
 
@@ -116,7 +116,7 @@ impl<
         let sync_request_target = consensus_sync_request
             .lock()
             .as_ref()
-            .map(|sync_request| sync_request.get_sync_target());
+            .and_then(|sync_request| sync_request.get_sync_target());
 
         // Initialize a new active data stream
         let active_data_stream = match self.get_continuous_syncing_mode() {
@@ -213,7 +213,7 @@ impl<
                     transaction_outputs_with_proof,
                 ) => {
                     let payload_start_version =
-                        transaction_outputs_with_proof.first_transaction_output_version;
+                        transaction_outputs_with_proof.get_first_output_version();
                     let notification_metadata = NotificationMetadata::new(
                         data_notification.creation_time,
                         data_notification.notification_id,
@@ -232,7 +232,8 @@ impl<
                     ledger_info_with_sigs,
                     transactions_with_proof,
                 ) => {
-                    let payload_start_version = transactions_with_proof.first_transaction_version;
+                    let payload_start_version =
+                        transactions_with_proof.get_first_transaction_version();
                     let notification_metadata = NotificationMetadata::new(
                         data_notification.creation_time,
                         data_notification.notification_id,
@@ -265,7 +266,7 @@ impl<
 
     /// Returns the highest synced version and epoch in storage
     fn get_highest_synced_version_and_epoch(&self) -> Result<(Version, Epoch), Error> {
-        let highest_synced_version = utils::fetch_latest_synced_version(self.storage.clone())?;
+        let highest_synced_version = utils::fetch_pre_committed_version(self.storage.clone())?;
         let highest_synced_epoch = utils::fetch_latest_epoch_state(self.storage.clone())?.epoch;
 
         Ok((highest_synced_version, highest_synced_epoch))
@@ -277,8 +278,8 @@ impl<
         consensus_sync_request: Arc<Mutex<Option<ConsensusSyncRequest>>>,
         notification_metadata: NotificationMetadata,
         ledger_info_with_signatures: LedgerInfoWithSignatures,
-        transaction_list_with_proof: Option<TransactionListWithProof>,
-        transaction_outputs_with_proof: Option<TransactionOutputListWithProof>,
+        transaction_list_with_proof: Option<TransactionListWithProofV2>,
+        transaction_outputs_with_proof: Option<TransactionOutputListWithProofV2>,
         payload_start_version: Option<Version>,
     ) -> Result<(), Error> {
         // Verify the payload starting version
@@ -302,7 +303,7 @@ impl<
             ContinuousSyncingMode::ApplyTransactionOutputs => {
                 if let Some(transaction_outputs_with_proof) = transaction_outputs_with_proof {
                     utils::apply_transaction_outputs(
-                        self.storage_synchronizer.clone(),
+                        &mut self.storage_synchronizer,
                         notification_metadata,
                         ledger_info_with_signatures.clone(),
                         None,
@@ -323,7 +324,7 @@ impl<
             ContinuousSyncingMode::ExecuteTransactions => {
                 if let Some(transaction_list_with_proof) = transaction_list_with_proof {
                     utils::execute_transactions(
-                        self.storage_synchronizer.clone(),
+                        &mut self.storage_synchronizer,
                         notification_metadata,
                         ledger_info_with_signatures.clone(),
                         None,
@@ -344,7 +345,7 @@ impl<
             ContinuousSyncingMode::ExecuteTransactionsOrApplyOutputs => {
                 if let Some(transaction_list_with_proof) = transaction_list_with_proof {
                     utils::execute_transactions(
-                        self.storage_synchronizer.clone(),
+                        &mut self.storage_synchronizer,
                         notification_metadata,
                         ledger_info_with_signatures.clone(),
                         None,
@@ -354,7 +355,7 @@ impl<
                 } else if let Some(transaction_outputs_with_proof) = transaction_outputs_with_proof
                 {
                     utils::apply_transaction_outputs(
-                        self.storage_synchronizer.clone(),
+                        &mut self.storage_synchronizer,
                         notification_metadata,
                         ledger_info_with_signatures.clone(),
                         None,
@@ -432,7 +433,7 @@ impl<
         let sync_request_target = consensus_sync_request
             .lock()
             .as_ref()
-            .map(|sync_request| sync_request.get_sync_target());
+            .and_then(|sync_request| sync_request.get_sync_target());
         if let Some(sync_request_target) = sync_request_target {
             let sync_request_version = sync_request_target.ledger_info().version();
             let proof_version = ledger_info_with_signatures.ledger_info().version();

@@ -144,6 +144,17 @@ module supra_framework::staking_config {
                 voting_power_increase_limit
             }
         );
+
+        // Initialize StakingRewardsConfig with the given rewards_rate and rewards_rate_denominator,
+        // while setting min_rewards_rate and rewards_rate_decrease_rate to 0.
+        initialize_rewards(
+            supra_framework,
+            fixed_point64::create_from_rational((rewards_rate as u128), (rewards_rate_denominator as u128)),
+            fixed_point64::create_from_rational(0, 1000),
+            ONE_YEAR_IN_SECS,
+            0,
+            fixed_point64::create_from_rational(0, 1000),
+        );
     }
 
     #[view]
@@ -450,7 +461,9 @@ module supra_framework::staking_config {
 
     #[test(supra_framework = @supra_framework)]
     public entry fun test_change_staking_configs(supra_framework: signer) acquires StakingConfig {
-        initialize(&supra_framework, 0, 1, 1, false, 1, 1, 1);
+        initialize_for_test(&supra_framework, 0, 1, 1, false, 1, 1, 1);
+        // This test case checks the behavior when the periodical_reward_rate_decrease feature is disabled.
+        features::change_feature_flags_for_testing(&supra_framework, vector[], vector[features::get_periodical_reward_rate_decrease_feature()]);
 
         update_required_stake(&supra_framework, 100, 1000);
         update_recurring_lockup_duration_secs(&supra_framework, 10000);
@@ -589,11 +602,13 @@ module supra_framework::staking_config {
         update_recurring_lockup_duration_secs(&account, 1);
     }
 
-    #[test(account = @0x123)]
+    #[test(supra_framework = @0x1, account = @0x123)]
     #[expected_failure(abort_code = 0x50003, location = supra_framework::system_addresses)]
     public entry fun test_update_rewards_unauthorized_should_fail(
-        account: signer
+        supra_framework: signer, account: signer
     ) acquires StakingConfig {
+        // This test case checks the behavior when the periodical_reward_rate_decrease feature is disabled.
+        features::change_feature_flags_for_testing(&supra_framework, vector[], vector[features::get_periodical_reward_rate_decrease_feature()]);
         update_rewards_rate(&account, 1, 10);
     }
 
@@ -653,6 +668,8 @@ module supra_framework::staking_config {
     public entry fun test_update_rewards_invalid_denominator_should_fail(
         supra_framework: signer
     ) acquires StakingConfig {
+        // This test case checks the behavior when the periodical_reward_rate_decrease feature is disabled.
+        features::change_feature_flags_for_testing(&supra_framework, vector[], vector[features::get_periodical_reward_rate_decrease_feature()]);
         update_rewards_rate(&supra_framework, 1, 0);
     }
 
@@ -743,6 +760,8 @@ module supra_framework::staking_config {
     public entry fun test_update_voting_power_increase_limit_to_zero_should_fail(
         supra_framework: signer
     ) acquires StakingConfig {
+        // This test case checks the behavior when the periodical_reward_rate_decrease feature is disabled.
+        features::change_feature_flags_for_testing(&supra_framework, vector[], vector[features::get_periodical_reward_rate_decrease_feature()]);
         update_voting_power_increase_limit(&supra_framework, 0);
     }
 

@@ -3,16 +3,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    consensus_observer::publisher::ConsensusPublisher,
+    consensus_observer::publisher::consensus_publisher::ConsensusPublisher,
     counters,
     error::StateSyncError,
     network::{IncomingCommitRequest, IncomingRandGenRequest, NetworkSender},
     network_interface::{ConsensusMsg, ConsensusNetworkClient},
-    payload_manager::PayloadManager,
+    payload_manager::TPayloadManager,
     pipeline::{
         buffer_manager::{OrderedBlocks, ResetAck, ResetRequest, ResetSignal},
         decoupled_execution_utils::prepare_phases_and_buffer_manager,
         errors::Error,
+        pipeline_builder::PipelineBuilder,
         signing_phase::CommitSignerProvider,
     },
     rand::rand_gen::{
@@ -21,23 +22,24 @@ use crate::{
         types::{AugmentedData, RandConfig, Share},
     },
     state_computer::ExecutionProxy,
-    state_replication::{StateComputer, StateComputerCommitCallBackType},
+    state_replication::StateComputer,
     transaction_deduper::create_transaction_deduper,
     transaction_shuffler::create_transaction_shuffler,
 };
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use aptos_bounded_executor::BoundedExecutor;
 use aptos_channels::{aptos_channel, message_queues::QueueStyle};
 use aptos_config::config::{ConsensusConfig, ConsensusObserverConfig};
 use aptos_consensus_types::{
     common::{Author, Round},
     pipelined_block::PipelinedBlock,
+    wrapped_ledger_info::WrappedLedgerInfo,
 };
+use aptos_crypto::bls12381::PrivateKey;
 use aptos_executor_types::ExecutorResult;
 use aptos_infallible::RwLock;
 use aptos_logger::prelude::*;
 use aptos_network::{application::interface::NetworkClient, protocols::network::Event};
-use aptos_safety_rules::safety_rules_manager::load_consensus_key_from_secure_storage;
 use aptos_types::{
     epoch_state::EpochState,
     ledger_info::LedgerInfoWithSignatures,
@@ -51,23 +53,24 @@ use futures::{
 };
 use futures_channel::mpsc::unbounded;
 use move_core_types::account_address::AccountAddress;
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 #[async_trait::async_trait]
 pub trait TExecutionClient: Send + Sync {
     /// Initialize the execution phase for a new epoch.
     async fn start_epoch(
         &self,
+        maybe_consensus_key: Arc<PrivateKey>,
         epoch_state: Arc<EpochState>,
         commit_signer_provider: Arc<dyn CommitSignerProvider>,
-        payload_manager: Arc<PayloadManager>,
+        payload_manager: Arc<dyn TPayloadManager>,
         onchain_consensus_config: &OnChainConsensusConfig,
         onchain_execution_config: &OnChainExecutionConfig,
         onchain_randomness_config: &OnChainRandomnessConfig,
         rand_config: Option<RandConfig>,
         fast_rand_config: Option<RandConfig>,
         rand_msg_rx: aptos_channel::Receiver<AccountAddress, IncomingRandGenRequest>,
-        highest_ordered_round: Round,
+        highest_committed_round: Round,
     );
 
     /// This is needed for some DAG tests. Clean this up as a TODO.
@@ -76,9 +79,8 @@ pub trait TExecutionClient: Send + Sync {
     /// Send ordered blocks to the real execution phase through the channel.
     async fn finalize_order(
         &self,
-        blocks: &[Arc<PipelinedBlock>],
-        ordered_proof: LedgerInfoWithSignatures,
-        callback: StateComputerCommitCallBackType,
+        blocks: Vec<Arc<PipelinedBlock>>,
+        ordered_proof: WrappedLedgerInfo,
     ) -> ExecutorResult<()>;
 
     fn send_commit_msg(
@@ -87,16 +89,31 @@ pub trait TExecutionClient: Send + Sync {
         commit_msg: IncomingCommitRequest,
     ) -> Result<()>;
 
-    /// Synchronize to a commit that not present locally.
-    async fn sync_to(&self, target: LedgerInfoWithSignatures) -> Result<(), StateSyncError>;
+    /// Synchronizes for the specified duration and returns the latest synced
+    /// ledger info. Note: it is possible that state sync may run longer than
+    /// the specified duration (e.g., if the node is very far behind).
+    async fn sync_for_duration(
+        &self,
+        duration: Duration,
+    ) -> Result<LedgerInfoWithSignatures, StateSyncError>;
+
+    /// Synchronize to a commit that is not present locally.
+    async fn sync_to_target(&self, target: LedgerInfoWithSignatures) -> Result<(), StateSyncError>;
+
+    /// Resets the internal state of the rand and buffer managers.
+    async fn reset(&self, target: &LedgerInfoWithSignatures) -> Result<()>;
 
     /// Shutdown the current processor at the end of the epoch.
     async fn end_epoch(&self);
+
+    /// Returns a pipeline builder for the current epoch.
+    fn pipeline_builder(&self, signer: Arc<ValidatorSigner>) -> PipelineBuilder;
 }
 
 struct BufferManagerHandle {
     pub execute_tx: Option<UnboundedSender<OrderedBlocks>>,
-    pub commit_tx: Option<aptos_channel::Sender<AccountAddress, IncomingCommitRequest>>,
+    pub commit_tx:
+        Option<aptos_channel::Sender<AccountAddress, (AccountAddress, IncomingCommitRequest)>>,
     pub reset_tx_to_buffer_manager: Option<UnboundedSender<ResetRequest>>,
     pub reset_tx_to_rand_manager: Option<UnboundedSender<ResetRequest>>,
 }
@@ -114,7 +131,7 @@ impl BufferManagerHandle {
     pub fn init(
         &mut self,
         execute_tx: UnboundedSender<OrderedBlocks>,
-        commit_tx: aptos_channel::Sender<AccountAddress, IncomingCommitRequest>,
+        commit_tx: aptos_channel::Sender<AccountAddress, (AccountAddress, IncomingCommitRequest)>,
         reset_tx_to_buffer_manager: UnboundedSender<ResetRequest>,
         reset_tx_to_rand_manager: Option<UnboundedSender<ResetRequest>>,
     ) {
@@ -180,13 +197,15 @@ impl ExecutionProxyClient {
 
     fn spawn_decoupled_execution(
         &self,
+        consensus_sk: Arc<PrivateKey>,
         commit_signer_provider: Arc<dyn CommitSignerProvider>,
         epoch_state: Arc<EpochState>,
         rand_config: Option<RandConfig>,
         fast_rand_config: Option<RandConfig>,
         onchain_consensus_config: &OnChainConsensusConfig,
         rand_msg_rx: aptos_channel::Receiver<AccountAddress, IncomingRandGenRequest>,
-        highest_ordered_round: Round,
+        highest_committed_round: Round,
+        buffer_manager_back_pressure_enabled: bool,
         consensus_observer_config: ConsensusObserverConfig,
         consensus_publisher: Option<Arc<ConsensusPublisher>>,
     ) {
@@ -200,7 +219,7 @@ impl ExecutionProxyClient {
         let (reset_buffer_manager_tx, reset_buffer_manager_rx) = unbounded::<ResetRequest>();
 
         let (commit_msg_tx, commit_msg_rx) =
-            aptos_channel::new::<AccountAddress, IncomingCommitRequest>(
+            aptos_channel::new::<AccountAddress, (AccountAddress, IncomingCommitRequest)>(
                 QueueStyle::FIFO,
                 100,
                 Some(&counters::BUFFER_MANAGER_MSGS),
@@ -212,10 +231,7 @@ impl ExecutionProxyClient {
                 let (rand_ready_block_tx, rand_ready_block_rx) = unbounded::<OrderedBlocks>();
 
                 let (reset_tx_to_rand_manager, reset_rand_manager_rx) = unbounded::<ResetRequest>();
-                let consensus_key =
-                    load_consensus_key_from_secure_storage(&self.consensus_config.safety_rules)
-                        .expect("Failed in loading consensus key for ExecutionProxyClient.");
-                let signer = Arc::new(ValidatorSigner::new(self.author, consensus_key));
+                let signer = Arc::new(ValidatorSigner::new(self.author, consensus_sk));
 
                 let rand_manager = RandManager::<Share, AugmentedData>::new(
                     self.author,
@@ -235,7 +251,7 @@ impl ExecutionProxyClient {
                     rand_msg_rx,
                     reset_rand_manager_rx,
                     self.bounded_executor.clone(),
-                    highest_ordered_round,
+                    highest_committed_round,
                 ));
 
                 (
@@ -263,18 +279,20 @@ impl ExecutionProxyClient {
             buffer_manager,
         ) = prepare_phases_and_buffer_manager(
             self.author,
-            self.execution_proxy.clone(),
             commit_signer_provider,
             network_sender,
             commit_msg_rx,
-            self.execution_proxy.clone(),
             execution_ready_block_rx,
             reset_buffer_manager_rx,
             epoch_state,
             self.bounded_executor.clone(),
             onchain_consensus_config.order_vote_enabled(),
+            buffer_manager_back_pressure_enabled,
+            highest_committed_round,
             consensus_observer_config,
             consensus_publisher,
+            self.consensus_config
+                .max_pending_rounds_in_commit_vote_cache,
         );
 
         tokio::spawn(execution_schedule_phase.start());
@@ -289,25 +307,28 @@ impl ExecutionProxyClient {
 impl TExecutionClient for ExecutionProxyClient {
     async fn start_epoch(
         &self,
+        maybe_consensus_key: Arc<PrivateKey>,
         epoch_state: Arc<EpochState>,
         commit_signer_provider: Arc<dyn CommitSignerProvider>,
-        payload_manager: Arc<PayloadManager>,
+        payload_manager: Arc<dyn TPayloadManager>,
         onchain_consensus_config: &OnChainConsensusConfig,
         onchain_execution_config: &OnChainExecutionConfig,
         onchain_randomness_config: &OnChainRandomnessConfig,
         rand_config: Option<RandConfig>,
         fast_rand_config: Option<RandConfig>,
         rand_msg_rx: aptos_channel::Receiver<AccountAddress, IncomingRandGenRequest>,
-        highest_ordered_round: Round,
+        highest_committed_round: Round,
     ) {
         let maybe_rand_msg_tx = self.spawn_decoupled_execution(
+            maybe_consensus_key,
             commit_signer_provider,
             epoch_state.clone(),
             rand_config,
             fast_rand_config,
             onchain_consensus_config,
             rand_msg_rx,
-            highest_ordered_round,
+            highest_committed_round,
+            self.consensus_config.enable_pre_commit,
             self.consensus_observer_config,
             self.consensus_publisher.clone(),
         );
@@ -327,6 +348,7 @@ impl TExecutionClient for ExecutionProxyClient {
             block_executor_onchain_config,
             transaction_deduper,
             randomness_enabled,
+            onchain_consensus_config.order_vote_enabled(),
         );
 
         maybe_rand_msg_tx
@@ -338,31 +360,31 @@ impl TExecutionClient for ExecutionProxyClient {
 
     async fn finalize_order(
         &self,
-        blocks: &[Arc<PipelinedBlock>],
-        ordered_proof: LedgerInfoWithSignatures,
-        callback: StateComputerCommitCallBackType,
+        blocks: Vec<Arc<PipelinedBlock>>,
+        ordered_proof: WrappedLedgerInfo,
     ) -> ExecutorResult<()> {
         assert!(!blocks.is_empty());
-        let execute_tx = self.handle.read().execute_tx.clone();
+        let mut execute_tx = match self.handle.read().execute_tx.clone() {
+            Some(tx) => tx,
+            None => {
+                debug!("Failed to send to buffer manager, maybe epoch ends");
+                return Ok(());
+            },
+        };
 
-        if execute_tx.is_none() {
-            debug!("Failed to send to buffer manager, maybe epoch ends");
-            return Ok(());
-        }
-
-        for block in blocks {
+        for block in &blocks {
             block.set_insertion_time();
+            if let Some(tx) = block.pipeline_tx().lock().as_mut() {
+                tx.order_proof_tx
+                    .take()
+                    .map(|tx| tx.send(ordered_proof.clone()));
+            }
         }
 
         if execute_tx
-            .unwrap()
             .send(OrderedBlocks {
-                ordered_blocks: blocks
-                    .iter()
-                    .map(|b| (**b).clone())
-                    .collect::<Vec<PipelinedBlock>>(),
-                ordered_proof,
-                callback,
+                ordered_blocks: blocks,
+                ordered_proof: ordered_proof.ledger_info().clone(),
             })
             .await
             .is_err()
@@ -378,7 +400,7 @@ impl TExecutionClient for ExecutionProxyClient {
         commit_msg: IncomingCommitRequest,
     ) -> Result<()> {
         if let Some(tx) = &self.handle.read().commit_tx {
-            tx.push(peer_id, commit_msg)
+            tx.push(peer_id, (peer_id, commit_msg))
         } else {
             counters::EPOCH_MANAGER_ISSUES_DETAILS
                 .with_label_values(&["buffer_manager_not_started"])
@@ -388,11 +410,39 @@ impl TExecutionClient for ExecutionProxyClient {
         }
     }
 
-    async fn sync_to(&self, target: LedgerInfoWithSignatures) -> Result<(), StateSyncError> {
-        fail_point!("consensus::sync_to", |_| {
-            Err(anyhow::anyhow!("Injected error in sync_to").into())
+    async fn sync_for_duration(
+        &self,
+        duration: Duration,
+    ) -> Result<LedgerInfoWithSignatures, StateSyncError> {
+        fail_point!("consensus::sync_for_duration", |_| {
+            Err(anyhow::anyhow!("Injected error in sync_for_duration").into())
         });
 
+        // Sync for the specified duration
+        let result = self.execution_proxy.sync_for_duration(duration).await;
+
+        // Reset the rand and buffer managers to the new synced round
+        if let Ok(latest_synced_ledger_info) = &result {
+            self.reset(latest_synced_ledger_info).await?;
+        }
+
+        result
+    }
+
+    async fn sync_to_target(&self, target: LedgerInfoWithSignatures) -> Result<(), StateSyncError> {
+        fail_point!("consensus::sync_to_target", |_| {
+            Err(anyhow::anyhow!("Injected error in sync_to_target").into())
+        });
+
+        // Reset the rand and buffer managers to the target round
+        self.reset(&target).await?;
+
+        // TODO: handle the state sync error (e.g., re-push the ordered
+        // blocks to the buffer manager when it's reset but sync fails).
+        self.execution_proxy.sync_to_target(target).await
+    }
+
+    async fn reset(&self, target: &LedgerInfoWithSignatures) -> Result<()> {
         let (reset_tx_to_rand_manager, reset_tx_to_buffer_manager) = {
             let handle = self.handle.read();
             (
@@ -426,9 +476,6 @@ impl TExecutionClient for ExecutionProxyClient {
             rx.await.map_err(|_| Error::ResetDropped)?;
         }
 
-        // TODO: handle the sync error, should re-push the ordered blocks to buffer manager
-        // when it's reset but sync fails.
-        self.execution_proxy.sync_to(target).await?;
         Ok(())
     }
 
@@ -465,6 +512,10 @@ impl TExecutionClient for ExecutionProxyClient {
         }
         self.execution_proxy.end_epoch();
     }
+
+    fn pipeline_builder(&self, signer: Arc<ValidatorSigner>) -> PipelineBuilder {
+        self.execution_proxy.pipeline_builder(signer)
+    }
 }
 
 pub struct DummyExecutionClient;
@@ -473,16 +524,17 @@ pub struct DummyExecutionClient;
 impl TExecutionClient for DummyExecutionClient {
     async fn start_epoch(
         &self,
+        _maybe_consensus_key: Arc<PrivateKey>,
         _epoch_state: Arc<EpochState>,
         _commit_signer_provider: Arc<dyn CommitSignerProvider>,
-        _payload_manager: Arc<PayloadManager>,
+        _payload_manager: Arc<dyn TPayloadManager>,
         _onchain_consensus_config: &OnChainConsensusConfig,
         _onchain_execution_config: &OnChainExecutionConfig,
         _onchain_randomness_config: &OnChainRandomnessConfig,
         _rand_config: Option<RandConfig>,
         _fast_rand_config: Option<RandConfig>,
         _rand_msg_rx: aptos_channel::Receiver<AccountAddress, IncomingRandGenRequest>,
-        _highest_ordered_round: Round,
+        _highest_committed_round: Round,
     ) {
     }
 
@@ -492,9 +544,8 @@ impl TExecutionClient for DummyExecutionClient {
 
     async fn finalize_order(
         &self,
-        _: &[Arc<PipelinedBlock>],
-        _: LedgerInfoWithSignatures,
-        _: StateComputerCommitCallBackType,
+        _: Vec<Arc<PipelinedBlock>>,
+        _: WrappedLedgerInfo,
     ) -> ExecutorResult<()> {
         Ok(())
     }
@@ -503,9 +554,26 @@ impl TExecutionClient for DummyExecutionClient {
         Ok(())
     }
 
-    async fn sync_to(&self, _: LedgerInfoWithSignatures) -> Result<(), StateSyncError> {
+    async fn sync_for_duration(
+        &self,
+        _: Duration,
+    ) -> Result<LedgerInfoWithSignatures, StateSyncError> {
+        Err(StateSyncError::from(anyhow!(
+            "sync_for_duration() is not supported by the DummyExecutionClient!"
+        )))
+    }
+
+    async fn sync_to_target(&self, _: LedgerInfoWithSignatures) -> Result<(), StateSyncError> {
+        Ok(())
+    }
+
+    async fn reset(&self, _: &LedgerInfoWithSignatures) -> Result<()> {
         Ok(())
     }
 
     async fn end_epoch(&self) {}
+
+    fn pipeline_builder(&self, _signer: Arc<ValidatorSigner>) -> PipelineBuilder {
+        todo!()
+    }
 }

@@ -127,19 +127,16 @@ spec supra_framework::reconfiguration {
 
     spec reconfigure {
         use supra_framework::supra_coin;
-        use supra_framework::transaction_fee;
         use supra_framework::staking_config;
 
         // TODO: set because of timeout (property proved)
         pragma verify = true;
         pragma verify_duration_estimate = 600;
-        requires exists<stake::ValidatorFees>(@supra_framework);
 
         let success = !(chain_status::is_genesis() || timestamp::spec_now_microseconds() == 0 || !reconfiguration_enabled())
             && timestamp::spec_now_microseconds() != global<Configuration>(@supra_framework).last_reconfiguration_time;
         include features::spec_periodical_reward_rate_decrease_enabled() ==> staking_config::StakingRewardsConfigEnabledRequirement;
         include success ==> supra_coin::ExistsSupraCoin;
-        include transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply;
         aborts_if false;
         // The ensure conditions of the reconfigure function are not fully written, because there is a new cycle in it,
         // but its existing ensure conditions satisfy hp.

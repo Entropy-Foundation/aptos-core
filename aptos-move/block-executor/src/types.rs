@@ -2,24 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use aptos_types::transaction::BlockExecutableTransaction as Transaction;
-use std::{collections::HashSet, fmt};
+use move_vm_types::delayed_values::delayed_field_id::DelayedFieldID;
+use std::{
+    collections::HashSet,
+    fmt::{self, Debug},
+};
 
 #[derive(Eq, Hash, PartialEq, Debug)]
-pub enum InputOutputKey<K, T, I> {
+pub enum InputOutputKey<K, T> {
     Resource(K),
     Group(K, T),
-    DelayedField(I),
+    DelayedField(DelayedFieldID),
 }
 
 pub struct ReadWriteSummary<T: Transaction> {
-    reads: HashSet<InputOutputKey<T::Key, T::Tag, T::Identifier>>,
-    writes: HashSet<InputOutputKey<T::Key, T::Tag, T::Identifier>>,
+    pub reads: HashSet<InputOutputKey<T::Key, T::Tag>>,
+    pub writes: HashSet<InputOutputKey<T::Key, T::Tag>>,
 }
 
 impl<T: Transaction> ReadWriteSummary<T> {
     pub fn new(
-        reads: HashSet<InputOutputKey<T::Key, T::Tag, T::Identifier>>,
-        writes: HashSet<InputOutputKey<T::Key, T::Tag, T::Identifier>>,
+        reads: HashSet<InputOutputKey<T::Key, T::Tag>>,
+        writes: HashSet<InputOutputKey<T::Key, T::Tag>>,
     ) -> Self {
         Self { reads, writes }
     }
@@ -28,8 +32,17 @@ impl<T: Transaction> ReadWriteSummary<T> {
         !self.reads.is_disjoint(&previous.writes)
     }
 
+    pub fn find_conflicts<'a>(
+        &'a self,
+        previous: &'a Self,
+    ) -> HashSet<&'a InputOutputKey<T::Key, T::Tag>> {
+        self.reads
+            .intersection(&previous.writes)
+            .collect::<HashSet<_>>()
+    }
+
     pub fn collapse_resource_group_conflicts(self) -> Self {
-        let collapse = |k: InputOutputKey<T::Key, T::Tag, T::Identifier>| match k {
+        let collapse = |k: InputOutputKey<T::Key, T::Tag>| match k {
             InputOutputKey::Resource(k) => InputOutputKey::Resource(k),
             InputOutputKey::Group(k, _) => InputOutputKey::Resource(k),
             InputOutputKey::DelayedField(id) => InputOutputKey::DelayedField(id),
@@ -38,6 +51,23 @@ impl<T: Transaction> ReadWriteSummary<T> {
             reads: self.reads.into_iter().map(collapse).collect(),
             writes: self.writes.into_iter().map(collapse).collect(),
         }
+    }
+
+    pub fn keys_written(&self) -> impl Iterator<Item = &T::Key> {
+        Self::keys_except_delayed_fields(self.writes.iter())
+    }
+
+    pub fn keys_read(&self) -> impl Iterator<Item = &T::Key> {
+        Self::keys_except_delayed_fields(self.reads.iter())
+    }
+
+    fn keys_except_delayed_fields<'a>(
+        keys: impl Iterator<Item = &'a InputOutputKey<T::Key, T::Tag>>,
+    ) -> impl Iterator<Item = &'a T::Key> {
+        keys.filter_map(|k| match k {
+            InputOutputKey::Resource(key) | InputOutputKey::Group(key, _) => Some(key),
+            InputOutputKey::DelayedField(_) => None,
+        })
     }
 }
 

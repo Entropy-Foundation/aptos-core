@@ -8,24 +8,25 @@ use crate::{
 };
 use anyhow::Result;
 use aptos_framework::APTOS_PACKAGES;
-use aptos_language_e2e_tests::{data_store::FakeDataStore, executor::FakeExecutor};
+use aptos_language_e2e_tests::executor::FakeExecutor;
+use aptos_transaction_simulation::{InMemoryStateStore, SimulationStateStore};
 use aptos_types::{
     contract_event::ContractEvent,
     on_chain_config::{FeatureFlag, Features, OnChainConfig},
-    transaction::{Transaction, TransactionPayload, Version},
+    transaction::{Transaction, Version},
     vm_status::VMStatus,
     write_set::WriteSet,
 };
 use aptos_validator_interface::AptosValidatorInterface;
-use aptos_vm::data_cache::AsMoveResolver;
 use clap::ValueEnum;
 use itertools::Itertools;
+use move_binary_format::file_format_common::VERSION_6;
 use move_core_types::{account_address::AccountAddress, language_storage::ModuleId};
 use move_model::metadata::CompilerVersion;
 use std::{cmp, collections::HashMap, path::PathBuf, sync::Arc};
 
-fn load_packages_to_executor(
-    executor: &mut FakeExecutor,
+fn add_packages_to_state_store(
+    state_store: &impl SimulationStateStore,
     package_info: &PackageInfo,
     compiled_package_cache: &HashMap<PackageInfo, HashMap<ModuleId, Vec<u8>>>,
 ) {
@@ -34,12 +35,14 @@ fn load_packages_to_executor(
     }
     let compiled_package = compiled_package_cache.get(package_info).unwrap();
     for (module_id, module_blob) in compiled_package {
-        executor.add_module(module_id, module_blob.clone());
+        state_store
+            .add_module_blob(module_id, module_blob.clone())
+            .expect("failed to add module blob, this should not happen");
     }
 }
 
-fn load_aptos_packages_to_executor(
-    executor: &mut FakeExecutor,
+fn add_aptos_packages_to_state_store(
+    state_store: &impl SimulationStateStore,
     compiled_package_map: &HashMap<PackageInfo, HashMap<ModuleId, Vec<u8>>>,
 ) {
     for package in APTOS_PACKAGES {
@@ -48,7 +51,7 @@ fn load_aptos_packages_to_executor(
             package_name: package.to_string(),
             upgrade_number: None,
         };
-        load_packages_to_executor(executor, &package_info, compiled_package_map);
+        add_packages_to_state_store(state_store, &package_info, compiled_package_map);
     }
 }
 
@@ -102,7 +105,7 @@ impl Execution {
         Self {
             input_path,
             execution_mode,
-            bytecode_version: 6,
+            bytecode_version: VERSION_6,
         }
     }
 
@@ -221,8 +224,11 @@ impl Execution {
             if compiled_cache.failed_packages_v2.contains(&package_info) {
                 v2_failed = true;
             } else {
-                let compiled_res_v2 =
-                    compile_package(package_dir, &package_info, Some(CompilerVersion::V2_0));
+                let compiled_res_v2 = compile_package(
+                    package_dir,
+                    &package_info,
+                    Some(CompilerVersion::latest_stable()),
+                );
                 if let Ok(compiled_res) = compiled_res_v2 {
                     generate_compiled_blob(
                         &package_info,
@@ -270,9 +276,8 @@ impl Execution {
                     return compiled_result;
                 }
             }
-            // read the state data;
+            // read the state data
             let state = data_manager.get_state(cur_version);
-            // execute and compare
             self.execute_and_compare(
                 cur_version,
                 state,
@@ -288,7 +293,7 @@ impl Execution {
     pub(crate) fn execute_and_compare(
         &self,
         cur_version: Version,
-        state: FakeDataStore,
+        state: InMemoryStateStore,
         txn_idx: &TxnIndex,
         compiled_package_cache: &HashMap<PackageInfo, HashMap<ModuleId, Vec<u8>>>,
         compiled_package_cache_v2: &HashMap<PackageInfo, HashMap<ModuleId, Vec<u8>>>,
@@ -301,7 +306,7 @@ impl Execution {
             package_cache_main = compiled_package_cache_v2;
             v2_flag = true;
         }
-        let res_main_opt = self.execute_code(
+        let res_main = self.execute_code(
             cur_version,
             state.clone(),
             &txn_idx.package_info,
@@ -311,7 +316,7 @@ impl Execution {
             v2_flag,
         );
         if self.execution_mode.is_compare() {
-            let res_other_opt = self.execute_code(
+            let res_other = self.execute_code(
                 cur_version,
                 state,
                 &txn_idx.package_info,
@@ -320,20 +325,21 @@ impl Execution {
                 debugger.clone(),
                 true,
             );
-            self.print_mismatches(cur_version, &res_main_opt.unwrap(), &res_other_opt.unwrap());
+            self.print_mismatches(cur_version, &res_main, &res_other);
         } else {
-            let res = res_main_opt.unwrap();
-            if let Ok(res_ok) = res {
-                self.output_result_str(format!(
-                    "version:{}\nwrite set:{:?}\n events:{:?}\n",
-                    cur_version, res_ok.0, res_ok.1
-                ));
-            } else {
-                self.output_result_str(format!(
-                    "execution error {} at version: {}, error",
-                    res.unwrap_err(),
-                    cur_version
-                ));
+            match res_main {
+                Ok((write_set, events)) => {
+                    self.output_result_str(format!(
+                        "version:{}\nwrite set:{:?}\n events:{:?}\n",
+                        cur_version, write_set, events
+                    ));
+                },
+                Err(vm_status) => {
+                    self.output_result_str(format!(
+                        "execution error {} at version: {}, error",
+                        vm_status, cur_version
+                    ));
+                },
             }
         }
     }
@@ -341,74 +347,46 @@ impl Execution {
     fn execute_code(
         &self,
         version: Version,
-        state: FakeDataStore,
+        state: InMemoryStateStore,
         package_info: &PackageInfo,
         txn: &Transaction,
         compiled_package_cache: &HashMap<PackageInfo, HashMap<ModuleId, Vec<u8>>>,
         debugger_opt: Option<Arc<dyn AptosValidatorInterface + Send>>,
         v2_flag: bool,
-    ) -> Option<Result<(WriteSet, Vec<ContractEvent>), VMStatus>> {
-        let executor = FakeExecutor::no_genesis();
-        let mut executor = executor.set_not_parallel();
-        *executor.data_store_mut() = state;
-        if let Transaction::UserTransaction(signed_trans) = txn {
-            let sender = signed_trans.sender();
-            let payload = signed_trans.payload();
-            if let TransactionPayload::EntryFunction(entry_function) = payload {
-                // Always load 0x1 modules
-                load_aptos_packages_to_executor(&mut executor, compiled_package_cache);
-                // Load modules
-                if package_info.is_compilable() {
-                    load_packages_to_executor(&mut executor, package_info, compiled_package_cache);
-                }
-                let mut senders = vec![sender];
-                senders.extend(signed_trans.authenticator().secondary_signer_addresses());
-                let enable_v7 = |features: &mut Features| {
-                    if v2_flag {
-                        features.enable(FeatureFlag::VM_BINARY_FORMAT_V7);
-                    } else {
-                        features.enable(FeatureFlag::VM_BINARY_FORMAT_V6);
-                    }
-                };
-                if let Some(debugger) = debugger_opt {
-                    let data_view =
-                        DataStateView::new(debugger, version, executor.data_store().clone());
-                    let mut features =
-                        Features::fetch_config(&data_view.as_move_resolver()).unwrap_or_default();
-                    enable_v7(&mut features);
-                    return Some(executor.try_exec_entry_with_state_view(
-                        senders,
-                        entry_function,
-                        &data_view.as_move_resolver(),
-                        features,
-                    ));
-                } else {
-                    let mut features =
-                        Features::fetch_config(&executor.data_store().clone().as_move_resolver())
-                            .unwrap_or_default();
-                    enable_v7(&mut features);
-                    return Some(executor.try_exec_entry_with_state_view(
-                        senders,
-                        entry_function,
-                        &executor.data_store().clone().as_move_resolver(),
-                        features,
-                    ));
-                }
-            }
+    ) -> Result<(WriteSet, Vec<ContractEvent>), VMStatus> {
+        // Always add Aptos (0x1) packages.
+        add_aptos_packages_to_state_store(&state, compiled_package_cache);
+
+        // Add other modules.
+        if package_info.is_compilable() {
+            add_packages_to_state_store(&state, package_info, compiled_package_cache);
         }
-        if let Some(debugger) = debugger_opt {
-            let data_view = DataStateView::new(debugger, version, executor.data_store().clone());
-            Some(
-                executor
-                    .execute_transaction_block_with_state_view([txn.clone()].to_vec(), &data_view)
-                    .map(|res| res[0].clone().into()),
-            )
+
+        // Update features if needed to the correct binary format used by V2 compiler.
+        let mut features = Features::fetch_config(&state).unwrap_or_default();
+        if v2_flag {
+            features.enable(FeatureFlag::VM_BINARY_FORMAT_V8);
         } else {
-            Some(
-                executor
-                    .execute_transaction_block(vec![txn.clone()])
-                    .map(|res| res[0].clone().into()),
-            )
+            features.enable(FeatureFlag::VM_BINARY_FORMAT_V6);
+        }
+        state
+            .set_features(features)
+            .expect("failed to set features, this should not happen");
+
+        // We use executor only to get access to block executor and avoid some of
+        // the initializations, but ignore its internal state.
+        let executor = FakeExecutor::no_genesis();
+        let txns = vec![txn.clone()];
+
+        if let Some(debugger) = debugger_opt {
+            let data_view = DataStateView::new(debugger, version, state);
+            executor
+                .execute_transaction_block_with_state_view(txns, &data_view)
+                .map(|mut res| res.pop().unwrap().into())
+        } else {
+            executor
+                .execute_transaction_block_with_state_view(txns, &state)
+                .map(|mut res| res.pop().unwrap().into())
         }
     }
 
@@ -470,8 +448,8 @@ impl Execution {
                 }
                 // compare write set
                 let mut write_set_error = false;
-                let res_1_write_set_vec = res_1.0.iter().collect_vec();
-                let res_2_write_set_vec = res_2.0.iter().collect_vec();
+                let res_1_write_set_vec = res_1.0.write_op_iter().collect_vec();
+                let res_2_write_set_vec = res_2.0.write_op_iter().collect_vec();
                 if res_1_write_set_vec.len() != res_2_write_set_vec.len() {
                     write_set_error = true;
                 }

@@ -5,15 +5,16 @@ use crate::{generate_onchain_config_blob, NetworkLoadTest};
 use anyhow::Ok;
 use aptos::test::CliTestFramework;
 use aptos_forge::{NetworkContextSynchronizer, NetworkTest, NodeExt, SwarmExt, Test};
-use aptos_logger::info;
 use aptos_sdk::bcs;
 use aptos_types::{
     account_config::CORE_CODE_ADDRESS,
     on_chain_config::{
         ConsensusAlgorithmConfig, DagConsensusConfigV1, OnChainConsensusConfig, ValidatorTxnConfig,
+        DEFAULT_WINDOW_SIZE,
     },
 };
 use async_trait::async_trait;
+use log::info;
 use std::{sync::Arc, time::Duration};
 
 const MAX_NODE_LAG_SECS: u64 = 360;
@@ -73,13 +74,14 @@ impl NetworkLoadTest for DagOnChainEnableTest {
 
         assert!(matches!(
             current_consensus_config,
-            OnChainConsensusConfig::V3 { .. }
+            OnChainConsensusConfig::V4 { .. }
         ));
 
-        // Change to V2
-        let new_consensus_config = OnChainConsensusConfig::V3 {
+        // Change to V4
+        let new_consensus_config = OnChainConsensusConfig::V4 {
             alg: ConsensusAlgorithmConfig::DAG(DagConsensusConfigV1::default()),
             vtxn: ValidatorTxnConfig::default_disabled(),
+            window_size: DEFAULT_WINDOW_SIZE,
         };
 
         let update_consensus_config_script = format!(
@@ -124,13 +126,14 @@ impl NetworkLoadTest for DagOnChainEnableTest {
 
         assert!(matches!(
             current_consensus_config,
-            OnChainConsensusConfig::V3 { .. }
+            OnChainConsensusConfig::V4 { .. }
         ));
 
         // Change to DAG
-        let new_consensus_config = OnChainConsensusConfig::V3 {
+        let new_consensus_config = OnChainConsensusConfig::V4 {
             alg: ConsensusAlgorithmConfig::DAG(DagConsensusConfigV1::default()),
             vtxn: ValidatorTxnConfig::default_disabled(),
+            window_size: DEFAULT_WINDOW_SIZE,
         };
 
         let update_consensus_config_script = format!(
@@ -177,7 +180,7 @@ impl NetworkLoadTest for DagOnChainEnableTest {
 
         assert!(matches!(
             current_consensus_config,
-            OnChainConsensusConfig::V3 { .. }
+            OnChainConsensusConfig::V4 { .. }
         ));
 
         // Change back to initial

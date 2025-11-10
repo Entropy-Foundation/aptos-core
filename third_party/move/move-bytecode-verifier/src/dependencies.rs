@@ -3,19 +3,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! This module contains verification of usage of dependencies for modules and scripts.
+use crate::VerifierConfig;
 use move_binary_format::{
     access::{ModuleAccess, ScriptAccess},
     binary_views::BinaryIndexedView,
     errors::{verification_error, Location, PartialVMError, PartialVMResult, VMResult},
     file_format::{
-        AbilitySet, Bytecode, CodeOffset, CompiledModule, CompiledScript, FunctionDefinitionIndex,
-        FunctionHandleIndex, ModuleHandleIndex, SignatureToken, StructHandleIndex,
-        StructTypeParameter, TableIndex, Visibility,
+        Bytecode, CodeOffset, CompiledModule, CompiledScript, FunctionAttribute,
+        FunctionDefinitionIndex, FunctionHandleIndex, ModuleHandleIndex, SignatureToken,
+        StructHandleIndex, StructTypeParameter, TableIndex, Visibility,
     },
     file_format_common::VERSION_5,
-    safe_unwrap, IndexKind,
+    safe_unwrap,
+    views::FunctionHandleView,
+    IndexKind,
 };
-use move_core_types::{identifier::Identifier, language_storage::ModuleId, vm_status::StatusCode};
+use move_core_types::{
+    ability::AbilitySet, identifier::Identifier, language_storage::ModuleId, vm_status::StatusCode,
+};
 use std::collections::{BTreeMap, BTreeSet};
 
 struct Context<'a, 'b> {
@@ -24,9 +29,10 @@ struct Context<'a, 'b> {
     dependency_map: BTreeMap<ModuleId, &'b CompiledModule>,
     // (Module::StructName -> handle) for all types of all dependencies
     struct_id_to_handle_map: BTreeMap<(ModuleId, Identifier), StructHandleIndex>,
-    // (Module::FunctionName -> handle) for all functions that can ever be called by this
-    // module/script in all dependencies
-    func_id_to_handle_map: BTreeMap<(ModuleId, Identifier), FunctionHandleIndex>,
+    // (Module::FunctionName -> (handle_idx, def_idx)) for all functions that can ever be
+    // called by this module/script in all dependencies
+    func_id_to_index_map:
+        BTreeMap<(ModuleId, Identifier), (FunctionHandleIndex, FunctionDefinitionIndex)>,
     // (handle -> visibility) for all function handles found in the module being checked
     function_visibilities: BTreeMap<FunctionHandleIndex, Visibility>,
     // all function handles found in the module being checked that are script functions in <V5
@@ -75,7 +81,7 @@ impl<'a, 'b> Context<'a, 'b> {
             resolver,
             dependency_map,
             struct_id_to_handle_map: BTreeMap::new(),
-            func_id_to_handle_map: BTreeMap::new(),
+            func_id_to_index_map: BTreeMap::new(),
             function_visibilities: BTreeMap::new(),
             script_functions,
         };
@@ -94,7 +100,7 @@ impl<'a, 'b> Context<'a, 'b> {
                 );
             }
             // Module::FuncName -> def handle idx
-            for func_def in module.function_defs() {
+            for (idx, func_def) in module.function_defs().iter().enumerate() {
                 let func_handle = module.function_handle_at(func_def.function);
                 let func_name = module.identifier_at(func_handle.name);
                 dependency_visibilities.insert(
@@ -105,13 +111,17 @@ impl<'a, 'b> Context<'a, 'b> {
                     Visibility::Public => true,
                     Visibility::Friend => self_module
                         .as_ref()
-                        .map_or(false, |self_id| friend_module_ids.contains(self_id)),
+                        .is_some_and(|self_id| friend_module_ids.contains(self_id)),
                     Visibility::Private => false,
                 };
                 if may_be_called {
-                    context
-                        .func_id_to_handle_map
-                        .insert((module_id.clone(), func_name.to_owned()), func_def.function);
+                    context.func_id_to_index_map.insert(
+                        (module_id.clone(), func_name.to_owned()),
+                        (
+                            func_def.function,
+                            FunctionDefinitionIndex(idx as TableIndex),
+                        ),
+                    );
                 }
             }
         }
@@ -161,9 +171,13 @@ impl<'a, 'b> Context<'a, 'b> {
 }
 
 pub fn verify_module<'a>(
+    config: &VerifierConfig,
     module: &CompiledModule,
     dependencies: impl IntoIterator<Item = &'a CompiledModule>,
 ) -> VMResult<()> {
+    if config.verify_nothing() {
+        return Ok(());
+    }
     verify_module_impl(module, dependencies)
         .map_err(|e| e.finish(Location::Module(module.self_id())))
 }
@@ -181,9 +195,13 @@ fn verify_module_impl<'a>(
 }
 
 pub fn verify_script<'a>(
+    config: &VerifierConfig,
     script: &CompiledScript,
     dependencies: impl IntoIterator<Item = &'a CompiledModule>,
 ) -> VMResult<()> {
+    if config.verify_nothing() {
+        return Ok(());
+    }
     verify_script_impl(script, dependencies).map_err(|e| e.finish(Location::Script))
 }
 
@@ -244,7 +262,8 @@ fn verify_imported_structs(context: &Context) -> PartialVMResult<()> {
                         StatusCode::TYPE_MISMATCH,
                         IndexKind::StructHandle,
                         idx as TableIndex,
-                    ));
+                    )
+                    .with_message("imported struct mismatches expectation"));
                 }
             },
             None => {
@@ -271,11 +290,11 @@ fn verify_imported_functions(context: &Context) -> PartialVMResult<()> {
         let function_name = context.resolver.identifier_at(function_handle.name);
         let owner_module = safe_unwrap!(context.dependency_map.get(&owner_module_id));
         match context
-            .func_id_to_handle_map
+            .func_id_to_index_map
             .get(&(owner_module_id.clone(), function_name.to_owned()))
         {
-            Some(def_idx) => {
-                let def_handle = owner_module.function_handle_at(*def_idx);
+            Some((owner_handle_idx, owner_def_idx)) => {
+                let def_handle = owner_module.function_handle_at(*owner_handle_idx);
                 // compatible type parameter constraints
                 if !compatible_fun_type_parameters(
                     &function_handle.type_parameters,
@@ -285,7 +304,8 @@ fn verify_imported_functions(context: &Context) -> PartialVMResult<()> {
                         StatusCode::TYPE_MISMATCH,
                         IndexKind::FunctionHandle,
                         idx as TableIndex,
-                    ));
+                    )
+                    .with_message("imported function mismatches expectation"));
                 }
                 // same parameters
                 let handle_params = context.resolver.signature_at(function_handle.parameters);
@@ -328,6 +348,32 @@ fn verify_imported_functions(context: &Context) -> PartialVMResult<()> {
                     owner_module,
                 )
                 .map_err(|e| e.at_index(IndexKind::FunctionHandle, idx as TableIndex))?;
+
+                // Compatible attributes.
+                let mut def_attrs = def_handle.attributes.as_slice();
+                let handle_attrs = function_handle.attributes.as_slice();
+                if !handle_attrs.is_empty() && def_attrs.is_empty() {
+                    // This is a function with no attributes, which can come from that
+                    // it's compiled for < Move 2.2. Synthesize the
+                    // `persistent` attribute from Public visibility, which we find
+                    // in the definition.
+                    if owner_module.function_def_at(*owner_def_idx).visibility == Visibility::Public
+                    {
+                        def_attrs = &[FunctionAttribute::Persistent]
+                    }
+                }
+                if !FunctionAttribute::is_compatible_with(handle_attrs, def_attrs) {
+                    let def_view = FunctionHandleView::new(*owner_module, def_handle);
+                    return Err(verification_error(
+                        StatusCode::LINKER_ERROR,
+                        IndexKind::FunctionHandle,
+                        idx as TableIndex,
+                    )
+                    .with_message(format!(
+                        "imported function `{}` missing expected attributes",
+                        def_view.name()
+                    )));
+                }
             },
             None => {
                 return Err(verification_error(
@@ -440,7 +486,7 @@ fn compare_types(
     def_type: &SignatureToken,
     def_module: &CompiledModule,
 ) -> PartialVMResult<()> {
-    match (handle_type, def_type) {
+    let result = match (handle_type, def_type) {
         (SignatureToken::Bool, SignatureToken::Bool)
         | (SignatureToken::U8, SignatureToken::U8)
         | (SignatureToken::U16, SignatureToken::U16)
@@ -450,8 +496,20 @@ fn compare_types(
         | (SignatureToken::U256, SignatureToken::U256)
         | (SignatureToken::Address, SignatureToken::Address)
         | (SignatureToken::Signer, SignatureToken::Signer) => Ok(()),
-        (SignatureToken::Vector(ty1), SignatureToken::Vector(ty2)) => {
-            compare_types(context, ty1, ty2, def_module)
+        (SignatureToken::Vector(handle_ty), SignatureToken::Vector(def_ty)) => {
+            compare_types(context, handle_ty, def_ty, def_module)
+        },
+        (
+            SignatureToken::Function(handle_args, handle_result, handle_ab),
+            SignatureToken::Function(def_args, def_result, def_ab),
+        ) => {
+            compare_cross_module_signatures(context, handle_args, def_args, def_module)?;
+            compare_cross_module_signatures(context, handle_result, def_result, def_module)?;
+            if handle_ab == def_ab {
+                Ok(())
+            } else {
+                Err(PartialVMError::new(StatusCode::TYPE_MISMATCH))
+            }
         },
         (SignatureToken::Struct(idx1), SignatureToken::Struct(idx2)) => {
             compare_structs(context, *idx1, *idx2, def_module)
@@ -481,6 +539,7 @@ fn compare_types(
         | (SignatureToken::Address, _)
         | (SignatureToken::Signer, _)
         | (SignatureToken::Vector(_), _)
+        | (SignatureToken::Function(..), _)
         | (SignatureToken::Struct(_), _)
         | (SignatureToken::StructInstantiation(_, _), _)
         | (SignatureToken::Reference(_), _)
@@ -489,7 +548,14 @@ fn compare_types(
         | (SignatureToken::U16, _)
         | (SignatureToken::U32, _)
         | (SignatureToken::U256, _) => Err(PartialVMError::new(StatusCode::TYPE_MISMATCH)),
-    }
+    };
+    result.map_err(|err| {
+        if err.message().is_none() {
+            err.with_message("imported type mismatches expectation")
+        } else {
+            err
+        }
+    })
 }
 
 fn compare_structs(

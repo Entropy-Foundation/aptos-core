@@ -6,16 +6,18 @@ use crate::context::{CompiledDependency, Context, MaterializedPools, TABLE_MAX_S
 use anyhow::{bail, format_err, Result};
 use move_binary_format::{
     file_format::{
-        Ability, AbilitySet, Bytecode, CodeOffset, CodeUnit, CompiledModule, CompiledScript,
-        Constant, FieldDefinition, FunctionDefinition, FunctionSignature, ModuleHandle, Signature,
-        SignatureToken, StructDefinition, StructDefinitionIndex, StructFieldInformation,
-        StructHandleIndex, StructTypeParameter, TableIndex, TypeParameterIndex, TypeSignature,
-        Visibility,
+        Bytecode, CodeOffset, CodeUnit, CompiledModule, CompiledScript, Constant, FieldDefinition,
+        FunctionDefinition, FunctionSignature, ModuleHandle, Signature, SignatureToken,
+        StructDefinition, StructDefinitionIndex, StructFieldInformation, StructHandleIndex,
+        StructTypeParameter, TableIndex, TypeParameterIndex, TypeSignature, Visibility,
     },
     file_format_common::VERSION_DEFAULT,
 };
 use move_bytecode_source_map::source_map::SourceMap;
-use move_core_types::value::{MoveTypeLayout, MoveValue};
+use move_core_types::{
+    ability::{Ability, AbilitySet},
+    value::{MoveTypeLayout, MoveValue},
+};
 use move_ir_types::{
     ast::{self, Bytecode as IRBytecode, Bytecode_ as IRBytecode_, *},
     sp,
@@ -46,7 +48,7 @@ macro_rules! record_src_loc {
     (field: $context:expr, $idx:expr, $field:expr) => {{
         $context
             .source_map
-            .add_struct_field_mapping($idx, $field.loc)?;
+            .add_struct_field_mapping($idx, None, $field.loc)?;
     }};
     (function_type_formals: $context:expr, $var:expr) => {
         for (ty_var, _) in $var.iter() {
@@ -389,6 +391,7 @@ pub fn compile_script<'a>(
 
         type_parameters: sig.type_parameters,
         parameters: parameters_sig_idx,
+        access_specifiers: None,
         code,
     };
     Ok((script, source_map))
@@ -485,6 +488,12 @@ pub fn compile_module<'a>(
         metadata: vec![],
         struct_defs,
         function_defs,
+        // TODO(#13806): Move IR does not support enums and it is likely be retired. Decide
+        //    whether we want to support this here.
+        struct_variant_handles: vec![],
+        struct_variant_instantiations: vec![],
+        variant_field_handles: vec![],
+        variant_field_instantiations: vec![],
     };
     Ok((module, source_map))
 }
@@ -564,6 +573,10 @@ fn compile_explicit_dependency_declarations(
             metadata: vec![],
             struct_defs: vec![],
             function_defs: vec![],
+            struct_variant_handles: vec![],
+            struct_variant_instantiations: vec![],
+            variant_field_handles: vec![],
+            variant_field_instantiations: vec![],
         };
         dependencies_acc = compiled_deps;
         dependencies_acc.insert(

@@ -8,12 +8,6 @@ addr = "_"
 [dev-addresses]
 addr = "0x12345"
 
-[dependencies.SupraFramework]
-git = "https://github.com/aptos-labs/aptos-core.git"
-rev = "devnet"
-subdir = "aptos-move/framework/supra-framework"
-
-[dependencies.AptosTokenObjects]
-git = "https://github.com/aptos-labs/aptos-core.git"
-rev = "devnet"
-subdir = "aptos-move/framework/aptos-token-objects"
+[dependencies]
+SupraFramework = { local = "../../framework/supra-framework" }
+AptosTokenObjects = { local = "../../framework/aptos-token-objects" }

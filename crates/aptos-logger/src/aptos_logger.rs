@@ -2,6 +2,8 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(unexpected_cfgs)]
+
 //! Implementation of writing logs to both local printers (e.g. stdout) and remote loggers
 //! (e.g. Logstash)
 
@@ -163,7 +165,7 @@ impl LogEntry {
 
         struct JsonVisitor<'a>(&'a mut BTreeMap<Key, serde_json::Value>);
 
-        impl<'a> Visitor for JsonVisitor<'a> {
+        impl Visitor for JsonVisitor<'_> {
             fn visit_pair(&mut self, key: Key, value: Value<'_>) {
                 let v = match value {
                     Value::Debug(d) => serde_json::Value::String(
@@ -204,8 +206,21 @@ impl LogEntry {
 
         let hostname = HOSTNAME.as_deref();
         let namespace = NAMESPACE.as_deref();
-        let peer_id = aptos_node_identity::peer_id_as_str();
-        let chain_id = aptos_node_identity::chain_id().map(|chain_id| chain_id.id());
+
+        let peer_id: Option<&str>;
+        let chain_id: Option<u8>;
+
+        #[cfg(node_identity)]
+        {
+            peer_id = aptos_node_identity::peer_id_as_str();
+            chain_id = aptos_node_identity::chain_id().map(|chain_id| chain_id.id());
+        }
+
+        #[cfg(not(node_identity))]
+        {
+            peer_id = None;
+            chain_id = None;
+        }
 
         let backtrace = if enable_backtrace && matches!(metadata.level(), Level::Error) {
             let mut backtrace = Backtrace::new();

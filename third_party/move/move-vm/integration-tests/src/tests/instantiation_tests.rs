@@ -2,25 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use move_binary_format::file_format::{
-    AbilitySet, AddressIdentifierIndex, Bytecode::*, CodeUnit, CompiledModule, FieldDefinition,
+    AddressIdentifierIndex, Bytecode::*, CodeUnit, CompiledModule, FieldDefinition,
     FunctionDefinition, FunctionHandle, FunctionHandleIndex, IdentifierIndex, ModuleHandle,
     ModuleHandleIndex, Signature, SignatureIndex, SignatureToken::*, StructDefinition,
     StructFieldInformation, StructHandle, StructHandleIndex, StructTypeParameter, TypeSignature,
 };
 use move_core_types::{
+    ability::AbilitySet,
     account_address::AccountAddress,
     ident_str,
     identifier::Identifier,
-    language_storage::{StructTag, TypeTag},
+    language_storage::{ModuleId, StructTag, TypeTag},
     vm_status::StatusCode,
 };
 use move_vm_runtime::{
-    config::VMConfig,
-    module_traversal::{TraversalContext, TraversalStorage},
-    move_vm::MoveVM,
+    config::VMConfig, AsUnsyncCodeStorage, ModuleStorage, RuntimeEnvironment, StagingModuleStorage,
 };
 use move_vm_test_utils::InMemoryStorage;
-use move_vm_types::gas::UnmeteredGasMeter;
 
 #[test]
 fn instantiation_err() {
@@ -63,6 +61,7 @@ fn instantiation_err() {
             return_: SignatureIndex(0),
             type_parameters: vec![AbilitySet::PRIMITIVES],
             access_specifiers: None,
+            attributes: vec![],
         }],
         field_handles: vec![],
         friend_decls: vec![],
@@ -101,6 +100,11 @@ fn instantiation_err() {
                 ],
             }),
         }],
+        // TODO(#13806): followup on whether we need specific tests for variants here
+        struct_variant_handles: vec![],
+        struct_variant_instantiations: vec![],
+        variant_field_handles: vec![],
+        variant_field_instantiations: vec![],
     };
 
     move_bytecode_verifier::verify_module(&cm).expect("verify failed");
@@ -109,21 +113,16 @@ fn instantiation_err() {
         paranoid_type_checks: false,
         ..VMConfig::default()
     };
-    let vm = MoveVM::new_with_config(vec![], vm_config);
+    let runtime_environment = RuntimeEnvironment::new_with_config(vec![], vm_config);
+    let storage: InMemoryStorage =
+        InMemoryStorage::new_with_runtime_environment(runtime_environment);
 
-    let storage: InMemoryStorage = InMemoryStorage::new();
-    let mut session = vm.new_session(&storage);
     let mut mod_bytes = vec![];
     cm.serialize(&mut mod_bytes).unwrap();
-    let traversal_storage = TraversalStorage::new();
 
-    session
-        .publish_module(mod_bytes, addr, &mut UnmeteredGasMeter)
-        .expect("Module must publish");
-
+    // Prepare type arguments.
     let mut ty_arg = TypeTag::U128;
     for _ in 0..4 {
-        // ty_arg = TypeTag::Vector(Box::new(ty_arg));
         ty_arg = TypeTag::Struct(Box::new(StructTag {
             address: addr,
             module: Identifier::new("m").unwrap(),
@@ -132,19 +131,23 @@ fn instantiation_err() {
         }));
     }
 
-    let res = session.load_function(&cm.self_id(), ident_str!("f"), &[ty_arg]);
-    assert!(res.is_ok());
-    let function = res.unwrap();
+    let module_storage = storage.as_unsync_code_storage();
 
-    let err = session.execute_entry_function(
-        function,
-        Vec::<Vec<u8>>::new(),
-        &mut UnmeteredGasMeter,
-        &mut TraversalContext::new(&traversal_storage),
+    // Publish (must succeed!) and then load the function.
+    let new_module_storage =
+        StagingModuleStorage::create(&addr, &module_storage, vec![mod_bytes.into()])
+            .expect("Module must publish");
+    load_function(&new_module_storage, &cm.self_id(), &[ty_arg])
+}
+
+fn load_function(module_storage: &impl ModuleStorage, module_id: &ModuleId, ty_args: &[TypeTag]) {
+    let res = module_storage.load_function(module_id, ident_str!("f"), ty_args);
+    assert!(
+        res.is_err(),
+        "Instantiation must fail at load time when converting from type tag to type "
     );
-    assert!(err.is_err(), "Instantiation must fail at runtime");
     assert_eq!(
-        err.err().unwrap().major_status(),
-        StatusCode::VERIFICATION_ERROR
+        res.err().unwrap().major_status(),
+        StatusCode::TOO_MANY_TYPE_NODES
     );
 }

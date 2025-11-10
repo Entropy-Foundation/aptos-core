@@ -11,7 +11,7 @@
 
 use super::{update_binary, BinaryUpdater, UpdateRequiredInfo};
 use crate::common::{
-    types::{CliCommand, CliTypedResult},
+    types::{CliCommand, CliTypedResult, PromptOptions},
     utils::cli_build_information,
 };
 use anyhow::{anyhow, Context, Result};
@@ -23,7 +23,6 @@ use self_update::{
     cargo_crate_version,
     update::ReleaseUpdate,
 };
-use std::process::Command;
 
 /// Update the CLI itself
 ///
@@ -42,6 +41,9 @@ pub struct AptosUpdateTool {
     /// If set, it will check if there are updates for the tool, but not actually update
     #[clap(long, default_value_t = false)]
     check: bool,
+
+    #[clap(flatten)]
+    pub prompt_options: PromptOptions,
 }
 
 impl BinaryUpdater for AptosUpdateTool {
@@ -49,8 +51,8 @@ impl BinaryUpdater for AptosUpdateTool {
         self.check
     }
 
-    fn pretty_name(&self) -> &'static str {
-        "Aptos CLI"
+    fn pretty_name(&self) -> String {
+        "Aptos CLI".to_string()
     }
 
     /// Return information about whether an update is required.
@@ -105,6 +107,11 @@ impl BinaryUpdater for AptosUpdateTool {
                     "Detected this CLI comes from homebrew, use `brew upgrade aptos` instead"
                 ));
             },
+            InstallationMethod::PackageManager => {
+                return Err(anyhow!(
+                    "Detected this CLI comes from a package manager, use your package manager to update instead"
+                ));
+            },
             InstallationMethod::Other => {},
         }
 
@@ -114,39 +121,10 @@ impl BinaryUpdater for AptosUpdateTool {
         // happen to build. We figure this out based on what system the CLI was built on.
         let build_info = cli_build_information();
         let target = match build_info.get(BUILD_OS).context("Failed to determine build info of current CLI")?.as_str() {
-            "linux-x86_64" => {
-                // In the case of Linux, which build to use depends on the OpenSSL
-                // library on the host machine. So we try to determine that here.
-                // This code below parses the output of the `openssl version` command,
-                // where the version string is the 1th (0-indexing) item in the string
-                // when split by whitespace.
-                let output = Command::new("openssl")
-                .args(["version"])
-                .output();
-                let version = match output {
-                    Ok(output) => {
-                        let stdout = String::from_utf8(output.stdout).unwrap();
-                        stdout.split_whitespace().collect::<Vec<&str>>()[1].to_string()
-                    },
-                    Err(e) => {
-                        println!("Failed to determine OpenSSL version, assuming an older version: {:#}", e);
-                        "1.0.0".to_string()
-                    }
-                };
-                // On Ubuntu < 22.04 the bundled OpenSSL is version 1.x.x, whereas on
-                // 22.04+ it is 3.x.x. Unfortunately if you build the CLI on a system
-                // with one major version of OpenSSL, you cannot use it on a system
-                // with a different version. Accordingly, if the current system uses
-                // OpenSSL 3.x.x, we use the version of the CLI built on a system with
-                // OpenSSL 3.x.x, meaning Ubuntu 22.04. Otherwise we use the one built
-                // on 20.04.
-                if version.starts_with('3') {
-                    "Ubuntu-22.04-x86_64"
-                } else {
-                    "Ubuntu-x86_64"
-                }
-            },
-            "macos-x86_64" => "MacOSX-x86_64",
+            "linux-x86_64" => "Linux-x86_64",
+            "linux-aarch64" => "Linux-aarch64",
+            "macos-x86_64" => "macOS-x86_64",
+            "macos-aarch64" => "macOS-arm64",
             "windows-x86_64" => "Windows-x86_64",
             wildcard => return Err(anyhow!("Self-updating is not supported on your OS ({}) right now, please download the binary manually", wildcard)),
         };
@@ -165,6 +143,7 @@ impl BinaryUpdater for AptosUpdateTool {
             .current_version(current_version)
             .target_version_tag(&format!("aptos-cli-v{}", info.target_version))
             .target(target)
+            .no_confirm(self.prompt_options.assume_yes)
             .build()
             .map_err(|e| anyhow!("Failed to build self-update configuration: {:#}", e))
     }
@@ -173,6 +152,7 @@ impl BinaryUpdater for AptosUpdateTool {
 pub enum InstallationMethod {
     Source,
     Homebrew,
+    PackageManager,
     Other,
 }
 
@@ -184,6 +164,8 @@ impl InstallationMethod {
             InstallationMethod::Homebrew
         } else if exe_path.to_string_lossy().contains("target") {
             InstallationMethod::Source
+        } else if exe_path.to_string_lossy().contains("/usr/bin") {
+            InstallationMethod::PackageManager
         } else {
             InstallationMethod::Other
         };

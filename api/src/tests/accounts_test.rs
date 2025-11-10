@@ -3,9 +3,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::new_test_context;
-use aptos_api_test_context::{current_function_name, find_value};
+use aptos_api_test_context::{current_function_name, find_value, TestContext};
 use aptos_api_types::{MoveModuleBytecode, MoveResource, MoveStructTag, StateKeyWrapper};
 use aptos_cached_packages::aptos_stdlib;
+use aptos_sdk::types::APTOS_COIN_TYPE_STR;
+use aptos_types::{
+    account_config::{primary_apt_store, ObjectCoreResource},
+    transaction::{EntryFunction, TransactionPayload},
+    AptosCoinType, CoinType,
+};
+use move_core_types::{
+    account_address::AccountAddress,
+    identifier::Identifier,
+    language_storage::{ModuleId, TypeTag},
+    move_resource::MoveStructType,
+};
 use serde_json::json;
 use std::str::FromStr;
 
@@ -26,7 +38,7 @@ async fn test_get_account_resources_by_address_0x0() {
     let address = "0x0";
 
     let resp = context
-        .expect_status_code(404)
+        .expect_status_code(200)
         .get(&account_resources(address))
         .await;
     context.check_golden_output(resp);
@@ -36,9 +48,20 @@ async fn test_get_account_resources_by_address_0x0() {
 async fn test_get_account_resources_by_valid_account_address() {
     let context = new_test_context(current_function_name!());
     let addresses = vec!["0x1", "0x00000000000000000000000000000001"];
+    let mut res = vec![];
     for address in &addresses {
-        context.get(&account_resources(address)).await;
+        let resp = context.get(&account_resources(address)).await;
+        res.push(resp);
     }
+
+    let shard_context = new_test_context(current_function_name!());
+    let mut shard_res = vec![];
+    for address in &addresses {
+        let resp = shard_context.get(&account_resources(address)).await;
+        shard_res.push(resp);
+    }
+
+    assert_eq!(res, shard_res);
 }
 
 // Unstable due to framework changes
@@ -96,12 +119,14 @@ async fn test_account_modules_structs() {
     context.check_golden_output(resp);
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_get_account_resources_by_ledger_version() {
-    let mut context = new_test_context(current_function_name!());
+async fn test_account_resources_by_ledger_version_with_context(mut context: TestContext) {
     let account = context.gen_account();
     let txn = context.create_user_account(&account).await;
     context.commit_block(&vec![txn.clone()]).await;
+
+    if let Some(indexer_reader) = context.context.indexer_reader.as_ref() {
+        indexer_reader.wait_for_internal_indexer(2).unwrap();
+    }
 
     let ledger_version_1_resources = context
         .get(&account_resources(
@@ -126,12 +151,24 @@ async fn test_get_account_resources_by_ledger_version() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_get_account_resources_by_ledger_version() {
+    let context = new_test_context(current_function_name!());
+    test_account_resources_by_ledger_version_with_context(context).await;
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_get_account_resources_by_ledger_version_with_shard_context() {
+    let shard_context = new_test_context(current_function_name!());
+    test_account_resources_by_ledger_version_with_context(shard_context).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_get_account_resources_by_too_large_ledger_version() {
     let mut context = new_test_context(current_function_name!());
+    let account = context.root_account().await;
     let resp = context
         .expect_status_code(404)
         .get(&account_resources_with_ledger_version(
-            &context.root_account().await.address().to_hex_literal(),
+            &account.address().to_hex_literal(),
             1000000000000000000,
         ))
         .await;
@@ -152,8 +189,93 @@ async fn test_get_account_resources_by_invalid_ledger_version() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_get_account_modules_by_ledger_version() {
+async fn test_account_auto_creation() {
     let mut context = new_test_context(current_function_name!());
+    let root_account = context.root_account().await;
+    let account = context.gen_account();
+    let txn1 = root_account.sign_with_transaction_builder(context.transaction_factory().payload(
+        aptos_stdlib::coin_migrate_to_fungible_store(AptosCoinType::type_tag()),
+    ));
+    let txn2 = root_account.sign_with_transaction_builder(context.transaction_factory().payload(
+        aptos_stdlib::aptos_account_fungible_transfer_only(account.address(), 10_000_000_000),
+    ));
+    context
+        .commit_block(&vec![txn1.clone(), txn2.clone()])
+        .await;
+    let txn = account.sign_with_transaction_builder(
+        context
+            .transaction_factory()
+            .payload(aptos_stdlib::aptos_account_fungible_transfer_only(
+                root_account.address(),
+                1,
+            ))
+            .gas_unit_price(1),
+    );
+    context.commit_block(&vec![txn.clone()]).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_get_account_balance() {
+    let mut context = new_test_context(current_function_name!());
+    let root_account = context.root_account().await;
+
+    // First check coin balance
+    let coin_balance_before = context
+        .get(&account_balance(
+            &root_account.address().to_hex_literal(),
+            APTOS_COIN_TYPE_STR,
+        ))
+        .await;
+
+    // Migrate to fungible store
+    let txn = root_account.sign_with_transaction_builder(context.transaction_factory().payload(
+        aptos_stdlib::coin_migrate_to_fungible_store(AptosCoinType::type_tag()),
+    ));
+    context.commit_block(&vec![txn.clone()]).await;
+
+    // Check coin balance after migration
+    let coin_balance_after = context
+        .get(&account_balance(
+            &root_account.address().to_hex_literal(),
+            APTOS_COIN_TYPE_STR,
+        ))
+        .await;
+    assert_eq!(coin_balance_before, coin_balance_after);
+
+    // Check fungible asset balance
+    let fa_balance = context
+        .get(&account_balance(
+            &root_account.address().to_hex_literal(),
+            &AccountAddress::TEN.to_hex_literal(),
+        ))
+        .await;
+    assert_eq!(coin_balance_after, fa_balance);
+
+    // Upgrade to concurrent store
+    let txn = root_account.sign_with_transaction_builder(context.transaction_factory().payload(
+        TransactionPayload::EntryFunction(EntryFunction::new(
+            ModuleId::new(
+                AccountAddress::TEN,
+                Identifier::new("fungible_asset").unwrap(),
+            ),
+            Identifier::new("upgrade_store_to_concurrent").unwrap(),
+            vec![TypeTag::Struct(Box::new(ObjectCoreResource::struct_tag()))],
+            vec![bcs::to_bytes(&primary_apt_store(root_account.address())).unwrap()],
+        )),
+    ));
+    context.commit_block(&vec![txn.clone()]).await;
+
+    // Check concurrent fungible asset balance
+    let concurrent_fa_balance = context
+        .get(&account_balance(
+            &root_account.address().to_hex_literal(),
+            &AccountAddress::TEN.to_hex_literal(),
+        ))
+        .await;
+    assert_eq!(concurrent_fa_balance, fa_balance);
+}
+
+async fn test_get_account_modules_by_ledger_version_with_context(mut context: TestContext) {
     let payload =
         aptos_stdlib::publish_module_source("test_module", "module 0xa550c18::test_module {}");
 
@@ -161,6 +283,10 @@ async fn test_get_account_modules_by_ledger_version() {
     let txn =
         root_account.sign_with_transaction_builder(context.transaction_factory().payload(payload));
     context.commit_block(&vec![txn.clone()]).await;
+
+    if let Some(indexer_reader) = context.context.indexer_reader.as_ref() {
+        indexer_reader.wait_for_internal_indexer(2).unwrap();
+    }
 
     let modules = context
         .get(&account_modules(
@@ -179,6 +305,14 @@ async fn test_get_account_modules_by_ledger_version() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_get_account_modules_by_ledger_version() {
+    let context = new_test_context(current_function_name!());
+    test_get_account_modules_by_ledger_version_with_context(context).await;
+    let shard_context = new_test_context(current_function_name!());
+    test_get_account_modules_by_ledger_version_with_context(shard_context).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_get_core_account_data() {
     let mut context = new_test_context(current_function_name!());
     let resp = context.get("/accounts/0x1").await;
@@ -188,8 +322,12 @@ async fn test_get_core_account_data() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_get_core_account_data_not_found() {
     let mut context = new_test_context(current_function_name!());
-    let resp = context.expect_status_code(404).get("/accounts/0xf").await;
+    let resp = context.expect_status_code(200).get("/accounts/0xf").await;
     context.check_golden_output(resp);
+    context
+        .disable_feature(aptos_types::on_chain_config::FeatureFlag::DEFAULT_ACCOUNT_RESOURCE as u64)
+        .await;
+    context.expect_status_code(404).get("/accounts/0xf").await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -384,6 +522,10 @@ fn account_resources_with_ledger_version(address: &str, ledger_version: i128) ->
 
 fn account_modules(address: &str) -> String {
     format!("/accounts/{}/modules", address)
+}
+
+fn account_balance(address: &str, coin_type: &str) -> String {
+    format!("/accounts/{}/balance/{}", address, coin_type)
 }
 
 fn account_modules_with_ledger_version(address: &str, ledger_version: i128) -> String {

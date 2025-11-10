@@ -8,6 +8,8 @@ pub mod ledger;
 pub mod state_kv;
 pub mod state_tree;
 pub mod truncate;
+pub mod validation;
+mod watch;
 
 use aptos_storage_interface::Result;
 use clap::Parser;
@@ -35,6 +37,12 @@ pub enum Cmd {
 
     #[clap(subcommand)]
     Examine(examine::Cmd),
+
+    #[clap(subcommand)]
+    IndexerValidation(validation::Cmd),
+
+    #[clap(subcommand)]
+    Watch(watch::Cmd),
 }
 
 impl Cmd {
@@ -46,6 +54,8 @@ impl Cmd {
             Cmd::Ledger(cmd) => cmd.run(),
             Cmd::Truncate(cmd) => cmd.run(),
             Cmd::Examine(cmd) => cmd.run(),
+            Cmd::IndexerValidation(cmd) => cmd.run(),
+            Cmd::Watch(cmd) => cmd.run(),
         }
     }
 }

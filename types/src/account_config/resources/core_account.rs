@@ -2,7 +2,10 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{account_address::AccountAddress, event::EventHandle};
+use crate::{
+    account_address::AccountAddress,
+    event::{EventHandle, EventKey},
+};
 use move_core_types::{
     ident_str,
     identifier::IdentStr,
@@ -18,7 +21,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(any(test, feature = "fuzzing"), derive(Arbitrary))]
 pub struct AccountResource {
     authentication_key: Vec<u8>,
-    sequence_number: u64,
+    pub sequence_number: u64,
     guid_creation_num: u64,
     coin_register_events: EventHandle,
     key_rotation_events: EventHandle,
@@ -40,6 +43,18 @@ impl AccountResource {
             guid_creation_num: 0,
             coin_register_events,
             key_rotation_events,
+            rotation_capability_offer: None,
+            signer_capability_offer: None,
+        }
+    }
+
+    pub fn new_stateless(address: AccountAddress) -> Self {
+        AccountResource {
+            authentication_key: bcs::to_bytes(&address).unwrap(),
+            sequence_number: 0,
+            guid_creation_num: 2,
+            coin_register_events: EventHandle::new(EventKey::new(0, address), 0),
+            key_rotation_events: EventHandle::new(EventKey::new(1, address), 0),
             rotation_capability_offer: None,
             signer_capability_offer: None,
         }
@@ -82,3 +97,15 @@ impl MoveStructType for AccountResource {
 }
 
 impl MoveResource for AccountResource {}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_account_resource_has_special_address() {
+        // Note: module loading gas charging logic depends on this assumption. This should never
+        // change, but a test should catch if address changes at any point.
+        assert!(AccountResource::struct_tag().address.is_special());
+    }
+}

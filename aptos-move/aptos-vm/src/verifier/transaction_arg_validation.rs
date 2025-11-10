@@ -7,9 +7,13 @@
 //! TODO: we should not only validate the types but also the actual values, e.g.
 //! for strings whether they consist of correct characters.
 
-use crate::{move_vm_ext::SessionExt, VMStatus};
+use crate::{
+    aptos_vm::SerializedSigners,
+    move_vm_ext::{AptosMoveResolver, SessionExt},
+    VMStatus,
+};
 use move_binary_format::{
-    errors::{Location, PartialVMError},
+    errors::{Location, PartialVMError, VMResult},
     file_format::FunctionDefinitionIndex,
     file_format_common::read_uleb128_as_u64,
 };
@@ -18,14 +22,17 @@ use move_core_types::{
     ident_str,
     identifier::{IdentStr, Identifier},
     language_storage::ModuleId,
-    value::MoveValue,
     vm_status::StatusCode,
 };
+use move_vm_metrics::{Timer, VM_TIMER};
 use move_vm_runtime::{
     module_traversal::{TraversalContext, TraversalStorage},
-    LoadedFunction,
+    LoadedFunction, LoadedFunctionOwner, ModuleStorage, RuntimeEnvironment,
 };
-use move_vm_types::{gas::GasMeter, loaded_data::runtime_types::Type};
+use move_vm_types::{
+    gas::{GasMeter, UnmeteredGasMeter},
+    loaded_data::runtime_types::{Type, TypeParamMap},
+};
 use once_cell::sync::Lazy;
 use std::{
     collections::BTreeMap,
@@ -126,14 +133,16 @@ pub(crate) fn get_allowed_structs(
 /// 3. check arg types are allowed after signers
 ///
 /// after validation, add senders and non-signer arguments to generate the final args
-pub fn validate_combine_signer_and_txn_args(
-    session: &mut SessionExt,
-    gas_meter: &mut impl GasMeter,
-    senders: Vec<AccountAddress>,
+pub(crate) fn validate_combine_signer_and_txn_args(
+    session: &mut SessionExt<impl AptosMoveResolver>,
+    module_storage: &impl ModuleStorage,
+    serialized_signers: &SerializedSigners,
     args: Vec<Vec<u8>>,
     func: &LoadedFunction,
     are_struct_constructors_enabled: bool,
 ) -> Result<Vec<Vec<u8>>, VMStatus> {
+    let _timer = VM_TIMER.timer_with_label("AptosVM::validate_combine_signer_and_txn_args");
+
     // Entry function should not return.
     if !func.return_tys().is_empty() {
         return Err(VMStatus::error(
@@ -144,30 +153,19 @@ pub fn validate_combine_signer_and_txn_args(
     let mut signer_param_cnt = 0;
     // find all signer params at the beginning
     for ty in func.param_tys() {
-        match ty {
-            Type::Signer => signer_param_cnt += 1,
-            Type::Reference(inner_type) => {
-                if matches!(&**inner_type, Type::Signer) {
-                    signer_param_cnt += 1;
-                }
-            },
-            _ => (),
+        if ty.is_signer_or_signer_ref() {
+            signer_param_cnt += 1;
         }
     }
 
     let allowed_structs = get_allowed_structs(are_struct_constructors_enabled);
-    let ty_builder = session.get_ty_builder();
+    let ty_builder = &module_storage.runtime_environment().vm_config().ty_builder;
 
     // Need to keep this here to ensure we return the historic correct error code for replay
     for ty in func.param_tys()[signer_param_cnt..].iter() {
         let subst_res = ty_builder.create_ty_with_subst(ty, func.ty_args());
-        let ty = if ty_builder.is_legacy() {
-            subst_res.unwrap()
-        } else {
-            subst_res.map_err(|e| e.finish(Location::Undefined).into_vm_status())?
-        };
-
-        let valid = is_valid_txn_arg(session, &ty, allowed_structs);
+        let ty = subst_res.map_err(|e| e.finish(Location::Undefined).into_vm_status())?;
+        let valid = is_valid_txn_arg(module_storage.runtime_environment(), &ty, allowed_structs);
         if !valid {
             return Err(VMStatus::error(
                 StatusCode::INVALID_MAIN_FUNCTION_SIGNATURE,
@@ -187,7 +185,8 @@ pub fn validate_combine_signer_and_txn_args(
     // signers actually passed is matching first to maintain backward compatibility before
     // moving on to the validation of non-signer args.
     // the number of txn senders should be the same number of signers
-    if signer_param_cnt > 0 && senders.len() != signer_param_cnt {
+    let sender_signers = serialized_signers.senders();
+    if signer_param_cnt > 0 && sender_signers.len() != signer_param_cnt {
         return Err(VMStatus::error(
             StatusCode::NUMBER_OF_SIGNER_ARGUMENTS_MISMATCH,
             None,
@@ -199,7 +198,7 @@ pub fn validate_combine_signer_and_txn_args(
     // FAILED_TO_DESERIALIZE_ARGUMENT error.
     let args = construct_args(
         session,
-        gas_meter,
+        module_storage,
         &func.param_tys()[signer_param_cnt..],
         args,
         func.ty_args(),
@@ -211,18 +210,17 @@ pub fn validate_combine_signer_and_txn_args(
     let combined_args = if signer_param_cnt == 0 {
         args
     } else {
-        senders
-            .into_iter()
-            .map(|s| MoveValue::Signer(s).simple_serialize().unwrap())
-            .chain(args)
-            .collect()
+        sender_signers.into_iter().chain(args).collect()
     };
     Ok(combined_args)
 }
 
-// Return whether the argument is valid/allowed and whether it needs construction.
+/// Returns true if the argument is valid (that is, it is a primitive type or a struct with a
+/// known constructor function). Otherwise, (for structs without constructors, signers or
+/// references) returns false. An error is returned in cases when a struct type is encountered and
+/// its name cannot be queried for some reason.
 pub(crate) fn is_valid_txn_arg(
-    session: &SessionExt,
+    runtime_environment: &RuntimeEnvironment,
     ty: &Type,
     allowed_structs: &ConstructorMap,
 ) -> bool {
@@ -230,14 +228,23 @@ pub(crate) fn is_valid_txn_arg(
 
     match ty {
         Bool | U8 | U16 | U32 | U64 | U128 | U256 | Address => true,
-        Vector(inner) => is_valid_txn_arg(session, inner, allowed_structs),
-        Struct { idx, .. } | StructInstantiation { idx, .. } => {
-            session.get_struct_type(*idx).is_some_and(|st| {
-                let full_name = format!("{}::{}", st.module.short_str_lossless(), st.name);
-                allowed_structs.contains_key(&full_name)
-            })
+        Vector(inner) => is_valid_txn_arg(runtime_environment, inner, allowed_structs),
+        Struct { .. } | StructInstantiation { .. } => {
+            // Note: Original behavior was to return false even if the module loading fails (e.g.,
+            //       if struct does not exist. This preserves it.
+            runtime_environment
+                .get_struct_name(ty)
+                .ok()
+                .flatten()
+                .is_some_and(|(module_id, identifier)| {
+                    allowed_structs.contains_key(&format!(
+                        "{}::{}",
+                        module_id.short_str_lossless(),
+                        identifier
+                    ))
+                })
         },
-        Signer | Reference(_) | MutableReference(_) | TyParam(_) => false,
+        Signer | Reference(_) | MutableReference(_) | TyParam(_) | Function { .. } => false,
     }
 }
 
@@ -245,8 +252,8 @@ pub(crate) fn is_valid_txn_arg(
 // construct arguments that require so.
 // TODO: This needs a more solid story and a tighter integration with the VM.
 pub(crate) fn construct_args(
-    session: &mut SessionExt,
-    gas_meter: &mut impl GasMeter,
+    session: &mut SessionExt<impl AptosMoveResolver>,
+    module_storage: &impl ModuleStorage,
     types: &[Type],
     args: Vec<Vec<u8>>,
     ty_args: &[Type],
@@ -258,16 +265,19 @@ pub(crate) fn construct_args(
         return Err(invalid_signature());
     }
 
-    let ty_builder = session.get_ty_builder();
+    let ty_builder = &module_storage.runtime_environment().vm_config().ty_builder;
     for (ty, arg) in types.iter().zip(args) {
         let subst_res = ty_builder.create_ty_with_subst(ty, ty_args);
-        let ty = if ty_builder.is_legacy() {
-            subst_res.unwrap()
-        } else {
-            subst_res.map_err(|e| e.finish(Location::Undefined).into_vm_status())?
-        };
-
-        let arg = construct_arg(session, &ty, allowed_structs, arg, gas_meter, is_view)?;
+        let ty = subst_res.map_err(|e| e.finish(Location::Undefined).into_vm_status())?;
+        let arg = construct_arg(
+            session,
+            module_storage,
+            &ty,
+            allowed_structs,
+            arg,
+            &mut gas_meter,
+            is_view,
+        )?;
         res_args.push(arg);
     }
     Ok(res_args)
@@ -278,7 +288,8 @@ fn invalid_signature() -> VMStatus {
 }
 
 fn construct_arg(
-    session: &mut SessionExt,
+    session: &mut SessionExt<impl AptosMoveResolver>,
+    module_storage: &impl ModuleStorage,
     ty: &Type,
     allowed_structs: &ConstructorMap,
     arg: Vec<u8>,
@@ -295,6 +306,7 @@ fn construct_arg(
             let mut max_invocations = 10; // Read from config in the future
             recursively_construct_arg(
                 session,
+                module_storage,
                 ty,
                 allowed_structs,
                 &mut cursor,
@@ -322,7 +334,9 @@ fn construct_arg(
                 Err(invalid_signature())
             }
         },
-        Reference(_) | MutableReference(_) | TyParam(_) => Err(invalid_signature()),
+        Reference(_) | MutableReference(_) | TyParam(_) | Function { .. } => {
+            Err(invalid_signature())
+        },
     }
 }
 
@@ -330,7 +344,8 @@ fn construct_arg(
 // are parsing the BCS serialized implicit constructor invocation tree, while serializing the
 // constructed types into the output parameter arg.
 pub(crate) fn recursively_construct_arg(
-    session: &mut SessionExt,
+    session: &mut SessionExt<impl AptosMoveResolver>,
+    module_storage: &impl ModuleStorage,
     ty: &Type,
     allowed_structs: &ConstructorMap,
     cursor: &mut Cursor<&[u8]>,
@@ -349,6 +364,7 @@ pub(crate) fn recursively_construct_arg(
             while len > 0 {
                 recursively_construct_arg(
                     session,
+                    module_storage,
                     inner,
                     allowed_structs,
                     cursor,
@@ -360,12 +376,17 @@ pub(crate) fn recursively_construct_arg(
                 len -= 1;
             }
         },
-        Struct { idx, .. } | StructInstantiation { idx, .. } => {
-            let st = session
-                .get_struct_type(*idx)
+        Struct { .. } | StructInstantiation { .. } => {
+            let (module_id, identifier) = module_storage
+                .runtime_environment()
+                .get_struct_name(ty)
+                .map_err(|_| {
+                    // Note: The original behaviour was to map all errors to an invalid signature
+                    //       error, here we want to preserve it for now.
+                    invalid_signature()
+                })?
                 .ok_or_else(invalid_signature)?;
-
-            let full_name = format!("{}::{}", st.module.short_str_lossless(), st.name);
+            let full_name = format!("{}::{}", module_id.short_str_lossless(), identifier);
             let constructor = allowed_structs
                 .get(&full_name)
                 .ok_or_else(invalid_signature)?;
@@ -373,6 +394,7 @@ pub(crate) fn recursively_construct_arg(
             // of the argument.
             arg.append(&mut validate_and_construct(
                 session,
+                module_storage,
                 ty,
                 constructor,
                 allowed_structs,
@@ -388,7 +410,9 @@ pub(crate) fn recursively_construct_arg(
         U64 => read_n_bytes(8, cursor, arg)?,
         U128 => read_n_bytes(16, cursor, arg)?,
         U256 | Address => read_n_bytes(32, cursor, arg)?,
-        Signer | Reference(_) | MutableReference(_) | TyParam(_) => return Err(invalid_signature()),
+        Signer | Reference(_) | MutableReference(_) | TyParam(_) | Function { .. } => {
+            return Err(invalid_signature())
+        },
     };
     Ok(())
 }
@@ -398,7 +422,8 @@ pub(crate) fn recursively_construct_arg(
 // said struct as a parameter. In this function we execute the constructor constructing the
 // value and returning the BCS serialized representation.
 fn validate_and_construct(
-    session: &mut SessionExt,
+    session: &mut SessionExt<impl AptosMoveResolver>,
+    module_storage: &impl ModuleStorage,
     expected_type: &Type,
     constructor: &FunctionId,
     allowed_structs: &ConstructorMap,
@@ -457,13 +482,14 @@ fn validate_and_construct(
         *max_invocations -= 1;
     }
 
-    let function = session.load_function_with_type_arg_inference(
+    let function = load_constructor_function(
+        module_storage,
         &constructor.module_id,
         constructor.func_name,
         expected_type,
     )?;
     let mut args = vec![];
-    let ty_builder = session.get_ty_builder();
+    let ty_builder = &module_storage.runtime_environment().vm_config().ty_builder;
     for param_ty in function.param_tys() {
         let mut arg = vec![];
         let arg_ty = ty_builder
@@ -472,6 +498,7 @@ fn validate_and_construct(
 
         recursively_construct_arg(
             session,
+            module_storage,
             &arg_ty,
             allowed_structs,
             cursor,
@@ -488,14 +515,19 @@ fn validate_and_construct(
         args,
         gas_meter,
         &mut TraversalContext::new(&storage),
+        module_storage,
     )?;
     let mut ret_vals = serialized_result.return_values;
     // We know ret_vals.len() == 1
-    let deserialize_error = VMStatus::error(
-        StatusCode::INTERNAL_TYPE_ERROR,
-        Some(String::from("Constructor did not return value")),
-    );
-    Ok(ret_vals.pop().ok_or(deserialize_error)?.0)
+    Ok(ret_vals
+        .pop()
+        .ok_or_else(|| {
+            VMStatus::error(
+                StatusCode::INTERNAL_TYPE_ERROR,
+                Some(String::from("Constructor did not return value")),
+            )
+        })?
+        .0)
 }
 
 // String is a vector of bytes, so both string and vector carry a length in the serialized format.
@@ -544,4 +576,82 @@ fn read_n_bytes(n: usize, src: &mut Cursor<&[u8]>, dest: &mut Vec<u8>) -> Result
     dest.resize(len + n, 0);
     src.read_exact(&mut dest[len..])
         .map_err(|_| deserialization_error("Couldn't read bytes"))
+}
+
+fn load_constructor_function(
+    module_storage: &impl ModuleStorage,
+    module_id: &ModuleId,
+    function_name: &IdentStr,
+    expected_return_ty: &Type,
+) -> VMResult<LoadedFunction> {
+    // Here, we do not charge gas for module loading due to invoking a constructor function. This
+    // is safe to do because all constructor functions are located at 0x1 (special address) and so
+    // should not be charged.
+    if !module_id.address().is_special() {
+        let msg = format!(
+            "Constructor function {}::{}::{} has a non-special address!",
+            module_id.address(),
+            module_id.name(),
+            function_name
+        );
+        let err = PartialVMError::new(StatusCode::UNKNOWN_INVARIANT_VIOLATION_ERROR)
+            .with_message(msg)
+            .finish(Location::Undefined);
+        return Err(err);
+    }
+    let (module, function) = module_storage.fetch_function_definition(
+        module_id.address(),
+        module_id.name(),
+        function_name,
+    )?;
+
+    if function.return_tys().len() != 1 {
+        // For functions that are marked constructor this should not happen.
+        return Err(PartialVMError::new(StatusCode::ABORTED).finish(Location::Undefined));
+    }
+
+    let mut map = TypeParamMap::default();
+    if !map.match_ty(&function.return_tys()[0], expected_return_ty) {
+        // For functions that are marked constructor this should not happen.
+        return Err(
+            PartialVMError::new(StatusCode::INVALID_MAIN_FUNCTION_SIGNATURE)
+                .finish(Location::Undefined),
+        );
+    }
+
+    // Construct the type arguments from the match.
+    let num_ty_args = function.ty_param_abilities().len();
+    let mut ty_args = Vec::with_capacity(num_ty_args);
+    for i in 0..num_ty_args {
+        ty_args.push(map.get_ty_param(i as u16).ok_or_else(|| {
+            PartialVMError::new(StatusCode::INVALID_MAIN_FUNCTION_SIGNATURE)
+                .finish(Location::Undefined)
+        })?);
+    }
+
+    Type::verify_ty_arg_abilities(function.ty_param_abilities(), &ty_args)
+        .map_err(|e| e.finish(Location::Module(module_id.clone())))?;
+
+    Ok(LoadedFunction {
+        owner: LoadedFunctionOwner::Module(module),
+        ty_args,
+        function,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(true)]
+    #[test_case(false)]
+    fn test_constructor_functions_always_have_special_address(
+        are_struct_constructors_enabled: bool,
+    ) {
+        let constructors = get_allowed_structs(are_struct_constructors_enabled);
+        for function_id in constructors.values() {
+            assert!(function_id.module_id.address().is_special());
+        }
+    }
 }

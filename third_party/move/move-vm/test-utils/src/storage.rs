@@ -5,7 +5,7 @@
 use bytes::Bytes;
 use move_binary_format::{
     deserializer::DeserializerConfig,
-    errors::{PartialVMError, PartialVMResult},
+    errors::{PartialVMError, PartialVMResult, VMResult},
     file_format_common::{IDENTIFIER_SIZE_MAX, VERSION_MAX},
     CompiledModule,
 };
@@ -13,15 +13,19 @@ use move_bytecode_utils::compiled_module_viewer::CompiledModuleView;
 use move_core_types::{
     account_address::AccountAddress,
     effects::{AccountChangeSet, ChangeSet, Op},
-    identifier::Identifier,
+    identifier::{IdentStr, Identifier},
     language_storage::{ModuleId, StructTag},
     metadata::Metadata,
-    resolver::{resource_size, ModuleResolver, MoveResolver, ResourceResolver},
     value::MoveTypeLayout,
     vm_status::StatusCode,
 };
 #[cfg(feature = "table-extension")]
 use move_table_extension::{TableChangeSet, TableHandle, TableResolver};
+use move_vm_runtime::{RuntimeEnvironment, WithRuntimeEnvironment};
+use move_vm_types::{
+    code::ModuleBytesStorage,
+    resolver::{resource_size, ResourceResolver},
+};
 use std::{
     collections::{btree_map, BTreeMap},
     fmt::Debug,
@@ -37,28 +41,24 @@ impl BlankStorage {
     }
 }
 
-impl ModuleResolver for BlankStorage {
-    type Error = PartialVMError;
-
-    fn get_module_metadata(&self, _module_id: &ModuleId) -> Vec<Metadata> {
-        vec![]
-    }
-
-    fn get_module(&self, _module_id: &ModuleId) -> Result<Option<Bytes>, Self::Error> {
+impl ModuleBytesStorage for BlankStorage {
+    fn fetch_module_bytes(
+        &self,
+        _address: &AccountAddress,
+        _module_name: &IdentStr,
+    ) -> VMResult<Option<Bytes>> {
         Ok(None)
     }
 }
 
 impl ResourceResolver for BlankStorage {
-    type Error = PartialVMError;
-
     fn get_resource_bytes_with_metadata_and_layout(
         &self,
         _address: &AccountAddress,
         _tag: &StructTag,
         _metadata: &[Metadata],
         _maybe_layout: Option<&MoveTypeLayout>,
-    ) -> Result<(Option<Bytes>, usize), Self::Error> {
+    ) -> PartialVMResult<(Option<Bytes>, usize)> {
         Ok((None, 0))
     }
 }
@@ -70,79 +70,8 @@ impl TableResolver for BlankStorage {
         _handle: &TableHandle,
         _key: &[u8],
         _maybe_layout: Option<&MoveTypeLayout>,
-    ) -> Result<Option<Bytes>, PartialVMError> {
+    ) -> PartialVMResult<Option<Bytes>> {
         Ok(None)
-    }
-}
-
-/// A storage adapter created by stacking a change set on top of an existing storage backend.
-/// This can be used for additional computations without modifying the base.
-#[derive(Debug, Clone)]
-pub struct DeltaStorage<'a, 'b, S> {
-    base: &'a S,
-    change_set: &'b ChangeSet,
-}
-
-impl<'a, 'b, S: ModuleResolver> ModuleResolver for DeltaStorage<'a, 'b, S> {
-    type Error = S::Error;
-
-    fn get_module_metadata(&self, _module_id: &ModuleId) -> Vec<Metadata> {
-        vec![]
-    }
-
-    fn get_module(&self, module_id: &ModuleId) -> Result<Option<Bytes>, Self::Error> {
-        if let Some(account_storage) = self.change_set.accounts().get(module_id.address()) {
-            if let Some(blob_opt) = account_storage.modules().get(module_id.name()) {
-                return Ok(blob_opt.clone().ok());
-            }
-        }
-
-        self.base.get_module(module_id)
-    }
-}
-
-impl<'a, 'b, S: ResourceResolver> ResourceResolver for DeltaStorage<'a, 'b, S> {
-    type Error = S::Error;
-
-    fn get_resource_bytes_with_metadata_and_layout(
-        &self,
-        address: &AccountAddress,
-        tag: &StructTag,
-        metadata: &[Metadata],
-        layout: Option<&MoveTypeLayout>,
-    ) -> Result<(Option<Bytes>, usize), Self::Error> {
-        if let Some(account_storage) = self.change_set.accounts().get(address) {
-            if let Some(blob_opt) = account_storage.resources().get(tag) {
-                let buf = blob_opt.clone().ok();
-                let buf_size = resource_size(&buf);
-                return Ok((buf, buf_size));
-            }
-        }
-        self.base
-            .get_resource_bytes_with_metadata_and_layout(address, tag, metadata, layout)
-    }
-}
-
-#[cfg(feature = "table-extension")]
-impl<'a, 'b, S: TableResolver> TableResolver for DeltaStorage<'a, 'b, S> {
-    fn resolve_table_entry_bytes_with_layout(
-        &self,
-        handle: &TableHandle,
-        key: &[u8],
-        maybe_layout: Option<&MoveTypeLayout>,
-    ) -> Result<Option<Bytes>, PartialVMError> {
-        // TODO: In addition to `change_set`, cache table outputs.
-        self.base
-            .resolve_table_entry_bytes_with_layout(handle, key, maybe_layout)
-    }
-}
-
-impl<'a, 'b, S: MoveResolver<PartialVMError>> DeltaStorage<'a, 'b, S> {
-    pub fn new(base: &'a S, delta: &'b ChangeSet) -> Self {
-        Self {
-            base,
-            change_set: delta,
-        }
     }
 }
 
@@ -154,18 +83,37 @@ struct InMemoryAccountStorage {
 }
 
 /// Simple in-memory storage that can be used as a Move VM storage backend for testing purposes.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct InMemoryStorage {
+    runtime_environment: RuntimeEnvironment,
     accounts: BTreeMap<AccountAddress, InMemoryAccountStorage>,
     #[cfg(feature = "table-extension")]
     tables: BTreeMap<TableHandle, BTreeMap<Vec<u8>, Bytes>>,
+}
+
+impl ModuleBytesStorage for InMemoryStorage {
+    fn fetch_module_bytes(
+        &self,
+        address: &AccountAddress,
+        module_name: &IdentStr,
+    ) -> VMResult<Option<Bytes>> {
+        Ok(self
+            .accounts
+            .get(address)
+            .and_then(|account_storage| account_storage.modules.get(module_name).cloned()))
+    }
+}
+impl WithRuntimeEnvironment for InMemoryStorage {
+    fn runtime_environment(&self) -> &RuntimeEnvironment {
+        &self.runtime_environment
+    }
 }
 
 impl CompiledModuleView for InMemoryStorage {
     type Item = CompiledModule;
 
     fn view_compiled_module(&self, id: &ModuleId) -> anyhow::Result<Option<Self::Item>> {
-        Ok(match self.get_module(id)? {
+        Ok(match self.fetch_module_bytes(id.address(), id.name())? {
             Some(bytes) => {
                 let config = DeserializerConfig::new(VERSION_MAX, IDENTIFIER_SIZE_MAX);
                 Some(CompiledModule::deserialize_with_config(&bytes, &config)?)
@@ -232,8 +180,7 @@ where
 
 impl InMemoryAccountStorage {
     fn apply(&mut self, account_changeset: AccountChangeSet) -> PartialVMResult<()> {
-        let (modules, resources) = account_changeset.into_inner();
-        apply_changes(&mut self.modules, modules)?;
+        let resources = account_changeset.into_resources();
         apply_changes(&mut self.resources, resources)?;
         Ok(())
     }
@@ -302,19 +249,40 @@ impl InMemoryStorage {
 
     pub fn new() -> Self {
         Self {
+            runtime_environment: RuntimeEnvironment::new(vec![]),
             accounts: BTreeMap::new(),
             #[cfg(feature = "table-extension")]
             tables: BTreeMap::new(),
         }
     }
 
-    pub fn publish_or_overwrite_module(&mut self, module_id: ModuleId, blob: Vec<u8>) {
-        let account = get_or_insert(&mut self.accounts, *module_id.address(), || {
+    pub fn new_with_runtime_environment(runtime_environment: RuntimeEnvironment) -> Self {
+        Self {
+            runtime_environment,
+            accounts: BTreeMap::new(),
+            #[cfg(feature = "table-extension")]
+            tables: BTreeMap::new(),
+        }
+    }
+
+    pub fn max_binary_format_version(&self) -> u32 {
+        self.runtime_environment
+            .vm_config()
+            .deserializer_config
+            .max_binary_format_version
+    }
+
+    /// Adds serialized module bytes to this storage.
+    pub fn add_module_bytes(
+        &mut self,
+        address: &AccountAddress,
+        module_name: &IdentStr,
+        bytes: Bytes,
+    ) {
+        let account = get_or_insert(&mut self.accounts, *address, || {
             InMemoryAccountStorage::new()
         });
-        account
-            .modules
-            .insert(module_id.name().to_owned(), blob.into());
+        account.modules.insert(module_name.to_owned(), bytes);
     }
 
     pub fn publish_or_overwrite_resource(
@@ -328,31 +296,14 @@ impl InMemoryStorage {
     }
 }
 
-impl ModuleResolver for InMemoryStorage {
-    type Error = PartialVMError;
-
-    fn get_module_metadata(&self, _module_id: &ModuleId) -> Vec<Metadata> {
-        vec![]
-    }
-
-    fn get_module(&self, module_id: &ModuleId) -> Result<Option<Bytes>, Self::Error> {
-        if let Some(account_storage) = self.accounts.get(module_id.address()) {
-            return Ok(account_storage.modules.get(module_id.name()).cloned());
-        }
-        Ok(None)
-    }
-}
-
 impl ResourceResolver for InMemoryStorage {
-    type Error = PartialVMError;
-
     fn get_resource_bytes_with_metadata_and_layout(
         &self,
         address: &AccountAddress,
         tag: &StructTag,
         _metadata: &[Metadata],
         _maybe_layout: Option<&MoveTypeLayout>,
-    ) -> Result<(Option<Bytes>, usize), Self::Error> {
+    ) -> PartialVMResult<(Option<Bytes>, usize)> {
         if let Some(account_storage) = self.accounts.get(address) {
             let buf = account_storage.resources.get(tag).cloned();
             let buf_size = resource_size(&buf);
@@ -369,7 +320,7 @@ impl TableResolver for InMemoryStorage {
         handle: &TableHandle,
         key: &[u8],
         _maybe_layout: Option<&MoveTypeLayout>,
-    ) -> Result<Option<Bytes>, PartialVMError> {
+    ) -> PartialVMResult<Option<Bytes>> {
         Ok(self.tables.get(handle).and_then(|t| t.get(key).cloned()))
     }
 }

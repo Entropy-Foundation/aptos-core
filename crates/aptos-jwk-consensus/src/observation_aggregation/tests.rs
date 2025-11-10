@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
+    mode::per_issuer::PerIssuerMode,
     observation_aggregation::ObservationAggregationState,
     types::{ObservedUpdate, ObservedUpdateResponse},
 };
@@ -37,7 +38,7 @@ fn test_observation_aggregation_state() {
         .map(|i| ValidatorConsensusInfo::new(addrs[i], public_keys[i].clone(), voting_powers[i]))
         .collect();
     let verifier = ValidatorVerifier::new(validator_infos);
-    let epoch_state = Arc::new(EpochState { epoch, verifier });
+    let epoch_state = Arc::new(EpochState::new(epoch, verifier));
     let view_0 = ProviderJWKs {
         issuer: b"https::/alice.com".to_vec(),
         version: 123,
@@ -52,7 +53,7 @@ fn test_observation_aggregation_state() {
             UnsupportedJWK::new_for_testing("id2", "payload2"),
         ))],
     };
-    let ob_agg_state = Arc::new(ObservationAggregationState::new(
+    let ob_agg_state = Arc::new(ObservationAggregationState::<PerIssuerMode>::new(
         epoch_state.clone(),
         view_0.clone(),
     ));

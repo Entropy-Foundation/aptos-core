@@ -7,7 +7,9 @@ use anyhow::{anyhow, Result};
 use aptos_channels::{aptos_channel, message_queues::QueueStyle};
 use aptos_id_generator::{IdGenerator, U64IdGenerator};
 use aptos_infallible::RwLock;
-use aptos_storage_interface::{state_view::DbStateViewAtVersion, DbReader, DbReaderWriter};
+use aptos_storage_interface::{
+    state_store::state_view::db_state_view::DbStateViewAtVersion, DbReader, DbReaderWriter,
+};
 use aptos_types::{
     contract_event::ContractEvent,
     event::EventKey,
@@ -36,7 +38,7 @@ mod tests;
 // consumed, they will be dropped (oldest messages first). The remaining messages
 // will be retrieved using FIFO ordering.
 const EVENT_NOTIFICATION_CHANNEL_SIZE: usize = 100;
-const RECONFIG_NOTIFICATION_CHANNEL_SIZE: usize = 1;
+const RECONFIG_NOTIFICATION_CHANNEL_SIZE: usize = 1; // Note: this should be 1 to ensure only the latest reconfig is consumed
 
 #[derive(Clone, Debug, Deserialize, Error, PartialEq, Eq, Serialize)]
 pub enum Error {
@@ -216,7 +218,7 @@ impl EventSubscriptionService {
             let maybe_subscription_ids = match event {
                 ContractEvent::V1(evt) => self.event_key_subscriptions.get(evt.key()),
                 ContractEvent::V2(evt) => {
-                    let tag = evt.type_tag().to_string();
+                    let tag = evt.type_tag().to_canonical_string();
                     self.event_v2_tag_subscriptions.get(&tag)
                 },
             };

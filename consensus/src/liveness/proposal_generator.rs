@@ -3,31 +3,43 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{
-    proposer_election::ProposerElection, unequivocal_proposer_election::UnequivocalProposerElection,
+    proposal_status_tracker::TOptQSPullParamsProvider, proposer_election::ProposerElection,
 };
 use crate::{
     block_storage::BlockReader,
     counters::{
-        CHAIN_HEALTH_BACKOFF_TRIGGERED, PIPELINE_BACKPRESSURE_ON_PROPOSAL_TRIGGERED,
-        PROPOSER_DELAY_PROPOSAL, PROPOSER_PENDING_BLOCKS_COUNT,
-        PROPOSER_PENDING_BLOCKS_FILL_FRACTION,
+        CHAIN_HEALTH_BACKOFF_TRIGGERED, EXECUTION_BACKPRESSURE_ON_PROPOSAL_TRIGGERED,
+        PIPELINE_BACKPRESSURE_ON_PROPOSAL_TRIGGERED, PROPOSER_DELAY_PROPOSAL,
+        PROPOSER_ESTIMATED_CALIBRATED_BLOCK_GAS, PROPOSER_ESTIMATED_CALIBRATED_BLOCK_TXNS,
+        PROPOSER_MAX_BLOCK_TXNS_AFTER_FILTERING, PROPOSER_MAX_BLOCK_TXNS_TO_EXECUTE,
+        PROPOSER_PENDING_BLOCKS_COUNT, PROPOSER_PENDING_BLOCKS_FILL_FRACTION,
     },
     payload_client::PayloadClient,
     util::time_service::TimeService,
 };
 use anyhow::{bail, ensure, format_err, Context};
-use aptos_config::config::{ChainHealthBackoffValues, PipelineBackpressureValues};
+use aptos_config::config::{
+    ChainHealthBackoffValues, ExecutionBackpressureConfig, ExecutionBackpressureMetric,
+    PipelineBackpressureValues,
+};
 use aptos_consensus_types::{
     block::Block,
     block_data::BlockData,
     common::{Author, Payload, PayloadFilter, Round},
+    opt_block_data::OptBlockData,
+    payload_pull_params::{OptQSPayloadPullParams, PayloadPullParameters},
+    pipelined_block::ExecutionSummary,
     quorum_cert::QuorumCert,
+    utils::PayloadTxnsSize,
 };
 use aptos_crypto::{hash::CryptoHash, HashValue};
+use aptos_infallible::Mutex;
 use aptos_logger::{error, sample, sample::SampleRate, warn};
-use aptos_types::{on_chain_config::ValidatorTxnConfig, validator_txn::ValidatorTransaction};
+use aptos_types::{
+    block_info::BlockInfo, on_chain_config::ValidatorTxnConfig, validator_txn::ValidatorTransaction,
+};
 use aptos_validator_transaction_pool as vtxn_pool;
-use futures::future::BoxFuture;
+use itertools::Itertools;
 use std::{
     collections::{BTreeMap, HashSet},
     sync::Arc,
@@ -95,23 +107,31 @@ impl ChainHealthBackoffConfig {
 #[derive(Clone)]
 pub struct PipelineBackpressureConfig {
     backoffs: BTreeMap<Round, PipelineBackpressureValues>,
+    execution: Option<ExecutionBackpressureConfig>,
 }
 
 impl PipelineBackpressureConfig {
-    pub fn new(backoffs: Vec<PipelineBackpressureValues>) -> Self {
+    pub fn new(
+        backoffs: Vec<PipelineBackpressureValues>,
+        execution: Option<ExecutionBackpressureConfig>,
+    ) -> Self {
         let original_len = backoffs.len();
         let backoffs = backoffs
             .into_iter()
             .map(|v| (v.back_pressure_pipeline_latency_limit_ms, v))
             .collect::<BTreeMap<_, _>>();
         assert_eq!(original_len, backoffs.len());
-        Self { backoffs }
+        Self {
+            backoffs,
+            execution,
+        }
     }
 
     #[allow(dead_code)]
     pub fn new_no_backoff() -> Self {
         Self {
             backoffs: BTreeMap::new(),
+            execution: None,
         }
     }
 
@@ -138,6 +158,206 @@ impl PipelineBackpressureConfig {
                 v
             })
     }
+
+    fn compute_lookback_blocks(
+        &self,
+        block_execution_times: &[ExecutionSummary],
+        f: impl Fn(&ExecutionSummary) -> Option<u64>,
+    ) -> Vec<u64> {
+        block_execution_times
+            .iter()
+            .flat_map(|summary| {
+                // for each block, compute target (re-calibrated) block size
+                f(summary)
+            })
+            .sorted()
+            .collect::<Vec<_>>()
+    }
+
+    fn compute_lookback_metric(&self, blocks: &[u64], metric: &ExecutionBackpressureMetric) -> u64 {
+        match metric {
+            ExecutionBackpressureMetric::Mean => {
+                if blocks.is_empty() {
+                    return 0;
+                }
+                (blocks.iter().sum::<u64>() as f64 / blocks.len() as f64) as u64
+            },
+            ExecutionBackpressureMetric::Percentile(percentile) => *blocks
+                .get(((percentile * blocks.len() as f64) as usize).min(blocks.len() - 1))
+                .expect("guaranteed to be within vector size"),
+        }
+    }
+
+    /// TODO: disable txn limit backoff and use only gas limit based backoff once execution pool is deployed.
+    ///
+    /// Until then, we need to compute wanted block size to create.
+    /// Unfortunately, there is multiple layers where transactions are filtered.
+    /// After deduping/reordering logic is applied, max_txns_to_execute limits the transactions
+    /// passed to executor (`summary.payload_len` here), and then some are discarded for various
+    /// reasons, which we approximate are cheaply ignored.
+    /// For the rest, only `summary.to_commit` fraction of `summary.to_commit + summary.to_retry`
+    /// was executed. And so assuming same discard rate, we scale `summary.payload_len` with it.
+    fn get_execution_block_size_backoff(
+        &self,
+        block_execution_times: &[ExecutionSummary],
+        max_block_txns: u64,
+    ) -> Option<u64> {
+        self.execution.as_ref().and_then(|config| {
+            let config = config.txn_limit.as_ref()?;
+
+            let lookback_config = &config.lookback_config;
+            let min_calibrated_txns_per_block =
+                config.min_calibrated_txns_per_block;
+            let sizes = self.compute_lookback_blocks(block_execution_times, |summary| {
+                let execution_time_ms = summary.execution_time.as_millis();
+                // Only block above the time threshold are considered giving enough signal to support calibration
+                // so we filter out shorter locks
+                if execution_time_ms as u64 > lookback_config.min_block_time_ms_to_activate as u64
+                    && summary.payload_len > 0
+                {
+                    Some(
+                        ((lookback_config.target_block_time_ms as f64
+                            / summary.execution_time.as_millis() as f64
+                            * (summary.to_commit as f64
+                                / (summary.to_commit + summary.to_retry) as f64)
+                            * summary.payload_len as f64)
+                            .floor() as u64)
+                            .max(1),
+                    )
+                } else {
+                    None
+                }
+            });
+            if sizes.len() >= lookback_config.min_blocks_to_activate {
+                let calibrated_block_size = self
+                    .compute_lookback_metric(&sizes, &lookback_config.metric)
+                    .max(min_calibrated_txns_per_block);
+                PROPOSER_ESTIMATED_CALIBRATED_BLOCK_TXNS.observe(calibrated_block_size as f64);
+                // Check if calibrated block size is reduction in size, to turn on backpressure.
+                if max_block_txns > calibrated_block_size {
+                    warn!(
+                        block_execution_times = format!("{:?}", block_execution_times),
+                        estimated_calibrated_block_sizes = format!("{:?}", sizes),
+                        calibrated_block_size = calibrated_block_size,
+                        "Execution backpressure recalibration: txn limit: proposing reducing from {} to {}",
+                        max_block_txns,
+                        calibrated_block_size,
+                    );
+                    Some(calibrated_block_size)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+    }
+
+    /// TODO: once execution pool is deployed, enable gas limit based backoff in execution (via onchain config).
+    ///
+    /// Until it is enabled in execution, the printed log is useful for auditing and calibrating
+    /// the computed backoff.
+    fn get_execution_gas_limit_backoff(
+        &self,
+        block_execution_times: &[ExecutionSummary],
+        max_block_gas_limit: u64,
+    ) -> Option<u64> {
+        self.execution.as_ref().and_then(|config| {
+            let config = config.gas_limit.as_ref()?;
+
+            let lookback_config = &config.lookback_config;
+            let block_execution_overhead_ms = config.block_execution_overhead_ms;
+            let min_calibrated_block_gas_limit =
+                config.min_calibrated_block_gas_limit;
+            let gas_limit_estimates =
+                self.compute_lookback_blocks(block_execution_times, |summary| {
+                    let execution_time_ms = summary.execution_time.as_millis() as u64;
+                    let execution_time_ms =
+                        execution_time_ms.saturating_sub(block_execution_overhead_ms);
+                    // Only block above the time threshold are considered giving enough signal to support calibration
+                    // so we filter out shorter locks
+                    if execution_time_ms > lookback_config.min_block_time_ms_to_activate as u64 {
+                        if let Some(gas_used) = summary.gas_used {
+                            if gas_used >= min_calibrated_block_gas_limit {
+                                Some(
+                                    ((lookback_config.target_block_time_ms as f64
+                                        / execution_time_ms as f64
+                                        * gas_used as f64)
+                                        .floor() as u64)
+                                        .max(min_calibrated_block_gas_limit),
+                                )
+                            } else {
+                                None
+                            }
+                        } else {
+                            warn!("Block execution summary missing gas used, skipping");
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                });
+            if gas_limit_estimates.len() >= lookback_config.min_blocks_to_activate {
+                let calibrated_gas_limit = self
+                    .compute_lookback_metric(&gas_limit_estimates, &lookback_config.metric)
+                    .max(min_calibrated_block_gas_limit);
+                PROPOSER_ESTIMATED_CALIBRATED_BLOCK_GAS.observe(calibrated_gas_limit as f64);
+                // Check if calibrated block size is reduction in size, to turn on backpressure.
+                if max_block_gas_limit > calibrated_gas_limit {
+                    warn!(
+                        block_execution_times = format!("{:?}", block_execution_times),
+                        computed_target_block_gas_limits = format!("{:?}", gas_limit_estimates),
+                        computed_target_block_gas_limit = calibrated_gas_limit,
+                        "Execution backpressure recalibration: gas limit: proposing reducing from {} to {}",
+                        max_block_gas_limit,
+                        calibrated_gas_limit,
+                    );
+                    Some(calibrated_gas_limit)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn num_blocks_to_look_at(&self) -> Option<usize> {
+        let config = self.execution.as_ref()?;
+
+        let mut num_blocks_to_look_at = None;
+        if let Some(config) = &config.txn_limit {
+            num_blocks_to_look_at = Some(
+                config
+                    .lookback_config
+                    .num_blocks_to_look_at
+                    .max(num_blocks_to_look_at.unwrap_or(0)),
+            );
+        }
+        if let Some(config) = &config.gas_limit {
+            num_blocks_to_look_at = Some(
+                config
+                    .lookback_config
+                    .num_blocks_to_look_at
+                    .max(num_blocks_to_look_at.unwrap_or(0)),
+            );
+        }
+        num_blocks_to_look_at
+    }
+
+    pub fn get_execution_block_txn_and_gas_limit_backoff(
+        &self,
+        block_execution_times: &[ExecutionSummary],
+        max_block_txns: u64,
+        max_block_gas_limit: Option<u64>,
+    ) -> (Option<u64>, Option<u64>) {
+        let txn_limit_backoff =
+            self.get_execution_block_size_backoff(block_execution_times, max_block_txns);
+        let gas_limit_backoff = max_block_gas_limit.and_then(|max_block_gas_limit| {
+            self.get_execution_gas_limit_backoff(block_execution_times, max_block_gas_limit)
+        });
+        (txn_limit_backoff, gas_limit_backoff)
+    }
 }
 
 /// ProposalGenerator is responsible for generating the proposed block on demand: it's typically
@@ -162,26 +382,31 @@ pub struct ProposalGenerator {
     time_service: Arc<dyn TimeService>,
     // Max time for preparation of the proposal
     quorum_store_poll_time: Duration,
-    // Max number of transactions to be added to a proposed block.
-    max_block_txns: u64,
-    // Max number of bytes to be added to a proposed block.
-    max_block_bytes: u64,
-    // Max number of inline transactions to be added to a proposed block.
-    max_inline_txns: u64,
-    // Max number of inline bytes to be added to a proposed block.
-    max_inline_bytes: u64,
+    // Max number of transactions (count, bytes) to be added to a proposed block.
+    max_block_txns: PayloadTxnsSize,
+    // Max number of unique transactions to be added to a proposed block.
+    max_block_txns_after_filtering: u64,
+    // Max number of inline transactions (count, bytes) to be added to a proposed block.
+    max_inline_txns: PayloadTxnsSize,
     // Max number of failed authors to be added to a proposed block.
     max_failed_authors_to_store: usize,
+
+    /// If backpressure target block size is below it, update `max_txns_to_execute` instead.
+    /// Applied to execution, pipeline and chain health backpressure.
+    /// Needed as we cannot subsplit QS batches.
+    min_max_txns_in_block_after_filtering_from_backpressure: u64,
+    max_block_gas_limit: Option<u64>,
 
     pipeline_backpressure_config: PipelineBackpressureConfig,
     chain_health_backoff_config: ChainHealthBackoffConfig,
 
     // Last round that a proposal was generated
-    last_round_generated: Round,
+    last_round_generated: Mutex<Round>,
     quorum_store_enabled: bool,
     vtxn_config: ValidatorTxnConfig,
 
     allow_batches_without_pos_in_proposal: bool,
+    opt_qs_payload_param_provider: Arc<dyn TOptQSPullParamsProvider>,
 }
 
 impl ProposalGenerator {
@@ -192,16 +417,18 @@ impl ProposalGenerator {
         payload_client: Arc<dyn PayloadClient>,
         time_service: Arc<dyn TimeService>,
         quorum_store_poll_time: Duration,
-        max_block_txns: u64,
-        max_block_bytes: u64,
-        max_inline_txns: u64,
-        max_inline_bytes: u64,
+        max_block_txns: PayloadTxnsSize,
+        max_block_txns_after_filtering: u64,
+        max_inline_txns: PayloadTxnsSize,
         max_failed_authors_to_store: usize,
+        min_max_txns_in_block_after_filtering_from_backpressure: u64,
+        max_block_gas_limit: Option<u64>,
         pipeline_backpressure_config: PipelineBackpressureConfig,
         chain_health_backoff_config: ChainHealthBackoffConfig,
         quorum_store_enabled: bool,
         vtxn_config: ValidatorTxnConfig,
         allow_batches_without_pos_in_proposal: bool,
+        opt_qs_payload_param_provider: Arc<dyn TOptQSPullParamsProvider>,
     ) -> Self {
         Self {
             author,
@@ -210,16 +437,18 @@ impl ProposalGenerator {
             time_service,
             quorum_store_poll_time,
             max_block_txns,
-            max_block_bytes,
+            max_block_txns_after_filtering,
+            min_max_txns_in_block_after_filtering_from_backpressure,
             max_inline_txns,
-            max_inline_bytes,
             max_failed_authors_to_store,
+            max_block_gas_limit,
             pipeline_backpressure_config,
             chain_health_backoff_config,
-            last_round_generated: 0,
+            last_round_generated: Mutex::new(0),
             quorum_store_enabled,
             vtxn_config,
             allow_batches_without_pos_in_proposal,
+            opt_qs_payload_param_provider,
         }
     }
 
@@ -231,7 +460,7 @@ impl ProposalGenerator {
     pub fn generate_nil_block(
         &self,
         round: Round,
-        proposer_election: &mut UnequivocalProposerElection,
+        proposer_election: Arc<dyn ProposerElection>,
     ) -> anyhow::Result<Block> {
         let hqc = self.ensure_highest_quorum_cert(round)?;
         let quorum_cert = hqc.as_ref().clone();
@@ -242,6 +471,10 @@ impl ProposalGenerator {
             proposer_election,
         );
         Ok(Block::new_nil(round, quorum_cert, failed_authors))
+    }
+
+    pub fn can_propose_in_round(&self, round: Round) -> bool {
+        *self.last_round_generated.lock() < round
     }
 
     /// The function generates a new proposal block: the returned future is fulfilled when the
@@ -255,16 +488,11 @@ impl ProposalGenerator {
     /// 3. In case a given round is not greater than the calculated parent, return an OldRound
     /// error.
     pub async fn generate_proposal(
-        &mut self,
+        &self,
         round: Round,
-        proposer_election: &mut UnequivocalProposerElection,
-        wait_callback: BoxFuture<'static, ()>,
+        proposer_election: Arc<dyn ProposerElection + Send + Sync>,
     ) -> anyhow::Result<BlockData> {
-        if self.last_round_generated < round {
-            self.last_round_generated = round;
-        } else {
-            bail!("Already proposed in the round {}", round);
-        }
+        let maybe_optqs_payload_pull_params = self.opt_qs_payload_param_provider.get_params();
 
         let hqc = self.ensure_highest_quorum_cert(round)?;
 
@@ -280,97 +508,13 @@ impl ProposalGenerator {
                 hqc.certified_block().timestamp_usecs(),
             )
         } else {
-            // One needs to hold the blocks with the references to the payloads while get_block is
-            // being executed: pending blocks vector keeps all the pending ancestors of the extended branch.
-            let mut pending_blocks = self
-                .block_store
-                .path_from_commit_root(hqc.certified_block().id())
-                .ok_or_else(|| format_err!("HQC {} already pruned", hqc.certified_block().id()))?;
-            // Avoid txn manager long poll if the root block has txns, so that the leader can
-            // deliver the commit proof to others without delay.
-            pending_blocks.push(self.block_store.commit_root());
-
-            // Exclude all the pending transactions: these are all the ancestors of
-            // parent (including) up to the root (including).
-            let exclude_payload: Vec<_> = pending_blocks
-                .iter()
-                .flat_map(|block| block.payload())
-                .collect();
-            let payload_filter = PayloadFilter::from(&exclude_payload);
-
-            let pending_ordering = self
-                .block_store
-                .path_from_ordered_root(hqc.certified_block().id())
-                .ok_or_else(|| format_err!("HQC {} already pruned", hqc.certified_block().id()))?
-                .iter()
-                .any(|block| !block.payload().map_or(true, |txns| txns.is_empty()));
-
-            // All proposed blocks in a branch are guaranteed to have increasing timestamps
-            // since their predecessor block will not be added to the BlockStore until
-            // the local time exceeds it.
-            let timestamp = self.time_service.get_current_timestamp();
-
-            let voting_power_ratio = proposer_election.get_voting_power_participation_ratio(round);
-
-            let (max_block_txns, max_block_bytes, max_txns_from_block_to_execute, proposal_delay) =
-                self.calculate_max_block_sizes(voting_power_ratio, timestamp, round)
-                    .await;
-
-            PROPOSER_DELAY_PROPOSAL.set(proposal_delay.as_secs_f64());
-            if !proposal_delay.is_zero() {
-                tokio::time::sleep(proposal_delay).await;
-            }
-
-            let max_pending_block_len = pending_blocks
-                .iter()
-                .map(|block| block.payload().map_or(0, |p| p.len()))
-                .max()
-                .unwrap_or(0);
-            let max_pending_block_bytes = pending_blocks
-                .iter()
-                .map(|block| block.payload().map_or(0, |p| p.size()))
-                .max()
-                .unwrap_or(0);
-            // Use non-backpressure reduced values for computing fill_fraction
-            let max_fill_fraction = (max_pending_block_len as f32 / self.max_block_txns as f32)
-                .max(max_pending_block_bytes as f32 / self.max_block_bytes as f32);
-            PROPOSER_PENDING_BLOCKS_COUNT.set(pending_blocks.len() as i64);
-            PROPOSER_PENDING_BLOCKS_FILL_FRACTION.set(max_fill_fraction as f64);
-
-            let pending_validator_txn_hashes: HashSet<HashValue> = pending_blocks
-                .iter()
-                .filter_map(|block| block.validator_txns())
-                .flatten()
-                .map(ValidatorTransaction::hash)
-                .collect();
-            let validator_txn_filter =
-                vtxn_pool::TransactionFilter::PendingTxnHashSet(pending_validator_txn_hashes);
-            let (validator_txns, mut payload) = self
-                .payload_client
-                .pull_payload(
-                    self.quorum_store_poll_time.saturating_sub(proposal_delay),
-                    max_block_txns,
-                    max_block_bytes,
-                    // TODO: Set max_inline_txns and max_inline_bytes correctly
-                    self.max_inline_txns,
-                    self.max_inline_bytes,
-                    validator_txn_filter,
-                    payload_filter,
-                    wait_callback,
-                    pending_ordering,
-                    pending_blocks.len(),
-                    max_fill_fraction,
-                )
-                .await
-                .context("Fail to retrieve payload")?;
-
-            if !payload.is_direct()
-                && max_txns_from_block_to_execute.is_some()
-                && payload.len() > max_txns_from_block_to_execute.unwrap()
-            {
-                payload = payload.transform_to_quorum_store_v2(max_txns_from_block_to_execute);
-            }
-            (validator_txns, payload, timestamp.as_micros() as u64)
+            self.generate_proposal_inner(
+                round,
+                hqc.certified_block().id(),
+                proposer_election.clone(),
+                maybe_optqs_payload_pull_params,
+            )
+            .await?
         };
 
         let quorum_cert = hqc.as_ref().clone();
@@ -405,68 +549,308 @@ impl ProposalGenerator {
         Ok(block)
     }
 
+    async fn generate_proposal_inner(
+        &self,
+        round: Round,
+        parent_id: HashValue,
+        proposer_election: Arc<dyn ProposerElection + Send + Sync>,
+        maybe_optqs_payload_pull_params: Option<OptQSPayloadPullParams>,
+    ) -> anyhow::Result<(Vec<ValidatorTransaction>, Payload, u64)> {
+        {
+            let mut last_round_generated = self.last_round_generated.lock();
+            if *last_round_generated < round {
+                *last_round_generated = round;
+            } else {
+                bail!("Already proposed in the round {}", round);
+            }
+        }
+        // One needs to hold the blocks with the references to the payloads while get_block is
+        // being executed: pending blocks vector keeps all the pending ancestors of the extended branch.
+        let mut pending_blocks = self
+            .block_store
+            .path_from_commit_root(parent_id)
+            .ok_or_else(|| format_err!("Parent block {} already pruned", parent_id))?;
+        // Avoid txn manager long poll if the root block has txns, so that the leader can
+        // deliver the commit proof to others without delay.
+        pending_blocks.push(self.block_store.commit_root());
+
+        // Exclude all the pending transactions: these are all the ancestors of
+        // parent (including) up to the root (including).
+        let exclude_payload: Vec<_> = pending_blocks
+            .iter()
+            .flat_map(|block| block.payload())
+            .collect();
+        let payload_filter = PayloadFilter::from(&exclude_payload);
+
+        let pending_ordering = self
+            .block_store
+            .path_from_ordered_root(parent_id)
+            .ok_or_else(|| format_err!("Parent block {} already pruned", parent_id))?
+            .iter()
+            .any(|block| !block.payload().map_or(true, |txns| txns.is_empty()));
+
+        // All proposed blocks in a branch are guaranteed to have increasing timestamps
+        // since their predecessor block will not be added to the BlockStore until
+        // the local time exceeds it.
+        let timestamp = self.time_service.get_current_timestamp();
+
+        let voting_power_ratio = proposer_election.get_voting_power_participation_ratio(round);
+
+        let (
+            max_block_txns,
+            max_block_txns_after_filtering,
+            max_txns_from_block_to_execute,
+            block_gas_limit_override,
+            proposal_delay,
+        ) = self
+            .calculate_max_block_sizes(voting_power_ratio, timestamp, round)
+            .await;
+
+        PROPOSER_MAX_BLOCK_TXNS_AFTER_FILTERING.observe(max_block_txns_after_filtering as f64);
+        if let Some(max_to_execute) = max_txns_from_block_to_execute {
+            PROPOSER_MAX_BLOCK_TXNS_TO_EXECUTE.observe(max_to_execute as f64);
+        }
+
+        PROPOSER_DELAY_PROPOSAL.observe(proposal_delay.as_secs_f64());
+        if !proposal_delay.is_zero() {
+            tokio::time::sleep(proposal_delay).await;
+        }
+
+        let max_pending_block_size = pending_blocks
+            .iter()
+            .map(|block| {
+                block.payload().map_or(PayloadTxnsSize::zero(), |p| {
+                    PayloadTxnsSize::new(p.len() as u64, p.size() as u64)
+                })
+            })
+            .reduce(PayloadTxnsSize::maximum)
+            .unwrap_or_default();
+        // Use non-backpressure reduced values for computing fill_fraction
+        let max_fill_fraction =
+            (max_pending_block_size.count() as f32 / self.max_block_txns.count() as f32).max(
+                max_pending_block_size.size_in_bytes() as f32
+                    / self.max_block_txns.size_in_bytes() as f32,
+            );
+        PROPOSER_PENDING_BLOCKS_COUNT.set(pending_blocks.len() as i64);
+        PROPOSER_PENDING_BLOCKS_FILL_FRACTION.set(max_fill_fraction as f64);
+
+        let pending_validator_txn_hashes: HashSet<HashValue> = pending_blocks
+            .iter()
+            .filter_map(|block| block.validator_txns())
+            .flatten()
+            .map(ValidatorTransaction::hash)
+            .collect();
+        let validator_txn_filter =
+            vtxn_pool::TransactionFilter::PendingTxnHashSet(pending_validator_txn_hashes);
+
+        let (validator_txns, mut payload) = self
+            .payload_client
+            .pull_payload(
+                PayloadPullParameters {
+                    max_poll_time: self.quorum_store_poll_time.saturating_sub(proposal_delay),
+                    max_txns: max_block_txns,
+                    max_txns_after_filtering: max_block_txns_after_filtering,
+                    soft_max_txns_after_filtering: max_txns_from_block_to_execute
+                        .unwrap_or(max_block_txns_after_filtering),
+                    max_inline_txns: self.max_inline_txns,
+                    maybe_optqs_payload_pull_params,
+                    user_txn_filter: payload_filter,
+                    pending_ordering,
+                    pending_uncommitted_blocks: pending_blocks.len(),
+                    recent_max_fill_fraction: max_fill_fraction,
+                    block_timestamp: timestamp,
+                },
+                validator_txn_filter,
+            )
+            .await
+            .context("Fail to retrieve payload")?;
+
+        if !payload.is_direct()
+            && max_txns_from_block_to_execute.is_some()
+            && max_txns_from_block_to_execute.is_some_and(|v| payload.len() as u64 > v)
+        {
+            payload = payload.transform_to_quorum_store_v2(
+                max_txns_from_block_to_execute,
+                block_gas_limit_override,
+            );
+        } else if block_gas_limit_override.is_some() {
+            payload = payload.transform_to_quorum_store_v2(None, block_gas_limit_override);
+        }
+        Ok((validator_txns, payload, timestamp.as_micros() as u64))
+    }
+
+    pub async fn generate_opt_proposal(
+        &self,
+        epoch: u64,
+        round: Round,
+        parent: BlockInfo,
+        grandparent_qc: QuorumCert,
+        proposer_election: Arc<dyn ProposerElection + Send + Sync>,
+    ) -> anyhow::Result<OptBlockData> {
+        let maybe_optqs_payload_pull_params = self.opt_qs_payload_param_provider.get_params();
+
+        let hqc = self.ensure_highest_quorum_cert(round)?;
+
+        ensure!(
+            hqc.certified_block().round() + 2 == round,
+            "[OptProposal] Given round {} is not equal to hqc round {} + 2, should generate regular proposal instead of optimistic",
+            round,
+            hqc.certified_block().round()
+        );
+
+        let (validator_txns, payload, timestamp) = if hqc.certified_block().has_reconfiguration() {
+            bail!("[OptProposal] HQC has reconfiguration!");
+        } else {
+            self.generate_proposal_inner(
+                round,
+                parent.id(),
+                proposer_election,
+                maybe_optqs_payload_pull_params,
+            )
+            .await?
+        };
+
+        let validator_txns = if self.vtxn_config.enabled() {
+            validator_txns
+        } else {
+            vec![]
+        };
+
+        let block = OptBlockData::new(
+            validator_txns,
+            payload,
+            self.author,
+            epoch,
+            round,
+            timestamp,
+            parent,
+            grandparent_qc,
+        );
+
+        Ok(block)
+    }
+
     async fn calculate_max_block_sizes(
-        &mut self,
+        &self,
         voting_power_ratio: f64,
         timestamp: Duration,
         round: Round,
-    ) -> (u64, u64, Option<usize>, Duration) {
-        let mut values_max_block_txns = vec![self.max_block_txns];
-        let mut values_max_block_bytes = vec![self.max_block_bytes];
+    ) -> (PayloadTxnsSize, u64, Option<u64>, Option<u64>, Duration) {
+        let mut values_max_block_txns_after_filtering = vec![self.max_block_txns_after_filtering];
+        let mut values_max_block = vec![self.max_block_txns];
         let mut values_proposal_delay = vec![Duration::ZERO];
-        let mut values_max_txns_from_block_to_execute = vec![];
+        let mut block_gas_limit_override = None;
 
         let chain_health_backoff = self
             .chain_health_backoff_config
             .get_backoff(voting_power_ratio);
         if let Some(value) = chain_health_backoff {
-            values_max_block_txns.push(value.max_sending_block_txns_override);
-            values_max_block_bytes.push(value.max_sending_block_bytes_override);
-            if let Some(val) = value.max_txns_from_block_to_execute {
-                values_max_txns_from_block_to_execute.push(val);
-            }
+            values_max_block_txns_after_filtering
+                .push(value.max_sending_block_txns_after_filtering_override);
+            values_max_block.push(
+                self.max_block_txns
+                    .compute_with_bytes(value.max_sending_block_bytes_override),
+            );
             values_proposal_delay.push(Duration::from_millis(value.backoff_proposal_delay_ms));
             CHAIN_HEALTH_BACKOFF_TRIGGERED.observe(1.0);
         } else {
             CHAIN_HEALTH_BACKOFF_TRIGGERED.observe(0.0);
         }
 
+        let pipeline_pending_latency = self.block_store.pipeline_pending_latency(timestamp);
         let pipeline_backpressure = self
             .pipeline_backpressure_config
-            .get_backoff(self.block_store.pipeline_pending_latency(timestamp));
+            .get_backoff(pipeline_pending_latency);
         if let Some(value) = pipeline_backpressure {
-            values_max_block_txns.push(value.max_sending_block_txns_override);
-            values_max_block_bytes.push(value.max_sending_block_bytes_override);
-            if let Some(val) = value.max_txns_from_block_to_execute {
-                values_max_txns_from_block_to_execute.push(val);
-            }
+            values_max_block_txns_after_filtering
+                .push(value.max_sending_block_txns_after_filtering_override);
+            values_max_block.push(
+                self.max_block_txns
+                    .compute_with_bytes(value.max_sending_block_bytes_override),
+            );
             values_proposal_delay.push(Duration::from_millis(value.backpressure_proposal_delay_ms));
             PIPELINE_BACKPRESSURE_ON_PROPOSAL_TRIGGERED.observe(1.0);
         } else {
             PIPELINE_BACKPRESSURE_ON_PROPOSAL_TRIGGERED.observe(0.0);
         };
 
-        let max_block_txns = values_max_block_txns.into_iter().min().unwrap();
-        let max_block_bytes = values_max_block_bytes.into_iter().min().unwrap();
-        let proposal_delay = values_proposal_delay.into_iter().max().unwrap();
-        let max_txns_from_block_to_execute =
-            values_max_txns_from_block_to_execute.into_iter().min();
-        if pipeline_backpressure.is_some() || chain_health_backoff.is_some() {
-            warn!(
-                "Generating proposal: reducing limits to {} txns (filtered to {:?}) and {} bytes, due to pipeline_backpressure: {}, chain health backoff: {}. Delaying sending proposal by {}ms. Round: {}",
-                max_block_txns,
-                max_txns_from_block_to_execute,
-                max_block_bytes,
-                pipeline_backpressure.is_some(),
-                chain_health_backoff.is_some(),
-                proposal_delay.as_millis(),
-                round,
-            );
+        let mut execution_backpressure_applied = false;
+        if let Some(num_blocks_to_look_at) =
+            self.pipeline_backpressure_config.num_blocks_to_look_at()
+        {
+            let (txn_limit, gas_limit) = self
+                .pipeline_backpressure_config
+                .get_execution_block_txn_and_gas_limit_backoff(
+                    &self
+                        .block_store
+                        .get_recent_block_execution_times(num_blocks_to_look_at),
+                    self.max_block_txns_after_filtering,
+                    self.max_block_gas_limit,
+                );
+            if let Some(txn_limit) = txn_limit {
+                values_max_block_txns_after_filtering.push(txn_limit);
+                execution_backpressure_applied = true;
+            }
+            block_gas_limit_override = gas_limit;
+            if gas_limit.is_some() {
+                execution_backpressure_applied = true;
+            }
         }
+        EXECUTION_BACKPRESSURE_ON_PROPOSAL_TRIGGERED.observe(
+            if execution_backpressure_applied {
+                1.0
+            } else {
+                0.0
+            },
+        );
+
+        let max_block_txns_after_filtering = values_max_block_txns_after_filtering
+            .into_iter()
+            .min()
+            .expect("always initialized to at least one value");
+
+        let max_block_size = values_max_block
+            .into_iter()
+            .reduce(PayloadTxnsSize::minimum)
+            .expect("always initialized to at least one value");
+        let proposal_delay = values_proposal_delay
+            .into_iter()
+            .max()
+            .expect("always initialized to at least one value");
+
+        let (max_block_txns_after_filtering, max_txns_from_block_to_execute) = if self
+            .min_max_txns_in_block_after_filtering_from_backpressure
+            > max_block_txns_after_filtering
+        {
+            (
+                self.min_max_txns_in_block_after_filtering_from_backpressure,
+                Some(max_block_txns_after_filtering),
+            )
+        } else {
+            (max_block_txns_after_filtering, None)
+        };
+
+        warn!(
+            pipeline_pending_latency = pipeline_pending_latency.as_millis(),
+            proposal_delay_ms = proposal_delay.as_millis(),
+            max_block_txns_after_filtering = max_block_txns_after_filtering,
+            max_txns_from_block_to_execute =
+                max_txns_from_block_to_execute.unwrap_or(max_block_txns_after_filtering),
+            max_block_size = max_block_size,
+            block_gas_limit_override =
+                block_gas_limit_override.unwrap_or(self.max_block_gas_limit.unwrap_or(0)),
+            is_pipeline_backpressure = pipeline_backpressure.is_some(),
+            is_execution_backpressure = execution_backpressure_applied,
+            is_chain_health_backoff = chain_health_backoff.is_some(),
+            round = round,
+            "Proposal generation backpressure details",
+        );
+
         (
-            max_block_txns,
-            max_block_bytes,
+            max_block_size,
+            max_block_txns_after_filtering,
             max_txns_from_block_to_execute,
+            block_gas_limit_override,
             proposal_delay,
         )
     }
@@ -494,7 +878,7 @@ impl ProposalGenerator {
         round: Round,
         previous_round: Round,
         include_cur_round: bool,
-        proposer_election: &mut UnequivocalProposerElection,
+        proposer_election: Arc<dyn ProposerElection>,
     ) -> Vec<(Round, Author)> {
         let end_round = round + u64::from(include_cur_round);
         let mut failed_authors = Vec::new();

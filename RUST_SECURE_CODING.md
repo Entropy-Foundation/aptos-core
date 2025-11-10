@@ -6,7 +6,7 @@ These Rust Secure Coding Guidelines are essential for anyone contributing to Sup
 
 ### Rustup
 
-Utilize Rustup for managing Rust toolchains. However, keep in mind that, from a security perspective, Rustup performs all downloads over HTTPS, but it does not yet validate signatures of downloads. Security is shifted to [create.io](http://create.io) and GitHub repository hosting the code [[rustup]](https://www.rust-lang.org/tools/install).
+Utilize Rustup for managing Rust toolchains. However, keep in mind that, from a security perspective, Rustup performs all downloads over HTTPS, but it does not yet validate signatures of downloads. Security is shifted to [crates.io](http://crates.io) and GitHub repository hosting the code [[rustup]](https://www.rust-lang.org/tools/install).
 
 ### Stable Toolchain
 
@@ -16,7 +16,7 @@ Supra Core leverages Rust stable toolchain to limit potential compiler, runtime,
 
 Utilize Cargo for project management without overriding variables like `debug-assertions` and `overflow-checks`.
 
-- **`debug-assertions`**: This variable controls whether debug assertions are enabled. Debug assertions are checks that are only present in debug builds. They are used to catching bugs during development by validating assumptions made in the code.
+- **`debug-assertions`**: This variable controls whether debug assertions are enabled. Debug assertions are checks that are only present in debug builds. They are used to catch bugs during development by validating assumptions made in the code.
 - **`overflow-checks`**: This variable determines whether arithmetic overflow checks are performed. In Rust, when overflow checks are enabled (which is the default in debug mode), an integer operation that overflows will cause a panic in debug builds, preventing potential security vulnerabilities like buffer overflows.
 
 ### Linters and Formatters

@@ -6,14 +6,13 @@ module supra_framework::reconfiguration {
     use std::signer;
 
     use supra_framework::account;
-    use supra_framework::chain_status;
     use supra_framework::event;
-    use supra_framework::reconfiguration_state;
     use supra_framework::stake;
-    use supra_framework::storage_gas;
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
-    use supra_framework::transaction_fee;
+    use supra_framework::chain_status;
+    use supra_framework::reconfiguration_state;
+    use supra_framework::storage_gas;
 
     friend supra_framework::supra_governance;
     friend supra_framework::block;
@@ -134,20 +133,6 @@ module supra_framework::reconfiguration {
         };
 
         reconfiguration_state::on_reconfig_start();
-
-        // Reconfiguration "forces the block" to end, as mentioned above. Therefore, we must process the collected fees
-        // explicitly so that staking can distribute them.
-        //
-        // This also handles the case when a validator is removed due to the governance proposal. In particular, removing
-        // the validator causes a reconfiguration. We explicitly process fees, i.e. we drain aggregatable coin and populate
-        // the fees table, prior to calling `on_new_epoch()`. That call, in turn, distributes transaction fees for all active
-        // and pending_inactive validators, which include any validator that is to be removed.
-        if (features::collect_and_distribute_gas_fees()) {
-            // All transactions after reconfiguration are Retry. Therefore, when the next
-            // block starts and tries to assign/burn collected fees it will be just 0 and
-            // nothing will be assigned.
-            transaction_fee::process_collected_fees();
-        };
 
         // Call stake to compute the new validator set and distribute rewards and transaction fees.
         stake::on_new_epoch();

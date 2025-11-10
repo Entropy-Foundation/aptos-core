@@ -11,7 +11,7 @@ use aptos_consensus_types::{
     vote_proposal::VoteProposal,
 };
 use aptos_crypto::{hash::ACCUMULATOR_PLACEHOLDER_HASH, HashValue};
-use aptos_executor_types::StateComputeResult;
+use aptos_executor_types::state_compute_result::StateComputeResult;
 use aptos_infallible::Mutex;
 use aptos_safety_rules::{
     test_utils::{make_proposal_with_parent, make_proposal_with_qc},
@@ -46,7 +46,7 @@ pub fn prepare_safety_rules() -> (Arc<Mutex<MetricsSafetyRules>>, Vec<ValidatorS
     );
     let (_, storage) = MockStorage::start_for_testing((&validators).into());
 
-    let safety_rules_manager = SafetyRulesManager::new_local(safety_storage);
+    let safety_rules_manager = SafetyRulesManager::new_serializer(safety_storage);
     let mut safety_rules = MetricsSafetyRules::new(safety_rules_manager.client(), storage);
     safety_rules.perform_initialize().unwrap();
 
@@ -63,7 +63,7 @@ pub fn prepare_executed_blocks_with_ledger_info(
     init_qc: Option<QuorumCert>,
     init_round: Round,
 ) -> (
-    Vec<PipelinedBlock>,
+    Vec<Arc<PipelinedBlock>>,
     LedgerInfoWithSignatures,
     Vec<VoteProposal>,
 ) {
@@ -96,23 +96,12 @@ pub fn prepare_executed_blocks_with_ledger_info(
         proposals.push(proposal);
     }
 
-    let compute_result = StateComputeResult::new(
-        executed_hash,
-        vec![], // dummy subtree
-        0,
-        vec![],
-        0,
-        None,
-        vec![],
-        vec![],
-        vec![],
-        None, // block end info
-    );
+    let compute_result = StateComputeResult::new_dummy_with_root_hash(executed_hash);
 
     let li = LedgerInfo::new(
         proposals.last().unwrap().block().gen_block_info(
             compute_result.root_hash(),
-            compute_result.version(),
+            compute_result.last_version_or_0(),
             compute_result.epoch_state().clone(),
         ),
         consensus_hash,
@@ -120,10 +109,14 @@ pub fn prepare_executed_blocks_with_ledger_info(
 
     let li_sig = generate_ledger_info_with_sig(&[signer.clone()], li);
 
-    let executed_blocks: Vec<PipelinedBlock> = proposals
+    let executed_blocks: Vec<Arc<PipelinedBlock>> = proposals
         .iter()
         .map(|proposal| {
-            PipelinedBlock::new(proposal.block().clone(), vec![], compute_result.clone())
+            Arc::new(PipelinedBlock::new(
+                proposal.block().clone(),
+                vec![],
+                compute_result.clone(),
+            ))
         })
         .collect();
 
@@ -132,7 +125,7 @@ pub fn prepare_executed_blocks_with_ledger_info(
 
 pub fn prepare_executed_blocks_with_executed_ledger_info(
     signer: &ValidatorSigner,
-) -> (Vec<PipelinedBlock>, LedgerInfoWithSignatures) {
+) -> (Vec<Arc<PipelinedBlock>>, LedgerInfoWithSignatures) {
     let genesis_qc = certificate_for_genesis();
     let (executed_blocks, li_sig, _) = prepare_executed_blocks_with_ledger_info(
         signer,
@@ -148,7 +141,7 @@ pub fn prepare_executed_blocks_with_executed_ledger_info(
 
 pub fn prepare_executed_blocks_with_ordered_ledger_info(
     signer: &ValidatorSigner,
-) -> (Vec<PipelinedBlock>, LedgerInfoWithSignatures) {
+) -> (Vec<Arc<PipelinedBlock>>, LedgerInfoWithSignatures) {
     let genesis_qc = certificate_for_genesis();
     let (executed_blocks, li_sig, _) = prepare_executed_blocks_with_ledger_info(
         signer,

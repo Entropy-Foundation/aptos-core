@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::explicit_sync_wrapper::ExplicitSyncWrapper;
-use aptos_aggregator::types::code_invariant_error;
 use aptos_infallible::Mutex;
 use aptos_mvhashmap::types::{Incarnation, TxnIndex};
-use aptos_types::delayed_fields::PanicError;
+use aptos_types::error::{code_invariant_error, PanicError};
 use concurrent_queue::{ConcurrentQueue, PopError};
 use crossbeam::utils::CachePadded;
 use parking_lot::{RwLock, RwLockUpgradableReadGuard};
@@ -36,6 +35,7 @@ impl ArmedLock {
         }
     }
 
+    // try_lock succeeds when the lock is unlocked and armed (there is work to do).
     pub fn try_lock(&self) -> bool {
         self.locked
             .compare_exchange_weak(3, 0, Ordering::Acquire, Ordering::Relaxed)
@@ -331,10 +331,6 @@ impl Scheduler {
         }
     }
 
-    pub fn num_txns(&self) -> TxnIndex {
-        self.num_txns
-    }
-
     pub fn add_to_commit_queue(&self, txn_idx: u32) {
         self.commit_queue
             .push(txn_idx)
@@ -557,7 +553,12 @@ impl Scheduler {
         Ok(SchedulerTask::Retry)
     }
 
-    pub fn finish_execution_during_commit(&self, txn_idx: TxnIndex) -> Result<(), PanicError> {
+    /// Wakes up dependencies of the specified transaction, and decreases validation index so that
+    /// all transactions above are re-validated.
+    pub fn wake_dependencies_and_decrease_validation_idx(
+        &self,
+        txn_idx: TxnIndex,
+    ) -> Result<(), PanicError> {
         // We have exclusivity on this transaction.
         self.wake_dependencies_after_execution(txn_idx)?;
 
@@ -643,6 +644,11 @@ impl Scheduler {
 
         !self.has_halted.swap(true, Ordering::SeqCst)
     }
+
+    #[inline]
+    pub(crate) fn has_halted(&self) -> bool {
+        self.has_halted.load(Ordering::Relaxed)
+    }
 }
 
 impl TWaitForDependency for Scheduler {
@@ -652,6 +658,7 @@ impl TWaitForDependency for Scheduler {
     /// transaction txn_idx will be resumed, and corresponding execution task created.
     /// If false is returned, it is caller's responsibility to repeat the read that caused the
     /// dependency and continue the ongoing execution of txn_idx.
+    #[allow(clippy::literal_string_with_formatting_args)]
     fn wait_for_dependency(
         &self,
         txn_idx: TxnIndex,

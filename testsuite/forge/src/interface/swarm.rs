@@ -10,10 +10,10 @@ use aptos_config::{
     config::{NodeConfig, OverrideNodeConfig},
     network_id::NetworkId,
 };
-use aptos_logger::info;
 use aptos_rest_client::Client as RestClient;
 use aptos_sdk::types::PeerId;
 use futures::future::{join_all, try_join_all};
+use log::info;
 use prometheus_http_query::response::{PromqlResult, Sample};
 use std::time::{Duration, Instant};
 
@@ -105,6 +105,10 @@ pub trait Swarm: Sync + Send {
     }
 
     fn get_default_pfn_node_config(&self) -> NodeConfig;
+
+    /// Check if the swarm has an indexer. NOTE: in the future we should make this more rich, and include
+    /// indexer endpoints, similar to how we collect validator and fullnode endpoints.
+    fn has_indexer(&self) -> bool;
 }
 
 impl<T: ?Sized> SwarmExt for T where T: Swarm {}

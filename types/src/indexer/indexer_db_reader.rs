@@ -3,14 +3,14 @@
 
 use crate::{
     account_address::AccountAddress,
-    contract_event::EventWithVersion,
+    contract_event::{ContractEventV1, ContractEventV2, EventWithVersion},
     event::EventKey,
     state_store::{
         state_key::{prefix::StateKeyPrefix, StateKey},
         state_value::StateValue,
         table::{TableHandle, TableInfo},
     },
-    transaction::{AccountTransactionsWithProof, Version},
+    transaction::{AccountOrderedTransactionsWithProof, Version},
 };
 use anyhow::Result;
 
@@ -21,6 +21,8 @@ pub enum Order {
 }
 
 pub trait IndexerReader: Send + Sync {
+    fn is_internal_indexer_enabled(&self) -> bool;
+
     fn get_table_info(&self, handle: TableHandle) -> Result<Option<TableInfo>>;
 
     fn get_events(
@@ -41,14 +43,14 @@ pub trait IndexerReader: Send + Sync {
         ledger_version: Version,
     ) -> Result<Vec<EventWithVersion>>;
 
-    fn get_account_transactions(
+    fn get_account_ordered_transactions(
         &self,
         address: AccountAddress,
         start_seq_num: u64,
         limit: u64,
         include_events: bool,
         ledger_version: Version,
-    ) -> Result<AccountTransactionsWithProof>;
+    ) -> Result<AccountOrderedTransactionsWithProof>;
 
     fn get_prefixed_state_value_iterator(
         &self,
@@ -56,4 +58,26 @@ pub trait IndexerReader: Send + Sync {
         cursor: Option<&StateKey>,
         version: Version,
     ) -> Result<Box<dyn Iterator<Item = Result<(StateKey, StateValue)>> + '_>>;
+
+    fn get_latest_internal_indexer_ledger_version(&self) -> Result<Option<Version>>;
+    fn get_latest_table_info_ledger_version(&self) -> Result<Option<Version>>;
+
+    #[cfg(any(test, feature = "fuzzing"))]
+    fn wait_for_internal_indexer(&self, version: Version) -> Result<()> {
+        while self
+            .get_latest_internal_indexer_ledger_version()?
+            .map_or(true, |v| v < version)
+        {
+            std::thread::sleep(std::time::Duration::from_millis(200));
+        }
+
+        Ok(())
+    }
+    fn get_translated_v1_event_by_version_and_index(
+        &self,
+        version: Version,
+        index: u64,
+    ) -> Result<ContractEventV1>;
+
+    fn translate_event_v2_to_v1(&self, v2: &ContractEventV2) -> Result<Option<ContractEventV1>>;
 }

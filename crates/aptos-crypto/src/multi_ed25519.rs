@@ -234,6 +234,8 @@ impl Length for MultiEd25519PrivateKey {
 }
 
 impl ValidCryptoMaterial for MultiEd25519PrivateKey {
+    const AIP_80_PREFIX: &'static str = "multied25519-priv-";
+
     fn to_bytes(&self) -> Vec<u8> {
         self.to_bytes()
     }
@@ -339,6 +341,8 @@ impl Length for MultiEd25519PublicKey {
 }
 
 impl ValidCryptoMaterial for MultiEd25519PublicKey {
+    const AIP_80_PREFIX: &'static str = "multied25519-pub-";
+
     fn to_bytes(&self) -> Vec<u8> {
         self.to_bytes()
     }
@@ -478,6 +482,8 @@ impl fmt::Debug for MultiEd25519Signature {
 }
 
 impl ValidCryptoMaterial for MultiEd25519Signature {
+    const AIP_80_PREFIX: &'static str = "multied25519-sig-";
+
     fn to_bytes(&self) -> Vec<u8> {
         self.to_bytes()
     }
@@ -519,11 +525,20 @@ impl Signature for MultiEd25519Signature {
                 ))
             },
         };
-        if bitmap_count_ones(self.bitmap) < public_key.threshold as u32 {
+        let num_ones_in_bitmap = bitmap_count_ones(self.bitmap);
+        if num_ones_in_bitmap < public_key.threshold as u32 {
             return Err(anyhow!(
                 "{}",
                 CryptoMaterialError::BitVecError(
                     "Not enough signatures to meet the threshold".to_string()
+                )
+            ));
+        }
+        if num_ones_in_bitmap != self.signatures.len() as u32 {
+            return Err(anyhow!(
+                "{}",
+                CryptoMaterialError::BitVecError(
+                    "Bitmap ones and signatures count are not equal".to_string()
                 )
             ));
         }
@@ -533,7 +548,11 @@ impl Signature for MultiEd25519Signature {
             while !bitmap_get_bit(self.bitmap, bitmap_index) {
                 bitmap_index += 1;
             }
-            sig.verify_arbitrary_msg(message, &public_key.public_keys[bitmap_index])?;
+            let pk = public_key
+                .public_keys
+                .get(bitmap_index)
+                .ok_or_else(|| anyhow::anyhow!("Public key index {bitmap_index} out of bounds"))?;
+            sig.verify_arbitrary_msg(message, pk)?;
             bitmap_index += 1;
         }
         Ok(())

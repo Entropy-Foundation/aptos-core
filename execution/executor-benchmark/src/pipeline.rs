@@ -2,20 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    block_preparation::BlockPreparationStage, ledger_update_stage::LedgerUpdateStage,
-    metrics::NUM_TXNS, OverallMeasuring, TransactionCommitter, TransactionExecutor,
+    block_preparation::BlockPreparationStage,
+    ledger_update_stage::{CommitProcessing, LedgerUpdateStage},
+    measurements::{EventMeasurements, OverallMeasuring},
+    metrics::NUM_TXNS,
+    OverallMeasurement, TransactionCommitter, TransactionExecutor,
 };
 use aptos_block_partitioner::v2::config::PartitionerV2Config;
 use aptos_crypto::HashValue;
-use aptos_executor::block_executor::{BlockExecutor, TransactionBlockExecutor};
-use aptos_executor_types::{state_checkpoint_output::StateCheckpointOutput, BlockExecutorTrait};
+use aptos_executor::block_executor::BlockExecutor;
+use aptos_executor_types::{state_compute_result::StateComputeResult, BlockExecutorTrait};
+use aptos_infallible::Mutex;
 use aptos_logger::info;
 use aptos_types::{
     block_executor::partitioner::ExecutableBlock,
-    transaction::{Transaction, Version},
+    transaction::{Transaction, TransactionPayload, Version},
 };
+use aptos_vm::VMBlockExecutor;
 use derivative::Derivative;
+use move_core_types::language_storage::StructTag;
 use std::{
+    collections::{BTreeMap, HashMap},
     marker::PhantomData,
     sync::{
         mpsc::{self, SyncSender},
@@ -28,7 +35,7 @@ use std::{
 #[derive(Debug, Derivative)]
 #[derivative(Default)]
 pub struct PipelineConfig {
-    pub delay_execution_start: bool,
+    pub generate_then_execute: bool,
     pub split_stages: bool,
     pub skip_commit: bool,
     pub allow_aborts: bool,
@@ -36,44 +43,55 @@ pub struct PipelineConfig {
     pub allow_retries: bool,
     #[derivative(Default(value = "0"))]
     pub num_executor_shards: usize,
-    pub use_global_executor: bool,
     #[derivative(Default(value = "4"))]
     pub num_generator_workers: usize,
     pub partitioner_config: PartitionerV2Config,
+    #[derivative(Default(value = "8"))]
+    pub num_sig_verify_threads: usize,
+
+    pub print_transactions: bool,
 }
 
 pub struct Pipeline<V> {
-    join_handles: Vec<JoinHandle<()>>,
+    join_handles: Vec<JoinHandle<u64>>,
     phantom: PhantomData<V>,
-    start_execution_tx: Option<SyncSender<()>>,
+    start_pipeline_tx: Option<SyncSender<()>>,
+    staged_result: Arc<Mutex<Vec<OverallMeasurement>>>,
+    staged_events: Arc<Mutex<BTreeMap<(usize, StructTag), usize>>>,
 }
 
 impl<V> Pipeline<V>
 where
-    V: TransactionBlockExecutor + 'static,
+    V: VMBlockExecutor + 'static,
 {
     pub fn new(
         executor: BlockExecutor<V>,
-        version: Version,
+        start_version: Version,
         config: &PipelineConfig,
         // Need to specify num blocks, to size queues correctly, when delay_execution_start, split_stages or skip_commit are used
         num_blocks: Option<usize>,
-    ) -> (Self, mpsc::SyncSender<Vec<Transaction>>) {
+    ) -> (Self, SyncSender<Vec<Transaction>>) {
         let parent_block_id = executor.committed_block_id();
         let executor_1 = Arc::new(executor);
         let executor_2 = executor_1.clone();
         let executor_3 = executor_1.clone();
 
         let (raw_block_sender, raw_block_receiver) = mpsc::sync_channel::<Vec<Transaction>>(
-            if config.delay_execution_start {
+            if config.generate_then_execute {
                 (num_blocks.unwrap() + 1).max(50)
             } else {
                 10
             }, /* bound */
         );
 
-        // Assume the distributed executor and the distributed partitioner share the same worker set.
-        let num_partitioner_shards = config.num_executor_shards;
+        let (executable_block_sender, executable_block_receiver) =
+            mpsc::sync_channel::<ExecuteBlockMessage>(
+                if config.split_stages {
+                    (num_blocks.unwrap() + 1).max(50)
+                } else {
+                    10
+                }, /* bound */
+            );
 
         let (ledger_update_sender, ledger_update_receiver) =
             mpsc::sync_channel::<LedgerUpdateMessage>(
@@ -85,60 +103,76 @@ where
             );
 
         let (commit_sender, commit_receiver) = mpsc::sync_channel::<CommitBlockMessage>(
-            if config.split_stages || config.skip_commit {
+            if config.split_stages {
                 (num_blocks.unwrap() + 1).max(3)
             } else {
                 3
             }, /* bound */
         );
 
-        let (start_execution_tx, start_execution_rx) = if config.delay_execution_start {
-            let (start_execution_tx, start_execution_rx) = mpsc::sync_channel::<()>(1);
-            (Some(start_execution_tx), Some(start_execution_rx))
-        } else {
-            (None, None)
-        };
-
-        let (start_commit_tx, start_commit_rx) = if config.split_stages || config.skip_commit {
-            let (start_commit_tx, start_commit_rx) = mpsc::sync_channel::<()>(1);
-            (Some(start_commit_tx), Some(start_commit_rx))
-        } else {
-            (None, None)
-        };
+        let (start_pipeline_tx, start_pipeline_rx) =
+            create_start_tx_rx(config.generate_then_execute);
+        let (start_execution_tx, start_execution_rx) = create_start_tx_rx(config.split_stages);
+        let (start_ledger_update_tx, start_ledger_update_rx) =
+            create_start_tx_rx(config.split_stages);
+        let (start_commit_tx, start_commit_rx) = create_start_tx_rx(config.split_stages);
 
         let mut join_handles = vec![];
 
-        let mut partitioning_stage =
-            BlockPreparationStage::new(num_partitioner_shards, &config.partitioner_config);
+        // signature verification and partitioning
+        let mut preparation_stage = BlockPreparationStage::new(
+            std::cmp::min(config.num_sig_verify_threads, num_cpus::get()),
+            // Assume the distributed executor and the distributed partitioner share the same worker set.
+            config.num_executor_shards,
+            &config.partitioner_config,
+        );
 
-        let mut exe = TransactionExecutor::new(
-            executor_1,
-            parent_block_id,
-            ledger_update_sender,
+        let mut exe = TransactionExecutor::new(executor_1, parent_block_id, ledger_update_sender);
+
+        let commit_processing = if config.skip_commit {
+            CommitProcessing::Skip
+        } else {
+            CommitProcessing::SendToQueue(commit_sender)
+        };
+
+        let staged_events = Arc::new(Mutex::new(BTreeMap::new()));
+        let staged_events_clone = staged_events.clone();
+
+        let mut ledger_update_stage = LedgerUpdateStage::new(
+            executor_2,
+            commit_processing,
             config.allow_aborts,
             config.allow_discards,
             config.allow_retries,
+            staged_events_clone,
         );
 
-        let mut ledger_update_stage =
-            LedgerUpdateStage::new(executor_2, Some(commit_sender), version);
+        let print_transactions = config.print_transactions;
+        let staged_result = Arc::new(Mutex::new(Vec::new()));
+        let staged_result_clone = staged_result.clone();
 
-        let (executable_block_sender, executable_block_receiver) =
-            mpsc::sync_channel::<ExecuteBlockMessage>(3);
-
-        let partitioning_thread = std::thread::Builder::new()
-            .name("block_partitioning".to_string())
+        let preparation_thread = std::thread::Builder::new()
+            .name("block_preparation".to_string())
             .spawn(move || {
+                start_pipeline_rx.map(|rx| rx.recv());
+                let mut processed = 0;
                 while let Ok(txns) = raw_block_receiver.recv() {
-                    NUM_TXNS
-                        .with_label_values(&["partition"])
-                        .inc_by(txns.len() as u64);
-                    let exe_block_msg = partitioning_stage.process(txns);
+                    processed += txns.len() as u64;
+                    if print_transactions {
+                        println!("Transactions:");
+                        for txn in &txns {
+                            println!("{:?}", txn);
+                        }
+                    }
+                    let exe_block_msg = preparation_stage.process(txns);
                     executable_block_sender.send(exe_block_msg).unwrap();
                 }
+                info!("Done preparation");
+                start_execution_tx.map(|tx| tx.send(()));
+                processed
             })
             .expect("Failed to spawn block partitioner thread.");
-        join_handles.push(partitioning_thread);
+        join_handles.push(preparation_thread);
 
         let exe_thread = std::thread::Builder::new()
             .name("txn_executor".to_string())
@@ -150,6 +184,7 @@ where
                 let mut stage_index = 0;
                 let mut stage_overall_measuring = overall_measuring.clone();
                 let mut stage_executed = 0;
+                let mut stage_txn_occurences: HashMap<String, usize> = HashMap::new();
 
                 while let Ok(msg) = executable_block_receiver.recv() {
                     let ExecuteBlockMessage {
@@ -158,13 +193,27 @@ where
                         block,
                     } = msg;
                     let block_size = block.transactions.num_transactions() as u64;
+                    for txn in block.transactions.txns() {
+                        if let Some(txn) = txn.borrow_into_inner().try_as_signed_user_txn() {
+                            if let TransactionPayload::EntryFunction(entry) = txn.payload() {
+                                *stage_txn_occurences
+                                    .entry(format!(
+                                        "{}::{}",
+                                        entry.module().name(),
+                                        entry.function()
+                                    ))
+                                    .or_insert(0) += 1;
+                            }
+                        }
+                    }
+
                     NUM_TXNS
                         .with_label_values(&["execution"])
                         .inc_by(block_size);
                     info!("Received block of size {:?} to execute", block_size);
                     executed += block_size;
                     stage_executed += block_size;
-                    exe.execute_block(current_block_start_time, partition_time, block);
+                    exe.execute_block(current_block_start_time, partition_time, block, stage_index);
                     info!("Finished executing block");
 
                     // Empty blocks indicate the end of a stage.
@@ -172,27 +221,48 @@ where
                     if block_size == 0 {
                         if stage_executed > 0 {
                             info!("Execution finished stage {}", stage_index);
-                            stage_overall_measuring.print_end(
-                                &format!("Staged execution: stage {}:", stage_index),
+                            let stage_measurement = stage_overall_measuring.elapsed(
+                                format!("Staged execution: stage {}:", stage_index),
+                                format!("{:?}", stage_txn_occurences),
                                 stage_executed,
                             );
+
+                            stage_measurement.print_end();
+                            staged_result_clone.lock().push(stage_measurement);
                         }
                         stage_index += 1;
                         stage_overall_measuring = OverallMeasuring::start();
                         stage_executed = 0;
+                        stage_txn_occurences = HashMap::new();
                     }
                 }
 
                 if stage_index > 0 && stage_executed > 0 {
                     info!("Execution finished stage {}", stage_index);
-                    stage_overall_measuring.print_end(
-                        &format!("Staged execution: stage {}:", stage_index),
+                    let stage_measurement = stage_overall_measuring.elapsed(
+                        format!("Staged execution: stage {}:", stage_index),
+                        format!("{:?}", stage_txn_occurences),
                         stage_executed,
                     );
+                    stage_measurement.print_end();
+                    staged_result_clone.lock().push(stage_measurement);
                 }
 
-                overall_measuring.print_end("Overall execution", executed);
-                start_commit_tx.map(|tx| tx.send(()));
+                if num_blocks.is_some() {
+                    overall_measuring
+                        .elapsed(
+                            "Overall execution".to_string(),
+                            if stage_index == 0 {
+                                format!("{:?}", stage_txn_occurences)
+                            } else {
+                                "across all stages".to_string()
+                            },
+                            executed,
+                        )
+                        .print_end();
+                }
+                start_ledger_update_tx.map(|tx| tx.send(()));
+                executed
             })
             .expect("Failed to spawn transaction executor thread.");
         join_handles.push(exe_thread);
@@ -200,53 +270,79 @@ where
         let ledger_update_thread = std::thread::Builder::new()
             .name("ledger_update".to_string())
             .spawn(move || {
+                start_ledger_update_rx.map(|rx| rx.recv());
+
                 while let Ok(ledger_update_msg) = ledger_update_receiver.recv() {
-                    let input_block_size =
-                        ledger_update_msg.state_checkpoint_output.input_txns_len();
                     NUM_TXNS
                         .with_label_values(&["ledger_update"])
-                        .inc_by(input_block_size as u64);
+                        .inc_by(ledger_update_msg.num_input_txns as u64);
                     ledger_update_stage.ledger_update(ledger_update_msg);
                 }
+                start_commit_tx.map(|tx| tx.send(()));
+
+                0
             })
             .expect("Failed to spawn ledger update thread.");
         join_handles.push(ledger_update_thread);
 
-        let skip_commit = config.skip_commit;
-
-        let commit_thread = std::thread::Builder::new()
-            .name("txn_committer".to_string())
-            .spawn(move || {
-                start_commit_rx.map(|rx| rx.recv());
-                info!("Starting commit thread");
-                if !skip_commit {
+        if !config.skip_commit {
+            let commit_thread = std::thread::Builder::new()
+                .name("txn_committer".to_string())
+                .spawn(move || {
+                    start_commit_rx.map(|rx| rx.recv());
+                    info!("Starting commit thread");
                     let mut committer =
-                        TransactionCommitter::new(executor_3, version, commit_receiver);
+                        TransactionCommitter::new(executor_3, start_version, commit_receiver);
                     committer.run();
-                }
-            })
-            .expect("Failed to spawn transaction committer thread.");
-        join_handles.push(commit_thread);
+
+                    0
+                })
+                .expect("Failed to spawn transaction committer thread.");
+            join_handles.push(commit_thread);
+        }
 
         (
             Self {
                 join_handles,
                 phantom: PhantomData,
-                start_execution_tx,
+                start_pipeline_tx,
+                staged_result,
+                staged_events,
             },
             raw_block_sender,
         )
     }
 
-    pub fn start_execution(&self) {
-        self.start_execution_tx.as_ref().map(|tx| tx.send(()));
+    pub fn start_pipeline_processing(&self) {
+        self.start_pipeline_tx.as_ref().map(|tx| tx.send(()));
     }
 
-    pub fn join(self) {
+    pub fn join(self) -> (Option<u64>, Vec<OverallMeasurement>, EventMeasurements) {
+        let mut counts = vec![];
         for handle in self.join_handles {
-            handle.join().unwrap()
+            let count = handle.join().unwrap();
+            if count > 0 {
+                counts.push(count);
+            }
         }
+        (
+            counts.into_iter().min(),
+            Arc::try_unwrap(self.staged_result).unwrap().into_inner(),
+            EventMeasurements {
+                staged_events: Arc::try_unwrap(self.staged_events).unwrap().into_inner(),
+            },
+        )
     }
+}
+
+fn create_start_tx_rx(should_wait: bool) -> (Option<SyncSender<()>>, Option<mpsc::Receiver<()>>) {
+    let (start_tx, start_rx) = if should_wait {
+        let (start_tx, start_rx) = mpsc::sync_channel::<()>(1);
+        (Some(start_tx), Some(start_rx))
+    } else {
+        (None, None)
+    };
+    (start_tx, start_rx)
 }
 
 /// Message from partitioning stage to execution stage.
@@ -257,22 +353,22 @@ pub struct ExecuteBlockMessage {
 }
 
 pub struct LedgerUpdateMessage {
+    pub first_block_start_time: Instant,
     pub current_block_start_time: Instant,
     pub execution_time: Duration,
     pub partition_time: Duration,
     pub block_id: HashValue,
     pub parent_block_id: HashValue,
-    pub state_checkpoint_output: StateCheckpointOutput,
-    pub first_block_start_time: Instant,
+    pub num_input_txns: usize,
+    pub stage: usize,
 }
 
 /// Message from execution stage to commit stage.
 pub struct CommitBlockMessage {
     pub(crate) block_id: HashValue,
-    pub(crate) root_hash: HashValue,
     pub(crate) first_block_start_time: Instant,
     pub(crate) current_block_start_time: Instant,
-    pub(crate) partition_time: Duration,
     pub(crate) execution_time: Duration,
-    pub(crate) num_txns: usize,
+    pub(crate) partition_time: Duration,
+    pub(crate) output: StateComputeResult,
 }

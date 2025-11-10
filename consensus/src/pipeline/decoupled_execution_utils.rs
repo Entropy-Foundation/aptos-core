@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    consensus_observer::publisher::ConsensusPublisher,
+    consensus_observer::publisher::consensus_publisher::ConsensusPublisher,
     network::{IncomingCommitRequest, NetworkSender},
     pipeline::{
         buffer_manager::{create_channel, BufferManager, OrderedBlocks, ResetRequest},
@@ -13,7 +13,6 @@ use crate::{
         pipeline_phase::{CountedRequest, PipelinePhase},
         signing_phase::{CommitSignerProvider, SigningPhase, SigningRequest, SigningResponse},
     },
-    state_replication::StateComputer,
 };
 use aptos_bounded_executor::BoundedExecutor;
 use aptos_channels::aptos_channel::Receiver;
@@ -27,20 +26,22 @@ use std::sync::{
 };
 
 /// build channels and return phases and buffer manager
+#[allow(clippy::too_many_arguments)]
 pub fn prepare_phases_and_buffer_manager(
     author: Author,
-    execution_proxy: Arc<dyn StateComputer>,
     safety_rules: Arc<dyn CommitSignerProvider>,
     commit_msg_tx: NetworkSender,
-    commit_msg_rx: Receiver<AccountAddress, IncomingCommitRequest>,
-    persisting_proxy: Arc<dyn StateComputer>,
+    commit_msg_rx: Receiver<AccountAddress, (AccountAddress, IncomingCommitRequest)>,
     block_rx: UnboundedReceiver<OrderedBlocks>,
     sync_rx: UnboundedReceiver<ResetRequest>,
     epoch_state: Arc<EpochState>,
     bounded_executor: BoundedExecutor,
     order_vote_enabled: bool,
+    back_pressure_enabled: bool,
+    highest_committed_round: u64,
     consensus_observer_config: ConsensusObserverConfig,
     consensus_publisher: Option<Arc<ConsensusPublisher>>,
+    max_pending_rounds_in_commit_vote_cache: u64,
 ) -> (
     PipelinePhase<ExecutionSchedulePhase>,
     PipelinePhase<ExecutionWaitPhase>,
@@ -56,7 +57,7 @@ pub fn prepare_phases_and_buffer_manager(
         create_channel::<CountedRequest<ExecutionRequest>>();
     let (execution_schedule_phase_response_tx, execution_schedule_phase_response_rx) =
         create_channel::<ExecutionWaitRequest>();
-    let execution_schedule_phase_processor = ExecutionSchedulePhase::new(execution_proxy);
+    let execution_schedule_phase_processor = ExecutionSchedulePhase::new();
     let execution_schedule_phase = PipelinePhase::new(
         execution_schedule_phase_request_rx,
         Some(execution_schedule_phase_response_tx),
@@ -93,11 +94,13 @@ pub fn prepare_phases_and_buffer_manager(
     // Persisting Phase
     let (persisting_phase_request_tx, persisting_phase_request_rx) =
         create_channel::<CountedRequest<PersistingRequest>>();
+    let (persisting_phase_response_tx, persisting_phase_response_rx) = create_channel();
+    let commit_msg_tx = Arc::new(commit_msg_tx);
 
-    let persisting_phase_processor = PersistingPhase::new(persisting_proxy);
+    let persisting_phase_processor = PersistingPhase::new(commit_msg_tx.clone());
     let persisting_phase = PipelinePhase::new(
         persisting_phase_request_rx,
-        None,
+        Some(persisting_phase_response_tx),
         Box::new(persisting_phase_processor),
         reset_flag.clone(),
     );
@@ -115,9 +118,10 @@ pub fn prepare_phases_and_buffer_manager(
             execution_wait_phase_response_rx,
             signing_phase_request_tx,
             signing_phase_response_rx,
-            Arc::new(commit_msg_tx),
+            commit_msg_tx,
             commit_msg_rx,
             persisting_phase_request_tx,
+            persisting_phase_response_rx,
             block_rx,
             sync_rx,
             epoch_state,
@@ -125,8 +129,11 @@ pub fn prepare_phases_and_buffer_manager(
             reset_flag.clone(),
             bounded_executor,
             order_vote_enabled,
+            back_pressure_enabled,
+            highest_committed_round,
             consensus_observer_config,
             consensus_publisher,
+            max_pending_rounds_in_commit_vote_cache,
         ),
     )
 }

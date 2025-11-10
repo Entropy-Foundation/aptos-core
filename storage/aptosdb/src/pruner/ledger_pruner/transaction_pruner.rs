@@ -10,8 +10,14 @@ use crate::{
     },
     transaction_store::TransactionStore,
 };
+use aptos_crypto::hash::CryptoHash;
+use aptos_db_indexer::db_indexer::InternalIndexerDB;
+use aptos_db_indexer_schemas::{
+    metadata::{MetadataKey as IndexerMetadataKey, MetadataValue as IndexerMetadataValue},
+    schema::indexer_metadata::InternalIndexerMetadataSchema,
+};
 use aptos_logger::info;
-use aptos_schemadb::SchemaBatch;
+use aptos_schemadb::batch::SchemaBatch;
 use aptos_storage_interface::{db_ensure as ensure, AptosDbError, Result};
 use aptos_types::transaction::{Transaction, Version};
 use std::sync::Arc;
@@ -20,6 +26,7 @@ use std::sync::Arc;
 pub struct TransactionPruner {
     transaction_store: Arc<TransactionStore>,
     ledger_db: Arc<LedgerDb>,
+    internal_indexer_db: Option<InternalIndexerDB>,
 }
 
 impl DBSubPruner for TransactionPruner {
@@ -28,23 +35,41 @@ impl DBSubPruner for TransactionPruner {
     }
 
     fn prune(&self, current_progress: Version, target_version: Version) -> Result<()> {
-        let batch = SchemaBatch::new();
+        let mut batch = SchemaBatch::new();
         let candidate_transactions =
             self.get_pruning_candidate_transactions(current_progress, target_version)?;
         self.ledger_db
             .transaction_db()
-            .prune_transaction_by_hash_indices(&candidate_transactions, &batch)?;
-        self.transaction_store
-            .prune_transaction_by_account(&candidate_transactions, &batch)?;
+            .prune_transaction_by_hash_indices(
+                candidate_transactions.iter().map(|(_, txn)| txn.hash()),
+                &mut batch,
+            )?;
         self.ledger_db.transaction_db().prune_transactions(
             current_progress,
             target_version,
-            &batch,
+            &mut batch,
         )?;
+        self.transaction_store
+            .prune_transaction_summaries_by_account(&candidate_transactions, &mut batch)?;
         batch.put::<DbMetadataSchema>(
             &DbMetadataKey::TransactionPrunerProgress,
             &DbMetadataValue::Version(target_version),
         )?;
+        if let Some(indexer_db) = self.internal_indexer_db.as_ref() {
+            if indexer_db.transaction_enabled() {
+                let mut index_batch = SchemaBatch::new();
+                self.transaction_store
+                    .prune_transaction_by_account(&candidate_transactions, &mut index_batch)?;
+                index_batch.put::<InternalIndexerMetadataSchema>(
+                    &IndexerMetadataKey::TransactionPrunerProgress,
+                    &IndexerMetadataValue::Version(target_version),
+                )?;
+                indexer_db.get_inner_db_ref().write_schemas(index_batch)?;
+            } else {
+                self.transaction_store
+                    .prune_transaction_by_account(&candidate_transactions, &mut batch)?;
+            }
+        }
         self.ledger_db.transaction_db().write_schemas(batch)
     }
 }
@@ -54,6 +79,7 @@ impl TransactionPruner {
         transaction_store: Arc<TransactionStore>,
         ledger_db: Arc<LedgerDb>,
         metadata_progress: Version,
+        internal_indexer_db: Option<InternalIndexerDB>,
     ) -> Result<Self> {
         let progress = get_or_initialize_subpruner_progress(
             ledger_db.transaction_db_raw(),
@@ -64,6 +90,7 @@ impl TransactionPruner {
         let myself = TransactionPruner {
             transaction_store,
             ledger_db,
+            internal_indexer_db,
         };
 
         info!(
@@ -80,7 +107,7 @@ impl TransactionPruner {
         &self,
         start: Version,
         end: Version,
-    ) -> Result<Vec<Transaction>> {
+    ) -> Result<Vec<(Version, Transaction)>> {
         ensure!(end >= start, "{} must be >= {}", end, start);
 
         let mut iter = self
@@ -97,7 +124,7 @@ impl TransactionPruner {
             if version >= end {
                 break;
             }
-            txns.push(txn);
+            txns.push((version, txn));
         }
 
         Ok(txns)

@@ -23,11 +23,13 @@ use move_binary_format::{
     errors::{PartialVMError, PartialVMResult},
     file_format::{
         Bytecode, CodeOffset, FunctionDefinitionIndex, FunctionHandle, IdentifierIndex,
-        SignatureIndex, SignatureToken, StructDefinition, StructFieldInformation,
+        MemberCount, SignatureIndex, SignatureToken, StructDefinition, StructVariantHandle,
+        VariantIndex,
     },
     safe_assert, safe_unwrap,
+    views::FieldOrVariantIndex,
 };
-use move_core_types::vm_status::StatusCode;
+use move_core_types::{function::ClosureMask, vm_status::StatusCode};
 use std::collections::{BTreeSet, HashMap};
 
 struct ReferenceSafetyAnalysis<'a> {
@@ -99,11 +101,50 @@ fn call(
     Ok(())
 }
 
-fn num_fields(struct_def: &StructDefinition) -> usize {
-    match &struct_def.field_information {
-        StructFieldInformation::Native => 0,
-        StructFieldInformation::Declared(fields) => fields.len(),
+fn clos_pack(
+    verifier: &mut ReferenceSafetyAnalysis,
+    function_handle: &FunctionHandle,
+    mask: ClosureMask,
+) -> PartialVMResult<()> {
+    let parameters = verifier.resolver.signature_at(function_handle.parameters);
+    // Extract the captured arguments and pop them from the stack
+    let argc = mask.extract(&parameters.0, true).len();
+    for _ in 0..argc {
+        // Currently closures require captured arguments to be values. This is verified
+        // by type safety.
+        safe_assert!(safe_unwrap!(verifier.stack.pop()).is_value())
     }
+    verifier.stack.push(AbstractValue::NonReference);
+    Ok(())
+}
+
+fn call_closure(
+    verifier: &mut ReferenceSafetyAnalysis,
+    state: &mut AbstractState,
+    offset: CodeOffset,
+    arg_tys: Vec<SignatureToken>,
+    result_tys: Vec<SignatureToken>,
+    meter: &mut impl Meter,
+) -> PartialVMResult<()> {
+    let _closure = safe_unwrap!(verifier.stack.pop());
+    let arguments = arg_tys
+        .iter()
+        .map(|_| Ok(safe_unwrap!(verifier.stack.pop())))
+        .rev()
+        .collect::<PartialVMResult<Vec<_>>>()?;
+    let values = state.call_closure(offset, arguments, &result_tys, meter)?;
+    for value in values {
+        verifier.stack.push(value)
+    }
+    Ok(())
+}
+
+fn num_fields(struct_def: &StructDefinition) -> usize {
+    struct_def.field_information.field_count(None)
+}
+
+fn num_fields_variant(struct_def: &StructDefinition, variant: VariantIndex) -> usize {
+    struct_def.field_information.field_count(Some(variant))
 }
 
 fn pack(
@@ -130,6 +171,47 @@ fn unpack(
     Ok(())
 }
 
+fn pack_variant(
+    verifier: &mut ReferenceSafetyAnalysis,
+    struct_variant_handle: &StructVariantHandle,
+) -> PartialVMResult<()> {
+    let struct_def = verifier
+        .resolver
+        .struct_def_at(struct_variant_handle.struct_index)?;
+    for _ in 0..num_fields_variant(struct_def, struct_variant_handle.variant) {
+        safe_assert!(safe_unwrap!(verifier.stack.pop()).is_value())
+    }
+    verifier.stack.push(AbstractValue::NonReference);
+    Ok(())
+}
+
+fn unpack_variant(
+    verifier: &mut ReferenceSafetyAnalysis,
+    struct_variant_handle: &StructVariantHandle,
+) -> PartialVMResult<()> {
+    let struct_def = verifier
+        .resolver
+        .struct_def_at(struct_variant_handle.struct_index)?;
+    safe_assert!(safe_unwrap!(verifier.stack.pop()).is_value());
+    for _ in 0..num_fields_variant(struct_def, struct_variant_handle.variant) {
+        verifier.stack.push(AbstractValue::NonReference)
+    }
+    Ok(())
+}
+
+fn test_variant(
+    verifier: &mut ReferenceSafetyAnalysis,
+    state: &mut AbstractState,
+    _struct_variant_handle: &StructVariantHandle,
+    offset: CodeOffset,
+) -> PartialVMResult<()> {
+    let id = safe_unwrap!(safe_unwrap!(verifier.stack.pop()).ref_id());
+    // Testing a variant behaves like a read operation on the reference
+    let value = state.read_ref(offset, id)?;
+    verifier.stack.push(value);
+    Ok(())
+}
+
 fn vec_element_type(
     verifier: &mut ReferenceSafetyAnalysis,
     idx: SignatureIndex,
@@ -137,6 +219,18 @@ fn vec_element_type(
     match verifier.resolver.signature_at(idx).0.first() {
         Some(ty) => Ok(ty.clone()),
         None => Err(PartialVMError::new(
+            StatusCode::VERIFIER_INVARIANT_VIOLATION,
+        )),
+    }
+}
+
+fn fun_type(
+    verifier: &mut ReferenceSafetyAnalysis,
+    idx: SignatureIndex,
+) -> PartialVMResult<(Vec<SignatureToken>, Vec<SignatureToken>)> {
+    match verifier.resolver.signature_at(idx).0.first() {
+        Some(SignatureToken::Function(args, result, _)) => Ok((args.clone(), result.clone())),
+        _ => Err(PartialVMError::new(
             StatusCode::VERIFIER_INVARIANT_VIOLATION,
         )),
     }
@@ -205,7 +299,15 @@ fn execute_inner(
         },
         Bytecode::MutBorrowField(field_handle_index) => {
             let id = safe_unwrap!(safe_unwrap!(verifier.stack.pop()).ref_id());
-            let value = state.borrow_field(offset, true, id, *field_handle_index)?;
+            let value = state.borrow_field(
+                offset,
+                true,
+                id,
+                get_member_index(
+                    verifier,
+                    FieldOrVariantIndex::FieldIndex(*field_handle_index),
+                )?,
+            )?;
             verifier.stack.push(value)
         },
         Bytecode::MutBorrowFieldGeneric(field_inst_index) => {
@@ -213,12 +315,25 @@ fn execute_inner(
                 .resolver
                 .field_instantiation_at(*field_inst_index)?;
             let id = safe_unwrap!(safe_unwrap!(verifier.stack.pop()).ref_id());
-            let value = state.borrow_field(offset, true, id, field_inst.handle)?;
+            let value = state.borrow_field(
+                offset,
+                true,
+                id,
+                get_member_index(verifier, FieldOrVariantIndex::FieldIndex(field_inst.handle))?,
+            )?;
             verifier.stack.push(value)
         },
         Bytecode::ImmBorrowField(field_handle_index) => {
             let id = safe_unwrap!(safe_unwrap!(verifier.stack.pop()).ref_id());
-            let value = state.borrow_field(offset, false, id, *field_handle_index)?;
+            let value = state.borrow_field(
+                offset,
+                false,
+                id,
+                get_member_index(
+                    verifier,
+                    FieldOrVariantIndex::FieldIndex(*field_handle_index),
+                )?,
+            )?;
             verifier.stack.push(value)
         },
         Bytecode::ImmBorrowFieldGeneric(field_inst_index) => {
@@ -226,10 +341,72 @@ fn execute_inner(
                 .resolver
                 .field_instantiation_at(*field_inst_index)?;
             let id = safe_unwrap!(safe_unwrap!(verifier.stack.pop()).ref_id());
-            let value = state.borrow_field(offset, false, id, field_inst.handle)?;
+            let value = state.borrow_field(
+                offset,
+                false,
+                id,
+                get_member_index(verifier, FieldOrVariantIndex::FieldIndex(field_inst.handle))?,
+            )?;
             verifier.stack.push(value)
         },
-
+        Bytecode::MutBorrowVariantField(field_handle_index) => {
+            let id = safe_unwrap!(safe_unwrap!(verifier.stack.pop()).ref_id());
+            let value = state.borrow_field(
+                offset,
+                true,
+                id,
+                get_member_index(
+                    verifier,
+                    FieldOrVariantIndex::VariantFieldIndex(*field_handle_index),
+                )?,
+            )?;
+            verifier.stack.push(value)
+        },
+        Bytecode::MutBorrowVariantFieldGeneric(field_inst_index) => {
+            let field_inst = verifier
+                .resolver
+                .variant_field_instantiation_at(*field_inst_index)?;
+            let id = safe_unwrap!(safe_unwrap!(verifier.stack.pop()).ref_id());
+            let value = state.borrow_field(
+                offset,
+                true,
+                id,
+                get_member_index(
+                    verifier,
+                    FieldOrVariantIndex::VariantFieldIndex(field_inst.handle),
+                )?,
+            )?;
+            verifier.stack.push(value)
+        },
+        Bytecode::ImmBorrowVariantField(field_handle_index) => {
+            let id = safe_unwrap!(safe_unwrap!(verifier.stack.pop()).ref_id());
+            let value = state.borrow_field(
+                offset,
+                false,
+                id,
+                get_member_index(
+                    verifier,
+                    FieldOrVariantIndex::VariantFieldIndex(*field_handle_index),
+                )?,
+            )?;
+            verifier.stack.push(value)
+        },
+        Bytecode::ImmBorrowVariantFieldGeneric(field_inst_index) => {
+            let field_inst = verifier
+                .resolver
+                .variant_field_instantiation_at(*field_inst_index)?;
+            let id = safe_unwrap!(safe_unwrap!(verifier.stack.pop()).ref_id());
+            let value = state.borrow_field(
+                offset,
+                false,
+                id,
+                get_member_index(
+                    verifier,
+                    FieldOrVariantIndex::VariantFieldIndex(field_inst.handle),
+                )?,
+            )?;
+            verifier.stack.push(value)
+        },
         Bytecode::MutBorrowGlobal(idx) => {
             safe_assert!(safe_unwrap!(verifier.stack.pop()).is_value());
             let value = state.borrow_global(offset, true, *idx)?;
@@ -361,6 +538,48 @@ fn execute_inner(
             unpack(verifier, struct_def)?
         },
 
+        Bytecode::TestVariant(idx) => {
+            let handle = verifier.resolver.struct_variant_handle_at(*idx)?;
+            test_variant(verifier, state, handle, offset)?
+        },
+        Bytecode::TestVariantGeneric(idx) => {
+            let inst = verifier.resolver.struct_variant_instantiation_at(*idx)?;
+            let handle = verifier.resolver.struct_variant_handle_at(inst.handle)?;
+            test_variant(verifier, state, handle, offset)?
+        },
+        Bytecode::PackVariant(idx) => {
+            let handle = verifier.resolver.struct_variant_handle_at(*idx)?;
+            pack_variant(verifier, handle)?
+        },
+        Bytecode::PackVariantGeneric(idx) => {
+            let inst = verifier.resolver.struct_variant_instantiation_at(*idx)?;
+            let handle = verifier.resolver.struct_variant_handle_at(inst.handle)?;
+            pack_variant(verifier, handle)?
+        },
+        Bytecode::UnpackVariant(idx) => {
+            let handle = verifier.resolver.struct_variant_handle_at(*idx)?;
+            unpack_variant(verifier, handle)?
+        },
+        Bytecode::UnpackVariantGeneric(idx) => {
+            let inst = verifier.resolver.struct_variant_instantiation_at(*idx)?;
+            let handle = verifier.resolver.struct_variant_handle_at(inst.handle)?;
+            unpack_variant(verifier, handle)?
+        },
+
+        Bytecode::PackClosure(idx, mask) => {
+            let function_handle = verifier.resolver.function_handle_at(*idx);
+            clos_pack(verifier, function_handle, *mask)?
+        },
+        Bytecode::PackClosureGeneric(idx, mask) => {
+            let func_inst = verifier.resolver.function_instantiation_at(*idx);
+            let function_handle = verifier.resolver.function_handle_at(func_inst.handle);
+            clos_pack(verifier, function_handle, *mask)?
+        },
+        Bytecode::CallClosure(idx) => {
+            let (arg_tys, result_tys) = fun_type(verifier, *idx)?;
+            call_closure(verifier, state, offset, arg_tys, result_tys, meter)?
+        },
+
         Bytecode::VecPack(idx, num) => {
             for _ in 0..*num {
                 safe_assert!(safe_unwrap!(verifier.stack.pop()).is_value())
@@ -424,7 +643,19 @@ fn execute_inner(
     Ok(())
 }
 
-impl<'a> TransferFunctions for ReferenceSafetyAnalysis<'a> {
+fn get_member_index(
+    verifier: &ReferenceSafetyAnalysis,
+    index: FieldOrVariantIndex,
+) -> PartialVMResult<MemberCount> {
+    match index {
+        FieldOrVariantIndex::FieldIndex(idx) => Ok(verifier.resolver.field_handle_at(idx)?.field),
+        FieldOrVariantIndex::VariantFieldIndex(idx) => {
+            Ok(verifier.resolver.variant_field_handle_at(idx)?.field)
+        },
+    }
+}
+
+impl TransferFunctions for ReferenceSafetyAnalysis<'_> {
     type State = AbstractState;
 
     fn execute(
@@ -444,4 +675,4 @@ impl<'a> TransferFunctions for ReferenceSafetyAnalysis<'a> {
     }
 }
 
-impl<'a> AbstractInterpreter for ReferenceSafetyAnalysis<'a> {}
+impl AbstractInterpreter for ReferenceSafetyAnalysis<'_> {}

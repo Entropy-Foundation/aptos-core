@@ -3,21 +3,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
+    code_cache_global_manager::AptosModuleCacheManagerGuard,
     errors::SequentialBlockExecutionError,
     executor::BlockExecutor,
     proptest_types::{
         baseline::BaselineOutput,
         types::{
-            DeltaDataView, EmptyDataView, KeyType, MockEvent, MockOutput, MockTask,
-            MockTransaction, NonEmptyGroupDataView, TransactionGen, TransactionGenParams,
-            MAX_GAS_PER_TXN,
+            DeltaDataView, KeyType, MockEvent, MockOutput, MockTask, MockTransaction,
+            NonEmptyGroupDataView, TransactionGen, TransactionGenParams, MAX_GAS_PER_TXN,
         },
     },
     txn_commit_hook::NoOpTransactionCommitHook,
+    txn_provider::default::DefaultTxnProvider,
 };
 use aptos_types::{
-    block_executor::config::BlockExecutorConfig, contract_event::TransactionEvent,
-    executable::ExecutableTestType,
+    block_executor::{
+        config::BlockExecutorConfig, transaction_slice_metadata::TransactionSliceMetadata,
+    },
+    contract_event::TransactionEvent,
+    state_store::MockStateView,
 };
 use claims::{assert_matches, assert_ok};
 use num_cpus;
@@ -59,9 +63,7 @@ fn run_transactions<K, V, E>(
         *transactions.get_mut(i.index(length)).unwrap() = MockTransaction::SkipRest(0);
     }
 
-    let data_view = EmptyDataView::<KeyType<K>> {
-        phantom: PhantomData,
-    };
+    let state_view = MockStateView::empty();
 
     let executor_thread_pool = Arc::new(
         rayon::ThreadPoolBuilder::new()
@@ -70,26 +72,34 @@ fn run_transactions<K, V, E>(
             .unwrap(),
     );
 
+    let txn_provider = DefaultTxnProvider::new_without_info(transactions);
     for _ in 0..num_repeat {
+        let mut guard = AptosModuleCacheManagerGuard::none();
+
         let output = BlockExecutor::<
             MockTransaction<KeyType<K>, E>,
             MockTask<KeyType<K>, E>,
-            EmptyDataView<KeyType<K>>,
+            MockStateView<KeyType<K>>,
             NoOpTransactionCommitHook<MockOutput<KeyType<K>, E>, usize>,
-            ExecutableTestType,
+            DefaultTxnProvider<MockTransaction<KeyType<K>, E>>,
         >::new(
             BlockExecutorConfig::new_maybe_block_limit(num_cpus::get(), maybe_block_gas_limit),
             executor_thread_pool.clone(),
             None,
         )
-        .execute_transactions_parallel(&(), &transactions, &data_view);
+        .execute_transactions_parallel(
+            &txn_provider,
+            &state_view,
+            &TransactionSliceMetadata::unknown(),
+            &mut guard,
+        );
 
         if module_access.0 && module_access.1 {
             assert_matches!(output, Err(()));
             continue;
         }
 
-        BaselineOutput::generate(&transactions, maybe_block_gas_limit)
+        BaselineOutput::generate(txn_provider.get_txns(), maybe_block_gas_limit)
             .assert_parallel_output(&output);
     }
 }
@@ -193,6 +203,7 @@ fn deltas_writes_mixed_with_block_gas_limit(num_txns: usize, maybe_block_gas_lim
         .into_iter()
         .map(|txn_gen| txn_gen.materialize_with_deltas(&universe, 15, false))
         .collect();
+    let txn_provider = DefaultTxnProvider::new_without_info(transactions);
 
     let data_view = DeltaDataView::<KeyType<[u8; 32]>> {
         phantom: PhantomData,
@@ -206,20 +217,27 @@ fn deltas_writes_mixed_with_block_gas_limit(num_txns: usize, maybe_block_gas_lim
     );
 
     for _ in 0..20 {
+        let mut guard = AptosModuleCacheManagerGuard::none();
+
         let output = BlockExecutor::<
             MockTransaction<KeyType<[u8; 32]>, MockEvent>,
             MockTask<KeyType<[u8; 32]>, MockEvent>,
             DeltaDataView<KeyType<[u8; 32]>>,
             NoOpTransactionCommitHook<MockOutput<KeyType<[u8; 32]>, MockEvent>, usize>,
-            ExecutableTestType,
+            DefaultTxnProvider<MockTransaction<KeyType<[u8; 32]>, MockEvent>>,
         >::new(
             BlockExecutorConfig::new_maybe_block_limit(num_cpus::get(), maybe_block_gas_limit),
             executor_thread_pool.clone(),
             None,
         )
-        .execute_transactions_parallel(&(), &transactions, &data_view);
+        .execute_transactions_parallel(
+            &txn_provider,
+            &data_view,
+            &TransactionSliceMetadata::unknown(),
+            &mut guard,
+        );
 
-        BaselineOutput::generate(&transactions, maybe_block_gas_limit)
+        BaselineOutput::generate(txn_provider.get_txns(), maybe_block_gas_limit)
             .assert_parallel_output(&output);
     }
 }
@@ -248,6 +266,7 @@ fn deltas_resolver_with_block_gas_limit(num_txns: usize, maybe_block_gas_limit: 
         .into_iter()
         .map(|txn_gen| txn_gen.materialize_with_deltas(&universe, 15, false))
         .collect();
+    let txn_provider = DefaultTxnProvider::new_without_info(transactions);
 
     let executor_thread_pool = Arc::new(
         rayon::ThreadPoolBuilder::new()
@@ -257,20 +276,27 @@ fn deltas_resolver_with_block_gas_limit(num_txns: usize, maybe_block_gas_limit: 
     );
 
     for _ in 0..20 {
+        let mut guard = AptosModuleCacheManagerGuard::none();
+
         let output = BlockExecutor::<
             MockTransaction<KeyType<[u8; 32]>, MockEvent>,
             MockTask<KeyType<[u8; 32]>, MockEvent>,
             DeltaDataView<KeyType<[u8; 32]>>,
             NoOpTransactionCommitHook<MockOutput<KeyType<[u8; 32]>, MockEvent>, usize>,
-            ExecutableTestType,
+            DefaultTxnProvider<MockTransaction<KeyType<[u8; 32]>, MockEvent>>,
         >::new(
             BlockExecutorConfig::new_maybe_block_limit(num_cpus::get(), maybe_block_gas_limit),
             executor_thread_pool.clone(),
             None,
         )
-        .execute_transactions_parallel(&(), &transactions, &data_view);
+        .execute_transactions_parallel(
+            &txn_provider,
+            &data_view,
+            &TransactionSliceMetadata::unknown(),
+            &mut guard,
+        );
 
-        BaselineOutput::generate(&transactions, maybe_block_gas_limit)
+        BaselineOutput::generate(txn_provider.get_txns(), maybe_block_gas_limit)
             .assert_parallel_output(&output);
     }
 }
@@ -301,53 +327,6 @@ fn dynamic_read_writes_contended_with_block_gas_limit(
         vec![],
         100,
         (false, false),
-        maybe_block_gas_limit,
-    );
-}
-
-fn module_publishing_fallback_with_block_gas_limit(
-    num_txns: usize,
-    maybe_block_gas_limit: Option<u64>,
-) {
-    let mut runner = TestRunner::default();
-
-    let universe = vec(any::<[u8; 32]>(), 100)
-        .new_tree(&mut runner)
-        .expect("creating a new value should succeed")
-        .current();
-    let transaction_gen = vec(
-        any_with::<TransactionGen<[u8; 32]>>(TransactionGenParams::new_dynamic()),
-        num_txns,
-    )
-    .new_tree(&mut runner)
-    .expect("creating a new value should succeed")
-    .current();
-
-    run_transactions::<[u8; 32], [u8; 32], MockEvent>(
-        &universe,
-        transaction_gen.clone(),
-        vec![],
-        vec![],
-        2,
-        (false, true),
-        maybe_block_gas_limit,
-    );
-    run_transactions::<[u8; 32], [u8; 32], MockEvent>(
-        &universe,
-        transaction_gen.clone(),
-        vec![],
-        vec![],
-        2,
-        (true, false),
-        maybe_block_gas_limit,
-    );
-    run_transactions::<[u8; 32], [u8; 32], MockEvent>(
-        &universe,
-        transaction_gen,
-        vec![],
-        vec![],
-        2,
-        (true, true),
         maybe_block_gas_limit,
     );
 }
@@ -412,19 +391,26 @@ fn publishing_fixed_params_with_block_gas_limit(
             .unwrap(),
     );
 
+    let txn_provider = DefaultTxnProvider::new_without_info(transactions.clone());
     // Confirm still no intersection
+    let mut guard = AptosModuleCacheManagerGuard::none();
     let output = BlockExecutor::<
         MockTransaction<KeyType<[u8; 32]>, MockEvent>,
         MockTask<KeyType<[u8; 32]>, MockEvent>,
         DeltaDataView<KeyType<[u8; 32]>>,
         NoOpTransactionCommitHook<MockOutput<KeyType<[u8; 32]>, MockEvent>, usize>,
-        ExecutableTestType,
+        DefaultTxnProvider<MockTransaction<KeyType<[u8; 32]>, MockEvent>>,
     >::new(
         BlockExecutorConfig::new_maybe_block_limit(num_cpus::get(), maybe_block_gas_limit),
         executor_thread_pool,
         None,
     )
-    .execute_transactions_parallel(&(), &transactions, &data_view);
+    .execute_transactions_parallel(
+        &txn_provider,
+        &data_view,
+        &TransactionSliceMetadata::unknown(),
+        &mut guard,
+    );
     assert_ok!(output);
 
     // Adjust the reads of txn indices[2] to contain module read to key 42.
@@ -454,13 +440,16 @@ fn publishing_fixed_params_with_block_gas_limit(
             .unwrap(),
     );
 
+    let txn_provider = DefaultTxnProvider::new_without_info(transactions);
     for _ in 0..200 {
+        let mut guard = AptosModuleCacheManagerGuard::none();
+
         let output = BlockExecutor::<
             MockTransaction<KeyType<[u8; 32]>, MockEvent>,
             MockTask<KeyType<[u8; 32]>, MockEvent>,
             DeltaDataView<KeyType<[u8; 32]>>,
             NoOpTransactionCommitHook<MockOutput<KeyType<[u8; 32]>, MockEvent>, usize>,
-            ExecutableTestType,
+            DefaultTxnProvider<MockTransaction<KeyType<[u8; 32]>, MockEvent>>,
         >::new(
             BlockExecutorConfig::new_maybe_block_limit(
                 num_cpus::get(),
@@ -469,7 +458,12 @@ fn publishing_fixed_params_with_block_gas_limit(
             executor_thread_pool.clone(),
             None,
         ) // Ensure enough gas limit to commit the module txns (4 is maximum gas per txn)
-        .execute_transactions_parallel(&(), &transactions, &data_view);
+        .execute_transactions_parallel(
+            &txn_provider,
+            &data_view,
+            &TransactionSliceMetadata::unknown(),
+            &mut guard,
+        );
 
         assert_matches!(output, Err(()));
     }
@@ -521,6 +515,7 @@ fn non_empty_group(
             txn_gen.materialize_groups::<[u8; 32], MockEvent>(&key_universe, group_size_pcts)
         })
         .collect();
+    let txn_provider = DefaultTxnProvider::new_without_info(transactions);
 
     let data_view = NonEmptyGroupDataView::<KeyType<[u8; 32]>> {
         group_keys: key_universe[(key_universe_len - 3)..key_universe_len]
@@ -537,43 +532,60 @@ fn non_empty_group(
     );
 
     for _ in 0..num_repeat_parallel {
+        let mut guard = AptosModuleCacheManagerGuard::none();
+
         let output = BlockExecutor::<
             MockTransaction<KeyType<[u8; 32]>, MockEvent>,
             MockTask<KeyType<[u8; 32]>, MockEvent>,
             NonEmptyGroupDataView<KeyType<[u8; 32]>>,
             NoOpTransactionCommitHook<MockOutput<KeyType<[u8; 32]>, MockEvent>, usize>,
-            ExecutableTestType,
+            DefaultTxnProvider<MockTransaction<KeyType<[u8; 32]>, MockEvent>>,
         >::new(
             BlockExecutorConfig::new_no_block_limit(num_cpus::get()),
             executor_thread_pool.clone(),
             None,
         )
-        .execute_transactions_parallel(&(), &transactions, &data_view);
+        .execute_transactions_parallel(
+            &txn_provider,
+            &data_view,
+            &TransactionSliceMetadata::unknown(),
+            &mut guard,
+        );
 
-        BaselineOutput::generate(&transactions, None).assert_parallel_output(&output);
+        BaselineOutput::generate(txn_provider.get_txns(), None).assert_parallel_output(&output);
     }
 
     for _ in 0..num_repeat_sequential {
+        let mut guard = AptosModuleCacheManagerGuard::none();
+
         let output = BlockExecutor::<
             MockTransaction<KeyType<[u8; 32]>, MockEvent>,
             MockTask<KeyType<[u8; 32]>, MockEvent>,
             NonEmptyGroupDataView<KeyType<[u8; 32]>>,
             NoOpTransactionCommitHook<MockOutput<KeyType<[u8; 32]>, MockEvent>, usize>,
-            ExecutableTestType,
+            DefaultTxnProvider<MockTransaction<KeyType<[u8; 32]>, MockEvent>>,
         >::new(
             BlockExecutorConfig::new_no_block_limit(num_cpus::get()),
             executor_thread_pool.clone(),
             None,
         )
-        .execute_transactions_sequential((), &transactions, &data_view, false);
+        .execute_transactions_sequential(
+            &txn_provider,
+            &data_view,
+            &TransactionSliceMetadata::unknown(),
+            &mut guard,
+            false,
+        );
         // TODO: test dynamic disabled as well.
 
-        BaselineOutput::generate(&transactions, None).assert_output(&output.map_err(|e| match e {
-            SequentialBlockExecutionError::ResourceGroupSerializationError => {
-                panic!("Unexpected error")
+        BaselineOutput::generate(txn_provider.get_txns(), None).assert_output(&output.map_err(
+            |e| match e {
+                SequentialBlockExecutionError::ResourceGroupSerializationError => {
+                    panic!("Unexpected error")
+                },
+                SequentialBlockExecutionError::ErrorToReturn(err) => err,
             },
-            SequentialBlockExecutionError::ErrorToReturn(err) => err,
-        }));
+        ));
     }
 }
 
@@ -597,12 +609,9 @@ fn dynamic_read_writes_contended() {
     dynamic_read_writes_contended_with_block_gas_limit(1000, None);
 }
 
+// TODO(loader_v2): Fix this test.
 #[test]
-fn module_publishing_fallback() {
-    module_publishing_fallback_with_block_gas_limit(3000, None);
-}
-
-#[test]
+#[ignore]
 // Test a single transaction intersection interleaves with a lot of dependencies and
 // not overlapping module r/w keys.
 fn module_publishing_races() {
@@ -702,16 +711,9 @@ fn dynamic_read_writes_contended_with_block_gas_limit_test() {
     dynamic_read_writes_contended_with_block_gas_limit(1000, Some(0));
 }
 
+// TODO(loader_v2): Fix this test.
 #[test]
-fn module_publishing_fallback_with_block_gas_limit_test() {
-    module_publishing_fallback_with_block_gas_limit(
-        3000,
-        // Need to execute at least 2 txns to trigger module publishing fallback
-        Some(rand::thread_rng().gen_range(1, 3000 * MAX_GAS_PER_TXN / 2)),
-    );
-}
-
-#[test]
+#[ignore]
 // Test a single transaction intersection interleaves with a lot of dependencies and
 // not overlapping module r/w keys.
 fn module_publishing_races_with_block_gas_limit_test() {

@@ -1,4 +1,4 @@
-// -- Model dump before bytecode pipeline
+// -- Model dump before first bytecode pipeline
 module <SELF>_0 {
     private fun main() {
         if true {
@@ -9,6 +9,13 @@ module <SELF>_0 {
         Tuple()
     }
 } // end <SELF>_0
+
+// -- Sourcified model before first bytecode pipeline
+script {
+    fun main() {
+        if (true) continue;
+    }
+}
 
 
 Diagnostics:

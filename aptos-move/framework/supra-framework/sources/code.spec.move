@@ -59,7 +59,7 @@ spec supra_framework::code {
     ///
     spec module {
         pragma verify = true;
-        pragma aborts_if_is_strict;
+        pragma aborts_if_is_partial;
     }
 
     spec request_publish {
@@ -70,6 +70,20 @@ spec supra_framework::code {
     spec request_publish_with_allowed_deps {
         // TODO: temporary mockup.
         pragma opaque;
+    }
+
+    spec schema AbortsIfPermissionedSigner {
+        use supra_framework::permissioned_signer;
+        s: signer;
+        let perm = CodePublishingPermission {};
+        aborts_if !permissioned_signer::spec_check_permission_exists(s, perm);
+    }
+
+    spec schema AbortsIfPermissionedSigner {
+        use aptos_framework::permissioned_signer;
+        s: signer;
+        let perm = CodePublishingPermission {};
+        aborts_if !permissioned_signer::spec_check_permission_exists(s, perm);
     }
 
     spec initialize(supra_framework: &signer, package_owner: &signer, metadata: PackageMetadata) {
@@ -86,6 +100,7 @@ spec supra_framework::code {
         let addr = signer::address_of(owner);
         modifies global<PackageRegistry>(addr);
         aborts_if pack.upgrade_policy.policy <= upgrade_policy_arbitrary().policy;
+        // include AbortsIfPermissionedSigner { s: owner };
     }
 
     spec publish_package_txn {
@@ -125,6 +140,7 @@ spec supra_framework::code {
         aborts_if !exists<object::ObjectCore>(code_object_addr);
         aborts_if !exists<PackageRegistry>(code_object_addr);
         aborts_if !object::is_owner(code_object, signer::address_of(publisher));
+        // include AbortsIfPermissionedSigner { s: publisher };
 
         modifies global<PackageRegistry>(code_object_addr);
     }

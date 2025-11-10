@@ -55,7 +55,7 @@ module supra_framework::execution_config {
     public(friend) fun on_new_epoch(framework: &signer) acquires ExecutionConfig {
         system_addresses::assert_supra_framework(framework);
         if (config_buffer::does_exist<ExecutionConfig>()) {
-            let config = config_buffer::extract<ExecutionConfig>();
+            let config = config_buffer::extract_v2<ExecutionConfig>();
             if (exists<ExecutionConfig>(@supra_framework)) {
                 *borrow_global_mut<ExecutionConfig>(@supra_framework) = config;
             } else {

@@ -28,10 +28,8 @@ spec supra_framework::reconfiguration_with_dkg {
         use supra_framework::chain_status;
         use std::signer;
         use std::features;
-        use supra_framework::stake;
         use supra_framework::coin::CoinInfo;
         use supra_framework::supra_coin::SupraCoin;
-        use supra_framework::transaction_fee;
         use supra_framework::staking_config;
         use supra_framework::config_buffer;
         use supra_framework::version;
@@ -47,8 +45,6 @@ spec supra_framework::reconfiguration_with_dkg {
         requires chain_status::is_operating();
         requires exists<CoinInfo<SupraCoin>>(@supra_framework);
         include staking_config::StakingRewardsConfigRequirement;
-        requires exists<stake::ValidatorFees>(@supra_framework);
-        include transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply;
         requires exists<features::Features>(@std);
         include config_buffer::OnNewEpochRequirement<version::Version>;
         include config_buffer::OnNewEpochRequirement<gas_schedule::GasScheduleV2>;

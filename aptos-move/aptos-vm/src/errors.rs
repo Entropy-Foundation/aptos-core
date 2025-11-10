@@ -41,6 +41,10 @@ pub const EINSUFFICIENT_BALANCE_FOR_REQUIRED_DEPOSIT: u64 = 1011;
 
 // Failed to find active automation task by specified id.
 pub const ENO_ACTIVE_AUTOMATION_TASK: u64 = 1012;
+// Nonce is already in the nonce history
+pub const ENONCE_ALREADY_USED: u64 = 1013;
+// Transaction expiration time is too far in the future.
+pub const ETRANSACTION_EXPIRATION_TOO_FAR_IN_FUTURE: u64 = 1014;
 
 // Specified account is not a multisig account.
 const EACCOUNT_NOT_MULTISIG: u64 = 2002;
@@ -139,6 +143,10 @@ pub fn convert_prologue_error(
                     StatusCode::INSUFFICIENT_BALANCE_FOR_REQUIRED_DEPOSIT
                 },
                 (INVALID_STATE, ENO_ACTIVE_AUTOMATION_TASK) => StatusCode::NO_ACTIVE_AUTOMATED_TASK,
+                (INVALID_ARGUMENT, ETRANSACTION_EXPIRATION_TOO_FAR_IN_FUTURE) => {
+                    StatusCode::TRANSACTION_EXPIRATION_TOO_FAR_IN_FUTURE
+                },
+                (INVALID_ARGUMENT, ENONCE_ALREADY_USED) => StatusCode::NONCE_ALREADY_USED,
                 (category, reason) => {
                     let err_msg = format!("[aptos_vm] Unexpected prologue Move abort: {:?}::{:?} (Category: {:?} Reason: {:?})",
                     location, code, category, reason);
@@ -152,6 +160,13 @@ pub fn convert_prologue_error(
             };
             VMStatus::error(new_major_status, None)
         },
+        // Speculative errors are returned for caller to handle.
+        e @ VMStatus::Error {
+            status_code:
+                StatusCode::SPECULATIVE_EXECUTION_ABORT_ERROR
+                | StatusCode::DELAYED_FIELD_OR_BLOCKSTM_CODE_INVARIANT_ERROR,
+            ..
+        } => e,
         status @ VMStatus::ExecutionFailure { .. } | status @ VMStatus::Error { .. } => {
             speculative_error!(
                 log_context,
@@ -201,6 +216,13 @@ pub fn convert_epilogue_error(
                 )
             },
         },
+        // Speculative errors are returned for caller to handle.
+        e @ VMStatus::Error {
+            status_code:
+                StatusCode::SPECULATIVE_EXECUTION_ABORT_ERROR
+                | StatusCode::DELAYED_FIELD_OR_BLOCKSTM_CODE_INVARIANT_ERROR,
+            ..
+        } => e,
         status => {
             let err_msg = format!("[aptos_vm] Unexpected success epilogue error: {:?}", status);
             speculative_error!(log_context, err_msg.clone());
@@ -228,8 +250,7 @@ pub fn expect_only_successful_execution(
         e @ VMStatus::Error {
             status_code:
                 StatusCode::SPECULATIVE_EXECUTION_ABORT_ERROR
-                | StatusCode::DELAYED_MATERIALIZATION_CODE_INVARIANT_ERROR
-                | StatusCode::MISSING_NATIVE_FUNCTION,
+                | StatusCode::DELAYED_FIELD_OR_BLOCKSTM_CODE_INVARIANT_ERROR,
             ..
         } => e,
         status => {

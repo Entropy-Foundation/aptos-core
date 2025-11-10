@@ -13,18 +13,19 @@ use aptos_consensus_types::{
     quorum_cert::QuorumCert,
 };
 use aptos_crypto::HashValue;
-use aptos_executor_types::StateComputeResult;
+use aptos_executor_types::state_compute_result::StateComputeResult;
 use aptos_types::{
     aggregate_signature::AggregateSignature,
     ledger_info::{LedgerInfo, LedgerInfoWithSignatures},
     randomness::RandMetadata,
 };
+use std::sync::Arc;
 
 pub fn create_ordered_blocks(rounds: Vec<Round>) -> OrderedBlocks {
     let blocks = rounds
         .into_iter()
         .map(|round| {
-            PipelinedBlock::new(
+            Arc::new(PipelinedBlock::new(
                 Block::new_for_testing(
                     HashValue::random(),
                     BlockData::new_for_testing(
@@ -38,7 +39,7 @@ pub fn create_ordered_blocks(rounds: Vec<Round>) -> OrderedBlocks {
                 ),
                 vec![],
                 StateComputeResult::new_dummy(),
-            )
+            ))
         })
         .collect();
     OrderedBlocks {
@@ -47,7 +48,6 @@ pub fn create_ordered_blocks(rounds: Vec<Round>) -> OrderedBlocks {
             LedgerInfo::mock_genesis(None),
             AggregateSignature::empty(),
         ),
-        callback: Box::new(move |_, _| {}),
     }
 }
 

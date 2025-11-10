@@ -18,6 +18,7 @@ use aptos_storage_service_notifications::StorageServiceNotificationListener;
 use aptos_storage_service_types::responses::CompleteDataRange;
 use aptos_types::{
     account_address::AccountAddress,
+    account_config::NEW_EPOCH_EVENT_V2_MOVE_TYPE_TAG,
     aggregate_signature::AggregateSignature,
     block_info::BlockInfo,
     chain_id::ChainId,
@@ -31,9 +32,11 @@ use aptos_types::{
     },
     state_store::state_value::StateValueChunkWithProof,
     transaction::{
-        ExecutionStatus, RawTransaction, Script, SignedTransaction, Transaction,
-        TransactionAuxiliaryData, TransactionInfo, TransactionListWithProof, TransactionOutput,
-        TransactionOutputListWithProof, TransactionPayload, TransactionStatus, Version,
+        use_case::UseCaseAwareTransaction, ExecutionStatus, RawTransaction, ReplayProtector,
+        Script, SignedTransaction, Transaction, TransactionAuxiliaryData, TransactionInfo,
+        TransactionListWithProof, TransactionListWithProofV2, TransactionOutput,
+        TransactionOutputListWithProof, TransactionOutputListWithProofV2, TransactionPayload,
+        TransactionStatus, Version,
     },
     validator_verifier::ValidatorVerifier,
     waypoint::Waypoint,
@@ -78,7 +81,15 @@ pub fn create_epoch_ending_ledger_info_for_epoch(
 /// Creates a single test event
 pub fn create_event(event_key: Option<EventKey>) -> ContractEvent {
     let event_key = event_key.unwrap_or_else(EventKey::random);
-    ContractEvent::new_v1(event_key, 0, TypeTag::Bool, bcs::to_bytes(&0).unwrap())
+    ContractEvent::new_v1(event_key, 0, TypeTag::Bool, bcs::to_bytes(&0).unwrap()).unwrap()
+}
+
+pub fn create_reconfig_event() -> ContractEvent {
+    ContractEvent::new_v2(
+        NEW_EPOCH_EVENT_V2_MOVE_TYPE_TAG.clone(),
+        bcs::to_bytes(&0).unwrap(),
+    )
+    .unwrap()
 }
 
 /// Creates a test driver configuration for full nodes
@@ -133,14 +144,14 @@ pub fn create_ledger_info_at_version(version: Version) -> LedgerInfoWithSignatur
 }
 
 /// Creates a test transaction output list with proof
-pub fn create_output_list_with_proof() -> TransactionOutputListWithProof {
+pub fn create_output_list_with_proof() -> TransactionOutputListWithProofV2 {
     let transaction_info_list_with_proof = create_transaction_info_list_with_proof();
     let transaction_and_output = (create_transaction(), create_transaction_output());
-    TransactionOutputListWithProof::new(
+    TransactionOutputListWithProofV2::new_from_v1(TransactionOutputListWithProof::new(
         vec![transaction_and_output],
         Some(0),
         transaction_info_list_with_proof,
-    )
+    ))
 }
 
 /// Creates a random epoch ending ledger info with the specified values
@@ -231,6 +242,7 @@ pub fn create_transaction_info() -> TransactionInfo {
         Some(HashValue::random()),
         0,
         ExecutionStatus::Success,
+        Some(HashValue::random()),
     )
 }
 
@@ -242,14 +254,14 @@ pub fn create_transaction_info_list_with_proof() -> TransactionInfoListWithProof
 }
 
 /// Creates a test transaction list with proof
-pub fn create_transaction_list_with_proof() -> TransactionListWithProof {
+pub fn create_transaction_list_with_proof() -> TransactionListWithProofV2 {
     let transaction_info_list_with_proof = create_transaction_info_list_with_proof();
-    TransactionListWithProof::new(
+    TransactionListWithProofV2::new_from_v1(TransactionListWithProof::new(
         vec![create_transaction()],
         None,
         Some(0),
         transaction_info_list_with_proof,
-    )
+    ))
 }
 
 /// Creates a single test transaction output
@@ -278,9 +290,13 @@ pub async fn verify_commit_notification(
     let mempool_notification = mempool_notification_listener.select_next_some().await;
     let committed_transactions: Vec<CommittedTransaction> = expected_transactions
         .into_iter()
-        .map(|txn| CommittedTransaction {
-            sender: txn.try_as_signed_user_txn().unwrap().sender(),
-            sequence_number: 0,
+        .map(|txn| {
+            let signed = txn.try_as_signed_user_txn().unwrap();
+            CommittedTransaction {
+                sender: signed.sender(),
+                replay_protector: ReplayProtector::SequenceNumber(0),
+                use_case: signed.parse_use_case(),
+            }
         })
         .collect();
     assert_eq!(mempool_notification.transactions, committed_transactions);

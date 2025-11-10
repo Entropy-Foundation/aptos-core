@@ -41,6 +41,14 @@ impl Clone for PrivateKey {
 #[key_name("Secp256r1EcdsaPublicKey")]
 pub struct PublicKey(pub(crate) p256::ecdsa::VerifyingKey);
 
+#[cfg(any(test, feature = "fuzzing"))]
+impl<'a> arbitrary::Arbitrary<'a> for PublicKey {
+    fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+        let bytes: [u8; PUBLIC_KEY_LENGTH] = u.arbitrary()?;
+        PublicKey::from_bytes_unchecked(&bytes).map_err(|_| arbitrary::Error::IncorrectFormat)
+    }
+}
+
 impl PrivateKey {
     /// The length of the PrivateKey
     pub const LENGTH: usize = PRIVATE_KEY_LENGTH;
@@ -164,6 +172,8 @@ impl Length for PrivateKey {
 }
 
 impl ValidCryptoMaterial for PrivateKey {
+    const AIP_80_PREFIX: &'static str = "secp256r1-priv-";
+
     fn to_bytes(&self) -> Vec<u8> {
         self.to_bytes().to_vec()
     }
@@ -246,6 +256,8 @@ impl Length for PublicKey {
 }
 
 impl ValidCryptoMaterial for PublicKey {
+    const AIP_80_PREFIX: &'static str = "secp256r1-pub-";
+
     fn to_bytes(&self) -> Vec<u8> {
         self.to_bytes().to_vec()
     }

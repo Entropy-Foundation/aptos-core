@@ -140,34 +140,40 @@ impl TwoChainTimeoutCertificate {
     /// 2. all signatures are properly formed (timeout.epoch, timeout.round, round)
     /// 3. timeout.hqc_round == max(signed round)
     pub fn verify(&self, validators: &ValidatorVerifier) -> anyhow::Result<()> {
-        // Verify the highest timeout validity.
-        self.timeout.verify(validators)?;
         let hqc_round = self.timeout.hqc_round();
-        let timeout_messages: Vec<_> = self
-            .signatures_with_rounds
-            .get_voters_and_rounds(
-                &validators
-                    .get_ordered_account_addresses_iter()
-                    .collect_vec(),
-            )
-            .into_iter()
-            .map(|(_, round)| TimeoutSigningRepr {
-                epoch: self.timeout.epoch(),
-                round: self.timeout.round(),
-                hqc_round: round,
-            })
-            .collect();
-        let timeout_messages_ref: Vec<_> = timeout_messages.iter().collect();
-        validators.verify_aggregate_signatures(
-            &timeout_messages_ref,
-            self.signatures_with_rounds.sig(),
-        )?;
+        // Verify the highest timeout validity.
+        let (timeout_result, sig_result) = rayon::join(
+            || self.timeout.verify(validators),
+            || {
+                let timeout_messages: Vec<_> = self
+                    .signatures_with_rounds
+                    .get_voters_and_rounds(
+                        &validators
+                            .get_ordered_account_addresses_iter()
+                            .collect_vec(),
+                    )
+                    .into_iter()
+                    .map(|(_, round)| TimeoutSigningRepr {
+                        epoch: self.timeout.epoch(),
+                        round: self.timeout.round(),
+                        hqc_round: round,
+                    })
+                    .collect();
+                let timeout_messages_ref: Vec<_> = timeout_messages.iter().collect();
+                validators.verify_aggregate_signatures(
+                    &timeout_messages_ref,
+                    self.signatures_with_rounds.sig(),
+                )
+            },
+        );
+        timeout_result?;
+        sig_result?;
         let signed_hqc = self
             .signatures_with_rounds
             .rounds()
             .iter()
             .max()
-            .expect("Empty rounds");
+            .ok_or_else(|| anyhow::anyhow!("Empty rounds"))?;
         ensure!(
             hqc_round == *signed_hqc,
             "Inconsistent hqc round, qc has round {}, highest signed round {}",
@@ -197,7 +203,7 @@ impl TwoChainTimeoutCertificate {
     }
 }
 
-/// Contains two chain timout with partial signatures from the validators. This is only used during
+/// Contains two chain timeout with partial signatures from the validators. This is only used during
 /// signature aggregation and does not go through the wire.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TwoChainTimeoutWithPartialSignatures {
@@ -261,7 +267,7 @@ impl TwoChainTimeoutWithPartialSignatures {
         let (partial_sig, ordered_rounds) = self
             .signatures
             .get_partial_sig_with_rounds(verifier.address_to_validator_index());
-        let aggregated_sig = verifier.aggregate_signatures(&partial_sig)?;
+        let aggregated_sig = verifier.aggregate_signatures(partial_sig.signatures_iter())?;
         Ok(TwoChainTimeoutCertificate {
             timeout: self.timeout.clone(),
             signatures_with_rounds: AggregateSignatureWithRounds::new(
@@ -401,7 +407,7 @@ mod tests {
         use aptos_types::{
             aggregate_signature::PartialSignatures,
             block_info::BlockInfo,
-            ledger_info::{LedgerInfo, LedgerInfoWithPartialSignatures},
+            ledger_info::{LedgerInfo, LedgerInfoWithVerifiedSignatures},
             validator_verifier::random_validator_verifier,
         };
 
@@ -410,7 +416,7 @@ mod tests {
         let quorum_size = validators.quorum_voting_power() as usize;
         let generate_quorum = |round, num_of_signature| {
             let vote_data = VoteData::new(BlockInfo::random(round), BlockInfo::random(0));
-            let mut ledger_info = LedgerInfoWithPartialSignatures::new(
+            let mut ledger_info = LedgerInfoWithVerifiedSignatures::new(
                 LedgerInfo::new(BlockInfo::empty(), vote_data.hash()),
                 PartialSignatures::empty(),
             );

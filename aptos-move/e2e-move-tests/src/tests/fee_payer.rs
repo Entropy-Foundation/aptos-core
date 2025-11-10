@@ -13,6 +13,7 @@ use aptos_types::{
     move_utils::MemberId,
     on_chain_config::FeatureFlag,
     transaction::{EntryFunction, ExecutionStatus, Script, TransactionPayload, TransactionStatus},
+    AptosCoinType,
 };
 use aptos_vm_types::storage::StorageGasParameters;
 use move_core_types::{move_resource::MoveStructType, vm_status::StatusCode};
@@ -37,7 +38,7 @@ fn test_existing_account_with_fee_payer() {
             FeatureFlag::GAS_PAYER_ENABLED,
             FeatureFlag::SPONSORED_AUTOMATIC_ACCOUNT_V1_CREATION,
         ],
-        vec![],
+        vec![FeatureFlag::DEFAULT_ACCOUNT_RESOURCE],
     );
 
     let alice = h.new_account_with_balance_and_sequence_number(0, 0);
@@ -72,7 +73,7 @@ fn test_existing_account_with_fee_payer_aborts() {
             FeatureFlag::GAS_PAYER_ENABLED,
             FeatureFlag::SPONSORED_AUTOMATIC_ACCOUNT_V1_CREATION,
         ],
-        vec![],
+        vec![FeatureFlag::DEFAULT_ACCOUNT_RESOURCE],
     );
 
     let alice = h.new_account_with_balance_and_sequence_number(0, 0);
@@ -92,7 +93,7 @@ fn test_existing_account_with_fee_payer_aborts() {
 
     let output = h.run_raw(transaction);
     // Alice has an insufficient balance, trying to 1 when she has 0.
-    assert_abort!(output.status(), 65542);
+    assert_abort!(output.status(), 65540);
 
     let alice_after = h.read_aptos_balance(alice.address());
     let bob_after = h.read_aptos_balance(bob.address());
@@ -108,14 +109,16 @@ fn test_account_not_exist_with_fee_payer() {
             FeatureFlag::GAS_PAYER_ENABLED,
             FeatureFlag::SPONSORED_AUTOMATIC_ACCOUNT_V1_CREATION,
         ],
-        vec![],
+        vec![FeatureFlag::DEFAULT_ACCOUNT_RESOURCE],
     );
 
     let alice = Account::new();
     let bob = h.new_account_at(AccountAddress::from_hex_literal("0xb0b").unwrap());
 
-    let alice_start =
-        h.read_resource::<CoinStoreResource>(alice.address(), CoinStoreResource::struct_tag());
+    let alice_start = h.read_resource::<CoinStoreResource<AptosCoinType>>(
+        alice.address(),
+        CoinStoreResource::<AptosCoinType>::struct_tag(),
+    );
     assert!(alice_start.is_none());
     let bob_start = h.read_aptos_balance(bob.address());
 
@@ -131,8 +134,10 @@ fn test_account_not_exist_with_fee_payer() {
     let output = h.run_raw(transaction);
     assert_success!(*output.status());
 
-    let alice_after =
-        h.read_resource::<CoinStoreResource>(alice.address(), CoinStoreResource::struct_tag());
+    let alice_after = h.read_resource::<CoinStoreResource<AptosCoinType>>(
+        alice.address(),
+        CoinStoreResource::<AptosCoinType>::struct_tag(),
+    );
     assert!(alice_after.is_none());
     let bob_after = h.read_aptos_balance(bob.address());
 
@@ -146,14 +151,16 @@ fn test_account_not_exist_with_fee_payer_insufficient_gas() {
             FeatureFlag::GAS_PAYER_ENABLED,
             FeatureFlag::SPONSORED_AUTOMATIC_ACCOUNT_V1_CREATION,
         ],
-        vec![],
+        vec![FeatureFlag::DEFAULT_ACCOUNT_RESOURCE],
     );
 
     let alice = Account::new();
     let bob = h.new_account_at(AccountAddress::from_hex_literal("0xb0b").unwrap());
 
-    let alice_start =
-        h.read_resource::<CoinStoreResource>(alice.address(), CoinStoreResource::struct_tag());
+    let alice_start = h.read_resource::<CoinStoreResource<AptosCoinType>>(
+        alice.address(),
+        CoinStoreResource::<AptosCoinType>::struct_tag(),
+    );
     assert!(alice_start.is_none());
     let bob_start = h.read_aptos_balance(bob.address());
 
@@ -162,7 +169,7 @@ fn test_account_not_exist_with_fee_payer_insufficient_gas() {
         .fee_payer(bob.clone())
         .payload(payload)
         .sequence_number(0)
-        .max_gas_amount(PRICING.new_account_upfront(1) - 1) // This is not enough to execute this transaction
+        .max_gas_amount(1) // This is not enough to execute this transaction
         .gas_unit_price(1)
         .sign_fee_payer();
 
@@ -172,8 +179,10 @@ fn test_account_not_exist_with_fee_payer_insufficient_gas() {
         &TransactionStatus::Discard(StatusCode::MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS),
     ));
 
-    let alice_after =
-        h.read_resource::<CoinStoreResource>(alice.address(), CoinStoreResource::struct_tag());
+    let alice_after = h.read_resource::<CoinStoreResource<AptosCoinType>>(
+        alice.address(),
+        CoinStoreResource::<AptosCoinType>::struct_tag(),
+    );
     assert!(alice_after.is_none());
     let bob_after = h.read_aptos_balance(bob.address());
     assert_eq!(bob_start, bob_after);
@@ -186,14 +195,16 @@ fn test_account_not_exist_and_move_abort_with_fee_payer_create_account() {
             FeatureFlag::GAS_PAYER_ENABLED,
             FeatureFlag::SPONSORED_AUTOMATIC_ACCOUNT_V1_CREATION,
         ],
-        vec![],
+        vec![FeatureFlag::DEFAULT_ACCOUNT_RESOURCE],
     );
 
     let alice = Account::new();
     let bob = h.new_account_at(AccountAddress::from_hex_literal("0xb0b").unwrap());
 
-    let alice_start =
-        h.read_resource::<CoinStoreResource>(alice.address(), CoinStoreResource::struct_tag());
+    let alice_start = h.read_resource::<CoinStoreResource<AptosCoinType>>(
+        alice.address(),
+        CoinStoreResource::<AptosCoinType>::struct_tag(),
+    );
     assert!(alice_start.is_none());
     let bob_start = h.read_aptos_balance(bob.address());
 
@@ -227,8 +238,10 @@ fn test_account_not_exist_and_move_abort_with_fee_payer_create_account() {
     assert!(output.gas_used() <= PRICING.new_account_upfront(GAS_UNIT_PRICE));
     assert!(output.gas_used() > PRICING.new_account_min_abort(GAS_UNIT_PRICE));
 
-    let alice_after =
-        h.read_resource::<CoinStoreResource>(alice.address(), CoinStoreResource::struct_tag());
+    let alice_after = h.read_resource::<CoinStoreResource<AptosCoinType>>(
+        alice.address(),
+        CoinStoreResource::<AptosCoinType>::struct_tag(),
+    );
     assert!(alice_after.is_none());
     let bob_after = h.read_aptos_balance(bob.address());
 
@@ -243,7 +256,7 @@ fn test_account_not_exist_out_of_gas_with_fee_payer() {
             FeatureFlag::GAS_PAYER_ENABLED,
             FeatureFlag::SPONSORED_AUTOMATIC_ACCOUNT_V1_CREATION,
         ],
-        vec![],
+        vec![FeatureFlag::DEFAULT_ACCOUNT_RESOURCE],
     );
 
     let alice = Account::new();
@@ -285,7 +298,7 @@ fn test_account_not_exist_move_abort_with_fee_payer_out_of_gas() {
             FeatureFlag::GAS_PAYER_ENABLED,
             FeatureFlag::SPONSORED_AUTOMATIC_ACCOUNT_V1_CREATION,
         ],
-        vec![],
+        vec![FeatureFlag::DEFAULT_ACCOUNT_RESOURCE],
     );
 
     let alice = Account::new();
@@ -335,8 +348,10 @@ fn test_account_not_exist_with_fee_payer_without_create_account() {
     let alice = Account::new();
     let bob = h.new_account_at(AccountAddress::from_hex_literal("0xb0b").unwrap());
 
-    let alice_start =
-        h.read_resource::<CoinStoreResource>(alice.address(), CoinStoreResource::struct_tag());
+    let alice_start = h.read_resource::<CoinStoreResource<AptosCoinType>>(
+        alice.address(),
+        CoinStoreResource::<AptosCoinType>::struct_tag(),
+    );
     assert!(alice_start.is_none());
 
     let payload = aptos_stdlib::supra_account_set_allow_direct_coin_transfers(true);
@@ -351,7 +366,7 @@ fn test_account_not_exist_with_fee_payer_without_create_account() {
     let output = h.run_raw(transaction);
     assert!(transaction_status_eq(
         output.status(),
-        &TransactionStatus::Discard(StatusCode::SENDING_ACCOUNT_DOES_NOT_EXIST),
+        &TransactionStatus::Keep(ExecutionStatus::Success),
     ));
 }
 

@@ -69,7 +69,7 @@ move-binary-format = { workspace = true }
 move-bytecode-source-map = { workspace = true }
 move-cli = { workspace = true }
 move-command-line-common = { workspace = true }
-move-compiler = { workspace = true }
+legacy-move-compiler = { workspace = true }
 move-core-types = { workspace = true }
 move-coverage = { workspace = true }
 move-disassembler = { workspace = true }
@@ -104,7 +104,11 @@ version-compare = { workspace = true }
 supra-aptos = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
-jemallocator = { workspace = true }
+jemallocator = { version = "0.5.0", features = [
+    "profiling",
+    "unprefixed_malloc_on_supported_platforms",
+] }
+jemalloc-sys = "0.5.4"
 
 [features]
 default = []

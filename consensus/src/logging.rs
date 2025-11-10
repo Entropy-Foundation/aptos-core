@@ -40,6 +40,7 @@ pub enum LogEvent {
     ReceiveProposal,
     ReceiveSyncInfo,
     ReceiveVote,
+    ReceiveRoundTimeout,
     ReceiveOrderVote,
     RetrieveBlock,
     StateSync,
@@ -57,6 +58,11 @@ pub enum LogEvent {
     // randomness fast path
     BroadcastRandShareFastPath,
     ReceiveRandShareFastPath,
+    // optimistic proposal
+    OptPropose,
+    NetworkReceiveOptProposal,
+    ReceiveOptProposal,
+    ProcessOptProposal,
 }
 
 impl LogSchema {

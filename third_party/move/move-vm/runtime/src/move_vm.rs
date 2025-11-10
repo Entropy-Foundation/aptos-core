@@ -3,198 +3,358 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    config::VMConfig,
     data_cache::TransactionDataCache,
-    loader::{ModuleStorage, ModuleStorageAdapter},
+    dispatch_loader,
+    interpreter::Interpreter,
+    module_traversal::TraversalContext,
     native_extensions::NativeContextExtensions,
-    native_functions::NativeFunction,
-    runtime::VMRuntime,
-    session::Session,
+    storage::{
+        loader::traits::Loader, ty_depth_checker::TypeDepthChecker,
+        ty_layout_converter::LayoutConverter,
+    },
+    AsFunctionValueExtension, LoadedFunction, ModuleStorage,
 };
 use move_binary_format::{
-    errors::{PartialVMError, VMResult},
-    CompiledModule,
+    errors::{Location, PartialVMError, PartialVMResult, VMResult},
+    file_format::LocalIndex,
 };
-use move_core_types::{
-    account_address::AccountAddress, identifier::Identifier, language_storage::ModuleId,
-    metadata::Metadata, resolver::MoveResolver,
+use move_core_types::{value::MoveTypeLayout, vm_status::StatusCode};
+use move_vm_metrics::{Timer, VM_TIMER};
+use move_vm_types::{
+    gas::GasMeter,
+    loaded_data::runtime_types::Type,
+    resolver::ResourceResolver,
+    value_serde::{FunctionValueExtension, ValueSerDeContext},
+    values::{Locals, Reference, VMValueCast, Value},
 };
-use std::sync::Arc;
+use std::borrow::Borrow;
 
-#[derive(Clone)]
-pub struct MoveVM {
-    pub(crate) runtime: VMRuntime,
+/// Return values from function execution in [MoveVm].
+#[derive(Debug)]
+pub struct SerializedReturnValues {
+    /// The value of any arguments that were mutably borrowed. Non-mut borrowed values are not
+    /// included.
+    pub mutable_reference_outputs: Vec<(LocalIndex, Vec<u8>, MoveTypeLayout)>,
+    /// The return values from the function.
+    pub return_values: Vec<(Vec<u8>, MoveTypeLayout)>,
 }
 
+/// Move VM is completely stateless. It is used to execute a single loaded function with its type
+/// arguments fully instantiated.
+pub struct MoveVM;
+
 impl MoveVM {
-    /// Creates a new VM instance, using default configurations. Panics if there are duplicated
-    /// natives.
-    pub fn new(
-        natives: impl IntoIterator<Item = (AccountAddress, Identifier, Identifier, NativeFunction)>,
-    ) -> Self {
-        let vm_config = VMConfig {
-            // Keep the paranoid mode on as we most likely want this for tests.
-            paranoid_type_checks: true,
-            ..VMConfig::default()
-        };
-        Self::new_with_config(natives, vm_config)
-    }
-
-    /// Creates a new VM instance, with provided VM configurations. Panics if there are duplicated
-    /// natives.
-    pub fn new_with_config(
-        natives: impl IntoIterator<Item = (AccountAddress, Identifier, Identifier, NativeFunction)>,
-        vm_config: VMConfig,
-    ) -> Self {
-        Self {
-            runtime: VMRuntime::new(natives, vm_config),
-        }
-    }
-
-    /// Returns VM configuration used to initialize the VM.
-    pub fn vm_config(&self) -> &VMConfig {
-        self.runtime.loader().vm_config()
-    }
-
-    /// Create a new Session backed by the given storage.
+    /// Executes provided function with the specified arguments. The arguments are serialized, and
+    /// are not checked by the VM. It is the responsibility of the caller of this function to
+    /// verify that they are well-formed.
     ///
-    /// Right now it is the caller's responsibility to ensure cache coherence of the Move VM Loader
-    ///   - When a module gets published in a Move VM Session, and then gets used by another
-    ///     transaction, it will be loaded into the code cache and stay there even if the resulted
-    ///     effects do not get committed back to the storage when the Session ends.
-    ///   - As a result, if one wants to have multiple sessions at a time, one needs to make sure
-    ///     none of them will try to publish a module. In other words, if there is a module publishing
-    ///     Session it must be the only Session existing.
-    ///   - In general, a new Move VM needs to be created whenever the storage gets modified by an
-    ///     outer environment, or otherwise the states may be out of sync. There are a few exceptional
-    ///     cases where this may not be necessary, with the most notable one being the common module
-    ///     publishing flow: you can keep using the same Move VM if you publish some modules in a Session
-    ///     and apply the effects to the storage when the Session ends.
-    pub fn new_session<'r>(
-        &self,
-        remote: &'r impl MoveResolver<PartialVMError>,
-    ) -> Session<'r, '_> {
-        self.new_session_with_extensions(remote, NativeContextExtensions::default())
-    }
-
-    /// Create a new session, as in `new_session`, but provide native context extensions.
-    pub fn new_session_with_extensions<'r>(
-        &self,
-        remote: &'r impl MoveResolver<PartialVMError>,
-        native_extensions: NativeContextExtensions<'r>,
-    ) -> Session<'r, '_> {
-        Session {
-            move_vm: self,
-            data_cache: TransactionDataCache::new(
-                self.runtime
-                    .loader()
-                    .vm_config()
-                    .deserializer_config
-                    .clone(),
-                remote,
-            ),
-            module_store: ModuleStorageAdapter::new(self.runtime.module_storage()),
-            native_extensions,
-        }
-    }
-
-    /// Create a new session, as in `new_session`, but provide native context extensions and custome storage for resolved modules.
-    pub fn new_session_with_extensions_and_modules<'r>(
-        &self,
-        remote: &'r impl MoveResolver<PartialVMError>,
-        module_storage: Arc<dyn ModuleStorage>,
-        native_extensions: NativeContextExtensions<'r>,
-    ) -> Session<'r, '_> {
-        Session {
-            move_vm: self,
-            data_cache: TransactionDataCache::new(
-                self.runtime
-                    .loader()
-                    .vm_config()
-                    .deserializer_config
-                    .clone(),
-                remote,
-            ),
-            module_store: ModuleStorageAdapter::new(module_storage),
-            native_extensions,
-        }
-    }
-
-    /// Load a module into VM's code cache
-    pub fn load_module(
-        &self,
-        module_id: &ModuleId,
-        remote: &impl MoveResolver<PartialVMError>,
-    ) -> VMResult<Arc<CompiledModule>> {
-        self.runtime
-            .loader()
-            .load_module(
-                module_id,
-                &mut TransactionDataCache::new(
-                    self.runtime
-                        .loader()
-                        .vm_config()
-                        .deserializer_config
-                        .clone(),
-                    remote,
-                ),
-                &ModuleStorageAdapter::new(self.runtime.module_storage()),
+    /// During execution, [MoveVm] can modify values from the global storage. Modified values are
+    /// cached in data store. Reads to the global values are also cached in the data store. The
+    /// caller can decide what to do with the read and written global values after [MoveVm] is done
+    /// executing the function. Additionally, modifications can be made to the native extensions.
+    ///
+    /// When execution finishes, the return values of the function are returned. Additionally, if
+    /// there are any mutable references passed as arguments, these values are also returned.
+    pub fn execute_loaded_function(
+        function: LoadedFunction,
+        serialized_args: Vec<impl Borrow<[u8]>>,
+        data_cache: &mut TransactionDataCache,
+        gas_meter: &mut impl GasMeter,
+        traversal_context: &mut TraversalContext,
+        extensions: &mut NativeContextExtensions,
+        module_storage: &impl ModuleStorage,
+        resource_resolver: &impl ResourceResolver,
+    ) -> VMResult<SerializedReturnValues> {
+        dispatch_loader!(module_storage, loader, {
+            Self::execute_loaded_function_impl(
+                function,
+                serialized_args,
+                data_cache,
+                &loader,
+                gas_meter,
+                traversal_context,
+                extensions,
+                module_storage,
+                resource_resolver,
             )
-            .map(|arc_module| arc_module.arc_module())
+        })
     }
 
-    /// Allows the adapter to announce to the VM that the code loading cache should be considered
-    /// outdated. This can happen if the adapter executed a particular code publishing transaction
-    /// but decided to not commit the result to the data store. Because the code cache currently
-    /// does not support deletion, the cache will, incorrectly, still contain this module.
-    /// TODO: new loader architecture
-    pub fn mark_loader_cache_as_invalid(&self) {
-        self.runtime.loader().mark_as_invalid()
-    }
+    pub fn execute_loaded_function_impl(
+        function: LoadedFunction,
+        serialized_args: Vec<impl Borrow<[u8]>>,
+        data_cache: &mut TransactionDataCache,
+        loader: &impl Loader,
+        gas_meter: &mut impl GasMeter,
+        traversal_context: &mut TraversalContext,
+        extensions: &mut NativeContextExtensions,
+        module_storage: &impl ModuleStorage,
+        resource_resolver: &impl ResourceResolver,
+    ) -> VMResult<SerializedReturnValues> {
+        let vm_config = module_storage.runtime_environment().vm_config();
+        let check_invariant_in_swap_loc = vm_config.check_invariant_in_swap_loc;
 
-    /// Returns true if the loader cache has been invalidated (either by explicit call above
-    /// or by the runtime)
-    pub fn is_loader_cache_invalidated(&self) -> bool {
-        self.runtime.loader().is_invalidated()
-    }
+        let function_value_extension = module_storage.as_function_value_extension();
+        let layout_converter = LayoutConverter::new(loader);
+        let ty_depth_checker = TypeDepthChecker::new(loader);
 
-    /// If the loader cache has been invalidated (either by the above call or by internal logic)
-    /// flush it so it is valid again. Notice that should only be called if there are no
-    /// outstanding sessions created from this VM.
-    pub fn flush_loader_cache_if_invalidated(&self) {
-        // Flush the module cache inside the VMRuntime. This code is there for a legacy reason:
-        // - In the old session api that we provide, MoveVM will hold a cache for loaded module and the session will be created against that cache.
-        //   Thus if an module invalidation event happens (e.g, by upgrade request), we will need to flush this internal cache as well.
-        // - If we can deprecate this session api, we will be able to get rid of this internal loaded cache and make the MoveVM "stateless" and
-        //   invulnerable to module invalidation.
-        if self.runtime.loader().is_invalidated() {
-            self.runtime.module_cache.flush();
+        let create_ty_with_subst = |tys: &[Type]| -> VMResult<Vec<Type>> {
+            let ty_builder = &vm_config.ty_builder;
+            tys.iter()
+                .map(|ty| ty_builder.create_ty_with_subst(ty, function.ty_args()))
+                .collect::<PartialVMResult<Vec<_>>>()
+                .map_err(|err| err.finish(Location::Undefined))
         };
-        self.runtime.loader().flush_if_invalidated()
+
+        let param_tys = create_ty_with_subst(function.param_tys())?;
+        let (mut dummy_locals, deserialized_args) = deserialize_args(
+            &function_value_extension,
+            &layout_converter,
+            gas_meter,
+            traversal_context,
+            &param_tys,
+            serialized_args,
+            check_invariant_in_swap_loc,
+        )
+        .map_err(|err| err.finish(Location::Undefined))?;
+
+        let return_tys = create_ty_with_subst(function.return_tys())?;
+
+        let return_values = {
+            let _timer = VM_TIMER.timer_with_label("Interpreter::entrypoint");
+            Interpreter::entrypoint(
+                function,
+                deserialized_args,
+                data_cache,
+                module_storage,
+                loader,
+                &ty_depth_checker,
+                &layout_converter,
+                resource_resolver,
+                gas_meter,
+                traversal_context,
+                extensions,
+            )?
+        };
+
+        let return_values = serialize_return_values(
+            &function_value_extension,
+            &layout_converter,
+            gas_meter,
+            traversal_context,
+            &return_tys,
+            return_values,
+        )
+        .map_err(|e| e.finish(Location::Undefined))?;
+        let mutable_reference_outputs = param_tys
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, ty)| match ty {
+                Type::MutableReference(inner_ty) => Some((idx, inner_ty.as_ref())),
+                _ => None,
+            })
+            .map(|(idx, ty)| {
+                // serialize return values first in the case that a value points into this local
+                let local_val = dummy_locals.move_loc(idx, check_invariant_in_swap_loc)?;
+                let (bytes, layout) = serialize_return_value(
+                    &function_value_extension,
+                    &layout_converter,
+                    gas_meter,
+                    traversal_context,
+                    ty,
+                    local_val,
+                )?;
+                Ok((idx as LocalIndex, bytes, layout))
+            })
+            .collect::<PartialVMResult<_>>()
+            .map_err(|e| e.finish(Location::Undefined))?;
+
+        // locals should not be dropped until all return values are serialized
+        drop(dummy_locals);
+
+        Ok(SerializedReturnValues {
+            mutable_reference_outputs,
+            return_values,
+        })
+    }
+}
+
+fn deserialize_arg(
+    function_value_extension: &impl FunctionValueExtension,
+    layout_converter: &LayoutConverter<impl Loader>,
+    gas_meter: &mut impl GasMeter,
+    traversal_context: &mut TraversalContext,
+    ty: &Type,
+    arg: impl Borrow<[u8]>,
+) -> PartialVMResult<Value> {
+    let deserialization_error = || -> PartialVMError {
+        PartialVMError::new(StatusCode::FAILED_TO_DESERIALIZE_ARGUMENT)
+            .with_message("[VM] failed to deserialize argument".to_string())
+    };
+
+    // Make sure we do not construct values which might have delayed fields inside. This should be
+    // guaranteed by transaction argument validation but because it does not use layouts we better
+    // double-check here.
+    let layout = layout_converter
+        .type_to_type_layout_with_delayed_fields(gas_meter, traversal_context, ty)
+        .map_err(|err| {
+            if layout_converter.is_lazy_loading_enabled() {
+                err
+            } else {
+                // Note: for backwards compatibility, the error code is remapped to this error. We
+                // no longer should do it because layout construction may return useful errors such
+                // as layout being too large, running out of gas, etc.
+                PartialVMError::new(StatusCode::INVALID_PARAM_TYPE_FOR_DESERIALIZATION)
+                    .with_message("[VM] failed to get layout from type".to_string())
+            }
+        })?
+        .into_layout_when_has_no_delayed_fields()
+        .ok_or_else(deserialization_error)?;
+
+    let max_value_nest_depth = function_value_extension.max_value_nest_depth();
+    ValueSerDeContext::new(max_value_nest_depth)
+        .with_func_args_deserialization(function_value_extension)
+        .deserialize(arg.borrow(), &layout)
+        .ok_or_else(deserialization_error)
+}
+
+fn deserialize_args(
+    function_value_extension: &impl FunctionValueExtension,
+    layout_converter: &LayoutConverter<impl Loader>,
+    gas_meter: &mut impl GasMeter,
+    traversal_context: &mut TraversalContext,
+    param_tys: &[Type],
+    serialized_args: Vec<impl Borrow<[u8]>>,
+    check_invariant_in_swap_loc: bool,
+) -> PartialVMResult<(Locals, Vec<Value>)> {
+    if param_tys.len() != serialized_args.len() {
+        return Err(
+            PartialVMError::new(StatusCode::NUMBER_OF_ARGUMENTS_MISMATCH).with_message(format!(
+                "argument length mismatch: expected {} got {}",
+                param_tys.len(),
+                serialized_args.len()
+            )),
+        );
     }
 
-    /// Attempts to discover metadata in a given module with given key. Availability
-    /// of this data may depend on multiple aspects. In general, no hard assumptions of
-    /// availability should be made, but typically, one can expect that
-    /// the modules which have been involved in the execution of the last session are available.
-    ///
-    /// This is called by an adapter to extract, for example, debug information out of
-    /// the metadata section of the code for post mortem analysis. Notice that because
-    /// of ownership of the underlying binary representation of modules hidden behind an rwlock,
-    /// this actually has to hand back a copy of the associated metadata, so metadata should
-    /// be organized keeping this in mind.
-    ///
-    /// TODO: in the new loader architecture, as the loader is visible to the adapter, one would
-    ///   call this directly via the loader instead of the VM.
-    pub fn with_module_metadata<T, F>(&self, module: &ModuleId, f: F) -> Option<T>
-    where
-        F: FnOnce(&[Metadata]) -> Option<T>,
-    {
-        f(&self
-            .runtime
-            .module_cache
-            .fetch_module(module)?
-            .module()
-            .metadata)
+    // Create a list of dummy locals. Each value stored will be used be borrowed and passed
+    // by reference to the invoked function
+    let mut dummy_locals = Locals::new(param_tys.len());
+
+    // Arguments for the invoked function. These can be owned values or references
+    let deserialized_args = param_tys
+        .iter()
+        .zip(serialized_args)
+        .enumerate()
+        .map(|(idx, (ty, arg_bytes))| match ty.get_ref_inner_ty() {
+            Some(inner_ty) => {
+                dummy_locals.store_loc(
+                    idx,
+                    deserialize_arg(
+                        function_value_extension,
+                        layout_converter,
+                        gas_meter,
+                        traversal_context,
+                        inner_ty,
+                        arg_bytes,
+                    )?,
+                    check_invariant_in_swap_loc,
+                )?;
+                dummy_locals.borrow_loc(idx)
+            },
+            None => deserialize_arg(
+                function_value_extension,
+                layout_converter,
+                gas_meter,
+                traversal_context,
+                ty,
+                arg_bytes,
+            ),
+        })
+        .collect::<PartialVMResult<Vec<_>>>()?;
+    Ok((dummy_locals, deserialized_args))
+}
+
+fn serialize_return_value(
+    function_value_extension: &impl FunctionValueExtension,
+    layout_converter: &LayoutConverter<impl Loader>,
+    gas_meter: &mut impl GasMeter,
+    traversal_context: &mut TraversalContext,
+    ty: &Type,
+    value: Value,
+) -> PartialVMResult<(Vec<u8>, MoveTypeLayout)> {
+    let (ty, value) = match ty.get_ref_inner_ty() {
+        Some(inner_ty) => {
+            let ref_value: Reference = value.cast()?;
+            let inner_value = ref_value.read_ref()?;
+            (inner_ty, inner_value)
+        },
+        None => (ty, value),
+    };
+
+    let serialization_error = || -> PartialVMError {
+        PartialVMError::new(StatusCode::UNKNOWN_INVARIANT_VIOLATION_ERROR)
+            .with_message("failed to serialize return values".to_string())
+    };
+
+    // Disallow delayed fields to escape through return values of a function.
+    let layout = layout_converter
+        .type_to_type_layout_with_delayed_fields(gas_meter, traversal_context, ty)
+        .map_err(|err| {
+            if layout_converter.is_lazy_loading_enabled() {
+                err
+            } else {
+                // Note: for backwards compatibility, the error code is remapped to verification
+                // error. We should no longer do it because layout construction may return useful
+                // errors, like running out of gas, exceeding certain limits, etc.
+                PartialVMError::new(StatusCode::VERIFICATION_ERROR).with_message(
+                    "entry point functions cannot have non-serializable return types".to_string(),
+                )
+            }
+        })?
+        .into_layout_when_has_no_delayed_fields()
+        .ok_or_else(serialization_error)?;
+
+    let max_value_nest_depth = function_value_extension.max_value_nest_depth();
+    let bytes = ValueSerDeContext::new(max_value_nest_depth)
+        .with_func_args_deserialization(function_value_extension)
+        .serialize(&value, &layout)?
+        .ok_or_else(serialization_error)?;
+    Ok((bytes, layout))
+}
+
+fn serialize_return_values(
+    function_value_extension: &impl FunctionValueExtension,
+    layout_converter: &LayoutConverter<impl Loader>,
+    gas_meter: &mut impl GasMeter,
+    traversal_context: &mut TraversalContext,
+    return_tys: &[Type],
+    return_values: Vec<Value>,
+) -> PartialVMResult<Vec<(Vec<u8>, MoveTypeLayout)>> {
+    if return_tys.len() != return_values.len() {
+        return Err(
+            PartialVMError::new(StatusCode::UNKNOWN_INVARIANT_VIOLATION_ERROR).with_message(
+                format!(
+                    "declared {} return types, but got {} return values",
+                    return_tys.len(),
+                    return_values.len()
+                ),
+            ),
+        );
     }
+
+    return_tys
+        .iter()
+        .zip(return_values)
+        .map(|(ty, value)| {
+            serialize_return_value(
+                function_value_extension,
+                layout_converter,
+                gas_meter,
+                traversal_context,
+                ty,
+                value,
+            )
+        })
+        .collect()
 }

@@ -12,7 +12,10 @@ use crate::{
 pub use aptos_cached_packages::aptos_stdlib;
 use aptos_crypto::{ed25519::Ed25519PublicKey, HashValue};
 use aptos_global_constants::{GAS_UNIT_PRICE, MAX_GAS_AMOUNT};
-use aptos_types::transaction::{EntryFunction, Script};
+use aptos_types::{
+    function_info::FunctionInfo,
+    transaction::{EntryFunction, Script},
+};
 
 pub struct TransactionBuilder {
     sender: Option<AccountAddress>,
@@ -72,11 +75,34 @@ impl TransactionBuilder {
         self
     }
 
+    pub fn has_nonce(&self) -> bool {
+        self.payload.replay_protection_nonce().is_some()
+    }
+
+    pub fn upgrade_payload(
+        mut self,
+        use_txn_payload_v2_format: bool,
+        use_orderless_transactions: bool,
+    ) -> Self {
+        self.payload = self
+            .payload
+            .upgrade_payload(use_txn_payload_v2_format, use_orderless_transactions);
+        if use_orderless_transactions {
+            self.sequence_number = self.sequence_number.map(|_| u64::MAX);
+        }
+        self
+    }
+
     pub fn build(self) -> RawTransaction {
+        let sequence_number = if self.has_nonce() {
+            u64::MAX
+        } else {
+            self.sequence_number
+                .expect("sequence number must have been set")
+        };
         RawTransaction::new(
             self.sender.expect("sender must have been set"),
-            self.sequence_number
-                .expect("sequence number must have been set"),
+            sequence_number,
             self.payload,
             self.max_gas_amount,
             self.gas_unit_price,
@@ -137,11 +163,16 @@ impl TransactionFactory {
         self.transaction_expiration_time
     }
 
+    pub fn get_chain_id(&self) -> ChainId {
+        self.chain_id
+    }
+
     pub fn payload(&self, payload: TransactionPayload) -> TransactionBuilder {
         self.transaction_builder(payload)
     }
 
     pub fn entry_function(&self, func: EntryFunction) -> TransactionBuilder {
+        // TODO[Orderless]: Change this to use TransactionPayload::Payload once it's available
         self.payload(TransactionPayload::EntryFunction(func))
     }
 
@@ -149,6 +180,19 @@ impl TransactionFactory {
         self.payload(aptos_stdlib::supra_account_create_account(
             AuthenticationKey::ed25519(public_key).account_address(),
         ))
+    }
+
+    pub fn add_dispatchable_authentication_function(
+        &self,
+        function_info: FunctionInfo,
+    ) -> TransactionBuilder {
+        self.payload(
+            aptos_stdlib::account_abstraction_add_authentication_function(
+                function_info.module_address,
+                function_info.module_name.into_bytes(),
+                function_info.function_name.into_bytes(),
+            ),
+        )
     }
 
     pub fn implicitly_create_user_account_and_transfer(
@@ -183,6 +227,36 @@ impl TransactionFactory {
             vec![],
 			timeout_duration,
         ))
+    }
+
+    pub fn create_multisig_account_with_existing_account(
+        &self,
+        owners: Vec<AccountAddress>,
+        signatures_required: u64,
+    ) -> TransactionBuilder {
+        self.payload(
+            aptos_stdlib::multisig_account_create_with_existing_account_call(
+                owners,
+                signatures_required,
+                vec![],
+                vec![],
+            ),
+        )
+    }
+
+    pub fn create_multisig_account_with_existing_account_and_revoke_auth_key(
+        &self,
+        owners: Vec<AccountAddress>,
+        signatures_required: u64,
+    ) -> TransactionBuilder {
+        self.payload(
+            aptos_stdlib::multisig_account_create_with_existing_account_and_revoke_auth_key_call(
+                owners,
+                signatures_required,
+                vec![],
+                vec![],
+            ),
+        )
     }
 
     pub fn create_multisig_transaction(
@@ -238,6 +312,7 @@ impl TransactionFactory {
     //
 
     pub fn script(&self, script: Script) -> TransactionBuilder {
+        // TODO[Orderless]: Change this to use TransactionPayload::Payload once it's available
         self.payload(TransactionPayload::Script(script))
     }
 

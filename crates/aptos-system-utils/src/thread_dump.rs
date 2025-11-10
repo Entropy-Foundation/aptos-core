@@ -91,33 +91,35 @@ async fn do_thread_dump(
     let mut body = String::new();
     for thread in trace.threads() {
         let frames = thread.frames();
-        if !frames.is_empty() {
-            let symbols = frames[0].symbols();
-            if !symbols.is_empty() {
-                if let Some(name) = symbols[0].name() {
-                    if name.contains("epoll_wait") {
-                        wait_threads.push(thread.name());
-                        continue;
-                    }
+        if !verbose {
+            if !frames.is_empty() {
+                let symbols = frames[0].symbols();
+                if !symbols.is_empty() {
+                    if let Some(name) = symbols[0].name() {
+                        if name.contains("epoll_wait") {
+                            wait_threads.push(thread.name());
+                            continue;
+                        }
 
-                    if name.contains("clock_nanosleep") {
-                        sleep_threads.push(thread.name());
-                        continue;
+                        if name.contains("clock_nanosleep") {
+                            sleep_threads.push(thread.name());
+                            continue;
+                        }
                     }
                 }
             }
-        }
 
-        if frames.len() > 1 {
-            let symbols = frames[1].symbols();
-            if !symbols.is_empty() {
-                if let Some(name) = symbols[0].name() {
-                    if name.contains("futex_wait")
-                        || name.contains("pthread_cond_wait")
-                        || name.contains("pthread_cond_timedwait")
-                    {
-                        wait_threads.push(thread.name());
-                        continue;
+            if frames.len() > 1 {
+                let symbols = frames[1].symbols();
+                if !symbols.is_empty() {
+                    if let Some(name) = symbols[0].name() {
+                        if name.contains("futex_wait")
+                            || name.contains("pthread_cond_wait")
+                            || name.contains("pthread_cond_timedwait")
+                        {
+                            wait_threads.push(thread.name());
+                            continue;
+                        }
                     }
                 }
             }
@@ -133,11 +135,7 @@ async fn do_thread_dump(
                 body.push_str(&format!("Frame ip: {}\n", frame.ip()));
             }
             for symbol in frame.symbols() {
-                let name = if let Some(name) = symbol.name() {
-                    name
-                } else {
-                    "(unknown)"
-                };
+                let name = symbol.name().unwrap_or("(unknown)");
                 if location {
                     let location = if let Some(file) = symbol.file() {
                         if let Some(line) = symbol.line() {
@@ -157,17 +155,19 @@ async fn do_thread_dump(
         body.push_str("\n\n");
     }
 
-    body.push_str("Wait threads:");
-    for wait_thread in wait_threads {
-        body.push_str(&format!(" {wait_thread}"));
-    }
-    body.push_str("\n\n");
+    if !verbose {
+        body.push_str("Wait threads:");
+        for wait_thread in wait_threads {
+            body.push_str(&format!(" {wait_thread}"));
+        }
+        body.push_str("\n\n");
 
-    body.push_str("Sleep threads:");
-    for sleep_thread in sleep_threads {
-        body.push_str(&format!(" {sleep_thread}"));
+        body.push_str("Sleep threads:");
+        for sleep_thread in sleep_threads {
+            body.push_str(&format!(" {sleep_thread}"));
+        }
+        body.push_str("\n\n");
     }
-    body.push_str("\n\n");
 
     Ok(body)
 }

@@ -5,8 +5,8 @@ use anyhow::anyhow;
 use aptos_types::{
     on_chain_config::{Features, OnChainConfig},
     state_store::{state_key::StateKey, StateView},
-    vm::configs::aptos_prod_deserializer_config,
 };
+use aptos_vm_environment::prod_configs::aptos_prod_deserializer_config;
 use move_binary_format::{deserializer::DeserializerConfig, CompiledModule};
 use move_bytecode_utils::compiled_module_viewer::CompiledModuleView;
 use move_core_types::language_storage::ModuleId;
@@ -31,7 +31,7 @@ impl<'a, S: StateView> ModuleView<'a, S> {
     }
 }
 
-impl<'a, S: StateView> CompiledModuleView for ModuleView<'a, S> {
+impl<S: StateView> CompiledModuleView for ModuleView<'_, S> {
     type Item = Arc<CompiledModule>;
 
     fn view_compiled_module(&self, module_id: &ModuleId) -> anyhow::Result<Option<Self::Item>> {

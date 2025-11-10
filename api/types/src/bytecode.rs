@@ -9,9 +9,7 @@ use crate::{
     },
     MoveFunction, MoveStructTag, MoveType,
 };
-use aptos_framework::{
-    get_metadata_from_compiled_module, get_metadata_from_compiled_script, RuntimeModuleMetadataV1,
-};
+use aptos_types::vm::module_metadata::prelude::*;
 use aptos_vm::determine_is_view;
 use move_binary_format::{
     access::{ModuleAccess, ScriptAccess},
@@ -45,6 +43,16 @@ pub trait Bytecode {
     fn metadata(&self) -> Option<RuntimeModuleMetadataV1>;
 
     fn function_is_view(&self, name: &IdentStr) -> bool;
+
+    fn struct_is_event(&self, name: &IdentStr) -> bool {
+        match self.metadata() {
+            Some(m) => match m.struct_attributes.get(name.as_str()) {
+                Some(attrs) => attrs.iter().any(|attr| attr.is_event()),
+                None => false,
+            },
+            None => false,
+        }
+    }
 
     fn new_move_struct_field(&self, def: &FieldDefinition) -> MoveStructField {
         MoveStructField {
@@ -95,6 +103,18 @@ pub trait Bytecode {
                 mutable: true,
                 to: Box::new(self.new_move_type(t.borrow())),
             },
+            SignatureToken::Function(args, result, abilities) => {
+                let new_vec = |toks: &[SignatureToken]| {
+                    toks.iter()
+                        .map(|t| self.new_move_type(t))
+                        .collect::<Vec<_>>()
+                };
+                MoveType::Function {
+                    args: new_vec(args),
+                    results: new_vec(result),
+                    abilities: *abilities,
+                }
+            },
         }
     }
 
@@ -109,8 +129,13 @@ pub trait Bytecode {
                     .map(|f| self.new_move_struct_field(f))
                     .collect(),
             ),
+            StructFieldInformation::DeclaredVariants(..) => {
+                // TODO(#13806): implement for enums. Currently we pretend they don't have fields
+                (false, vec![])
+            },
         };
         let name = self.identifier_at(handle.name).to_owned();
+        let is_event = self.struct_is_event(&name);
         let abilities = handle
             .abilities
             .into_iter()
@@ -124,6 +149,7 @@ pub trait Bytecode {
         MoveStruct {
             name: name.into(),
             is_native,
+            is_event,
             abilities,
             generic_type_params,
             fields,
@@ -207,7 +233,7 @@ impl Bytecode for CompiledModule {
     }
 
     fn metadata(&self) -> Option<RuntimeModuleMetadataV1> {
-        get_metadata_from_compiled_module(self)
+        get_metadata_from_compiled_code(self)
     }
 
     fn function_is_view(&self, name: &IdentStr) -> bool {
@@ -257,7 +283,7 @@ impl Bytecode for CompiledScript {
     }
 
     fn metadata(&self) -> Option<RuntimeModuleMetadataV1> {
-        get_metadata_from_compiled_script(self)
+        get_metadata_from_compiled_code(self)
     }
 
     fn function_is_view(&self, _name: &IdentStr) -> bool {

@@ -20,7 +20,6 @@ use aptos_network::application::{
     interface::{NetworkClient, NetworkClientInterface, NetworkServiceEvents},
     storage::PeersAndMetadata,
 };
-use aptos_schemadb::DB;
 use aptos_state_sync_driver::{
     driver_factory::{DriverFactory, StateSyncRuntimes},
     metadata_storage::PersistentMetadataStorage,
@@ -34,7 +33,7 @@ use aptos_storage_service_server::{
 use aptos_storage_service_types::StorageServiceMessage;
 use aptos_time_service::TimeService;
 use aptos_types::waypoint::Waypoint;
-use aptos_vm::AptosVM;
+use aptos_vm::aptos_vm::AptosVMBlockExecutor;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
@@ -132,7 +131,6 @@ pub fn start_state_sync_and_get_notification_handles(
     waypoint: Waypoint,
     event_subscription_service: EventSubscriptionService,
     db_rw: DbReaderWriter,
-    internal_indexer_db: Option<Arc<DB>>,
 ) -> anyhow::Result<(
     AptosDataClient,
     StateSyncRuntimes,
@@ -154,7 +152,7 @@ pub fn start_state_sync_and_get_notification_handles(
         setup_data_streaming_service(state_sync_config, aptos_data_client.clone())?;
 
     // Create the chunk executor and persistent storage
-    let chunk_executor = Arc::new(ChunkExecutor::<AptosVM>::new(db_rw.clone()));
+    let chunk_executor = Arc::new(ChunkExecutor::<AptosVMBlockExecutor>::new(db_rw.clone()));
     let metadata_storage = PersistentMetadataStorage::new(&node_config.storage.dir());
 
     // Create notification senders and listeners for mempool, consensus and the storage service
@@ -197,7 +195,6 @@ pub fn start_state_sync_and_get_notification_handles(
         aptos_data_client.clone(),
         streaming_service_client,
         TimeService::real(),
-        internal_indexer_db,
     );
 
     // Create a new state sync runtime handle

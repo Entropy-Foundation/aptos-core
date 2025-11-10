@@ -2,9 +2,12 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{core_mempool::TXN_INDEX_ESTIMATED_BYTES, counters};
+use crate::{core_mempool::TXN_INDEX_ESTIMATED_BYTES, counters, network::BroadcastPeerPriority};
 use aptos_crypto::HashValue;
-use aptos_types::{account_address::AccountAddress, transaction::SignedTransaction};
+use aptos_types::{
+    account_address::AccountAddress,
+    transaction::{ReplayProtector, SignedTransaction},
+};
 use serde::{Deserialize, Serialize};
 use std::{
     mem::size_of,
@@ -22,9 +25,10 @@ pub struct MempoolTransaction {
     pub expiration_time: Duration,
     pub ranking_score: u64,
     pub timeline_state: TimelineState,
-    pub sequence_info: SequenceInfo,
     pub insertion_info: InsertionInfo,
     pub was_parked: bool,
+    // The priority of this node for the sender of this transaction.
+    pub priority_of_sender: Option<BroadcastPeerPriority>,
 }
 
 impl MempoolTransaction {
@@ -33,26 +37,27 @@ impl MempoolTransaction {
         expiration_time: Duration,
         ranking_score: u64,
         timeline_state: TimelineState,
-        seqno: u64,
         insertion_time: SystemTime,
         client_submitted: bool,
+        priority_of_sender: Option<BroadcastPeerPriority>,
     ) -> Self {
         Self {
-            sequence_info: SequenceInfo {
-                transaction_sequence_number: txn.sequence_number(),
-                account_sequence_number: seqno,
-            },
             txn,
             expiration_time,
             ranking_score,
             timeline_state,
             insertion_info: InsertionInfo::new(insertion_time, client_submitted, timeline_state),
             was_parked: false,
+            priority_of_sender,
         }
     }
 
     pub(crate) fn get_sender(&self) -> AccountAddress {
         self.txn.sender()
+    }
+
+    pub(crate) fn get_replay_protector(&self) -> ReplayProtector {
+        self.txn.replay_protector()
     }
 
     pub(crate) fn get_gas_price(&self) -> u64 {
@@ -78,12 +83,6 @@ pub enum TimelineState {
     // Transaction will never be qualified for broadcasting.
     // Currently we don't broadcast transactions originated on other peers.
     NonQualified,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub struct SequenceInfo {
-    pub transaction_sequence_number: u64,
-    pub account_sequence_number: u64,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -150,20 +149,25 @@ impl InsertionInfo {
 
 #[cfg(test)]
 mod test {
-    use crate::core_mempool::{MempoolTransaction, TimelineState};
+    use crate::{
+        core_mempool::{MempoolTransaction, TimelineState},
+        network::BroadcastPeerPriority,
+    };
     use aptos_crypto::{ed25519::Ed25519PrivateKey, PrivateKey, SigningKey, Uniform};
     use aptos_types::{
         account_address::AccountAddress,
         chain_id::ChainId,
-        transaction::{RawTransaction, Script, SignedTransaction, TransactionPayload},
+        transaction::{
+            RawTransaction, ReplayProtector, Script, SignedTransaction, TransactionExecutable,
+        },
     };
     use std::time::{Duration, SystemTime};
 
     #[test]
     fn test_estimated_bytes() {
-        let txn1 = create_test_transaction(0, vec![0x1]);
+        let txn1 = create_test_transaction(ReplayProtector::SequenceNumber(0), vec![0x1]);
         let mempool_txn1 = create_test_mempool_transaction(txn1);
-        let txn2 = create_test_transaction(0, vec![0x1, 0x2]);
+        let txn2 = create_test_transaction(ReplayProtector::SequenceNumber(0), vec![0x1, 0x2]);
         let mempool_txn2 = create_test_mempool_transaction(txn2);
 
         assert!(mempool_txn1.get_estimated_bytes() < mempool_txn2.get_estimated_bytes());
@@ -175,26 +179,31 @@ mod test {
             Duration::from_secs(1),
             1,
             TimelineState::NotReady,
-            0,
             SystemTime::now(),
             false,
+            Some(BroadcastPeerPriority::Primary),
         )
     }
 
     /// Creates a signed transaction
-    fn create_test_transaction(sequence_number: u64, code_bytes: Vec<u8>) -> SignedTransaction {
+    fn create_test_transaction(
+        replay_protector: ReplayProtector,
+        code_bytes: Vec<u8>,
+    ) -> SignedTransaction {
         let private_key = Ed25519PrivateKey::generate_for_testing();
         let public_key = private_key.public_key();
 
-        let transaction_payload =
-            TransactionPayload::Script(Script::new(code_bytes, vec![], vec![]));
-        let raw_transaction = RawTransaction::new(
+        let transaction_executable =
+            TransactionExecutable::Script(Script::new(code_bytes, vec![], vec![]));
+
+        let raw_transaction = RawTransaction::new_txn(
             AccountAddress::random(),
-            sequence_number,
-            transaction_payload,
+            replay_protector,
+            transaction_executable,
+            None,
             0,
             0,
-            0,
+            u64::MAX,
             ChainId::new(10),
         );
         SignedTransaction::new(

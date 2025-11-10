@@ -5,7 +5,7 @@
 //! This module contains the public APIs supported by the bytecode verifier.
 use crate::{
     ability_field_requirements, check_duplication::DuplicationChecker,
-    code_unit_verifier::CodeUnitVerifier, constants, friends,
+    code_unit_verifier::CodeUnitVerifier, constants, features::FeatureVerifier, friends,
     instantiation_loops::InstantiationLoopChecker, instruction_consistency::InstructionConsistency,
     limits::LimitsVerifier, script_signature,
     script_signature::no_additional_script_signature_checks, signature::SignatureChecker,
@@ -20,8 +20,14 @@ use move_core_types::{state::VMState, vm_status::StatusCode};
 use serde::Serialize;
 use std::time::Instant;
 
-#[derive(Debug, Clone, Serialize)]
+/// Configuration for the bytecode verifier.
+///
+/// Always add new fields to the end, as we rely on the hash or serialized bytes of config to
+/// detect if it has changed (e.g., new feature flag was enabled). Also, do not delete existing
+/// fields, or change the type of existing field.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct VerifierConfig {
+    pub scope: VerificationScope,
     pub max_loop_depth: Option<usize>,
     pub max_function_parameters: Option<usize>,
     pub max_generic_instantiation_length: Option<usize>,
@@ -29,8 +35,8 @@ pub struct VerifierConfig {
     pub max_value_stack_size: usize,
     pub max_type_nodes: Option<usize>,
     pub max_push_size: Option<usize>,
-    pub max_dependency_depth: Option<usize>,
     pub max_struct_definitions: Option<usize>,
+    pub max_struct_variants: Option<usize>,
     pub max_fields_in_struct: Option<usize>,
     pub max_function_definitions: Option<usize>,
     pub max_back_edges_per_function: Option<usize>,
@@ -40,6 +46,25 @@ pub struct VerifierConfig {
     pub max_per_mod_meter_units: Option<u128>,
     pub use_signature_checker_v2: bool,
     pub sig_checker_v2_fix_script_ty_param_count: bool,
+    pub enable_enum_types: bool,
+    pub enable_resource_access_control: bool,
+    pub enable_function_values: bool,
+    /// Maximum number of function return values.
+    pub max_function_return_values: Option<usize>,
+    /// Maximum depth of a type node.
+    pub max_type_depth: Option<usize>,
+    /// If enabled, signature checker V2 also checks parameter and return types in function
+    /// signatures.
+    pub sig_checker_v2_fix_function_signatures: bool,
+}
+
+/// Scope of verification.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+pub enum VerificationScope {
+    /// Do all verification
+    Everything,
+    /// The remaining variants are for testing and should never be used in production
+    Nothing,
 }
 
 /// Helper for a "canonical" verification of a module.
@@ -61,9 +86,20 @@ pub fn verify_module_with_config_for_test(
     config: &VerifierConfig,
     module: &CompiledModule,
 ) -> VMResult<()> {
+    verify_module_with_config_for_test_with_version(name, config, module, None)
+}
+
+pub fn verify_module_with_config_for_test_with_version(
+    name: &str,
+    config: &VerifierConfig,
+    module: &CompiledModule,
+    bytecode_version: Option<u32>,
+) -> VMResult<()> {
     const MAX_MODULE_SIZE: usize = 65355;
     let mut bytes = vec![];
-    module.serialize(&mut bytes).unwrap();
+    module
+        .serialize_for_version(bytecode_version, &mut bytes)
+        .unwrap();
     let now = Instant::now();
     let result = verify_module_with_config(config, module);
     eprintln!(
@@ -88,18 +124,23 @@ pub fn verify_module_with_config_for_test(
 }
 
 pub fn verify_module_with_config(config: &VerifierConfig, module: &CompiledModule) -> VMResult<()> {
+    if config.verify_nothing() {
+        return Ok(());
+    }
     let prev_state = move_core_types::state::set_state(VMState::VERIFIER);
     let result = std::panic::catch_unwind(|| {
+        // Always needs to run bound checker first as subsequent passes depend on it
         BoundsChecker::verify_module(module).map_err(|e| {
             // We can't point the error at the module, because if bounds-checking
             // failed, we cannot safely index into module's handle to itself.
             e.finish(Location::Undefined)
         })?;
+        FeatureVerifier::verify_module(config, module)?;
         LimitsVerifier::verify_module(config, module)?;
         DuplicationChecker::verify_module(module)?;
 
         if config.use_signature_checker_v2 {
-            signature_v2::verify_module(module)?;
+            signature_v2::verify_module(config, module)?;
         } else {
             SignatureChecker::verify_module(module)?;
         }
@@ -145,11 +186,18 @@ pub fn verify_script(script: &CompiledScript) -> VMResult<()> {
 }
 
 pub fn verify_script_with_config(config: &VerifierConfig, script: &CompiledScript) -> VMResult<()> {
-    fail::fail_point!("verifier-failpoint-3", |_| { Ok(()) });
-
+    if config.verify_nothing() {
+        return Ok(());
+    }
     let prev_state = move_core_types::state::set_state(VMState::VERIFIER);
     let result = std::panic::catch_unwind(|| {
-        BoundsChecker::verify_script(script).map_err(|e| e.finish(Location::Script))?;
+        // Always needs to run bound checker first as subsequent passes depend on it
+        BoundsChecker::verify_script(script).map_err(|e| {
+            // We can't point the error at the script, because if bounds-checking
+            // failed, we cannot safely index into script
+            e.finish(Location::Undefined)
+        })?;
+        FeatureVerifier::verify_script(config, script)?;
         LimitsVerifier::verify_script(config, script)?;
         DuplicationChecker::verify_script(script)?;
 
@@ -179,6 +227,7 @@ pub fn verify_script_with_config(config: &VerifierConfig, script: &CompiledScrip
 impl Default for VerifierConfig {
     fn default() -> Self {
         Self {
+            scope: VerificationScope::Everything,
             max_loop_depth: None,
             max_function_parameters: None,
             max_generic_instantiation_length: None,
@@ -188,12 +237,12 @@ impl Default for VerifierConfig {
             max_value_stack_size: 1024,
             // Max number of pushes in one function
             max_push_size: None,
-            // Max depth in dependency tree for both direct and friend dependencies
-            max_dependency_depth: None,
             // Max count of structs in a module
             max_struct_definitions: None,
             // Max count of fields in a struct
             max_fields_in_struct: None,
+            // Max count of variants in a struct
+            max_struct_variants: None,
             // Max count of functions in a module
             max_function_definitions: None,
             // Max size set to 10000 to restrict number of pushes in one function
@@ -214,6 +263,14 @@ impl Default for VerifierConfig {
             use_signature_checker_v2: true,
 
             sig_checker_v2_fix_script_ty_param_count: true,
+            sig_checker_v2_fix_function_signatures: true,
+
+            enable_enum_types: true,
+            enable_resource_access_control: true,
+            enable_function_values: true,
+
+            max_function_return_values: None,
+            max_type_depth: None,
         }
     }
 }
@@ -231,17 +288,18 @@ impl VerifierConfig {
     /// An approximation of what config is used in production.
     pub fn production() -> Self {
         Self {
+            scope: VerificationScope::Everything,
             max_loop_depth: Some(5),
             max_generic_instantiation_length: Some(32),
             max_function_parameters: Some(128),
             max_basic_blocks: Some(1024),
             max_basic_blocks_in_script: Some(1024),
             max_value_stack_size: 1024,
-            max_type_nodes: Some(256),
+            max_type_nodes: Some(128),
             max_push_size: Some(10000),
-            max_dependency_depth: Some(100),
             max_struct_definitions: Some(200),
             max_fields_in_struct: Some(30),
+            max_struct_variants: Some(90),
             max_function_definitions: Some(1000),
 
             // Do not use back edge constraints as they are superseded by metering
@@ -253,8 +311,25 @@ impl VerifierConfig {
             max_per_mod_meter_units: Some(1000 * 8000),
 
             use_signature_checker_v2: true,
-
             sig_checker_v2_fix_script_ty_param_count: true,
+            sig_checker_v2_fix_function_signatures: true,
+
+            enable_enum_types: true,
+            enable_resource_access_control: true,
+            enable_function_values: true,
+
+            max_function_return_values: Some(128),
+            max_type_depth: Some(20),
         }
+    }
+
+    /// Set verification scope
+    pub fn set_scope(self, scope: VerificationScope) -> Self {
+        Self { scope, ..self }
+    }
+
+    /// Returns true if verification is disabled.
+    pub fn verify_nothing(&self) -> bool {
+        matches!(self.scope, VerificationScope::Nothing)
     }
 }

@@ -15,11 +15,15 @@ use crate::{
 };
 use anyhow::Context as AnyhowContext;
 use aptos_api_types::{
-    AccountData, Address, AptosErrorCode, AsConverter, LedgerInfo, MoveModuleBytecode,
+    AccountData, Address, AptosErrorCode, AsConverter, AssetType, LedgerInfo, MoveModuleBytecode,
     MoveModuleId, MoveResource, MoveStructTag, StateKeyWrapper, U64,
 };
+use aptos_sdk::types::{get_paired_fa_metadata_address, get_paired_fa_primary_store_address};
 use aptos_types::{
-    account_config::{AccountResource, ObjectGroupResource},
+    account_config::{
+        AccountResource, CoinStoreResourceUntyped, ConcurrentFungibleBalanceResource,
+        FungibleStoreResource, ObjectGroupResource,
+    },
     event::{EventHandle, EventKey},
     state_store::state_key::StateKey,
 };
@@ -30,7 +34,7 @@ use poem_openapi::{
     param::{Path, Query},
     OpenApi,
 };
-use std::{collections::BTreeMap, convert::TryInto, sync::Arc};
+use std::{collections::BTreeMap, convert::TryInto, str::FromStr, sync::Arc};
 
 /// API for accounts, their associated resources, and modules
 pub struct AccountsApi {
@@ -124,6 +128,43 @@ impl AccountsApi {
         .await
     }
 
+    /// Get account balance
+    ///
+    /// Retrieves account balance for coins / fungible asset (only for primary fungible asset store)
+    /// for a given account, asset type and a specific ledger version.  If the
+    /// ledger version is not specified in the request, the latest ledger version is used.
+    ///
+    /// The Aptos nodes prune account state history, via a configurable time window.
+    /// If the requested ledger version has been pruned, the server responds with a 410.
+    #[oai(
+        path = "/accounts/:address/balance/:asset_type",
+        method = "get",
+        operation_id = "get_account_balance",
+        tag = "ApiTags::Accounts"
+    )]
+    async fn get_account_balance(
+        &self,
+        accept_type: AcceptType,
+        /// Address of account with or without a `0x` prefix
+        address: Path<Address>,
+        asset_type: Path<AssetType>,
+        /// Ledger version to get state of account
+        ///
+        /// If not provided, it will be the latest version
+        ledger_version: Query<Option<U64>>,
+    ) -> BasicResultWith404<u64> {
+        fail_point_poem("endpoint_get_account_balance")?;
+        self.context
+            .check_api_output_enabled("Get account balance", &accept_type)?;
+
+        let context = self.context.clone();
+        api_spawn_blocking(move || {
+            let account = Account::new(context, address.0, ledger_version.0, None, None)?;
+            account.balance(asset_type.0, &accept_type)
+        })
+        .await
+    }
+
     /// Get account modules
     ///
     /// Retrieves all account modules' bytecode for a given account at a specific ledger version.
@@ -183,7 +224,7 @@ pub struct Account {
     /// Address of account
     address: Address,
     /// Lookup ledger version
-    ledger_version: u64,
+    pub ledger_version: u64,
     /// Where to start for pagination
     start: Option<StateKey>,
     /// Max number of items to retrieve
@@ -193,8 +234,6 @@ pub struct Account {
 }
 
 impl Account {
-    /// Creates a new account struct and determines the current ledger info, and determines the
-    /// ledger version to query
     pub fn new(
         context: Arc<Context>,
         address: Address,
@@ -202,8 +241,7 @@ impl Account {
         start: Option<StateKey>,
         limit: Option<u16>,
     ) -> Result<Self, BasicErrorWith404> {
-        // Use the latest ledger version, or the requested associated version
-        let (latest_ledger_info, requested_ledger_version) = context
+        let (latest_ledger_info, requested_version) = context
             .get_latest_ledger_info_and_verify_lookup_version(
                 requested_ledger_version.map(|inner| inner.0),
             )?;
@@ -211,7 +249,7 @@ impl Account {
         Ok(Self {
             context,
             address,
-            ledger_version: requested_ledger_version,
+            ledger_version: requested_version,
             start,
             limit,
             latest_ledger_info,
@@ -226,35 +264,168 @@ impl Account {
     /// * BCS: Return a BCS encoded version of [`AccountData`]
     pub fn account(self, accept_type: &AcceptType) -> BasicResultWith404<AccountData> {
         // Retrieve the Account resource and convert it accordingly
-        let state_value = self.get_account_resource()?;
+        let state_value_opt = self.get_account_resource()?;
+
+        let account_resource = if let Some(state_value) = &state_value_opt {
+            let account_resource: AccountResource = bcs::from_bytes(state_value)
+                .context("Internal error deserializing response from DB")
+                .map_err(|err| {
+                    BasicErrorWith404::internal_with_code(
+                        err,
+                        AptosErrorCode::InternalError,
+                        &self.latest_ledger_info,
+                    )
+                })?;
+            account_resource
+        } else {
+            let stateless_account_enabled = self
+                .context
+                .feature_enabled(
+                    aptos_types::on_chain_config::FeatureFlag::DEFAULT_ACCOUNT_RESOURCE,
+                )
+                .context("Failed to check if stateless account is enabled")
+                .map_err(|_| {
+                    BasicErrorWith404::internal_with_code(
+                        "Failed to check if stateless account is enabled",
+                        AptosErrorCode::InternalError,
+                        &self.latest_ledger_info,
+                    )
+                })?;
+            if stateless_account_enabled {
+                AccountResource::new_stateless(*self.address.inner())
+            } else {
+                Err(account_not_found(
+                    self.address,
+                    self.ledger_version,
+                    &self.latest_ledger_info,
+                ))?
+            }
+        };
 
         // Convert the AccountResource into the summary object AccountData
-        let account_resource: AccountResource = bcs::from_bytes(&state_value)
-            .context("Internal error deserializing response from DB")
-            .map_err(|err| {
-                BasicErrorWith404::internal_with_code(
-                    err,
-                    AptosErrorCode::InternalError,
-                    &self.latest_ledger_info,
-                )
-            })?;
-        let account_data: AccountData = account_resource.into();
-
         match accept_type {
             AcceptType::Json => BasicResponse::try_from_json((
-                account_data,
+                account_resource.into(),
                 &self.latest_ledger_info,
                 BasicResponseStatus::Ok,
             )),
             AcceptType::Bcs => BasicResponse::try_from_encoded((
-                state_value,
+                state_value_opt.unwrap_or_else(|| bcs::to_bytes(&account_resource).unwrap()),
                 &self.latest_ledger_info,
                 BasicResponseStatus::Ok,
             )),
         }
     }
 
-    pub fn get_account_resource(&self) -> Result<Vec<u8>, BasicErrorWith404> {
+    pub fn balance(
+        &self,
+        asset_type: AssetType,
+        accept_type: &AcceptType,
+    ) -> BasicResultWith404<u64> {
+        let (fa_metadata_address, mut balance) = match asset_type {
+            AssetType::Coin(move_struct_tag) => {
+                let coin_store_type_tag =
+                    StructTag::from_str(&format!("0x1::coin::CoinStore<{}>", move_struct_tag))
+                        .map_err(|err| {
+                            BasicErrorWith404::internal_with_code(
+                                err,
+                                AptosErrorCode::InternalError,
+                                &self.latest_ledger_info,
+                            )
+                        })?;
+                // query coin balance
+                let state_value = self.context.get_state_value_poem(
+                    &StateKey::resource(&self.address.into(), &coin_store_type_tag).map_err(
+                        |err| {
+                            BasicErrorWith404::internal_with_code(
+                                err,
+                                AptosErrorCode::InternalError,
+                                &self.latest_ledger_info,
+                            )
+                        },
+                    )?,
+                    self.ledger_version,
+                    &self.latest_ledger_info,
+                )?;
+                let coin_balance = match state_value {
+                    None => 0,
+                    Some(bytes) => bcs::from_bytes::<CoinStoreResourceUntyped>(&bytes)
+                        .map_err(|err| {
+                            BasicErrorWith404::internal_with_code(
+                                err,
+                                AptosErrorCode::InternalError,
+                                &self.latest_ledger_info,
+                            )
+                        })?
+                        .coin(),
+                };
+                (
+                    get_paired_fa_metadata_address(&move_struct_tag),
+                    coin_balance,
+                )
+            },
+            AssetType::FungibleAsset(fa_metadata_adddress) => (fa_metadata_adddress.into(), 0),
+        };
+        let primary_fungible_store_address =
+            get_paired_fa_primary_store_address(self.address.into(), fa_metadata_address);
+        if let Some(data_blob) = self.context.get_state_value_poem(
+            &StateKey::resource_group(
+                &primary_fungible_store_address,
+                &ObjectGroupResource::struct_tag(),
+            ),
+            self.ledger_version,
+            &self.latest_ledger_info,
+        )? {
+            if let Ok(object_group) = bcs::from_bytes::<ObjectGroupResource>(&data_blob) {
+                if let Some(fa_store) = object_group.group.get(&FungibleStoreResource::struct_tag())
+                {
+                    let fa_store_resource = bcs::from_bytes::<FungibleStoreResource>(fa_store)
+                        .map_err(|err| {
+                            BasicErrorWith404::internal_with_code(
+                                err,
+                                AptosErrorCode::InternalError,
+                                &self.latest_ledger_info,
+                            )
+                        })?;
+                    if fa_store_resource.balance != 0 {
+                        balance += fa_store_resource.balance();
+                    } else if let Some(concurrent_fa_balance) = object_group
+                        .group
+                        .get(&ConcurrentFungibleBalanceResource::struct_tag())
+                    {
+                        // query potential concurrent fa balance
+                        let concurrent_fa_balance_resource =
+                            bcs::from_bytes::<ConcurrentFungibleBalanceResource>(
+                                concurrent_fa_balance,
+                            )
+                            .map_err(|err| {
+                                BasicErrorWith404::internal_with_code(
+                                    err,
+                                    AptosErrorCode::InternalError,
+                                    &self.latest_ledger_info,
+                                )
+                            })?;
+                        balance += concurrent_fa_balance_resource.balance();
+                    }
+                }
+            }
+        }
+        match accept_type {
+            AcceptType::Json => BasicResponse::try_from_json((
+                balance,
+                &self.latest_ledger_info,
+                BasicResponseStatus::Ok,
+            )),
+            AcceptType::Bcs => BasicResponse::try_from_encoded((
+                bcs::to_bytes(&balance).unwrap(),
+                &self.latest_ledger_info,
+                BasicResponseStatus::Ok,
+            )),
+        }
+    }
+
+    /// Retrieves the account resource for the associated account
+    fn get_account_resource(&self) -> Result<Option<Vec<u8>>, BasicErrorWith404> {
         let state_key =
             StateKey::resource_typed::<AccountResource>(self.address.inner()).map_err(|e| {
                 BasicErrorWith404::internal_with_code(
@@ -264,42 +435,8 @@ impl Account {
                 )
             })?;
 
-        let state_value = self.context.get_state_value_poem(
-            &state_key,
-            self.ledger_version,
-            &self.latest_ledger_info,
-        )?;
-
-        state_value.ok_or_else(|| {
-            account_not_found(self.address, self.ledger_version, &self.latest_ledger_info)
-        })
-    }
-
-    /// Returns an error if an object or account resource does not exist at the address specified
-    /// within the context provided.
-    pub(crate) fn verify_account_or_object_resource(&self) -> Result<(), BasicErrorWith404> {
-        if self.get_account_resource().is_ok() {
-            return Ok(());
-        }
-
-        let state_key =
-            StateKey::resource_group(&self.address.into(), &ObjectGroupResource::struct_tag());
-
-        let state_value = self.context.get_state_value_poem(
-            &state_key,
-            self.ledger_version,
-            &self.latest_ledger_info,
-        )?;
-
-        if state_value.is_some() {
-            Ok(())
-        } else {
-            Err(account_not_found(
-                self.address,
-                self.ledger_version,
-                &self.latest_ledger_info,
-            ))
-        }
+        self.context
+            .get_state_value_poem(&state_key, self.ledger_version, &self.latest_ledger_info)
     }
 
     /// Retrieves the move resources associated with the account
@@ -310,8 +447,6 @@ impl Account {
     /// Note: For the BCS response, if results are being returned in pages, i.e. with the
     /// `start` and `limit` query parameters, the results will only be sorted within each page.
     pub fn resources(self, accept_type: &AcceptType) -> BasicResultWith404<Vec<MoveResource>> {
-        // check account exists
-        self.verify_account_or_object_resource()?;
         let max_account_resources_page_size = self.context.max_account_resources_page_size();
         let (resources, next_state_key) = self
             .context
@@ -382,8 +517,6 @@ impl Account {
     /// Note: For the BCS response, if results are being returned in pages, i.e. with the
     /// `start` and `limit` query parameters, the results will only be sorted within each page.
     pub fn modules(self, accept_type: &AcceptType) -> BasicResultWith404<Vec<MoveModuleBytecode>> {
-        // check account exists
-        self.verify_account_or_object_resource()?;
         let max_account_modules_page_size = self.context.max_account_modules_page_size();
         let (modules, next_state_key) = self
             .context
@@ -459,7 +592,7 @@ impl Account {
         field_name: Identifier,
     ) -> Result<EventKey, BasicErrorWith404> {
         // Parse the struct tag
-        let struct_tag: StructTag = struct_tag
+        let struct_tag: StructTag = (&struct_tag)
             .try_into()
             .context("Given event handle was invalid")
             .map_err(|err| {
@@ -471,7 +604,7 @@ impl Account {
             })?;
 
         // Find the resource and retrieve the struct field
-        let resource = self.find_resource(&struct_tag)?;
+        let (_, resource) = self.find_resource(&struct_tag)?;
         let (_id, value) = resource
             .into_iter()
             .find(|(id, _)| id == &field_name)
@@ -511,12 +644,19 @@ impl Account {
         Ok(*event_handle.key())
     }
 
-    /// Find a resource associated with an account
+    /// Find a resource associated with an account. If the resource is an enum variant,
+    /// returns the variant name in the option.
     fn find_resource(
         &self,
         resource_type: &StructTag,
-    ) -> Result<Vec<(Identifier, move_core_types::value::MoveValue)>, BasicErrorWith404> {
-        let (ledger_info, ledger_version, state_view) =
+    ) -> Result<
+        (
+            Option<Identifier>,
+            Vec<(Identifier, move_core_types::value::MoveValue)>,
+        ),
+        BasicErrorWith404,
+    > {
+        let (ledger_info, requested_ledger_version, state_view) =
             self.context.state_view(Some(self.ledger_version))?;
 
         let bytes = state_view
@@ -524,7 +664,8 @@ impl Account {
             .find_resource(&state_view, self.address, resource_type)
             .context(format!(
                 "Failed to query DB to check for {} at {}",
-                resource_type, self.address
+                resource_type.to_canonical_string(),
+                self.address
             ))
             .map_err(|err| {
                 BasicErrorWith404::internal_with_code(
@@ -534,7 +675,12 @@ impl Account {
                 )
             })?
             .ok_or_else(|| {
-                resource_not_found(self.address, resource_type, ledger_version, &ledger_info)
+                resource_not_found(
+                    self.address,
+                    resource_type,
+                    requested_ledger_version,
+                    &ledger_info,
+                )
             })?;
 
         state_view

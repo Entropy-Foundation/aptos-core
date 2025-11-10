@@ -190,22 +190,22 @@ Staking reward configurations that will be stored with the @supra_framework acco
 
 
 
-<a id="0x1_staking_config_BPS_DENOMINATOR"></a>
-
-Denominator of number in basis points. 1 bps(basis points) = 0.01%.
-
-
-<pre><code><b>const</b> <a href="staking_config.md#0x1_staking_config_BPS_DENOMINATOR">BPS_DENOMINATOR</a>: u64 = 10000;
-</code></pre>
-
-
-
 <a id="0x1_staking_config_EDEPRECATED_FUNCTION"></a>
 
 The function has been deprecated.
 
 
 <pre><code><b>const</b> <a href="staking_config.md#0x1_staking_config_EDEPRECATED_FUNCTION">EDEPRECATED_FUNCTION</a>: u64 = 10;
+</code></pre>
+
+
+
+<a id="0x1_staking_config_BPS_DENOMINATOR"></a>
+
+Denominator of number in basis points. 1 bps(basis points) = 0.01%.
+
+
+<pre><code><b>const</b> <a href="staking_config.md#0x1_staking_config_BPS_DENOMINATOR">BPS_DENOMINATOR</a>: u64 = 10000;
 </code></pre>
 
 
@@ -388,17 +388,25 @@ Only called during genesis.
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="staking_config.md#0x1_staking_config_EINVALID_REWARDS_RATE">EINVALID_REWARDS_RATE</a>)
     );
 
-    <b>move_to</b>(
-        supra_framework,
-        <a href="staking_config.md#0x1_staking_config_StakingConfig">StakingConfig</a> {
-            minimum_stake,
-            maximum_stake,
-            recurring_lockup_duration_secs,
-            allow_validator_set_change,
-            rewards_rate,
-            rewards_rate_denominator,
-            voting_power_increase_limit
-        }
+    <b>move_to</b>(aptos_framework, <a href="staking_config.md#0x1_staking_config_StakingConfig">StakingConfig</a> {
+        minimum_stake,
+        maximum_stake,
+        recurring_lockup_duration_secs,
+        allow_validator_set_change,
+        rewards_rate,
+        rewards_rate_denominator,
+        voting_power_increase_limit,
+    });
+
+    // Initialize <a href="staking_config.md#0x1_staking_config_StakingRewardsConfig">StakingRewardsConfig</a> <b>with</b> the given rewards_rate and rewards_rate_denominator,
+    // <b>while</b> setting min_rewards_rate and rewards_rate_decrease_rate <b>to</b> 0.
+    <a href="staking_config.md#0x1_staking_config_initialize_rewards">initialize_rewards</a>(
+        aptos_framework,
+        <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_create_from_rational">fixed_point64::create_from_rational</a>((rewards_rate <b>as</b> u128), (rewards_rate_denominator <b>as</b> u128)),
+        <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_create_from_rational">fixed_point64::create_from_rational</a>(0, 1000),
+        <a href="staking_config.md#0x1_staking_config_ONE_YEAR_IN_SECS">ONE_YEAR_IN_SECS</a>,
+        0,
+        <a href="../../aptos-stdlib/doc/fixed_point64.md#0x1_fixed_point64_create_from_rational">fixed_point64::create_from_rational</a>(0, 1000),
     );
 }
 </code></pre>
@@ -1148,7 +1156,8 @@ Can only be called as part of the Supra governance proposal process established 
 ### Module-level Specification
 
 
-<pre><code><b>invariant</b> [suspendable] <a href="chain_status.md#0x1_chain_status_is_operating">chain_status::is_operating</a>() ==&gt; <b>exists</b>&lt;<a href="staking_config.md#0x1_staking_config_StakingConfig">StakingConfig</a>&gt;(@supra_framework);
+<pre><code><b>invariant</b> [suspendable] <a href="chain_status.md#0x1_chain_status_is_operating">chain_status::is_operating</a>() ==&gt; <b>exists</b>&lt;<a href="staking_config.md#0x1_staking_config_StakingConfig">StakingConfig</a>&gt;(@aptos_framework);
+<b>invariant</b> [suspendable] <a href="chain_status.md#0x1_chain_status_is_operating">chain_status::is_operating</a>() ==&gt; <b>exists</b>&lt;<a href="staking_config.md#0x1_staking_config_StakingRewardsConfig">StakingRewardsConfig</a>&gt;(@aptos_framework);
 <b>pragma</b> verify = <b>true</b>;
 </code></pre>
 
@@ -1298,7 +1307,8 @@ rewards_rate/rewards_rate_denominator <= 1.
 StakingConfig does not exist under the supra_framework before creating it.
 
 
-<pre><code><b>let</b> addr = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(supra_framework);
+<pre><code><b>let</b> addr = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(aptos_framework);
+<b>requires</b> <b>exists</b>&lt;<a href="timestamp.md#0x1_timestamp_CurrentTimeMicroseconds">timestamp::CurrentTimeMicroseconds</a>&gt;(@aptos_framework);
 // This enforces <a id="high-level-req-1.1" href="#high-level-req">high-level requirement 1</a>:
 <b>aborts_if</b> addr != @supra_framework;
 <b>aborts_if</b> minimum_stake &gt; maximum_stake || maximum_stake == 0;
@@ -1310,7 +1320,9 @@ StakingConfig does not exist under the supra_framework before creating it.
 <b>aborts_if</b> rewards_rate &gt; <a href="staking_config.md#0x1_staking_config_MAX_REWARDS_RATE">MAX_REWARDS_RATE</a>;
 <b>aborts_if</b> rewards_rate &gt; rewards_rate_denominator;
 <b>aborts_if</b> <b>exists</b>&lt;<a href="staking_config.md#0x1_staking_config_StakingConfig">StakingConfig</a>&gt;(addr);
+<b>aborts_if</b> <b>exists</b>&lt;<a href="staking_config.md#0x1_staking_config_StakingRewardsConfig">StakingRewardsConfig</a>&gt;(addr);
 <b>ensures</b> <b>exists</b>&lt;<a href="staking_config.md#0x1_staking_config_StakingConfig">StakingConfig</a>&gt;(addr);
+<b>ensures</b> <b>exists</b>&lt;<a href="staking_config.md#0x1_staking_config_StakingRewardsConfig">StakingRewardsConfig</a>&gt;(addr);
 </code></pre>
 
 

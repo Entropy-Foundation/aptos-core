@@ -11,8 +11,8 @@
 module aggregator_examples::counter_with_milestone {
     use std::error;
     use std::signer;
-    use aptos_framework::aggregator_v2::{Self, Aggregator};
-    use aptos_framework::event;
+    use supra_framework::aggregator_v2::{Self, Aggregator};
+    use supra_framework::event;
 
     // Resource being modified doesn't exist
     const ERESOURCE_NOT_PRESENT: u64 = 2;
