@@ -31,6 +31,7 @@ mod evm_genesis_config;
 mod execution_config;
 mod gas_schedule;
 mod jwk_consensus_config;
+mod microchain_registry;
 pub mod randomness_api_v0_config;
 mod randomness_config;
 mod timed_features;
@@ -46,13 +47,17 @@ pub use self::{
     },
     automation_registry::{
         AutomationCycleDetails, AutomationCycleEvent, AutomationCycleInfo, AutomationCycleState,
-        AutomationRegistryConfig, AutomationRegistryConfigV1, AutomationRegistryConfigV2, AutomationCycleTransitionState
+        AutomationCycleTransitionState, AutomationRegistryConfig, AutomationRegistryConfigV1,
+        AutomationRegistryConfigV2,
     },
     commit_history::CommitHistoryResource,
     consensus_config::{
         AnchorElectionMode, ConsensusAlgorithmConfig, ConsensusConfigV1, DagConsensusConfigV1,
         LeaderReputationType, OnChainConsensusConfig, ProposerAndVoterConfig, ProposerElectionType,
         ValidatorTxnConfig,
+    },
+    evm_genesis_config::{
+        GenesisEvmContract, GenesisEvmEOA, OnChainEvmGenesisConfig, EVM_GENESIS_EVENT_MOVE_TYPE_TAG,
     },
     execution_config::{
         BlockGasLimitType, ExecutionConfigV1, ExecutionConfigV2, ExecutionConfigV4,
@@ -62,6 +67,7 @@ pub use self::{
     jwk_consensus_config::{
         ConfigV1 as JWKConsensusConfigV1, OIDCProvider, OnChainJWKConsensusConfig,
     },
+    microchain_registry::{MicrochainRegistryConfig, ReservedRange},
     randomness_config::{
         OnChainRandomnessConfig, RandomnessConfigMoveStruct, RandomnessConfigSeqNum,
     },
@@ -69,7 +75,6 @@ pub use self::{
     timestamp::CurrentTimeMicroseconds,
     transaction_fee::TransactionFeeBurnCap,
     validator_set::{ConsensusScheme, ValidatorSet},
-    evm_genesis_config::{OnChainEvmGenesisConfig, GenesisEvmContract, GenesisEvmEOA, EVM_GENESIS_EVENT_MOVE_TYPE_TAG},
 };
 
 /// To register an on-chain config in Rust:

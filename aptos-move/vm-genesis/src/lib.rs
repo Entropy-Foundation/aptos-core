@@ -32,9 +32,10 @@ use aptos_types::{
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{
         randomness_api_v0_config::{AllowCustomMaxGasFlag, RequiredGasDeposit},
-        AutomationRegistryConfig, FeatureFlag, Features, GasScheduleV2, OnChainConsensusConfig,
-        OnChainEvmGenesisConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig,
-        OnChainRandomnessConfig, RandomnessConfigMoveStruct, APTOS_MAX_KNOWN_VERSION,
+        AutomationRegistryConfig, FeatureFlag, Features, GasScheduleV2, MicrochainRegistryConfig,
+        OnChainConsensusConfig, OnChainEvmGenesisConfig, OnChainExecutionConfig,
+        OnChainJWKConsensusConfig, OnChainRandomnessConfig, RandomnessConfigMoveStruct,
+        APTOS_MAX_KNOWN_VERSION,
     },
     transaction::{authenticator::AuthenticationKey, ChangeSet, Transaction, WriteSetPayload},
     write_set::TransactionWrite,
@@ -108,6 +109,7 @@ pub struct GenesisConfiguration {
     pub randomness_config_override: Option<OnChainRandomnessConfig>,
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     pub automation_registry_config: Option<AutomationRegistryConfig>,
+    pub microchain_registry_config: Option<MicrochainRegistryConfig>,
 }
 
 pub static GENESIS_KEYPAIR: Lazy<(Ed25519PrivateKey, Ed25519PublicKey)> = Lazy::new(|| {
@@ -174,6 +176,7 @@ pub fn encode_supra_mainnet_genesis_transaction(
     );
     initialize_supra_coin(&mut session);
     initialize_supra_native_automation(&mut session, genesis_config);
+    initialize_microchain_registry(&mut session, genesis_config);
     initialize_on_chain_governance(&mut session, genesis_config);
     create_accounts(&mut session, accounts);
 
@@ -326,6 +329,7 @@ pub fn encode_genesis_change_set_for_testnet(
         initialize_supra_coin(&mut session);
     }
     initialize_supra_native_automation(&mut session, genesis_config);
+    initialize_microchain_registry(&mut session, genesis_config);
     initialize_config_buffer(&mut session);
     initialize_dkg(&mut session);
     initialize_reconfiguration_state(&mut session);
@@ -581,6 +585,19 @@ fn initialize_supra_native_automation(
         "initialize_supra_native_automation_v2",
         vec![],
         config.serialize_into_move_values_with_signer(CORE_CODE_ADDRESS),
+    );
+}
+
+fn initialize_microchain_registry(session: &mut SessionExt, genesis_config: &GenesisConfiguration) {
+    let Some(config) = &genesis_config.microchain_registry_config else {
+        return;
+    };
+    exec_function(
+        session,
+        GENESIS_MODULE_NAME,
+        "initialize_microchain_registry",
+        vec![],
+        config.serialize_into_move_values(),
     );
 }
 
@@ -1242,6 +1259,7 @@ pub fn generate_test_genesis(
             randomness_config_override: None,
             jwk_consensus_config_override: None,
             automation_registry_config: Some(AutomationRegistryConfig::default()),
+            microchain_registry_config: Some(MicrochainRegistryConfig::default()),
         },
         &OnChainConsensusConfig::default_for_genesis(),
         &OnChainExecutionConfig::default_for_genesis(),
@@ -1310,6 +1328,7 @@ fn mainnet_genesis_config() -> GenesisConfiguration {
         randomness_config_override: None,
         jwk_consensus_config_override: None,
         automation_registry_config: Some(AutomationRegistryConfig::default()),
+        microchain_registry_config: Some(MicrochainRegistryConfig::default()),
     }
 }
 
