@@ -37,6 +37,7 @@ use aptos_types::{
         OnChainRandomnessConfig, RandomnessConfigMoveStruct, APTOS_MAX_KNOWN_VERSION,
     },
     transaction::{authenticator::AuthenticationKey, ChangeSet, Transaction, WriteSetPayload},
+    validator_config::ValidatorConfigPublicKeys,
     write_set::TransactionWrite,
 };
 use aptos_vm::{
@@ -1172,7 +1173,8 @@ impl TestValidator {
         let auth_key = AuthenticationKey::ed25519(&key.public_key());
         let owner_address = auth_key.account_address();
         let consensus_key = ed25519::PrivateKey::generate(rng);
-        let consensus_pubkey = consensus_key.public_key().to_bytes().to_vec();
+        let consensus_pubkeys = ValidatorConfigPublicKeys::new(consensus_key.public_key());
+        let consensus_pubkey = bcs::to_bytes(&consensus_pubkeys).unwrap();
         let network_address = [0u8; 0].to_vec();
         let full_node_network_address = [0u8; 0].to_vec();
 
@@ -1967,4 +1969,36 @@ pub fn test_mainnet_end_to_end() {
     // // This validator should not be in the genesis validator set as they specified
     // // join_during_genesis = false.
     // assert!(!validator_set_addresses.contains(&same_owner_validator_3_pool_address));
+}
+
+#[test]
+fn test_move_serde() {
+    use aptos_crypto::ed25519::{PrivateKey, PublicKey};
+
+    // Create a Move VM session, so we can invoke on-chain genesis initializations.
+    let mut state_view = GenesisStateView::new();
+    for (module_bytes, module) in
+        aptos_cached_packages::head_release_bundle().code_and_compiled_modules()
+    {
+        state_view.add_module(&module.self_id(), module_bytes);
+    }
+
+    let vm = GenesisMoveVM::new(ChainId::new(42));
+    let resolver = state_view.as_move_resolver();
+    let mut session = vm.new_genesis_session(&resolver, HashValue::zero());
+
+    let private_key = PrivateKey::generate_for_testing();
+    let public_key = PublicKey::from(&private_key);
+    let validator_config_public_keys = ValidatorConfigPublicKeys::new(public_key.clone());
+
+    let serialized =
+        bcs::to_bytes(&validator_config_public_keys).expect("Failed to serialize public key");
+
+    exec_function(
+        &mut session,
+        "consensus_key",
+        "consensus_public_key_from_bytes",
+        vec![],
+        vec![serialized],
+    )
 }

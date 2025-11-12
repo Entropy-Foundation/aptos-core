@@ -3,6 +3,8 @@
 
 use aptos_config::config::HANDSHAKE_VERSION;
 use aptos_crypto::{ed25519, ed25519::Ed25519PublicKey, x25519};
+use aptos_types::on_chain_config::AutomationRegistryConfig;
+use aptos_types::validator_config::ValidatorConfigPublicKeys;
 use aptos_types::{
     account_address::{AccountAddress, AccountAddressWithChecks},
     chain_id::ChainId,
@@ -21,7 +23,6 @@ use std::{
     path::Path,
     str::FromStr,
 };
-use aptos_types::on_chain_config::AutomationRegistryConfig;
 
 /// Template for setting up Github for Genesis
 ///
@@ -244,7 +245,7 @@ impl TryFrom<ValidatorConfiguration> for Validator {
         }
 
         let consensus_pubkey = if let Some(consensus_public_key) = config.consensus_public_key {
-            consensus_public_key.to_bytes().to_vec()
+            bcs::to_bytes(&ValidatorConfigPublicKeys::new(consensus_public_key)).unwrap()
         } else {
             vec![]
         };

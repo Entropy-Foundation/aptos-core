@@ -40,6 +40,7 @@ use aptos_types::{
     on_chain_config::{ConfigurationResource, ConsensusScheme, ValidatorSet},
     stake_pool::StakePool,
     staking_contract::StakingContractStore,
+    validator_config::ValidatorConfigPublicKeys,
     validator_info::ValidatorInfo,
     validator_performances::ValidatorPerformances,
     vesting::VestingAdminStore,
@@ -901,8 +902,9 @@ impl TryFrom<&ValidatorInfo> for ValidatorInfoSummary {
 
     fn try_from(info: &ValidatorInfo) -> Result<Self, Self::Error> {
         let config = info.config();
+
         let config = ValidatorConfig {
-            consensus_public_key: config.consensus_public_key.to_bytes().to_vec(),
+            consensus_public_key: bcs::to_bytes(&config.consensus_public_keys)?,
             validator_network_addresses: config.validator_network_addresses.clone(),
             fullnode_network_addresses: config.fullnode_network_addresses.clone(),
             validator_index: config.validator_index,
@@ -918,11 +920,14 @@ impl TryFrom<&ValidatorInfo> for ValidatorInfoSummary {
 impl From<&ValidatorInfoSummary> for ValidatorInfo {
     fn from(summary: &ValidatorInfoSummary) -> Self {
         let config = &summary.config;
+        let validator_public_keys = ValidatorConfigPublicKeys::new(
+            PublicKey::from_encoded_string(&config.consensus_public_key).unwrap(),
+        );
         ValidatorInfo::new(
             summary.account_address,
             summary.consensus_voting_power,
             aptos_types::validator_config::ValidatorConfig::new(
-                PublicKey::from_encoded_string(&config.consensus_public_key).unwrap(),
+                validator_public_keys,
                 bcs::to_bytes(&config.validator_network_addresses).unwrap(),
                 bcs::to_bytes(&config.fullnode_network_addresses).unwrap(),
                 config.validator_index,

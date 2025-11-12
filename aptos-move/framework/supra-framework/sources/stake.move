@@ -23,6 +23,7 @@ module supra_framework::stake {
     use std::option::{Self, Option};
     use std::signer;
     use std::vector;
+    use supra_std::consensus_key;
     use aptos_std::ed25519;
     use aptos_std::math64::min;
     use aptos_std::table::{Self, Table};
@@ -587,9 +588,10 @@ module supra_framework::stake {
         fullnode_addresses: vector<u8>,
     ) acquires AllowedValidators {
         // Checks the public key is valid to prevent rogue-key attacks.
-        let valid_public_key = ed25519::new_validated_public_key_from_bytes(consensus_pubkey);
-        assert!(option::is_some(&valid_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
-
+        {
+            let valid_public_key = consensus_key::consensus_public_key_from_bytes(consensus_pubkey);
+            // assert!(option::is_some(&valid_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+        };
         initialize_owner(account);
         move_to(account, ValidatorConfig {
             consensus_pubkey,
@@ -821,12 +823,9 @@ module supra_framework::stake {
         let validator_info = borrow_global_mut<ValidatorConfig>(pool_address);
         let old_consensus_pubkey = validator_info.consensus_pubkey;
         // Checks the public key is valid to prevent rogue-key attacks.
-        if (!genesis) {
-            let validated_public_key = ed25519::new_validated_public_key_from_bytes(new_consensus_pubkey);
-            assert!(option::is_some(&validated_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
-        } else {
-            let validated_public_key = ed25519::new_validated_public_key_from_bytes(new_consensus_pubkey);
-            assert!(option::is_some(&validated_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+        {
+            let validated_public_key = consensus_key::consensus_public_key_from_bytes(new_consensus_pubkey);
+            // assert!(option::is_some(&validated_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
         };
         validator_info.consensus_pubkey = new_consensus_pubkey;
 

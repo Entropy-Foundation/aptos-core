@@ -36,7 +36,6 @@ use std::{
     str::FromStr,
     time::{Duration, Instant, SystemTime},
 };
-use tokio::time::timeout;
 
 /// Prompts for confirmation until a yes or no is given explicitly
 pub fn prompt_yes(prompt: &str) -> bool {
@@ -78,12 +77,12 @@ pub async fn to_common_success_result<T>(
 /// For pretty printing outputs in JSON. You can opt out of printing the error as
 /// JSON by setting `jsonify_error` to false.
 pub async fn to_common_result<T: Serialize>(
-    command: &str,
-    start_time: Instant,
+    _command: &str,
+    _start_time: Instant,
     result: CliTypedResult<T>,
     jsonify_error: bool,
 ) -> CliResult {
-    let latency = start_time.elapsed();
+    // let latency = start_time.elapsed();
 
     // if !telemetry_is_disabled() {
     //     let error = if let Err(ref error) = result {
@@ -125,9 +124,9 @@ pub fn cli_build_information() -> BTreeMap<String, String> {
 }
 
 /// Sends a telemetry event about the CLI build, command and result
-async fn send_telemetry_event(command: &str, latency: Duration, error: Option<&str>) {
+async fn send_telemetry_event(_command: &str, _latency: Duration, _error: Option<&str>) {
     // Collect the build information
-    let build_information = cli_build_information();
+    // let build_information = cli_build_information();
 
     // Send the event
     // aptos_telemetry::cli_metrics::send_cli_telemetry_event(

@@ -28,6 +28,7 @@ use crate::{
         TransactionInfo, TransactionListWithProof, TransactionPayload, TransactionStatus,
         TransactionToCommit, Version, WriteSetPayload,
     },
+    validator_config::ValidatorConfigPublicKeys,
     validator_info::ValidatorInfo,
     validator_signer::ValidatorSigner,
     validator_txn::ValidatorTransaction,
@@ -1086,9 +1087,10 @@ impl BlockInfoGen {
                 .iter()
                 .enumerate()
                 .map(|(index, signer)| {
+                    let validator_public_keys = ValidatorConfigPublicKeys::new(signer.public_key());
                     ValidatorInfo::new_with_test_network_keys(
                         signer.author(),
-                        signer.public_key(),
+                        validator_public_keys,
                         1, /* consensus_voting_power */
                         index as u64,
                     )

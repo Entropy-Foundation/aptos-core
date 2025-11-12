@@ -501,9 +501,13 @@ impl From<&ValidatorVerifier> for ValidatorSet {
                 .get_ordered_account_addresses_iter()
                 .enumerate()
                 .map(|(index, addr)| {
+                    let consensus_public_keys =
+                        crate::validator_config::ValidatorConfigPublicKeys::new(
+                            verifier.get_public_key(&addr).unwrap(),
+                        );
                     crate::validator_info::ValidatorInfo::new_with_test_network_keys(
                         addr,
-                        verifier.get_public_key(&addr).unwrap(),
+                        consensus_public_keys,
                         verifier.get_voting_power(&addr).unwrap(),
                         index as u64,
                     )
@@ -552,14 +556,17 @@ pub fn random_validator_verifier(
         ));
         signers.push(random_signer);
     }
-    (signers, match custom_voting_power_quorum {
-        Some(custom_voting_power_quorum) => ValidatorVerifier::new_with_quorum_voting_power(
-            validator_infos,
-            custom_voting_power_quorum,
-        )
-        .expect("Unable to create testing validator verifier"),
-        None => ValidatorVerifier::new(validator_infos),
-    })
+    (
+        signers,
+        match custom_voting_power_quorum {
+            Some(custom_voting_power_quorum) => ValidatorVerifier::new_with_quorum_voting_power(
+                validator_infos,
+                custom_voting_power_quorum,
+            )
+            .expect("Unable to create testing validator verifier"),
+            None => ValidatorVerifier::new(validator_infos),
+        },
+    )
 }
 
 #[cfg(test)]

@@ -2,9 +2,9 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(any(test, feature = "fuzzing"))]
-use crate::network_address::NetworkAddress;
 use crate::{account_address::AccountAddress, validator_config::ValidatorConfig};
+#[cfg(any(test, feature = "fuzzing"))]
+use crate::{network_address::NetworkAddress, validator_config::ValidatorConfigPublicKeys};
 use aptos_crypto::ed25519;
 #[cfg(any(test, feature = "fuzzing"))]
 use proptest_derive::Arbitrary;
@@ -55,13 +55,13 @@ impl ValidatorInfo {
     #[cfg(any(test, feature = "fuzzing"))]
     pub fn new_with_test_network_keys(
         account_address: AccountAddress,
-        consensus_public_key: ed25519::PublicKey,
+        consensus_public_keys: ValidatorConfigPublicKeys,
         consensus_voting_power: u64,
         validator_index: u64,
     ) -> Self {
         let addr = NetworkAddress::mock();
         let config = ValidatorConfig::new(
-            consensus_public_key,
+            consensus_public_keys,
             bcs::to_bytes(&vec![addr.clone()]).unwrap(),
             bcs::to_bytes(&vec![addr]).unwrap(),
             validator_index,
@@ -82,7 +82,7 @@ impl ValidatorInfo {
 
     /// Returns the key for validating signed messages from this validator
     pub fn consensus_public_key(&self) -> &ed25519::PublicKey {
-        &self.config.consensus_public_key
+        &self.config.consensus_public_keys.ed25519_public_key()
     }
 
     /// Returns the voting power for this validator
