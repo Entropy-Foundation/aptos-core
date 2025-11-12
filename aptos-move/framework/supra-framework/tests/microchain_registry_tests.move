@@ -1,5 +1,3 @@
-/// Copywrite (c) 2025 Supra
-/// Microchain Registry Module testcases.
 #[test_only]
 module supra_framework::microchain_registry_tests {
     use std::string;

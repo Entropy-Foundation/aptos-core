@@ -1,6 +1,21 @@
 /// Copyright (c) 2025 Supra
+///
 /// Microchain Registry Module
-/// This module manages the registration and lifecycle of microchains on the Supra-L1.
+///
+/// This module manages the registration and lifecycle of microchains on Supra-L1.
+///
+/// 1. To enable support for a new microchain on Supra-L1, it must be first registered by Supra Governance
+///    using the `register_microchain` method of this module.
+/// 2. If a registered microchain misbehaves, it can be deactivated by Supra Governance through the `deactivate_microchain` method.
+/// 3. A previously deactivated microchain can be reactivated by Supra Governance using the `reactivate_microchain` method.
+/// 4. Although the registry data is updated immediately, the changes are only considered by Supra-L1 validators
+///    after an epoch change. Therefore, it is strongly recommended to trigger an epoch change by invoking
+///    `0x1::supra_governance::reconfigure`.
+/// 5. Supra-L1 validators consider the updated registry data only after the epoch change. Hence, it is
+///    highly recommended to perform an epoch change whenever the following methods are invoked:
+///     a. `register_microchain`
+///     b. `deactivate_microchain`
+///     c. `reactivate_microchain`
 module supra_framework::microchain_registry {
     use std::error;
     use std::string::String;
@@ -28,7 +43,7 @@ module supra_framework::microchain_registry {
     /// The microchain is already in the `INACTIVE` state and cannot be deactivated again.
     const EMICROCHAIN_ALREADY_DEACTIVATED: u64 = 4;
 
-    /// The microchain is already in the `ACTIVE` state and connot be reactivated.
+    /// The microchain is already in the `ACTIVE` state and cannot be reactivated.
     const EMICROCHAIN_ALREADY_ACTIVE: u64 = 5;
 
     /// The `MicrochainRegistry` resource has not been initialized at @supra_framework.
@@ -38,7 +53,7 @@ module supra_framework::microchain_registry {
     const EINVALID_RANGE: u64 = 7;
 
 
-    /// Never registered as a mirochain.
+    /// Never registered as a microchain.
     const STATE_UNKNOWN: u8 = 0;
     /// Registered as a microchain and actively working.
     const STATE_ACTIVE: u8 = 1;
@@ -101,8 +116,22 @@ module supra_framework::microchain_registry {
         });
     }
 
-    /// Registeres a new microchain.
-    public entry fun register_microchain(
+    /// Registers a new microchain.
+    ///
+    /// This method requires the `supra_framework` as a signer. Therefore, externally (out of the supra-framework package),
+    /// it can only be invoked through a governance proposal move-script.
+    ///
+    /// It is strongly recommended to trigger an epoch change by calling `0x1::supra_governance::reconfigure`
+    /// after invoking this method. While this method could perform the reconfiguration internally, it
+    /// intentionally does not. This is because governance proposal move-scripts may need to invoke
+    /// additional methods after this one, so the responsibility of reconfiguration is left to the caller.
+    ///
+    /// Example usage:
+    /// ```
+    /// supra_framework::microchain_registry::register_microchain(&supra_framework, chain_id, metadata_link);
+    /// supra_framework::supra_governance::reconfigure(&supra_framework);
+    /// ```
+    public fun register_microchain(
         supra_framework: &signer,
         chain_id: u8,
         metadata_link: String,
@@ -133,7 +162,21 @@ module supra_framework::microchain_registry {
     }
 
     /// Deactivates the already registered microchain.
-    public entry fun deactivate_microchain(
+    ///
+    /// This method requires the `supra_framework` as a signer. Therefore, externally (out of the supra-framework package),
+    /// it can only be invoked through a governance proposal move-script.
+    ///
+    /// It is strongly recommended to trigger an epoch change by calling `0x1::supra_governance::reconfigure`
+    /// after invoking this method. While this method could perform the reconfiguration internally, it
+    /// intentionally does not. This is because governance proposal move-scripts may need to invoke
+    /// additional methods after this one, so the responsibility of reconfiguration is left to the caller.
+    ///
+    /// Example usage:
+    /// ```
+    /// supra_framework::microchain_registry::deactivate_microchain(&supra_framework, chain_id);
+    /// supra_framework::supra_governance::reconfigure(&supra_framework);
+    /// ```
+    public fun deactivate_microchain(
         supra_framework: &signer,
         chain_id: u8,
     ) acquires MicrochainRegistry {
@@ -151,7 +194,21 @@ module supra_framework::microchain_registry {
     }
 
     /// Reactivates the deactivated microchain.
-    public entry fun reactivate_microchain(
+    ///
+    /// This method requires the `supra_framework` as a signer. Therefore, externally (out of the supra-framework package),
+    /// it can only be invoked through a governance proposal move-script.
+    ///
+    /// It is strongly recommended to trigger an epoch change by calling `0x1::supra_governance::reconfigure`
+    /// after invoking this method. While this method could perform the reconfiguration internally, it
+    /// intentionally does not. This is because governance proposal move-scripts may need to invoke
+    /// additional methods after this one, so the responsibility of reconfiguration is left to the caller.
+    ///
+    /// Example usage:
+    /// ```
+    /// supra_framework::microchain_registry::reactivate_microchain(&supra_framework, chain_id);
+    /// supra_framework::supra_governance::reconfigure(&supra_framework);
+    /// ```
+    public fun reactivate_microchain(
         supra_framework: &signer,
         chain_id: u8,
     ) acquires MicrochainRegistry {
@@ -169,7 +226,7 @@ module supra_framework::microchain_registry {
     }
 
     /// Updates metadata link of a registered microchain.
-    public entry fun update_microchain_metadata_link(
+    public fun update_microchain_metadata_link(
         supra_framework: &signer,
         chain_id: u8,
         new_metadata_link: String,
@@ -189,7 +246,7 @@ module supra_framework::microchain_registry {
     }
 
     /// Adds a reserved chain ID range.
-    public entry fun add_reserved_range(
+    public fun add_reserved_range(
         supra_framework: &signer,
         start: u8,
         end: u8,
@@ -202,7 +259,7 @@ module supra_framework::microchain_registry {
 
 
     /// Constructor to create an instance of the `ReservedRange`.
-    /// This will be utilsed in move-script to initialize the microchain registry with reserved ranges.
+    /// This will be utilized in move-script to initialize the microchain registry with reserved ranges.
     public fun new_reserved_range(
         start: u8,
         end: u8,
@@ -230,7 +287,7 @@ module supra_framework::microchain_registry {
     }
 
     #[view]
-    /// Get chain IDs of all mirochains with `Active` state.
+    /// Get chain IDs of all microchain with `Active` state.
     public fun active_microchains(): vector<u8> acquires MicrochainRegistry {
         let microchain_registry = borrow_global_microchain_registry();
         let microchains_chain_id = simple_map::keys(&microchain_registry.microchains);

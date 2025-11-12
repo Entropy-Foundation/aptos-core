@@ -29,6 +29,7 @@ mod commit_history;
 mod consensus_config;
 mod evm_genesis_config;
 mod execution_config;
+mod funnel_node_registry;
 mod gas_schedule;
 mod jwk_consensus_config;
 mod microchain_registry;
@@ -63,6 +64,7 @@ pub use self::{
         BlockGasLimitType, ExecutionConfigV1, ExecutionConfigV2, ExecutionConfigV4,
         OnChainExecutionConfig, TransactionDeduperType, TransactionShufflerType,
     },
+    funnel_node_registry::FunnelNodeRegistryConfig,
     gas_schedule::{DiffItem, GasSchedule, GasScheduleV2, StorageGasSchedule},
     jwk_consensus_config::{
         ConfigV1 as JWKConsensusConfigV1, OIDCProvider, OnChainJWKConsensusConfig,

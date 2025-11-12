@@ -4,8 +4,23 @@
 # Module `0x1::microchain_registry`
 
 Copyright (c) 2025 Supra
+
 Microchain Registry Module
-This module manages the registration and lifecycle of microchains on the Supra-L1.
+
+This module manages the registration and lifecycle of microchains on Supra-L1.
+
+1. To enable support for a new microchain on Supra-L1, it must be first registered by Supra Governance
+using the <code>register_microchain</code> method of this module.
+2. If a registered microchain misbehaves, it can be deactivated by Supra Governance through the <code>deactivate_microchain</code> method.
+3. A previously deactivated microchain can be reactivated by Supra Governance using the <code>reactivate_microchain</code> method.
+4. Although the registry data is updated immediately, the changes are only considered by Supra-L1 validators
+after an epoch change. Therefore, it is strongly recommended to trigger an epoch change by invoking
+<code><a href="supra_governance.md#0x1_supra_governance_reconfigure">0x1::supra_governance::reconfigure</a></code>.
+5. Supra-L1 validators consider the updated registry data only after the epoch change. Hence, it is
+highly recommended to perform an epoch change whenever the following methods are invoked:
+a. <code>register_microchain</code>
+b. <code>deactivate_microchain</code>
+c. <code>reactivate_microchain</code>
 
 
 -  [Struct `ReservedRange`](#0x1_microchain_registry_ReservedRange)
@@ -293,6 +308,16 @@ The provided range is invalid, start value must be less than or equal to end val
 
 
 
+<a id="0x1_microchain_registry_EREGISTRY_NOT_INITIALIZED"></a>
+
+The <code><a href="microchain_registry.md#0x1_microchain_registry_MicrochainRegistry">MicrochainRegistry</a></code> resource has not been initialized at @supra_framework.
+
+
+<pre><code><b>const</b> <a href="microchain_registry.md#0x1_microchain_registry_EREGISTRY_NOT_INITIALIZED">EREGISTRY_NOT_INITIALIZED</a>: u64 = 6;
+</code></pre>
+
+
+
 <a id="0x1_microchain_registry_ECHAIN_ID_RESERVED"></a>
 
 The chain ID falls within a reserved range and cannot be used for registration.
@@ -305,7 +330,7 @@ The chain ID falls within a reserved range and cannot be used for registration.
 
 <a id="0x1_microchain_registry_EMICROCHAIN_ALREADY_ACTIVE"></a>
 
-The microchain is already in the <code>ACTIVE</code> state and connot be reactivated.
+The microchain is already in the <code>ACTIVE</code> state and cannot be reactivated.
 
 
 <pre><code><b>const</b> <a href="microchain_registry.md#0x1_microchain_registry_EMICROCHAIN_ALREADY_ACTIVE">EMICROCHAIN_ALREADY_ACTIVE</a>: u64 = 5;
@@ -343,16 +368,6 @@ The microchain with the given chain ID is not found in the microchain registry.
 
 
 
-<a id="0x1_microchain_registry_EREGISTRY_NOT_INITIALIZED"></a>
-
-The <code><a href="microchain_registry.md#0x1_microchain_registry_MicrochainRegistry">MicrochainRegistry</a></code> resource has not been initialized at @supra_framework.
-
-
-<pre><code><b>const</b> <a href="microchain_registry.md#0x1_microchain_registry_EREGISTRY_NOT_INITIALIZED">EREGISTRY_NOT_INITIALIZED</a>: u64 = 6;
-</code></pre>
-
-
-
 <a id="0x1_microchain_registry_STATE_ACTIVE"></a>
 
 Registered as a microchain and actively working.
@@ -375,7 +390,7 @@ Registered as a microchain, but decommissioned from the Supra-L1.
 
 <a id="0x1_microchain_registry_STATE_UNKNOWN"></a>
 
-Never registered as a mirochain.
+Never registered as a microchain.
 
 
 <pre><code><b>const</b> <a href="microchain_registry.md#0x1_microchain_registry_STATE_UNKNOWN">STATE_UNKNOWN</a>: u8 = 0;
@@ -417,10 +432,24 @@ Initializes the microchain registry.
 
 ## Function `register_microchain`
 
-Registeres a new microchain.
+Registers a new microchain.
+
+This method requires the <code>supra_framework</code> as a signer. Therefore, externally (out of the supra-framework package),
+it can only be invoked through a governance proposal move-script.
+
+It is strongly recommended to trigger an epoch change by calling <code><a href="supra_governance.md#0x1_supra_governance_reconfigure">0x1::supra_governance::reconfigure</a></code>
+after invoking this method. While this method could perform the reconfiguration internally, it
+intentionally does not. This is because governance proposal move-scripts may need to invoke
+additional methods after this one, so the responsibility of reconfiguration is left to the caller.
+
+Example usage:
+```
+supra_framework::microchain_registry::register_microchain(&supra_framework, chain_id, metadata_link);
+supra_framework::supra_governance::reconfigure(&supra_framework);
+```
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_register_microchain">register_microchain</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, metadata_link: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_register_microchain">register_microchain</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, metadata_link: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
 </code></pre>
 
 
@@ -429,7 +458,7 @@ Registeres a new microchain.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_register_microchain">register_microchain</a>(
+<pre><code><b>public</b> <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_register_microchain">register_microchain</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8,
     metadata_link: String,
@@ -470,8 +499,22 @@ Registeres a new microchain.
 
 Deactivates the already registered microchain.
 
+This method requires the <code>supra_framework</code> as a signer. Therefore, externally (out of the supra-framework package),
+it can only be invoked through a governance proposal move-script.
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_deactivate_microchain">deactivate_microchain</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8)
+It is strongly recommended to trigger an epoch change by calling <code><a href="supra_governance.md#0x1_supra_governance_reconfigure">0x1::supra_governance::reconfigure</a></code>
+after invoking this method. While this method could perform the reconfiguration internally, it
+intentionally does not. This is because governance proposal move-scripts may need to invoke
+additional methods after this one, so the responsibility of reconfiguration is left to the caller.
+
+Example usage:
+```
+supra_framework::microchain_registry::deactivate_microchain(&supra_framework, chain_id);
+supra_framework::supra_governance::reconfigure(&supra_framework);
+```
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_deactivate_microchain">deactivate_microchain</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8)
 </code></pre>
 
 
@@ -480,7 +523,7 @@ Deactivates the already registered microchain.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_deactivate_microchain">deactivate_microchain</a>(
+<pre><code><b>public</b> <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_deactivate_microchain">deactivate_microchain</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8,
 ) <b>acquires</b> <a href="microchain_registry.md#0x1_microchain_registry_MicrochainRegistry">MicrochainRegistry</a> {
@@ -508,8 +551,22 @@ Deactivates the already registered microchain.
 
 Reactivates the deactivated microchain.
 
+This method requires the <code>supra_framework</code> as a signer. Therefore, externally (out of the supra-framework package),
+it can only be invoked through a governance proposal move-script.
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_reactivate_microchain">reactivate_microchain</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8)
+It is strongly recommended to trigger an epoch change by calling <code><a href="supra_governance.md#0x1_supra_governance_reconfigure">0x1::supra_governance::reconfigure</a></code>
+after invoking this method. While this method could perform the reconfiguration internally, it
+intentionally does not. This is because governance proposal move-scripts may need to invoke
+additional methods after this one, so the responsibility of reconfiguration is left to the caller.
+
+Example usage:
+```
+supra_framework::microchain_registry::reactivate_microchain(&supra_framework, chain_id);
+supra_framework::supra_governance::reconfigure(&supra_framework);
+```
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_reactivate_microchain">reactivate_microchain</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8)
 </code></pre>
 
 
@@ -518,7 +575,7 @@ Reactivates the deactivated microchain.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_reactivate_microchain">reactivate_microchain</a>(
+<pre><code><b>public</b> <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_reactivate_microchain">reactivate_microchain</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8,
 ) <b>acquires</b> <a href="microchain_registry.md#0x1_microchain_registry_MicrochainRegistry">MicrochainRegistry</a> {
@@ -547,7 +604,7 @@ Reactivates the deactivated microchain.
 Updates metadata link of a registered microchain.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_update_microchain_metadata_link">update_microchain_metadata_link</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, new_metadata_link: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_update_microchain_metadata_link">update_microchain_metadata_link</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, new_metadata_link: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
 </code></pre>
 
 
@@ -556,7 +613,7 @@ Updates metadata link of a registered microchain.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_update_microchain_metadata_link">update_microchain_metadata_link</a>(
+<pre><code><b>public</b> <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_update_microchain_metadata_link">update_microchain_metadata_link</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8,
     new_metadata_link: String,
@@ -587,7 +644,7 @@ Updates metadata link of a registered microchain.
 Adds a reserved chain ID range.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_add_reserved_range">add_reserved_range</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, start: u8, end: u8)
+<pre><code><b>public</b> <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_add_reserved_range">add_reserved_range</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, start: u8, end: u8)
 </code></pre>
 
 
@@ -596,7 +653,7 @@ Adds a reserved chain ID range.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_add_reserved_range">add_reserved_range</a>(
+<pre><code><b>public</b> <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_add_reserved_range">add_reserved_range</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     start: u8,
     end: u8,
@@ -617,7 +674,7 @@ Adds a reserved chain ID range.
 ## Function `new_reserved_range`
 
 Constructor to create an instance of the <code><a href="microchain_registry.md#0x1_microchain_registry_ReservedRange">ReservedRange</a></code>.
-This will be utilsed in move-script to initialize the microchain registry with reserved ranges.
+This will be utilized in move-script to initialize the microchain registry with reserved ranges.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="microchain_registry.md#0x1_microchain_registry_new_reserved_range">new_reserved_range</a>(start: u8, end: u8): <a href="microchain_registry.md#0x1_microchain_registry_ReservedRange">microchain_registry::ReservedRange</a>
@@ -703,7 +760,7 @@ Check if a microchain is active.
 
 ## Function `active_microchains`
 
-Get chain IDs of all mirochains with <code>Active</code> state.
+Get chain IDs of all microchain with <code>Active</code> state.
 
 
 <pre><code>#[view]

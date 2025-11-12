@@ -33,6 +33,7 @@ This is the reference documentation of the Supra framework.
 -  [`0x1::execution_config`](execution_config.md#0x1_execution_config)
 -  [`0x1::function_info`](function_info.md#0x1_function_info)
 -  [`0x1::fungible_asset`](fungible_asset.md#0x1_fungible_asset)
+-  [`0x1::funnel_node_registry`](funnel_node_registry.md#0x1_funnel_node_registry)
 -  [`0x1::gas_schedule`](gas_schedule.md#0x1_gas_schedule)
 -  [`0x1::genesis`](genesis.md#0x1_genesis)
 -  [`0x1::governance_proposal`](governance_proposal.md#0x1_governance_proposal)

@@ -18,6 +18,7 @@
 -  [Function `initialize_supra_native_automation`](#0x1_genesis_initialize_supra_native_automation)
 -  [Function `initialize_supra_native_automation_v2`](#0x1_genesis_initialize_supra_native_automation_v2)
 -  [Function `initialize_microchain_registry`](#0x1_genesis_initialize_microchain_registry)
+-  [Function `initialize_funnel_node_registry`](#0x1_genesis_initialize_funnel_node_registry)
 -  [Function `initialize_core_resources_and_supra_coin`](#0x1_genesis_initialize_core_resources_and_supra_coin)
 -  [Function `initialize_evm_genesis_config`](#0x1_genesis_initialize_evm_genesis_config)
 -  [Function `create_accounts`](#0x1_genesis_create_accounts)
@@ -65,6 +66,7 @@
 <b>use</b> <a href="execution_config.md#0x1_execution_config">0x1::execution_config</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/fixed_point32.md#0x1_fixed_point32">0x1::fixed_point32</a>;
+<b>use</b> <a href="funnel_node_registry.md#0x1_funnel_node_registry">0x1::funnel_node_registry</a>;
 <b>use</b> <a href="gas_schedule.md#0x1_gas_schedule">0x1::gas_schedule</a>;
 <b>use</b> <a href="microchain_registry.md#0x1_microchain_registry">0x1::microchain_registry</a>;
 <b>use</b> <a href="multisig_account.md#0x1_multisig_account">0x1::multisig_account</a>;
@@ -795,6 +797,42 @@ the <code>supra_framework</code> as the signer, the invocation must go through t
 ) {
     <a href="microchain_registry.md#0x1_microchain_registry_initialize">microchain_registry::initialize</a>(
         supra_framework, reserved_ranges
+    )
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_genesis_initialize_funnel_node_registry"></a>
+
+## Function `initialize_funnel_node_registry`
+
+Genesis step 5: Initialize Funnel Node Registry.
+
+This method allows to initialize the microchain registry either during the genesis initialization
+or after it has been completed.
+
+Because it is publicly accessible, it can be invoked via a move-script. Since it requires
+the <code>supra_framework</code> as the signer, the invocation must go through the governance process.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_funnel_node_registry">initialize_funnel_node_registry</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, funnel_nodes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_funnel_node_registry">initialize_funnel_node_registry</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    funnel_nodes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;
+) {
+    <a href="funnel_node_registry.md#0x1_funnel_node_registry_initialize">funnel_node_registry::initialize</a>(
+        supra_framework, funnel_nodes
     )
 }
 </code></pre>

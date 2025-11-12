@@ -21,11 +21,15 @@ use aptos_db::AptosDB;
 use aptos_framework::ReleaseBundle;
 use aptos_storage_interface::DbReaderWriter;
 use aptos_temppath::TempPath;
+use aptos_types::on_chain_config::{
+    AutomationRegistryConfig, FunnelNodeRegistryConfig, MicrochainRegistryConfig,
+};
 use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
     on_chain_config::{
-        Features, GasScheduleV2, OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig
+        Features, GasScheduleV2, OnChainConsensusConfig, OnChainExecutionConfig,
+        OnChainJWKConsensusConfig, OnChainRandomnessConfig,
     },
     transaction::Transaction,
     waypoint::Waypoint,
@@ -33,7 +37,6 @@ use aptos_types::{
 use aptos_vm::AptosVM;
 use aptos_vm_genesis::Validator;
 use std::convert::TryInto;
-use aptos_types::on_chain_config::AutomationRegistryConfig;
 
 /// Holder object for all pieces needed to generate a genesis transaction
 #[derive(Clone)]
@@ -82,6 +85,8 @@ pub struct GenesisInfo {
     pub randomness_config_override: Option<OnChainRandomnessConfig>,
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     pub automation_registry_config: Option<AutomationRegistryConfig>,
+    pub microchain_registry_config: Option<MicrochainRegistryConfig>,
+    pub funnel_node_registry_config: Option<FunnelNodeRegistryConfig>,
 }
 
 impl GenesisInfo {
@@ -124,6 +129,8 @@ impl GenesisInfo {
             randomness_config_override: genesis_config.randomness_config_override.clone(),
             jwk_consensus_config_override: genesis_config.jwk_consensus_config_override.clone(),
             automation_registry_config: genesis_config.automation_registry_config.clone(),
+            microchain_registry_config: genesis_config.microchain_registry_config.clone(),
+            funnel_node_registry_config: genesis_config.funnel_node_registry_config.clone(),
         })
     }
 
@@ -152,7 +159,7 @@ impl GenesisInfo {
                 epoch_duration_secs: self.epoch_duration_secs,
                 is_test: true,
                 min_stake: self.min_stake,
-                min_voting_threshold: self.min_voting_threshold as u64,
+                min_voting_threshold: self.min_voting_threshold,
                 max_stake: self.max_stake,
                 recurring_lockup_duration_secs: self.recurring_lockup_duration_secs,
                 required_proposer_stake: self.required_proposer_stake,
@@ -167,6 +174,8 @@ impl GenesisInfo {
                 jwk_consensus_config_override: self.jwk_consensus_config_override.clone(),
                 genesis_timestamp_in_microseconds: self.genesis_timestamp_in_microseconds,
                 automation_registry_config: self.automation_registry_config.clone(),
+                microchain_registry_config: self.microchain_registry_config.clone(),
+                funnel_node_registry_config: self.funnel_node_registry_config.clone(),
             },
             &self.consensus_config,
             &self.execution_config,

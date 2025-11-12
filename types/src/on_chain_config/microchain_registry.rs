@@ -1,7 +1,8 @@
 use crate::account_config::CORE_CODE_ADDRESS;
 use move_core_types::value::{serialize_values, MoveStruct, MoveValue};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct MicrochainRegistryConfig {
     reserved_ranges: Vec<ReservedRange>,
 }
@@ -15,7 +16,7 @@ impl MicrochainRegistryConfig {
         let reserved_ranges_vec_move_value = self
             .reserved_ranges
             .iter()
-            .map(|range| MoveValue::from(range))
+            .map(MoveValue::from)
             .collect::<Vec<MoveValue>>();
         let arguments = vec![
             MoveValue::Signer(CORE_CODE_ADDRESS),
@@ -25,7 +26,7 @@ impl MicrochainRegistryConfig {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct ReservedRange {
     start: u8,
     end: u8,

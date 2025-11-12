@@ -328,34 +328,6 @@ pub enum EntryFunctionCall {
         coin_type: TypeTag,
     },
 
-    /// Adds a reserved chain ID range.
-    MicrochainRegistryAddReservedRange {
-        start: u8,
-        end: u8,
-    },
-
-    /// Deactivates the already registered microchain.
-    MicrochainRegistryDeactivateMicrochain {
-        chain_id: u8,
-    },
-
-    /// Reactivates the deactivated microchain.
-    MicrochainRegistryReactivateMicrochain {
-        chain_id: u8,
-    },
-
-    /// Registeres a new microchain.
-    MicrochainRegistryRegisterMicrochain {
-        chain_id: u8,
-        metadata_link: Vec<u8>,
-    },
-
-    /// Updates metadata link of a registered microchain.
-    MicrochainRegistryUpdateMicrochainMetadataLink {
-        chain_id: u8,
-        new_metadata_link: Vec<u8>,
-    },
-
     /// Similar to add_owners, but only allow adding one owner.
     MultisigAccountAddOwner {
         new_owner: AccountAddress,
@@ -1461,23 +1433,6 @@ impl EntryFunctionCall {
                 amount,
             } => managed_coin_mint(coin_type, dst_addr, amount),
             ManagedCoinRegister { coin_type } => managed_coin_register(coin_type),
-            MicrochainRegistryAddReservedRange { start, end } => {
-                microchain_registry_add_reserved_range(start, end)
-            },
-            MicrochainRegistryDeactivateMicrochain { chain_id } => {
-                microchain_registry_deactivate_microchain(chain_id)
-            },
-            MicrochainRegistryReactivateMicrochain { chain_id } => {
-                microchain_registry_reactivate_microchain(chain_id)
-            },
-            MicrochainRegistryRegisterMicrochain {
-                chain_id,
-                metadata_link,
-            } => microchain_registry_register_microchain(chain_id, metadata_link),
-            MicrochainRegistryUpdateMicrochainMetadataLink {
-                chain_id,
-                new_metadata_link,
-            } => microchain_registry_update_microchain_metadata_link(chain_id, new_metadata_link),
             MultisigAccountAddOwner { new_owner } => multisig_account_add_owner(new_owner),
             MultisigAccountAddOwners { new_owners } => multisig_account_add_owners(new_owners),
             MultisigAccountAddOwnersAndUpdateSignaturesRequired {
@@ -2867,98 +2822,6 @@ pub fn managed_coin_register(coin_type: TypeTag) -> TransactionPayload {
         ident_str!("register").to_owned(),
         vec![coin_type],
         vec![],
-    ))
-}
-
-/// Adds a reserved chain ID range.
-pub fn microchain_registry_add_reserved_range(start: u8, end: u8) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("microchain_registry").to_owned(),
-        ),
-        ident_str!("add_reserved_range").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&start).unwrap(), bcs::to_bytes(&end).unwrap()],
-    ))
-}
-
-/// Deactivates the already registered microchain.
-pub fn microchain_registry_deactivate_microchain(chain_id: u8) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("microchain_registry").to_owned(),
-        ),
-        ident_str!("deactivate_microchain").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&chain_id).unwrap()],
-    ))
-}
-
-/// Reactivates the deactivated microchain.
-pub fn microchain_registry_reactivate_microchain(chain_id: u8) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("microchain_registry").to_owned(),
-        ),
-        ident_str!("reactivate_microchain").to_owned(),
-        vec![],
-        vec![bcs::to_bytes(&chain_id).unwrap()],
-    ))
-}
-
-/// Registeres a new microchain.
-pub fn microchain_registry_register_microchain(
-    chain_id: u8,
-    metadata_link: Vec<u8>,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("microchain_registry").to_owned(),
-        ),
-        ident_str!("register_microchain").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&chain_id).unwrap(),
-            bcs::to_bytes(&metadata_link).unwrap(),
-        ],
-    ))
-}
-
-/// Updates metadata link of a registered microchain.
-pub fn microchain_registry_update_microchain_metadata_link(
-    chain_id: u8,
-    new_metadata_link: Vec<u8>,
-) -> TransactionPayload {
-    TransactionPayload::EntryFunction(EntryFunction::new(
-        ModuleId::new(
-            AccountAddress::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 1,
-            ]),
-            ident_str!("microchain_registry").to_owned(),
-        ),
-        ident_str!("update_microchain_metadata_link").to_owned(),
-        vec![],
-        vec![
-            bcs::to_bytes(&chain_id).unwrap(),
-            bcs::to_bytes(&new_metadata_link).unwrap(),
-        ],
     ))
 }
 
@@ -6160,71 +6023,6 @@ mod decoder {
         }
     }
 
-    pub fn microchain_registry_add_reserved_range(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::MicrochainRegistryAddReservedRange {
-                start: bcs::from_bytes(script.args().get(0)?).ok()?,
-                end: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn microchain_registry_deactivate_microchain(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::MicrochainRegistryDeactivateMicrochain {
-                chain_id: bcs::from_bytes(script.args().get(0)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn microchain_registry_reactivate_microchain(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::MicrochainRegistryReactivateMicrochain {
-                chain_id: bcs::from_bytes(script.args().get(0)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn microchain_registry_register_microchain(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(EntryFunctionCall::MicrochainRegistryRegisterMicrochain {
-                chain_id: bcs::from_bytes(script.args().get(0)?).ok()?,
-                metadata_link: bcs::from_bytes(script.args().get(1)?).ok()?,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn microchain_registry_update_microchain_metadata_link(
-        payload: &TransactionPayload,
-    ) -> Option<EntryFunctionCall> {
-        if let TransactionPayload::EntryFunction(script) = payload {
-            Some(
-                EntryFunctionCall::MicrochainRegistryUpdateMicrochainMetadataLink {
-                    chain_id: bcs::from_bytes(script.args().get(0)?).ok()?,
-                    new_metadata_link: bcs::from_bytes(script.args().get(1)?).ok()?,
-                },
-            )
-        } else {
-            None
-        }
-    }
-
     pub fn multisig_account_add_owner(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(script) = payload {
             Some(EntryFunctionCall::MultisigAccountAddOwner {
@@ -8007,26 +7805,6 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "managed_coin_register".to_string(),
             Box::new(decoder::managed_coin_register),
-        );
-        map.insert(
-            "microchain_registry_add_reserved_range".to_string(),
-            Box::new(decoder::microchain_registry_add_reserved_range),
-        );
-        map.insert(
-            "microchain_registry_deactivate_microchain".to_string(),
-            Box::new(decoder::microchain_registry_deactivate_microchain),
-        );
-        map.insert(
-            "microchain_registry_reactivate_microchain".to_string(),
-            Box::new(decoder::microchain_registry_reactivate_microchain),
-        );
-        map.insert(
-            "microchain_registry_register_microchain".to_string(),
-            Box::new(decoder::microchain_registry_register_microchain),
-        );
-        map.insert(
-            "microchain_registry_update_microchain_metadata_link".to_string(),
-            Box::new(decoder::microchain_registry_update_microchain_metadata_link),
         );
         map.insert(
             "multisig_account_add_owner".to_string(),
