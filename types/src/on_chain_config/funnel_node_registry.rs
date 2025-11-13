@@ -1,14 +1,15 @@
 use crate::account_config::CORE_CODE_ADDRESS;
 use move_core_types::value::{serialize_values, MoveStruct, MoveValue};
 use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+use url::Url;
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct FunnelNodeRegistryConfig {
-    funnel_nodes: Vec<SocketAddr>,
+    funnel_nodes: Vec<Url>,
 }
 
 impl FunnelNodeRegistryConfig {
-    pub fn new(funnel_nodes: Vec<SocketAddr>) -> Self {
+    pub fn new(funnel_nodes: Vec<Url>) -> Self {
         Self { funnel_nodes }
     }
 
@@ -16,9 +17,9 @@ impl FunnelNodeRegistryConfig {
         let funnel_nodes_vec_move_value = self
             .funnel_nodes
             .iter()
-            .map(|node_socket_addr| {
+            .map(|node_endpoint_url| {
                 MoveValue::Struct(MoveStruct::new(vec![MoveValue::vector_u8(
-                    node_socket_addr.to_string().into_bytes(),
+                    node_endpoint_url.to_string().into_bytes(),
                 )]))
             })
             .collect::<Vec<MoveValue>>();

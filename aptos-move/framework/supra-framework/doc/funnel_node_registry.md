@@ -141,7 +141,7 @@ Initializes the funnel node registry.
 Updates the funnel nodes in the funnel node registry.
 
 This method replaces the existing list of funnel nodes with the provided list. Therefore, it is
-strongly recommended that the new list contains valid Socket-Addresses for all funnel nodes, and that the nodes
+strongly recommended that the new list contains valid URLs for all funnel nodes, and that the nodes
 are ordered based on their reputation and trust level.
 
 Technically, deduplication of <code>new_funnel_nodes</code> is necessary. However, performing it consumes a

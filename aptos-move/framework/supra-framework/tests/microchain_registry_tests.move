@@ -7,12 +7,12 @@ module supra_framework::microchain_registry_tests {
     use supra_framework::microchain_registry;
 
 
-    /// Never registered as a mirochain.
-    const STATE_UNKNOWN: u8 = 0;
+    /// Registered as a microchain, but decommissioned from the Supra-L1.
+    const STATE_INACTIVE: u8 = 0;
     /// Registered as a microchain and actively working.
     const STATE_ACTIVE: u8 = 1;
-    /// Registered as a microchain, but decommissioned from the Supra-L1.
-    const STATE_INACTIVE: u8 = 2;
+    /// Never registered as a microchain.
+    const STATE_UNKNOWN: u8 = 2;
 
     // Test constants
     const TEST_CHAIN_ID_1: u8 = 10;

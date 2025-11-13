@@ -53,13 +53,12 @@ module supra_framework::microchain_registry {
     const EINVALID_RANGE: u64 = 7;
 
 
-    /// Never registered as a microchain.
-    const STATE_UNKNOWN: u8 = 0;
+    /// Registered as a microchain, but decommissioned from the Supra-L1.
+    const STATE_INACTIVE: u8 = 0;
     /// Registered as a microchain and actively working.
     const STATE_ACTIVE: u8 = 1;
-    /// Registered as a microchain, but decommissioned from the Supra-L1.
-    const STATE_INACTIVE: u8 = 2;
-
+    /// Never registered as a microchain.
+    const STATE_UNKNOWN: u8 = 2;
 
     /// Represents reserved chain ID range.
     struct ReservedRange has store, copy, drop {

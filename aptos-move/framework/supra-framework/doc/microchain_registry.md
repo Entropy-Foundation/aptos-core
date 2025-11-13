@@ -383,7 +383,7 @@ Registered as a microchain and actively working.
 Registered as a microchain, but decommissioned from the Supra-L1.
 
 
-<pre><code><b>const</b> <a href="microchain_registry.md#0x1_microchain_registry_STATE_INACTIVE">STATE_INACTIVE</a>: u8 = 2;
+<pre><code><b>const</b> <a href="microchain_registry.md#0x1_microchain_registry_STATE_INACTIVE">STATE_INACTIVE</a>: u8 = 0;
 </code></pre>
 
 
@@ -393,7 +393,7 @@ Registered as a microchain, but decommissioned from the Supra-L1.
 Never registered as a microchain.
 
 
-<pre><code><b>const</b> <a href="microchain_registry.md#0x1_microchain_registry_STATE_UNKNOWN">STATE_UNKNOWN</a>: u8 = 0;
+<pre><code><b>const</b> <a href="microchain_registry.md#0x1_microchain_registry_STATE_UNKNOWN">STATE_UNKNOWN</a>: u8 = 2;
 </code></pre>
 
 
