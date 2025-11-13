@@ -29,10 +29,10 @@ impl AptosVM {
             ValidatorTransaction::ObservedJWKUpdate(jwk_update) => {
                 self.process_jwk_update(resolver, log_context, session_id, jwk_update)
             },
-            _ => Err(VMStatus::Error {
+            ValidatorTransaction::DKGResult(_) => Err(VMStatus::Error {
                 status_code: StatusCode::UNREACHABLE,
                 sub_status: None,
-                message: None,
+                message: Some("Unsupported ValidatorTransaction variant".to_string()),
             }),
         }
     }

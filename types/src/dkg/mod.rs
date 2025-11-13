@@ -1,7 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{dkg::dkg_committee::DkgCommittee, validator_public_keys::ConsensusPublicKey};
+use crate::{dkg::dkg_committee::DkgCommittee, validator_public_keys::ValidatorPublicKeys};
 use anyhow::{anyhow, Result};
 use aptos_crypto::bls12381::PublicKey;
 use crypto::utils::get_clan_node_indices;
@@ -22,7 +22,7 @@ pub fn get_clan_nodes_bls_keys_from_indices(
     signers: &Vec<u32>,
     random_seed: &Vec<u8>,
 ) -> Result<Vec<PublicKey>> {
-    let committee = &dealer_committee.committee;
+    let committee = dealer_committee.committee();
     let dealer_clan_committee_indices =
         get_clan_node_indices(committee.len() as u32, random_seed.clone());
 
@@ -41,14 +41,12 @@ pub fn get_clan_nodes_bls_keys_from_indices(
             let clan_node_key = committee
                 .get(*clan_node_index)
                 .ok_or(anyhow!("dkg::node Invalid clan node index: {signer}"))?
-                .dkg_pubkey
+                .dkg_pubkey()
                 .clone();
-            let clan_node_pk = ConsensusPublicKey::try_from(clan_node_key).map_err(|e| {
-                anyhow!("dkg::node consensus public key deserialization failed: {e}")
+            let clan_node_pk = ValidatorPublicKeys::try_from(clan_node_key).map_err(|e| {
+                anyhow!("dkg::node validator public key deserialization failed: {e}")
             })?;
-            let clan_node_bls_pubkey_bytes = clan_node_pk
-                .bls_key
-                .ok_or_else(|| anyhow!("dkg::node consensus bls key not found"))?;
+            let clan_node_bls_pubkey_bytes = clan_node_pk.supra_keys().bls_multisig_key();
             let clan_node_bls_pubkey =
                 PublicKey::try_from(clan_node_bls_pubkey_bytes.as_slice())
                     .map_err(|e| anyhow!("dkg::node bls public key deserialization failed: {e}"))?;

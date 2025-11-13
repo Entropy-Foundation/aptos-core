@@ -1,3 +1,4 @@
+use derive_getters::Getters;
 use move_core_types::account_address::AccountAddress;
 use serde::{Deserialize, Serialize};
 
@@ -9,16 +10,16 @@ pub enum DkgCommitteeType {
 }
 
 /// Reflection of `0x1::dkg_committee::DkgNodeConfig` in rust.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Getters)]
 pub struct DkgNodeConfig {
-    pub pool_address: AccountAddress,
-    pub identity: Vec<u8>,
-    pub dkg_pubkey: Vec<u8>,
+    pool_address: AccountAddress,
+    identity: Vec<u8>,
+    dkg_pubkey: Vec<u8>,
 }
 
 /// Reflection of `0x1::dkg_committee::DkgCommittee` in rust.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Getters)]
 pub struct DkgCommittee {
-    pub committee_type: DkgCommitteeType,
-    pub committee: Vec<DkgNodeConfig>,
+    committee_type: DkgCommitteeType,
+    committee: Vec<DkgNodeConfig>,
 }

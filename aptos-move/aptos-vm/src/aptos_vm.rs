@@ -2851,11 +2851,11 @@ impl VMValidator for AptosVM {
         };
 
         // Check epoch number.
-        if dkg_transaction.metadata.epoch != config_resource.epoch() {
+        if *dkg_transaction.metadata().epoch() != config_resource.epoch() {
             return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_INVALID_EPOCH_NUM);
         }
 
-        match dkg_transaction.metadata.transaction_type {
+        match dkg_transaction.metadata().transaction_type() {
             DKGTransactionType::DKGMeta => {
                 // dkg meta should not be already set
                 if in_progress_session_state.dkg_meta_transcript.len() != 0 {
@@ -2873,11 +2873,14 @@ impl VMValidator for AptosVM {
         let dealer_committee = &in_progress_session_state.metadata.dealer_committee;
         let randomness_seed = &in_progress_session_state.metadata.randomness_seed;
 
-        if dkg_transaction.data_bytes.is_empty()
-            || dkg_transaction.metadata.bls_aggregate_signature.is_empty()
+        if dkg_transaction.data_bytes().is_empty()
             || dkg_transaction
-                .metadata
-                .signer_indices_clan_committee
+                .metadata()
+                .bls_aggregate_signature()
+                .is_empty()
+            || dkg_transaction
+                .metadata()
+                .signer_indices_clan_committee()
                 .is_empty()
         {
             return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_NOT_VALID);
@@ -2886,7 +2889,7 @@ impl VMValidator for AptosVM {
         // verify clan committee multi-signature on the transaction data
         let signer_bls_pubkeys = match aptos_types::dkg::get_clan_nodes_bls_keys_from_indices(
             dealer_committee,
-            &dkg_transaction.metadata.signer_indices_clan_committee,
+            &dkg_transaction.metadata().signer_indices_clan_committee(),
             randomness_seed,
         ) {
             Ok(bls_keys) => bls_keys,
@@ -2896,7 +2899,10 @@ impl VMValidator for AptosVM {
         };
 
         let agg_sig = match Signature::try_from(
-            dkg_transaction.metadata.bls_aggregate_signature.as_slice(),
+            dkg_transaction
+                .metadata()
+                .bls_aggregate_signature()
+                .as_slice(),
         ) {
             Ok(sig) => sig,
             Err(_) => {
@@ -2912,7 +2918,7 @@ impl VMValidator for AptosVM {
         };
 
         if agg_sig
-            .verify_aggregate_arbitrary_msg(&[dkg_transaction.data_bytes.as_slice()], &[&agg_pk])
+            .verify_aggregate_arbitrary_msg(&[dkg_transaction.data_bytes().as_slice()], &[&agg_pk])
             .is_err()
         {
             return VMValidatorResult::error(StatusCode::DKG_AGG_SIG_VERIFICATION_FAILED);

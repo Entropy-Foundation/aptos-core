@@ -29,11 +29,8 @@ module supra_framework::validator_public_keys {
     public fun is_quorum_certificate_type(t: &CertificateThresholdType): bool { t.tag == CERTIFICATE_THRESHOLD_TYPE_QUORUM }
     public fun is_unanimous_certificate_type(t: &CertificateThresholdType): bool { t.tag == CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS }
 
-    /// Wrong number of bytes were given as input when deserializing an consensus public key.
-    const E_WRONG_PUBKEY_SIZE: u64 = 1;
-
     /// Invalid consensus public key
-    const EINVALID_PUBLIC_KEY: u64 = 2;
+    const EINVALID_PUBLIC_KEY: u64 = 1;
 
     /// The size of a serialized ed25519 public key, in bytes.
     const ED25519_PUBLIC_KEY_NUM_BYTES: u64 = 32;
@@ -89,7 +86,7 @@ module supra_framework::validator_public_keys {
         // validate supra bls multi_sig key
         let valid_bls_multi_sig_key
             = bls12381::public_key_from_bytes(
-            bls12381::public_key_to_bytes (&validator_public_keys.supra_keys.bls_multisig_key));
+            bls12381::public_key_to_bytes(&validator_public_keys.supra_keys.bls_multisig_key));
         assert!(option::is_some(&valid_bls_multi_sig_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
 
         // validate supra bls threshold validity certificate key
@@ -98,7 +95,7 @@ module supra_framework::validator_public_keys {
                 = option::extract(&mut validator_public_keys.supra_keys.bls_threshold_validity_certificate_key);
             let valid_bls_threshold_validity_key
                 = bls12381::public_key_from_bytes(
-                bls12381::public_key_to_bytes (&bls_threshold_validity_key));
+                bls12381::public_key_to_bytes(&bls_threshold_validity_key));
             assert!(option::is_some(&valid_bls_threshold_validity_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
         };
 
@@ -108,7 +105,7 @@ module supra_framework::validator_public_keys {
                 = option::extract(&mut validator_public_keys.supra_keys.bls_threshold_quorum_certificate_key);
             let valid_bls_threshold_quorum_key
                 = bls12381::public_key_from_bytes(
-                bls12381::public_key_to_bytes (&bls_threshold_quorum_key));
+                bls12381::public_key_to_bytes(&bls_threshold_quorum_key));
             assert!(option::is_some(&valid_bls_threshold_quorum_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
         };
 
@@ -118,7 +115,7 @@ module supra_framework::validator_public_keys {
                 = option::extract(&mut validator_public_keys.supra_keys.bls_threshold_unanimous_certificate_key);
             let valid_bls_threshold_unanimous_key
                 = bls12381::public_key_from_bytes(
-                bls12381::public_key_to_bytes (&bls_threshold_unanimous_key));
+                bls12381::public_key_to_bytes(&bls_threshold_unanimous_key));
             assert!(option::is_some(&valid_bls_threshold_unanimous_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
         };
 

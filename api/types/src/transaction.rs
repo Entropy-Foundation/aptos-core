@@ -23,7 +23,7 @@ use aptos_types::{
     block_metadata::BlockMetadata,
     block_metadata_ext::BlockMetadataExt,
     contract_event::{ContractEvent, EventWithVersion},
-    dkg::transactions::{DKGTransactionData, DKGTransactionMetadata},
+    dkg::transactions::DKGTransactionData,
     jwks::{jwk::JWK, ProviderJWKs, QuorumCertifiedUpdate},
     keyless,
     transaction::{
@@ -756,7 +756,6 @@ impl
                     dkg_transaction_data: dkg_transaction_data.into(),
                 })
             },
-
             aptos_types::validator_txn::ValidatorTransaction::DKGResult(dkg_transcript) => {
                 Self::DkgResult(DKGResultTransaction {
                     info,
@@ -765,7 +764,6 @@ impl
                     dkg_transcript: dkg_transcript.into(),
                 })
             },
-
             aptos_types::validator_txn::ValidatorTransaction::ObservedJWKUpdate(
                 quorum_certified_update,
             ) => Self::ObservedJwkUpdate(JWKUpdateTransaction {
@@ -900,17 +898,14 @@ pub struct ExportedDKGTransactionData {
 
 impl From<DKGTransactionData> for ExportedDKGTransactionData {
     fn from(value: DKGTransactionData) -> Self {
-        let DKGTransactionData {
-            metadata,
-            data_bytes: transcript_bytes,
-        } = value;
-        let DKGTransactionMetadata {
-            epoch,
-            author,
-            bls_aggregate_signature,
-            signer_indices_clan_committee,
-            transaction_type,
-        } = metadata;
+        let epoch = *value.metadata().epoch();
+        let author = *value.metadata().author();
+        let bls_aggregate_signature = value.metadata().bls_aggregate_signature().clone();
+        let signer_indices_clan_committee =
+            value.metadata().signer_indices_clan_committee().clone();
+        let transaction_type = value.metadata().transaction_type().clone();
+        let transcript_bytes = value.data_bytes().clone();
+
         Self {
             epoch: epoch.into(),
             author: author.into(),
@@ -1965,36 +1960,34 @@ impl TryFrom<MultiKeySignature> for AccountAuthenticator {
 
         let mut signatures = vec![];
         for indexed_signature in value.signatures {
-            let signature = match indexed_signature.signature {
-                Signature::Ed25519(s) => {
-                    let signature =
-                        s.value.inner().try_into().context(
+            let signature =
+                match indexed_signature.signature {
+                    Signature::Ed25519(s) => {
+                        let signature = s.value.inner().try_into().context(
                             "Failed to parse given public_key bytes as Ed25519Signature",
                         )?;
-                    AnySignature::ed25519(signature)
-                },
-                Signature::Secp256k1Ecdsa(s) => {
-                    let signature =
-                        s.value.inner().try_into().context(
+                        AnySignature::ed25519(signature)
+                    },
+                    Signature::Secp256k1Ecdsa(s) => {
+                        let signature = s.value.inner().try_into().context(
                             "Failed to parse given signature as Secp256k1EcdsaSignature",
                         )?;
-                    AnySignature::secp256k1_ecdsa(signature)
-                },
-                Signature::WebAuthn(s) => {
-                    let paar = s.value.inner().try_into().context(
+                        AnySignature::secp256k1_ecdsa(signature)
+                    },
+                    Signature::WebAuthn(s) => {
+                        let paar = s.value.inner().try_into().context(
                         "Failed to parse given signature as PartialAuthenticatorAssertionResponse",
                     )?;
-                    AnySignature::webauthn(paar)
-                },
-                Signature::Keyless(s) => {
-                    let signature = s
-                        .value
-                        .inner()
-                        .try_into()
-                        .context("Failed to parse given signature as AnySignature::Keyless")?;
-                    AnySignature::keyless(signature)
-                },
-            };
+                        AnySignature::webauthn(paar)
+                    },
+                    Signature::Keyless(s) => {
+                        let signature =
+                            s.value.inner().try_into().context(
+                                "Failed to parse given signature as AnySignature::Keyless",
+                            )?;
+                        AnySignature::keyless(signature)
+                    },
+                };
             signatures.push((indexed_signature.index, signature));
         }
 

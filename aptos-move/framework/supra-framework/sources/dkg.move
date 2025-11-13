@@ -81,6 +81,7 @@ module supra_framework::dkg {
             );
         };
 
+        //todo: add a function to set this flag
         if (!exists<DKGResharing>(@supra_framework)) {
             move_to<DKGResharing>(
                 supra_framework,
@@ -156,6 +157,8 @@ module supra_framework::dkg {
         dkg_state.last_completed = option::some(session);
         dkg_state.in_progress = option::none();
 
+        //todo: propagate updated keys to stake.move
+        
         emit(DKGFinishEvent {
             target_committees_public_key_shares,
         });

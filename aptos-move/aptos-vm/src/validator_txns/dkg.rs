@@ -111,13 +111,13 @@ impl AptosVM {
             };
         }
 
-        let (function_name, args) = match dkg_transaction.metadata.transaction_type {
+        let (function_name, args) = match dkg_transaction.metadata().transaction_type() {
             DKGTransactionType::DKGMeta => (SET_DKG_META, vec![dkg_transaction
-                .data_bytes
+                .data_bytes()
                 .as_move_value()]),
             DKGTransactionType::PublicKeyShares => (FINISH_WITH_DKG_RESULT, vec![
                 MoveValue::Signer(AccountAddress::ONE),
-                dkg_transaction.data_bytes.as_move_value(),
+                dkg_transaction.data_bytes().as_move_value(),
             ]),
         };
 

@@ -1,8 +1,6 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(any(test, feature = "fuzzing"))]
-use crate::dkg::transactions::DKGTransactionMetadata;
 use crate::{aptos_dkg::DKGTranscript, dkg::transactions::DKGTransactionData, jwks};
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
 use serde::{Deserialize, Serialize};
@@ -18,16 +16,14 @@ pub enum ValidatorTransaction {
 impl ValidatorTransaction {
     #[cfg(any(test, feature = "fuzzing"))]
     pub fn dummy(payload: Vec<u8>) -> Self {
-        Self::DKG(DKGTransactionData {
-            metadata: DKGTransactionMetadata {
-                epoch: 999,
-                author: move_core_types::account_address::AccountAddress::ZERO,
-                bls_aggregate_signature: vec![],
-                signer_indices_clan_committee: vec![],
-                transaction_type: crate::dkg::transactions::DKGTransactionType::DKGMeta,
-            },
-            data_bytes: payload,
-        })
+        Self::DKG(DKGTransactionData::new(
+            999,
+            move_core_types::account_address::AccountAddress::ZERO,
+            payload,
+            vec![],
+            vec![],
+            crate::dkg::transactions::DKGTransactionType::DKGMeta,
+        ))
     }
 
     pub fn size_in_bytes(&self) -> usize {

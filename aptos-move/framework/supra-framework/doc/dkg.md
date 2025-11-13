@@ -355,6 +355,7 @@ Called in genesis to initialize on-chain states.
         );
     };
 
+    //todo: add a function <b>to</b> set this flag
     <b>if</b> (!<b>exists</b>&lt;<a href="dkg.md#0x1_dkg_DKGResharing">DKGResharing</a>&gt;(@supra_framework)) {
         <b>move_to</b>&lt;<a href="dkg.md#0x1_dkg_DKGResharing">DKGResharing</a>&gt;(
             supra_framework,
@@ -489,6 +490,8 @@ The <code>target_committees_public_key_shares</code> is assumed to be verified b
     session.target_committees_public_key_shares = target_committees_public_key_shares;
     dkg_state.last_completed = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(session);
     dkg_state.in_progress = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>();
+
+    //todo: propagate updated keys <b>to</b> <a href="stake.md#0x1_stake">stake</a>.<b>move</b>
 
     emit(<a href="dkg.md#0x1_dkg_DKGFinishEvent">DKGFinishEvent</a> {
         target_committees_public_key_shares,

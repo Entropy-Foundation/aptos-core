@@ -80,7 +80,6 @@ module std::dkg_committee {
             assert!(vector::length(&validator_committee) > 3, EINVALID_DKG_COMMITTEE_SIZE);
         };
 
-        //todo: verify this is correct
         let dkg_committee = vector[];
         vector::for_each(validator_committee, |x|
             {

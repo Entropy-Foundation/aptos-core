@@ -167,16 +167,6 @@ ValidatorPublicKeys consists of:
 ## Constants
 
 
-<a id="0x1_validator_public_keys_E_WRONG_PUBKEY_SIZE"></a>
-
-Wrong number of bytes were given as input when deserializing an consensus public key.
-
-
-<pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_E_WRONG_PUBKEY_SIZE">E_WRONG_PUBKEY_SIZE</a>: u64 = 1;
-</code></pre>
-
-
-
 <a id="0x1_validator_public_keys_BLS12381_G1_PUBLIC_KEY_NUM_BYTES"></a>
 
 The size of a serialized bls12381 G1 public key, in bytes.
@@ -229,7 +219,7 @@ The size of a serialized ed25519 public key, in bytes.
 Invalid consensus public key
 
 
-<pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>: u64 = 2;
+<pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>: u64 = 1;
 </code></pre>
 
 
@@ -396,7 +386,7 @@ Invalid consensus public key
     // validate supra bls multi_sig key
     <b>let</b> valid_bls_multi_sig_key
         = <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_from_bytes">bls12381::public_key_from_bytes</a>(
-        <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a> (&<a href="validator_public_keys.md#0x1_validator_public_keys">validator_public_keys</a>.supra_keys.bls_multisig_key));
+        <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a>(&<a href="validator_public_keys.md#0x1_validator_public_keys">validator_public_keys</a>.supra_keys.bls_multisig_key));
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&valid_bls_multi_sig_key), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="validator_public_keys.md#0x1_validator_public_keys_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>));
 
     // validate supra bls threshold validity certificate key
@@ -405,7 +395,7 @@ Invalid consensus public key
             = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys">validator_public_keys</a>.supra_keys.bls_threshold_validity_certificate_key);
         <b>let</b> valid_bls_threshold_validity_key
             = <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_from_bytes">bls12381::public_key_from_bytes</a>(
-            <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a> (&bls_threshold_validity_key));
+            <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a>(&bls_threshold_validity_key));
         <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&valid_bls_threshold_validity_key), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="validator_public_keys.md#0x1_validator_public_keys_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>));
     };
 
@@ -415,7 +405,7 @@ Invalid consensus public key
             = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys">validator_public_keys</a>.supra_keys.bls_threshold_quorum_certificate_key);
         <b>let</b> valid_bls_threshold_quorum_key
             = <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_from_bytes">bls12381::public_key_from_bytes</a>(
-            <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a> (&bls_threshold_quorum_key));
+            <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a>(&bls_threshold_quorum_key));
         <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&valid_bls_threshold_quorum_key), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="validator_public_keys.md#0x1_validator_public_keys_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>));
     };
 
@@ -425,7 +415,7 @@ Invalid consensus public key
             = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys">validator_public_keys</a>.supra_keys.bls_threshold_unanimous_certificate_key);
         <b>let</b> valid_bls_threshold_unanimous_key
             = <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_from_bytes">bls12381::public_key_from_bytes</a>(
-            <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a> (&bls_threshold_unanimous_key));
+            <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a>(&bls_threshold_unanimous_key));
         <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&valid_bls_threshold_unanimous_key), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="validator_public_keys.md#0x1_validator_public_keys_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>));
     };
 

@@ -1,4 +1,5 @@
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
+use derive_getters::Getters;
 use move_core_types::account_address::AccountAddress;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
@@ -9,21 +10,23 @@ pub enum DKGTransactionType {
     PublicKeyShares,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, CryptoHasher, BCSCryptoHash)]
+#[derive(
+    Clone, Serialize, Deserialize, Debug, PartialEq, Eq, CryptoHasher, BCSCryptoHash, Getters,
+)]
 pub struct DKGTransactionMetadata {
-    pub epoch: u64,
-    pub author: AccountAddress,
-    pub bls_aggregate_signature: Vec<u8>,
-    pub signer_indices_clan_committee: Vec<u32>,
-    pub transaction_type: DKGTransactionType,
+    epoch: u64,
+    author: AccountAddress,
+    bls_aggregate_signature: Vec<u8>,
+    signer_indices_clan_committee: Vec<u32>,
+    transaction_type: DKGTransactionType,
 }
 
 /// DKG transcript and its metadata.
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Getters)]
 pub struct DKGTransactionData {
-    pub metadata: DKGTransactionMetadata,
+    metadata: DKGTransactionMetadata,
     #[serde(with = "serde_bytes")]
-    pub data_bytes: Vec<u8>,
+    data_bytes: Vec<u8>,
 }
 
 impl Debug for DKGTransactionData {
