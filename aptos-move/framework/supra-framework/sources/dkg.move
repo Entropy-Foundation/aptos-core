@@ -1,10 +1,13 @@
 /// DKG on-chain states and helper functions.
 module supra_framework::dkg {
+    use std::bcs;
     use std::dkg_committee::{DkgCommittee};
     use std::error;
     use std::option;
     use std::option::{Option};
     use std::vector;
+    use aptos_std::any;
+    use aptos_std::type_info;
     use supra_framework::event::emit;
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
@@ -66,6 +69,17 @@ module supra_framework::dkg {
     /// Flag indicating if the next DKG run should be a fresh instance or a resharing instance
     struct DKGResharing has key {
         is_resharing: bool,
+    }
+
+    struct OnChainAggregateCommitment has copy, drop{
+        bls12381_commitment_g: vector<u8>,
+        bls12381_commitment_evals: vector<vector<u8>>,
+        dealer_ids: vector<u32>,
+        committee_index: u32,
+    }
+
+    struct OnChainAggregateCommitmentAllCommittees has copy, drop{
+        commitments: vector<OnChainAggregateCommitment>,
     }
 
     /// Called in genesis to initialize on-chain states.
@@ -158,6 +172,10 @@ module supra_framework::dkg {
         dkg_state.in_progress = option::none();
 
         //todo: propagate updated keys to stake.move
+        let public_key_shares_all_comms_serialized 
+            = any::new(type_info::type_name<OnChainAggregateCommitmentAllCommittees>(), target_committees_public_key_shares);
+        let public_key_shares_all_comms = any::unpack<OnChainAggregateCommitmentAllCommittees>(public_key_shares_all_comms_serialized);
+        assert!(vector::length(&public_key_shares_all_comms.commitments) > 0, error::invalid_state(EDKG_INVALID_PK_SHARES));
         
         emit(DKGFinishEvent {
             target_committees_public_key_shares,

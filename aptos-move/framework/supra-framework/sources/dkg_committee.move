@@ -27,6 +27,11 @@ module std::dkg_committee {
         dkg_pubkey: vector<u8>,
     }
 
+    struct DkgCommittee has copy, drop, store {
+        type: DkgCommitteeType,
+        committee: vector<DkgNodeConfig>,
+    }
+
     public fun new_dkg_node_config(addr: address, identity: vector<u8>, dkg_pubkey: vector<u8>,): DkgNodeConfig{
         DkgNodeConfig{
             addr,
@@ -41,11 +46,6 @@ module std::dkg_committee {
 
     public fun get_dkg_pubkey(dkg_node: &DkgNodeConfig): vector<u8>{
         dkg_node.dkg_pubkey
-    }
-
-    struct DkgCommittee has copy, drop, store {
-        type: DkgCommitteeType,
-        committee: vector<DkgNodeConfig>,
     }
 
     public fun len(committee: &DkgCommittee): u64{
