@@ -784,6 +784,21 @@ module std::features {
         is_enabled(SUPRA_AUTOMATION_V2)
     }
 
+
+    /// Whether Supra Appchains are enabled.
+    ///
+    /// Lifetime: transient
+    const SUPRA_APPCHAINS: u64 = 97;
+
+    public fun get_supra_appchains_feature(): u64 {
+        SUPRA_APPCHAINS
+    }
+
+    public fun supra_appchains_enabled(): bool acquires Features {
+        is_enabled(SUPRA_APPCHAINS)
+    }
+
+
     // ============================================================================================
     // Feature Flag Implementation
 

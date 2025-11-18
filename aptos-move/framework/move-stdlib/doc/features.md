@@ -147,6 +147,8 @@ return true.
 -  [Function `supra_delegation_pool_identity_enabled`](#0x1_features_supra_delegation_pool_identity_enabled)
 -  [Function `get_supra_automation_v2_feature`](#0x1_features_get_supra_automation_v2_feature)
 -  [Function `supra_automation_v2_enabled`](#0x1_features_supra_automation_v2_enabled)
+-  [Function `get_supra_appchains_feature`](#0x1_features_get_supra_appchains_feature)
+-  [Function `supra_appchains_enabled`](#0x1_features_supra_appchains_enabled)
 -  [Function `change_feature_flags`](#0x1_features_change_feature_flags)
 -  [Function `change_feature_flags_internal`](#0x1_features_change_feature_flags_internal)
 -  [Function `change_feature_flags_for_next_epoch`](#0x1_features_change_feature_flags_for_next_epoch)
@@ -880,6 +882,18 @@ Lifetime: transient
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_STRUCT_CONSTRUCTORS">STRUCT_CONSTRUCTORS</a>: u64 = 15;
+</code></pre>
+
+
+
+<a id="0x1_features_SUPRA_APPCHAINS"></a>
+
+Whether Supra Appchain is enabled.
+
+Lifetime: transient
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_APPCHAINS">SUPRA_APPCHAINS</a>: u64 = 97;
 </code></pre>
 
 
@@ -3788,6 +3802,54 @@ Lifetime: transient
 
 <pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_automation_v2_enabled">supra_automation_v2_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
     <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_AUTOMATION_V2">SUPRA_AUTOMATION_V2</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_get_supra_appchains_feature"></a>
+
+## Function `get_supra_appchains_feature`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_appchains_feature">get_supra_appchains_feature</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_appchains_feature">get_supra_appchains_feature</a>(): u64 {
+    <a href="features.md#0x1_features_SUPRA_APPCHAINS">SUPRA_APPCHAINS</a>
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_supra_appchains_enabled"></a>
+
+## Function `supra_appchains_enabled`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_appchains_enabled">supra_appchains_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_appchains_enabled">supra_appchains_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_APPCHAINS">SUPRA_APPCHAINS</a>)
 }
 </code></pre>
 
