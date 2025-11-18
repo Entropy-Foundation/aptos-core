@@ -125,12 +125,12 @@ pub mod transaction_metadata;
 mod transaction_validation;
 pub mod validator_txns;
 pub mod verifier;
+mod automated_transaction_processor;
+pub mod aptos_vm_viewer;
+mod automation_registry_transaction_processor;
 
 pub use crate::aptos_vm::{AptosSimulationVM, AptosVM};
-use crate::{
-    move_vm_ext::AptosMoveResolver,
-    sharded_block_executor::{executor_client::ExecutorClient, ShardedBlockExecutor},
-};
+use crate::sharded_block_executor::{executor_client::ExecutorClient, ShardedBlockExecutor};
 use aptos_types::{
     block_executor::{
         config::BlockExecutorConfigFromOnchain, partitioner::PartitionedTransactions,

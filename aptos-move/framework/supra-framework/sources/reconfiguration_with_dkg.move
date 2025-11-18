@@ -3,6 +3,7 @@ module supra_framework::reconfiguration_with_dkg {
     use std::dkg_committee::{new_dkg_committee_from_validator_consensus_info, tribe_committee_type};
     use std::features;
     use std::option;
+    use supra_framework::automation_registry;
     use supra_framework::randomness;
     use supra_framework::consensus_config;
     use supra_framework::dkg;
@@ -37,7 +38,7 @@ module supra_framework::reconfiguration_with_dkg {
         reconfiguration_state::on_reconfig_start();
         let cur_epoch = reconfiguration::current_epoch();
         let randomness_seed = randomness::bytes(32);
-        
+
         dkg::start(
             cur_epoch,
             randomness_seed,
@@ -65,6 +66,7 @@ module supra_framework::reconfiguration_with_dkg {
         gas_schedule::on_new_epoch(framework);
         std::version::on_new_epoch(framework);
         features::on_new_epoch(framework);
+        automation_registry::on_new_epoch();
         jwk_consensus_config::on_new_epoch(framework);
         jwks::on_new_epoch(framework);
         keyless_account::on_new_epoch(framework);

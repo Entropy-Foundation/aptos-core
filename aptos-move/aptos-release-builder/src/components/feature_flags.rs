@@ -127,6 +127,9 @@ pub enum FeatureFlag {
     PrivatePoll,
     SupraAutomationTaskSync,
     SupraCountFailedProposals,
+    SupraRLPEncode,
+    SupraDelegationPoolIdentity,
+    SupraAutomationV2,
     SUPRA_DKG,
 }
 
@@ -333,6 +336,11 @@ impl From<FeatureFlag> for AptosFeatureFlag {
             FeatureFlag::SupraCountFailedProposals => {
                 AptosFeatureFlag::SUPRA_COUNT_FAILED_PROPOSALS
             },
+            FeatureFlag::SupraRLPEncode => AptosFeatureFlag::SUPRA_RLP_ENCODE,
+            FeatureFlag::SupraDelegationPoolIdentity => {
+                AptosFeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY
+            },
+            FeatureFlag::SupraAutomationV2 => AptosFeatureFlag::SUPRA_AUTOMATION_V2,
             FeatureFlag::SUPRA_DKG => AptosFeatureFlag::SUPRA_DKG,
         }
     }
@@ -468,6 +476,11 @@ impl From<AptosFeatureFlag> for FeatureFlag {
             AptosFeatureFlag::SUPRA_COUNT_FAILED_PROPOSALS => {
                 FeatureFlag::SupraCountFailedProposals
             },
+            AptosFeatureFlag::SUPRA_RLP_ENCODE => FeatureFlag::SupraRLPEncode,
+            AptosFeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY => {
+                FeatureFlag::SupraDelegationPoolIdentity
+            },
+            AptosFeatureFlag::SUPRA_AUTOMATION_V2 => FeatureFlag::SupraAutomationV2,
             AptosFeatureFlag::SUPRA_DKG => FeatureFlag::SUPRA_DKG,
         }
     }

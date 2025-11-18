@@ -141,6 +141,12 @@ return true.
 -  [Function `supra_automation_task_sync_enabled`](#0x1_features_supra_automation_task_sync_enabled)
 -  [Function `get_supra_count_failed_proposals_feature`](#0x1_features_get_supra_count_failed_proposals_feature)
 -  [Function `supra_count_failed_proposals_enabled`](#0x1_features_supra_count_failed_proposals_enabled)
+-  [Function `get_supra_rlp_feature`](#0x1_features_get_supra_rlp_feature)
+-  [Function `supra_rlp_enabled`](#0x1_features_supra_rlp_enabled)
+-  [Function `get_supra_delegation_pool_identity_feature`](#0x1_features_get_supra_delegation_pool_identity_feature)
+-  [Function `supra_delegation_pool_identity_enabled`](#0x1_features_supra_delegation_pool_identity_enabled)
+-  [Function `get_supra_automation_v2_feature`](#0x1_features_get_supra_automation_v2_feature)
+-  [Function `supra_automation_v2_enabled`](#0x1_features_supra_automation_v2_enabled)
 -  [Function `get_supra_dkg_feature`](#0x1_features_get_supra_dkg_feature)
 -  [Function `supra_dkg_enabled`](#0x1_features_supra_dkg_enabled)
 -  [Function `change_feature_flags`](#0x1_features_change_feature_flags)
@@ -905,6 +911,21 @@ Lifetime: transient
 
 
 
+<a id="0x1_features_SUPRA_AUTOMATION_V2"></a>
+
+Whether Supra cycle based automation is enabled. Once enabled, the native automation feature with detached cycle
+based registry management feature will be activated.
+
+Note: After flag is enabled it CANNOT be disabled anymore and any attempt should be prevented.
+
+Lifetime: transient
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_AUTOMATION_V2">SUPRA_AUTOMATION_V2</a>: u64 = 96;
+</code></pre>
+
+
+
 <a id="0x1_features_SUPRA_COUNT_FAILED_PROPOSALS"></a>
 
 Whether the automation task sync on block basis is enabled.
@@ -923,6 +944,18 @@ Lifetime: transient
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_DKG">SUPRA_DKG</a>: u64 = 94;
+</code></pre>
+
+
+
+<a id="0x1_features_SUPRA_DELEGATION_POOL_IDENTITY"></a>
+
+Whether using delegation pool as node identity feature is enabled.
+
+Lifetime: permanent
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_DELEGATION_POOL_IDENTITY">SUPRA_DELEGATION_POOL_IDENTITY</a>: u64 = 95;
 </code></pre>
 
 
@@ -948,6 +981,18 @@ Lifetime: transient
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_NATIVE_AUTOMATION">SUPRA_NATIVE_AUTOMATION</a>: u64 = 88;
+</code></pre>
+
+
+
+<a id="0x1_features_SUPRA_RLP_ENCODE"></a>
+
+Whether the APIs related to the rlp feature are enabled.
+
+Lifetime: transient
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_RLP_ENCODE">SUPRA_RLP_ENCODE</a>: u64 = 94;
 </code></pre>
 
 
@@ -3612,6 +3657,151 @@ Lifetime: transient
 
 <pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_count_failed_proposals_enabled">supra_count_failed_proposals_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
     <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_COUNT_FAILED_PROPOSALS">SUPRA_COUNT_FAILED_PROPOSALS</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_get_supra_rlp_feature"></a>
+
+## Function `get_supra_rlp_feature`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_rlp_feature">get_supra_rlp_feature</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_rlp_feature">get_supra_rlp_feature</a>(): u64 {
+    <a href="features.md#0x1_features_SUPRA_RLP_ENCODE">SUPRA_RLP_ENCODE</a>
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_supra_rlp_enabled"></a>
+
+## Function `supra_rlp_enabled`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_rlp_enabled">supra_rlp_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_rlp_enabled">supra_rlp_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_RLP_ENCODE">SUPRA_RLP_ENCODE</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_get_supra_delegation_pool_identity_feature"></a>
+
+## Function `get_supra_delegation_pool_identity_feature`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_delegation_pool_identity_feature">get_supra_delegation_pool_identity_feature</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_delegation_pool_identity_feature">get_supra_delegation_pool_identity_feature</a>(): u64 {
+    <a href="features.md#0x1_features_SUPRA_DELEGATION_POOL_IDENTITY">SUPRA_DELEGATION_POOL_IDENTITY</a>
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_supra_delegation_pool_identity_enabled"></a>
+
+## Function `supra_delegation_pool_identity_enabled`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_delegation_pool_identity_enabled">supra_delegation_pool_identity_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_delegation_pool_identity_enabled">supra_delegation_pool_identity_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_DELEGATION_POOL_IDENTITY">SUPRA_DELEGATION_POOL_IDENTITY</a>)
+    // We could <b>update</b> supra_delegation_pool_identity_enabled <b>to</b> always <b>return</b> <b>true</b> after the feature <b>has</b> been rolled out.
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_get_supra_automation_v2_feature"></a>
+
+## Function `get_supra_automation_v2_feature`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_automation_v2_feature">get_supra_automation_v2_feature</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_automation_v2_feature">get_supra_automation_v2_feature</a>(): u64 {
+    <a href="features.md#0x1_features_SUPRA_AUTOMATION_V2">SUPRA_AUTOMATION_V2</a>
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_supra_automation_v2_enabled"></a>
+
+## Function `supra_automation_v2_enabled`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_automation_v2_enabled">supra_automation_v2_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_automation_v2_enabled">supra_automation_v2_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_AUTOMATION_V2">SUPRA_AUTOMATION_V2</a>)
 }
 </code></pre>
 

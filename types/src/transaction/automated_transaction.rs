@@ -1,19 +1,20 @@
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    chain_id::ChainId,
-    transaction::{
-        automation::AutomationTaskMetaData, EntryFunction, RawTransaction, Transaction,
-        TransactionPayload,
-    },
-};
+use std::cmp::Ordering;
+use crate::chain_id::ChainId;
+use crate::transaction::automation::{AutomationTaskMetaData, AutomationTaskType, Priority};
+use crate::transaction::{EntryFunction, RawTransaction, Transaction, TransactionPayload};
 use anyhow::anyhow;
 use aptos_crypto::HashValue;
+use derive_getters::Getters;
+use derive_more::Constructor;
 use move_core_types::account_address::AccountAddress;
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
-use std::{fmt, fmt::Debug};
+use std::fmt;
+use std::fmt::Debug;
+use std::ops::Deref;
 
 /// A transaction that has been created based on the automation-task in automation registry.
 ///
@@ -147,14 +148,55 @@ impl AutomatedTransaction {
     }
 }
 
-impl From<AutomatedTransaction> for Transaction {
-    fn from(value: AutomatedTransaction) -> Self {
-        Transaction::AutomatedTransaction(value)
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, Getters, Constructor)]
+pub struct AutomatedTransactionDescriptor {
+    inner: AutomatedTransaction,
+    task_type: AutomationTaskType,
+    priority: Priority,
+}
+
+impl Deref for AutomatedTransactionDescriptor {
+    type Target = AutomatedTransaction;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl From<AutomatedTransactionDescriptor> for Transaction {
+    fn from(value: AutomatedTransactionDescriptor) -> Self {
+        match value.task_type {
+            AutomationTaskType::System => Transaction::SystemAutomatedTransaction(value.inner),
+            AutomationTaskType::User => Transaction::AutomatedTransaction(value.inner),
+        }
+    }
+}
+
+
+impl PartialOrd<Self> for AutomatedTransactionDescriptor {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for AutomatedTransactionDescriptor {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.task_type.cmp(&other.task_type) {
+            Ordering::Less => {
+                Ordering::Less
+            }
+            Ordering::Equal => {
+                self.priority.cmp(&other.priority)
+            }
+            Ordering::Greater => {
+                Ordering::Greater
+            }
+        }
     }
 }
 
 macro_rules! value_or_missing {
-    ($value:ident, $message:literal) => {
+    ($value: ident , $message: literal) => {
         match $value {
             Some(v) => v,
             None => return BuilderResult::missing_value($message),
@@ -163,7 +205,7 @@ macro_rules! value_or_missing {
 }
 #[derive(Clone, Debug)]
 pub enum BuilderResult {
-    Success(AutomatedTransaction),
+    Success(AutomatedTransactionDescriptor),
     GasPriceThresholdExceeded {
         task_index: u64,
         threshold: u64,
@@ -173,7 +215,7 @@ pub enum BuilderResult {
 }
 
 impl BuilderResult {
-    pub fn success(txn: AutomatedTransaction) -> BuilderResult {
+    pub fn success(txn: AutomatedTransactionDescriptor) -> BuilderResult {
         Self::Success(txn)
     }
 
@@ -195,7 +237,7 @@ impl BuilderResult {
 }
 
 /// Builder interface for [AutomatedTransaction]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Getters)]
 pub struct AutomatedTransactionBuilder {
     /// Gas unit price threshold. Default to 0.
     pub(crate) gas_price_cap: u64,
@@ -231,56 +273,18 @@ pub struct AutomatedTransactionBuilder {
 
     /// Height of the block for which this transaction has should be scheduled for execution.
     pub(crate) block_height: Option<u64>,
-}
 
-/// Getter interfaces of the builder
-impl AutomatedTransactionBuilder {
-    pub fn gas_price_cap(&self) -> &u64 {
-        &self.gas_price_cap
-    }
+    /// Type of the automation task based on which automated transaction is being created.
+    pub(crate) task_type: Option<AutomationTaskType>,
 
-    pub fn sender(&self) -> &Option<AccountAddress> {
-        &self.sender
-    }
-
-    pub fn sequence_number(&self) -> &Option<u64> {
-        &self.sequence_number
-    }
-
-    pub fn payload(&self) -> &Option<TransactionPayload> {
-        &self.payload
-    }
-
-    pub fn max_gas_amount(&self) -> &Option<u64> {
-        &self.max_gas_amount
-    }
-
-    pub fn gas_unit_price(&self) -> &Option<u64> {
-        &self.gas_unit_price
-    }
-
-    pub fn expiration_timestamp_secs(&self) -> &Option<u64> {
-        &self.expiration_timestamp_secs
-    }
-
-    pub fn chain_id(&self) -> &Option<ChainId> {
-        &self.chain_id
-    }
-
-    pub fn authenticator(&self) -> &Option<HashValue> {
-        &self.authenticator
-    }
-
-    pub fn block_height(&self) -> &Option<u64> {
-        &self.block_height
-    }
+    /// Priority of the automation task based on which transactions created based on them will be executed.
+    pub(crate) task_priority: Option<Priority>,
 }
 
 impl AutomatedTransactionBuilder {
     pub fn new() -> Self {
         Self::default()
     }
-
     pub fn with_gas_price_cap(mut self, cap: u64) -> Self {
         self.gas_price_cap = cap;
         self
@@ -290,12 +294,10 @@ impl AutomatedTransactionBuilder {
         self.sender = Some(sender);
         self
     }
-
     pub fn with_sequence_number(mut self, seq: u64) -> Self {
         self.sequence_number = Some(seq);
         self
     }
-
     pub fn with_payload(mut self, payload: TransactionPayload) -> Self {
         self.payload = Some(payload);
         self
@@ -305,34 +307,38 @@ impl AutomatedTransactionBuilder {
         self.payload = Some(TransactionPayload::EntryFunction(entry_fn));
         self
     }
-
     pub fn with_max_gas_amount(mut self, max_gas_amount: u64) -> Self {
         self.max_gas_amount = Some(max_gas_amount);
         self
     }
-
     pub fn with_gas_unit_price(mut self, gas_unit_price: u64) -> Self {
         self.gas_unit_price = Some(gas_unit_price);
         self
     }
-
     pub fn with_expiration_timestamp_secs(mut self, secs: u64) -> Self {
         self.expiration_timestamp_secs = Some(secs);
         self
     }
-
     pub fn with_chain_id(mut self, chain_id: ChainId) -> Self {
         self.chain_id = Some(chain_id);
         self
     }
-
     pub fn with_authenticator(mut self, authenticator: HashValue) -> Self {
         self.authenticator = Some(authenticator);
         self
     }
-
     pub fn with_block_height(mut self, block_height: u64) -> Self {
         self.block_height = Some(block_height);
+        self
+    }
+
+    pub fn with_task_type(mut self, task_type: AutomationTaskType) -> Self {
+        self.task_type = Some(task_type);
+        self
+    }
+
+    pub fn with_task_priority(mut self, task_priority: Priority) -> Self {
+        self.task_priority = Some(task_priority);
         self
     }
 
@@ -352,6 +358,8 @@ impl AutomatedTransactionBuilder {
             chain_id,
             authenticator,
             block_height,
+            task_type,
+            task_priority,
         } = self;
         let sender = value_or_missing!(sender, "sender");
         let sequence_number = value_or_missing!(sequence_number, "sequence_number");
@@ -361,9 +369,11 @@ impl AutomatedTransactionBuilder {
         let chain_id = value_or_missing!(chain_id, "chain_id");
         let authenticator = value_or_missing!(authenticator, "authenticator");
         let block_height = value_or_missing!(block_height, "block_height");
+        let task_type = value_or_missing!(task_type, "task_type");
         let expiration_timestamp_secs =
             value_or_missing!(expiration_timestamp_secs, "expiration_timestamp_secs");
-        if gas_price_cap < gas_unit_price {
+        let task_priority = value_or_missing!(task_priority, "task_priority");
+        if gas_price_cap < gas_unit_price && task_type != AutomationTaskType::System {
             return BuilderResult::gas_price_threshold_exceeded(
                 sequence_number,
                 gas_price_cap,
@@ -379,10 +389,11 @@ impl AutomatedTransactionBuilder {
             expiration_timestamp_secs,
             chain_id,
         );
-        BuilderResult::Success(AutomatedTransaction::new(
-            raw_transaction,
-            authenticator,
-            block_height,
+        let txn = AutomatedTransaction::new(raw_transaction, authenticator, block_height);
+        BuilderResult::Success(AutomatedTransactionDescriptor::new(
+            txn,
+            task_type,
+            task_priority,
         ))
     }
 }
@@ -395,6 +406,12 @@ impl TryFrom<AutomationTaskMetaData> for AutomatedTransactionBuilder {
     type Error = anyhow::Error;
 
     fn try_from(value: AutomationTaskMetaData) -> Result<Self, Self::Error> {
+        let priority = value
+            .get_task_priority()
+            .ok_or_else(|| anyhow::Error::msg("Task with invalid priority."))?;
+        let task_type = value
+            .get_task_type()
+            .ok_or_else(|| anyhow::Error::msg("Task with invalid task_type."))?;
         let AutomationTaskMetaData {
             id,
             owner,
@@ -411,13 +428,16 @@ impl TryFrom<AutomationTaskMetaData> for AutomatedTransactionBuilder {
             })?;
         let authenticator = HashValue::from_slice(&tx_hash)
             .map_err(|err| anyhow!("Invalid authenticator value {err:?}"))?;
-        Ok(AutomatedTransactionBuilder::default()
+        let builder = AutomatedTransactionBuilder::default()
             .with_sender(owner)
             .with_sequence_number(id)
             .with_max_gas_amount(max_gas_amount)
             .with_gas_price_cap(gas_price_cap)
             .with_expiration_timestamp_secs(expiry_time)
             .with_entry_function(entry_function)
-            .with_authenticator(authenticator))
+            .with_authenticator(authenticator)
+            .with_task_priority(priority)
+            .with_task_type(task_type);
+        Ok(builder)
     }
 }

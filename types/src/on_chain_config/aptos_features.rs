@@ -94,7 +94,10 @@ pub enum FeatureFlag {
     PRIVATE_POLL = 91,
     SUPRA_AUTOMATION_TASK_SYNC = 92,
     SUPRA_COUNT_FAILED_PROPOSALS = 93,
-    SUPRA_DKG = 94,
+    SUPRA_RLP_ENCODE = 94,
+    SUPRA_DELEGATION_POOL_IDENTITY = 95,
+    SUPRA_AUTOMATION_V2 = 96,
+    SUPRA_DKG = 97,
 }
 
 //TODO: add dkg feature
@@ -166,6 +169,8 @@ impl FeatureFlag {
             FeatureFlag::PRIVATE_POLL,
             FeatureFlag::SUPRA_AUTOMATION_TASK_SYNC,
             FeatureFlag::SUPRA_COUNT_FAILED_PROPOSALS,
+            FeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY,
+            FeatureFlag::SUPRA_AUTOMATION_V2,
         ]
     }
 }

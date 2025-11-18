@@ -542,7 +542,7 @@ module supra_framework::pbo_delegation_pool {
     ): bool acquires NextCommissionPercentage {
         exists<NextCommissionPercentage>(pool_address)
             && timestamp::now_seconds()
-            >= borrow_global<NextCommissionPercentage>(pool_address).effective_after_secs
+                >= borrow_global<NextCommissionPercentage>(pool_address).effective_after_secs
     }
 
     #[view]
@@ -858,7 +858,7 @@ module supra_framework::pbo_delegation_pool {
     // If the denominator is zero, this function would fail in `create_from_rational`
     fun create_schedule_fractions(unlock_numerators: &vector<u64>, unlock_denominator: u64) : vector<FixedPoint64> {
 
-        //Create unlock schedule
+    //Create unlock schedule
         let schedule = vector::empty();
         vector::for_each_ref(
             unlock_numerators,
@@ -1122,8 +1122,8 @@ module supra_framework::pbo_delegation_pool {
         assert!(
             active_stake
                 == pool_u64::total_coins(
-                &borrow_global<DelegationPool>(pool_address).active_shares
-            ),
+                    &borrow_global<DelegationPool>(pool_address).active_shares
+                ),
             error::invalid_state(EACTIVE_COIN_VALUE_NOT_SAME_STAKE_DELEGATION_POOL)
         );
         // All delegation pool enable partial governace voting by default once the feature flag is enabled.
@@ -2292,9 +2292,9 @@ module supra_framework::pbo_delegation_pool {
         if (!(
             withdrawal_exists
                 && (
-                withdrawal_olc.index < pool.observed_lockup_cycle.index
-                    || can_withdraw_pending_inactive(pool_address)
-            )
+                    withdrawal_olc.index < pool.observed_lockup_cycle.index
+                        || can_withdraw_pending_inactive(pool_address)
+                )
         )) { return };
 
         if (withdrawal_olc.index == pool.observed_lockup_cycle.index) {
@@ -3197,12 +3197,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-    test(
-        supra_framework = @supra_framework,
-        validator = @0x123,
-        delegator1 = @0x010,
-        delegator2 = @0x020
-    )
+        test(
+            supra_framework = @supra_framework,
+            validator = @0x123,
+            delegator1 = @0x010,
+            delegator2 = @0x020
+        )
     ]
     public entry fun test_add_stake_fee(
         supra_framework: &signer,
@@ -4436,12 +4436,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-    test(
-        supra_framework = @supra_framework,
-        validator = @0x123,
-        delegator1 = @0x010,
-        delegator2 = @0x020
-    )
+        test(
+            supra_framework = @supra_framework,
+            validator = @0x123,
+            delegator1 = @0x010,
+            delegator2 = @0x020
+        )
     ]
     public entry fun test_total_coins_inactive(
         supra_framework: &signer,
@@ -5761,12 +5761,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-    test(
-        supra_framework = @supra_framework,
-        validator = @0x123,
-        delegator1 = @0x010,
-        delegator2 = @0x020
-    )
+        test(
+            supra_framework = @supra_framework,
+            validator = @0x123,
+            delegator1 = @0x010,
+            delegator2 = @0x020
+        )
     ]
     public entry fun test_out_of_order_redeem(
         supra_framework: &signer,
@@ -5945,12 +5945,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-    test(
-        supra_framework = @supra_framework,
-        validator = @0x123,
-        delegator1 = @0x010,
-        delegator2 = @0x020
-    )
+        test(
+            supra_framework = @supra_framework,
+            validator = @0x123,
+            delegator1 = @0x010,
+            delegator2 = @0x020
+        )
     ]
     public entry fun test_operator_fee(
         supra_framework: &signer,
@@ -6244,12 +6244,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-    test(
-        supra_framework = @supra_framework,
-        old_operator = @0x123,
-        delegator = @0x010,
-        new_operator = @0x020
-    )
+        test(
+            supra_framework = @supra_framework,
+            old_operator = @0x123,
+            delegator = @0x010,
+            new_operator = @0x020
+        )
     ]
     public entry fun test_change_operator(
         supra_framework: &signer,
@@ -6365,13 +6365,13 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-    test(
-        supra_framework = @supra_framework,
-        operator1 = @0x123,
-        delegator = @0x010,
-        beneficiary = @0x020,
-        operator2 = @0x030
-    )
+        test(
+            supra_framework = @supra_framework,
+            operator1 = @0x123,
+            delegator = @0x010,
+            beneficiary = @0x020,
+            operator2 = @0x030
+        )
     ]
     public entry fun test_set_beneficiary_for_operator(
         supra_framework: &signer,
@@ -6666,12 +6666,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-    test(
-        supra_framework = @supra_framework,
-        validator = @0x123,
-        delegator1 = @0x010,
-        delegator2 = @0x020
-    )
+        test(
+            supra_framework = @supra_framework,
+            validator = @0x123,
+            delegator1 = @0x010,
+            delegator2 = @0x020
+        )
     ]
     public entry fun test_min_stake_is_preserved(
         supra_framework: &signer,
@@ -7075,12 +7075,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-    test(
-        supra_framework = @supra_framework,
-        validator = @0x123,
-        delegator1 = @0x010,
-        delegator2 = @0x020
-    )
+        test(
+            supra_framework = @supra_framework,
+            validator = @0x123,
+            delegator1 = @0x010,
+            delegator2 = @0x020
+        )
     ]
     public entry fun test_unlock_mutiple_delegators(
         supra_framework: &signer,
@@ -7150,12 +7150,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-    test(
-        supra_framework = @supra_framework,
-        validator = @0x123,
-        delegator1 = @0x010,
-        delegator2 = @0x020
-    )
+        test(
+            supra_framework = @supra_framework,
+            validator = @0x123,
+            delegator1 = @0x010,
+            delegator2 = @0x020
+        )
     ]
     #[expected_failure(abort_code = 65561, location = Self)]
     public entry fun test_multiple_users(
@@ -7359,12 +7359,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-    test(
-        supra_framework = @supra_framework,
-        validator = @0x123,
-        delegator1 = @0x010,
-        delegator2 = @0x020
-    )
+        test(
+            supra_framework = @supra_framework,
+            validator = @0x123,
+            delegator1 = @0x010,
+            delegator2 = @0x020
+        )
     ]
     public entry fun test_lose_shares_small(
         supra_framework: &signer,
@@ -7469,12 +7469,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-    test(
-        supra_framework = @supra_framework,
-        validator = @0x123,
-        delegator1 = @0x010,
-        delegator2 = @0x020
-    )
+        test(
+            supra_framework = @supra_framework,
+            validator = @0x123,
+            delegator1 = @0x010,
+            delegator2 = @0x020
+        )
     ]
     public entry fun test_lose_shares_large(
         supra_framework: &signer,
@@ -7813,12 +7813,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-    test(
-        supra_framework = @supra_framework,
-        validator = @0x123,
-        delegator = @0x010,
-        funder = @0x999
-    )
+        test(
+            supra_framework = @supra_framework,
+            validator = @0x123,
+            delegator = @0x010,
+            funder = @0x999
+        )
     ]
     /// if delegator is not part of one of the principle stake holder, and not funded with locked stake,
     /// they can unlock/withdraw without restriction
@@ -8044,12 +8044,12 @@ module supra_framework::pbo_delegation_pool {
     }
 
     #[
-    test(
-        supra_framework = @supra_framework,
-        validator = @0x123,
-        delegator = @0x010,
-        funder = @0x999
-    )
+        test(
+            supra_framework = @supra_framework,
+            validator = @0x123,
+            delegator = @0x010,
+            funder = @0x999
+        )
     ]
     /// if a single delegator was not part of one of the principle stake holder, and not funded with locked stake,
     /// they can unlock/withdraw without restriction
@@ -10358,7 +10358,7 @@ module supra_framework::pbo_delegation_pool {
         assert!(
             inactive
                 == half_delegator_allocation_with_rounding_error + half_epoch_reward
-                - 1,
+                    - 1,
             inactive
         );
         assert!(pending_inactive == 0, pending_inactive);

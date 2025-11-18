@@ -1,37 +1,31 @@
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    aptos_vm::{get_or_vm_startup_failure, unwrap_or_discard},
-    counters::TXN_GAS_USAGE,
-    errors::discarded_output,
-    gas::{check_gas, make_prod_gas_meter},
-    move_vm_ext::{
-        session::user_transaction_sessions::{
-            epilogue::EpilogueSession, prologue::PrologueSession, user::UserSession,
-        },
-        AptosMoveResolver, SessionExt,
-    },
-    transaction_metadata::TransactionMetadata,
-    transaction_validation, AptosVM,
-};
+use crate::aptos_vm::{get_or_vm_startup_failure, unwrap_or_discard};
+use crate::counters::TXN_GAS_USAGE;
+use crate::errors::discarded_output;
+use crate::gas::{check_gas, make_prod_gas_meter};
+use crate::move_vm_ext::session::user_transaction_sessions::epilogue::EpilogueSession;
+use crate::move_vm_ext::session::user_transaction_sessions::prologue::PrologueSession;
+use crate::move_vm_ext::session::user_transaction_sessions::user::UserSession;
+use crate::move_vm_ext::{AptosMoveResolver, SessionExt};
+use crate::transaction_metadata::TransactionMetadata;
+use crate::{transaction_validation, AptosVM};
 use aptos_gas_algebra::Gas;
 use aptos_gas_meter::{AptosGasMeter, GasAlgebra};
 use aptos_gas_schedule::VMGasParameters;
-use aptos_types::{
-    fee_statement::FeeStatement,
-    on_chain_config::FeatureFlag,
-    transaction::{
-        automated_transaction::AutomatedTransaction, EntryFunction, ExecutionStatus,
-        TransactionAuxiliaryData, TransactionPayload, TransactionStatus,
-    },
+use aptos_types::fee_statement::FeeStatement;
+use aptos_types::on_chain_config::FeatureFlag;
+use aptos_types::transaction::automated_transaction::AutomatedTransaction;
+use aptos_types::transaction::automation::AutomationTaskType;
+use aptos_types::transaction::{
+    EntryFunction, ExecutionStatus, TransactionAuxiliaryData, TransactionPayload, TransactionStatus,
 };
 use aptos_vm_logging::log_schema::AdapterLogSchema;
-use aptos_vm_types::{
-    change_set::VMChangeSet,
-    output::VMOutput,
-    storage::{change_set_configs::ChangeSetConfigs, StorageGasParameters},
-};
+use aptos_vm_types::change_set::VMChangeSet;
+use aptos_vm_types::output::VMOutput;
+use aptos_vm_types::storage::change_set_configs::ChangeSetConfigs;
+use aptos_vm_types::storage::StorageGasParameters;
 use fail::fail_point;
 use move_binary_format::errors::Location;
 use move_core_types::vm_status::{StatusCode, VMStatus};
@@ -40,6 +34,7 @@ use std::ops::Deref;
 
 pub struct AutomatedTransactionProcessor<'m> {
     aptos_vm: &'m AptosVM,
+    task_type: AutomationTaskType,
 }
 
 impl Deref for AutomatedTransactionProcessor<'_> {
@@ -51,8 +46,11 @@ impl Deref for AutomatedTransactionProcessor<'_> {
 }
 
 impl<'m> AutomatedTransactionProcessor<'m> {
-    pub(crate) fn new(aptos_vm: &'m AptosVM) -> Self {
-        Self { aptos_vm }
+    pub(crate) fn new(aptos_vm: &'m AptosVM, task_type: AutomationTaskType) -> Self {
+        Self {
+            aptos_vm,
+            task_type,
+        }
     }
 
     fn validate_automated_transaction(
@@ -77,12 +75,25 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             log_context,
         )?;
 
-        transaction_validation::run_automated_transaction_prologue(
-            session,
-            transaction_data,
-            log_context,
-            traversal_context,
-        )
+        if self
+            .features()
+            .is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2)
+        {
+            transaction_validation::run_automated_transaction_prologue_v2(
+                session,
+                transaction_data,
+                self.task_type,
+                log_context,
+                traversal_context,
+            )
+        } else {
+            transaction_validation::run_automated_transaction_prologue(
+                session,
+                transaction_data,
+                log_context,
+                traversal_context,
+            )
+        }
     }
 
     fn success_transaction_cleanup(
@@ -109,7 +120,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             }
         }
 
-        let fee_statement = AptosVM::fee_statement_from_gas_meter(
+        let assessed_fee_statement = AptosVM::fee_statement_from_gas_meter(
             txn_data,
             gas_meter,
             u64::from(epilogue_session.get_storage_fee_refund()),
@@ -118,9 +129,10 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             transaction_validation::run_automated_txn_success_epilogue(
                 session,
                 gas_meter.balance(),
-                fee_statement,
+                assessed_fee_statement,
                 self.features(),
                 txn_data,
+                self.task_type,
                 log_context,
                 traversal_context,
             )
@@ -128,7 +140,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         let change_set = epilogue_session.finish(change_set_configs)?;
         let output = VMOutput::new(
             change_set,
-            fee_statement,
+            self.get_fee_statement_for_output(assessed_fee_statement),
             TransactionStatus::Keep(ExecutionStatus::Success),
             TransactionAuxiliaryData::default(),
         );
@@ -233,7 +245,6 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             traversal_context,
         )
     }
-
     pub(crate) fn execute_transaction_impl<'a>(
         &self,
         resolver: &impl AptosMoveResolver,
@@ -429,7 +440,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 ) {
                     Ok((change_set, fee_statement, status)) => VMOutput::new(
                         change_set,
-                        fee_statement,
+                        self.get_fee_statement_for_output(fee_statement),
                         TransactionStatus::Keep(status),
                         txn_aux_data,
                     ),
@@ -478,6 +489,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 fee_statement,
                 self.features(),
                 txn_data,
+                self.task_type,
                 log_context,
                 traversal_context,
             )
@@ -485,5 +497,21 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         epilogue_session
             .finish(change_set_configs)
             .map(|set| (set, fee_statement, status))
+    }
+
+    /// The actual charged fee statement for executed automated transaction.
+    /// The input [`fee_statement`] is the assessed fee charges based on the gas-meter, but
+    /// the output fee-statement will be based on the task type. As system tasks are not charged at all
+    /// the output will contain `zero` gas information.
+    /// This function is utilized to define fee-statement of VMOutput.
+    fn get_fee_statement_for_output(&self, fee_statement: FeeStatement) -> FeeStatement {
+        match self.task_type {
+            AutomationTaskType::User => {
+                fee_statement
+            }
+            AutomationTaskType::System => {
+                FeeStatement::zero()
+            }
+        }
     }
 }
