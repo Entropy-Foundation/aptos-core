@@ -2,7 +2,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use aptos_api_types::transaction::{AutomationRegistrationParams, AutomationTaskType};
+use aptos_api_types::transaction::AutomationTaskType;
 use aptos_api_types::{
     transaction::{
         AutomationRegistrationParams, ValidatorTransaction as ApiValidatorTransactionEnum,

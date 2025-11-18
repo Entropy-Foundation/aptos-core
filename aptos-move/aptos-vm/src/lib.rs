@@ -125,8 +125,6 @@ pub mod transaction_metadata;
 mod transaction_validation;
 pub mod validator_txns;
 pub mod verifier;
-mod automated_transaction_processor;
-pub mod aptos_vm_viewer;
 mod automation_registry_transaction_processor;
 
 pub use crate::aptos_vm::{AptosSimulationVM, AptosVM};
@@ -145,6 +143,7 @@ use aptos_types::{
 };
 use std::{marker::Sync, sync::Arc};
 pub use verifier::view_function::determine_is_view;
+use crate::move_vm_ext::AptosMoveResolver;
 
 /// This trait describes the VM's validation interfaces.
 pub trait VMValidator {

@@ -787,7 +787,7 @@ module std::features {
     /// Whether the APIs related to the Supra_Dkg feature are enabled.
     ///
     /// Lifetime: transient
-    const SUPRA_DKG: u64 = 95;
+    const SUPRA_DKG: u64 = 97;
 
     public fun get_supra_dkg_feature(): u64 {
         SUPRA_DKG

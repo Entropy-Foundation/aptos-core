@@ -34,14 +34,6 @@ module aptos_std::any {
         }
     }
 
-    /// Create a new `Any` struct with provided parameters
-    public fun new(type_name: String, data: vector<u8>): Any {
-        Any {
-            type_name,
-            data
-        }
-    }
-
     /// Pack a value into the `Any` representation. Because Any can be stored and dropped, this is
     /// also required from `T`.
     public fun pack<T: drop + store>(x: T): Any {

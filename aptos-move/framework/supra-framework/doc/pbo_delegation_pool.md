@@ -1969,7 +1969,7 @@ Return whether the commission percentage for the next lockup cycle is effective.
 ): bool <b>acquires</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_NextCommissionPercentage">NextCommissionPercentage</a> {
     <b>exists</b>&lt;<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_NextCommissionPercentage">NextCommissionPercentage</a>&gt;(pool_address)
         && <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>()
-        &gt;= <b>borrow_global</b>&lt;<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_NextCommissionPercentage">NextCommissionPercentage</a>&gt;(pool_address).effective_after_secs
+            &gt;= <b>borrow_global</b>&lt;<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_NextCommissionPercentage">NextCommissionPercentage</a>&gt;(pool_address).effective_after_secs
 }
 </code></pre>
 
@@ -2602,7 +2602,7 @@ Return the unlock schedule of the pool as (schedule, start_time, period_duration
 
 <pre><code><b>fun</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_create_schedule_fractions">create_schedule_fractions</a>(unlock_numerators: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, unlock_denominator: u64) : <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;FixedPoint64&gt; {
 
-    //Create unlock schedule
+//Create unlock schedule
     <b>let</b> schedule = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>();
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_ref">vector::for_each_ref</a>(
         unlock_numerators,
@@ -2925,8 +2925,8 @@ Ownership over setting the operator/voter is granted to <code>owner</code> who h
     <b>assert</b>!(
         active_stake
             == <a href="../../aptos-stdlib/doc/pool_u64.md#0x1_pool_u64_total_coins">pool_u64::total_coins</a>(
-            &<b>borrow_global</b>&lt;<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>&gt;(pool_address).active_shares
-        ),
+                &<b>borrow_global</b>&lt;<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_DelegationPool">DelegationPool</a>&gt;(pool_address).active_shares
+            ),
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_EACTIVE_COIN_VALUE_NOT_SAME_STAKE_DELEGATION_POOL">EACTIVE_COIN_VALUE_NOT_SAME_STAKE_DELEGATION_POOL</a>)
     );
     // All delegation pool enable partial governace <a href="voting.md#0x1_voting">voting</a> by default once the feature flag is enabled.
@@ -5032,9 +5032,9 @@ Withdraw <code>amount</code> of owned inactive stake from the delegation pool at
     <b>if</b> (!(
         withdrawal_exists
             && (
-            withdrawal_olc.index &lt; pool.observed_lockup_cycle.index
-                || <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_can_withdraw_pending_inactive">can_withdraw_pending_inactive</a>(pool_address)
-        )
+                withdrawal_olc.index &lt; pool.observed_lockup_cycle.index
+                    || <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool_can_withdraw_pending_inactive">can_withdraw_pending_inactive</a>(pool_address)
+            )
     )) { <b>return</b> };
 
     <b>if</b> (withdrawal_olc.index == pool.observed_lockup_cycle.index) {

@@ -936,18 +936,6 @@ Whether the automation task sync on block basis is enabled.
 
 
 
-<a id="0x1_features_SUPRA_DKG"></a>
-
-Whether the APIs related to the Supra_Dkg feature are enabled.
-
-Lifetime: transient
-
-
-<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_DKG">SUPRA_DKG</a>: u64 = 94;
-</code></pre>
-
-
-
 <a id="0x1_features_SUPRA_DELEGATION_POOL_IDENTITY"></a>
 
 Whether using delegation pool as node identity feature is enabled.
@@ -956,6 +944,18 @@ Lifetime: permanent
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_DELEGATION_POOL_IDENTITY">SUPRA_DELEGATION_POOL_IDENTITY</a>: u64 = 95;
+</code></pre>
+
+
+
+<a id="0x1_features_SUPRA_DKG"></a>
+
+Whether the APIs related to the Supra_Dkg feature are enabled.
+
+Lifetime: transient
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_DKG">SUPRA_DKG</a>: u64 = 97;
 </code></pre>
 
 

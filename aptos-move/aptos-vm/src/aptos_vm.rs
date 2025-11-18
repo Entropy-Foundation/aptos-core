@@ -42,7 +42,7 @@ use aptos_logger::{enabled, prelude::*, Level};
 use aptos_metrics_core::TimerHelper;
 #[cfg(any(test, feature = "testing"))]
 use aptos_types::state_store::StateViewId;
-use aptos_types::transaction::automation::{AutomationTaskType, RegistrationParams};
+use aptos_types::transaction::automation::AutomationTaskType;
 use aptos_types::{
     account_config::{self, new_block_event_key, AccountResource},
     block_executor::{

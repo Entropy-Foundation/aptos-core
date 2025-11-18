@@ -1,6 +1,5 @@
 /// DKG on-chain states and helper functions.
 module supra_framework::dkg {
-    use std::bcs;
     use std::dkg_committee::{DkgCommittee};
     use std::error;
     use std::option;
@@ -172,10 +171,10 @@ module supra_framework::dkg {
         dkg_state.in_progress = option::none();
 
         //todo: propagate updated keys to stake.move
-        let public_key_shares_all_comms_serialized 
+        /*let public_key_shares_all_comms_serialized 
             = any::new(type_info::type_name<OnChainAggregateCommitmentAllCommittees>(), target_committees_public_key_shares);
         let public_key_shares_all_comms = any::unpack<OnChainAggregateCommitmentAllCommittees>(public_key_shares_all_comms_serialized);
-        assert!(vector::length(&public_key_shares_all_comms.commitments) > 0, error::invalid_state(EDKG_INVALID_PK_SHARES));
+        assert!(vector::length(&public_key_shares_all_comms.commitments) > 0, error::invalid_state(EDKG_INVALID_PK_SHARES));*/
         
         emit(DKGFinishEvent {
             target_committees_public_key_shares,
