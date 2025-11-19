@@ -97,6 +97,7 @@ pub enum FeatureFlag {
     SUPRA_RLP_ENCODE = 94,
     SUPRA_DELEGATION_POOL_IDENTITY = 95,
     SUPRA_AUTOMATION_V2 = 96,
+    SUPRA_APPCHAINS = 97,
 }
 
 impl FeatureFlag {
@@ -169,6 +170,7 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_COUNT_FAILED_PROPOSALS,
             FeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY,
             FeatureFlag::SUPRA_AUTOMATION_V2,
+            FeatureFlag::SUPRA_APPCHAINS,
         ]
     }
 }
