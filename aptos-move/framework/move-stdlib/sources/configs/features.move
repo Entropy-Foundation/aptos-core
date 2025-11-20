@@ -796,6 +796,19 @@ module std::features {
     public fun supra_validator_identity_v2_enabled(): bool acquires Features {
         is_enabled(SUPRA_VALIDATOR_IDENTITY_V2)
     }
+
+    /// Whether BCFT certificate thresholds are enabled.
+    ///
+    /// Lifetime: permanent
+    const SUPRA_BCFT_CERTIFICATES: u64 = 98;
+
+    public fun get_supra_bcft_certificates_feature(): u64 {
+        SUPRA_BCFT_CERTIFICATES
+    }
+
+    public fun supra_bcft_certificates_enabled(): bool acquires Features {
+        is_enabled(SUPRA_BCFT_CERTIFICATES)
+    }
     
     // ============================================================================================
     // Feature Flag Implementation
