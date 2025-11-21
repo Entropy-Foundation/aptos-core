@@ -17,6 +17,18 @@ module supra_framework::validator_public_keys {
     const CERTIFICATE_THRESHOLD_TYPE_VALIDITY: u8 = 0;
     const CERTIFICATE_THRESHOLD_TYPE_QUORUM: u8 = 1;
     const CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS: u8 = 2;
+    /// f+1, given there are f Byzantine nodes and c crash-only nodes in the [sosmr::Committee] with n >= 3f + 2c + 1 nodes.
+    /// The integer should match the Rust enum value representation in `CertificateThresholdType`
+    const CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY: u8 = 3
+    /// 2f + c + 1, given there are f Byzantine nodes and c crash-only nodes in the [sosmr::Committee] with n >= 3f + 2c + 1 nodes.
+    /// The integer should match the Rust enum value representation in `CertificateThresholdType`
+    const CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM: u8 = 4,
+    /// n - f - c, given there are f Byzantine nodes and c crash-only nodes in the [sosmr::Committee] with n >= 3f + 2c + 1 nodes.
+    /// The integer should match the Rust enum value representation in `CertificateThresholdType`
+    const CERTIFICATE_THRESHOLD_TYPE_BCFT_VIEW_CHANGE: u8 = 5,
+    /// f+1, given there are f Byzantine nodes in the [sosmr::Committee] with n >= 2f + 1 nodes.
+    /// The integer should match the Rust enum value representation in `CertificateThresholdType`
+    const CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY: u8 = 6,
 
     /// Internal tag wrapper
     struct CertificateThresholdType has copy, drop, store { tag: u8 }
