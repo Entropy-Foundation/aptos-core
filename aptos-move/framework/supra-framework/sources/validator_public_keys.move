@@ -14,19 +14,18 @@ module supra_framework::validator_public_keys {
     #[test_only]
     use supra_framework::validator_public_keys;
 
+    /// The integer should match the Rust enum value representation in `CertificateThresholdType`
     const CERTIFICATE_THRESHOLD_TYPE_VALIDITY: u8 = 0;
+    /// The integer should match the Rust enum value representation in `CertificateThresholdType`
     const CERTIFICATE_THRESHOLD_TYPE_QUORUM: u8 = 1;
+    /// The integer should match the Rust enum value representation in `CertificateThresholdType`
     const CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS: u8 = 2;
-    /// f+1, given there are f Byzantine nodes and c crash-only nodes in the [sosmr::Committee] with n >= 3f + 2c + 1 nodes.
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`
     const CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY: u8 = 3
-    /// 2f + c + 1, given there are f Byzantine nodes and c crash-only nodes in the [sosmr::Committee] with n >= 3f + 2c + 1 nodes.
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`
     const CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM: u8 = 4,
-    /// n - f - c, given there are f Byzantine nodes and c crash-only nodes in the [sosmr::Committee] with n >= 3f + 2c + 1 nodes.
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`
     const CERTIFICATE_THRESHOLD_TYPE_BCFT_VIEW_CHANGE: u8 = 5,
-    /// f+1, given there are f Byzantine nodes in the [sosmr::Committee] with n >= 2f + 1 nodes.
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`
     const CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY: u8 = 6,
 
@@ -36,10 +35,18 @@ module supra_framework::validator_public_keys {
     public fun validity_certificate_type(): CertificateThresholdType { CertificateThresholdType { tag: CERTIFICATE_THRESHOLD_TYPE_VALIDITY } }
     public fun quorum_certificate_type(): CertificateThresholdType { CertificateThresholdType { tag: CERTIFICATE_THRESHOLD_TYPE_QUORUM } }
     public fun unanimous_certificate_type(): CertificateThresholdType { CertificateThresholdType { tag: CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS } }
-
+    public fun bcft_validity_certificate_type(): CertificateThresholdType { CertificateThresholdType { tag: CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY } }
+    public fun bcft_quorum_certificate_type(): CertificateThresholdType { CertificateThresholdType { tag: CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM } }
+    public fun bcft_view_change_certificate_type(): CertificateThresholdType { CertificateThresholdType { tag: CERTIFICATE_THRESHOLD_TYPE_BCFT_VIEW_CHANGE } }
+    public fun clan_majority_certificate_type(): CertificateThresholdType { CertificateThresholdType { tag: CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY } }
+     
     public fun is_validity_certificate_type(t: &CertificateThresholdType): bool { t.tag == CERTIFICATE_THRESHOLD_TYPE_VALIDITY }
     public fun is_quorum_certificate_type(t: &CertificateThresholdType): bool { t.tag == CERTIFICATE_THRESHOLD_TYPE_QUORUM }
     public fun is_unanimous_certificate_type(t: &CertificateThresholdType): bool { t.tag == CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS }
+    public fun is_bcft_validity_certificate_type(t: &CertificateThresholdType): bool { t.tag == CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY }
+    public fun is_bcft_quorum_certificate_type(t: &CertificateThresholdType): bool { t.tag == CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM }
+    public fun is_bcft_view_change_certificate_type(t: &CertificateThresholdType): bool { t.tag == CERTIFICATE_THRESHOLD_TYPE_BCFT_VIEW_CHANGE }
+    public fun is_clan_majority_certificate_type(t: &CertificateThresholdType): bool { t.tag == CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY }
 
     /// Invalid consensus public key
     const EINVALID_PUBLIC_KEY: u64 = 1;
