@@ -149,6 +149,8 @@ return true.
 -  [Function `supra_automation_v2_enabled`](#0x1_features_supra_automation_v2_enabled)
 -  [Function `get_supra_validator_identity_v2_feature`](#0x1_features_get_supra_validator_identity_v2_feature)
 -  [Function `supra_validator_identity_v2_enabled`](#0x1_features_supra_validator_identity_v2_enabled)
+-  [Function `get_supra_bcft_certificates_feature`](#0x1_features_get_supra_bcft_certificates_feature)
+-  [Function `supra_bcft_certificates_enabled`](#0x1_features_supra_bcft_certificates_enabled)
 -  [Function `change_feature_flags`](#0x1_features_change_feature_flags)
 -  [Function `change_feature_flags_internal`](#0x1_features_change_feature_flags_internal)
 -  [Function `change_feature_flags_for_next_epoch`](#0x1_features_change_feature_flags_for_next_epoch)
@@ -922,6 +924,18 @@ Lifetime: transient
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_AUTOMATION_V2">SUPRA_AUTOMATION_V2</a>: u64 = 96;
+</code></pre>
+
+
+
+<a id="0x1_features_SUPRA_BCFT_CERTIFICATES"></a>
+
+Whether BCFT certificate thresholds are enabled.
+
+Lifetime: permanent
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_BCFT_CERTIFICATES">SUPRA_BCFT_CERTIFICATES</a>: u64 = 98;
 </code></pre>
 
 
@@ -3850,6 +3864,54 @@ Lifetime: transient
 
 <pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_validator_identity_v2_enabled">supra_validator_identity_v2_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
     <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_VALIDATOR_IDENTITY_V2">SUPRA_VALIDATOR_IDENTITY_V2</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_get_supra_bcft_certificates_feature"></a>
+
+## Function `get_supra_bcft_certificates_feature`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_bcft_certificates_feature">get_supra_bcft_certificates_feature</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_bcft_certificates_feature">get_supra_bcft_certificates_feature</a>(): u64 {
+    <a href="features.md#0x1_features_SUPRA_BCFT_CERTIFICATES">SUPRA_BCFT_CERTIFICATES</a>
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_supra_bcft_certificates_enabled"></a>
+
+## Function `supra_bcft_certificates_enabled`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_bcft_certificates_enabled">supra_bcft_certificates_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_bcft_certificates_enabled">supra_bcft_certificates_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_BCFT_CERTIFICATES">SUPRA_BCFT_CERTIFICATES</a>)
 }
 </code></pre>
 
