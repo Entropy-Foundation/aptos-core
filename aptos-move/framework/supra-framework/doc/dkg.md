@@ -33,15 +33,12 @@ DKG on-chain states and helper functions.
     -  [Function `incomplete_session`](#@Specification_1_incomplete_session)
 
 
-<pre><code><b>use</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">0x1::any</a>;
-<b>use</b> <a href="dkg_committee.md#0x1_dkg_committee">0x1::dkg_committee</a>;
+<pre><code><b>use</b> <a href="dkg_committee.md#0x1_dkg_committee">0x1::dkg_committee</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
-<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string">0x1::string</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="timestamp.md#0x1_timestamp">0x1::timestamp</a>;
-<b>use</b> <a href="../../aptos-stdlib/doc/type_info.md#0x1_type_info">0x1::type_info</a>;
 </code></pre>
 
 
@@ -268,6 +265,7 @@ The completed and in-progress DKG sessions.
 ## Resource `DKGResharing`
 
 Flag indicating if the next DKG run should be a fresh instance or a resharing instance
+todo: add resharing as part of each receiver committee config
 
 
 <pre><code><b>struct</b> <a href="dkg.md#0x1_dkg_DKGResharing">DKGResharing</a> <b>has</b> key
@@ -569,10 +567,12 @@ The <code>target_committees_public_key_shares</code> is assumed to be verified b
     dkg_state.in_progress = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>();
 
     //todo: propagate updated keys <b>to</b> <a href="stake.md#0x1_stake">stake</a>.<b>move</b>
-    <b>let</b> public_key_shares_all_comms_serialized
+    /*<b>let</b> public_key_shares_all_comms_serialized
         = <a href="../../aptos-stdlib/doc/any.md#0x1_any_new">any::new</a>(<a href="../../aptos-stdlib/doc/type_info.md#0x1_type_info_type_name">type_info::type_name</a>&lt;<a href="dkg.md#0x1_dkg_OnChainAggregateCommitmentAllCommittees">OnChainAggregateCommitmentAllCommittees</a>&gt;(), target_committees_public_key_shares);
     <b>let</b> public_key_shares_all_comms = <a href="../../aptos-stdlib/doc/any.md#0x1_any_unpack">any::unpack</a>&lt;<a href="dkg.md#0x1_dkg_OnChainAggregateCommitmentAllCommittees">OnChainAggregateCommitmentAllCommittees</a>&gt;(public_key_shares_all_comms_serialized);
-    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&public_key_shares_all_comms.commitments) &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="dkg.md#0x1_dkg_EDKG_INVALID_PK_SHARES">EDKG_INVALID_PK_SHARES</a>));
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&public_key_shares_all_comms.commitments) &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="dkg.md#0x1_dkg_EDKG_INVALID_PK_SHARES">EDKG_INVALID_PK_SHARES</a>));*/
+
+    // set quorum key for now. later may need <b>to</b> <b>update</b> the threshold representation
 
     emit(<a href="dkg.md#0x1_dkg_DKGFinishEvent">DKGFinishEvent</a> {
         target_committees_public_key_shares,

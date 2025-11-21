@@ -44,8 +44,8 @@ module supra_framework::validator_public_keys {
     /// 4. ed25519 key
     struct InternalPublicKeys has copy, drop, store {
         bls_multisig_key: bls12381::PublicKey,
-        bls_threshold_validity_certificate_key: option::Option<bls12381::PublicKey>,
-        bls_threshold_quorum_certificate_key: option::Option<bls12381::PublicKey>,
+        bls_threshold_validity_certificate_key: option::Option<bls12381::PublicKey>, // f+1 threshold
+        bls_threshold_quorum_certificate_key: option::Option<bls12381::PublicKey>, // 2f+1 threshold
         bls_threshold_unanimous_certificate_key: option::Option<bls12381::PublicKey>,
         class_group_key: class_groups::CGPublicKey,
         ed25519_key: ed25519::ValidatedPublicKey,

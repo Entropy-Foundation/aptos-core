@@ -66,6 +66,7 @@ module supra_framework::dkg {
     }
 
     /// Flag indicating if the next DKG run should be a fresh instance or a resharing instance
+    /// todo: add resharing as part of each receiver committee config
     struct DKGResharing has key {
         is_resharing: bool,
     }
@@ -175,6 +176,8 @@ module supra_framework::dkg {
             = any::new(type_info::type_name<OnChainAggregateCommitmentAllCommittees>(), target_committees_public_key_shares);
         let public_key_shares_all_comms = any::unpack<OnChainAggregateCommitmentAllCommittees>(public_key_shares_all_comms_serialized);
         assert!(vector::length(&public_key_shares_all_comms.commitments) > 0, error::invalid_state(EDKG_INVALID_PK_SHARES));*/
+        
+        // set quorum key for now. later may need to update the threshold representation
         
         emit(DKGFinishEvent {
             target_committees_public_key_shares,

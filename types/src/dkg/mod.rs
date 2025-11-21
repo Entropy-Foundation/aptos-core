@@ -41,8 +41,7 @@ pub fn get_clan_nodes_bls_keys_from_indices(
             let clan_node_key = committee
                 .get(*clan_node_index)
                 .ok_or(anyhow!("dkg::node Invalid clan node index: {signer}"))?
-                .dkg_pubkey()
-                .clone();
+                .dkg_pubkey();
             let clan_node_pk = ValidatorPublicKeys::try_from(clan_node_key).map_err(|e| {
                 anyhow!("dkg::node validator public key deserialization failed: {e}")
             })?;

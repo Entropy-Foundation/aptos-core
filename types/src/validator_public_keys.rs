@@ -20,6 +20,30 @@ pub struct ValidatorPublicKeys {
     supra_keys: InternalPublicKeys,
 }
 
+impl ValidatorPublicKeys {
+    pub fn new(
+        network_key: Vec<u8>,
+        bls_multisig_key: Vec<u8>,
+        bls_threshold_validity_certificate_key: Option<Vec<u8>>,
+        bls_threshold_quorum_certificate_key: Option<Vec<u8>>,
+        bls_threshold_unanimous_certificate_key: Option<Vec<u8>>,
+        class_group_key: Vec<u8>,
+        ed25519_key: Vec<u8>,
+    ) -> Self {
+        ValidatorPublicKeys {
+            network_key,
+            supra_keys: InternalPublicKeys {
+                bls_multisig_key,
+                bls_threshold_validity_certificate_key,
+                bls_threshold_quorum_certificate_key,
+                bls_threshold_unanimous_certificate_key,
+                class_group_key,
+                ed25519_key,
+            },
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum ValidatorPublicKeysError {
     InvalidPublicKey,
@@ -35,12 +59,12 @@ impl fmt::Display for ValidatorPublicKeysError {
 
 impl std::error::Error for ValidatorPublicKeysError {}
 
-impl TryFrom<Vec<u8>> for ValidatorPublicKeys {
+impl TryFrom<&Vec<u8>> for ValidatorPublicKeys {
     type Error = ValidatorPublicKeysError;
 
-    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+    fn try_from(bytes: &Vec<u8>) -> Result<Self, Self::Error> {
         let validator_public_keys: ValidatorPublicKeys =
-            bcs::from_bytes(&bytes).map_err(|_| ValidatorPublicKeysError::InvalidPublicKey)?;
+            bcs::from_bytes(bytes).map_err(|_| ValidatorPublicKeysError::InvalidPublicKey)?;
         Ok(validator_public_keys)
     }
 }
