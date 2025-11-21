@@ -2683,7 +2683,7 @@ On new epoch this function will be triggered and update the automation registry 
     <b>let</b> automation_epoch_info = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationEpochInfo">AutomationEpochInfo</a>&gt;(@supra_framework);
     <b>let</b> refund_bookkeeping = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework);
 
-    <b>let</b> automation_registry_config = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(
+    <b>let</b> automation_registry_config = &<b>mut</b> <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(
         @supra_framework
     ).main_config;
 
@@ -2691,7 +2691,7 @@ On new epoch this function will be triggered and update the automation registry 
     <b>let</b> intermediate_state = <a href="automation_registry.md#0x1_automation_registry_update_state_for_new_epoch">update_state_for_new_epoch</a>(
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
         refund_bookkeeping,
-        &automation_registry_config,
+        automation_registry_config,
         automation_epoch_info,
         current_time
     );
@@ -2699,7 +2699,7 @@ On new epoch this function will be triggered and update the automation registry 
 
     // Apply the latest configuration <b>if</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> parameter <b>has</b> been updated
     // only after refund <b>has</b> been done for previous epoch.
-    <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>();
+    <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>(automation_registry_config);
 
     // If feature is not enabled then we are not charging and tasks are cleared.
     <b>if</b> (!<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>()) {
@@ -2715,7 +2715,7 @@ On new epoch this function will be triggered and update the automation registry 
     <a href="automation_registry.md#0x1_automation_registry_try_withdraw_task_automation_fees">try_withdraw_task_automation_fees</a>(
         <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>,
         refund_bookkeeping,
-        &automation_registry_config,
+        automation_registry_config,
         automation_epoch_info.epoch_interval,
         current_time,
         &<b>mut</b> intermediate_state,
@@ -3704,7 +3704,7 @@ Return estimated committed gas for the next epoch, locked automation fee amount 
 The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>()
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>(automation_registry_config: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">automation_registry::AutomationRegistryConfig</a>)
 </code></pre>
 
 
@@ -3713,12 +3713,9 @@ The function updates the ActiveAutomationRegistryConfig structure with values ex
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>() <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a> {
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer">update_config_from_buffer</a>(automation_registry_config: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>) {
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;()) {
         <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;();
-        <b>let</b> automation_registry_config = &<b>mut</b> <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfig">ActiveAutomationRegistryConfig</a>&gt;(
-            @supra_framework
-        ).main_config;
         automation_registry_config.task_duration_cap_in_secs = buffer.task_duration_cap_in_secs;
         automation_registry_config.registry_max_gas_cap = buffer.registry_max_gas_cap;
         automation_registry_config.automation_base_fee_in_quants_per_sec = buffer.automation_base_fee_in_quants_per_sec;

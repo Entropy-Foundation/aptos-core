@@ -710,7 +710,7 @@ module supra_framework::automation_registry {
         let automation_epoch_info = borrow_global_mut<AutomationEpochInfo>(@supra_framework);
         let refund_bookkeeping = borrow_global_mut<AutomationRefundBookkeeping>(@supra_framework);
 
-        let automation_registry_config = borrow_global_mut<ActiveAutomationRegistryConfig>(
+        let automation_registry_config = &mut borrow_global_mut<ActiveAutomationRegistryConfig>(
             @supra_framework
         ).main_config;
 
@@ -718,7 +718,7 @@ module supra_framework::automation_registry {
         let intermediate_state = update_state_for_new_epoch(
             automation_registry,
             refund_bookkeeping,
-            &automation_registry_config,
+            automation_registry_config,
             automation_epoch_info,
             current_time
         );
@@ -726,7 +726,7 @@ module supra_framework::automation_registry {
 
         // Apply the latest configuration if any parameter has been updated
         // only after refund has been done for previous epoch.
-        update_config_from_buffer();
+        update_config_from_buffer(automation_registry_config);
 
         // If feature is not enabled then we are not charging and tasks are cleared.
         if (!features::supra_native_automation_enabled()) {
@@ -742,7 +742,7 @@ module supra_framework::automation_registry {
         try_withdraw_task_automation_fees(
             automation_registry,
             refund_bookkeeping,
-            &automation_registry_config,
+            automation_registry_config,
             automation_epoch_info.epoch_interval,
             current_time,
             &mut intermediate_state,
@@ -1361,12 +1361,9 @@ module supra_framework::automation_registry {
     }
 
     /// The function updates the ActiveAutomationRegistryConfig structure with values extracted from the buffer, if the buffer exists.
-    fun update_config_from_buffer() acquires ActiveAutomationRegistryConfig {
+    fun update_config_from_buffer(automation_registry_config: &mut AutomationRegistryConfig) {
         if (config_buffer::does_exist<AutomationRegistryConfig>()) {
             let buffer = config_buffer::extract<AutomationRegistryConfig>();
-            let automation_registry_config = &mut borrow_global_mut<ActiveAutomationRegistryConfig>(
-                @supra_framework
-            ).main_config;
             automation_registry_config.task_duration_cap_in_secs = buffer.task_duration_cap_in_secs;
             automation_registry_config.registry_max_gas_cap = buffer.registry_max_gas_cap;
             automation_registry_config.automation_base_fee_in_quants_per_sec = buffer.automation_base_fee_in_quants_per_sec;
