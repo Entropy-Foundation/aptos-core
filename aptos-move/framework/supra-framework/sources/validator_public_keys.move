@@ -1,3 +1,4 @@
+// Copyright (c) 2024 Supra.
 module supra_framework::validator_public_keys {
 
     use std::bcs;

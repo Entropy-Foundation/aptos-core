@@ -1,3 +1,4 @@
+// Copyright (c) 2024 Supra.
 /// DKG on-chain states and helper functions.
 module supra_framework::dkg {
     use std::dkg_committee::{DkgCommittee};

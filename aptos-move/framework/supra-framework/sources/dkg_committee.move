@@ -1,3 +1,4 @@
+// Copyright (c) 2024 Supra.
 module std::dkg_committee {
 
     use std::bcs;
