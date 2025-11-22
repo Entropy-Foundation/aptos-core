@@ -17,9 +17,28 @@ pub struct DkgNodeConfig {
     dkg_pubkey: Vec<u8>,
 }
 
+impl DkgNodeConfig {
+    pub fn new(pool_address: AccountAddress, identity: Vec<u8>, dkg_pubkey: Vec<u8>) -> Self {
+        Self {
+            pool_address,
+            identity,
+            dkg_pubkey,
+        }
+    }
+}
+
 /// Reflection of `0x1::dkg_committee::DkgCommittee` in rust.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Getters)]
 pub struct DkgCommittee {
     committee_type: DkgCommitteeType,
     committee: Vec<DkgNodeConfig>,
+}
+
+impl DkgCommittee {
+    pub fn new(committee_type: DkgCommitteeType, committee: Vec<DkgNodeConfig>) -> Self {
+        Self {
+            committee_type,
+            committee,
+        }
+    }
 }
