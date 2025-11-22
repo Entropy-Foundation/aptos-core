@@ -1,8 +1,7 @@
 module std::dkg_committee {
 
+    use std::bcs;
     use std::vector;
-    use aptos_std::ed25519::validated_public_key_to_bytes;
-    use supra_std::validator_public_keys::{validator_public_keys_from_bytes, get_supra_ed_key, public_key_to_bytes};
     use supra_framework::validator_consensus_info;
     use supra_framework::validator_consensus_info::ValidatorConsensusInfo;
 
@@ -83,16 +82,12 @@ module std::dkg_committee {
         let dkg_committee = vector[];
         vector::for_each(validator_committee, |x|
             {
-                let consensus_key = validator_public_keys_from_bytes(validator_consensus_info::get_pk_bytes(&x));
-                let consensus_key_bytes = public_key_to_bytes(consensus_key);
-
-                let ed_key = get_supra_ed_key(&consensus_key);
-                let ed_key_bytes = validated_public_key_to_bytes(&ed_key);
-
+                let validator_keys_bytes = validator_consensus_info::get_pk_bytes(&x);
+                let addr = validator_consensus_info::get_addr(&x);
                 vector::push_back(&mut dkg_committee, DkgNodeConfig{
-                    addr: validator_consensus_info::get_addr(&x),
-                    identity: ed_key_bytes,
-                    dkg_pubkey: consensus_key_bytes,
+                    addr,
+                    identity: bcs::to_bytes(&addr),
+                    dkg_pubkey: validator_keys_bytes,
                 });
             }
         );

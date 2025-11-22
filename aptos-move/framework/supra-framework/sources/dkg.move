@@ -171,13 +171,11 @@ module supra_framework::dkg {
         dkg_state.last_completed = option::some(session);
         dkg_state.in_progress = option::none();
 
-        //todo: propagate updated keys to stake.move
-        /*let public_key_shares_all_comms_serialized 
+        //todo: propagate updated keys to stake.move, set quorum key for now. later may need to update the threshold representation
+        /*let public_key_shares_all_comms_serialized
             = any::new(type_info::type_name<OnChainAggregateCommitmentAllCommittees>(), target_committees_public_key_shares);
         let public_key_shares_all_comms = any::unpack<OnChainAggregateCommitmentAllCommittees>(public_key_shares_all_comms_serialized);
         assert!(vector::length(&public_key_shares_all_comms.commitments) > 0, error::invalid_state(EDKG_INVALID_PK_SHARES));*/
-        
-        // set quorum key for now. later may need to update the threshold representation
         
         emit(DKGFinishEvent {
             target_committees_public_key_shares,

@@ -22,9 +22,8 @@
 -  [Function `new_dkg_committee_from_validator_consensus_info`](#0x1_dkg_committee_new_dkg_committee_from_validator_consensus_info)
 
 
-<pre><code><b>use</b> <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519">0x1::ed25519</a>;
+<pre><code><b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs">0x1::bcs</a>;
 <b>use</b> <a href="validator_consensus_info.md#0x1_validator_consensus_info">0x1::validator_consensus_info</a>;
-<b>use</b> <a href="validator_public_keys.md#0x1_validator_public_keys">0x1::validator_public_keys</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 </code></pre>
 
@@ -445,16 +444,12 @@ Internal tag wrapper
     <b>let</b> <a href="dkg_committee.md#0x1_dkg_committee">dkg_committee</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(validator_committee, |x|
         {
-            <b>let</b> consensus_key = validator_public_keys_from_bytes(<a href="validator_consensus_info.md#0x1_validator_consensus_info_get_pk_bytes">validator_consensus_info::get_pk_bytes</a>(&x));
-            <b>let</b> consensus_key_bytes = public_key_to_bytes(consensus_key);
-
-            <b>let</b> ed_key = get_supra_ed_key(&consensus_key);
-            <b>let</b> ed_key_bytes = validated_public_key_to_bytes(&ed_key);
-
+            <b>let</b> validator_keys_bytes = <a href="validator_consensus_info.md#0x1_validator_consensus_info_get_pk_bytes">validator_consensus_info::get_pk_bytes</a>(&x);
+            <b>let</b> addr = <a href="validator_consensus_info.md#0x1_validator_consensus_info_get_addr">validator_consensus_info::get_addr</a>(&x);
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> <a href="dkg_committee.md#0x1_dkg_committee">dkg_committee</a>, <a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">DkgNodeConfig</a>{
-                addr: <a href="validator_consensus_info.md#0x1_validator_consensus_info_get_addr">validator_consensus_info::get_addr</a>(&x),
-                identity: ed_key_bytes,
-                dkg_pubkey: consensus_key_bytes,
+                addr,
+                identity: <a href="../../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs_to_bytes">bcs::to_bytes</a>(&addr),
+                dkg_pubkey: validator_keys_bytes,
             });
         }
     );
