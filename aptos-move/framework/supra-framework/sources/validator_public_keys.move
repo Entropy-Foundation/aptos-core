@@ -15,25 +15,25 @@ module supra_framework::validator_public_keys {
     use supra_framework::validator_public_keys;
 
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
-    /// f+1, given there are f Byzantine nodes in the [sosmr::Committee].
+    /// f+1, given there are f Byzantine nodes in the [Committee].
     const CERTIFICATE_THRESHOLD_TYPE_VALIDITY: u8 = 0;
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
-    /// 2f+1, given there are f Byzantine nodes in the [sosmr::Committee] and n >= 3f + 1 nodes in total.
+    /// 2f+1, given there are f Byzantine nodes in the [Committee] and n >= 3f + 1 nodes in total.
     const CERTIFICATE_THRESHOLD_TYPE_QUORUM: u8 = 1;
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
-    /// n, where n is the total number of nodes in the [sosmr::Committee].
+    /// n, where n is the total number of nodes in the [Committee].
     const CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS: u8 = 2;
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
-    /// f+1, given there are f Byzantine nodes and c crash-only nodes in the [sosmr::Committee] with n >= 3f + 2c + 1 nodes.
+    /// f+1, given there are f Byzantine nodes and c crash-only nodes in the [Committee] with n >= 3f + 2c + 1 nodes.
     const CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY: u8 = 3
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`
-    /// 2f + c + 1, given there are f Byzantine nodes and c crash-only nodes in the [sosmr::Committee] with n >= 3f + 2c + 1 nodes.
+    /// 2f + c + 1, given there are f Byzantine nodes and c crash-only nodes in the [Committee] with n >= 3f + 2c + 1 nodes.
     const CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM: u8 = 4,
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
-    /// n - f - c, given there are f Byzantine nodes and c crash-only nodes in the [sosmr::Committee] with n >= 3f + 2c + 1 nodes.
+    /// n - f - c, given there are f Byzantine nodes and c crash-only nodes in the [Committee] with n >= 3f + 2c + 1 nodes.
     const CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE: u8 = 5,
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
-    /// f+1, given there are f Byzantine nodes in the [sosmr::Committee] with n >= 2f + 1 nodes.
+    /// f+1, given there are f Byzantine nodes in the [Committee] with n >= 2f + 1 nodes.
     const CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY: u8 = 6,
 
     /// Internal tag wrapper
