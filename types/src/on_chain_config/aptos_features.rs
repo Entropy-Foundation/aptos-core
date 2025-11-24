@@ -172,6 +172,7 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY,
             FeatureFlag::SUPRA_AUTOMATION_V2,
             FeatureFlag::SUPRA_VALIDATOR_IDENTITY_V2,
+            FeatureFlag::SUPRA_BCFT_CERTIFICATES,
         ]
     }
 }
