@@ -98,6 +98,7 @@ pub enum FeatureFlag {
     SUPRA_DELEGATION_POOL_IDENTITY = 95,
     SUPRA_AUTOMATION_V2 = 96,
     SUPRA_VALIDATOR_IDENTITY_V2 = 97,
+    SUPRA_BCFT_CERTIFICATES = 98,
 }
 
 impl FeatureFlag {
@@ -171,6 +172,7 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY,
             FeatureFlag::SUPRA_AUTOMATION_V2,
             FeatureFlag::SUPRA_VALIDATOR_IDENTITY_V2,
+            FeatureFlag::SUPRA_BCFT_CERTIFICATES,
         ]
     }
 }
