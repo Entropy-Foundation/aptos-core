@@ -14,19 +14,26 @@ module supra_framework::validator_public_keys {
     #[test_only]
     use supra_framework::validator_public_keys;
 
-    /// The integer should match the Rust enum value representation in `CertificateThresholdType`
+    /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
+    /// f+1, given there are f Byzantine nodes in the [sosmr::Committee].
     const CERTIFICATE_THRESHOLD_TYPE_VALIDITY: u8 = 0;
-    /// The integer should match the Rust enum value representation in `CertificateThresholdType`
+    /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
+    /// 2f+1, given there are f Byzantine nodes in the [sosmr::Committee] and n >= 3f + 1 nodes in total.
     const CERTIFICATE_THRESHOLD_TYPE_QUORUM: u8 = 1;
-    /// The integer should match the Rust enum value representation in `CertificateThresholdType`
+    /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
+    /// n, where n is the total number of nodes in the [sosmr::Committee].
     const CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS: u8 = 2;
-    /// The integer should match the Rust enum value representation in `CertificateThresholdType`
+    /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
+    /// f+1, given there are f Byzantine nodes and c crash-only nodes in the [sosmr::Committee] with n >= 3f + 2c + 1 nodes.
     const CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY: u8 = 3
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`
+    /// 2f + c + 1, given there are f Byzantine nodes and c crash-only nodes in the [sosmr::Committee] with n >= 3f + 2c + 1 nodes.
     const CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM: u8 = 4,
-    /// The integer should match the Rust enum value representation in `CertificateThresholdType`
+    /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
+    /// n - f - c, given there are f Byzantine nodes and c crash-only nodes in the [sosmr::Committee] with n >= 3f + 2c + 1 nodes.
     const CERTIFICATE_THRESHOLD_TYPE_BCFT_VIEW_CHANGE: u8 = 5,
-    /// The integer should match the Rust enum value representation in `CertificateThresholdType`
+    /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
+    /// f+1, given there are f Byzantine nodes in the [sosmr::Committee] with n >= 2f + 1 nodes.
     const CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY: u8 = 6,
 
     /// Internal tag wrapper
@@ -66,6 +73,10 @@ module supra_framework::validator_public_keys {
         bls_threshold_validity_certificate_key: option::Option<bls12381::PublicKey>,
         bls_threshold_quorum_certificate_key: option::Option<bls12381::PublicKey>,
         bls_threshold_unanimous_certificate_key: option::Option<bls12381::PublicKey>,
+        bls_threshold_bcft_validity_certificate_key: option::Option<bls12381::PublicKey>,
+        bls_threshold_bcft_quorum_certificate_key: option::Option<bls12381::PublicKey>,
+        bls_threshold_bcft_view_change_certificate_key: option::Option<bls12381::PublicKey>,
+        bls_threshold_clan_majority_certificate_key: option::Option<bls12381::PublicKey>,
         class_group_key: class_groups::CGPublicKey,
         ed25519_key: ed25519::ValidatedPublicKey,
     }
@@ -86,6 +97,10 @@ module supra_framework::validator_public_keys {
         supra_bls_threshold_validity_key: option::Option<bls12381::SecretKey>,
         supra_bls_threshold_quorum_key: option::Option<bls12381::SecretKey>,
         supra_bls_threshold_unanimous_key: option::Option<bls12381::SecretKey>,
+        supra_bls_threshold_bcft_validity_key: option::Option<bls12381::SecretKey>,
+        supra_bls_threshold_bcft_quorum_key: option::Option<bls12381::SecretKey>,
+        supra_bls_threshold_bcft_view_change_key: option::Option<bls12381::SecretKey>,
+        supra_bls_threshold_clan_majority_key: option::Option<bls12381::SecretKey>,
         cg_key: class_groups::SecretKey,
         supra_ed_key: ed25519::SecretKey,
     }
@@ -138,6 +153,34 @@ module supra_framework::validator_public_keys {
             assert!(option::is_some(&valid_bls_threshold_unanimous_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
         };
 
+        // validate supra bls threshold bcft validity certificate key
+        if (option::is_some(&validator_public_keys.supra_keys.bls_threshold_bcft_validity_certificate_key)){
+            let bcft_validity_key = option::extract(&mut validator_public_keys.supra_keys.bls_threshold_bcft_validity_certificate_key);
+            let valid_bcft_validity_key = bls12381::public_key_from_bytes(bls12381::public_key_to_bytes(&bcft_validity_key));
+            assert!(option::is_some(&valid_bcft_validity_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+        };
+
+        // validate supra bls threshold bcft quorum certificate key
+        if (option::is_some(&validator_public_keys.supra_keys.bls_threshold_bcft_quorum_certificate_key)){
+            let bcft_quorum_key = option::extract(&mut validator_public_keys.supra_keys.bls_threshold_bcft_quorum_certificate_key);
+            let valid_bcft_quorum_key = bls12381::public_key_from_bytes(bls12381::public_key_to_bytes(&bcft_quorum_key));
+            assert!(option::is_some(&valid_bcft_quorum_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+        };
+
+        // validate supra bls threshold bcft view change certificate key
+        if (option::is_some(&validator_public_keys.supra_keys.bls_threshold_bcft_view_change_certificate_key)){
+            let bcft_view_change_key = option::extract(&mut validator_public_keys.supra_keys.bls_threshold_bcft_view_change_certificate_key);
+            let valid_bcft_view_change_key = bls12381::public_key_from_bytes(bls12381::public_key_to_bytes(&bcft_view_change_key));
+            assert!(option::is_some(&valid_bcft_view_change_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+        };
+
+        // validate supra bls threshold clan majority certificate key
+        if (option::is_some(&validator_public_keys.supra_keys.bls_threshold_clan_majority_certificate_key)){
+            let clan_majority_key = option::extract(&mut validator_public_keys.supra_keys.bls_threshold_clan_majority_certificate_key);
+            let valid_clan_majority_key = bls12381::public_key_from_bytes(bls12381::public_key_to_bytes(&clan_majority_key));
+            assert!(option::is_some(&valid_clan_majority_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+        };
+
         // validate supra class group key
         let valid_cg_public_key = class_groups::public_key_from_bytes(
             class_groups::public_key_to_bytes(&validator_public_keys.supra_keys.class_group_key));
@@ -186,6 +229,10 @@ module supra_framework::validator_public_keys {
             supra_bls_threshold_validity_key: option::none(),
             supra_bls_threshold_quorum_key: option::none(),
             supra_bls_threshold_unanimous_key: option::none(),
+            supra_bls_threshold_bcft_validity_key: option::none(),
+            supra_bls_threshold_bcft_quorum_key: option::none(),
+            supra_bls_threshold_bcft_view_change_key: option::none(),
+            supra_bls_threshold_clan_majority_key: option::none(),
             cg_key: supra_cg_sk,
             supra_ed_key: supra_ed_key_sk,
         };
@@ -197,6 +244,10 @@ module supra_framework::validator_public_keys {
                 bls_threshold_validity_certificate_key: option::none(),
                 bls_threshold_quorum_certificate_key: option::none(),
                 bls_threshold_unanimous_certificate_key: option::none(),
+                bls_threshold_bcft_validity_certificate_key: option::none(),
+                bls_threshold_bcft_quorum_certificate_key: option::none(),
+                bls_threshold_bcft_view_change_certificate_key: option::none(),
+                bls_threshold_clan_majority_certificate_key: option::none(),
                 class_group_key: supra_cg_pk,
                 ed25519_key: supra_ed_key_pk,
             },
