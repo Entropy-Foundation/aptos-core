@@ -13,6 +13,7 @@ repository = { workspace = true }
 rust-version = { workspace = true }
 
 [dependencies]
+nidkg_helper = { git = "ssh://git@github.com/Entropy-Foundation/supra-common", tag = "v0.21.5" }
 anyhow = { workspace = true }
 aptos-bitvec = { workspace = true }
 aptos-crypto = { workspace = true }
@@ -90,7 +91,12 @@ url = { workspace = true }
 
 [features]
 default = []
-fuzzing = ["proptest", "proptest-derive", "aptos-crypto/fuzzing", "move-core-types/fuzzing"]
+fuzzing = [
+    "proptest",
+    "proptest-derive",
+    "aptos-crypto/fuzzing",
+    "move-core-types/fuzzing",
+]
 
 [[bench]]
 name = "keyless"

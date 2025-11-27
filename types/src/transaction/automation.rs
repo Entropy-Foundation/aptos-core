@@ -1,17 +1,23 @@
+// Copyright (c) Aptos Foundation
+// SPDX-License-Identifier: Apache-2.0
+
 // Copyright (c) 2025 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::on_chain_config::{FeatureFlag, Features};
-use crate::transaction::{EntryFunction, Transaction};
+use crate::{
+    on_chain_config::{FeatureFlag, Features},
+    transaction::{EntryFunction, Transaction},
+};
 use aptos_crypto::HashValue;
 use derive_getters::Getters;
 use derive_more::Constructor;
-use move_core_types::account_address::AccountAddress;
-use move_core_types::identifier::{IdentStr, Identifier};
-use move_core_types::language_storage::{ModuleId, TypeTag, CORE_CODE_ADDRESS};
-use move_core_types::value::{serialize_values, MoveValue};
-use once_cell::sync::Lazy;
-use once_cell::unsync::OnceCell;
+use move_core_types::{
+    account_address::AccountAddress,
+    identifier::{IdentStr, Identifier},
+    language_storage::{ModuleId, TypeTag, CORE_CODE_ADDRESS},
+    value::{serialize_values, MoveValue},
+};
+use once_cell::{sync::Lazy, unsync::OnceCell};
 #[cfg(any(test, feature = "fuzzing"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -219,6 +225,7 @@ impl RegistrationParams {
             },
         }
     }
+
     pub fn task_type(&self) -> AutomationTaskType {
         match self {
             RegistrationParams::V1(p) => p.task_type(),
@@ -262,6 +269,7 @@ impl RegistrationParamsV1 {
             self.aux_data,
         )
     }
+
     /// Module id containing registration function.
     pub fn module_id(&self) -> &ModuleId {
         &AUTOMATION_REGISTRY_PRIVATE_ENTRY_REFS.module_id
@@ -371,6 +379,7 @@ impl RegistrationParamsV2 {
             self.priority_value,
         )
     }
+
     /// Module id containing registration function.
     pub fn module_id(&self) -> &ModuleId {
         &AUTOMATION_REGISTRY_PRIVATE_ENTRY_REFS.module_id
@@ -518,7 +527,6 @@ impl TryFrom<&[u8]> for AutomationTaskType {
     }
 }
 
-
 /// Describes the state of the automation task
 // The order of the entries is important, a new one should be appended at the end.
 #[derive(Clone, Copy, Debug, Hash, Serialize, Deserialize, PartialEq, Eq)]
@@ -535,12 +543,10 @@ impl AutomationTaskState {
     pub fn is_active(&self) -> bool {
         match self {
             AutomationTaskState::Pending => false,
-            AutomationTaskState::Active |
-            AutomationTaskState::Cancelled => true
+            AutomationTaskState::Active | AutomationTaskState::Cancelled => true,
         }
     }
 }
-
 
 /// Rust representation of the Automation task meta information in Move.
 #[derive(Clone, Debug, Serialize, Deserialize, Getters, Constructor)]
@@ -578,8 +584,8 @@ pub struct AutomationTaskMetaData {
     pub(crate) priority: OnceCell<Option<Priority>>,
 }
 impl AutomationTaskMetaData {
-    const TASK_TYPE_AUX_INDEX: usize = 0;
     const TASK_PRIORITY_AUX_INDEX: usize = 1;
+    const TASK_TYPE_AUX_INDEX: usize = 0;
 
     #[allow(clippy::too_many_arguments)]
     pub fn create(
@@ -682,35 +688,37 @@ impl AutomationTaskMetaData {
     /// Consumes the input and returns properties flattened.
     /// No property is modified.
     /// To get exact values of the task type and priority corresponding special getter functions should be used.
-    pub fn flatten(self) ->
-        (u64,
-         AccountAddress,
-         Vec<u8>,
-         u64,
-         Vec<u8>,
-         u64,
-         u64,
-         u64,
-         Vec<Vec<u8>>,
-         u64,
-         AutomationTaskState,
-         u64,
-         ) {
-            (
-                self.id,
-                self.owner,
-                self.payload_tx,
-                self.expiry_time,
-                self.tx_hash,
-                self.max_gas_amount,
-                self.gas_price_cap,
-                self.automation_fee_cap_for_epoch,
-                self.aux_data,
-                self.registration_time,
-                self.state,
-                self.locked_fee_for_next_epoch,
-                )
-        }
+    pub fn flatten(
+        self,
+    ) -> (
+        u64,
+        AccountAddress,
+        Vec<u8>,
+        u64,
+        Vec<u8>,
+        u64,
+        u64,
+        u64,
+        Vec<Vec<u8>>,
+        u64,
+        AutomationTaskState,
+        u64,
+    ) {
+        (
+            self.id,
+            self.owner,
+            self.payload_tx,
+            self.expiry_time,
+            self.tx_hash,
+            self.max_gas_amount,
+            self.gas_price_cap,
+            self.automation_fee_cap_for_epoch,
+            self.aux_data,
+            self.registration_time,
+            self.state,
+            self.locked_fee_for_next_epoch,
+        )
+    }
 }
 
 /// Action to be performed on automation registry.

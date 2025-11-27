@@ -336,7 +336,9 @@ pub fn update_counters_for_processed_chunk<T, O>(
             Some(Transaction::BlockEpilogue(_)) => "block_epilogue",
             Some(Transaction::ValidatorTransaction(_)) => "validator_transaction",
             Some(Transaction::AutomatedTransaction(_)) => "automated_transaction",
-            Some(Transaction::AutomationRegistryTransaction(_)) => "automation_registry_transaction",
+            Some(Transaction::AutomationRegistryTransaction(_)) => {
+                "automation_registry_transaction"
+            },
             Some(Transaction::SystemAutomatedTransaction(_)) => "system_automated_transaction",
             None => "unknown",
         };
@@ -410,11 +412,13 @@ pub fn update_counters_for_processed_chunk<T, O>(
                         .with_label_values(&[process_type, "script", state])
                         .inc();
                 },
-                aptos_types::transaction::TransactionPayload::AutomationRegistration(_auto_payload) => {
+                aptos_types::transaction::TransactionPayload::AutomationRegistration(
+                    _auto_payload,
+                ) => {
                     metrics::APTOS_PROCESSED_USER_TRANSACTIONS_PAYLOAD_TYPE
                         .with_label_values(&[process_type, "automation", state])
                         .inc();
-                }
+                },
                 aptos_types::transaction::TransactionPayload::EntryFunction(function) => {
                     metrics::APTOS_PROCESSED_USER_TRANSACTIONS_PAYLOAD_TYPE
                         .with_label_values(&[process_type, "function", state])

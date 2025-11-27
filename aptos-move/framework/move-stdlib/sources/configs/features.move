@@ -785,16 +785,17 @@ module std::features {
     }
 
     /// Whether the functionality related to the new validator identity representation is enabled.
+    /// This flag should only be enabled after all Validators have updated their keys to the new format, including the BLS keys.
     ///
     /// Lifetime: permanent
-    const SUPRA_VALIDATOR_IDENTITY_V2: u64 = 97;
+    const SUPRA_BLS_KEYS: u64 = 97;
 
     public fun get_supra_validator_identity_v2_feature(): u64 {
-        SUPRA_VALIDATOR_IDENTITY_V2
+        SUPRA_BLS_KEYS
     }
 
     public fun supra_validator_identity_v2_enabled(): bool acquires Features {
-        is_enabled(SUPRA_VALIDATOR_IDENTITY_V2)
+        is_enabled(SUPRA_BLS_KEYS)
     }
 
     /// Whether BCFT certificate thresholds are enabled.
@@ -809,7 +810,7 @@ module std::features {
     public fun supra_bcft_certificates_enabled(): bool acquires Features {
         is_enabled(SUPRA_BCFT_CERTIFICATES)
     }
-    
+
     // ============================================================================================
     // Feature Flag Implementation
 

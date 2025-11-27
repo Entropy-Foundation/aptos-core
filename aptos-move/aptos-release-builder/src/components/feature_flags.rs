@@ -130,7 +130,7 @@ pub enum FeatureFlag {
     SupraRLPEncode,
     SupraDelegationPoolIdentity,
     SupraAutomationV2,
-    SupraValidatorIdentityV2,
+    SupraBlsKeys,
     SupraBcftCertificates,
 }
 
@@ -342,10 +342,11 @@ impl From<FeatureFlag> for AptosFeatureFlag {
                 AptosFeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY
             },
             FeatureFlag::SupraAutomationV2 => AptosFeatureFlag::SUPRA_AUTOMATION_V2,
-            FeatureFlag::SupraValidatorIdentityV2 => AptosFeatureFlag::SUPRA_VALIDATOR_IDENTITY_V2,
+            FeatureFlag::SupraBlsKeys => AptosFeatureFlag::SUPRA_BLS_KEYS,
             FeatureFlag::SupraBcftCertificates => AptosFeatureFlag::SUPRA_BCFT_CERTIFICATES,
         }
     }
+}
 
 // We don't need this implementation. Just to make sure we have an exhaustive 1-1 mapping between the two structs.
 impl From<AptosFeatureFlag> for FeatureFlag {
@@ -482,7 +483,7 @@ impl From<AptosFeatureFlag> for FeatureFlag {
                 FeatureFlag::SupraDelegationPoolIdentity
             },
             AptosFeatureFlag::SUPRA_AUTOMATION_V2 => FeatureFlag::SupraAutomationV2,
-            AptosFeatureFlag::SUPRA_VALIDATOR_IDENTITY_V2 => FeatureFlag::SupraValidatorIdentityV2,
+            AptosFeatureFlag::SUPRA_BLS_KEYS => FeatureFlag::SupraBlsKeys,
             AptosFeatureFlag::SUPRA_BCFT_CERTIFICATES => FeatureFlag::SupraBcftCertificates,
         }
     }

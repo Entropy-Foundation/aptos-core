@@ -940,6 +940,19 @@ Lifetime: permanent
 
 
 
+<a id="0x1_features_SUPRA_BLS_KEYS"></a>
+
+Whether the functionality related to the new validator identity representation is enabled.
+This flag should only be enabled after all Validators have updated their keys to the new format, including the BLS keys.
+
+Lifetime: permanent
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_BLS_KEYS">SUPRA_BLS_KEYS</a>: u64 = 97;
+</code></pre>
+
+
+
 <a id="0x1_features_SUPRA_COUNT_FAILED_PROPOSALS"></a>
 
 Whether the automation task sync on block basis is enabled.
@@ -995,18 +1008,6 @@ Lifetime: transient
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_RLP_ENCODE">SUPRA_RLP_ENCODE</a>: u64 = 94;
-</code></pre>
-
-
-
-<a id="0x1_features_SUPRA_VALIDATOR_IDENTITY_V2"></a>
-
-Whether the functionality related to the new validator identity representation is enabled.
-
-Lifetime: permanent
-
-
-<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_VALIDATOR_IDENTITY_V2">SUPRA_VALIDATOR_IDENTITY_V2</a>: u64 = 97;
 </code></pre>
 
 
@@ -3839,7 +3840,7 @@ Lifetime: transient
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_validator_identity_v2_feature">get_supra_validator_identity_v2_feature</a>(): u64 {
-    <a href="features.md#0x1_features_SUPRA_VALIDATOR_IDENTITY_V2">SUPRA_VALIDATOR_IDENTITY_V2</a>
+    <a href="features.md#0x1_features_SUPRA_BLS_KEYS">SUPRA_BLS_KEYS</a>
 }
 </code></pre>
 
@@ -3863,7 +3864,7 @@ Lifetime: transient
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_validator_identity_v2_enabled">supra_validator_identity_v2_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
-    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_VALIDATOR_IDENTITY_V2">SUPRA_VALIDATOR_IDENTITY_V2</a>)
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_BLS_KEYS">SUPRA_BLS_KEYS</a>)
 }
 </code></pre>
 

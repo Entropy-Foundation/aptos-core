@@ -1,8 +1,10 @@
+// Copyright (c) Aptos Foundation
+// SPDX-License-Identifier: Apache-2.0
+
 // Copyright © Entropy Foundation
 
 use anyhow::Result;
-use aptos_types::account_address::AccountAddress;
-use aptos_types::transaction::TransactionPayload;
+use aptos_types::{account_address::AccountAddress, transaction::TransactionPayload};
 use async_trait::async_trait;
 use clap::ValueEnum;
 use std::fmt::{Display, Formatter};

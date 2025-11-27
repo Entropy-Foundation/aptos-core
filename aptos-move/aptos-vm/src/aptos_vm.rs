@@ -3,8 +3,8 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::automated_transaction_processor::AutomatedTransactionProcessor;
 use crate::{
+    automated_transaction_processor::AutomatedTransactionProcessor,
     block_executor::{AptosTransactionOutput, BlockAptosVM},
     counters::*,
     data_cache::{AsMoveResolver, StorageAdapter},
@@ -39,7 +39,6 @@ use aptos_logger::{enabled, prelude::*, Level};
 use aptos_metrics_core::TimerHelper;
 #[cfg(any(test, feature = "testing"))]
 use aptos_types::state_store::StateViewId;
-use aptos_types::transaction::automation::{AutomationTaskType, RegistrationParams};
 use aptos_types::{
     account_config::{self, new_block_event_key, AccountResource},
     block_executor::{
@@ -58,7 +57,9 @@ use aptos_types::{
     randomness::Randomness,
     state_store::{StateView, TStateView},
     transaction::{
-        authenticator::AnySignature, signature_verified_transaction::SignatureVerifiedTransaction,
+        authenticator::AnySignature,
+        automation::{AutomationTaskType, RegistrationParams},
+        signature_verified_transaction::SignatureVerifiedTransaction,
         BlockOutput, EntryFunction, ExecutionError, ExecutionStatus, ModuleBundle, Multisig,
         MultisigTransactionPayload, Script, SignedTransaction, Transaction,
         TransactionAuxiliaryData, TransactionOutput, TransactionPayload, TransactionStatus,
@@ -152,8 +153,10 @@ macro_rules! unwrap_or_discard {
     };
 }
 
-use crate::automation_registry_transaction_processor::AutomationRegistryTransactionProcessor;
-use crate::gas::check_automation_task_gas;
+use crate::{
+    automation_registry_transaction_processor::AutomationRegistryTransactionProcessor,
+    gas::check_automation_task_gas,
+};
 pub(crate) use unwrap_or_discard;
 
 pub(crate) fn get_system_transaction_output(
@@ -784,11 +787,10 @@ impl AptosVM {
             let module_id = traversal_context
                 .referenced_module_ids
                 .alloc(entry_fn.module().clone());
-            session.check_dependencies_and_charge_gas(
-                gas_meter,
-                traversal_context,
-                [(module_id.address(), module_id.name())],
-            )?;
+            session.check_dependencies_and_charge_gas(gas_meter, traversal_context, [(
+                module_id.address(),
+                module_id.name(),
+            )])?;
         }
 
         let function =
@@ -1007,14 +1009,16 @@ impl AptosVM {
             let module_id = traversal_context
                 .referenced_module_ids
                 .alloc(registration_params.module_id().clone());
-            session.check_dependencies_and_charge_gas(
-                gas_meter,
-                traversal_context,
-                [(module_id.address(), module_id.name())],
-            )?;
+            session.check_dependencies_and_charge_gas(gas_meter, traversal_context, [(
+                module_id.address(),
+                module_id.name(),
+            )])?;
         }
-        let args = registration_params
-            .serialized_args_with_sender_and_parent_hash(sender, txn_metadata.txn_app_hash.clone(), self.features());
+        let args = registration_params.serialized_args_with_sender_and_parent_hash(
+            sender,
+            txn_metadata.txn_app_hash.clone(),
+            self.features(),
+        );
 
         session.execute_function_bypass_visibility(
             registration_params.module_id(),
@@ -2693,14 +2697,14 @@ impl AptosVM {
                     self.process_validator_transaction(resolver, txn.clone(), log_context)?;
                 (vm_status, output)
             },
-            Transaction::AutomatedTransaction(txn) => AutomatedTransactionProcessor::new(
-                self, AutomationTaskType::User,
-            )
-            .execute_transaction(resolver, txn, log_context),
-            Transaction::SystemAutomatedTransaction(txn) => AutomatedTransactionProcessor::new(
-                self, AutomationTaskType::System,
-            )
-            .execute_transaction(resolver, txn, log_context),
+            Transaction::AutomatedTransaction(txn) => {
+                AutomatedTransactionProcessor::new(self, AutomationTaskType::User)
+                    .execute_transaction(resolver, txn, log_context)
+            },
+            Transaction::SystemAutomatedTransaction(txn) => {
+                AutomatedTransactionProcessor::new(self, AutomationTaskType::System)
+                    .execute_transaction(resolver, txn, log_context)
+            },
             Transaction::AutomationRegistryTransaction(txn) => {
                 AutomationRegistryTransactionProcessor::new(self).execute_transaction(
                     resolver,
@@ -2724,10 +2728,7 @@ impl AptosVM {
     }
 
     fn check_multisig_task_registration_support(&self) -> Result<(), VMStatus> {
-        if !self
-            .features()
-            .is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2)
-        {
+        if !self.features().is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2) {
             return Err(VMStatus::Error {
                 status_code: StatusCode::FEATURE_UNDER_GATING,
                 sub_status: None,
@@ -2942,7 +2943,6 @@ impl AptosSimulationVM {
             .expect("Materializing aggregator V1 deltas should never fail");
         (vm_status, txn_output)
     }
-
 }
 
 fn create_account_if_does_not_exist(

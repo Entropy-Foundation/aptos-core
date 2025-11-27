@@ -97,7 +97,8 @@ pub enum FeatureFlag {
     SUPRA_RLP_ENCODE = 94,
     SUPRA_DELEGATION_POOL_IDENTITY = 95,
     SUPRA_AUTOMATION_V2 = 96,
-    SUPRA_VALIDATOR_IDENTITY_V2 = 97,
+    /// This flag should only be enabled after all Validators have updated their keys to the new format, including the BLS keys.
+    SUPRA_BLS_KEYS = 97,
     SUPRA_BCFT_CERTIFICATES = 98,
 }
 
@@ -171,7 +172,7 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_COUNT_FAILED_PROPOSALS,
             FeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY,
             FeatureFlag::SUPRA_AUTOMATION_V2,
-            FeatureFlag::SUPRA_VALIDATOR_IDENTITY_V2,
+            FeatureFlag::SUPRA_BLS_KEYS,
             FeatureFlag::SUPRA_BCFT_CERTIFICATES,
         ]
     }

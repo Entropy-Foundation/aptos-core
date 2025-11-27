@@ -3,14 +3,13 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::transaction::{
-    AutomationRegistrationParams, AutomationRegistrationParamsV1, AutomationRegistrationParamsV2,
-};
 use crate::{
     transaction::{
-        BlockEpilogueTransaction, DecodedTableData, DeleteModule, DeleteResource, DeleteTableItem,
-        DeletedTableData, MultisigPayload, MultisigTransactionPayload, StateCheckpointTransaction,
-        UserTransactionRequestInner, WriteModule, WriteResource, WriteTableItem,
+        AutomationRegistrationParams, AutomationRegistrationParamsV1,
+        AutomationRegistrationParamsV2, BlockEpilogueTransaction, DecodedTableData, DeleteModule,
+        DeleteResource, DeleteTableItem, DeletedTableData, MultisigPayload,
+        MultisigTransactionPayload, StateCheckpointTransaction, UserTransactionRequestInner,
+        WriteModule, WriteResource, WriteTableItem,
     },
     view::{ViewFunction, ViewRequest},
     Address, Bytecode, DirectWriteSet, EntryFunctionId, EntryFunctionPayload, Event,
@@ -25,10 +24,6 @@ use aptos_crypto::{hash::CryptoHash, HashValue};
 use aptos_logger::{sample, sample::SampleRate};
 use aptos_resource_viewer::AptosValueAnnotator;
 use aptos_storage_interface::DbReader;
-use aptos_types::transaction::automation::RegistrationParams;
-use aptos_types::transaction::Transaction::{
-    AutomationRegistryTransaction, SystemAutomatedTransaction,
-};
 use aptos_types::{
     access_path::{AccessPath, Path},
     chain_id::ChainId,
@@ -40,8 +35,11 @@ use aptos_types::{
         StateView,
     },
     transaction::{
+        automation::RegistrationParams,
         BlockEndInfo, BlockEpiloguePayload, EntryFunction, ExecutionStatus, Multisig,
-        RawTransaction, Script, SignedTransaction, TransactionAuxiliaryData,
+        RawTransaction, Script, SignedTransaction,
+        Transaction::{AutomationRegistryTransaction, SystemAutomatedTransaction},
+        TransactionAuxiliaryData,
     },
     vm_status::AbortLocation,
     write_set::WriteOp,

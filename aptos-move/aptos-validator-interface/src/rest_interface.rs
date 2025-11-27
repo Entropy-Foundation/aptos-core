@@ -284,11 +284,12 @@ impl AptosValidatorInterface for RestDebuggerInterface {
                 TransactionPayload::Multisig(multi_sig)
                     if multi_sig.transaction_payload.is_some() =>
                 {
-                        match multi_sig.transaction_payload.clone().unwrap() {
-                            aptos_types::transaction::MultisigTransactionPayload::EntryFunction(e) =>
-                                Some(e.clone()),
-                            _ => None,
-                        }
+                    match multi_sig.transaction_payload.clone().unwrap() {
+                        aptos_types::transaction::MultisigTransactionPayload::EntryFunction(e) => {
+                            Some(e.clone())
+                        },
+                        _ => None,
+                    }
                 },
                 TransactionPayload::EntryFunction(e) => Some(e.clone()),
                 _ => None,
