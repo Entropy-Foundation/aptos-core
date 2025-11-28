@@ -91,7 +91,7 @@ impl ValidatorConfig {
             return keys.supra_keys.ed25519_key;
         }
 
-        bcs::from_bytes(&self.consensus_public_key)
+        Ed25519PublicKey::try_from(&self.consensus_public_key[..])
             .expect("Failed to deserialize consensus public key from on-chain representation")
     }
 
