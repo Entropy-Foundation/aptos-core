@@ -60,7 +60,7 @@ struct InternalPublicKeysOnChainReprezentation {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub struct ValidatorPublicKeysOnChainReprezentation {
+struct ValidatorPublicKeysOnChainReprezentation {
     network_key: Ed25519PublicKey,
     supra_keys: InternalPublicKeysOnChainReprezentation,
 }
@@ -80,22 +80,19 @@ impl ValidatorConfig {
         }
     }
 
-    pub fn consensus_public_key_bytes(&self) -> [u8; 32] {
-        let keys: ValidatorPublicKeysOnChainReprezentation =
-            bcs::from_bytes(&self.consensus_public_key)
-                .expect("Failed to deserialize consensus public key");
-        keys.supra_keys.ed25519_key.to_bytes()
-    }
-
     pub fn consensus_key_raw(&self) -> Vec<u8> {
         self.consensus_public_key.clone()
     }
 
     pub fn consensus_public_key(&self) -> Ed25519PublicKey {
-        let keys: ValidatorPublicKeysOnChainReprezentation =
-            bcs::from_bytes(&self.consensus_public_key)
-                .expect("Failed to deserialize consensus public key");
-        keys.supra_keys.ed25519_key
+        let keys =
+            bcs::from_bytes::<ValidatorPublicKeysOnChainReprezentation>(&self.consensus_public_key);
+        if let Ok(keys) = keys {
+            return keys.supra_keys.ed25519_key;
+        }
+
+        bcs::from_bytes(&self.consensus_public_key)
+            .expect("Failed to deserialize consensus public key from on-chain representation")
     }
 
     pub fn fullnode_network_addresses(&self) -> Result<Vec<NetworkAddress>, bcs::Error> {
