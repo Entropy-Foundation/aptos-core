@@ -62,8 +62,8 @@ module supra_framework::appchain_registry {
 
     /// Represents reserved chain ID range.
     struct ReservedRange has store, copy, drop {
-        start: u8,
-        end: u8
+        start: u16,
+        end: u16
     }
 
     /// Represents information about the registered appchain.
@@ -76,7 +76,7 @@ module supra_framework::appchain_registry {
     /// Global appchain registry resource.
     struct AppchainRegistry has key {
         /// Map from chain ID to appchain info.
-        appchains: SimpleMap<u8, AppchainInfo>,
+        appchains: SimpleMap<u16, AppchainInfo>,
         /// Reserved chain ID ranges.
         reserved_ranges: vector<ReservedRange>,
     }
@@ -84,23 +84,23 @@ module supra_framework::appchain_registry {
 
     #[event]
     struct AppchainRegistered has store, drop {
-        chain_id: u8,
+        chain_id: u16,
         metadata_link: String,
     }
 
     #[event]
     struct AppchainDeactivated has store, drop {
-        chain_id: u8,
+        chain_id: u16,
     }
 
     #[event]
     struct AppchainReactivated has store, drop {
-        chain_id: u8,
+        chain_id: u16,
     }
 
     #[event]
     struct AppchainMetadataLinkUpdated has store, drop {
-        chain_id: u8,
+        chain_id: u16,
         old_metadata_link: String,
         new_metadata_link: String,
     }
@@ -132,7 +132,7 @@ module supra_framework::appchain_registry {
     /// ```
     public fun register_appchain(
         supra_framework: &signer,
-        chain_id: u8,
+        chain_id: u16,
         metadata_link: String,
     ) acquires AppchainRegistry {
         let appchain_registry = borrow_global_mut_appchain_registry(supra_framework);
@@ -177,7 +177,7 @@ module supra_framework::appchain_registry {
     /// ```
     public fun deactivate_appchain(
         supra_framework: &signer,
-        chain_id: u8,
+        chain_id: u16,
     ) acquires AppchainRegistry {
         let appchain_registry = borrow_global_mut_appchain_registry(supra_framework);
         assert_appchain_registered(&appchain_registry.appchains, &chain_id);
@@ -209,7 +209,7 @@ module supra_framework::appchain_registry {
     /// ```
     public fun reactivate_appchain(
         supra_framework: &signer,
-        chain_id: u8,
+        chain_id: u16,
     ) acquires AppchainRegistry {
         let appchain_registry = borrow_global_mut_appchain_registry(supra_framework);
         assert_appchain_registered(&appchain_registry.appchains, &chain_id);
@@ -227,7 +227,7 @@ module supra_framework::appchain_registry {
     /// Updates metadata link of a registered appchain.
     public fun update_appchain_metadata_link(
         supra_framework: &signer,
-        chain_id: u8,
+        chain_id: u16,
         new_metadata_link: String,
     ) acquires AppchainRegistry {
         let appchain_registry = borrow_global_mut_appchain_registry(supra_framework);
@@ -247,8 +247,8 @@ module supra_framework::appchain_registry {
     /// Adds a reserved chain ID range.
     public fun add_reserved_range(
         supra_framework: &signer,
-        start: u8,
-        end: u8,
+        start: u16,
+        end: u16,
     ) acquires AppchainRegistry {
         let appchain_registry = borrow_global_mut_appchain_registry(supra_framework);
         assert!(start <= end, error::invalid_argument(EINVALID_RANGE));
@@ -260,8 +260,8 @@ module supra_framework::appchain_registry {
     /// Constructor to create an instance of the `ReservedRange`.
     /// This will be utilized in move-script to initialize the appchain registry with reserved ranges.
     public fun new_reserved_range(
-        start: u8,
-        end: u8,
+        start: u16,
+        end: u16,
     ): ReservedRange {
         assert!(start <= end, error::invalid_argument(EINVALID_RANGE));
         ReservedRange { start, end }
@@ -270,7 +270,7 @@ module supra_framework::appchain_registry {
 
     #[view]
     /// Get the state of a appchain.
-    public fun appchain_state(chain_id: u8): u8 acquires AppchainRegistry {
+    public fun appchain_state(chain_id: u16): u8 acquires AppchainRegistry {
         let appchain_registry = borrow_global_appchain_registry();
         if (simple_map::contains_key(&appchain_registry.appchains, &chain_id)) {
             return simple_map::borrow(&appchain_registry.appchains, &chain_id).state;
@@ -281,18 +281,18 @@ module supra_framework::appchain_registry {
 
     #[view]
     /// Check if a appchain is active.
-    public fun is_appchain_active(chain_id: u8): bool acquires AppchainRegistry {
+    public fun is_appchain_active(chain_id: u16): bool acquires AppchainRegistry {
         appchain_state(chain_id) == STATE_ACTIVE
     }
 
     #[view]
     /// Get chain IDs of all appchain with `Active` state.
-    public fun active_appchains(): vector<u8> acquires AppchainRegistry {
+    public fun active_appchains(): vector<u16> acquires AppchainRegistry {
         let appchain_registry = borrow_global_appchain_registry();
         let appchains_chain_id = simple_map::keys(&appchain_registry.appchains);
         let appchains_info = simple_map::values(&appchain_registry.appchains);
-        let active_appchains_chain_id = vector::empty<u8>();
-        vector::zip_reverse<u8, AppchainInfo>(appchains_chain_id, appchains_info, |chain_id, appchain_info|{
+        let active_appchains_chain_id = vector::empty<u16>();
+        vector::zip_reverse<u16, AppchainInfo>(appchains_chain_id, appchains_info, |chain_id, appchain_info|{
             // New helper variable with explicit type annotation is required due to Move's lambda type inference
             // limitations. When I don't use this new variable with explicit type declaration, compiler throws error
             // and ask to infer the type.
@@ -306,7 +306,7 @@ module supra_framework::appchain_registry {
 
     #[view]
     /// Get appchain metadata link.
-    public fun appchain_metadata_link(chain_id: u8): String acquires AppchainRegistry {
+    public fun appchain_metadata_link(chain_id: u16): String acquires AppchainRegistry {
         let appchain_registry = borrow_global_appchain_registry();
         assert_appchain_registered(&appchain_registry.appchains, &chain_id);
 
@@ -315,7 +315,7 @@ module supra_framework::appchain_registry {
 
     #[view]
     /// Get appchain info.
-    public fun appchain_info(chain_id: u8): (u8, String) acquires AppchainRegistry {
+    public fun appchain_info(chain_id: u16): (u8, String) acquires AppchainRegistry {
         let appchain_registry = borrow_global_appchain_registry();
         assert_appchain_registered(&appchain_registry.appchains, &chain_id);
 
@@ -325,7 +325,7 @@ module supra_framework::appchain_registry {
 
     #[view]
     /// Check if a chain ID falls within reserved ranges.
-    public fun is_chain_id_reserved(chain_id: u8): bool acquires AppchainRegistry {
+    public fun is_chain_id_reserved(chain_id: u16): bool acquires AppchainRegistry {
         is_chain_id_reserved_internal(chain_id, &borrow_global_appchain_registry().reserved_ranges)
     }
 
@@ -343,7 +343,7 @@ module supra_framework::appchain_registry {
         borrow_global_mut<AppchainRegistry>(@supra_framework)
     }
 
-    inline fun assert_appchain_registered(appchains: &SimpleMap<u8, AppchainInfo>, chain_id: &u8) {
+    inline fun assert_appchain_registered(appchains: &SimpleMap<u16, AppchainInfo>, chain_id: &u16) {
         assert!(
             simple_map::contains_key(appchains, chain_id),
             error::not_found(EAPPCHAIN_NOT_REGISTERED)
@@ -352,7 +352,7 @@ module supra_framework::appchain_registry {
 
 
     fun is_chain_id_reserved_internal(
-        chain_id: u8,
+        chain_id: u16,
         reserved_ranges: &vector<ReservedRange>
     ): bool {
         let i = 0;

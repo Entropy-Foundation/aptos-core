@@ -13,11 +13,8 @@ impl AppchainRegistryConfig {
     }
 
     pub fn serialize_into_move_values(&self) -> Vec<Vec<u8>> {
-        let reserved_ranges_vec_move_value = self
-            .reserved_ranges
-            .iter()
-            .map(MoveValue::from)
-            .collect::<Vec<MoveValue>>();
+        let reserved_ranges_vec_move_value: Vec<MoveValue> =
+            self.reserved_ranges.iter().map(MoveValue::from).collect();
         let arguments = vec![
             MoveValue::Signer(CORE_CODE_ADDRESS),
             MoveValue::Vector(reserved_ranges_vec_move_value),
@@ -28,15 +25,15 @@ impl AppchainRegistryConfig {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ReservedRange {
-    start: u8,
-    end: u8,
+    start: u16,
+    end: u16,
 }
 
 impl From<&ReservedRange> for MoveValue {
     fn from(value: &ReservedRange) -> MoveValue {
         MoveValue::Struct(MoveStruct::new(vec![
-            MoveValue::U8(value.start),
-            MoveValue::U8(value.end),
+            MoveValue::U16(value.start),
+            MoveValue::U16(value.end),
         ]))
     }
 }
@@ -53,10 +50,10 @@ impl Default for ReservedRange {
 impl ReservedRange {
     // Currently, default values are not finalized yet, however, by considering that our production
     // networks chain IDs falls between 0-10, according to me the current default values are best.
-    pub const DEFAULT_START: u8 = 0;
-    pub const DEFAULT_END: u8 = 10;
+    pub const DEFAULT_START: u16 = 0;
+    pub const DEFAULT_END: u16 = 10;
 
-    pub fn new(start: u8, end: u8) -> Self {
+    pub fn new(start: u16, end: u16) -> Self {
         Self { start, end }
     }
 }

@@ -15,10 +15,10 @@ module supra_framework::appchain_registry_tests {
     const STATE_UNKNOWN: u8 = 2;
 
     // Test constants
-    const TEST_CHAIN_ID_1: u8 = 10;
-    const TEST_CHAIN_ID_2: u8 = 20;
-    const TEST_CHAIN_ID_3: u8 = 30;
-    const RESERVED_CHAIN_ID: u8 = 5;
+    const TEST_CHAIN_ID_1: u16 = 10;
+    const TEST_CHAIN_ID_2: u16 = 20;
+    const TEST_CHAIN_ID_3: u16 = 30;
+    const RESERVED_CHAIN_ID: u16 = 5;
 
 
     fun setup_test(): signer {

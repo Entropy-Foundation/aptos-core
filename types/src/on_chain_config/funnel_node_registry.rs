@@ -14,7 +14,7 @@ impl FunnelNodeRegistryConfig {
     }
 
     pub fn serialize_into_move_values(&self) -> Vec<Vec<u8>> {
-        let funnel_nodes_vec_move_value = self
+        let funnel_nodes_vec_move_value: Vec<MoveValue> = self
             .funnel_nodes
             .iter()
             .map(|node_endpoint_url| {
@@ -22,7 +22,7 @@ impl FunnelNodeRegistryConfig {
                     node_endpoint_url.to_string().into_bytes(),
                 )]))
             })
-            .collect::<Vec<MoveValue>>();
+            .collect();
         let arguments = vec![
             MoveValue::Signer(CORE_CODE_ADDRESS),
             MoveValue::Vector(funnel_nodes_vec_move_value),

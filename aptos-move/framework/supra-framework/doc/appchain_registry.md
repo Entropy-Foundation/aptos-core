@@ -78,13 +78,13 @@ Represents reserved chain ID range.
 
 <dl>
 <dt>
-<code>start: u8</code>
+<code>start: u16</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>end: u8</code>
+<code>end: u16</code>
 </dt>
 <dd>
 
@@ -147,7 +147,7 @@ Global appchain registry resource.
 
 <dl>
 <dt>
-<code>appchains: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_SimpleMap">simple_map::SimpleMap</a>&lt;u8, <a href="appchain_registry.md#0x1_appchain_registry_AppchainInfo">appchain_registry::AppchainInfo</a>&gt;</code>
+<code>appchains: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_SimpleMap">simple_map::SimpleMap</a>&lt;u16, <a href="appchain_registry.md#0x1_appchain_registry_AppchainInfo">appchain_registry::AppchainInfo</a>&gt;</code>
 </dt>
 <dd>
  Map from chain ID to appchain info.
@@ -181,7 +181,7 @@ Global appchain registry resource.
 
 <dl>
 <dt>
-<code><a href="chain_id.md#0x1_chain_id">chain_id</a>: u8</code>
+<code><a href="chain_id.md#0x1_chain_id">chain_id</a>: u16</code>
 </dt>
 <dd>
 
@@ -215,7 +215,7 @@ Global appchain registry resource.
 
 <dl>
 <dt>
-<code><a href="chain_id.md#0x1_chain_id">chain_id</a>: u8</code>
+<code><a href="chain_id.md#0x1_chain_id">chain_id</a>: u16</code>
 </dt>
 <dd>
 
@@ -243,7 +243,7 @@ Global appchain registry resource.
 
 <dl>
 <dt>
-<code><a href="chain_id.md#0x1_chain_id">chain_id</a>: u8</code>
+<code><a href="chain_id.md#0x1_chain_id">chain_id</a>: u16</code>
 </dt>
 <dd>
 
@@ -271,7 +271,7 @@ Global appchain registry resource.
 
 <dl>
 <dt>
-<code><a href="chain_id.md#0x1_chain_id">chain_id</a>: u8</code>
+<code><a href="chain_id.md#0x1_chain_id">chain_id</a>: u16</code>
 </dt>
 <dd>
 
@@ -449,7 +449,7 @@ supra_framework::supra_governance::reconfigure(&supra_framework);
 ```
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_register_appchain">register_appchain</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, metadata_link: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_register_appchain">register_appchain</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u16, metadata_link: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
 </code></pre>
 
 
@@ -460,7 +460,7 @@ supra_framework::supra_governance::reconfigure(&supra_framework);
 
 <pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_register_appchain">register_appchain</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8,
+    <a href="chain_id.md#0x1_chain_id">chain_id</a>: u16,
     metadata_link: String,
 ) <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
     <b>let</b> <a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a> = <a href="appchain_registry.md#0x1_appchain_registry_borrow_global_mut_appchain_registry">borrow_global_mut_appchain_registry</a>(supra_framework);
@@ -514,7 +514,7 @@ supra_framework::supra_governance::reconfigure(&supra_framework);
 ```
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_deactivate_appchain">deactivate_appchain</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8)
+<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_deactivate_appchain">deactivate_appchain</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u16)
 </code></pre>
 
 
@@ -525,7 +525,7 @@ supra_framework::supra_governance::reconfigure(&supra_framework);
 
 <pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_deactivate_appchain">deactivate_appchain</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8,
+    <a href="chain_id.md#0x1_chain_id">chain_id</a>: u16,
 ) <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
     <b>let</b> <a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a> = <a href="appchain_registry.md#0x1_appchain_registry_borrow_global_mut_appchain_registry">borrow_global_mut_appchain_registry</a>(supra_framework);
     <a href="appchain_registry.md#0x1_appchain_registry_assert_appchain_registered">assert_appchain_registered</a>(&<a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a>.appchains, &<a href="chain_id.md#0x1_chain_id">chain_id</a>);
@@ -566,7 +566,7 @@ supra_framework::supra_governance::reconfigure(&supra_framework);
 ```
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_reactivate_appchain">reactivate_appchain</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8)
+<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_reactivate_appchain">reactivate_appchain</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u16)
 </code></pre>
 
 
@@ -577,7 +577,7 @@ supra_framework::supra_governance::reconfigure(&supra_framework);
 
 <pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_reactivate_appchain">reactivate_appchain</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8,
+    <a href="chain_id.md#0x1_chain_id">chain_id</a>: u16,
 ) <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
     <b>let</b> <a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a> = <a href="appchain_registry.md#0x1_appchain_registry_borrow_global_mut_appchain_registry">borrow_global_mut_appchain_registry</a>(supra_framework);
     <a href="appchain_registry.md#0x1_appchain_registry_assert_appchain_registered">assert_appchain_registered</a>(&<a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a>.appchains, &<a href="chain_id.md#0x1_chain_id">chain_id</a>);
@@ -604,7 +604,7 @@ supra_framework::supra_governance::reconfigure(&supra_framework);
 Updates metadata link of a registered appchain.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_update_appchain_metadata_link">update_appchain_metadata_link</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, new_metadata_link: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_update_appchain_metadata_link">update_appchain_metadata_link</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u16, new_metadata_link: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
 </code></pre>
 
 
@@ -615,7 +615,7 @@ Updates metadata link of a registered appchain.
 
 <pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_update_appchain_metadata_link">update_appchain_metadata_link</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8,
+    <a href="chain_id.md#0x1_chain_id">chain_id</a>: u16,
     new_metadata_link: String,
 ) <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
     <b>let</b> <a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a> = <a href="appchain_registry.md#0x1_appchain_registry_borrow_global_mut_appchain_registry">borrow_global_mut_appchain_registry</a>(supra_framework);
@@ -644,7 +644,7 @@ Updates metadata link of a registered appchain.
 Adds a reserved chain ID range.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_add_reserved_range">add_reserved_range</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, start: u8, end: u8)
+<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_add_reserved_range">add_reserved_range</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, start: u16, end: u16)
 </code></pre>
 
 
@@ -655,8 +655,8 @@ Adds a reserved chain ID range.
 
 <pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_add_reserved_range">add_reserved_range</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    start: u8,
-    end: u8,
+    start: u16,
+    end: u16,
 ) <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
     <b>let</b> <a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a> = <a href="appchain_registry.md#0x1_appchain_registry_borrow_global_mut_appchain_registry">borrow_global_mut_appchain_registry</a>(supra_framework);
     <b>assert</b>!(start &lt;= end, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="appchain_registry.md#0x1_appchain_registry_EINVALID_RANGE">EINVALID_RANGE</a>));
@@ -677,7 +677,7 @@ Constructor to create an instance of the <code><a href="appchain_registry.md#0x1
 This will be utilized in move-script to initialize the appchain registry with reserved ranges.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_new_reserved_range">new_reserved_range</a>(start: u8, end: u8): <a href="appchain_registry.md#0x1_appchain_registry_ReservedRange">appchain_registry::ReservedRange</a>
+<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_new_reserved_range">new_reserved_range</a>(start: u16, end: u16): <a href="appchain_registry.md#0x1_appchain_registry_ReservedRange">appchain_registry::ReservedRange</a>
 </code></pre>
 
 
@@ -687,8 +687,8 @@ This will be utilized in move-script to initialize the appchain registry with re
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_new_reserved_range">new_reserved_range</a>(
-    start: u8,
-    end: u8,
+    start: u16,
+    end: u16,
 ): <a href="appchain_registry.md#0x1_appchain_registry_ReservedRange">ReservedRange</a> {
     <b>assert</b>!(start &lt;= end, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="appchain_registry.md#0x1_appchain_registry_EINVALID_RANGE">EINVALID_RANGE</a>));
     <a href="appchain_registry.md#0x1_appchain_registry_ReservedRange">ReservedRange</a> { start, end }
@@ -707,7 +707,7 @@ Get the state of a appchain.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_appchain_state">appchain_state</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u8): u8
+<b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_appchain_state">appchain_state</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u16): u8
 </code></pre>
 
 
@@ -716,7 +716,7 @@ Get the state of a appchain.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_appchain_state">appchain_state</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u8): u8 <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
+<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_appchain_state">appchain_state</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u16): u8 <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
     <b>let</b> <a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a> = <a href="appchain_registry.md#0x1_appchain_registry_borrow_global_appchain_registry">borrow_global_appchain_registry</a>();
     <b>if</b> (<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>(&<a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a>.appchains, &<a href="chain_id.md#0x1_chain_id">chain_id</a>)) {
         <b>return</b> <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow">simple_map::borrow</a>(&<a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a>.appchains, &<a href="chain_id.md#0x1_chain_id">chain_id</a>).state;
@@ -738,7 +738,7 @@ Check if a appchain is active.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_is_appchain_active">is_appchain_active</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u8): bool
+<b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_is_appchain_active">is_appchain_active</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u16): bool
 </code></pre>
 
 
@@ -747,7 +747,7 @@ Check if a appchain is active.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_is_appchain_active">is_appchain_active</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u8): bool <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
+<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_is_appchain_active">is_appchain_active</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u16): bool <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
     <a href="appchain_registry.md#0x1_appchain_registry_appchain_state">appchain_state</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>) == <a href="appchain_registry.md#0x1_appchain_registry_STATE_ACTIVE">STATE_ACTIVE</a>
 }
 </code></pre>
@@ -764,7 +764,7 @@ Get chain IDs of all appchain with <code>Active</code> state.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_active_appchains">active_appchains</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+<b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_active_appchains">active_appchains</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u16&gt;
 </code></pre>
 
 
@@ -773,12 +773,12 @@ Get chain IDs of all appchain with <code>Active</code> state.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_active_appchains">active_appchains</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
+<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_active_appchains">active_appchains</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u16&gt; <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
     <b>let</b> <a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a> = <a href="appchain_registry.md#0x1_appchain_registry_borrow_global_appchain_registry">borrow_global_appchain_registry</a>();
     <b>let</b> appchains_chain_id = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_keys">simple_map::keys</a>(&<a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a>.appchains);
     <b>let</b> appchains_info = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_values">simple_map::values</a>(&<a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a>.appchains);
-    <b>let</b> active_appchains_chain_id = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>&lt;u8&gt;();
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_zip_reverse">vector::zip_reverse</a>&lt;u8, <a href="appchain_registry.md#0x1_appchain_registry_AppchainInfo">AppchainInfo</a>&gt;(appchains_chain_id, appchains_info, |<a href="chain_id.md#0x1_chain_id">chain_id</a>, appchain_info|{
+    <b>let</b> active_appchains_chain_id = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>&lt;u16&gt;();
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_zip_reverse">vector::zip_reverse</a>&lt;u16, <a href="appchain_registry.md#0x1_appchain_registry_AppchainInfo">AppchainInfo</a>&gt;(appchains_chain_id, appchains_info, |<a href="chain_id.md#0x1_chain_id">chain_id</a>, appchain_info|{
         // New helper variable <b>with</b> explicit type annotation is required due <b>to</b> Move's lambda type inference
         // limitations. When I don't <b>use</b> this new variable <b>with</b> explicit type declaration, compiler throws <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">error</a>
         // and ask <b>to</b> infer the type.
@@ -803,7 +803,7 @@ Get appchain metadata link.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_appchain_metadata_link">appchain_metadata_link</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u8): <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>
+<b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_appchain_metadata_link">appchain_metadata_link</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u16): <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>
 </code></pre>
 
 
@@ -812,7 +812,7 @@ Get appchain metadata link.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_appchain_metadata_link">appchain_metadata_link</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u8): String <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
+<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_appchain_metadata_link">appchain_metadata_link</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u16): String <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
     <b>let</b> <a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a> = <a href="appchain_registry.md#0x1_appchain_registry_borrow_global_appchain_registry">borrow_global_appchain_registry</a>();
     <a href="appchain_registry.md#0x1_appchain_registry_assert_appchain_registered">assert_appchain_registered</a>(&<a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a>.appchains, &<a href="chain_id.md#0x1_chain_id">chain_id</a>);
 
@@ -832,7 +832,7 @@ Get appchain info.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_appchain_info">appchain_info</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u8): (u8, <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
+<b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_appchain_info">appchain_info</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u16): (u8, <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
 </code></pre>
 
 
@@ -841,7 +841,7 @@ Get appchain info.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_appchain_info">appchain_info</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u8): (u8, String) <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
+<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_appchain_info">appchain_info</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u16): (u8, String) <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
     <b>let</b> <a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a> = <a href="appchain_registry.md#0x1_appchain_registry_borrow_global_appchain_registry">borrow_global_appchain_registry</a>();
     <a href="appchain_registry.md#0x1_appchain_registry_assert_appchain_registered">assert_appchain_registered</a>(&<a href="appchain_registry.md#0x1_appchain_registry">appchain_registry</a>.appchains, &<a href="chain_id.md#0x1_chain_id">chain_id</a>);
 
@@ -862,7 +862,7 @@ Check if a chain ID falls within reserved ranges.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_is_chain_id_reserved">is_chain_id_reserved</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u8): bool
+<b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_is_chain_id_reserved">is_chain_id_reserved</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u16): bool
 </code></pre>
 
 
@@ -871,7 +871,7 @@ Check if a chain ID falls within reserved ranges.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_is_chain_id_reserved">is_chain_id_reserved</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u8): bool <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
+<pre><code><b>public</b> <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_is_chain_id_reserved">is_chain_id_reserved</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u16): bool <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
     <a href="appchain_registry.md#0x1_appchain_registry_is_chain_id_reserved_internal">is_chain_id_reserved_internal</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>, &<a href="appchain_registry.md#0x1_appchain_registry_borrow_global_appchain_registry">borrow_global_appchain_registry</a>().reserved_ranges)
 }
 </code></pre>
@@ -939,7 +939,7 @@ Check if a chain ID falls within reserved ranges.
 
 
 
-<pre><code><b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_assert_appchain_registered">assert_appchain_registered</a>(appchains: &<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_SimpleMap">simple_map::SimpleMap</a>&lt;u8, <a href="appchain_registry.md#0x1_appchain_registry_AppchainInfo">appchain_registry::AppchainInfo</a>&gt;, <a href="chain_id.md#0x1_chain_id">chain_id</a>: &u8)
+<pre><code><b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_assert_appchain_registered">assert_appchain_registered</a>(appchains: &<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_SimpleMap">simple_map::SimpleMap</a>&lt;u16, <a href="appchain_registry.md#0x1_appchain_registry_AppchainInfo">appchain_registry::AppchainInfo</a>&gt;, <a href="chain_id.md#0x1_chain_id">chain_id</a>: &u16)
 </code></pre>
 
 
@@ -948,7 +948,7 @@ Check if a chain ID falls within reserved ranges.
 <summary>Implementation</summary>
 
 
-<pre><code>inline <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_assert_appchain_registered">assert_appchain_registered</a>(appchains: &SimpleMap&lt;u8, <a href="appchain_registry.md#0x1_appchain_registry_AppchainInfo">AppchainInfo</a>&gt;, <a href="chain_id.md#0x1_chain_id">chain_id</a>: &u8) {
+<pre><code>inline <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_assert_appchain_registered">assert_appchain_registered</a>(appchains: &SimpleMap&lt;u16, <a href="appchain_registry.md#0x1_appchain_registry_AppchainInfo">AppchainInfo</a>&gt;, <a href="chain_id.md#0x1_chain_id">chain_id</a>: &u16) {
     <b>assert</b>!(
         <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>(appchains, <a href="chain_id.md#0x1_chain_id">chain_id</a>),
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="appchain_registry.md#0x1_appchain_registry_EAPPCHAIN_NOT_REGISTERED">EAPPCHAIN_NOT_REGISTERED</a>)
@@ -966,7 +966,7 @@ Check if a chain ID falls within reserved ranges.
 
 
 
-<pre><code><b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_is_chain_id_reserved_internal">is_chain_id_reserved_internal</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, reserved_ranges: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="appchain_registry.md#0x1_appchain_registry_ReservedRange">appchain_registry::ReservedRange</a>&gt;): bool
+<pre><code><b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_is_chain_id_reserved_internal">is_chain_id_reserved_internal</a>(<a href="chain_id.md#0x1_chain_id">chain_id</a>: u16, reserved_ranges: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="appchain_registry.md#0x1_appchain_registry_ReservedRange">appchain_registry::ReservedRange</a>&gt;): bool
 </code></pre>
 
 
@@ -976,7 +976,7 @@ Check if a chain ID falls within reserved ranges.
 
 
 <pre><code><b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_is_chain_id_reserved_internal">is_chain_id_reserved_internal</a>(
-    <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8,
+    <a href="chain_id.md#0x1_chain_id">chain_id</a>: u16,
     reserved_ranges: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="appchain_registry.md#0x1_appchain_registry_ReservedRange">ReservedRange</a>&gt;
 ): bool {
     <b>let</b> i = 0;
