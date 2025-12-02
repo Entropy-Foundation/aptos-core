@@ -25,7 +25,7 @@ use aptos_framework::ReleaseBundle;
 use aptos_keygen::KeyGen;
 use aptos_logger::prelude::*;
 use aptos_types::on_chain_config::{
-    AutomationRegistryConfig, FunnelNodeRegistryConfig, MicrochainRegistryConfig,
+    AutomationRegistryConfig, FunnelNodeRegistryConfig, AppchainRegistryConfig,
 };
 use aptos_types::{
     account_address::AccountAddress,
@@ -440,7 +440,7 @@ pub struct GenesisConfiguration {
     pub randomness_config_override: Option<OnChainRandomnessConfig>,
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     pub automation_registry_config: Option<AutomationRegistryConfig>,
-    pub microchain_registry_config: Option<MicrochainRegistryConfig>,
+    pub appchain_registry_config: Option<AppchainRegistryConfig>,
     pub funnel_node_registry_config: Option<FunnelNodeRegistryConfig>,
 }
 
@@ -666,7 +666,7 @@ impl Builder {
             randomness_config_override: None,
             jwk_consensus_config_override: None,
             automation_registry_config: Some(AutomationRegistryConfig::default()),
-            microchain_registry_config: Some(MicrochainRegistryConfig::default()),
+            appchain_registry_config: Some(AppchainRegistryConfig::default()),
             funnel_node_registry_config: Some(FunnelNodeRegistryConfig::default()),
         };
         if let Some(init_genesis_config) = &self.init_genesis_config {

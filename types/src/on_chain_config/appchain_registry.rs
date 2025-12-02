@@ -3,11 +3,11 @@ use move_core_types::value::{serialize_values, MoveStruct, MoveValue};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-pub struct MicrochainRegistryConfig {
+pub struct AppchainRegistryConfig {
     reserved_ranges: Vec<ReservedRange>,
 }
 
-impl MicrochainRegistryConfig {
+impl AppchainRegistryConfig {
     pub fn new(reserved_ranges: Vec<ReservedRange>) -> Self {
         Self { reserved_ranges }
     }

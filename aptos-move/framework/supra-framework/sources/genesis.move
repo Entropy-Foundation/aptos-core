@@ -36,7 +36,7 @@ module supra_framework::genesis {
     use supra_framework::version;
     use supra_framework::vesting;
     use supra_framework::vesting_without_staking;
-    use supra_framework::microchain_registry::{Self, ReservedRange};
+    use supra_framework::appchain_registry::{Self, ReservedRange};
     use supra_framework::funnel_node_registry;
 
     #[test_only]
@@ -262,25 +262,25 @@ module supra_framework::genesis {
         )
     }
 
-    /// Genesis step 4: Initialize Microchain Registry.
+    /// Genesis step 4: Initialize Appchain Registry.
     ///
-    /// This method allows to initialize the microchain registry either during the genesis initialization
+    /// This method allows to initialize the appchain registry either during the genesis initialization
     /// or after it has been completed.
     ///
     /// Because it is publicly accessible, it can be invoked via a move-script. Since it requires
     /// the `supra_framework` as the signer, the invocation must go through the governance process.
-    public fun initialize_microchain_registry(
+    public fun initialize_appchain_registry(
         supra_framework: &signer,
         reserved_ranges: vector<ReservedRange>
     ) {
-        microchain_registry::initialize(
+        appchain_registry::initialize(
             supra_framework, reserved_ranges
         )
     }
 
     /// Genesis step 5: Initialize Funnel Node Registry.
     ///
-    /// This method allows to initialize the microchain registry either during the genesis initialization
+    /// This method allows to initialize the appchain registry either during the genesis initialization
     /// or after it has been completed.
     ///
     /// Because it is publicly accessible, it can be invoked via a move-script. Since it requires

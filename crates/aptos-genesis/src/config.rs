@@ -4,7 +4,7 @@
 use aptos_config::config::HANDSHAKE_VERSION;
 use aptos_crypto::{ed25519, ed25519::Ed25519PublicKey, x25519};
 use aptos_types::on_chain_config::{
-    AutomationRegistryConfig, FunnelNodeRegistryConfig, MicrochainRegistryConfig,
+    AutomationRegistryConfig, FunnelNodeRegistryConfig, AppchainRegistryConfig,
 };
 use aptos_types::{
     account_address::{AccountAddress, AccountAddressWithChecks},
@@ -85,7 +85,7 @@ pub struct Layout {
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     /// An optional supra native automation config.
     pub automation_registry_config: Option<AutomationRegistryConfig>,
-    pub microchain_registry_config: Option<MicrochainRegistryConfig>,
+    pub appchain_registry_config: Option<AppchainRegistryConfig>,
     pub funnel_node_registry_config: Option<FunnelNodeRegistryConfig>,
 }
 
@@ -130,7 +130,7 @@ impl Default for Layout {
             on_chain_execution_config: OnChainExecutionConfig::default_for_genesis(),
             jwk_consensus_config_override: None,
             automation_registry_config: Some(AutomationRegistryConfig::default()),
-            microchain_registry_config: Some(MicrochainRegistryConfig::default()),
+            appchain_registry_config: Some(AppchainRegistryConfig::default()),
             funnel_node_registry_config: Some(FunnelNodeRegistryConfig::default()),
         }
     }

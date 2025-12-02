@@ -22,7 +22,7 @@ use aptos_framework::ReleaseBundle;
 use aptos_storage_interface::DbReaderWriter;
 use aptos_temppath::TempPath;
 use aptos_types::on_chain_config::{
-    AutomationRegistryConfig, FunnelNodeRegistryConfig, MicrochainRegistryConfig,
+    AutomationRegistryConfig, FunnelNodeRegistryConfig, AppchainRegistryConfig,
 };
 use aptos_types::{
     account_address::AccountAddress,
@@ -85,7 +85,7 @@ pub struct GenesisInfo {
     pub randomness_config_override: Option<OnChainRandomnessConfig>,
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     pub automation_registry_config: Option<AutomationRegistryConfig>,
-    pub microchain_registry_config: Option<MicrochainRegistryConfig>,
+    pub appchain_registry_config: Option<AppchainRegistryConfig>,
     pub funnel_node_registry_config: Option<FunnelNodeRegistryConfig>,
 }
 
@@ -129,7 +129,7 @@ impl GenesisInfo {
             randomness_config_override: genesis_config.randomness_config_override.clone(),
             jwk_consensus_config_override: genesis_config.jwk_consensus_config_override.clone(),
             automation_registry_config: genesis_config.automation_registry_config.clone(),
-            microchain_registry_config: genesis_config.microchain_registry_config.clone(),
+            appchain_registry_config: genesis_config.appchain_registry_config.clone(),
             funnel_node_registry_config: genesis_config.funnel_node_registry_config.clone(),
         })
     }
@@ -174,7 +174,7 @@ impl GenesisInfo {
                 jwk_consensus_config_override: self.jwk_consensus_config_override.clone(),
                 genesis_timestamp_in_microseconds: self.genesis_timestamp_in_microseconds,
                 automation_registry_config: self.automation_registry_config.clone(),
-                microchain_registry_config: self.microchain_registry_config.clone(),
+                appchain_registry_config: self.appchain_registry_config.clone(),
                 funnel_node_registry_config: self.funnel_node_registry_config.clone(),
             },
             &self.consensus_config,

@@ -11,7 +11,7 @@ use aptos_framework::ReleaseBundle;
 use aptos_storage_interface::DbReaderWriter;
 use aptos_temppath::TempPath;
 use aptos_types::on_chain_config::{
-    AutomationRegistryConfig, FunnelNodeRegistryConfig, MicrochainRegistryConfig,
+    AutomationRegistryConfig, FunnelNodeRegistryConfig, AppchainRegistryConfig,
 };
 use aptos_types::{
     account_address::AccountAddress,
@@ -74,7 +74,7 @@ pub struct MainnetGenesisInfo {
     jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     /// Supra native automation feature configuration parameters
     automation_registry_config: Option<AutomationRegistryConfig>,
-    microchain_registry_config: Option<MicrochainRegistryConfig>,
+    appchain_registry_config: Option<AppchainRegistryConfig>,
     funnel_node_registry_config: Option<FunnelNodeRegistryConfig>,
 }
 
@@ -121,7 +121,7 @@ impl MainnetGenesisInfo {
             randomness_config_override: genesis_config.randomness_config_override.clone(),
             jwk_consensus_config_override: genesis_config.jwk_consensus_config_override.clone(),
             automation_registry_config: genesis_config.automation_registry_config.clone(),
-            microchain_registry_config: genesis_config.microchain_registry_config.clone(),
+            appchain_registry_config: genesis_config.appchain_registry_config.clone(),
             funnel_node_registry_config: genesis_config.funnel_node_registry_config.clone(),
         })
     }
@@ -167,7 +167,7 @@ impl MainnetGenesisInfo {
                 randomness_config_override: self.randomness_config_override.clone(),
                 jwk_consensus_config_override: self.jwk_consensus_config_override.clone(),
                 automation_registry_config: self.automation_registry_config.clone(),
-                microchain_registry_config: self.microchain_registry_config.clone(),
+                appchain_registry_config: self.appchain_registry_config.clone(),
                 funnel_node_registry_config: self.funnel_node_registry_config.clone(),
             },
             b"test".to_vec(),

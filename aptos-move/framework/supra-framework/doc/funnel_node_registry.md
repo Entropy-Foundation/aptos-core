@@ -145,7 +145,7 @@ strongly recommended that the new list contains valid URLs for all funnel nodes,
 are ordered based on their reputation and trust level.
 
 Technically, deduplication of <code>new_funnel_nodes</code> is necessary. However, performing it consumes a
-significant amount of execution gas. Since this method is expected to be invoked by microchain
+significant amount of execution gas. Since this method is expected to be invoked by appchain
 governance - which is assumed to perform governance operations carefully - the <code>new_funnel_nodes</code>
 list is **not** deduplicated internally. As a result, it is possible to pass a list containing duplicate
 entries without triggering an error. Therefore, deduplication should be performed as part of

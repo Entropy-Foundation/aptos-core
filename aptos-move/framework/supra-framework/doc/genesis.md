@@ -17,7 +17,7 @@
 -  [Function `initialize_supra_coin`](#0x1_genesis_initialize_supra_coin)
 -  [Function `initialize_supra_native_automation`](#0x1_genesis_initialize_supra_native_automation)
 -  [Function `initialize_supra_native_automation_v2`](#0x1_genesis_initialize_supra_native_automation_v2)
--  [Function `initialize_microchain_registry`](#0x1_genesis_initialize_microchain_registry)
+-  [Function `initialize_appchain_registry`](#0x1_genesis_initialize_appchain_registry)
 -  [Function `initialize_funnel_node_registry`](#0x1_genesis_initialize_funnel_node_registry)
 -  [Function `initialize_core_resources_and_supra_coin`](#0x1_genesis_initialize_core_resources_and_supra_coin)
 -  [Function `initialize_evm_genesis_config`](#0x1_genesis_initialize_evm_genesis_config)
@@ -54,6 +54,7 @@
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
 <b>use</b> <a href="aggregator_factory.md#0x1_aggregator_factory">0x1::aggregator_factory</a>;
+<b>use</b> <a href="appchain_registry.md#0x1_appchain_registry">0x1::appchain_registry</a>;
 <b>use</b> <a href="automation_registry.md#0x1_automation_registry">0x1::automation_registry</a>;
 <b>use</b> <a href="block.md#0x1_block">0x1::block</a>;
 <b>use</b> <a href="chain_id.md#0x1_chain_id">0x1::chain_id</a>;
@@ -68,7 +69,6 @@
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/fixed_point32.md#0x1_fixed_point32">0x1::fixed_point32</a>;
 <b>use</b> <a href="funnel_node_registry.md#0x1_funnel_node_registry">0x1::funnel_node_registry</a>;
 <b>use</b> <a href="gas_schedule.md#0x1_gas_schedule">0x1::gas_schedule</a>;
-<b>use</b> <a href="microchain_registry.md#0x1_microchain_registry">0x1::microchain_registry</a>;
 <b>use</b> <a href="multisig_account.md#0x1_multisig_account">0x1::multisig_account</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
 <b>use</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool">0x1::pbo_delegation_pool</a>;
@@ -769,20 +769,20 @@ Genesis step 3: Initialize Supra Native Automation.
 
 </details>
 
-<a id="0x1_genesis_initialize_microchain_registry"></a>
+<a id="0x1_genesis_initialize_appchain_registry"></a>
 
-## Function `initialize_microchain_registry`
+## Function `initialize_appchain_registry`
 
-Genesis step 4: Initialize Microchain Registry.
+Genesis step 4: Initialize Appchain Registry.
 
-This method allows to initialize the microchain registry either during the genesis initialization
+This method allows to initialize the appchain registry either during the genesis initialization
 or after it has been completed.
 
 Because it is publicly accessible, it can be invoked via a move-script. Since it requires
 the <code>supra_framework</code> as the signer, the invocation must go through the governance process.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_microchain_registry">initialize_microchain_registry</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, reserved_ranges: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="microchain_registry.md#0x1_microchain_registry_ReservedRange">microchain_registry::ReservedRange</a>&gt;)
+<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_appchain_registry">initialize_appchain_registry</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, reserved_ranges: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="appchain_registry.md#0x1_appchain_registry_ReservedRange">appchain_registry::ReservedRange</a>&gt;)
 </code></pre>
 
 
@@ -791,11 +791,11 @@ the <code>supra_framework</code> as the signer, the invocation must go through t
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_microchain_registry">initialize_microchain_registry</a>(
+<pre><code><b>public</b> <b>fun</b> <a href="genesis.md#0x1_genesis_initialize_appchain_registry">initialize_appchain_registry</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     reserved_ranges: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;ReservedRange&gt;
 ) {
-    <a href="microchain_registry.md#0x1_microchain_registry_initialize">microchain_registry::initialize</a>(
+    <a href="appchain_registry.md#0x1_appchain_registry_initialize">appchain_registry::initialize</a>(
         supra_framework, reserved_ranges
     )
 }
@@ -811,7 +811,7 @@ the <code>supra_framework</code> as the signer, the invocation must go through t
 
 Genesis step 5: Initialize Funnel Node Registry.
 
-This method allows to initialize the microchain registry either during the genesis initialization
+This method allows to initialize the appchain registry either during the genesis initialization
 or after it has been completed.
 
 Because it is publicly accessible, it can be invoked via a move-script. Since it requires

@@ -32,7 +32,7 @@ mod execution_config;
 mod funnel_node_registry;
 mod gas_schedule;
 mod jwk_consensus_config;
-mod microchain_registry;
+mod appchain_registry;
 pub mod randomness_api_v0_config;
 mod randomness_config;
 mod timed_features;
@@ -69,7 +69,7 @@ pub use self::{
     jwk_consensus_config::{
         ConfigV1 as JWKConsensusConfigV1, OIDCProvider, OnChainJWKConsensusConfig,
     },
-    microchain_registry::{MicrochainRegistryConfig, ReservedRange},
+    appchain_registry::{AppchainRegistryConfig, ReservedRange},
     randomness_config::{
         OnChainRandomnessConfig, RandomnessConfigMoveStruct, RandomnessConfigSeqNum,
     },
