@@ -53,6 +53,7 @@ c. <code>reactivate_appchain</code>
 
 <pre><code><b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map">0x1::simple_map</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string">0x1::string</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
@@ -308,6 +309,16 @@ The provided range is invalid, start value must be less than or equal to end val
 
 
 
+<a id="0x1_appchain_registry_EAPPCHAINS_FEATURE_DISABLED"></a>
+
+Supra Appchains feature is not enabled.
+
+
+<pre><code><b>const</b> <a href="appchain_registry.md#0x1_appchain_registry_EAPPCHAINS_FEATURE_DISABLED">EAPPCHAINS_FEATURE_DISABLED</a>: u64 = 8;
+</code></pre>
+
+
+
 <a id="0x1_appchain_registry_EAPPCHAIN_ALREADY_ACTIVE"></a>
 
 The appchain is already in the <code>ACTIVE</code> state and cannot be reactivated.
@@ -403,6 +414,8 @@ Never registered as a appchain.
 ## Function `initialize`
 
 Initializes the appchain registry.
+
+Appchain registry initialization does not requires enabling <code>SUPRA_APPCHAINS</code> feature.
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, reserved_ranges: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="appchain_registry.md#0x1_appchain_registry_ReservedRange">appchain_registry::ReservedRange</a>&gt;)
@@ -896,6 +909,7 @@ Check if a chain ID falls within reserved ranges.
 
 
 <pre><code>inline <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_borrow_global_appchain_registry">borrow_global_appchain_registry</a>(): &<a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_appchains_enabled">features::supra_appchains_enabled</a>(), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_unavailable">error::unavailable</a>(<a href="appchain_registry.md#0x1_appchain_registry_EAPPCHAINS_FEATURE_DISABLED">EAPPCHAINS_FEATURE_DISABLED</a>));
     <b>assert</b>!(<b>exists</b>&lt;<a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a>&gt;(@supra_framework), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="appchain_registry.md#0x1_appchain_registry_EREGISTRY_NOT_INITIALIZED">EREGISTRY_NOT_INITIALIZED</a>));
     <b>borrow_global</b>&lt;<a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a>&gt;(@supra_framework)
 }
@@ -923,6 +937,7 @@ Check if a chain ID falls within reserved ranges.
 <pre><code>inline <b>fun</b> <a href="appchain_registry.md#0x1_appchain_registry_borrow_global_mut_appchain_registry">borrow_global_mut_appchain_registry</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>
 ): &<b>mut</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> <b>acquires</b> <a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a> {
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_appchains_enabled">features::supra_appchains_enabled</a>(), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_unavailable">error::unavailable</a>(<a href="appchain_registry.md#0x1_appchain_registry_EAPPCHAINS_FEATURE_DISABLED">EAPPCHAINS_FEATURE_DISABLED</a>));
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
     <b>assert</b>!(<b>exists</b>&lt;<a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a>&gt;(@supra_framework), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="appchain_registry.md#0x1_appchain_registry_EREGISTRY_NOT_INITIALIZED">EREGISTRY_NOT_INITIALIZED</a>));
     <b>borrow_global_mut</b>&lt;<a href="appchain_registry.md#0x1_appchain_registry_AppchainRegistry">AppchainRegistry</a>&gt;(@supra_framework)

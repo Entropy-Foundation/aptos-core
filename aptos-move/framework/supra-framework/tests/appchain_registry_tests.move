@@ -1,5 +1,6 @@
 #[test_only]
 module supra_framework::appchain_registry_tests {
+    use std::features;
     use std::string;
     use std::vector;
 
@@ -23,8 +24,17 @@ module supra_framework::appchain_registry_tests {
 
     fun setup_test(): signer {
         let supra_framework = account::create_account_for_test(@supra_framework);
+        enable_supra_appchain_feature(&supra_framework);
         appchain_registry::initialize(&supra_framework, vector::empty());
         supra_framework
+    }
+
+    fun enable_supra_appchain_feature(supra_framework: &signer) {
+        features::change_feature_flags_for_testing(
+            supra_framework,
+            vector[features::get_supra_appchains_feature()],
+            vector[]
+        );
     }
 
     fun create_metadata_link(suffix: vector<u8>): string::String {
@@ -45,6 +55,9 @@ module supra_framework::appchain_registry_tests {
                 appchain_registry::new_reserved_range(1, 10)
             ]
         );
+        // Although the Appchain registry can be initialized without the `SUPRA_APPCHAIN` feature enabled, but all other
+        // methods of `appchain_registry` module require that feature enabled.
+        enable_supra_appchain_feature(&supra_framework);
         assert!(appchain_registry::appchain_state(TEST_CHAIN_ID_1) == STATE_UNKNOWN, 1);
         assert!(appchain_registry::is_chain_id_reserved(6), 2)
     }
@@ -89,9 +102,22 @@ module supra_framework::appchain_registry_tests {
 
 
     #[test]
+    #[expected_failure(abort_code = 0xd0008, location = supra_framework::appchain_registry)]
+    fun test_register_appchain_without_feature_enable() {
+        let supra_framework = account::create_account_for_test(@supra_framework);
+        appchain_registry::initialize(&supra_framework, vector::empty());
+        appchain_registry::register_appchain(
+            &supra_framework,
+            TEST_CHAIN_ID_1,
+            create_metadata_link(b"chain1")
+        );
+    }
+
+    #[test]
     #[expected_failure(abort_code = 0x60006, location = supra_framework::appchain_registry)]
     fun test_register_appchain_without_initialization() {
         let supra_framework = account::create_account_for_test(@supra_framework);
+        enable_supra_appchain_feature(&supra_framework);
         appchain_registry::register_appchain(
             &supra_framework,
             TEST_CHAIN_ID_1,

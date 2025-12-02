@@ -18,6 +18,7 @@
 ///     c. `reactivate_appchain`
 module supra_framework::appchain_registry {
     use std::error;
+    use std::features;
     use std::string::String;
     use std::vector;
 
@@ -51,6 +52,9 @@ module supra_framework::appchain_registry {
 
     /// The provided range is invalid, start value must be less than or equal to end value.
     const EINVALID_RANGE: u64 = 7;
+
+    /// Supra Appchains feature is not enabled.
+    const ESUPRA_APPCHAINS_FEATURE_DISABLED: u64 = 8;
 
 
     /// Registered as a appchain, but decommissioned from the Supra-L1.
@@ -106,6 +110,8 @@ module supra_framework::appchain_registry {
     }
 
     /// Initializes the appchain registry.
+    ///
+    /// Appchain registry initialization does not require the `SUPRA_APPCHAINS` feature to be enabled.
     public(friend) fun initialize(supra_framework: &signer, reserved_ranges: vector<ReservedRange>) {
         system_addresses::assert_supra_framework(supra_framework);
 
@@ -329,8 +335,8 @@ module supra_framework::appchain_registry {
         is_chain_id_reserved_internal(chain_id, &borrow_global_appchain_registry().reserved_ranges)
     }
 
-
     inline fun borrow_global_appchain_registry(): &AppchainRegistry acquires AppchainRegistry {
+        assert!(features::supra_appchains_enabled(), error::unavailable(ESUPRA_APPCHAINS_FEATURE_DISABLED));
         assert!(exists<AppchainRegistry>(@supra_framework), error::not_found(EREGISTRY_NOT_INITIALIZED));
         borrow_global<AppchainRegistry>(@supra_framework)
     }
@@ -338,6 +344,7 @@ module supra_framework::appchain_registry {
     inline fun borrow_global_mut_appchain_registry(
         supra_framework: &signer
     ): &mut AppchainRegistry acquires AppchainRegistry {
+        assert!(features::supra_appchains_enabled(), error::unavailable(ESUPRA_APPCHAINS_FEATURE_DISABLED));
         system_addresses::assert_supra_framework(supra_framework);
         assert!(exists<AppchainRegistry>(@supra_framework), error::not_found(EREGISTRY_NOT_INITIALIZED));
         borrow_global_mut<AppchainRegistry>(@supra_framework)

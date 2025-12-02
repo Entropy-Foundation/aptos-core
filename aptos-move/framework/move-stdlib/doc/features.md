@@ -888,7 +888,7 @@ Lifetime: transient
 
 <a id="0x1_features_SUPRA_APPCHAINS"></a>
 
-Whether Supra Appchain is enabled.
+Whether Supra Appchains are enabled.
 
 Lifetime: transient
 
