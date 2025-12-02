@@ -701,6 +701,7 @@ module supra_framework::coin {
         if (!features::coin_to_fungible_asset_migration_feature_enabled()) {
             abort error::unavailable(ECOIN_TO_FUNGIBLE_ASSET_FEATURE_NOT_ENABLED)
         };
+        assert!(is_coin_initialized<CoinType>(), error::invalid_argument(ECOIN_INFO_NOT_PUBLISHED));
         let metadata = ensure_paired_metadata<CoinType>();
         let store = primary_fungible_store::ensure_primary_store_exists(account, metadata);
         let store_address = object::object_address(&store);
@@ -1910,11 +1911,11 @@ module supra_framework::coin {
         register<String>(&other);
     }
 
-    // TODO: (DP) FIX ME
-    // #[test(other = @0x123)]
-    // fun test_migration_coin_store_with_non_coin_type(other: signer) acquires CoinConversionMap, CoinStore, CoinInfo {
-    //     migrate_to_fungible_store_internal<String>(&other);
-    // }
+    #[test(other = @0x123)]
+    #[expected_failure(abort_code = 0x10003, location = Self)]
+    fun test_migration_coin_store_with_non_coin_type(other: signer) acquires CoinConversionMap, CoinStore, CoinInfo {
+        migrate_to_fungible_store_internal<String>(&other);
+    }
 
     #[test(framework = @supra_framework)]
     fun test_supply_initialize(framework: signer) acquires CoinInfo, CoinConversionMap  {
@@ -2361,7 +2362,7 @@ module supra_framework::coin {
         assert!(coin_balance<FakeMoney>(account_addr) == 0, 0);
         assert!(balance<FakeMoney>(account_addr) == 100, 0);
         let coin = withdraw<FakeMoney>(account, 50);
-        assert!(can_receive_paired_fungible_asset(account_addr, ensure_paired_metadata<FakeMoney>()), 0);
+        assert!(!can_receive_paired_fungible_asset(account_addr, ensure_paired_metadata<FakeMoney>()), 0);
         maybe_convert_to_fungible_store<FakeMoney>(account_addr);
         deposit(account_addr, coin);
         assert!(coin_balance<FakeMoney>(account_addr) == 0, 0);
