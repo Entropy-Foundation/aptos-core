@@ -367,6 +367,7 @@ impl VMRuntime {
     ) -> VMResult<SerializedReturnValues> {
         let LoadedFunction { ty_args, function } = func;
         let ty_builder = self.loader().ty_builder();
+        tracing::debug!("Preparing interpretor");
 
         let param_tys = function
             .param_tys()
@@ -392,6 +393,7 @@ impl VMRuntime {
             .collect::<PartialVMResult<Vec<_>>>()
             .map_err(|err| err.finish(Location::Undefined))?;
 
+        tracing::debug!("Actual execution");
         let return_values = Interpreter::entrypoint(
             function,
             ty_args,
@@ -403,6 +405,7 @@ impl VMRuntime {
             extensions,
             &self.loader,
         )?;
+        tracing::debug!("After actual execution");
 
         let serialized_return_values = self
             .serialize_return_values(module_store, &return_tys, return_values)

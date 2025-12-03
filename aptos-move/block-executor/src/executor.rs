@@ -108,6 +108,7 @@ where
         executor: &E,
         base_view: &S,
         parallel_state: ParallelState<T, X>,
+        thread: usize,
     ) -> Result<bool, PanicOr<ParallelBlockExecutionError>> {
         let _timer = TASK_EXECUTE_SECONDS.start_timer();
         let txn = &signature_verified_block[idx_to_execute as usize];
@@ -115,6 +116,7 @@ where
         // VM execution.
         let sync_view = LatestView::new(base_view, ViewState::Sync(parallel_state), idx_to_execute);
         let execute_result = executor.execute_transaction(&sync_view, txn, idx_to_execute);
+        tracing::debug!(thread, "Executed txn {}", idx_to_execute);
 
         let mut prev_modified_keys = last_input_output
             .modified_keys(idx_to_execute)
@@ -125,6 +127,8 @@ where
             .map_or(HashSet::new(), |keys| keys.collect());
 
         let mut read_set = sync_view.take_parallel_reads();
+
+        tracing::debug!(thread, "prepared reads {}", idx_to_execute);
 
         // For tracking whether it's required to (re-)validate the suffix of transactions in the block.
         // May happen, for instance, when the recent execution wrote outside of the previous write/delta
@@ -236,6 +240,8 @@ where
             Ok(resource_write_set)
         };
 
+        tracing::debug!(thread, "Procesing result {}", idx_to_execute);
+
         let (result, resource_write_set) = match execute_result {
             // These statuses are the results of speculative execution, so even for
             // SkipRest (skip the rest of transactions) and Abort (abort execution with
@@ -276,6 +282,8 @@ where
             },
         };
 
+        tracing::debug!(thread, "removing previously modified {}", idx_to_execute);
+
         // Remove entries from previous write/delta set that were not overwritten.
         for (k, kind) in prev_modified_keys {
             use KeyKind::*;
@@ -305,6 +313,12 @@ where
         for id in prev_modified_delayed_fields {
             versioned_cache.delayed_fields().remove(&id, idx_to_execute);
         }
+
+        tracing::debug!(
+            thread,
+            "Finished transaction postprocessing {}",
+            idx_to_execute
+        );
 
         if !last_input_output.record(idx_to_execute, read_set, result, resource_write_set) {
             // Module R/W is an expected fallback behavior, no alert is required.
@@ -490,6 +504,7 @@ where
                         start_shared_counter,
                         shared_counter,
                     ),
+                    99,
                 )?;
 
                 scheduler.finish_execution_during_commit(txn_idx)?;
@@ -756,6 +771,7 @@ where
         shared_counter: &AtomicU32,
         shared_commit_state: &ExplicitSyncWrapper<BlockGasLimitProcessor<T>>,
         final_results: &ExplicitSyncWrapper<Vec<E::Output>>,
+        thread: usize,
     ) -> Result<(), PanicOr<ParallelBlockExecutionError>> {
         // Make executor for each task. TODO: fast concurrent executor.
         let init_timer = VM_INIT_SECONDS.start_timer();
@@ -765,6 +781,7 @@ where
         let _timer = WORK_WITH_TASK_SECONDS.start_timer();
         let mut scheduler_task = SchedulerTask::Retry;
 
+        tracing::debug!(thread, "Starting worker loop");
         let drain_commit_queue = || -> Result<(), PanicError> {
             while let Ok(txn_idx) = scheduler.pop_from_commit_queue() {
                 self.materialize_txn_commit(
@@ -780,6 +797,7 @@ where
             }
             Ok(())
         };
+        tracing::debug!(thread, "Materialized transactions");
 
         loop {
             while scheduler.should_coordinate_commits() {
@@ -800,6 +818,8 @@ where
             }
 
             drain_commit_queue()?;
+
+            tracing::debug!(thread, "Executing task {scheduler_task:?}");
 
             scheduler_task = match scheduler_task {
                 SchedulerTask::ValidationTask(txn_idx, incarnation, wave) => {
@@ -833,6 +853,7 @@ where
                             start_shared_counter,
                             shared_counter,
                         ),
+                        thread,
                     )?;
                     scheduler.finish_execution(txn_idx, incarnation, needs_suffix_validation)?
                 },
@@ -904,9 +925,13 @@ where
         let last_input_output = TxnLastInputOutput::new(num_txns);
         let scheduler = Scheduler::new(num_txns);
 
+        debug!(
+            "Starting parallel execution with {} threads.",
+            concurrency_level
+        );
         let timer = RAYON_EXECUTION_SECONDS.start_timer();
         self.executor_thread_pool.scope(|s| {
-            for _ in 0..concurrency_level {
+            for i in 0..concurrency_level {
                 s.spawn(|_| {
                     if let Err(err) = self.worker_loop(
                         env,
@@ -919,6 +944,7 @@ where
                         &shared_counter,
                         &shared_commit_state,
                         &final_results,
+                        1, // TODO: THIS IS DEBUG ONLY, SHOULD NEVER RELEASE
                     ) {
                         // If there are multiple errors, they all get logged:
                         // ModulePathReadWriteError and FatalVMError variant is logged at construction,
@@ -935,6 +961,7 @@ where
             }
         });
         drop(timer);
+        debug!("Finished parallel execution.");
 
         counters::update_state_counters(versioned_cache.stats(), true);
 

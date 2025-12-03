@@ -656,6 +656,7 @@ dependencies = [
  "rayon",
  "scopeguard",
  "test-case",
+ "tracing",
 ]
 
 [[package]]
@@ -4229,6 +4230,7 @@ dependencies = [
  "rand_core 0.5.1",
  "rayon",
  "serde",
+ "tracing",
 ]
 
 [[package]]
