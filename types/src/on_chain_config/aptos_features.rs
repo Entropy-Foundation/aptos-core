@@ -170,7 +170,6 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_COUNT_FAILED_PROPOSALS,
             FeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY,
             FeatureFlag::SUPRA_AUTOMATION_V2,
-            FeatureFlag::SUPRA_APPCHAINS,
         ]
     }
 }
