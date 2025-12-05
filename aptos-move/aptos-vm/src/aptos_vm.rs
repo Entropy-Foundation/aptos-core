@@ -3,8 +3,8 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::automated_transaction_processor::AutomatedTransactionProcessor;
 use crate::{
+    automated_transaction_processor::AutomatedTransactionProcessor,
     block_executor::{AptosTransactionOutput, BlockAptosVM},
     counters::*,
     data_cache::{AsMoveResolver, StorageAdapter},
@@ -39,7 +39,6 @@ use aptos_logger::{enabled, prelude::*, Level};
 use aptos_metrics_core::TimerHelper;
 #[cfg(any(test, feature = "testing"))]
 use aptos_types::state_store::StateViewId;
-use aptos_types::transaction::automation::RegistrationParams;
 use aptos_types::{
     account_config::{self, new_block_event_key, AccountResource},
     block_executor::{
@@ -58,11 +57,12 @@ use aptos_types::{
     randomness::Randomness,
     state_store::{StateView, TStateView},
     transaction::{
-        authenticator::AnySignature, signature_verified_transaction::SignatureVerifiedTransaction,
-        BlockOutput, EntryFunction, ExecutionError, ExecutionStatus, ModuleBundle, Multisig,
-        MultisigTransactionPayload, Script, SignedTransaction, Transaction,
-        TransactionAuxiliaryData, TransactionOutput, TransactionPayload, TransactionStatus,
-        VMValidatorResult, ViewFunctionOutput, WriteSetPayload,
+        authenticator::AnySignature, automation::RegistrationParams,
+        signature_verified_transaction::SignatureVerifiedTransaction, BlockOutput, EntryFunction,
+        ExecutionError, ExecutionStatus, ModuleBundle, Multisig, MultisigTransactionPayload,
+        Script, SignedTransaction, Transaction, TransactionAuxiliaryData, TransactionOutput,
+        TransactionPayload, TransactionStatus, VMValidatorResult, ViewFunctionOutput,
+        WriteSetPayload,
     },
     vm_status::{AbortLocation, StatusCode, VMStatus},
 };
@@ -152,8 +152,8 @@ macro_rules! unwrap_or_discard {
     };
 }
 
-pub(crate) use unwrap_or_discard;
 use crate::gas::check_automation_task_gas;
+pub(crate) use unwrap_or_discard;
 
 pub(crate) fn get_system_transaction_output(
     session: SessionExt,
@@ -777,6 +777,8 @@ impl AptosVM {
                 [(module_id.address(), module_id.name())],
             )?;
         }
+
+        tracing::debug!("Loading entry function {:?}", entry_fn);
 
         let function =
             session.load_function(entry_fn.module(), entry_fn.function(), entry_fn.ty_args())?;
@@ -1837,6 +1839,8 @@ impl AptosVM {
         let mut prologue_session =
             unwrap_or_discard!(PrologueSession::new(self, &txn_data, resolver));
 
+        tracing::debug!("Validate signature");
+
         let exec_result = prologue_session.execute(|session| {
             self.validate_signed_transaction(
                 session,
@@ -1854,6 +1858,8 @@ impl AptosVM {
             log_context
         ));
         let change_set_configs = &storage_gas_params.change_set_configs;
+        tracing::debug!("Prepare session");
+
         let (prologue_change_set, mut user_session) = unwrap_or_discard!(prologue_session
             .into_user_session(
                 self,

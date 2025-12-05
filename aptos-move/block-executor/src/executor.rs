@@ -906,7 +906,7 @@ where
 
         let timer = RAYON_EXECUTION_SECONDS.start_timer();
         self.executor_thread_pool.scope(|s| {
-            for _ in 0..concurrency_level {
+            for _ in 0..1 {
                 s.spawn(|_| {
                     if let Err(err) = self.worker_loop(
                         env,

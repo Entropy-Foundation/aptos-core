@@ -171,6 +171,11 @@ impl Interpreter {
                         .charge_drop_frame(non_ref_vals.iter())
                         .map_err(|e| self.set_location(e))?;
 
+                    tracing::debug!(
+                        "Returning from function `{}`",
+                        current_frame.function.pretty_string()
+                    );
+
                     self.access_control
                         .exit_function(current_frame.function.as_ref())
                         .map_err(|e| self.set_location(e))?;
@@ -222,6 +227,7 @@ impl Interpreter {
                         .map_err(|e| set_err_info!(current_frame, e))?;
 
                     if func.is_native() {
+                        tracing::debug!("Calling native function `{}`", func.pretty_string());
                         self.call_native(
                             &mut current_frame,
                             &resolver,
@@ -234,6 +240,8 @@ impl Interpreter {
                             vec![],
                         )?;
                         continue;
+                    } else {
+                        tracing::debug!("Calling function `{}`", func.pretty_string());
                     }
                     self.set_new_call_frame(&mut current_frame, gas_meter, loader, func, vec![])?;
                 },
@@ -244,6 +252,7 @@ impl Interpreter {
                     let func = resolver
                         .function_from_instantiation(idx)
                         .map_err(|e| self.set_location(e))?;
+                    tracing::debug!("Calling generic `{}`", func.pretty_string());
 
                     if self.paranoid_type_checks {
                         self.check_friend_or_private_call(&current_frame.function, &func)?;

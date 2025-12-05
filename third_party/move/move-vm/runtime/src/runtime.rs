@@ -392,6 +392,7 @@ impl VMRuntime {
             .collect::<PartialVMResult<Vec<_>>>()
             .map_err(|err| err.finish(Location::Undefined))?;
 
+        tracing::debug!("Actual execution");
         let return_values = Interpreter::entrypoint(
             function,
             ty_args,
@@ -403,6 +404,7 @@ impl VMRuntime {
             extensions,
             &self.loader,
         )?;
+        tracing::debug!("After actual execution");
 
         let serialized_return_values = self
             .serialize_return_values(module_store, &return_tys, return_values)
