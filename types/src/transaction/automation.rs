@@ -290,7 +290,7 @@ impl RegistrationParamsV1 {
     ) -> Vec<Vec<u8>> {
         let aux_move_args = self.prepare_aux_data(features);
         serialize_values(&[
-            MoveValue::Address(sender),
+            MoveValue::Signer(sender),
             MoveValue::vector_u8(bcs::to_bytes(&self.automated_function).unwrap()),
             MoveValue::U64(self.expiration_timestamp_secs),
             MoveValue::U64(self.max_gas_amount),
@@ -402,7 +402,7 @@ impl RegistrationParamsV2 {
         let aux_move_args = self.prepare_aux_data(features);
         match self.task_type() {
             AutomationTaskType::System => serialize_values(&[
-                MoveValue::Address(sender),
+                MoveValue::Signer(sender),
                 MoveValue::vector_u8(bcs::to_bytes(&self.automated_function).unwrap()),
                 MoveValue::U64(self.expiration_timestamp_secs),
                 MoveValue::U64(self.max_gas_amount),
@@ -410,7 +410,7 @@ impl RegistrationParamsV2 {
                 MoveValue::Vector(aux_move_args),
             ]),
             AutomationTaskType::User => serialize_values(&[
-                MoveValue::Address(sender),
+                MoveValue::Signer(sender),
                 MoveValue::vector_u8(bcs::to_bytes(&self.automated_function).unwrap()),
                 MoveValue::U64(self.expiration_timestamp_secs),
                 MoveValue::U64(self.max_gas_amount),
@@ -813,7 +813,7 @@ impl AutomationRegistryRecord {
     pub fn serialize_args_with_sender(&self, sender: AccountAddress) -> Vec<Vec<u8>> {
         let action_as_value = self.action.as_move_value();
         serialize_values(&[
-            MoveValue::Address(sender),
+            MoveValue::Signer(sender),
             MoveValue::U64(self.cycle_id),
             action_as_value,
         ])

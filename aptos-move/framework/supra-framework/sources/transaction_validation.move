@@ -5,6 +5,7 @@ module supra_framework::transaction_validation {
     use std::option::Option;
     use std::signer;
     use std::vector;
+    use std::bcs;
 
     use supra_framework::account;
     use supra_framework::supra_account;
@@ -161,10 +162,18 @@ module supra_framework::transaction_validation {
                         account::exists_at(sender_address) ||
                         !features::sponsored_automatic_account_creation_enabled()
                 ) {
-                    assert!(
-                        txn_authentication_key == option::some(account::get_authentication_key(sender_address)),
-                        error::invalid_argument(PROLOGUE_EINVALID_ACCOUNT_AUTH_KEY),
-                    );
+                    // FIX(DP): as default account feature is not enabled we are directly checking auth key with sender bytes
+                    if (!account::exists_at(sender_address)) {
+                        assert!(
+                            txn_authentication_key == option::some(bcs::to_bytes(&sender_address)),
+                            error::invalid_argument(PROLOGUE_EINVALID_ACCOUNT_AUTH_KEY),
+                        );
+                    } else {
+                        assert!(
+                            txn_authentication_key == option::some(account::get_authentication_key(sender_address)),
+                            error::invalid_argument(PROLOGUE_EINVALID_ACCOUNT_AUTH_KEY),
+                        );
+                    }
                 };
             } else {
                 assert!(
