@@ -26,16 +26,16 @@ module supra_framework::validator_public_keys {
     const CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS: u8 = 2;
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
     /// f+1, given there are f Byzantine nodes and c crash-only nodes in the [Committee] with n >= 3f + 2c + 1 nodes.
-    const CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY: u8 = 3
+    const CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY: u8 = 3;
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`
     /// 2f + c + 1, given there are f Byzantine nodes and c crash-only nodes in the [Committee] with n >= 3f + 2c + 1 nodes.
-    const CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM: u8 = 4,
+    const CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM: u8 = 4;
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
     /// n - f - c, given there are f Byzantine nodes and c crash-only nodes in the [Committee] with n >= 3f + 2c + 1 nodes.
-    const CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE: u8 = 5,
+    const CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE: u8 = 5;
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
     /// f+1, given there are f Byzantine nodes in the [Committee] with n >= 2f + 1 nodes.
-    const CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY: u8 = 6,
+    const CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY: u8 = 6;
 
     /// Internal tag wrapper
     struct CertificateThresholdType has copy, drop, store { tag: u8 }

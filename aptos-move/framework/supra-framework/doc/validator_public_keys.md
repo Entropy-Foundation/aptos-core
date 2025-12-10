@@ -12,9 +12,17 @@
 -  [Function `validity_certificate_type`](#0x1_validator_public_keys_validity_certificate_type)
 -  [Function `quorum_certificate_type`](#0x1_validator_public_keys_quorum_certificate_type)
 -  [Function `unanimous_certificate_type`](#0x1_validator_public_keys_unanimous_certificate_type)
+-  [Function `bcft_validity_certificate_type`](#0x1_validator_public_keys_bcft_validity_certificate_type)
+-  [Function `bcft_quorum_certificate_type`](#0x1_validator_public_keys_bcft_quorum_certificate_type)
+-  [Function `bcft_fallback_view_change_certificate_type`](#0x1_validator_public_keys_bcft_fallback_view_change_certificate_type)
+-  [Function `clan_majority_certificate_type`](#0x1_validator_public_keys_clan_majority_certificate_type)
 -  [Function `is_validity_certificate_type`](#0x1_validator_public_keys_is_validity_certificate_type)
 -  [Function `is_quorum_certificate_type`](#0x1_validator_public_keys_is_quorum_certificate_type)
 -  [Function `is_unanimous_certificate_type`](#0x1_validator_public_keys_is_unanimous_certificate_type)
+-  [Function `is_bcft_validity_certificate_type`](#0x1_validator_public_keys_is_bcft_validity_certificate_type)
+-  [Function `is_bcft_quorum_certificate_type`](#0x1_validator_public_keys_is_bcft_quorum_certificate_type)
+-  [Function `is_bcft_fallback_view_change_certificate_type`](#0x1_validator_public_keys_is_bcft_fallback_view_change_certificate_type)
+-  [Function `is_clan_majority_certificate_type`](#0x1_validator_public_keys_is_clan_majority_certificate_type)
 -  [Function `validator_public_keys_from_bytes`](#0x1_validator_public_keys_validator_public_keys_from_bytes)
 -  [Function `public_key_to_bytes`](#0x1_validator_public_keys_public_key_to_bytes)
 -  [Function `get_network_key`](#0x1_validator_public_keys_get_network_key)
@@ -110,6 +118,30 @@ InternalPublicKeys consists of:
 
 </dd>
 <dt>
+<code>bls_threshold_bcft_validity_certificate_key: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>&gt;</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>bls_threshold_bcft_quorum_certificate_key: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>&gt;</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>bls_threshold_bcft_fallback_view_change_certificate_key: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>&gt;</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>bls_threshold_clan_majority_certificate_key: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>&gt;</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
 <code>class_group_key: <a href="../../supra-stdlib/doc/class_groups.md#0x1_class_groups_CGPublicKey">class_groups::CGPublicKey</a></code>
 </dt>
 <dd>
@@ -177,8 +209,54 @@ The size of a serialized bls12381 G1 public key, in bytes.
 
 
 
+<a id="0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE"></a>
+
+The integer should match the Rust enum value representation in <code><a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a></code>.
+n - f - c, given there are f Byzantine nodes and c crash-only nodes in the [Committee] with n >= 3f + 2c + 1 nodes.
+
+
+<pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE">CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE</a>: u8 = 5;
+</code></pre>
+
+
+
+<a id="0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM"></a>
+
+The integer should match the Rust enum value representation in <code><a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a></code>
+2f + c + 1, given there are f Byzantine nodes and c crash-only nodes in the [Committee] with n >= 3f + 2c + 1 nodes.
+
+
+<pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM">CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM</a>: u8 = 4;
+</code></pre>
+
+
+
+<a id="0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY"></a>
+
+The integer should match the Rust enum value representation in <code><a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a></code>.
+f+1, given there are f Byzantine nodes and c crash-only nodes in the [Committee] with n >= 3f + 2c + 1 nodes.
+
+
+<pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY">CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY</a>: u8 = 3;
+</code></pre>
+
+
+
+<a id="0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY"></a>
+
+The integer should match the Rust enum value representation in <code><a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a></code>.
+f+1, given there are f Byzantine nodes in the [Committee] with n >= 2f + 1 nodes.
+
+
+<pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY">CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY</a>: u8 = 6;
+</code></pre>
+
+
+
 <a id="0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_QUORUM"></a>
 
+The integer should match the Rust enum value representation in <code><a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a></code>.
+2f+1, given there are f Byzantine nodes in the [Committee] and n >= 3f + 1 nodes in total.
 
 
 <pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_QUORUM">CERTIFICATE_THRESHOLD_TYPE_QUORUM</a>: u8 = 1;
@@ -188,6 +266,8 @@ The size of a serialized bls12381 G1 public key, in bytes.
 
 <a id="0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS"></a>
 
+The integer should match the Rust enum value representation in <code><a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a></code>.
+n, where n is the total number of nodes in the [Committee].
 
 
 <pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS">CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS</a>: u8 = 2;
@@ -197,6 +277,8 @@ The size of a serialized bls12381 G1 public key, in bytes.
 
 <a id="0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_VALIDITY"></a>
 
+The integer should match the Rust enum value representation in <code><a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a></code>.
+f+1, given there are f Byzantine nodes in the [Committee].
 
 
 <pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_VALIDITY">CERTIFICATE_THRESHOLD_TYPE_VALIDITY</a>: u8 = 0;
@@ -290,6 +372,94 @@ Invalid consensus public key
 
 </details>
 
+<a id="0x1_validator_public_keys_bcft_validity_certificate_type"></a>
+
+## Function `bcft_validity_certificate_type`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_bcft_validity_certificate_type">bcft_validity_certificate_type</a>(): <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_bcft_validity_certificate_type">bcft_validity_certificate_type</a>(): <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a> { <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a> { tag: <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY">CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY</a> } }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_bcft_quorum_certificate_type"></a>
+
+## Function `bcft_quorum_certificate_type`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_bcft_quorum_certificate_type">bcft_quorum_certificate_type</a>(): <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_bcft_quorum_certificate_type">bcft_quorum_certificate_type</a>(): <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a> { <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a> { tag: <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM">CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM</a> } }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_bcft_fallback_view_change_certificate_type"></a>
+
+## Function `bcft_fallback_view_change_certificate_type`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_bcft_fallback_view_change_certificate_type">bcft_fallback_view_change_certificate_type</a>(): <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_bcft_fallback_view_change_certificate_type">bcft_fallback_view_change_certificate_type</a>(): <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a> { <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a> { tag: <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE">CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE</a> } }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_clan_majority_certificate_type"></a>
+
+## Function `clan_majority_certificate_type`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_clan_majority_certificate_type">clan_majority_certificate_type</a>(): <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_clan_majority_certificate_type">clan_majority_certificate_type</a>(): <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a> { <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a> { tag: <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY">CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY</a> } }
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_validator_public_keys_is_validity_certificate_type"></a>
 
 ## Function `is_validity_certificate_type`
@@ -350,6 +520,94 @@ Invalid consensus public key
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_is_unanimous_certificate_type">is_unanimous_certificate_type</a>(t: &<a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a>): bool { t.tag == <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS">CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS</a> }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_is_bcft_validity_certificate_type"></a>
+
+## Function `is_bcft_validity_certificate_type`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_is_bcft_validity_certificate_type">is_bcft_validity_certificate_type</a>(t: &<a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_is_bcft_validity_certificate_type">is_bcft_validity_certificate_type</a>(t: &<a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a>): bool { t.tag == <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY">CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY</a> }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_is_bcft_quorum_certificate_type"></a>
+
+## Function `is_bcft_quorum_certificate_type`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_is_bcft_quorum_certificate_type">is_bcft_quorum_certificate_type</a>(t: &<a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_is_bcft_quorum_certificate_type">is_bcft_quorum_certificate_type</a>(t: &<a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a>): bool { t.tag == <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM">CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM</a> }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_is_bcft_fallback_view_change_certificate_type"></a>
+
+## Function `is_bcft_fallback_view_change_certificate_type`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_is_bcft_fallback_view_change_certificate_type">is_bcft_fallback_view_change_certificate_type</a>(t: &<a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_is_bcft_fallback_view_change_certificate_type">is_bcft_fallback_view_change_certificate_type</a>(t: &<a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a>): bool { t.tag == <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE">CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE</a> }
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_is_clan_majority_certificate_type"></a>
+
+## Function `is_clan_majority_certificate_type`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_is_clan_majority_certificate_type">is_clan_majority_certificate_type</a>(t: &<a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_is_clan_majority_certificate_type">is_clan_majority_certificate_type</a>(t: &<a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a>): bool { t.tag == <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY">CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY</a> }
 </code></pre>
 
 
@@ -417,6 +675,34 @@ Invalid consensus public key
             = <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_from_bytes">bls12381::public_key_from_bytes</a>(
             <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a>(&bls_threshold_unanimous_key));
         <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&valid_bls_threshold_unanimous_key), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="validator_public_keys.md#0x1_validator_public_keys_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>));
+    };
+
+    // validate supra bls threshold bcft validity certificate key
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&<a href="validator_public_keys.md#0x1_validator_public_keys">validator_public_keys</a>.supra_keys.bls_threshold_bcft_validity_certificate_key)){
+        <b>let</b> bcft_validity_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys">validator_public_keys</a>.supra_keys.bls_threshold_bcft_validity_certificate_key);
+        <b>let</b> valid_bcft_validity_key = <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_from_bytes">bls12381::public_key_from_bytes</a>(<a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a>(&bcft_validity_key));
+        <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&valid_bcft_validity_key), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="validator_public_keys.md#0x1_validator_public_keys_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>));
+    };
+
+    // validate supra bls threshold bcft quorum certificate key
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&<a href="validator_public_keys.md#0x1_validator_public_keys">validator_public_keys</a>.supra_keys.bls_threshold_bcft_quorum_certificate_key)){
+        <b>let</b> bcft_quorum_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys">validator_public_keys</a>.supra_keys.bls_threshold_bcft_quorum_certificate_key);
+        <b>let</b> valid_bcft_quorum_key = <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_from_bytes">bls12381::public_key_from_bytes</a>(<a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a>(&bcft_quorum_key));
+        <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&valid_bcft_quorum_key), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="validator_public_keys.md#0x1_validator_public_keys_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>));
+    };
+
+    // validate supra bls threshold bcft fallback view change certificate key
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&<a href="validator_public_keys.md#0x1_validator_public_keys">validator_public_keys</a>.supra_keys.bls_threshold_bcft_fallback_view_change_certificate_key)){
+        <b>let</b> bcft_fallback_view_change_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys">validator_public_keys</a>.supra_keys.bls_threshold_bcft_fallback_view_change_certificate_key);
+        <b>let</b> valid_bcft_fallback_view_change_key = <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_from_bytes">bls12381::public_key_from_bytes</a>(<a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a>(&bcft_fallback_view_change_key));
+        <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&valid_bcft_fallback_view_change_key), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="validator_public_keys.md#0x1_validator_public_keys_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>));
+    };
+
+    // validate supra bls threshold clan majority certificate key
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&<a href="validator_public_keys.md#0x1_validator_public_keys">validator_public_keys</a>.supra_keys.bls_threshold_clan_majority_certificate_key)){
+        <b>let</b> clan_majority_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys">validator_public_keys</a>.supra_keys.bls_threshold_clan_majority_certificate_key);
+        <b>let</b> valid_clan_majority_key = <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_from_bytes">bls12381::public_key_from_bytes</a>(<a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a>(&clan_majority_key));
+        <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&valid_clan_majority_key), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="validator_public_keys.md#0x1_validator_public_keys_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>));
     };
 
     // validate supra class group key
