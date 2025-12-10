@@ -15,7 +15,7 @@ spec supra_framework::dkg {
         dealer_epoch: u64,
         randomness_seed: vector<u8>,
         dealer_committee: DkgCommittee,
-        target_committees: vector<DkgCommittee>
+        target_committees: vector<ReceiverCommittee>
     ) {
         aborts_if !exists<DKGState>(@supra_framework);
         aborts_if !exists<timestamp::CurrentTimeMicroseconds>(@supra_framework);

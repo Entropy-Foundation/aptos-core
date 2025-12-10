@@ -8,6 +8,7 @@
 -  [Struct `DkgCommitteeType`](#0x1_dkg_committee_DkgCommitteeType)
 -  [Struct `DkgNodeConfig`](#0x1_dkg_committee_DkgNodeConfig)
 -  [Struct `DkgCommittee`](#0x1_dkg_committee_DkgCommittee)
+-  [Struct `ReceiverCommittee`](#0x1_dkg_committee_ReceiverCommittee)
 -  [Constants](#@Constants_0)
 -  [Function `clan_committee_type`](#0x1_dkg_committee_clan_committee_type)
 -  [Function `tribe_committee_type`](#0x1_dkg_committee_tribe_committee_type)
@@ -20,6 +21,7 @@
 -  [Function `get_committee`](#0x1_dkg_committee_get_committee)
 -  [Function `new_dkg_committee`](#0x1_dkg_committee_new_dkg_committee)
 -  [Function `new_dkg_committee_from_validator_consensus_info`](#0x1_dkg_committee_new_dkg_committee_from_validator_consensus_info)
+-  [Function `new_receiver_committee`](#0x1_dkg_committee_new_receiver_committee)
 
 
 <pre><code><b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs">0x1::bcs</a>;
@@ -120,6 +122,39 @@ Internal tag wrapper
 </dd>
 <dt>
 <code>committee: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">dkg_committee::DkgNodeConfig</a>&gt;</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_dkg_committee_ReceiverCommittee"></a>
+
+## Struct `ReceiverCommittee`
+
+
+
+<pre><code><b>struct</b> <a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">ReceiverCommittee</a> <b>has</b> <b>copy</b>, drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>is_resharing: bool</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>committee: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a></code>
 </dt>
 <dd>
 
@@ -456,7 +491,34 @@ Internal tag wrapper
 
     <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">DkgCommittee</a>{
         type,
-        committee: <a href="dkg_committee.md#0x1_dkg_committee">dkg_committee</a>
+        committee: <a href="dkg_committee.md#0x1_dkg_committee">dkg_committee</a>,
+    }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_committee_new_receiver_committee"></a>
+
+## Function `new_receiver_committee`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_receiver_committee">new_receiver_committee</a>(is_resharing: bool, committee: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>): <a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">dkg_committee::ReceiverCommittee</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_receiver_committee">new_receiver_committee</a>(is_resharing: bool, committee: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">DkgCommittee</a>): <a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">ReceiverCommittee</a>{
+    <a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">ReceiverCommittee</a>{
+        is_resharing,
+        committee
     }
 }
 </code></pre>

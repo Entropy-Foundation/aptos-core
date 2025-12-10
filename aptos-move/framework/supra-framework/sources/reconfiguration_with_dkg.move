@@ -1,6 +1,6 @@
 /// Reconfiguration with DKG helper functions.
 module supra_framework::reconfiguration_with_dkg {
-    use std::dkg_committee::{new_dkg_committee_from_validator_consensus_info, tribe_committee_type};
+    use std::dkg_committee::{new_dkg_committee_from_validator_consensus_info, tribe_committee_type, new_receiver_committee};
     use std::features;
     use std::option;
     use supra_framework::automation_registry;
@@ -45,7 +45,12 @@ module supra_framework::reconfiguration_with_dkg {
             new_dkg_committee_from_validator_consensus_info(
                 tribe_committee_type(),
                 stake::cur_validator_consensus_infos()),
-            vector[new_dkg_committee_from_validator_consensus_info(tribe_committee_type(), stake::next_validator_consensus_infos())]
+            vector[
+                new_receiver_committee(
+                    false,
+                    new_dkg_committee_from_validator_consensus_info(
+                        tribe_committee_type(),
+                        stake::next_validator_consensus_infos()))]
         );
     }
 

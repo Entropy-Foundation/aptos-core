@@ -12,7 +12,6 @@ DKG on-chain states and helper functions.
 -  [Struct `DKGSessionMetadata`](#0x1_dkg_DKGSessionMetadata)
 -  [Struct `DKGSessionState`](#0x1_dkg_DKGSessionState)
 -  [Resource `DKGState`](#0x1_dkg_DKGState)
--  [Resource `DKGResharing`](#0x1_dkg_DKGResharing)
 -  [Struct `OnChainAggregateCommitment`](#0x1_dkg_OnChainAggregateCommitment)
 -  [Struct `OnChainAggregateCommitmentAllCommittees`](#0x1_dkg_OnChainAggregateCommitmentAllCommittees)
 -  [Constants](#@Constants_0)
@@ -169,7 +168,7 @@ This can be considered as the public input of DKG.
 
 </dd>
 <dt>
-<code>target_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>&gt;</code>
+<code>target_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">dkg_committee::ReceiverCommittee</a>&gt;</code>
 </dt>
 <dd>
 
@@ -251,35 +250,6 @@ The completed and in-progress DKG sessions.
 </dd>
 <dt>
 <code>in_progress: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="dkg.md#0x1_dkg_DKGSessionState">dkg::DKGSessionState</a>&gt;</code>
-</dt>
-<dd>
-
-</dd>
-</dl>
-
-
-</details>
-
-<a id="0x1_dkg_DKGResharing"></a>
-
-## Resource `DKGResharing`
-
-Flag indicating if the next DKG run should be a fresh instance or a resharing instance
-todo: add resharing as part of each receiver committee config
-
-
-<pre><code><b>struct</b> <a href="dkg.md#0x1_dkg_DKGResharing">DKGResharing</a> <b>has</b> key
-</code></pre>
-
-
-
-<details>
-<summary>Fields</summary>
-
-
-<dl>
-<dt>
-<code>is_resharing: bool</code>
 </dt>
 <dd>
 
@@ -429,16 +399,6 @@ Called in genesis to initialize on-chain states.
             }
         );
     };
-
-    //todo: add a function <b>to</b> set this flag
-    <b>if</b> (!<b>exists</b>&lt;<a href="dkg.md#0x1_dkg_DKGResharing">DKGResharing</a>&gt;(@supra_framework)) {
-        <b>move_to</b>&lt;<a href="dkg.md#0x1_dkg_DKGResharing">DKGResharing</a>&gt;(
-            supra_framework,
-            <a href="dkg.md#0x1_dkg_DKGResharing">DKGResharing</a> {
-                is_resharing: <b>false</b>,
-            }
-        );
-    }
 }
 </code></pre>
 
@@ -454,7 +414,7 @@ Mark on-chain DKG state as in-progress. Notify validators to start DKG.
 Abort if a DKG is already in progress.
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(dealer_epoch: u64, randomness_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, dealer_committee: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>, target_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>&gt;)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(dealer_epoch: u64, randomness_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, dealer_committee: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>, target_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">dkg_committee::ReceiverCommittee</a>&gt;)
 </code></pre>
 
 
@@ -467,7 +427,7 @@ Abort if a DKG is already in progress.
     dealer_epoch: u64,
     randomness_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
     dealer_committee: DkgCommittee,
-    target_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;DkgCommittee&gt;
+    target_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;ReceiverCommittee&gt;
 ) <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
     <b>let</b> dkg_state = <b>borrow_global_mut</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
     <b>let</b> new_session_metadata = <a href="dkg.md#0x1_dkg_DKGSessionMetadata">DKGSessionMetadata</a> {
@@ -727,7 +687,7 @@ Return the dealer epoch of a <code><a href="dkg.md#0x1_dkg_DKGSessionState">DKGS
 ### Function `start`
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(dealer_epoch: u64, randomness_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, dealer_committee: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>, target_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>&gt;)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_start">start</a>(dealer_epoch: u64, randomness_seed: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, dealer_committee: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>, target_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">dkg_committee::ReceiverCommittee</a>&gt;)
 </code></pre>
 
 

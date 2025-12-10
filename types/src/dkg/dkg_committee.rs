@@ -42,3 +42,19 @@ impl DkgCommittee {
         }
     }
 }
+
+/// Reflection of `0x1::dkg_committee::ReceiverCommittee` in rust.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Getters)]
+pub struct ReceiverCommittee {
+    is_resharing: bool,
+    committee: DkgCommittee,
+}
+
+impl ReceiverCommittee {
+    pub fn new(is_resharing: bool, committee: DkgCommittee) -> Self {
+        Self {
+            is_resharing,
+            committee,
+        }
+    }
+}

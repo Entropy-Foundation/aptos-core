@@ -32,6 +32,11 @@ module std::dkg_committee {
         committee: vector<DkgNodeConfig>,
     }
 
+    struct ReceiverCommittee has copy, drop, store {
+        is_resharing: bool,
+        committee: DkgCommittee,
+    }
+
     public fun new_dkg_node_config(addr: address, identity: vector<u8>, dkg_pubkey: vector<u8>,): DkgNodeConfig{
         DkgNodeConfig{
             addr,
@@ -95,7 +100,14 @@ module std::dkg_committee {
 
         DkgCommittee{
             type,
-            committee: dkg_committee
+            committee: dkg_committee,
+        }
+    }
+
+    public fun new_receiver_committee(is_resharing: bool, committee: DkgCommittee): ReceiverCommittee{
+        ReceiverCommittee{
+            is_resharing,
+            committee
         }
     }
 }

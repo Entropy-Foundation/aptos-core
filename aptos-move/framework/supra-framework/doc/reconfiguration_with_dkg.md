@@ -78,7 +78,12 @@ Do nothing if one is already in progress.
         new_dkg_committee_from_validator_consensus_info(
             tribe_committee_type(),
             <a href="stake.md#0x1_stake_cur_validator_consensus_infos">stake::cur_validator_consensus_infos</a>()),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[new_dkg_committee_from_validator_consensus_info(tribe_committee_type(), <a href="stake.md#0x1_stake_next_validator_consensus_infos">stake::next_validator_consensus_infos</a>())]
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
+            new_receiver_committee(
+                <b>false</b>,
+                new_dkg_committee_from_validator_consensus_info(
+                    tribe_committee_type(),
+                    <a href="stake.md#0x1_stake_next_validator_consensus_infos">stake::next_validator_consensus_infos</a>()))]
     );
 }
 </code></pre>

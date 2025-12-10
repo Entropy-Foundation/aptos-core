@@ -1,4 +1,7 @@
-use crate::{dkg::dkg_committee::DkgCommittee, on_chain_config::OnChainConfig};
+use crate::{
+    dkg::dkg_committee::{DkgCommittee, ReceiverCommittee},
+    on_chain_config::OnChainConfig,
+};
 use serde::{Deserialize, Serialize};
 
 // Reflection of `0x1::dkg::DKGSessionMetadata` in rust.
@@ -7,11 +10,11 @@ pub struct DKGSessionMetadata {
     pub dealer_epoch: u64,
     pub randomness_seed: Vec<u8>,
     pub dealer_committee: DkgCommittee,
-    pub target_committees: Vec<DkgCommittee>,
+    pub target_committees: Vec<ReceiverCommittee>,
 }
 
 impl DKGSessionMetadata {
-    pub fn target_committee_cloned(&self) -> Vec<DkgCommittee> {
+    pub fn target_committee_cloned(&self) -> Vec<ReceiverCommittee> {
         self.target_committees.clone()
     }
 
@@ -64,15 +67,4 @@ impl DKGState {
 impl OnChainConfig for DKGState {
     const MODULE_IDENTIFIER: &'static str = "dkg";
     const TYPE_IDENTIFIER: &'static str = "DKGState";
-}
-
-/// Reflection of Move type `0x1::dkg::DKGResharing`.
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
-pub struct DKGResharing {
-    pub is_resharing: bool,
-}
-
-impl OnChainConfig for DKGResharing {
-    const MODULE_IDENTIFIER: &'static str = "dkg";
-    const TYPE_IDENTIFIER: &'static str = "DKGResharing";
 }

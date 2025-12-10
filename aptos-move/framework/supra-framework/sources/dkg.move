@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Supra.
 /// DKG on-chain states and helper functions.
 module supra_framework::dkg {
-    use std::dkg_committee::{DkgCommittee};
+    use std::dkg_committee::{DkgCommittee, ReceiverCommittee, new_receiver_committee};
     use std::error;
     use std::option;
     use std::option::{Option};
@@ -48,7 +48,7 @@ module supra_framework::dkg {
         dealer_epoch: u64,
         randomness_seed: vector<u8>,
         dealer_committee: DkgCommittee,
-        target_committees: vector<DkgCommittee>,
+        target_committees: vector<ReceiverCommittee>,
     }
     
     /// The input and output of a DKG session.
@@ -64,12 +64,6 @@ module supra_framework::dkg {
     struct DKGState has key {
         last_completed: Option<DKGSessionState>,
         in_progress: Option<DKGSessionState>,
-    }
-
-    /// Flag indicating if the next DKG run should be a fresh instance or a resharing instance
-    /// todo: add resharing as part of each receiver committee config
-    struct DKGResharing has key {
-        is_resharing: bool,
     }
 
     struct OnChainAggregateCommitment has copy, drop{
@@ -95,16 +89,6 @@ module supra_framework::dkg {
                 }
             );
         };
-
-        //todo: add a function to set this flag
-        if (!exists<DKGResharing>(@supra_framework)) {
-            move_to<DKGResharing>(
-                supra_framework,
-                DKGResharing {
-                    is_resharing: false,
-                }
-            );
-        }
     }
 
     /// Mark on-chain DKG state as in-progress. Notify validators to start DKG.
@@ -113,7 +97,7 @@ module supra_framework::dkg {
         dealer_epoch: u64,
         randomness_seed: vector<u8>,
         dealer_committee: DkgCommittee,
-        target_committees: vector<DkgCommittee>
+        target_committees: vector<ReceiverCommittee>
     ) acquires DKGState {
         let dkg_state = borrow_global_mut<DKGState>(@supra_framework);
         let new_session_metadata = DKGSessionMetadata {
@@ -216,7 +200,7 @@ module supra_framework::dkg {
     }
 
     #[test_only]
-    fun test_setup(): (u64, vector<u8>, DkgCommittee, vector<DkgCommittee>, vector<u8>){
+    fun test_setup(): (u64, vector<u8>, DkgCommittee, vector<ReceiverCommittee>, vector<u8>){
 
         let epoch: u64 = 10;
         let randomness_seed = vector[1,2,3];
@@ -249,7 +233,7 @@ module supra_framework::dkg {
 
         let dkg_meta_all_committees = vector[1,2,3,4,5];
         let tribe_committee = new_dkg_committee(tribe_committee_type(), committee);
-        (epoch, randomness_seed, tribe_committee, vector[tribe_committee], dkg_meta_all_committees)
+        (epoch, randomness_seed, tribe_committee, vector[new_receiver_committee(false, tribe_committee)], dkg_meta_all_committees)
     }
 
     //----------------------------------------------------------------------------
