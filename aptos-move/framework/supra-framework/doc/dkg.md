@@ -299,6 +299,18 @@ The completed and in-progress DKG sessions.
 <dd>
 
 </dd>
+<dt>
+<code>epoch: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code><a href="chain_id.md#0x1_chain_id">chain_id</a>: u8</code>
+</dt>
+<dd>
+
+</dd>
 </dl>
 
 

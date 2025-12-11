@@ -71,6 +71,8 @@ module supra_framework::dkg {
         bls12381_commitment_evals: vector<vector<u8>>,
         dealer_ids: vector<u32>,
         committee_index: u32,
+        epoch: u64,
+        chain_id: u8,
     }
 
     struct OnChainAggregateCommitmentAllCommittees has copy, drop{
