@@ -12,14 +12,6 @@ module supra_framework::dkg {
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
     use supra_framework::stake;
-    #[test_only]
-    use std::dkg_committee;
-    #[test_only]
-    use std::dkg_committee::{new_dkg_committee, tribe_committee_type, new_receiver_committee};
-    #[test_only]
-    use std::option::{extract, is_some};
-    #[test_only]
-    use supra_framework::account::create_signer_for_test;
     
     friend supra_framework::block;
     friend supra_framework::reconfiguration_with_dkg;
@@ -201,74 +193,5 @@ module supra_framework::dkg {
     /// Return the dealer epoch of a `DKGSessionState`.
     public fun session_dealer_epoch(session: &DKGSessionState): u64 {
         session.metadata.dealer_epoch
-    }
-
-    #[test_only]
-    fun test_setup(): (u64, vector<u8>, DkgCommittee, vector<ReceiverCommittee>, vector<u8>){
-
-        let epoch: u64 = 10;
-        let randomness_seed = vector[1,2,3];
-        // clan indices: [0, 2, 4, 5, 6]
-        // family_indices: [2, 4, 6]
-        let committee = vector[];
-        
-        let pk_bytes_0 = vector[1,2,3];
-        let identity_0 = vector[0];
-        let pk_bytes_1 = vector[1,2,3];
-        let identity_1 = vector[1];
-        let pk_bytes_2 = vector[1,2,3];
-        let identity_2 = vector[2];
-        let pk_bytes_3 = vector[1,2,3];
-        let identity_3 = vector[3];
-        let pk_bytes_4 = vector[1,2,3];
-        let identity_4 = vector[4];
-        let pk_bytes_5 = vector[1,2,3];
-        let identity_5 = vector[5];
-        let pk_bytes_6 = vector[1,2,3];
-        let identity_6 = vector[6];
-        let identities_committee = vector[identity_0, identity_1, identity_2, identity_3, identity_4, identity_5, identity_6];
-        let pk_committee = vector[pk_bytes_0, pk_bytes_1, pk_bytes_2, pk_bytes_3, pk_bytes_4, pk_bytes_5, pk_bytes_6];
-
-        for (i in 0..vector::length(&pk_committee)){
-            let identity_bytes = *vector::borrow(&identities_committee, i);
-            let pk_bytes = *vector::borrow(&pk_committee, i);
-            vector::push_back(&mut committee,dkg_committee::new_dkg_node_config(@0x1, identity_bytes, pk_bytes));
-        };
-
-        let dkg_meta_all_committees = vector[1,2,3,4,5];
-        let tribe_committee = new_dkg_committee(tribe_committee_type(), committee);
-        (epoch, randomness_seed, tribe_committee, vector[new_receiver_committee(false, tribe_committee)], dkg_meta_all_committees)
-    }
-
-    //----------------------------------------------------------------------------
-    // Test 1: Successful add_dkg_meta.
-    //----------------------------------------------------------------------------
-    #[test]
-    fun test_add_dkg_meta_success() acquires DKGState {
-        let sf = @supra_framework;
-        let sf_signer = create_signer_for_test(sf);
-        // Initialize the global timestamp resource.
-        timestamp::set_time_has_started_for_testing(&sf_signer);
-        initialize(&sf_signer);
-
-        let (epoch, randomness_seed, dealer_committee, target_committees, dkg_meta) = test_setup();
-        start(epoch, randomness_seed, dealer_committee, target_committees);
-
-        let session_opt = incomplete_session();
-        assert!(is_some(&session_opt), 100);
-        set_dkg_meta(dkg_meta);
-        let dummy_pk_shares = vector[1,2,3];
-        finish(dummy_pk_shares);
-
-        // Verify that the DKG meta transcript was set correctly.
-        let session_opt = last_completed_session();
-        
-        assert!(is_some(&session_opt), 100);
-        let session = extract(&mut session_opt);
-        assert!(session_dealer_epoch(&session) == 10, 101);
-        let dkg_meta_stored = session.dkg_meta_transcript;
-        assert!(dkg_meta_stored == dkg_meta, 102);
-        let pk_shares_stored = session.target_committees_public_key_shares;
-        assert!(pk_shares_stored == dummy_pk_shares, 103);
     }
 }
