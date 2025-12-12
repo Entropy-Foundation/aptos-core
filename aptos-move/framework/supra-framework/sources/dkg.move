@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Supra.
 /// DKG on-chain states and helper functions.
 module supra_framework::dkg {
-    use std::dkg_committee::{DkgCommittee, ReceiverCommittee, new_receiver_committee};
+    use std::dkg_committee::{DkgCommittee, ReceiverCommittee};
     use std::error;
     use std::option;
     use std::option::{Option};
@@ -11,14 +11,16 @@ module supra_framework::dkg {
     use supra_framework::event::emit;
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
+    use supra_framework::stake;
     #[test_only]
     use std::dkg_committee;
     #[test_only]
-    use std::dkg_committee::{new_dkg_committee, tribe_committee_type};
+    use std::dkg_committee::{new_dkg_committee, tribe_committee_type, new_receiver_committee};
     #[test_only]
     use std::option::{extract, is_some};
     #[test_only]
     use supra_framework::account::create_signer_for_test;
+    
     friend supra_framework::block;
     friend supra_framework::reconfiguration_with_dkg;
 
@@ -80,7 +82,7 @@ module supra_framework::dkg {
     }
 
     /// Called in genesis to initialize on-chain states.
-    public fun initialize(supra_framework: &signer) {
+    public(friend) fun initialize(supra_framework: &signer) {
         system_addresses::assert_supra_framework(supra_framework);
         if (!exists<DKGState>(@supra_framework)) {
             move_to<DKGState>(
@@ -144,7 +146,7 @@ module supra_framework::dkg {
     /// Family Node sets the `target_committees_public_key_shares` for the in-progress DKG session and
     /// marks the incomplete DKG session completed.
     ///The `target_committees_public_key_shares` is assumed to be verified by the aptos VM before calling this function
-    public fun finish(target_committees_public_key_shares: vector<u8>)
+    public(friend) fun finish(target_committees_public_key_shares: vector<u8>)
     acquires DKGState {
         // ensure dkg is in progress
         let dkg_state = borrow_global_mut<DKGState>(@supra_framework);
@@ -158,12 +160,12 @@ module supra_framework::dkg {
         dkg_state.last_completed = option::some(session);
         dkg_state.in_progress = option::none();
 
-        //todo: propagate updated keys to stake.move, set quorum key for now. later may need to update the threshold representation
-        /*let public_key_shares_all_comms_serialized
+        // propagate updated keys to stake.move, set quorum key for now.
+        let public_key_shares_all_comms_serialized
             = any::new(type_info::type_name<OnChainAggregateCommitmentAllCommittees>(), target_committees_public_key_shares);
         let public_key_shares_all_comms = any::unpack<OnChainAggregateCommitmentAllCommittees>(public_key_shares_all_comms_serialized);
-        assert!(vector::length(&public_key_shares_all_comms.commitments) > 0, error::invalid_state(EDKG_INVALID_PK_SHARES));*/
-        
+        assert!(vector::length(&public_key_shares_all_comms.commitments) > 0, error::invalid_state(EDKG_INVALID_PK_SHARES));
+        stake::set_dkg_output_keys(vector::borrow(&public_key_shares_all_comms.commitments, 0).bls12381_commitment_evals);
         emit(DKGFinishEvent {
             target_committees_public_key_shares,
         });

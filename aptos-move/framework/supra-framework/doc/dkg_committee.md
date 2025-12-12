@@ -476,6 +476,9 @@ Internal tag wrapper
         <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&validator_committee) &gt; 3, <a href="dkg_committee.md#0x1_dkg_committee_EINVALID_DKG_COMMITTEE_SIZE">EINVALID_DKG_COMMITTEE_SIZE</a>);
     };
 
+    // The order of the committee members is important for DKG.
+    // The order should correspond <b>to</b> the order of the validator committee.
+    // The output of the DKG <b>has</b> keys in the same order <b>as</b> the committee.
     <b>let</b> <a href="dkg_committee.md#0x1_dkg_committee">dkg_committee</a> = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(validator_committee, |x|
         {

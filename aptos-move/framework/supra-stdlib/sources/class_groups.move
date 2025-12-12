@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Supra.
+// Copyright (c) 2025 Supra.
 module supra_std::class_groups {
 
     use std::option;

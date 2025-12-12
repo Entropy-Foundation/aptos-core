@@ -40,6 +40,7 @@ module supra_framework::stake {
     friend supra_framework::reconfiguration;
     friend supra_framework::reconfiguration_with_dkg;
     friend supra_framework::transaction_fee;
+    friend supra_framework::dkg;
 
     /// Validator Config not published.
     const EVALIDATOR_CONFIG: u64 = 1;
@@ -81,6 +82,8 @@ module supra_framework::stake {
     const EFEES_TABLE_ALREADY_EXISTS: u64 = 19;
     /// Validator set change temporarily disabled because of in-progress reconfiguration.
     const ERECONFIGURATION_IN_PROGRESS: u64 = 20;
+    /// Invalid DKG public key shares.
+    const EDKG_INVALID_PK_SHARES: u64 = 21;
 
     /// Validator status enum. We can switch to proper enum later once Move supports it.
     const VALIDATOR_STATUS_PENDING_ACTIVE: u64 = 1;
@@ -845,6 +848,56 @@ module supra_framework::stake {
                 new_consensus_pubkey,
             },
         );
+    }
+
+    public(friend) fun set_dkg_output_keys(
+        committee_bls_threshold_quorum_certificate_keys: vector<vector<u8>>,
+    ) acquires ValidatorConfig, ValidatorFees, ValidatorPerformance, ValidatorSet, StakePool {
+        let next_validator_infos = next_validator_consensus_infos();
+        let i = 0;
+        let len = vector::length(&next_validator_infos);
+        assert!(len == vector::length(&committee_bls_threshold_quorum_certificate_keys), error::invalid_argument(EDKG_INVALID_PK_SHARES));
+        while (i < len) {
+            let val_info = vector::borrow(&next_validator_infos, i);
+            let addr = validator_consensus_info::get_addr(val_info);
+            let key_bytes = vector::borrow(&committee_bls_threshold_quorum_certificate_keys, i);
+
+            // Deserialize new key
+            let key_opt = aptos_std::bls12381::public_key_from_bytes(*key_bytes);
+            assert!(option::is_some(&key_opt), error::invalid_argument(EINVALID_PUBLIC_KEY));
+            let new_key = option::extract(&mut key_opt);
+
+            let validator_config = borrow_global_mut<ValidatorConfig>(addr);
+            let old_consensus_pubkey = validator_config.consensus_pubkey;
+
+            // Update keys
+            let pub_keys = validator_public_keys::validator_public_keys_from_bytes(old_consensus_pubkey);
+            validator_public_keys::rotate_supra_bls_threshold_quorum_key(&mut pub_keys, new_key);
+            let new_consensus_pubkey = validator_public_keys::public_key_to_bytes(pub_keys);
+            validator_config.consensus_pubkey = new_consensus_pubkey;
+
+            // Emit events
+            let stake_pool = borrow_global_mut<StakePool>(addr);
+            if (std::features::module_event_migration_enabled()) {
+                event::emit(
+                    RotateConsensusKey {
+                        pool_address: addr,
+                        old_consensus_pubkey,
+                        new_consensus_pubkey,
+                    },
+                );
+            };
+            event::emit_event(
+                &mut stake_pool.rotate_consensus_key_events,
+                RotateConsensusKeyEvent {
+                    pool_address: addr,
+                    old_consensus_pubkey,
+                    new_consensus_pubkey,
+                },
+            );
+
+            i = i + 1;
+        };
     }
 
     /// Rotate the consensus key of the validator

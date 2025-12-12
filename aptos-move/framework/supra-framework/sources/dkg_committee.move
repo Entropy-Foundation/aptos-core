@@ -85,6 +85,9 @@ module std::dkg_committee {
             assert!(vector::length(&validator_committee) > 3, EINVALID_DKG_COMMITTEE_SIZE);
         };
 
+        // The order of the committee members is important for DKG.
+        // The order should correspond to the order of the validator committee.
+        // The output of the DKG has keys in the same order as the committee.
         let dkg_committee = vector[];
         vector::for_each(validator_committee, |x|
             {

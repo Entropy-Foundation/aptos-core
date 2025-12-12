@@ -2,12 +2,10 @@
 module supra_framework::validator_public_keys {
 
     use std::bcs;
-    use std::error;
     use std::option;
     use aptos_std::any;
     use aptos_std::bls12381;
     use aptos_std::ed25519;
-    use aptos_std::ed25519::validated_public_key_to_bytes;
     use aptos_std::type_info;
     use supra_std::class_groups;
     #[test_only]
@@ -56,9 +54,6 @@ module supra_framework::validator_public_keys {
     public fun is_bcft_fallback_view_change_certificate_type(t: &CertificateThresholdType): bool { t.tag == CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE }
     public fun is_clan_majority_certificate_type(t: &CertificateThresholdType): bool { t.tag == CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY }
 
-    /// Invalid consensus public key
-    const EINVALID_PUBLIC_KEY: u64 = 1;
-
     /// The size of a serialized ed25519 public key, in bytes.
     const ED25519_PUBLIC_KEY_NUM_BYTES: u64 = 32;
     /// The size of a serialized bls12381 G1 public key, in bytes.
@@ -71,8 +66,8 @@ module supra_framework::validator_public_keys {
     /// 4. ed25519 key
     struct InternalPublicKeys has copy, drop, store {
         bls_multisig_key: bls12381::PublicKey,
-        bls_threshold_validity_certificate_key: option::Option<bls12381::PublicKey>, // f+1 threshold
-        bls_threshold_quorum_certificate_key: option::Option<bls12381::PublicKey>, // 2f+1 threshold
+        bls_threshold_validity_certificate_key: option::Option<bls12381::PublicKey>,
+        bls_threshold_quorum_certificate_key: option::Option<bls12381::PublicKey>,
         bls_threshold_unanimous_certificate_key: option::Option<bls12381::PublicKey>,
         bls_threshold_bcft_validity_certificate_key: option::Option<bls12381::PublicKey>,
         bls_threshold_bcft_quorum_certificate_key: option::Option<bls12381::PublicKey>,
@@ -111,87 +106,6 @@ module supra_framework::validator_public_keys {
         // bcs deserialization
         let bytes_serialized = any::new(type_info::type_name<ValidatorPublicKeys>(), bytes);
         let validator_public_keys = any::unpack<ValidatorPublicKeys>(bytes_serialized);
-
-        // validate network ed25519 key
-        let valid_network_key
-            = ed25519::new_validated_public_key_from_bytes(
-            validated_public_key_to_bytes(&validator_public_keys.network_key));
-        assert!(option::is_some(&valid_network_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
-
-        // validate supra bls multi_sig key
-        let valid_bls_multi_sig_key
-            = bls12381::public_key_from_bytes(
-            bls12381::public_key_to_bytes(&validator_public_keys.supra_keys.bls_multisig_key));
-        assert!(option::is_some(&valid_bls_multi_sig_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
-
-        // validate supra bls threshold validity certificate key
-        if (option::is_some(&validator_public_keys.supra_keys.bls_threshold_validity_certificate_key)){
-            let bls_threshold_validity_key
-                = option::extract(&mut validator_public_keys.supra_keys.bls_threshold_validity_certificate_key);
-            let valid_bls_threshold_validity_key
-                = bls12381::public_key_from_bytes(
-                bls12381::public_key_to_bytes(&bls_threshold_validity_key));
-            assert!(option::is_some(&valid_bls_threshold_validity_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
-        };
-
-        // validate supra bls threshold quorum certificate key
-        if (option::is_some(&validator_public_keys.supra_keys.bls_threshold_quorum_certificate_key)){
-            let bls_threshold_quorum_key
-                = option::extract(&mut validator_public_keys.supra_keys.bls_threshold_quorum_certificate_key);
-            let valid_bls_threshold_quorum_key
-                = bls12381::public_key_from_bytes(
-                bls12381::public_key_to_bytes(&bls_threshold_quorum_key));
-            assert!(option::is_some(&valid_bls_threshold_quorum_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
-        };
-
-        // validate supra bls threshold unanimous certificate key
-        if (option::is_some(&validator_public_keys.supra_keys.bls_threshold_unanimous_certificate_key)){
-            let bls_threshold_unanimous_key
-                = option::extract(&mut validator_public_keys.supra_keys.bls_threshold_unanimous_certificate_key);
-            let valid_bls_threshold_unanimous_key
-                = bls12381::public_key_from_bytes(
-                bls12381::public_key_to_bytes(&bls_threshold_unanimous_key));
-            assert!(option::is_some(&valid_bls_threshold_unanimous_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
-        };
-
-        // validate supra bls threshold bcft validity certificate key
-        if (option::is_some(&validator_public_keys.supra_keys.bls_threshold_bcft_validity_certificate_key)){
-            let bcft_validity_key = option::extract(&mut validator_public_keys.supra_keys.bls_threshold_bcft_validity_certificate_key);
-            let valid_bcft_validity_key = bls12381::public_key_from_bytes(bls12381::public_key_to_bytes(&bcft_validity_key));
-            assert!(option::is_some(&valid_bcft_validity_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
-        };
-
-        // validate supra bls threshold bcft quorum certificate key
-        if (option::is_some(&validator_public_keys.supra_keys.bls_threshold_bcft_quorum_certificate_key)){
-            let bcft_quorum_key = option::extract(&mut validator_public_keys.supra_keys.bls_threshold_bcft_quorum_certificate_key);
-            let valid_bcft_quorum_key = bls12381::public_key_from_bytes(bls12381::public_key_to_bytes(&bcft_quorum_key));
-            assert!(option::is_some(&valid_bcft_quorum_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
-        };
-
-        // validate supra bls threshold bcft fallback view change certificate key
-        if (option::is_some(&validator_public_keys.supra_keys.bls_threshold_bcft_fallback_view_change_certificate_key)){
-            let bcft_fallback_view_change_key = option::extract(&mut validator_public_keys.supra_keys.bls_threshold_bcft_fallback_view_change_certificate_key);
-            let valid_bcft_fallback_view_change_key = bls12381::public_key_from_bytes(bls12381::public_key_to_bytes(&bcft_fallback_view_change_key));
-            assert!(option::is_some(&valid_bcft_fallback_view_change_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
-        };
-
-        // validate supra bls threshold clan majority certificate key
-        if (option::is_some(&validator_public_keys.supra_keys.bls_threshold_clan_majority_certificate_key)){
-            let clan_majority_key = option::extract(&mut validator_public_keys.supra_keys.bls_threshold_clan_majority_certificate_key);
-            let valid_clan_majority_key = bls12381::public_key_from_bytes(bls12381::public_key_to_bytes(&clan_majority_key));
-            assert!(option::is_some(&valid_clan_majority_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
-        };
-
-        // validate supra class group key
-        let valid_cg_public_key = class_groups::public_key_from_bytes(
-            class_groups::public_key_to_bytes(&validator_public_keys.supra_keys.class_group_key));
-        assert!(option::is_some(&valid_cg_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
-
-        let valid_supra_ed_key =
-            ed25519::new_validated_public_key_from_bytes(
-                validated_public_key_to_bytes(&validator_public_keys.supra_keys.ed25519_key));
-        assert!(option::is_some(&valid_supra_ed_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
-
         validator_public_keys
     }
 
@@ -214,6 +128,10 @@ module supra_framework::validator_public_keys {
 
     public fun get_supra_ed_key(pk: &ValidatorPublicKeys): ed25519::ValidatedPublicKey{
         pk.supra_keys.ed25519_key
+    }
+
+    public fun rotate_supra_bls_threshold_quorum_key(pk: &mut ValidatorPublicKeys, new_bls_threshold_quorum_key: bls12381::PublicKey) {
+        pk.supra_keys.bls_threshold_quorum_certificate_key = option::some(new_bls_threshold_quorum_key);
     }
 
     #[test_only]
