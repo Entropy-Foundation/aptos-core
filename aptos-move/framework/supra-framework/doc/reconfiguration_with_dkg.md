@@ -38,6 +38,7 @@ Reconfiguration with DKG helper functions.
 <b>use</b> <a href="supra_config.md#0x1_supra_config">0x1::supra_config</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="validator_consensus_info.md#0x1_validator_consensus_info">0x1::validator_consensus_info</a>;
+<b>use</b> <a href="validator_public_keys.md#0x1_validator_public_keys">0x1::validator_public_keys</a>;
 <b>use</b> <a href="version.md#0x1_version">0x1::version</a>;
 </code></pre>
 
@@ -76,14 +77,14 @@ Do nothing if one is already in progress.
         cur_epoch,
         randomness_seed,
         new_dkg_committee_from_validator_consensus_info(
-            tribe_committee_type(),
-            <a href="stake.md#0x1_stake_cur_validator_consensus_infos">stake::cur_validator_consensus_infos</a>()),
+            <a href="stake.md#0x1_stake_cur_validator_consensus_infos">stake::cur_validator_consensus_infos</a>(),
+            quorum_certificate_type()),
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
             new_receiver_committee(
                 <b>false</b>,
                 new_dkg_committee_from_validator_consensus_info(
-                    tribe_committee_type(),
-                    <a href="stake.md#0x1_stake_next_validator_consensus_infos">stake::next_validator_consensus_infos</a>()))]
+                    <a href="stake.md#0x1_stake_next_validator_consensus_infos">stake::next_validator_consensus_infos</a>(),
+                    quorum_certificate_type()))]
     );
 }
 </code></pre>

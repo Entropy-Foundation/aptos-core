@@ -5,21 +5,9 @@ module std::dkg_committee {
     use std::vector;
     use supra_framework::validator_consensus_info;
     use supra_framework::validator_consensus_info::ValidatorConsensusInfo;
+    use supra_framework::validator_public_keys::CertificateThresholdType;
 
     const EINVALID_DKG_COMMITTEE_SIZE: u64 = 1;
-    const EINVALID_DKG_NODE_PUBLIC_KEY: u64 = 2;
-
-    const TYPE_CLAN: u8 = 0;
-    const TYPE_TRIBE: u8 = 1;
-
-    /// Internal tag wrapper
-    struct DkgCommitteeType has copy, drop, store { tag: u8 }
-
-    public fun clan_committee_type(): DkgCommitteeType { DkgCommitteeType { tag: TYPE_CLAN } }
-    public fun tribe_committee_type(): DkgCommitteeType { DkgCommitteeType { tag: TYPE_TRIBE } }
-
-    public fun is_clan_committee_type(t: &DkgCommitteeType): bool { t.tag == TYPE_CLAN }
-    public fun is_tribe_committee_type(t: &DkgCommitteeType): bool { t.tag == TYPE_TRIBE }
 
     struct DkgNodeConfig has copy, drop, store {
         addr: address,
@@ -28,8 +16,8 @@ module std::dkg_committee {
     }
 
     struct DkgCommittee has copy, drop, store {
-        type: DkgCommitteeType,
         committee: vector<DkgNodeConfig>,
+        threshold_type: CertificateThresholdType,
     }
 
     struct ReceiverCommittee has copy, drop, store {
@@ -61,29 +49,18 @@ module std::dkg_committee {
         dkg_committee.committee
     }
 
-    public fun new_dkg_committee(type: DkgCommitteeType, committee: vector<DkgNodeConfig>): DkgCommittee{
+    public fun new_dkg_committee(committee: vector<DkgNodeConfig>, threshold_type: CertificateThresholdType): DkgCommittee{
 
-        if(is_clan_committee_type(&type)){
-            assert!(vector::length(&committee) > 2, EINVALID_DKG_COMMITTEE_SIZE);
-        };
-        if(is_tribe_committee_type(&type)){
-            assert!(vector::length(&committee) > 3, EINVALID_DKG_COMMITTEE_SIZE);
-        };
-
+        assert!(vector::length(&committee) > 0, EINVALID_DKG_COMMITTEE_SIZE);
         DkgCommittee{
-            type,
-            committee
+            committee,
+            threshold_type
         }
     }
 
-    public fun new_dkg_committee_from_validator_consensus_info(type: DkgCommitteeType, validator_committee: vector<ValidatorConsensusInfo>): DkgCommittee{
+    public fun new_dkg_committee_from_validator_consensus_info(validator_committee: vector<ValidatorConsensusInfo>, threshold_type: CertificateThresholdType): DkgCommittee{
 
-        if(is_clan_committee_type(&type)){
-            assert!(vector::length(&validator_committee) > 2, EINVALID_DKG_COMMITTEE_SIZE);
-        };
-        if(is_tribe_committee_type(&type)){
-            assert!(vector::length(&validator_committee) > 3, EINVALID_DKG_COMMITTEE_SIZE);
-        };
+        assert!(vector::length(&validator_committee) > 0, EINVALID_DKG_COMMITTEE_SIZE);
 
         // The order of the committee members is important for DKG.
         // The order should correspond to the order of the validator committee.
@@ -102,8 +79,8 @@ module std::dkg_committee {
         );
 
         DkgCommittee{
-            type,
             committee: dkg_committee,
+            threshold_type
         }
     }
 

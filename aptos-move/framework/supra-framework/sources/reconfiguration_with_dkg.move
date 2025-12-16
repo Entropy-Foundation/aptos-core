@@ -1,6 +1,6 @@
 /// Reconfiguration with DKG helper functions.
 module supra_framework::reconfiguration_with_dkg {
-    use std::dkg_committee::{new_dkg_committee_from_validator_consensus_info, tribe_committee_type, new_receiver_committee};
+    use std::dkg_committee::{new_dkg_committee_from_validator_consensus_info, new_receiver_committee};
     use std::features;
     use std::option;
     use supra_framework::automation_registry;
@@ -21,6 +21,7 @@ module supra_framework::reconfiguration_with_dkg {
     use supra_framework::supra_config;
     use supra_framework::system_addresses;
     use supra_framework::evm_genesis_config;
+    use supra_framework::validator_public_keys::quorum_certificate_type;
 
     friend supra_framework::block;
     friend supra_framework::supra_governance;
@@ -43,14 +44,14 @@ module supra_framework::reconfiguration_with_dkg {
             cur_epoch,
             randomness_seed,
             new_dkg_committee_from_validator_consensus_info(
-                tribe_committee_type(),
-                stake::cur_validator_consensus_infos()),
+                stake::cur_validator_consensus_infos(),
+                quorum_certificate_type()),
             vector[
                 new_receiver_committee(
                     false,
                     new_dkg_committee_from_validator_consensus_info(
-                        tribe_committee_type(),
-                        stake::next_validator_consensus_infos()))]
+                        stake::next_validator_consensus_infos(),
+                        quorum_certificate_type()))]
         );
     }
 

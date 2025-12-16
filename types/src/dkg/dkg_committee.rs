@@ -2,13 +2,6 @@ use derive_getters::Getters;
 use move_core_types::account_address::AccountAddress;
 use serde::{Deserialize, Serialize};
 
-/// Reflection of `0x1::types::DkgCommitteeType` in rust.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum DkgCommitteeType {
-    Clan,
-    Tribe,
-}
-
 /// Reflection of `0x1::dkg_committee::DkgNodeConfig` in rust.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Getters)]
 pub struct DkgNodeConfig {
@@ -30,15 +23,15 @@ impl DkgNodeConfig {
 /// Reflection of `0x1::dkg_committee::DkgCommittee` in rust.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Getters)]
 pub struct DkgCommittee {
-    committee_type: DkgCommitteeType,
     committee: Vec<DkgNodeConfig>,
+    threshold_type: u8,
 }
 
 impl DkgCommittee {
-    pub fn new(committee_type: DkgCommitteeType, committee: Vec<DkgNodeConfig>) -> Self {
+    pub fn new(committee: Vec<DkgNodeConfig>, threshold_type: u8) -> Self {
         Self {
-            committee_type,
             committee,
+            threshold_type,
         }
     }
 }

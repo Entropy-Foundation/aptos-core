@@ -5,15 +5,10 @@
 
 
 
--  [Struct `DkgCommitteeType`](#0x1_dkg_committee_DkgCommitteeType)
 -  [Struct `DkgNodeConfig`](#0x1_dkg_committee_DkgNodeConfig)
 -  [Struct `DkgCommittee`](#0x1_dkg_committee_DkgCommittee)
 -  [Struct `ReceiverCommittee`](#0x1_dkg_committee_ReceiverCommittee)
 -  [Constants](#@Constants_0)
--  [Function `clan_committee_type`](#0x1_dkg_committee_clan_committee_type)
--  [Function `tribe_committee_type`](#0x1_dkg_committee_tribe_committee_type)
--  [Function `is_clan_committee_type`](#0x1_dkg_committee_is_clan_committee_type)
--  [Function `is_tribe_committee_type`](#0x1_dkg_committee_is_tribe_committee_type)
 -  [Function `new_dkg_node_config`](#0x1_dkg_committee_new_dkg_node_config)
 -  [Function `get_addr`](#0x1_dkg_committee_get_addr)
 -  [Function `get_dkg_pubkey`](#0x1_dkg_committee_get_dkg_pubkey)
@@ -26,38 +21,11 @@
 
 <pre><code><b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs">0x1::bcs</a>;
 <b>use</b> <a href="validator_consensus_info.md#0x1_validator_consensus_info">0x1::validator_consensus_info</a>;
+<b>use</b> <a href="validator_public_keys.md#0x1_validator_public_keys">0x1::validator_public_keys</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 </code></pre>
 
 
-
-<a id="0x1_dkg_committee_DkgCommitteeType"></a>
-
-## Struct `DkgCommitteeType`
-
-Internal tag wrapper
-
-
-<pre><code><b>struct</b> <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">DkgCommitteeType</a> <b>has</b> <b>copy</b>, drop, store
-</code></pre>
-
-
-
-<details>
-<summary>Fields</summary>
-
-
-<dl>
-<dt>
-<code>tag: u8</code>
-</dt>
-<dd>
-
-</dd>
-</dl>
-
-
-</details>
 
 <a id="0x1_dkg_committee_DkgNodeConfig"></a>
 
@@ -115,13 +83,13 @@ Internal tag wrapper
 
 <dl>
 <dt>
-<code>type: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">dkg_committee::DkgCommitteeType</a></code>
+<code>committee: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">dkg_committee::DkgNodeConfig</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>committee: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">dkg_committee::DkgNodeConfig</a>&gt;</code>
+<code>threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a></code>
 </dt>
 <dd>
 
@@ -177,121 +145,6 @@ Internal tag wrapper
 </code></pre>
 
 
-
-<a id="0x1_dkg_committee_EINVALID_DKG_NODE_PUBLIC_KEY"></a>
-
-
-
-<pre><code><b>const</b> <a href="dkg_committee.md#0x1_dkg_committee_EINVALID_DKG_NODE_PUBLIC_KEY">EINVALID_DKG_NODE_PUBLIC_KEY</a>: u64 = 2;
-</code></pre>
-
-
-
-<a id="0x1_dkg_committee_TYPE_CLAN"></a>
-
-
-
-<pre><code><b>const</b> <a href="dkg_committee.md#0x1_dkg_committee_TYPE_CLAN">TYPE_CLAN</a>: u8 = 0;
-</code></pre>
-
-
-
-<a id="0x1_dkg_committee_TYPE_TRIBE"></a>
-
-
-
-<pre><code><b>const</b> <a href="dkg_committee.md#0x1_dkg_committee_TYPE_TRIBE">TYPE_TRIBE</a>: u8 = 1;
-</code></pre>
-
-
-
-<a id="0x1_dkg_committee_clan_committee_type"></a>
-
-## Function `clan_committee_type`
-
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_clan_committee_type">clan_committee_type</a>(): <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">dkg_committee::DkgCommitteeType</a>
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_clan_committee_type">clan_committee_type</a>(): <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">DkgCommitteeType</a> { <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">DkgCommitteeType</a> { tag: <a href="dkg_committee.md#0x1_dkg_committee_TYPE_CLAN">TYPE_CLAN</a> } }
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_dkg_committee_tribe_committee_type"></a>
-
-## Function `tribe_committee_type`
-
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_tribe_committee_type">tribe_committee_type</a>(): <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">dkg_committee::DkgCommitteeType</a>
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_tribe_committee_type">tribe_committee_type</a>(): <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">DkgCommitteeType</a> { <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">DkgCommitteeType</a> { tag: <a href="dkg_committee.md#0x1_dkg_committee_TYPE_TRIBE">TYPE_TRIBE</a> } }
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_dkg_committee_is_clan_committee_type"></a>
-
-## Function `is_clan_committee_type`
-
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_is_clan_committee_type">is_clan_committee_type</a>(t: &<a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">dkg_committee::DkgCommitteeType</a>): bool
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_is_clan_committee_type">is_clan_committee_type</a>(t: &<a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">DkgCommitteeType</a>): bool { t.tag == <a href="dkg_committee.md#0x1_dkg_committee_TYPE_CLAN">TYPE_CLAN</a> }
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_dkg_committee_is_tribe_committee_type"></a>
-
-## Function `is_tribe_committee_type`
-
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_is_tribe_committee_type">is_tribe_committee_type</a>(t: &<a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">dkg_committee::DkgCommitteeType</a>): bool
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_is_tribe_committee_type">is_tribe_committee_type</a>(t: &<a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">DkgCommitteeType</a>): bool { t.tag == <a href="dkg_committee.md#0x1_dkg_committee_TYPE_TRIBE">TYPE_TRIBE</a> }
-</code></pre>
-
-
-
-</details>
 
 <a id="0x1_dkg_committee_new_dkg_node_config"></a>
 
@@ -423,7 +276,7 @@ Internal tag wrapper
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_dkg_committee">new_dkg_committee</a>(type: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">dkg_committee::DkgCommitteeType</a>, committee: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">dkg_committee::DkgNodeConfig</a>&gt;): <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_dkg_committee">new_dkg_committee</a>(committee: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">dkg_committee::DkgNodeConfig</a>&gt;, threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>): <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>
 </code></pre>
 
 
@@ -432,18 +285,12 @@ Internal tag wrapper
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_dkg_committee">new_dkg_committee</a>(type: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">DkgCommitteeType</a>, committee: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">DkgNodeConfig</a>&gt;): <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">DkgCommittee</a>{
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_dkg_committee">new_dkg_committee</a>(committee: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_DkgNodeConfig">DkgNodeConfig</a>&gt;, threshold_type: CertificateThresholdType): <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">DkgCommittee</a>{
 
-    <b>if</b>(<a href="dkg_committee.md#0x1_dkg_committee_is_clan_committee_type">is_clan_committee_type</a>(&type)){
-        <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&committee) &gt; 2, <a href="dkg_committee.md#0x1_dkg_committee_EINVALID_DKG_COMMITTEE_SIZE">EINVALID_DKG_COMMITTEE_SIZE</a>);
-    };
-    <b>if</b>(<a href="dkg_committee.md#0x1_dkg_committee_is_tribe_committee_type">is_tribe_committee_type</a>(&type)){
-        <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&committee) &gt; 3, <a href="dkg_committee.md#0x1_dkg_committee_EINVALID_DKG_COMMITTEE_SIZE">EINVALID_DKG_COMMITTEE_SIZE</a>);
-    };
-
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&committee) &gt; 0, <a href="dkg_committee.md#0x1_dkg_committee_EINVALID_DKG_COMMITTEE_SIZE">EINVALID_DKG_COMMITTEE_SIZE</a>);
     <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">DkgCommittee</a>{
-        type,
-        committee
+        committee,
+        threshold_type
     }
 }
 </code></pre>
@@ -458,7 +305,7 @@ Internal tag wrapper
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_dkg_committee_from_validator_consensus_info">new_dkg_committee_from_validator_consensus_info</a>(type: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">dkg_committee::DkgCommitteeType</a>, validator_committee: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;): <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_dkg_committee_from_validator_consensus_info">new_dkg_committee_from_validator_consensus_info</a>(validator_committee: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;, threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>): <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>
 </code></pre>
 
 
@@ -467,14 +314,9 @@ Internal tag wrapper
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_dkg_committee_from_validator_consensus_info">new_dkg_committee_from_validator_consensus_info</a>(type: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeType">DkgCommitteeType</a>, validator_committee: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;ValidatorConsensusInfo&gt;): <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">DkgCommittee</a>{
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_dkg_committee_from_validator_consensus_info">new_dkg_committee_from_validator_consensus_info</a>(validator_committee: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;ValidatorConsensusInfo&gt;, threshold_type: CertificateThresholdType): <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">DkgCommittee</a>{
 
-    <b>if</b>(<a href="dkg_committee.md#0x1_dkg_committee_is_clan_committee_type">is_clan_committee_type</a>(&type)){
-        <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&validator_committee) &gt; 2, <a href="dkg_committee.md#0x1_dkg_committee_EINVALID_DKG_COMMITTEE_SIZE">EINVALID_DKG_COMMITTEE_SIZE</a>);
-    };
-    <b>if</b>(<a href="dkg_committee.md#0x1_dkg_committee_is_tribe_committee_type">is_tribe_committee_type</a>(&type)){
-        <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&validator_committee) &gt; 3, <a href="dkg_committee.md#0x1_dkg_committee_EINVALID_DKG_COMMITTEE_SIZE">EINVALID_DKG_COMMITTEE_SIZE</a>);
-    };
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&validator_committee) &gt; 0, <a href="dkg_committee.md#0x1_dkg_committee_EINVALID_DKG_COMMITTEE_SIZE">EINVALID_DKG_COMMITTEE_SIZE</a>);
 
     // The order of the committee members is important for DKG.
     // The order should correspond <b>to</b> the order of the validator committee.
@@ -493,8 +335,8 @@ Internal tag wrapper
     );
 
     <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">DkgCommittee</a>{
-        type,
         committee: <a href="dkg_committee.md#0x1_dkg_committee">dkg_committee</a>,
+        threshold_type
     }
 }
 </code></pre>
