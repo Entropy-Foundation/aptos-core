@@ -21,7 +21,7 @@ module supra_framework::reconfiguration_with_dkg {
     use supra_framework::supra_config;
     use supra_framework::system_addresses;
     use supra_framework::evm_genesis_config;
-    use supra_framework::validator_public_keys::quorum_certificate_type;
+    use supra_framework::validator_public_keys::{quorum_certificate_type, validity_certificate_type};
 
     friend supra_framework::block;
     friend supra_framework::supra_governance;
@@ -40,6 +40,7 @@ module supra_framework::reconfiguration_with_dkg {
         let cur_epoch = reconfiguration::current_epoch();
         let randomness_seed = randomness::bytes(32);
 
+        // DKG for: 1. Validity and 2. Quorum threshold keys
         dkg::start(
             cur_epoch,
             randomness_seed,
@@ -47,6 +48,11 @@ module supra_framework::reconfiguration_with_dkg {
                 stake::cur_validator_consensus_infos(),
                 quorum_certificate_type()),
             vector[
+                new_receiver_committee(
+                    false,
+                    new_dkg_committee_from_validator_consensus_info(
+                        stake::next_validator_consensus_infos(),
+                        validity_certificate_type())),
                 new_receiver_committee(
                     false,
                     new_dkg_committee_from_validator_consensus_info(

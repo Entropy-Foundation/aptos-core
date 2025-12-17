@@ -542,12 +542,13 @@ The <code>target_committees_public_key_shares</code> is assumed to be verified b
     dkg_state.last_completed = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(session);
     dkg_state.in_progress = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>();
 
-    // propagate updated keys <b>to</b> <a href="stake.md#0x1_stake">stake</a>.<b>move</b>, set quorum key for now.
+    // propagate updated keys <b>to</b> <a href="stake.md#0x1_stake">stake</a>.<b>move</b>, set validity and quorum keys for now.
     <b>let</b> public_key_shares_all_comms_serialized
         = <a href="../../aptos-stdlib/doc/any.md#0x1_any_new">any::new</a>(<a href="../../aptos-stdlib/doc/type_info.md#0x1_type_info_type_name">type_info::type_name</a>&lt;<a href="dkg.md#0x1_dkg_OnChainAggregateCommitmentAllCommittees">OnChainAggregateCommitmentAllCommittees</a>&gt;(), target_committees_public_key_shares);
     <b>let</b> public_key_shares_all_comms = <a href="../../aptos-stdlib/doc/any.md#0x1_any_unpack">any::unpack</a>&lt;<a href="dkg.md#0x1_dkg_OnChainAggregateCommitmentAllCommittees">OnChainAggregateCommitmentAllCommittees</a>&gt;(public_key_shares_all_comms_serialized);
-    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&public_key_shares_all_comms.commitments) &gt; 0, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="dkg.md#0x1_dkg_EDKG_INVALID_PK_SHARES">EDKG_INVALID_PK_SHARES</a>));
-    <a href="stake.md#0x1_stake_set_dkg_output_keys">stake::set_dkg_output_keys</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&public_key_shares_all_comms.commitments, 0).bls12381_commitment_evals);
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&public_key_shares_all_comms.commitments) &gt;= 2, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="dkg.md#0x1_dkg_EDKG_INVALID_PK_SHARES">EDKG_INVALID_PK_SHARES</a>));
+    <a href="stake.md#0x1_stake_set_dkg_output_keys">stake::set_dkg_output_keys</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&public_key_shares_all_comms.commitments, 0).bls12381_commitment_evals,
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&public_key_shares_all_comms.commitments, 1).bls12381_commitment_evals);
     emit(<a href="dkg.md#0x1_dkg_DKGFinishEvent">DKGFinishEvent</a> {
         target_committees_public_key_shares,
     });

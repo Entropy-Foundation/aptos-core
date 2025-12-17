@@ -29,6 +29,7 @@
 -  [Function `get_supra_bls_multi_sig_pub_key`](#0x1_validator_public_keys_get_supra_bls_multi_sig_pub_key)
 -  [Function `get_supra_cg_key`](#0x1_validator_public_keys_get_supra_cg_key)
 -  [Function `get_supra_ed_key`](#0x1_validator_public_keys_get_supra_ed_key)
+-  [Function `rotate_supra_bls_threshold_validity_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_validity_key)
 -  [Function `rotate_supra_bls_threshold_quorum_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_quorum_key)
 
 
@@ -746,6 +747,30 @@ The size of a serialized ed25519 public key, in bytes.
 
 <pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_get_supra_ed_key">get_supra_ed_key</a>(pk: &<a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">ValidatorPublicKeys</a>): <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519_ValidatedPublicKey">ed25519::ValidatedPublicKey</a>{
     pk.supra_keys.ed25519_key
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_rotate_supra_bls_threshold_validity_key"></a>
+
+## Function `rotate_supra_bls_threshold_validity_key`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_validity_key">rotate_supra_bls_threshold_validity_key</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">validator_public_keys::ValidatorPublicKeys</a>, new_bls_threshold_validity_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_validity_key">rotate_supra_bls_threshold_validity_key</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">ValidatorPublicKeys</a>, new_bls_threshold_validity_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>) {
+    pk.supra_keys.bls_threshold_validity_certificate_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(new_bls_threshold_validity_key);
 }
 </code></pre>
 

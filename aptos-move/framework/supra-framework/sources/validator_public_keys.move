@@ -130,6 +130,10 @@ module supra_framework::validator_public_keys {
         pk.supra_keys.ed25519_key
     }
 
+    public fun rotate_supra_bls_threshold_validity_key(pk: &mut ValidatorPublicKeys, new_bls_threshold_validity_key: bls12381::PublicKey) {
+        pk.supra_keys.bls_threshold_validity_certificate_key = option::some(new_bls_threshold_validity_key);
+    }
+
     public fun rotate_supra_bls_threshold_quorum_key(pk: &mut ValidatorPublicKeys, new_bls_threshold_quorum_key: bls12381::PublicKey) {
         pk.supra_keys.bls_threshold_quorum_certificate_key = option::some(new_bls_threshold_quorum_key);
     }

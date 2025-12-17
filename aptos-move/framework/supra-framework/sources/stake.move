@@ -851,28 +851,37 @@ module supra_framework::stake {
     }
 
     public(friend) fun set_dkg_output_keys(
+        committee_bls_threshold_validity_certificate_keys: vector<vector<u8>>,
         committee_bls_threshold_quorum_certificate_keys: vector<vector<u8>>,
     ) acquires ValidatorConfig, ValidatorFees, ValidatorPerformance, ValidatorSet, StakePool {
         let next_validator_infos = next_validator_consensus_infos();
         let i = 0;
         let len = vector::length(&next_validator_infos);
+        assert!(len == vector::length(&committee_bls_threshold_validity_certificate_keys), error::invalid_argument(EDKG_INVALID_PK_SHARES));
         assert!(len == vector::length(&committee_bls_threshold_quorum_certificate_keys), error::invalid_argument(EDKG_INVALID_PK_SHARES));
         while (i < len) {
             let val_info = vector::borrow(&next_validator_infos, i);
             let addr = validator_consensus_info::get_addr(val_info);
-            let key_bytes = vector::borrow(&committee_bls_threshold_quorum_certificate_keys, i);
+            let validity_key_bytes = vector::borrow(&committee_bls_threshold_validity_certificate_keys, i);
+            let quorum_key_bytes = vector::borrow(&committee_bls_threshold_quorum_certificate_keys, i);
 
-            // Deserialize new key
-            let key_opt = aptos_std::bls12381::public_key_from_bytes(*key_bytes);
-            assert!(option::is_some(&key_opt), error::invalid_argument(EINVALID_PUBLIC_KEY));
-            let new_key = option::extract(&mut key_opt);
+            // Deserialize new validity key
+            let validity_key_opt = aptos_std::bls12381::public_key_from_bytes(*validity_key_bytes);
+            assert!(option::is_some(&validity_key_opt), error::invalid_argument(EINVALID_PUBLIC_KEY));
+            let new_validity_key = option::extract(&mut validity_key_opt);
+
+            // Deserialize new quorum key
+            let quorum_key_opt = aptos_std::bls12381::public_key_from_bytes(*quorum_key_bytes);
+            assert!(option::is_some(&quorum_key_opt), error::invalid_argument(EINVALID_PUBLIC_KEY));
+            let new_quorum_key = option::extract(&mut quorum_key_opt);
 
             let validator_config = borrow_global_mut<ValidatorConfig>(addr);
             let old_consensus_pubkey = validator_config.consensus_pubkey;
 
             // Update keys
             let pub_keys = validator_public_keys::validator_public_keys_from_bytes(old_consensus_pubkey);
-            validator_public_keys::rotate_supra_bls_threshold_quorum_key(&mut pub_keys, new_key);
+            validator_public_keys::rotate_supra_bls_threshold_validity_key(&mut pub_keys, new_validity_key);
+            validator_public_keys::rotate_supra_bls_threshold_quorum_key(&mut pub_keys, new_quorum_key);
             let new_consensus_pubkey = validator_public_keys::public_key_to_bytes(pub_keys);
             validator_config.consensus_pubkey = new_consensus_pubkey;
 

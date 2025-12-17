@@ -73,6 +73,7 @@ Do nothing if one is already in progress.
     <b>let</b> cur_epoch = <a href="reconfiguration.md#0x1_reconfiguration_current_epoch">reconfiguration::current_epoch</a>();
     <b>let</b> randomness_seed = <a href="randomness.md#0x1_randomness_bytes">randomness::bytes</a>(32);
 
+    // DKG for: 1. Validity and 2. Quorum threshold keys
     <a href="dkg.md#0x1_dkg_start">dkg::start</a>(
         cur_epoch,
         randomness_seed,
@@ -80,6 +81,11 @@ Do nothing if one is already in progress.
             <a href="stake.md#0x1_stake_cur_validator_consensus_infos">stake::cur_validator_consensus_infos</a>(),
             quorum_certificate_type()),
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
+            new_receiver_committee(
+                <b>false</b>,
+                new_dkg_committee_from_validator_consensus_info(
+                    <a href="stake.md#0x1_stake_next_validator_consensus_infos">stake::next_validator_consensus_infos</a>(),
+                    validity_certificate_type())),
             new_receiver_committee(
                 <b>false</b>,
                 new_dkg_committee_from_validator_consensus_info(
