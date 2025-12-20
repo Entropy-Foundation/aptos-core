@@ -1088,10 +1088,10 @@ pub struct MovePackageDir {
     #[clap(long)]
     pub skip_attribute_checks: bool,
 
-    /// Do apply extended checks for Aptos (e.g. `#[view]` attribute) also on test code.
+    /// Do apply extended checks (e.g. `#[view]` attribute) also on test code.
     /// NOTE: this behavior will become the default in the future.
     /// See <https://github.com/aptos-labs/aptos-core/issues/10335>
-    #[clap(long, env = "APTOS_CHECK_TEST_CODE")]
+    #[clap(long, env = "SUPRA_CHECK_TEST_CODE")]
     pub check_test_code: bool,
 }
 
@@ -1969,9 +1969,10 @@ impl MultisigAccountWithSequenceNumber {
 
 #[derive(Clone, Debug, Parser)]
 pub struct TypeArgVec {
-    /// TypeTag arguments separated by spaces.
+    /// Type arguments for generic type parameters in Move functions, separated by spaces.
+    /// Commonly used to specify coin types, resource types, or other struct types.
     ///
-    /// Example: `u8 u16 u32 u64 u128 u256 bool address vector signer`
+    /// Example: `0x1::supra_coin::SupraCoin`
     #[clap(long, num_args = 0..)]
     pub(crate) type_args: Vec<MoveType>,
 }
