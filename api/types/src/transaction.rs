@@ -1152,6 +1152,7 @@ impl AutomationRegistrationParams {
         };
         Some(params_v1)
     }
+
     pub fn into_v2(self) -> Option<AutomationRegistrationParamsV2> {
         let AutomationRegistrationParams::V2(params_v2) = self else {
             return None;

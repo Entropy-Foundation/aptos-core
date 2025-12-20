@@ -4098,6 +4098,7 @@ dependencies = [
  "move-table-extension",
  "move-vm-runtime",
  "move-vm-types",
+ "nidkg_helper",
  "num-bigint 0.3.3",
  "num-derive",
  "num-traits",
@@ -4644,6 +4645,7 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8824ecca2e851cec16968d54a01dd372ef8f95b244fb84b84e70128be347c3c6"
 dependencies = [
+ "term 0.7.0",
  "term 0.7.0",
 ]
 
@@ -5757,6 +5759,7 @@ dependencies = [
  "camino",
  "cargo-platform",
  "semver 1.0.21",
+ "semver 1.0.21",
  "serde",
  "serde_json",
 ]
@@ -5769,6 +5772,7 @@ checksum = "2d886547e41f740c616ae73108f6eb70afe6d940c7bc697cb30f13daec073037"
 dependencies = [
  "camino",
  "cargo-platform",
+ "semver 1.0.21",
  "semver 1.0.21",
  "serde",
  "serde_json",
@@ -7842,6 +7846,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "failure"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d32e9bd16cc02eae7db7ef620b392808b89f6a5e16bb3497d159c6b92a0f4f86"
+dependencies = [
+ "backtrace",
+ "failure_derive",
+]
+
+[[package]]
+name = "failure_derive"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa4da3c766cd7a0db8242e326e9e4e081edd567072893ed320008189715366a4"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+ "synstructure",
+]
+
+[[package]]
 name = "fallible-iterator"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8663,8 +8689,10 @@ dependencies = [
  "nested",
  "once_cell",
  "pathdiff 0.2.1",
+ "pathdiff 0.2.1",
  "petgraph 0.6.4",
  "rayon",
+ "semver 1.0.21",
  "semver 1.0.21",
  "serde",
  "serde_json",
@@ -8684,6 +8712,7 @@ dependencies = [
  "cfg-if",
  "diffus",
  "guppy-workspace-hack",
+ "semver 1.0.21",
  "semver 1.0.21",
  "serde",
  "toml 0.5.11",
@@ -9542,6 +9571,15 @@ dependencies = [
 
 [[package]]
 name = "itertools"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f56a2d0bc861f9165be4eb3442afd3c236d8a98afd426f65d92324ae1091a484"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
@@ -9729,6 +9767,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kernel32-sys"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
+dependencies = [
+ "winapi 0.2.8",
+ "winapi-build",
+]
+
+[[package]]
 name = "kube"
 version = "0.65.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9831,6 +9879,7 @@ dependencies = [
  "regex",
  "regex-syntax 0.6.29",
  "string_cache",
+ "term 0.7.0",
  "term 0.7.0",
  "tiny-keccak",
  "unicode-xid",
@@ -10987,6 +11036,7 @@ dependencies = [
  "once_cell",
  "serde",
  "shell-words 1.1.0",
+ "shell-words 1.1.0",
  "simplelog",
  "tempfile",
  "toml 0.7.8",
@@ -11037,6 +11087,7 @@ dependencies = [
  "move-stackless-bytecode",
  "move-stackless-bytecode-test-utils",
  "serde",
+ "shell-words 1.1.0",
  "shell-words 1.1.0",
  "tempfile",
  "walkdir",
@@ -11474,6 +11525,28 @@ name = "new_debug_unreachable"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4a24736216ec316047a1fc4252e27dabb04218aa4a3f37c6e7ddbf1f9782b54"
+
+[[package]]
+name = "nidkg_helper"
+version = "0.4.0"
+source = "git+ssh://git@github.com/Entropy-Foundation/supra-common?tag=v0.21.5#e114ebd7c8e8cf9b198f7b9bffb403e336494055"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "bicycl",
+ "bincode",
+ "crypto 0.1.0 (git+ssh://git@github.com/Entropy-Foundation/crypto.git?rev=217382859edf6efa1dee109e0ee1a9e721dffb3e)",
+ "crypto 0.1.0 (git+ssh://git@github.com/Entropy-Foundation/crypto.git?rev=c8ecf28393ca2616e9d10ff6e8d7fb3cd4a79085)",
+ "hex",
+ "log",
+ "miracl_core_bls12381",
+ "miracl_core_bn_eth",
+ "rand 0.8.5",
+ "serde",
+ "thiserror",
+ "tiny-keccak",
+ "zeroize",
+]
 
 [[package]]
 name = "nix"
@@ -12191,6 +12264,12 @@ checksum = "a3bf70094d203e07844da868b634207e71bfab254fe713171fae9a6e751ccf31"
 
 [[package]]
 name = "pathdiff"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3bf70094d203e07844da868b634207e71bfab254fe713171fae9a6e751ccf31"
+
+[[package]]
+name = "pathdiff"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
@@ -12841,6 +12920,7 @@ dependencies = [
  "encode_unicode 1.0.0",
  "is-terminal",
  "lazy_static",
+ "term 0.7.0",
  "term 0.7.0",
  "unicode-width 0.1.11",
 ]
@@ -13866,6 +13946,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
 dependencies = [
  "semver 1.0.21",
+ "semver 1.0.21",
 ]
 
 [[package]]
@@ -14227,11 +14308,21 @@ dependencies = [
  "reqwest",
  "self-replace",
  "semver 1.0.21",
+ "semver 1.0.21",
  "serde_json",
  "tempfile",
  "urlencoding",
  "zip",
  "zipsign-api",
+]
+
+[[package]]
+name = "semver"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
+dependencies = [
+ "semver-parser",
 ]
 
 [[package]]
@@ -14251,6 +14342,12 @@ checksum = "b97ed7a9823b74f99c7742f5336af7be5ecd3eeafcb1507d1fa93347b1d589b0"
 dependencies = [
  "serde",
 ]
+
+[[package]]
+name = "semver-parser"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "semver-parser"
@@ -14624,6 +14721,12 @@ checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
 ]
+
+[[package]]
+name = "shell-words"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39acde55a154c4cd3ae048ac78cc21c25f3a0145e44111b523279113dce0d94a"
 
 [[package]]
 name = "shell-words"
@@ -15260,6 +15363,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "synstructure"
+version = "0.12.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f36bdaa60a83aca3921b5259d5400cbf5e90fc51931376a9bd4a0eb79aa7210f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+ "unicode-xid",
+]
+
+[[package]]
 name = "sysinfo"
 version = "0.28.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15393,6 +15508,16 @@ dependencies = [
 
 [[package]]
 name = "term"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa63644f74ce96fbeb9b794f66aff2a52d601cbd5e80f4b97123e3899f4570f1"
+dependencies = [
+ "kernel32-sys",
+ "winapi 0.2.8",
+]
+
+[[package]]
+name = "term"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c59df8ac95d96ff9bede18eb7300b0fda5e5d8d90960e76f8e14ae765eedbf1f"
@@ -15400,6 +15525,15 @@ dependencies = [
  "dirs-next",
  "rustversion",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "term-painter"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dcaa948f0e3e38470cd8dc8dcfe561a75c9e43f28075bb183845be2b9b3c08cf"
+dependencies = [
+ "term 0.4.6",
 ]
 
 [[package]]
@@ -15858,6 +15992,15 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "toml"
+version = "0.4.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "758664fc71a3a69038656bee8b6be6477d2a6c315a6b81f7081f591bffa4111f"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -16868,6 +17011,12 @@ dependencies = [
  "winapi-i686-pc-windows-gnu",
  "winapi-x86_64-pc-windows-gnu",
 ]
+
+[[package]]
+name = "winapi-build"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
 
 [[package]]
 name = "winapi-build"

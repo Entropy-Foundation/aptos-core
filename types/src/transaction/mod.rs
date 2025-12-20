@@ -58,7 +58,6 @@ pub mod webauthn;
 pub use self::block_epilogue::{BlockEndInfo, BlockEpiloguePayload};
 #[cfg(any(test, feature = "fuzzing"))]
 use crate::state_store::create_empty_sharded_state_updates;
-use crate::transaction::automation::AutomationRegistryRecord;
 use crate::{
     block_metadata_ext::BlockMetadataExt,
     contract_event::TransactionEvent,
@@ -67,7 +66,10 @@ use crate::{
     move_utils::MemberId,
     proof::accumulator::InMemoryEventAccumulator,
     serde_helper::vec_bytes,
-    transaction::{automated_transaction::AutomatedTransaction, automation::RegistrationParams},
+    transaction::{
+        automated_transaction::AutomatedTransaction,
+        automation::{AutomationRegistryRecord, RegistrationParams},
+    },
     validator_txn::ValidatorTransaction,
     write_set::TransactionWrite,
 };
@@ -2090,7 +2092,7 @@ impl Transaction {
             Transaction::BlockMetadataExt(_) => "block_metadata_ext",
             Transaction::AutomatedTransaction(_) => "automated_transaction",
             Transaction::AutomationRegistryTransaction(_) => "automation_registry_transaction",
-            Transaction::SystemAutomatedTransaction(_) => "system_automated_transaction"
+            Transaction::SystemAutomatedTransaction(_) => "system_automated_transaction",
         }
     }
 

@@ -1,3 +1,6 @@
+// Copyright (c) Aptos Foundation
+// SPDX-License-Identifier: Apache-2.0
+
 // Copyright © Entropy Foundation
 
 use crate::common::types::{GasOptions, ProfileOptions, RestOptions};

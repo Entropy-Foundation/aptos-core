@@ -784,10 +784,37 @@ module std::features {
         is_enabled(SUPRA_AUTOMATION_V2)
     }
 
+    /// Whether the functionality related to the new validator identity representation is enabled.
+    /// This flag should only be enabled after all Validators have updated their keys to the new format, including the BLS keys.
+    ///
+    /// Lifetime: permanent
+    const SUPRA_BLS_KEYS: u64 = 97;
+
+    public fun get_supra_validator_identity_v2_feature(): u64 {
+        SUPRA_BLS_KEYS
+    }
+
+    public fun supra_validator_identity_v2_enabled(): bool acquires Features {
+        is_enabled(SUPRA_BLS_KEYS)
+    }
+
+    /// Whether BCFT certificate thresholds are enabled.
+    ///
+    /// Lifetime: permanent
+    const SUPRA_BCFT_CERTIFICATES: u64 = 98;
+
+    public fun get_supra_bcft_certificates_feature(): u64 {
+        SUPRA_BCFT_CERTIFICATES
+    }
+
+    public fun supra_bcft_certificates_enabled(): bool acquires Features {
+        is_enabled(SUPRA_BCFT_CERTIFICATES)
+    }
+
     /// Whether the APIs related to the Supra_Dkg feature are enabled.
     ///
     /// Lifetime: transient
-    const SUPRA_DKG: u64 = 97;
+    const SUPRA_DKG: u64 = 99;
 
     public fun get_supra_dkg_feature(): u64 {
         SUPRA_DKG

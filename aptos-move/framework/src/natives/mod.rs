@@ -4,6 +4,7 @@
 
 pub mod account;
 pub mod aggregator_natives;
+mod automation_registry_callbacks;
 pub mod code;
 pub mod consensus_config;
 pub mod create_signer;
@@ -16,13 +17,12 @@ pub mod hash;
 pub mod object;
 pub mod object_code_deployment;
 pub mod randomness;
+pub mod rlp;
 pub mod state_storage;
 pub mod string_utils;
 pub mod transaction_context;
 pub mod type_info;
 pub mod util;
-pub mod rlp;
-mod automation_registry_callbacks;
 pub mod vector_utils;
 
 use crate::natives::cryptography::multi_ed25519;
@@ -107,7 +107,10 @@ pub fn all_natives(
         dispatchable_fungible_asset::make_all(builder)
     );
     add_natives_from_module!("rlp", rlp::make_all(builder));
-    add_natives_from_module!("automation_registry", automation_registry_callbacks::make_all(builder));
+    add_natives_from_module!(
+        "automation_registry",
+        automation_registry_callbacks::make_all(builder)
+    );
     add_natives_from_module!("vector_utils", vector_utils::make_all(builder));
 
     make_table_from_iter(framework_addr, natives)

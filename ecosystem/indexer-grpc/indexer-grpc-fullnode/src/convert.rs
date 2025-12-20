@@ -2,10 +2,10 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use aptos_api_types::transaction::AutomationTaskType;
 use aptos_api_types::{
     transaction::{
-        AutomationRegistrationParams, ValidatorTransaction as ApiValidatorTransactionEnum,
+        AutomationRegistrationParams, AutomationTaskType,
+        ValidatorTransaction as ApiValidatorTransactionEnum,
     },
     AccountSignature, DeleteModule, DeleteResource, Ed25519Signature, EntryFunctionId,
     EntryFunctionPayload, Event, GenesisPayload, MoveAbility, MoveFunction,
@@ -19,12 +19,13 @@ use aptos_bitvec::BitVec;
 use aptos_logger::warn;
 use aptos_protos::{
     transaction::v1::{
-        self as transaction, any_signature, validator_transaction,
+        self as transaction, any_signature, automation_payload_extensions, validator_transaction,
         validator_transaction::observed_jwk_update::exported_provider_jw_ks::{
             jwk::{JwkType, Rsa, UnsupportedJwk},
             Jwk as ProtoJwk,
         },
-        Ed25519, Keyless, Secp256k1Ecdsa, TransactionSizeInfo, WebAuthn,
+        AutomationPayloadExtensions, Ed25519, Keyless, Secp256k1Ecdsa, TransactionSizeInfo,
+        WebAuthn,
     },
     util::timestamp,
 };
@@ -32,8 +33,6 @@ use aptos_types::jwks::jwk::JWK;
 use hex;
 use move_binary_format::file_format::Ability;
 use std::time::Duration;
-use aptos_protos::transaction::v1::automation_payload_extensions;
-use aptos_protos::transaction::v1::AutomationPayloadExtensions;
 
 pub fn convert_move_module_id(move_module_id: &MoveModuleId) -> transaction::MoveModuleId {
     transaction::MoveModuleId {
@@ -508,7 +507,7 @@ pub fn convert_multisig_payload(
                         ),
                     ),
                 }
-            }
+            },
         });
     transaction::MultisigPayload {
         multisig_address: multisig_payload.multisig_address.to_string(),
@@ -516,11 +515,12 @@ pub fn convert_multisig_payload(
     }
 }
 
-pub fn convert_automation_task_type(automation_task_type: &AutomationTaskType) -> transaction::AutomationTaskType {
+pub fn convert_automation_task_type(
+    automation_task_type: &AutomationTaskType,
+) -> transaction::AutomationTaskType {
     match automation_task_type {
         AutomationTaskType::User => transaction::AutomationTaskType::User,
-        AutomationTaskType::System => transaction::AutomationTaskType::System
-
+        AutomationTaskType::System => transaction::AutomationTaskType::System,
     }
 }
 
@@ -530,7 +530,9 @@ pub fn convert_automation_payload(
     match auto_payload {
         AutomationRegistrationParams::V1(params_v1) => {
             let v1 = transaction::AutomationPayload {
-                automated_function: Some(convert_entry_function_payload(&params_v1.automated_function)),
+                automated_function: Some(convert_entry_function_payload(
+                    &params_v1.automated_function,
+                )),
                 expiration_timestamp_secs: params_v1.expiration_timestamp_secs,
                 max_gas_amount: params_v1.max_gas_amount,
                 gas_price_cap: params_v1.gas_price_cap,
@@ -538,12 +540,14 @@ pub fn convert_automation_payload(
                 aux_data: params_v1.aux_data.clone(),
             };
             AutomationPayloadExtensions {
-                variant: Some(automation_payload_extensions::Variant::V1(v1))
+                variant: Some(automation_payload_extensions::Variant::V1(v1)),
             }
-        }
+        },
         AutomationRegistrationParams::V2(params_v2) => {
             let v2 = transaction::AutomationPayloadV2 {
-                automated_function: Some(convert_entry_function_payload(&params_v2.automated_function)),
+                automated_function: Some(convert_entry_function_payload(
+                    &params_v2.automated_function,
+                )),
                 expiration_timestamp_secs: params_v2.expiration_timestamp_secs,
                 max_gas_amount: params_v2.max_gas_amount,
                 gas_price_cap: params_v2.gas_price_cap,
@@ -553,10 +557,9 @@ pub fn convert_automation_payload(
                 priority: params_v2.task_priority.clone(),
             };
             AutomationPayloadExtensions {
-                variant: Some(automation_payload_extensions::Variant::V2(v2))
+                variant: Some(automation_payload_extensions::Variant::V2(v2)),
             }
-
-        }
+        },
     }
 }
 
