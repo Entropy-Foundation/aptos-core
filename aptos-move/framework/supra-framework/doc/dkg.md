@@ -548,7 +548,7 @@ The <code>target_committees_public_key_shares</code> is assumed to be verified b
     <b>let</b> public_key_shares_all_comms = <a href="../../aptos-stdlib/doc/any.md#0x1_any_unpack">any::unpack</a>&lt;<a href="dkg.md#0x1_dkg_OnChainAggregateCommitmentAllCommittees">OnChainAggregateCommitmentAllCommittees</a>&gt;(public_key_shares_all_comms_serialized);
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&public_key_shares_all_comms.commitments) &gt;= 2, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="dkg.md#0x1_dkg_EDKG_INVALID_PK_SHARES">EDKG_INVALID_PK_SHARES</a>));
     <a href="stake.md#0x1_stake_set_dkg_output_keys">stake::set_dkg_output_keys</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&public_key_shares_all_comms.commitments, 0).bls12381_commitment_evals,
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&public_key_shares_all_comms.commitments, 1).bls12381_commitment_evals);
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&public_key_shares_all_comms.commitments, 1).bls12381_commitment_evals);
     emit(<a href="dkg.md#0x1_dkg_DKGFinishEvent">DKGFinishEvent</a> {
         target_committees_public_key_shares,
     });
