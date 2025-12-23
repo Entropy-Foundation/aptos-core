@@ -984,7 +984,7 @@ Whether the APIs related to the Supra_Dkg feature are enabled.
 Lifetime: transient
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_DKG">SUPRA_DKG</a>: u64 = 97;
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_DKG">SUPRA_DKG</a>: u64 = 99;
 </code></pre>
 
 
