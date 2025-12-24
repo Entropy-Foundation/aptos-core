@@ -4392,8 +4392,12 @@ This function shouldn't abort.
             <b>let</b> fee_octa = pending_fee_by_validator.remove(&validator_index).read();
             <b>let</b> stake_active = (<a href="coin.md#0x1_coin_value">coin::value</a>(&stake_pool.active) <b>as</b> u128);
             <b>let</b> stake_pending_inactive = (<a href="coin.md#0x1_coin_value">coin::value</a>(&stake_pool.pending_inactive) <b>as</b> u128);
-            fee_pending_inactive = (((fee_octa <b>as</b> u128) * stake_pending_inactive / (stake_active + stake_pending_inactive)) <b>as</b> u64);
-            fee_active = fee_octa - fee_pending_inactive;
+            <b>if</b> (stake_active + stake_pending_inactive &gt; 0) {
+                fee_pending_inactive = (((fee_octa <b>as</b> u128) * stake_pending_inactive / (stake_active + stake_pending_inactive)) <b>as</b> u64);
+            };
+            <b>if</b> (fee_octa &gt; fee_pending_inactive) {
+                fee_active = fee_octa - fee_pending_inactive;
+            };
         }
     };
 

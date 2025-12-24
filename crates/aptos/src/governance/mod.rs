@@ -1083,10 +1083,6 @@ pub struct GenerateUpgradeProposal {
     #[clap(long)]
     pub(crate) proposal_type: ProposalType,
 
-    /// Name of the smart contract proposal function. Defaults to 'main' if not supplied
-    #[clap(long, default_value = "main")]
-    pub(crate) function_name: String,
-
     #[clap(flatten)]
     pub(crate) move_options: MovePackageOptions,
 }
@@ -1121,8 +1117,7 @@ impl CliCommand<()> for GenerateUpgradeProposal {
             output,
             testnet,
             next_execution_hash,
-            proposal_type,
-            function_name
+            proposal_type
         } = self;
         let package_path = move_options.get_package_path()?;
         let options = included_artifacts.build_options(&move_options)?;
@@ -1132,10 +1127,10 @@ impl CliCommand<()> for GenerateUpgradeProposal {
         if let ProposalType::SingleStep = proposal_type {
             // If we're generating a single-step proposal on testnet
             if testnet {
-                release.generate_script_proposal_testnet(account, output, function_name)?;
+                release.generate_script_proposal_testnet(account, output)?;
             // If we're generating a single-step proposal on mainnet
             } else {
-                release.generate_script_proposal(account, output, function_name)?;
+                release.generate_script_proposal(account, output)?;
             }
             // If we're generating a multi-step proposal
         } else {

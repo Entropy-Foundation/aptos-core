@@ -1660,8 +1660,12 @@ module supra_framework::stake {
                 let fee_octa = pending_fee_by_validator.remove(&validator_index).read();
                 let stake_active = (coin::value(&stake_pool.active) as u128);
                 let stake_pending_inactive = (coin::value(&stake_pool.pending_inactive) as u128);
-                fee_pending_inactive = (((fee_octa as u128) * stake_pending_inactive / (stake_active + stake_pending_inactive)) as u64);
-                fee_active = fee_octa - fee_pending_inactive;
+                if (stake_active + stake_pending_inactive > 0) {
+                    fee_pending_inactive = (((fee_octa as u128) * stake_pending_inactive / (stake_active + stake_pending_inactive)) as u64);
+                };
+                if (fee_octa > fee_pending_inactive) {
+                    fee_active = fee_octa - fee_pending_inactive;
+                };
             }
         };
 

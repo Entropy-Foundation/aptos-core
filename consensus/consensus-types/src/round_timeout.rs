@@ -8,7 +8,7 @@ use crate::{
 };
 use anyhow::{ensure, Context};
 use aptos_bitvec::BitVec;
-use aptos_crypto::bls12381;
+use aptos_crypto::ed25519;
 use aptos_short_hex_str::AsShortHexStr;
 use aptos_types::validator_verifier::ValidatorVerifier;
 use serde::{Deserialize, Serialize};
@@ -41,7 +41,7 @@ pub struct RoundTimeout {
     author: Author,
     reason: RoundTimeoutReason,
     /// Signature on the Timeout
-    signature: bls12381::Signature,
+    signature: ed25519::Signature,
 }
 
 // this is required by structured log
@@ -68,7 +68,7 @@ impl RoundTimeout {
         timeout: TwoChainTimeout,
         author: Author,
         reason: RoundTimeoutReason,
-        signature: bls12381::Signature,
+        signature: ed25519::Signature,
     ) -> Self {
         Self {
             timeout,
@@ -111,7 +111,7 @@ impl RoundTimeout {
         &self.reason
     }
 
-    pub fn signature(&self) -> &bls12381::Signature {
+    pub fn signature(&self) -> &ed25519::Signature {
         &self.signature
     }
 }

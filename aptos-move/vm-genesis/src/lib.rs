@@ -404,12 +404,12 @@ pub fn encode_genesis_change_set_for_testnet(
     initialize_account_abstraction(&mut session, &module_storage, &mut traversal_context);
 
     if validators.len() > 0 {
-    create_and_initialize_validators(
-        &mut session,
-        &module_storage,
-        &mut traversal_context,
-        validators,
-    );
+        create_and_initialize_validators(
+            &mut session,
+            &module_storage,
+            &mut traversal_context,
+            validators,
+        );
     } else {
         // All PBO delegated validators are initialized here
         create_pbo_delegation_pools(&mut session, &module_storage, &mut traversal_context, delegation_pools);

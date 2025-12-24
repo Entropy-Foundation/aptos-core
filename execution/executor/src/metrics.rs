@@ -357,6 +357,9 @@ pub fn update_counters_for_processed_chunk<T>(
             Some(Transaction::StateCheckpoint(_)) => "state_checkpoint",
             Some(Transaction::BlockEpilogue(_)) => "block_epilogue",
             Some(Transaction::ValidatorTransaction(_)) => "validator_transaction",
+            Some(Transaction::AutomatedTransaction(_)) => "automation_transaction",
+            Some(Transaction::AutomationRegistryTransaction(_)) => "automation_registry_transaction",
+            Some(Transaction::SystemAutomatedTransaction(_)) => "system_automated_transaction",
             None => "unknown",
         };
 
@@ -439,6 +442,7 @@ pub fn update_counters_for_processed_chunk<T>(
                 match user_txn.payload().executable_ref() {
                     Ok(TransactionExecutableRef::Script(_)) => "script",
                     Ok(TransactionExecutableRef::EntryFunction(_)) => "function",
+                    Ok(TransactionExecutableRef::AutomationRegistration(_)) => "function",
                     Ok(TransactionExecutableRef::Empty) => "empty",
                     Err(_) => "deprecated_payload",
                 }

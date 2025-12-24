@@ -83,7 +83,7 @@ use url::Url;
 pub mod aptos_debug_natives;
 mod bytecode;
 pub mod coverage;
-mod fmt;
+pub mod fmt;
 mod lint;
 mod manifest;
 pub mod package_hooks;
@@ -1060,20 +1060,6 @@ impl CliCommand<TransactionSummary> for PublishPackage {
             let package_publication_data: PackagePublicationData = (&self).try_into()?;
             profile_or_submit(package_publication_data.payload, &self.txn_options).await
         }
-    }
-}
-
-#[async_trait]
-impl SupraCommand for PublishPackage {
-    async fn supra_command_arguments(self) -> anyhow::Result<SupraCommandArguments> {
-        let package_publication_data: PackagePublicationData = (&self).try_into()?;
-        Ok(SupraCommandArguments {
-            payload: package_publication_data.payload,
-            sender_account: self.txn_options.sender_account,
-            profile_options: supra_aptos::ProfileOptions::from(self.txn_options.profile_options),
-            rest_options: supra_aptos::RestOptions::from(self.txn_options.rest_options),
-            gas_options: supra_aptos::GasOptions::from(self.txn_options.gas_options),
-        })
     }
 }
 

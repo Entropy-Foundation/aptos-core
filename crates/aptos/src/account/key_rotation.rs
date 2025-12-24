@@ -308,7 +308,7 @@ impl CliCommand<RotateSummary> for RotateKey {
         };
 
         if let Some(url) = self.txn_options.rest_options.rpc_url {
-            profile_config.rest_url = Some(url.into());
+            new_profile_config.rest_url = Some(url.into());
         }
 
         if config.profiles.is_none() {

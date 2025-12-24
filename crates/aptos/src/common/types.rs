@@ -1110,24 +1110,17 @@ pub struct RestOptions {
     /// environment variable.
     #[clap(long, env)]
     pub node_api_key: Option<String>,
+     #[clap(long, default_value_t = ApiVersion::V3)]
+    pub(crate) api_version: ApiVersion,
 }
 
 impl Default for RestOptions {
     fn default() -> Self {
         Self {
-            url: None,
+            rpc_url: None,
             connection_timeout_secs: DEFAULT_EXPIRATION_SECS,
             node_api_key: None,
-        }
-    }
-}
-
-impl Default for RestOptions {
-    fn default() -> Self {
-        Self {
-            url: None,
-            connection_timeout_secs: DEFAULT_EXPIRATION_SECS,
-            node_api_key: None,
+            api_version: Default::default()
         }
     }
 }
@@ -1643,6 +1636,7 @@ impl From<&Transaction> for TransactionSummary {
                 sequence_number: Some(txn.meta.index.0),
                 timestamp_us: Some(txn.timestamp.0),
                 pending: None,
+                replay_protector: Some(ReplayProtector::SequenceNumber(txn.meta.index.0)),
             },
         }
     }
@@ -2286,7 +2280,7 @@ impl MultisigAccountWithSequenceNumber {
     }
 }
 
-#[derive(Debug, Default, Parser)]
+#[derive(Clone, Debug, Default, Parser)]
 pub struct TypeArgVec {
     /// TypeTag arguments separated by spaces.
     ///
@@ -2576,67 +2570,13 @@ pub struct OverrideSizeCheckOption {
     /// This won't bypass on chain checks, so if you are not allowed to go over the size check, it
     /// will still be blocked from publishing.
     #[clap(long)]
+    pub(crate) override_size_check: bool,
 }
 
-#[derive(Parser)]
-pub struct LargePackagesModuleOption {
-    /// Address of the `large_packages` move module for chunked publishing
-    ///
-    /// By default, on the module is published at `0x0e1ca3011bdd07246d4d16d909dbb2d6953a86c4735d5acf5865d962c630cce7`
-    /// on Testnet and Mainnet, and `0x7` on localnest/devnet.
-    /// On any custom network where neither is used, you will need to first publish it from the framework
-    /// under move-examples/large_packages.
-    #[clap(long, value_parser = crate::common::types::load_account_arg)]
-    pub(crate) large_packages_module_address: Option<AccountAddress>,
-}
-
-impl LargePackagesModuleOption {
-    pub(crate) async fn large_packages_module_address(
-        &self,
-        client: &Client,
-    ) -> Result<AccountAddress, CliError> {
-        if let Some(address) = self.large_packages_module_address {
-            Ok(address)
-        } else {
-            let chain_id = ChainId::new(client.get_ledger_information().await?.inner().chain_id);
-            Ok(
-                AccountAddress::from_str_strict(default_large_packages_module_address(&chain_id))
-                    .map_err(|err| {
-                    CliError::UnableToParse("Default Large Package Module Address", err.to_string())
-                })?,
-            )
-        }
+impl OverrideSizeCheckOption {
+    pub fn override_size_check(&self) -> bool {
+        self.override_size_check
     }
-}
-
-#[derive(Parser)]
-pub struct ChunkedPublishOption {
-    /// Whether to publish a package in a chunked mode. This may require more than one transaction
-    /// for publishing the Move package.
-    ///
-    /// Use this option for publishing large packages exceeding `MAX_PUBLISH_PACKAGE_SIZE`.
-    #[clap(long)]
-    pub(crate) chunked_publish: bool,
-
-    #[clap(flatten)]
-    pub(crate) large_packages_module: LargePackagesModuleOption,
-
-    /// Size of the code chunk in bytes for splitting bytecode and metadata of large packages
-    ///
-    /// By default, the chunk size is set to `CHUNK_SIZE_IN_BYTES`. A smaller chunk size will result
-    /// in more transactions required to publish a package, while a larger chunk size might cause
-    /// transaction to fail due to exceeding the execution gas limit.
-    #[clap(long, default_value_t = CHUNK_SIZE_IN_BYTES)]
-    pub(crate) chunk_size: usize,
-}
-
-/// For minting testnet APT.
-pub fn get_mint_site_url(address: Option<AccountAddress>) -> String {
-    let params = match address {
-        Some(address) => format!("?address={}", address.to_standard_string()),
-        None => "".to_string(),
-    };
-    format!("https://aptos.dev/network/faucet{}", params)
 }
 
 #[derive(Parser)]
