@@ -65,6 +65,7 @@ strum = { workspace = true }
 strum_macros = { workspace = true }
 thiserror = { workspace = true }
 derive_more = { workspace = true }
+url = { workspace = true }
 
 [dev-dependencies]
 ahash = { workspace = true }
@@ -86,11 +87,15 @@ regex = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
-url = { workspace = true }
 
 [features]
 default = []
-fuzzing = ["proptest", "proptest-derive", "aptos-crypto/fuzzing", "move-core-types/fuzzing"]
+fuzzing = [
+    "proptest",
+    "proptest-derive",
+    "aptos-crypto/fuzzing",
+    "move-core-types/fuzzing",
+]
 
 [[bench]]
 name = "keyless"

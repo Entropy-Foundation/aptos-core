@@ -36,6 +36,8 @@ module supra_framework::genesis {
     use supra_framework::version;
     use supra_framework::vesting;
     use supra_framework::vesting_without_staking;
+    use supra_framework::appchain_registry::{Self, ReservedRange};
+    use supra_framework::funnel_node_registry;
 
     #[test_only]
     use aptos_std::ed25519;
@@ -225,8 +227,7 @@ module supra_framework::genesis {
         _congestion_base_fee_in_quants_per_sec: u64,
         _congestion_exponent: u8,
         _task_capacity: u16,
-    ) {
-    }
+    ) {}
 
     /// Genesis step 3: Initialize Supra Native Automation.
     public fun initialize_supra_native_automation_v2(
@@ -261,6 +262,37 @@ module supra_framework::genesis {
         )
     }
 
+    /// Genesis step 4: Initialize Appchain Registry.
+    ///
+    /// This method allows to initialize the appchain registry either during the genesis initialization
+    /// or after it has been completed.
+    ///
+    /// Because it is publicly accessible, it can be invoked via a move-script. Since it requires
+    /// the `supra_framework` as the signer, the invocation must go through the governance process.
+    public fun initialize_appchain_registry(
+        supra_framework: &signer,
+        reserved_ranges: vector<ReservedRange>
+    ) {
+        appchain_registry::initialize(
+            supra_framework, reserved_ranges
+        )
+    }
+
+    /// Genesis step 5: Initialize Funnel Node Registry.
+    ///
+    /// This method allows to initialize the appchain registry either during the genesis initialization
+    /// or after it has been completed.
+    ///
+    /// Because it is publicly accessible, it can be invoked via a move-script. Since it requires
+    /// the `supra_framework` as the signer, the invocation must go through the governance process.
+    public fun initialize_funnel_node_registry(
+        supra_framework: &signer,
+        funnel_nodes: vector<String>
+    ) {
+        funnel_node_registry::initialize(
+            supra_framework, funnel_nodes
+        )
+    }
 
     /// Only called for testnets and e2e tests.
     fun initialize_core_resources_and_supra_coin(
@@ -731,7 +763,7 @@ module supra_framework::genesis {
         consensus_config: vector<u8>,
         execution_config: vector<u8>,
         supra_config: vector<u8>,
-        evm_genesis_config: vector<u8>,
+        _evm_genesis_config: vector<u8>,
         epoch_interval_microsecs: u64,
         minimum_stake: u64,
         maximum_stake: u64,
@@ -768,7 +800,6 @@ module supra_framework::genesis {
             rewards_rate_denominator,
             voting_power_increase_limit,
             0,
-
         );
         features::change_feature_flags_for_verification(supra_framework, vector[1, 2, 11], vector[]);
         initialize_supra_coin(supra_framework);
@@ -1159,14 +1190,14 @@ module supra_framework::genesis {
         let cliff_period_in_seconds = 100;
         let period_duration_in_seconds = 200;
         let pool_config = VestingPoolsMap {
-            admin_address: admin_address,
-            vpool_locking_percentage: vpool_locking_percentage,
-            vesting_numerators: vesting_numerators,
-            vesting_denominator: vesting_denominator,
-            withdrawal_address: withdrawal_address,
-            shareholders: shareholders,
-            cliff_period_in_seconds: cliff_period_in_seconds,
-            period_duration_in_seconds: period_duration_in_seconds,
+            admin_address,
+            vpool_locking_percentage,
+            vesting_numerators,
+            vesting_denominator,
+            withdrawal_address,
+            shareholders,
+            cliff_period_in_seconds,
+            period_duration_in_seconds,
         };
         let vesting_pool_map = vector[pool_config];
         create_vesting_without_staking_pools(vesting_pool_map);
