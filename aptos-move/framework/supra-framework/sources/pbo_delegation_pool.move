@@ -9785,8 +9785,10 @@ module supra_framework::pbo_delegation_pool {
     }
 
     // Test that after unlock schedule change, one is able to unlock as per
-    // new schedule but NOT as per old schedule
+    // new schedule but NOT as per old schedule final failure when 
+    // someone other than admin tries to change the schedule
     #[test(supra_framework = @supra_framework, validator = @0x123, delegator = @0x010)]
+    #[expected_failure(abort_code = 327716, location = Self)]
     public entry fun test_change_unlock_schedule_unchecked(
         supra_framework: &signer, validator: &signer, delegator: &signer
     ) acquires DelegationPoolOwnership, DelegationPool, GovernanceRecords, BeneficiaryForOperator, NextCommissionPercentage {
@@ -9956,6 +9958,15 @@ module supra_framework::pbo_delegation_pool {
             pool_address
         );
         assert!(new_last_unlock4 == 5, new_last_unlock4);
+        update_unlocking_schedule_unchecked(
+            delegator,
+            pool_address,
+            vector[20],
+            100,
+            principle_lockup_time,
+            LOCKUP_CYCLE_SECONDS * 3,
+            9,
+        );
     }
 
     // Test that after unlock schedule change, one is able to unlock as per
