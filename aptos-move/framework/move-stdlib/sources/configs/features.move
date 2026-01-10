@@ -750,7 +750,40 @@ module std::features {
     public fun supra_rlp_enabled(): bool acquires Features {
         is_enabled(SUPRA_RLP_ENCODE)
     }
-    
+
+    /// Whether using delegation pool as node identity feature is enabled.
+    ///
+    /// Lifetime: permanent
+    const SUPRA_DELEGATION_POOL_IDENTITY: u64 = 95;
+
+    public fun get_supra_delegation_pool_identity_feature(): u64 {
+        SUPRA_DELEGATION_POOL_IDENTITY
+    }
+
+    public fun supra_delegation_pool_identity_enabled(): bool acquires Features {
+        is_enabled(SUPRA_DELEGATION_POOL_IDENTITY)
+        // We could update supra_delegation_pool_identity_enabled to always return true after the feature has been rolled out.
+    }
+
+    /// Whether Supra cycle based automation is enabled. Once enabled, the native automation feature with detached cycle
+    /// based registry management feature will be activated.
+    ///
+    /// Note: After flag is enabled it CANNOT be disabled anymore and any attempt should be prevented.
+    ///
+    /// Lifetime: transient
+    // TODO: after automation-v2 feature is release make sure that this function call will fail with
+    // error::invalid_argument(EFEATURE_CANNOT_BE_DISABLED) error.
+    const SUPRA_AUTOMATION_V2: u64 = 96;
+
+    public fun get_supra_automation_v2_feature(): u64 {
+        SUPRA_AUTOMATION_V2
+    }
+
+    // TODO: after automation-v2 feature is release make sure that this function call always returns true.
+    public fun supra_automation_v2_enabled(): bool acquires Features {
+        is_enabled(SUPRA_AUTOMATION_V2)
+    }
+
     // ============================================================================================
     // Feature Flag Implementation
 

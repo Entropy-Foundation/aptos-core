@@ -377,7 +377,7 @@ dependencies = [
  "toml 0.7.8",
  "tonic",
  "tracing",
- "tracing-subscriber 0.3.19",
+ "tracing-subscriber",
  "url",
  "version-compare",
 ]
@@ -2226,7 +2226,7 @@ dependencies = [
  "tokio",
  "toml 0.7.8",
  "tracing",
- "tracing-subscriber 0.3.19",
+ "tracing-subscriber",
  "warp",
 ]
 
@@ -2617,7 +2617,7 @@ dependencies = [
  "strum_macros 0.24.3",
  "tokio",
  "tracing",
- "tracing-subscriber 0.3.19",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -4145,6 +4145,7 @@ dependencies = [
  "criterion",
  "derivative",
  "derive-getters",
+ "derive_more 2.0.1",
  "fixed",
  "fxhash",
  "hashbrown 0.14.5",
@@ -4278,7 +4279,7 @@ dependencies = [
  "bytes",
  "claims",
  "crossbeam-channel",
- "derive_more 0.99.20",
+ "derive_more 2.0.1",
  "fail",
  "futures",
  "hex",
@@ -4501,7 +4502,6 @@ dependencies = [
  "blake2",
  "derivative",
  "digest 0.10.7",
- "rayon",
  "sha2 0.10.9",
 ]
 
@@ -4519,7 +4519,6 @@ dependencies = [
  "hashbrown 0.13.2",
  "itertools 0.10.5",
  "num-traits",
- "rayon",
  "zeroize",
 ]
 
@@ -4539,7 +4538,6 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-traits",
  "paste",
- "rayon",
  "rustc_version",
  "zeroize",
 ]
@@ -4580,7 +4578,6 @@ dependencies = [
  "ark-relations",
  "ark-serialize",
  "ark-std",
- "rayon",
 ]
 
 [[package]]
@@ -4594,7 +4591,6 @@ dependencies = [
  "ark-std",
  "derivative",
  "hashbrown 0.13.2",
- "rayon",
 ]
 
 [[package]]
@@ -4606,7 +4602,6 @@ dependencies = [
  "ark-ff",
  "ark-std",
  "tracing",
- "tracing-subscriber 0.2.25",
 ]
 
 [[package]]
@@ -4652,7 +4647,6 @@ checksum = "94893f1e0c6eeab764ade8dc4c0db24caf4fe7cbbaafc0eba0a9030f447b5185"
 dependencies = [
  "num-traits",
  "rand 0.8.5",
- "rayon",
 ]
 
 [[package]]
@@ -6235,7 +6229,7 @@ dependencies = [
  "tonic",
  "tracing",
  "tracing-core",
- "tracing-subscriber 0.3.19",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -6306,6 +6300,15 @@ name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
+
+[[package]]
+name = "convert_case"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb402b8d4c85569410425650ce3eddc7d698ed96d39a73f941b08fb63082f1e7"
+dependencies = [
+ "unicode-segmentation",
+]
 
 [[package]]
 name = "cookie"
@@ -7040,7 +7043,7 @@ version = "0.99.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6edb4b64a43d977b8e99788fe3a04d483834fba1215a7e02caa415b626497f7f"
 dependencies = [
- "convert_case",
+ "convert_case 0.4.0",
  "proc-macro2",
  "quote",
  "rustc_version",
@@ -7062,6 +7065,7 @@ version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bda628edc44c4bb645fbe0f758797143e4e07926f7ebf4e9bdfbd3d2ce621df3"
 dependencies = [
+ "convert_case 0.7.1",
  "proc-macro2",
  "quote",
  "syn 2.0.106",
@@ -9963,6 +9967,7 @@ dependencies = [
  "move-core-types",
  "move-ir-compiler",
  "proptest",
+ "serde",
 ]
 
 [[package]]
@@ -15613,7 +15618,7 @@ dependencies = [
  "once_cell",
  "rand 0.8.5",
  "tracing",
- "tracing-subscriber 0.3.19",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -16305,15 +16310,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "704b1aeb7be0d0a84fc9828cae51dab5970fee5088f83d1dd7ee6f6246fc6ff1"
 dependencies = [
  "serde",
- "tracing-core",
-]
-
-[[package]]
-name = "tracing-subscriber"
-version = "0.2.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e0d2eaa99c3c2e41547cfa109e910a68ea03823cccad4a0525dcbc9b01e8c71"
-dependencies = [
  "tracing-core",
 ]
 
