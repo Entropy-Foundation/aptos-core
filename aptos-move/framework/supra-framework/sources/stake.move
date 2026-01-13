@@ -23,6 +23,7 @@ module supra_framework::stake {
     use std::option::{Self, Option};
     use std::signer;
     use std::vector;
+    use aptos_std::ed25519;
     use aptos_std::math64::min;
     use aptos_std::table::{Self, Table};
     use supra_std::validator_public_keys;
@@ -591,7 +592,13 @@ module supra_framework::stake {
     ) acquires AllowedValidators {
 
         // Checks the public key is valid to prevent rogue-key attacks.
-        let _valid_public_key = validator_public_keys::validator_public_keys_from_bytes(consensus_pubkey);
+        if (std::features::supra_validator_identity_v2_enabled()) {
+            let _valid_public_key = validator_public_keys::validator_public_keys_from_bytes(consensus_pubkey);
+        }
+        else {
+            let valid_public_key = ed25519::new_validated_public_key_from_bytes(consensus_pubkey);
+            assert!(option::is_some(&valid_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+        };
 
         initialize_owner(account);
         move_to(account, ValidatorConfig {
@@ -825,9 +832,21 @@ module supra_framework::stake {
         let old_consensus_pubkey = validator_info.consensus_pubkey;
         // Checks the public key is valid to prevent rogue-key attacks.
         if (!genesis) {
-            let _valid_public_key = validator_public_keys::validator_public_keys_from_bytes(new_consensus_pubkey);
+            if (std::features::supra_validator_identity_v2_enabled()) {
+                let _valid_public_key = validator_public_keys::validator_public_keys_from_bytes(new_consensus_pubkey);
+            }
+            else {
+                let valid_public_key = ed25519::new_validated_public_key_from_bytes(new_consensus_pubkey);
+                assert!(option::is_some(&valid_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+            };
         } else {
-            let _valid_public_key = validator_public_keys::validator_public_keys_from_bytes(new_consensus_pubkey);
+            if (std::features::supra_validator_identity_v2_enabled()) {
+                let _valid_public_key = validator_public_keys::validator_public_keys_from_bytes(new_consensus_pubkey);
+            }
+            else {
+                let valid_public_key = ed25519::new_validated_public_key_from_bytes(new_consensus_pubkey);
+                assert!(option::is_some(&valid_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+            };
         };
         validator_info.consensus_pubkey = new_consensus_pubkey;
 
