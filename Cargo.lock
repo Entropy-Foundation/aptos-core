@@ -1762,7 +1762,7 @@ dependencies = [
  "claims",
  "clap 4.5.53",
  "codespan-reporting",
- "crypto 0.1.0 (git+ssh://git@github.com/Entropy-Foundation/crypto?rev=8fa2ea498c1cdef637aff135ce77852d77fcc487)",
+ "crypto",
  "curve25519-dalek-ng",
  "either",
  "eth_trie",
@@ -4078,7 +4078,7 @@ dependencies = [
  "claims",
  "coset",
  "criterion",
- "crypto 0.1.0 (git+ssh://git@github.com/Entropy-Foundation/crypto?rev=8fa2ea498c1cdef637aff135ce77852d77fcc487)",
+ "crypto",
  "derivative",
  "derive-getters",
  "derive_more 2.1.0",
@@ -4094,7 +4094,6 @@ dependencies = [
  "move-table-extension",
  "move-vm-runtime",
  "move-vm-types",
- "nidkg_helper",
  "num-bigint 0.3.3",
  "num-derive",
  "num-traits",
@@ -4215,7 +4214,7 @@ dependencies = [
  "bytes",
  "claims",
  "crossbeam-channel",
- "crypto 0.1.0 (git+ssh://git@github.com/Entropy-Foundation/crypto?rev=8fa2ea498c1cdef637aff135ce77852d77fcc487)",
+ "crypto",
  "derive_more 2.1.0",
  "fail",
  "futures",
@@ -5171,16 +5170,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "bicycl"
-version = "0.1.0"
-source = "git+ssh://git@github.com/Entropy-Foundation/supra-bicycl.git?rev=2ee61ad6773302345bc1742aeeac99655a4c9671#2ee61ad6773302345bc1742aeeac99655a4c9671"
-dependencies = [
- "cpp_core 0.5.0",
- "cpp_std",
- "ritual_build 0.3.0 (git+https://github.com/rust-qt/ritual.git?rev=e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85)",
 ]
 
 [[package]]
@@ -6350,14 +6339,6 @@ dependencies = [
 
 [[package]]
 name = "cpp_core"
-version = "0.5.0"
-source = "git+https://github.com/rust-qt/ritual.git?rev=e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85#e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85"
-dependencies = [
- "libc",
-]
-
-[[package]]
-name = "cpp_core"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3a4fc172d5c7797a79e4f0e976bec2d4b80b39989d48d58386aaa9a533ff389"
@@ -6380,8 +6361,8 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc6acdfb694abd411532cd836467462172cf3f9b78d3d3aff28a69d676665339"
 dependencies = [
- "cpp_core 0.5.1",
- "ritual_build 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cpp_core",
+ "ritual_build",
 ]
 
 [[package]]
@@ -6554,28 +6535,6 @@ checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 [[package]]
 name = "crypto"
 version = "0.1.0"
-source = "git+ssh://git@github.com/Entropy-Foundation/crypto.git?rev=217382859edf6efa1dee109e0ee1a9e721dffb3e#217382859edf6efa1dee109e0ee1a9e721dffb3e"
-dependencies = [
- "arrayvec 0.7.6",
- "bicycl",
- "cpp_core 0.5.0",
- "cpp_std",
- "crypto 0.1.0 (git+ssh://git@github.com/Entropy-Foundation/crypto.git?rev=c8ecf28393ca2616e9d10ff6e8d7fb3cd4a79085)",
- "hex",
- "lazy_static",
- "miracl_core_bls12381",
- "miracl_core_bn_eth",
- "miracl_core_ed25519",
- "rand 0.8.5",
- "rand_chacha 0.2.2",
- "ritual_build 0.3.0 (git+https://github.com/rust-qt/ritual.git?rev=e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85)",
- "tiny-keccak",
- "zeroize",
-]
-
-[[package]]
-name = "crypto"
-version = "0.1.0"
 source = "git+ssh://git@github.com/Entropy-Foundation/crypto?rev=8fa2ea498c1cdef637aff135ce77852d77fcc487#8fa2ea498c1cdef637aff135ce77852d77fcc487"
 dependencies = [
  "base64 0.22.1",
@@ -6596,27 +6555,6 @@ dependencies = [
  "sha3 0.10.8",
  "statrs",
  "thiserror 1.0.69",
- "tiny-keccak",
- "zeroize",
-]
-
-[[package]]
-name = "crypto"
-version = "0.1.0"
-source = "git+ssh://git@github.com/Entropy-Foundation/crypto.git?rev=c8ecf28393ca2616e9d10ff6e8d7fb3cd4a79085#c8ecf28393ca2616e9d10ff6e8d7fb3cd4a79085"
-dependencies = [
- "arrayvec 0.7.6",
- "bicycl",
- "cpp_core 0.5.0",
- "cpp_std",
- "hex",
- "lazy_static",
- "miracl_core_bls12381",
- "miracl_core_ed25519",
- "rand 0.8.5",
- "rand_chacha 0.2.2",
- "ritual_build 0.3.0 (git+https://github.com/rust-qt/ritual.git?rev=e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85)",
- "sha2 0.10.9",
  "tiny-keccak",
  "zeroize",
 ]
@@ -10674,24 +10612,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d07cbe42e2a8dd41df582fb8e00fc24d920b5561cc301fcb6d14e2e0434b500f"
 
 [[package]]
-name = "miracl_core_bn_eth"
-version = "0.1.0"
-source = "git+ssh://git@github.com/Entropy-Foundation/miracl_core_bn_eth.git?rev=4681376012bc6a138a2d60094bd1006b0b1d34ed#4681376012bc6a138a2d60094bd1006b0b1d34ed"
-dependencies = [
- "miracl_core_bls12381",
- "rand 0.8.5",
-]
-
-[[package]]
-name = "miracl_core_ed25519"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d18d21ce786ead824ad675617279ab3905866294573a95e93cab0c58f0c17625"
-dependencies = [
- "miracl_core_bls12381",
-]
-
-[[package]]
 name = "mirai-annotations"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11777,28 +11697,6 @@ name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
-
-[[package]]
-name = "nidkg_helper"
-version = "0.4.0"
-source = "git+ssh://git@github.com/Entropy-Foundation/supra-common?tag=v0.21.5#e114ebd7c8e8cf9b198f7b9bffb403e336494055"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "bicycl",
- "bincode",
- "crypto 0.1.0 (git+ssh://git@github.com/Entropy-Foundation/crypto.git?rev=217382859edf6efa1dee109e0ee1a9e721dffb3e)",
- "crypto 0.1.0 (git+ssh://git@github.com/Entropy-Foundation/crypto.git?rev=c8ecf28393ca2616e9d10ff6e8d7fb3cd4a79085)",
- "hex",
- "log",
- "miracl_core_bls12381",
- "miracl_core_bn_eth",
- "rand 0.8.5",
- "serde",
- "thiserror 1.0.69",
- "tiny-keccak",
- "zeroize",
-]
 
 [[package]]
 name = "nix"
@@ -14128,16 +14026,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f86c36bf720176c6d573d0827cd5b2b9f1c6a3450dc237374a35ce0f2268835"
 dependencies = [
  "log",
- "ritual_common 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "ritual_build"
-version = "0.3.0"
-source = "git+https://github.com/rust-qt/ritual.git?rev=e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85#e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85"
-dependencies = [
- "log",
- "ritual_common 0.3.0 (git+https://github.com/rust-qt/ritual.git?rev=e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85)",
+ "ritual_common",
 ]
 
 [[package]]
@@ -14145,29 +14034,6 @@ name = "ritual_common"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28d30de34c9683bedc6f0b1f5a3ef0bb613df7ff7e1833c767eeed45f1a9d2af"
-dependencies = [
- "bincode",
- "dunce",
- "failure",
- "itertools 0.8.2",
- "lazy_static",
- "log",
- "num_cpus",
- "pathdiff 0.1.0",
- "regex",
- "semver 0.9.0",
- "serde",
- "serde_derive",
- "serde_json",
- "shell-words 0.1.0",
- "term-painter",
- "toml 0.4.10",
-]
-
-[[package]]
-name = "ritual_common"
-version = "0.3.0"
-source = "git+https://github.com/rust-qt/ritual.git?rev=e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85#e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85"
 dependencies = [
  "bincode",
  "dunce",

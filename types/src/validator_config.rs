@@ -2,7 +2,7 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::network_address::NetworkAddress;
+use crate::{network_address::NetworkAddress, validator_public_keys::ValidatorPublicKeys};
 use aptos_crypto::ed25519;
 use aptos_crypto::ed25519::PublicKey as Ed25519PublicKey;
 use move_core_types::{
@@ -10,7 +10,6 @@ use move_core_types::{
     identifier::IdentStr,
     move_resource::{MoveResource, MoveStructType},
 };
-use nidkg_helper::{cgdkg::CGPublicKey, BlsPublicKey};
 #[cfg(any(test, feature = "fuzzing"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -45,26 +44,6 @@ pub struct ValidatorConfig {
     pub validator_index: u64,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-struct InternalPublicKeysOnChainReprezentation {
-    bls_multisig_key: BlsPublicKey,
-    bls_threshold_validity_certificate_key: Option<BlsPublicKey>, // f+1 threshold
-    bls_threshold_quorum_certificate_key: Option<BlsPublicKey>,   // 2f+1 threshold
-    bls_threshold_unanimous_certificate_key: Option<BlsPublicKey>,
-    bls_threshold_bcft_validity_certificate_key: Option<BlsPublicKey>,
-    bls_threshold_bcft_quorum_certificate_key: Option<BlsPublicKey>,
-    bls_threshold_bcft_fallback_view_change_certificate_key: Option<BlsPublicKey>,
-    bls_threshold_clan_majority_certificate_key: Option<BlsPublicKey>,
-    class_group_key: CGPublicKey,
-    ed25519_key: Ed25519PublicKey,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-struct ValidatorPublicKeysOnChainReprezentation {
-    network_key: Ed25519PublicKey,
-    supra_keys: InternalPublicKeysOnChainReprezentation,
-}
-
 impl ValidatorConfig {
     pub fn new(
         consensus_public_key: ed25519::PublicKey,
@@ -85,10 +64,11 @@ impl ValidatorConfig {
     }
 
     pub fn consensus_public_key(&self) -> Ed25519PublicKey {
-        let keys =
-            bcs::from_bytes::<ValidatorPublicKeysOnChainReprezentation>(&self.consensus_public_key);
+        let keys = bcs::from_bytes::<ValidatorPublicKeys>(&self.consensus_public_key);
         if let Ok(keys) = keys {
-            return keys.supra_keys.ed25519_key;
+            let ed_key = Ed25519PublicKey::try_from(keys.supra_keys().ed25519_key().as_slice())
+                .expect("Failed to deserialize consensus public key from on-chain representation");
+            return ed_key;
         }
 
         Ed25519PublicKey::try_from(&self.consensus_public_key[..])
