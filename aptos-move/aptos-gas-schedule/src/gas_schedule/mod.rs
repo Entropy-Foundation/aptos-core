@@ -178,6 +178,7 @@ impl ToOnChainGasSchedule for NativeGasParameters {
     fn to_on_chain_gas_schedule(&self, feature_version: u64) -> Vec<(String, u64)> {
         let mut entries = self.move_stdlib.to_on_chain_gas_schedule(feature_version);
         entries.extend(self.table.to_on_chain_gas_schedule(feature_version));
+        entries.extend(self.supra_stdlib.to_on_chain_gas_schedule(feature_version));
         entries.extend(
             self.aptos_framework
                 .to_on_chain_gas_schedule(feature_version),
