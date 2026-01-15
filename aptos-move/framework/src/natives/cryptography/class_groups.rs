@@ -3,7 +3,7 @@
 /***************************************************************************************************
  * native fun class_group_validate_pubkey
  *
- *   gas cost: base_cost + per_pubkey_deserialize_cost +? pop_proof_validation
+ *   gas cost: per_pubkey_deserialize_cost + pop_proof_validation
  *
  * where +? indicates that the expression stops evaluating there if the previous gas-charging step
  * failed

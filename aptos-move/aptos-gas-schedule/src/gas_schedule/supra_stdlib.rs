@@ -15,7 +15,7 @@ crate::gas_schedule::macros::define_gas_parameters!(
         // Note(Gas): this initial value is guesswork.
         [class_groups_per_pubkey_deserialize: InternalGasPerArg, { RELEASE_V1_16_SUPRA_V1_8_0.. => "class.groups.per_pubkey_deserialize" }, 400684],
         // Note(Gas): this initial value is guesswork.
-        [class_groups_pop: InternalGas, "class.groups.base", 206000000],
+        [class_groups_pop: InternalGas, { RELEASE_V1_16_SUPRA_V1_8_0.. => "class.groups.pop" }, 206000000],
 
     ]
 );
