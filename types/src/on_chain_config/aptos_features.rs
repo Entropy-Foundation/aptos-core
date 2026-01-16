@@ -176,6 +176,7 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_AUTOMATION_V2,
             FeatureFlag::SUPRA_BLS_KEYS,
             FeatureFlag::SUPRA_BCFT_CERTIFICATES,
+            FeatureFlag::SUPRA_DKG,
         ]
     }
 }
