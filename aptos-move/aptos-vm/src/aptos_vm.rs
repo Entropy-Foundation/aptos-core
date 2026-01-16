@@ -2365,6 +2365,11 @@ impl AptosVM {
         let storage = TraversalStorage::new();
 
         session
+            .get_native_extensions()
+            .get_mut::<RandomnessContext>()
+            .mark_unbiasable();
+
+        session
             .execute_function_bypass_visibility(
                 &BLOCK_MODULE,
                 BLOCK_PROLOGUE_EXT,
