@@ -2358,6 +2358,7 @@ impl AptosVM {
             randomness
                 .as_ref()
                 .map(Randomness::randomness_cloned)
+                .unwrap_or_default()
                 .as_move_value(),
         ];
 

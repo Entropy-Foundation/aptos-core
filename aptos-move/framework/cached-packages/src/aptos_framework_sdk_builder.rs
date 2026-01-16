@@ -187,6 +187,17 @@ pub enum EntryFunctionCall {
         task_indexes: Vec<u64>,
     },
 
+    BlockBlockPrologueExt {
+        hash: AccountAddress,
+        epoch: u64,
+        round: u64,
+        proposer: AccountAddress,
+        failed_proposer_indices: Vec<u64>,
+        previous_block_votes_bitvec: Vec<u8>,
+        timestamp: u64,
+        randomness_seed_vec: Vec<u8>,
+    },
+
     /// Same as `publish_package` but as an entry function which can be called as a transaction. Because
     /// of current restrictions for txn parameters, the metadata needs to be passed in serialized form.
     CodePublishPackageTxn {
@@ -1306,6 +1317,25 @@ impl EntryFunctionCall {
             AutomationRegistryStopTasks { task_indexes } => {
                 automation_registry_stop_tasks(task_indexes)
             },
+            BlockBlockPrologueExt {
+                hash,
+                epoch,
+                round,
+                proposer,
+                failed_proposer_indices,
+                previous_block_votes_bitvec,
+                timestamp,
+                randomness_seed_vec,
+            } => block_block_prologue_ext(
+                hash,
+                epoch,
+                round,
+                proposer,
+                failed_proposer_indices,
+                previous_block_votes_bitvec,
+                timestamp,
+                randomness_seed_vec,
+            ),
             CodePublishPackageTxn {
                 metadata_serialized,
                 code,
@@ -2407,6 +2437,39 @@ pub fn automation_registry_stop_tasks(task_indexes: Vec<u64>) -> TransactionPayl
         ident_str!("stop_tasks").to_owned(),
         vec![],
         vec![bcs::to_bytes(&task_indexes).unwrap()],
+    ))
+}
+
+pub fn block_block_prologue_ext(
+    hash: AccountAddress,
+    epoch: u64,
+    round: u64,
+    proposer: AccountAddress,
+    failed_proposer_indices: Vec<u64>,
+    previous_block_votes_bitvec: Vec<u8>,
+    timestamp: u64,
+    randomness_seed_vec: Vec<u8>,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("block").to_owned(),
+        ),
+        ident_str!("block_prologue_ext").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&hash).unwrap(),
+            bcs::to_bytes(&epoch).unwrap(),
+            bcs::to_bytes(&round).unwrap(),
+            bcs::to_bytes(&proposer).unwrap(),
+            bcs::to_bytes(&failed_proposer_indices).unwrap(),
+            bcs::to_bytes(&previous_block_votes_bitvec).unwrap(),
+            bcs::to_bytes(&timestamp).unwrap(),
+            bcs::to_bytes(&randomness_seed_vec).unwrap(),
+        ],
     ))
 }
 
@@ -5808,6 +5871,23 @@ mod decoder {
         }
     }
 
+    pub fn block_block_prologue_ext(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::BlockBlockPrologueExt {
+                hash: bcs::from_bytes(script.args().get(0)?).ok()?,
+                epoch: bcs::from_bytes(script.args().get(1)?).ok()?,
+                round: bcs::from_bytes(script.args().get(2)?).ok()?,
+                proposer: bcs::from_bytes(script.args().get(3)?).ok()?,
+                failed_proposer_indices: bcs::from_bytes(script.args().get(4)?).ok()?,
+                previous_block_votes_bitvec: bcs::from_bytes(script.args().get(5)?).ok()?,
+                timestamp: bcs::from_bytes(script.args().get(6)?).ok()?,
+                randomness_seed_vec: bcs::from_bytes(script.args().get(7)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn code_publish_package_txn(payload: &TransactionPayload) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(script) = payload {
             Some(EntryFunctionCall::CodePublishPackageTxn {
@@ -7781,6 +7861,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "automation_registry_stop_tasks".to_string(),
             Box::new(decoder::automation_registry_stop_tasks),
+        );
+        map.insert(
+            "block_block_prologue_ext".to_string(),
+            Box::new(decoder::block_block_prologue_ext),
         );
         map.insert(
             "code_publish_package_txn".to_string(),
