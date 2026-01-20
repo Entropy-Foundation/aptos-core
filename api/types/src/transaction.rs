@@ -8,6 +8,8 @@ use crate::{
     MoveModuleBytecode, MoveModuleId, MoveResource, MoveScriptBytecode, MoveStructTag, MoveType,
     MoveValue, VerifyInput, VerifyInputWithRecursion, U64,
 };
+use alloy::primitives::Keccak256;
+use alloy_rlp::Encodable;
 use anyhow::{bail, Context as AnyhowContext};
 use aptos_crypto::{
     ed25519::{self, Ed25519PublicKey, ED25519_PUBLIC_KEY_LENGTH, ED25519_SIGNATURE_LENGTH},
@@ -65,6 +67,7 @@ static DUMMY_SEQUENCE_NUMBER: Lazy<U64> = Lazy::new(|| U64::from(0));
 /// This is a combination enum of an onchain transaction and a pending transaction.
 /// When the transaction is still in mempool, it will be pending.  If it's been committed to the
 /// chain, it will show up as OnChain.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum TransactionData {
     /// A committed transaction
@@ -878,41 +881,52 @@ pub struct Event {
     pub typ: MoveType,
     /// The JSON representation of the event
     pub data: serde_json::Value,
-    #[cfg(feature = "rlp_encoding")]
-    /// Supra hash of the event - RLP + keccak256
-    pub hash: HashValue,
 }
 
 impl From<(&ContractEvent, serde_json::Value)> for Event {
     fn from((event, data): (&ContractEvent, serde_json::Value)) -> Self {
-        #[cfg(feature = "rlp_encoding")]
-        let hash = {
-            use alloy::primitives::Keccak256;
-            use alloy_rlp::Encodable;
-
-            let mut buf = Vec::new();
-            Encodable::encode(&event, &mut buf);
-            let mut hasher = Keccak256::new();
-            hasher.update(buf);
-            HashValue(aptos_crypto::hash::HashValue::new(*hasher.finalize()))
-        };
         match event {
             ContractEvent::V1(v1) => Self {
                 guid: (*v1.key()).into(),
                 sequence_number: v1.sequence_number().into(),
                 typ: v1.type_tag().clone().into(),
                 data,
-                #[cfg(feature = "rlp_encoding")]
-                hash,
             },
             ContractEvent::V2(v2) => Self {
                 guid: *DUMMY_GUID,
                 sequence_number: *DUMMY_SEQUENCE_NUMBER,
                 typ: v2.type_tag().clone().into(),
                 data,
-                #[cfg(feature = "rlp_encoding")]
-                hash,
             },
+        }
+    }
+}
+
+/// An event from a transaction with it's hash.
+/// This type acts as a container that associates the data of an [`Event`] with its hash.
+///
+/// The `hash` field is computed by:
+/// 1. Encoding the `event` structure using `RLP` (Recursive Length Prefix).
+/// 2. Hashing the resulting byte array using the `Keccak-256`.
+#[derive(Clone, Debug, Deserialize, Eq, Object, PartialEq, Serialize)]
+pub struct EventV2 {
+    /// The underlying event data emitted by the transaction.
+    #[serde(flatten)]
+    pub event: Event,
+    /// The hash of the event, derived from `RLP(event)` + `keccak256`.
+    pub hash: HashValue,
+}
+
+impl From<(&ContractEvent, serde_json::Value)> for EventV2 {
+    fn from((event, data): (&ContractEvent, serde_json::Value)) -> Self {
+        let mut buf = Vec::new();
+        Encodable::encode(&event, &mut buf);
+        let mut hasher = Keccak256::new();
+        hasher.update(buf);
+        let hash = HashValue(aptos_crypto::HashValue::new(*hasher.finalize()));
+        Self {
+            event: Event::from((event, data)),
+            hash,
         }
     }
 }
@@ -2394,8 +2408,8 @@ impl FromStr for TransactionId {
 impl fmt::Display for TransactionId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Hash(h) => write!(f, "hash({})", h),
-            Self::Version(v) => write!(f, "version({})", v),
+            Self::Hash(h) => write!(f, "hash({h})"),
+            Self::Version(v) => write!(f, "version({v})"),
         }
     }
 }
