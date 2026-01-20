@@ -12,10 +12,6 @@ publish = { workspace = true }
 repository = { workspace = true }
 rust-version = { workspace = true }
 
-[features]
-default = ["rlp_encoding"]
-rlp_encoding = ["alloy-rlp"]
-
 [dependencies]
 anyhow = { workspace = true }
 aptos-config = { workspace = true }
@@ -28,8 +24,8 @@ aptos-storage-interface = { workspace = true }
 aptos-types = { workspace = true, features = ["rlp_encoding"] }
 aptos-vm = { workspace = true }
 async-trait = { workspace = true }
-alloy = { version = "1.0.13", default-features = false }
-alloy-rlp = { version = "0.3.12", optional = true, features = ["derive"] }
+alloy = { workspace = true}
+alloy-rlp = { workspace = true}
 bcs = { workspace = true }
 bytes = { workspace = true }
 hex = { workspace = true }
