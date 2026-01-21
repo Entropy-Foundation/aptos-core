@@ -251,8 +251,7 @@ module supra_framework::block {
     }
 
     /// `block_prologue()` but trigger reconfiguration with DKG after epoch timed out.
-    #[randomness]
-    entry fun block_prologue_ext(
+    fun block_prologue_ext(
         vm: signer,
         hash: address,
         epoch: u64,

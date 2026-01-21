@@ -42,6 +42,7 @@ DKG on-chain states and helper functions.
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="timestamp.md#0x1_timestamp">0x1::timestamp</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/type_info.md#0x1_type_info">0x1::type_info</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 </code></pre>
 
 
@@ -546,9 +547,13 @@ The <code>target_committees_public_key_shares</code> is assumed to be verified b
     <b>let</b> public_key_shares_all_comms_serialized
         = <a href="../../aptos-stdlib/doc/any.md#0x1_any_new">any::new</a>(<a href="../../aptos-stdlib/doc/type_info.md#0x1_type_info_type_name">type_info::type_name</a>&lt;<a href="dkg.md#0x1_dkg_OnChainAggregateCommitmentAllCommittees">OnChainAggregateCommitmentAllCommittees</a>&gt;(), target_committees_public_key_shares);
     <b>let</b> public_key_shares_all_comms = <a href="../../aptos-stdlib/doc/any.md#0x1_any_unpack">any::unpack</a>&lt;<a href="dkg.md#0x1_dkg_OnChainAggregateCommitmentAllCommittees">OnChainAggregateCommitmentAllCommittees</a>&gt;(public_key_shares_all_comms_serialized);
-    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&public_key_shares_all_comms.commitments) &gt;= 2, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="dkg.md#0x1_dkg_EDKG_INVALID_PK_SHARES">EDKG_INVALID_PK_SHARES</a>));
-    <a href="stake.md#0x1_stake_set_dkg_output_keys">stake::set_dkg_output_keys</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&public_key_shares_all_comms.commitments, 0).bls12381_commitment_evals,
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&public_key_shares_all_comms.commitments, 1).bls12381_commitment_evals);
+    // As the first index contains the committee's threshold <b>public</b> key, we can skip that
+    <b>let</b> v0 = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&public_key_shares_all_comms.commitments, 0).bls12381_commitment_evals;
+    <b>let</b> v1 = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&public_key_shares_all_comms.commitments, 1).bls12381_commitment_evals;
+    <a href="stake.md#0x1_stake_set_dkg_output_keys">stake::set_dkg_output_keys</a>(
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_slice">vector::slice</a>(&v0, 1, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&v0)),
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_slice">vector::slice</a>(&v1, 1, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&v1))
+    );
     emit(<a href="dkg.md#0x1_dkg_DKGFinishEvent">DKGFinishEvent</a> {
         target_committees_public_key_shares,
     });

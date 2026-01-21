@@ -156,9 +156,13 @@ module supra_framework::dkg {
         let public_key_shares_all_comms_serialized
             = any::new(type_info::type_name<OnChainAggregateCommitmentAllCommittees>(), target_committees_public_key_shares);
         let public_key_shares_all_comms = any::unpack<OnChainAggregateCommitmentAllCommittees>(public_key_shares_all_comms_serialized);
-        assert!(vector::length(&public_key_shares_all_comms.commitments) >= 2, error::invalid_state(EDKG_INVALID_PK_SHARES));
-        stake::set_dkg_output_keys(vector::borrow(&public_key_shares_all_comms.commitments, 0).bls12381_commitment_evals,
-            vector::borrow(&public_key_shares_all_comms.commitments, 1).bls12381_commitment_evals);
+        // As the first index contains the committee's threshold public key, we can skip that
+        let v0 = vector::borrow(&public_key_shares_all_comms.commitments, 0).bls12381_commitment_evals;
+        let v1 = vector::borrow(&public_key_shares_all_comms.commitments, 1).bls12381_commitment_evals;
+        stake::set_dkg_output_keys(
+            vector::slice(&v0, 1, vector::length(&v0)),
+            vector::slice(&v1, 1, vector::length(&v1))
+        );
         emit(DKGFinishEvent {
             target_committees_public_key_shares,
         });
