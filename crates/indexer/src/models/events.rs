@@ -3,7 +3,7 @@
 #![allow(clippy::extra_unused_lifetimes)]
 use super::transactions::TransactionQuery;
 use crate::{models::transactions::Transaction, schema::events, util::standardize_address};
-use aptos_api_types::Event as APIEvent;
+use aptos_api_types::EventV1 as APIEvent;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 

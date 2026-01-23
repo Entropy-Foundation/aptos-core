@@ -5,7 +5,7 @@
 use aptos_api_types::transaction::{AutomationRegistrationParams, AutomationTaskType};
 use aptos_api_types::{
     transaction::ValidatorTransaction as ApiValidatorTransactionEnum, AccountSignature,
-    DeleteModule, DeleteResource, Ed25519Signature, EntryFunctionId, EntryFunctionPayload, Event,
+    DeleteModule, DeleteResource, Ed25519Signature, EntryFunctionId, EntryFunctionPayload, EventV1,
     GenesisPayload, MoveAbility, MoveFunction, MoveFunctionGenericTypeParam,
     MoveFunctionVisibility, MoveModule, MoveModuleBytecode, MoveModuleId, MoveScriptBytecode,
     MoveStruct, MoveStructField, MoveStructTag, MoveType, MultiEd25519Signature, MultiKeySignature,
@@ -197,7 +197,7 @@ pub fn convert_transaction_payload(
 }
 
 #[inline]
-pub fn convert_events(events: &[Event]) -> Vec<transaction::Event> {
+pub fn convert_events(events: &[EventV1]) -> Vec<transaction::Event> {
     events.iter().map(convert_event).collect()
 }
 
@@ -558,7 +558,7 @@ pub fn convert_automation_payload(
     }
 }
 
-pub fn convert_event(event: &Event) -> transaction::Event {
+pub fn convert_event(event: &EventV1) -> transaction::Event {
     let event_key: aptos_types::event::EventKey = event.guid.into();
     transaction::Event {
         key: Some(transaction::EventKey {

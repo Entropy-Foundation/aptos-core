@@ -18,7 +18,7 @@ use crate::{
     },
 };
 use anyhow::{Context, Result};
-use aptos_api_types::{deserialize_from_string, Event, WriteResource};
+use aptos_api_types::{deserialize_from_string, EventV1, WriteResource};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -352,7 +352,7 @@ pub struct BurnEvent {
 }
 
 impl BurnEvent {
-    pub fn from_event(event: &Event, txn_version: i64) -> anyhow::Result<Option<Self>> {
+    pub fn from_event(event: &EventV1, txn_version: i64) -> anyhow::Result<Option<Self>> {
         let event_type = event.typ.to_string();
         if let Some(V2TokenEvent::BurnEvent(inner)) =
             V2TokenEvent::from_event(event_type.as_str(), &event.data, txn_version).unwrap()
@@ -376,7 +376,7 @@ pub struct TransferEvent {
 }
 
 impl TransferEvent {
-    pub fn from_event(event: &Event, txn_version: i64) -> anyhow::Result<Option<Self>> {
+    pub fn from_event(event: &EventV1, txn_version: i64) -> anyhow::Result<Option<Self>> {
         let event_type = event.typ.to_string();
         if let Some(V2TokenEvent::TransferEvent(inner)) =
             V2TokenEvent::from_event(event_type.as_str(), &event.data, txn_version).unwrap()

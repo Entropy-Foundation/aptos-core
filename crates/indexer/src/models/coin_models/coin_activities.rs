@@ -16,7 +16,7 @@ use crate::{
     util::{parse_timestamp, standardize_address, truncate_str},
 };
 use aptos_api_types::{
-    Event as APIEvent, Transaction as APITransaction, TransactionInfo as APITransactionInfo,
+    EventV1 as APIEvent, Transaction as APITransaction, TransactionInfo as APITransactionInfo,
     TransactionPayload, UserTransactionRequest, WriteSetChange as APIWriteSetChange,
 };
 use aptos_types::SUPRA_COIN_TYPE;

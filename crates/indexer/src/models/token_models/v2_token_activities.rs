@@ -14,7 +14,7 @@ use crate::{
     database::PgPoolConnection, models::coin_models::v2_fungible_asset_utils::FungibleAssetEvent,
     schema::token_activities_v2, util::standardize_address,
 };
-use aptos_api_types::Event as APIEvent;
+use aptos_api_types::EventV1 as APIEvent;
 use bigdecimal::{BigDecimal, One, Zero};
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
