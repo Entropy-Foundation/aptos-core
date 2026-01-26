@@ -881,22 +881,40 @@ pub struct EventV1 {
     pub typ: MoveType,
     /// The JSON representation of the event
     pub data: serde_json::Value,
+    /// The hash of the event, derived from `RLP(event)` + `keccak256`.
+    ///
+    /// TODO: Yes, you are correct—this is a hack that saves us from making a large number of changes
+    /// in the `rpc_node` just to support `EventV2`. Please do not take this hack lightly; take a
+    /// moment to think about the amount of work it actually saves.
+    ///
+    /// After a clear-cut refactor in `api-types` in `smr-moonshot`, we should be in a position to
+    /// remove this hacky solution.
+    #[serde(skip)]
+    pub hash: HashValue,
 }
 
 impl From<(&ContractEvent, serde_json::Value)> for EventV1 {
     fn from((event, data): (&ContractEvent, serde_json::Value)) -> Self {
+        let mut buf = Vec::new();
+        Encodable::encode(&event, &mut buf);
+        let mut hasher = Keccak256::new();
+        hasher.update(buf);
+        let hash = HashValue(aptos_crypto::HashValue::new(*hasher.finalize()));
+
         match event {
             ContractEvent::V1(v1) => Self {
                 guid: (*v1.key()).into(),
                 sequence_number: v1.sequence_number().into(),
                 typ: v1.type_tag().clone().into(),
                 data,
+                hash,
             },
             ContractEvent::V2(v2) => Self {
                 guid: *DUMMY_GUID,
                 sequence_number: *DUMMY_SEQUENCE_NUMBER,
                 typ: v2.type_tag().clone().into(),
                 data,
+                hash,
             },
         }
     }
@@ -932,22 +950,41 @@ impl From<(&ContractEvent, serde_json::Value)> for EventV2 {
         let mut hasher = Keccak256::new();
         hasher.update(buf);
         let hash = HashValue(aptos_crypto::HashValue::new(*hasher.finalize()));
-        
+
         match event {
             ContractEvent::V1(v1) => Self {
                 guid: (*v1.key()).into(),
                 sequence_number: v1.sequence_number().into(),
                 typ: v1.type_tag().clone().into(),
                 data,
-                hash
+                hash,
             },
             ContractEvent::V2(v2) => Self {
                 guid: *DUMMY_GUID,
                 sequence_number: *DUMMY_SEQUENCE_NUMBER,
                 typ: v2.type_tag().clone().into(),
                 data,
-                hash
+                hash,
             },
+        }
+    }
+}
+
+impl From<EventV1> for EventV2 {
+    fn from(event_v1: EventV1) -> Self {
+        let EventV1 {
+            guid,
+            sequence_number,
+            typ,
+            data,
+            hash,
+        } = event_v1;
+        Self {
+            guid,
+            sequence_number,
+            typ,
+            data,
+            hash,
         }
     }
 }
