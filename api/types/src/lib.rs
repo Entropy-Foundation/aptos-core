@@ -47,7 +47,7 @@ pub use table::{RawTableItemRequest, TableItemRequest};
 pub use transaction::{
     AccountSignature, BlockMetadataTransaction, DeleteModule, DeleteResource, DeleteTableItem,
     DirectWriteSet, Ed25519Signature, EncodeSubmissionRequest, EntryFunctionPayload, EventV1,
-    FeePayerSignature, GasEstimation, GasEstimationBcs, GenesisPayload, GenesisTransaction,
+    EventV2, FeePayerSignature, GasEstimation, GasEstimationBcs, GenesisPayload, GenesisTransaction,
     MultiAgentSignature, MultiEd25519Signature, MultiKeySignature, MultisigPayload,
     MultisigTransactionPayload, PendingTransaction, PublicKey, ScriptPayload, ScriptWriteSet,
     Signature, SingleKeySignature, SubmitTransactionRequest, Transaction, TransactionData,

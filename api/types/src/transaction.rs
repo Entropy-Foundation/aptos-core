@@ -10,7 +10,7 @@ use crate::{
 };
 use alloy::primitives::Keccak256;
 use alloy_rlp::Encodable;
-use anyhow::{bail, Context as AnyhowContext};
+use anyhow::{anyhow, bail, Context as AnyhowContext, Error as AnyhowError};
 use aptos_crypto::{
     ed25519::{self, Ed25519PublicKey, ED25519_PUBLIC_KEY_LENGTH, ED25519_SIGNATURE_LENGTH},
     multi_ed25519::{self, MultiEd25519PublicKey, BITMAP_NUM_OF_BYTES, MAX_NUM_OF_KEYS},
@@ -890,7 +890,8 @@ pub struct EventV1 {
     /// After a clear-cut refactor in `api-types` in `smr-moonshot`, we should be in a position to
     /// remove this hacky solution.
     #[serde(skip)]
-    pub hash: HashValue,
+    #[oai(skip)]
+    pub hash: Option<HashValue>,
 }
 
 impl From<(&ContractEvent, serde_json::Value)> for EventV1 {
@@ -899,7 +900,7 @@ impl From<(&ContractEvent, serde_json::Value)> for EventV1 {
         Encodable::encode(&event, &mut buf);
         let mut hasher = Keccak256::new();
         hasher.update(buf);
-        let hash = HashValue(aptos_crypto::HashValue::new(*hasher.finalize()));
+        let hash = Some(HashValue(aptos_crypto::HashValue::new(*hasher.finalize())));
 
         match event {
             ContractEvent::V1(v1) => Self {
@@ -970,8 +971,9 @@ impl From<(&ContractEvent, serde_json::Value)> for EventV2 {
     }
 }
 
-impl From<EventV1> for EventV2 {
-    fn from(event_v1: EventV1) -> Self {
+impl TryFrom<EventV1> for EventV2 {
+    type Error = AnyhowError;
+    fn try_from(event_v1: EventV1) -> Result<Self, Self::Error> {
         let EventV1 {
             guid,
             sequence_number,
@@ -979,13 +981,13 @@ impl From<EventV1> for EventV2 {
             data,
             hash,
         } = event_v1;
-        Self {
+        Ok(Self {
             guid,
             sequence_number,
             typ,
             data,
-            hash,
-        }
+            hash: hash.ok_or(anyhow!("Event hash is missing in `EventV1`"))?,
+        })
     }
 }
 
