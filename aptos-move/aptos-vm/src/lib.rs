@@ -128,8 +128,10 @@ pub mod validator_txns;
 pub mod verifier;
 
 pub use crate::aptos_vm::{AptosSimulationVM, AptosVM};
-use crate::move_vm_ext::AptosMoveResolver;
-use crate::sharded_block_executor::{executor_client::ExecutorClient, ShardedBlockExecutor};
+use crate::{
+    move_vm_ext::AptosMoveResolver,
+    sharded_block_executor::{executor_client::ExecutorClient, ShardedBlockExecutor},
+};
 use aptos_types::{
     block_executor::{
         config::BlockExecutorConfigFromOnchain, partitioner::PartitionedTransactions,

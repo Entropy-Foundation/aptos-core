@@ -13,6 +13,7 @@ use aptos_types::{
     fee_statement::FeeStatement,
     move_utils::as_move_value::AsMoveValue,
     transaction::{ExecutionStatus, TransactionStatus},
+    vm_status::DiscardedVMStatus,
 };
 use aptos_vm_logging::log_schema::AdapterLogSchema;
 use aptos_vm_types::output::VMOutput;
@@ -24,22 +25,8 @@ use move_core_types::{
 use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
 use move_vm_types::gas::UnmeteredGasMeter;
 
-#[derive(Debug)]
-enum ExpectedFailure {
-    // Move equivalent: `errors::invalid_argument(*)`
-    EpochNotCurrent = 0x10001,
-    TranscriptVerificationFailed = 0x10002,
-    DKGMetaAlreadySet = 0x10003,
-    DKGMetaNotSet = 0x10004,
-
-    // Move equivalent: `errors::invalid_state(*)`
-    MissingResourceDKGState = 0x30001,
-    MissingResourceInprogressDKGSession = 0x30002,
-    MissingResourceDKGClanPublicKeys = 0x30003,
-}
-
 enum ExecutionFailure {
-    Expected(ExpectedFailure),
+    Expected(DiscardedVMStatus),
     Unexpected(VMStatus),
 }
 
@@ -58,11 +45,11 @@ impl AptosVM {
             dkg_transaction_data,
         ) {
             Ok((vm_status, vm_output)) => Ok((vm_status, vm_output)),
-            Err(ExecutionFailure::Expected(failure)) => {
+            Err(ExecutionFailure::Expected(status)) => {
                 // Pretend we are inside Move, and expected failures are like Move aborts.
                 Ok((
-                    VMStatus::MoveAbort(AbortLocation::Script, failure as u64),
-                    VMOutput::empty_with_status(TransactionStatus::Discard(StatusCode::ABORTED)),
+                    VMStatus::error(status, None),
+                    VMOutput::empty_with_status(TransactionStatus::Discard(status)),
                 ))
             },
             Err(ExecutionFailure::Unexpected(vm_status)) => Err(vm_status),
@@ -81,34 +68,7 @@ impl AptosVM {
             .validate_dkg_validator_transaction(dkg_transaction.clone(), resolver)
             .status()
         {
-            return match status {
-                StatusCode::RESOURCE_DOES_NOT_EXIST => Err(ExecutionFailure::Expected(
-                    ExpectedFailure::MissingResourceDKGState,
-                )),
-
-                StatusCode::DKG_SESSION_NOT_IN_PROGRESS => Err(ExecutionFailure::Expected(
-                    ExpectedFailure::MissingResourceInprogressDKGSession,
-                )),
-
-                StatusCode::DKG_TRANSACTION_INVALID_EPOCH_NUM => {
-                    Err(ExecutionFailure::Expected(ExpectedFailure::EpochNotCurrent))
-                },
-
-                StatusCode::DKG_META_ALREADY_SET => Err(ExecutionFailure::Expected(
-                    ExpectedFailure::DKGMetaAlreadySet,
-                )),
-
-                StatusCode::DKG_META_NOT_SET => {
-                    Err(ExecutionFailure::Expected(ExpectedFailure::DKGMetaNotSet))
-                },
-
-                StatusCode::DKG_FAILED_TO_GET_CLAN_NODE_PUBKEYS => Err(ExecutionFailure::Expected(
-                    ExpectedFailure::MissingResourceDKGClanPublicKeys,
-                )),
-                _ => Err(ExecutionFailure::Expected(
-                    ExpectedFailure::TranscriptVerificationFailed,
-                )),
-            };
+            return Err(ExecutionFailure::Expected(status));
         }
 
         let (function_name, args) = match dkg_transaction.metadata().transaction_type() {
