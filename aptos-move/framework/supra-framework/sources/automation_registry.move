@@ -135,7 +135,7 @@ module supra_framework::automation_registry {
     const EREGISTRY_SYSTEM_MAX_GAS_CAP_NON_ZERO: u64 = 46;
     /// The input address is not identified as multisig account.
     const EUNKNOWN_MULTISIG_ADDRESS: u64 = 47;
-    /// The refund fee for remaining cycle cycle time is greater than total cycle fee for the task.
+    /// The refund fee for remaining cycle time is greater than total cycle fee for the task.
     const EINVALID_CYCLE_REFUND_FEE: u64 = 48;
 
     /// The length of the transaction hash.

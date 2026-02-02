@@ -2670,7 +2670,7 @@ Invalid number of auxiliary data.
 
 <a id="0x1_automation_registry_EINVALID_CYCLE_REFUND_FEE"></a>
 
-The refund fee for remaining cycle cycle time is greater than total cycle fee for the task.
+The refund fee for remaining cycle time is greater than total cycle fee for the task.
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_CYCLE_REFUND_FEE">EINVALID_CYCLE_REFUND_FEE</a>: u64 = 48;
