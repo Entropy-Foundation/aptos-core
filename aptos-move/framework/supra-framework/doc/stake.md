@@ -176,6 +176,7 @@ or if their stake drops below the min required, they would get removed at the en
 <b>use</b> <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381">0x1::bls12381</a>;
 <b>use</b> <a href="chain_status.md#0x1_chain_status">0x1::chain_status</a>;
 <b>use</b> <a href="coin.md#0x1_coin">0x1::coin</a>;
+<b>use</b> <a href="dkg_committee.md#0x1_dkg_committee">0x1::dkg_committee</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519">0x1::ed25519</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
@@ -3063,9 +3064,11 @@ Move <code>amount</code> of coins from pending_inactive to active.
 
 ## Function `set_dkg_output_keys`
 
+Set DKG output keys for all provided threshold types.
+Each DkgCommitteeOutput contains a threshold_type and corresponding keys for all validators.
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="stake.md#0x1_stake_set_dkg_output_keys">set_dkg_output_keys</a>(committee_bls_threshold_validity_certificate_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, committee_bls_threshold_quorum_certificate_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="stake.md#0x1_stake_set_dkg_output_keys">set_dkg_output_keys</a>(committee_outputs: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeOutput">dkg_committee::DkgCommitteeOutput</a>&gt;)
 </code></pre>
 
 
@@ -3075,37 +3078,60 @@ Move <code>amount</code> of coins from pending_inactive to active.
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="stake.md#0x1_stake_set_dkg_output_keys">set_dkg_output_keys</a>(
-    committee_bls_threshold_validity_certificate_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;,
-    committee_bls_threshold_quorum_certificate_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;,
+    committee_outputs: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeOutput">dkg_committee::DkgCommitteeOutput</a>&gt;,
 ) <b>acquires</b> <a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>, <a href="stake.md#0x1_stake_ValidatorFees">ValidatorFees</a>, <a href="stake.md#0x1_stake_ValidatorPerformance">ValidatorPerformance</a>, <a href="stake.md#0x1_stake_ValidatorSet">ValidatorSet</a>, <a href="stake.md#0x1_stake_StakePool">StakePool</a> {
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&committee_outputs)) {
+        <b>return</b>
+    };
+
     <b>let</b> next_validator_infos = <a href="stake.md#0x1_stake_next_validator_consensus_infos">next_validator_consensus_infos</a>();
+    <b>let</b> num_validators = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&next_validator_infos);
+
+    // Validate all committee outputs have correct number of keys
+    <b>let</b> num_outputs = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&committee_outputs);
+    <b>let</b> j = 0;
+    <b>while</b> (j &lt; num_outputs) {
+        <b>let</b> output = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&committee_outputs, j);
+        <b>assert</b>!(
+            num_validators == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&<a href="dkg_committee.md#0x1_dkg_committee_get_dkg_committee_output_keys">dkg_committee::get_dkg_committee_output_keys</a>(output)),
+            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="stake.md#0x1_stake_EDKG_INVALID_PK_SHARES">EDKG_INVALID_PK_SHARES</a>)
+        );
+        j = j + 1;
+    };
+
+    // Iterate over each validator
     <b>let</b> i = 0;
-    <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&next_validator_infos);
-    <b>assert</b>!(len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&committee_bls_threshold_validity_certificate_keys), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="stake.md#0x1_stake_EDKG_INVALID_PK_SHARES">EDKG_INVALID_PK_SHARES</a>));
-    <b>assert</b>!(len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&committee_bls_threshold_quorum_certificate_keys), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="stake.md#0x1_stake_EDKG_INVALID_PK_SHARES">EDKG_INVALID_PK_SHARES</a>));
-    <b>while</b> (i &lt; len) {
+    <b>while</b> (i &lt; num_validators) {
         <b>let</b> val_info = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&next_validator_infos, i);
         <b>let</b> addr = <a href="validator_consensus_info.md#0x1_validator_consensus_info_get_addr">validator_consensus_info::get_addr</a>(val_info);
-        <b>let</b> validity_key_bytes = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&committee_bls_threshold_validity_certificate_keys, i);
-        <b>let</b> quorum_key_bytes = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&committee_bls_threshold_quorum_certificate_keys, i);
-
-        // Deserialize new validity key
-        <b>let</b> validity_key_opt = aptos_std::bls12381::public_key_from_bytes(*validity_key_bytes);
-        <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&validity_key_opt), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="stake.md#0x1_stake_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>));
-        <b>let</b> new_validity_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> validity_key_opt);
-
-        // Deserialize new quorum key
-        <b>let</b> quorum_key_opt = aptos_std::bls12381::public_key_from_bytes(*quorum_key_bytes);
-        <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&quorum_key_opt), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="stake.md#0x1_stake_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>));
-        <b>let</b> new_quorum_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> quorum_key_opt);
-
         <b>let</b> validator_config = <b>borrow_global_mut</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(addr);
         <b>let</b> old_consensus_pubkey = validator_config.consensus_pubkey;
 
-        // Update keys
+        // Load current <b>public</b> keys
         <b>let</b> pub_keys = <a href="validator_public_keys.md#0x1_validator_public_keys_validator_public_keys_from_bytes">validator_public_keys::validator_public_keys_from_bytes</a>(old_consensus_pubkey);
-        <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_validity_key">validator_public_keys::rotate_supra_bls_threshold_validity_key</a>(&<b>mut</b> pub_keys, new_validity_key);
-        <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_quorum_key">validator_public_keys::rotate_supra_bls_threshold_quorum_key</a>(&<b>mut</b> pub_keys, new_quorum_key);
+
+        // Apply all threshold key updates for this validator
+        <b>let</b> k = 0;
+        <b>while</b> (k &lt; num_outputs) {
+            <b>let</b> output = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&committee_outputs, k);
+            <b>let</b> output_keys = <a href="dkg_committee.md#0x1_dkg_committee_get_dkg_committee_output_keys">dkg_committee::get_dkg_committee_output_keys</a>(output);
+            <b>let</b> key_bytes = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&output_keys, i);
+
+            // Deserialize the key
+            <b>let</b> key_opt = aptos_std::bls12381::public_key_from_bytes(*key_bytes);
+            <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&key_opt), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="stake.md#0x1_stake_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>));
+            <b>let</b> new_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> key_opt);
+
+            // Rotate the key based on threshold type
+            <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_key_by_type">validator_public_keys::rotate_supra_bls_threshold_key_by_type</a>(
+                &<b>mut</b> pub_keys,
+                <a href="dkg_committee.md#0x1_dkg_committee_get_dkg_committee_output_threshold_type">dkg_committee::get_dkg_committee_output_threshold_type</a>(output),
+                new_key
+            );
+            k = k + 1;
+        };
+
+        // Serialize and save updated keys
         <b>let</b> new_consensus_pubkey = <a href="validator_public_keys.md#0x1_validator_public_keys_public_key_to_bytes">validator_public_keys::public_key_to_bytes</a>(pub_keys);
         validator_config.consensus_pubkey = new_consensus_pubkey;
 

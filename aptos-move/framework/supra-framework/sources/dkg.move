@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Supra.
 /// DKG on-chain states and helper functions.
 module supra_framework::dkg {
-    use std::dkg_committee::{DkgCommittee, ReceiverCommittee};
+    use std::dkg_committee::{DkgCommittee, ReceiverCommittee, new_dkg_committee_output};
     use std::error;
     use std::option;
     use std::option::{Option};
@@ -67,6 +67,7 @@ module supra_framework::dkg {
         committee_index: u32,
         epoch: u64,
         chain_id: u8,
+        threshold_type: u8,
     }
 
     struct OnChainAggregateCommitmentAllCommittees has copy, drop{
@@ -152,17 +153,29 @@ module supra_framework::dkg {
         dkg_state.last_completed = option::some(session);
         dkg_state.in_progress = option::none();
 
-        // propagate updated keys to stake.move, set validity and quorum keys for now.
+        // propagate updated keys to stake.move for all threshold types
         let public_key_shares_all_comms_serialized
             = any::new(type_info::type_name<OnChainAggregateCommitmentAllCommittees>(), target_committees_public_key_shares);
         let public_key_shares_all_comms = any::unpack<OnChainAggregateCommitmentAllCommittees>(public_key_shares_all_comms_serialized);
-        // As the first index contains the committee's threshold public key, we can skip that
-        let v0 = vector::borrow(&public_key_shares_all_comms.commitments, 0).bls12381_commitment_evals;
-        let v1 = vector::borrow(&public_key_shares_all_comms.commitments, 1).bls12381_commitment_evals;
-        stake::set_dkg_output_keys(
-            vector::slice(&v0, 1, vector::length(&v0)),
-            vector::slice(&v1, 1, vector::length(&v1))
-        );
+        
+        // Build a vector of DkgCommitteeOutput for all committees
+        let committee_outputs = vector[];
+        let i = 0;
+        let len = vector::length(&public_key_shares_all_comms.commitments);
+        while (i < len) {
+            let commitment = vector::borrow(&public_key_shares_all_comms.commitments, i);
+            // As the first index contains the committee's threshold public key, we can skip that
+            let evals = vector::slice(&commitment.bls12381_commitment_evals, 1, vector::length(&commitment.bls12381_commitment_evals));
+            
+            vector::push_back(
+                &mut committee_outputs,
+                new_dkg_committee_output(commitment.threshold_type, evals)
+            );
+            i = i + 1;
+        };
+        
+        // Set all keys for all threshold types
+        stake::set_dkg_output_keys(committee_outputs);
         emit(DKGFinishEvent {
             target_committees_public_key_shares,
         });

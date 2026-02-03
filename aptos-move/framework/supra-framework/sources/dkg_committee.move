@@ -90,4 +90,27 @@ module std::dkg_committee {
             committee
         }
     }
+
+    /// Input for DKG key output - contains threshold type and keys for one committee
+    struct DkgCommitteeOutput has copy, drop {
+        /// The threshold type (0=validity, 1=quorum, 2=unanimous, etc.)
+        threshold_type: u8,
+        /// Public key shares for each validator (indexed by validator position)
+        keys: vector<vector<u8>>,
+    }
+
+    /// Create a new DkgCommitteeOutput
+    public fun new_dkg_committee_output(threshold_type: u8, keys: vector<vector<u8>>): DkgCommitteeOutput {
+        DkgCommitteeOutput { threshold_type, keys }
+    }
+
+    /// Get threshold type from DkgCommitteeOutput
+    public fun get_dkg_committee_output_threshold_type(output: &DkgCommitteeOutput): u8 {
+        output.threshold_type
+    }
+
+    /// Get keys from DkgCommitteeOutput
+    public fun get_dkg_committee_output_keys(output: &DkgCommitteeOutput): vector<vector<u8>> {
+        output.keys
+    }
 }

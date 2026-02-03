@@ -31,6 +31,12 @@
 -  [Function `get_supra_ed_key`](#0x1_validator_public_keys_get_supra_ed_key)
 -  [Function `rotate_supra_bls_threshold_validity_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_validity_key)
 -  [Function `rotate_supra_bls_threshold_quorum_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_quorum_key)
+-  [Function `rotate_supra_bls_threshold_unanimous_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_unanimous_key)
+-  [Function `rotate_supra_bls_threshold_bcft_validity_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_validity_key)
+-  [Function `rotate_supra_bls_threshold_bcft_quorum_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_quorum_key)
+-  [Function `rotate_supra_bls_threshold_bcft_fallback_view_change_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_fallback_view_change_key)
+-  [Function `rotate_supra_bls_threshold_clan_majority_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_clan_majority_key)
+-  [Function `rotate_supra_bls_threshold_key_by_type`](#0x1_validator_public_keys_rotate_supra_bls_threshold_key_by_type)
 
 
 <pre><code><b>use</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">0x1::any</a>;
@@ -38,6 +44,7 @@
 <b>use</b> <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381">0x1::bls12381</a>;
 <b>use</b> <a href="../../supra-stdlib/doc/class_groups.md#0x1_class_groups">0x1::class_groups</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519">0x1::ed25519</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string">0x1::string</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/type_info.md#0x1_type_info">0x1::type_info</a>;
@@ -293,6 +300,16 @@ The size of a serialized ed25519 public key, in bytes.
 
 
 <pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ED25519_PUBLIC_KEY_NUM_BYTES">ED25519_PUBLIC_KEY_NUM_BYTES</a>: u64 = 32;
+</code></pre>
+
+
+
+<a id="0x1_validator_public_keys_EUNKNOWN_THRESHOLD_TYPE"></a>
+
+Error: Unknown certificate threshold type.
+
+
+<pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_EUNKNOWN_THRESHOLD_TYPE">EUNKNOWN_THRESHOLD_TYPE</a>: u64 = 1;
 </code></pre>
 
 
@@ -795,6 +812,168 @@ The size of a serialized ed25519 public key, in bytes.
 
 <pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_quorum_key">rotate_supra_bls_threshold_quorum_key</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">ValidatorPublicKeys</a>, new_bls_threshold_quorum_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>) {
     pk.supra_keys.bls_threshold_quorum_certificate_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(new_bls_threshold_quorum_key);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_rotate_supra_bls_threshold_unanimous_key"></a>
+
+## Function `rotate_supra_bls_threshold_unanimous_key`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_unanimous_key">rotate_supra_bls_threshold_unanimous_key</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">validator_public_keys::ValidatorPublicKeys</a>, new_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_unanimous_key">rotate_supra_bls_threshold_unanimous_key</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">ValidatorPublicKeys</a>, new_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>) {
+    pk.supra_keys.bls_threshold_unanimous_certificate_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(new_key);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_validity_key"></a>
+
+## Function `rotate_supra_bls_threshold_bcft_validity_key`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_validity_key">rotate_supra_bls_threshold_bcft_validity_key</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">validator_public_keys::ValidatorPublicKeys</a>, new_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_validity_key">rotate_supra_bls_threshold_bcft_validity_key</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">ValidatorPublicKeys</a>, new_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>) {
+    pk.supra_keys.bls_threshold_bcft_validity_certificate_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(new_key);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_quorum_key"></a>
+
+## Function `rotate_supra_bls_threshold_bcft_quorum_key`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_quorum_key">rotate_supra_bls_threshold_bcft_quorum_key</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">validator_public_keys::ValidatorPublicKeys</a>, new_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_quorum_key">rotate_supra_bls_threshold_bcft_quorum_key</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">ValidatorPublicKeys</a>, new_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>) {
+    pk.supra_keys.bls_threshold_bcft_quorum_certificate_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(new_key);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_fallback_view_change_key"></a>
+
+## Function `rotate_supra_bls_threshold_bcft_fallback_view_change_key`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_fallback_view_change_key">rotate_supra_bls_threshold_bcft_fallback_view_change_key</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">validator_public_keys::ValidatorPublicKeys</a>, new_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_fallback_view_change_key">rotate_supra_bls_threshold_bcft_fallback_view_change_key</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">ValidatorPublicKeys</a>, new_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>) {
+    pk.supra_keys.bls_threshold_bcft_fallback_view_change_certificate_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(new_key);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_rotate_supra_bls_threshold_clan_majority_key"></a>
+
+## Function `rotate_supra_bls_threshold_clan_majority_key`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_clan_majority_key">rotate_supra_bls_threshold_clan_majority_key</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">validator_public_keys::ValidatorPublicKeys</a>, new_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_clan_majority_key">rotate_supra_bls_threshold_clan_majority_key</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">ValidatorPublicKeys</a>, new_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>) {
+    pk.supra_keys.bls_threshold_clan_majority_certificate_key = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(new_key);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_rotate_supra_bls_threshold_key_by_type"></a>
+
+## Function `rotate_supra_bls_threshold_key_by_type`
+
+Rotate a threshold key based on the threshold type tag.
+threshold_type: 0=validity, 1=quorum, 2=unanimous, 3=bcft_validity, 4=bcft_quorum, 5=bcft_fallback_view_change, 6=clan_majority
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_key_by_type">rotate_supra_bls_threshold_key_by_type</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">validator_public_keys::ValidatorPublicKeys</a>, threshold_type: u8, new_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_key_by_type">rotate_supra_bls_threshold_key_by_type</a>(pk: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">ValidatorPublicKeys</a>, threshold_type: u8, new_key: <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_PublicKey">bls12381::PublicKey</a>) {
+    <b>if</b> (threshold_type == <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_VALIDITY">CERTIFICATE_THRESHOLD_TYPE_VALIDITY</a>) {
+        <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_validity_key">rotate_supra_bls_threshold_validity_key</a>(pk, new_key);
+    } <b>else</b> <b>if</b> (threshold_type == <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_QUORUM">CERTIFICATE_THRESHOLD_TYPE_QUORUM</a>) {
+        <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_quorum_key">rotate_supra_bls_threshold_quorum_key</a>(pk, new_key);
+    } <b>else</b> <b>if</b> (threshold_type == <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS">CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS</a>) {
+        <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_unanimous_key">rotate_supra_bls_threshold_unanimous_key</a>(pk, new_key);
+    } <b>else</b> <b>if</b> (threshold_type == <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY">CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY</a>) {
+        <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_validity_key">rotate_supra_bls_threshold_bcft_validity_key</a>(pk, new_key);
+    } <b>else</b> <b>if</b> (threshold_type == <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM">CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM</a>) {
+        <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_quorum_key">rotate_supra_bls_threshold_bcft_quorum_key</a>(pk, new_key);
+    } <b>else</b> <b>if</b> (threshold_type == <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE">CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE</a>) {
+        <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_bcft_fallback_view_change_key">rotate_supra_bls_threshold_bcft_fallback_view_change_key</a>(pk, new_key);
+    } <b>else</b> <b>if</b> (threshold_type == <a href="validator_public_keys.md#0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY">CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY</a>) {
+        <a href="validator_public_keys.md#0x1_validator_public_keys_rotate_supra_bls_threshold_clan_majority_key">rotate_supra_bls_threshold_clan_majority_key</a>(pk, new_key);
+    } <b>else</b> {
+        <b>abort</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="validator_public_keys.md#0x1_validator_public_keys_EUNKNOWN_THRESHOLD_TYPE">EUNKNOWN_THRESHOLD_TYPE</a>)
+    };
 }
 </code></pre>
 

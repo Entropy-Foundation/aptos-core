@@ -35,6 +35,7 @@ module supra_framework::stake {
     use supra_framework::system_addresses;
     use supra_framework::staking_config::{Self, StakingConfig, StakingRewardsConfig};
     use supra_framework::chain_status;
+    use std::dkg_committee;
 
     friend supra_framework::block;
     friend supra_framework::genesis;
@@ -869,38 +870,63 @@ module supra_framework::stake {
         );
     }
 
+    /// Set DKG output keys for all provided threshold types.
+    /// Each DkgCommitteeOutput contains a threshold_type and corresponding keys for all validators.
     public(friend) fun set_dkg_output_keys(
-        committee_bls_threshold_validity_certificate_keys: vector<vector<u8>>,
-        committee_bls_threshold_quorum_certificate_keys: vector<vector<u8>>,
+        committee_outputs: vector<dkg_committee::DkgCommitteeOutput>,
     ) acquires ValidatorConfig, ValidatorFees, ValidatorPerformance, ValidatorSet, StakePool {
+        if (vector::is_empty(&committee_outputs)) {
+            return
+        };
+
         let next_validator_infos = next_validator_consensus_infos();
+        let num_validators = vector::length(&next_validator_infos);
+
+        // Validate all committee outputs have correct number of keys
+        let num_outputs = vector::length(&committee_outputs);
+        let j = 0;
+        while (j < num_outputs) {
+            let output = vector::borrow(&committee_outputs, j);
+            assert!(
+                num_validators == vector::length(&dkg_committee::get_dkg_committee_output_keys(output)),
+                error::invalid_argument(EDKG_INVALID_PK_SHARES)
+            );
+            j = j + 1;
+        };
+
+        // Iterate over each validator
         let i = 0;
-        let len = vector::length(&next_validator_infos);
-        assert!(len == vector::length(&committee_bls_threshold_validity_certificate_keys), error::invalid_argument(EDKG_INVALID_PK_SHARES));
-        assert!(len == vector::length(&committee_bls_threshold_quorum_certificate_keys), error::invalid_argument(EDKG_INVALID_PK_SHARES));
-        while (i < len) {
+        while (i < num_validators) {
             let val_info = vector::borrow(&next_validator_infos, i);
             let addr = validator_consensus_info::get_addr(val_info);
-            let validity_key_bytes = vector::borrow(&committee_bls_threshold_validity_certificate_keys, i);
-            let quorum_key_bytes = vector::borrow(&committee_bls_threshold_quorum_certificate_keys, i);
-
-            // Deserialize new validity key
-            let validity_key_opt = aptos_std::bls12381::public_key_from_bytes(*validity_key_bytes);
-            assert!(option::is_some(&validity_key_opt), error::invalid_argument(EINVALID_PUBLIC_KEY));
-            let new_validity_key = option::extract(&mut validity_key_opt);
-
-            // Deserialize new quorum key
-            let quorum_key_opt = aptos_std::bls12381::public_key_from_bytes(*quorum_key_bytes);
-            assert!(option::is_some(&quorum_key_opt), error::invalid_argument(EINVALID_PUBLIC_KEY));
-            let new_quorum_key = option::extract(&mut quorum_key_opt);
-
             let validator_config = borrow_global_mut<ValidatorConfig>(addr);
             let old_consensus_pubkey = validator_config.consensus_pubkey;
 
-            // Update keys
+            // Load current public keys
             let pub_keys = validator_public_keys::validator_public_keys_from_bytes(old_consensus_pubkey);
-            validator_public_keys::rotate_supra_bls_threshold_validity_key(&mut pub_keys, new_validity_key);
-            validator_public_keys::rotate_supra_bls_threshold_quorum_key(&mut pub_keys, new_quorum_key);
+
+            // Apply all threshold key updates for this validator
+            let k = 0;
+            while (k < num_outputs) {
+                let output = vector::borrow(&committee_outputs, k);
+                let output_keys = dkg_committee::get_dkg_committee_output_keys(output);
+                let key_bytes = vector::borrow(&output_keys, i);
+
+                // Deserialize the key
+                let key_opt = aptos_std::bls12381::public_key_from_bytes(*key_bytes);
+                assert!(option::is_some(&key_opt), error::invalid_argument(EINVALID_PUBLIC_KEY));
+                let new_key = option::extract(&mut key_opt);
+
+                // Rotate the key based on threshold type
+                validator_public_keys::rotate_supra_bls_threshold_key_by_type(
+                    &mut pub_keys,
+                    dkg_committee::get_dkg_committee_output_threshold_type(output),
+                    new_key
+                );
+                k = k + 1;
+            };
+
+            // Serialize and save updated keys
             let new_consensus_pubkey = validator_public_keys::public_key_to_bytes(pub_keys);
             validator_config.consensus_pubkey = new_consensus_pubkey;
 

@@ -2,6 +2,7 @@
 module supra_framework::validator_public_keys {
 
     use std::bcs;
+    use std::error;
     use std::option;
     use aptos_std::any;
     use aptos_std::bls12381;
@@ -34,6 +35,9 @@ module supra_framework::validator_public_keys {
     /// The integer should match the Rust enum value representation in `CertificateThresholdType`.
     /// f+1, given there are f Byzantine nodes in the [Committee] with n >= 2f + 1 nodes.
     const CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY: u8 = 6;
+
+    /// Error: Unknown certificate threshold type.
+    const EUNKNOWN_THRESHOLD_TYPE: u64 = 1;
 
     /// Internal tag wrapper
     struct CertificateThresholdType has copy, drop, store { tag: u8 }
@@ -136,6 +140,48 @@ module supra_framework::validator_public_keys {
 
     public fun rotate_supra_bls_threshold_quorum_key(pk: &mut ValidatorPublicKeys, new_bls_threshold_quorum_key: bls12381::PublicKey) {
         pk.supra_keys.bls_threshold_quorum_certificate_key = option::some(new_bls_threshold_quorum_key);
+    }
+
+    public fun rotate_supra_bls_threshold_unanimous_key(pk: &mut ValidatorPublicKeys, new_key: bls12381::PublicKey) {
+        pk.supra_keys.bls_threshold_unanimous_certificate_key = option::some(new_key);
+    }
+
+    public fun rotate_supra_bls_threshold_bcft_validity_key(pk: &mut ValidatorPublicKeys, new_key: bls12381::PublicKey) {
+        pk.supra_keys.bls_threshold_bcft_validity_certificate_key = option::some(new_key);
+    }
+
+    public fun rotate_supra_bls_threshold_bcft_quorum_key(pk: &mut ValidatorPublicKeys, new_key: bls12381::PublicKey) {
+        pk.supra_keys.bls_threshold_bcft_quorum_certificate_key = option::some(new_key);
+    }
+
+    public fun rotate_supra_bls_threshold_bcft_fallback_view_change_key(pk: &mut ValidatorPublicKeys, new_key: bls12381::PublicKey) {
+        pk.supra_keys.bls_threshold_bcft_fallback_view_change_certificate_key = option::some(new_key);
+    }
+
+    public fun rotate_supra_bls_threshold_clan_majority_key(pk: &mut ValidatorPublicKeys, new_key: bls12381::PublicKey) {
+        pk.supra_keys.bls_threshold_clan_majority_certificate_key = option::some(new_key);
+    }
+
+    /// Rotate a threshold key based on the threshold type tag.
+    /// threshold_type: 0=validity, 1=quorum, 2=unanimous, 3=bcft_validity, 4=bcft_quorum, 5=bcft_fallback_view_change, 6=clan_majority
+    public fun rotate_supra_bls_threshold_key_by_type(pk: &mut ValidatorPublicKeys, threshold_type: u8, new_key: bls12381::PublicKey) {
+        if (threshold_type == CERTIFICATE_THRESHOLD_TYPE_VALIDITY) {
+            rotate_supra_bls_threshold_validity_key(pk, new_key);
+        } else if (threshold_type == CERTIFICATE_THRESHOLD_TYPE_QUORUM) {
+            rotate_supra_bls_threshold_quorum_key(pk, new_key);
+        } else if (threshold_type == CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS) {
+            rotate_supra_bls_threshold_unanimous_key(pk, new_key);
+        } else if (threshold_type == CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY) {
+            rotate_supra_bls_threshold_bcft_validity_key(pk, new_key);
+        } else if (threshold_type == CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM) {
+            rotate_supra_bls_threshold_bcft_quorum_key(pk, new_key);
+        } else if (threshold_type == CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE) {
+            rotate_supra_bls_threshold_bcft_fallback_view_change_key(pk, new_key);
+        } else if (threshold_type == CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY) {
+            rotate_supra_bls_threshold_clan_majority_key(pk, new_key);
+        } else {
+            abort error::invalid_argument(EUNKNOWN_THRESHOLD_TYPE)
+        };
     }
 
     #[test_only]

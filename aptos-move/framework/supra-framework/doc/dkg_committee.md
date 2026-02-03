@@ -8,6 +8,7 @@
 -  [Struct `DkgNodeConfig`](#0x1_dkg_committee_DkgNodeConfig)
 -  [Struct `DkgCommittee`](#0x1_dkg_committee_DkgCommittee)
 -  [Struct `ReceiverCommittee`](#0x1_dkg_committee_ReceiverCommittee)
+-  [Struct `DkgCommitteeOutput`](#0x1_dkg_committee_DkgCommitteeOutput)
 -  [Constants](#@Constants_0)
 -  [Function `new_dkg_node_config`](#0x1_dkg_committee_new_dkg_node_config)
 -  [Function `get_addr`](#0x1_dkg_committee_get_addr)
@@ -17,6 +18,9 @@
 -  [Function `new_dkg_committee`](#0x1_dkg_committee_new_dkg_committee)
 -  [Function `new_dkg_committee_from_validator_consensus_info`](#0x1_dkg_committee_new_dkg_committee_from_validator_consensus_info)
 -  [Function `new_receiver_committee`](#0x1_dkg_committee_new_receiver_committee)
+-  [Function `new_dkg_committee_output`](#0x1_dkg_committee_new_dkg_committee_output)
+-  [Function `get_dkg_committee_output_threshold_type`](#0x1_dkg_committee_get_dkg_committee_output_threshold_type)
+-  [Function `get_dkg_committee_output_keys`](#0x1_dkg_committee_get_dkg_committee_output_keys)
 
 
 <pre><code><b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs">0x1::bcs</a>;
@@ -126,6 +130,40 @@
 </dt>
 <dd>
 
+</dd>
+</dl>
+
+
+</details>
+
+<a id="0x1_dkg_committee_DkgCommitteeOutput"></a>
+
+## Struct `DkgCommitteeOutput`
+
+Input for DKG key output - contains threshold type and keys for one committee
+
+
+<pre><code><b>struct</b> <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeOutput">DkgCommitteeOutput</a> <b>has</b> <b>copy</b>, drop
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>threshold_type: u8</code>
+</dt>
+<dd>
+ The threshold type (0=validity, 1=quorum, 2=unanimous, etc.)
+</dd>
+<dt>
+<code>keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;</code>
+</dt>
+<dd>
+ Public key shares for each validator (indexed by validator position)
 </dd>
 </dl>
 
@@ -365,6 +403,81 @@
         is_resharing,
         committee
     }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_committee_new_dkg_committee_output"></a>
+
+## Function `new_dkg_committee_output`
+
+Create a new DkgCommitteeOutput
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_dkg_committee_output">new_dkg_committee_output</a>(threshold_type: u8, keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;): <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeOutput">dkg_committee::DkgCommitteeOutput</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_dkg_committee_output">new_dkg_committee_output</a>(threshold_type: u8, keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;): <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeOutput">DkgCommitteeOutput</a> {
+    <a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeOutput">DkgCommitteeOutput</a> { threshold_type, keys }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_committee_get_dkg_committee_output_threshold_type"></a>
+
+## Function `get_dkg_committee_output_threshold_type`
+
+Get threshold type from DkgCommitteeOutput
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_get_dkg_committee_output_threshold_type">get_dkg_committee_output_threshold_type</a>(output: &<a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeOutput">dkg_committee::DkgCommitteeOutput</a>): u8
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_get_dkg_committee_output_threshold_type">get_dkg_committee_output_threshold_type</a>(output: &<a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeOutput">DkgCommitteeOutput</a>): u8 {
+    output.threshold_type
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_committee_get_dkg_committee_output_keys"></a>
+
+## Function `get_dkg_committee_output_keys`
+
+Get keys from DkgCommitteeOutput
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_get_dkg_committee_output_keys">get_dkg_committee_output_keys</a>(output: &<a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeOutput">dkg_committee::DkgCommitteeOutput</a>): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_get_dkg_committee_output_keys">get_dkg_committee_output_keys</a>(output: &<a href="dkg_committee.md#0x1_dkg_committee_DkgCommitteeOutput">DkgCommitteeOutput</a>): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt; {
+    output.keys
 }
 </code></pre>
 
