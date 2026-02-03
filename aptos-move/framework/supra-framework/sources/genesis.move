@@ -14,6 +14,7 @@ module supra_framework::genesis {
     use supra_framework::chain_status;
     use supra_framework::coin;
     use supra_framework::consensus_config;
+    use supra_framework::dkg_config;
     use supra_framework::execution_config;
     use supra_framework::supra_config;
     use supra_framework::evm_genesis_config;
@@ -171,6 +172,7 @@ module supra_framework::genesis {
         };
 
         consensus_config::initialize(&supra_framework_account, consensus_config);
+        dkg_config::initialize(&supra_framework_account);
         execution_config::set(&supra_framework_account, execution_config);
         supra_config::initialize(&supra_framework_account, supra_config);
         version::initialize(&supra_framework_account, initial_version);

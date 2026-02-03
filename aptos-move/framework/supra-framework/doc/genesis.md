@@ -59,6 +59,7 @@
 <b>use</b> <a href="coin.md#0x1_coin">0x1::coin</a>;
 <b>use</b> <a href="consensus_config.md#0x1_consensus_config">0x1::consensus_config</a>;
 <b>use</b> <a href="create_signer.md#0x1_create_signer">0x1::create_signer</a>;
+<b>use</b> <a href="dkg_config.md#0x1_dkg_config">0x1::dkg_config</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
 <b>use</b> <a href="evm_genesis_config.md#0x1_evm_genesis_config">0x1::evm_genesis_config</a>;
 <b>use</b> <a href="execution_config.md#0x1_execution_config">0x1::execution_config</a>;
@@ -611,6 +612,7 @@ Genesis step 1: Initialize supra framework account and core modules on chain.
     };
 
     <a href="consensus_config.md#0x1_consensus_config_initialize">consensus_config::initialize</a>(&supra_framework_account, <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>);
+    <a href="dkg_config.md#0x1_dkg_config_initialize">dkg_config::initialize</a>(&supra_framework_account);
     <a href="execution_config.md#0x1_execution_config_set">execution_config::set</a>(&supra_framework_account, <a href="execution_config.md#0x1_execution_config">execution_config</a>);
     <a href="supra_config.md#0x1_supra_config_initialize">supra_config::initialize</a>(&supra_framework_account, <a href="supra_config.md#0x1_supra_config">supra_config</a>);
     <a href="version.md#0x1_version_initialize">version::initialize</a>(&supra_framework_account, initial_version);

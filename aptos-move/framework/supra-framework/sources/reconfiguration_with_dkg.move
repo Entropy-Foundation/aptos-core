@@ -3,10 +3,12 @@ module supra_framework::reconfiguration_with_dkg {
     use std::dkg_committee::{new_dkg_committee_from_validator_consensus_info, new_receiver_committee};
     use std::features;
     use std::option;
+    use std::vector;
     use supra_framework::automation_registry;
     use supra_framework::randomness;
     use supra_framework::consensus_config;
     use supra_framework::dkg;
+    use supra_framework::dkg_config;
     use supra_framework::execution_config;
     use supra_framework::gas_schedule;
     use supra_framework::jwk_consensus_config;
@@ -21,7 +23,6 @@ module supra_framework::reconfiguration_with_dkg {
     use supra_framework::supra_config;
     use supra_framework::system_addresses;
     use supra_framework::evm_genesis_config;
-    use supra_framework::validator_public_keys::{quorum_certificate_type, validity_certificate_type};
 
     friend supra_framework::block;
     friend supra_framework::supra_governance;
@@ -40,24 +41,35 @@ module supra_framework::reconfiguration_with_dkg {
         let cur_epoch = reconfiguration::current_epoch();
         let randomness_seed = randomness::bytes(32);
 
-        // DKG for: 1. Validity and 2. Quorum threshold keys
+        // Get DKG configuration (dealer threshold type and receiver committee configs)
+        let config = dkg_config::current();
+        let receiver_configs = dkg_config::get_receiver_committee_configs(&config);
+
+        // Build receiver committees from config
+        let receiver_committees = vector[];
+        let i = 0;
+        let len = vector::length(&receiver_configs);
+        while (i < len) {
+            let rc = vector::borrow(&receiver_configs, i);
+            vector::push_back(
+                &mut receiver_committees,
+                new_receiver_committee(
+                    dkg_config::get_is_resharing(rc),
+                    new_dkg_committee_from_validator_consensus_info(
+                        stake::next_validator_consensus_infos(),
+                        dkg_config::get_threshold_type(rc)))
+            );
+            i = i + 1;
+        };
+
+        // DKG for configured receiver committees
         dkg::start(
             cur_epoch,
             randomness_seed,
             new_dkg_committee_from_validator_consensus_info(
                 stake::cur_validator_consensus_infos(),
-                quorum_certificate_type()),
-            vector[
-                new_receiver_committee(
-                    false,
-                    new_dkg_committee_from_validator_consensus_info(
-                        stake::next_validator_consensus_infos(),
-                        validity_certificate_type())),
-                new_receiver_committee(
-                    false,
-                    new_dkg_committee_from_validator_consensus_info(
-                        stake::next_validator_consensus_infos(),
-                        quorum_certificate_type()))]
+                dkg_config::get_dealer_threshold_type(&config)),
+            receiver_committees
         );
     }
 
@@ -86,6 +98,7 @@ module supra_framework::reconfiguration_with_dkg {
         randomness_config::on_new_epoch(framework);
         randomness_api_v0_config::on_new_epoch(framework);
         evm_genesis_config::on_new_epoch(framework);
+        dkg_config::on_new_epoch(framework);
         reconfiguration::reconfigure();
     }
 
