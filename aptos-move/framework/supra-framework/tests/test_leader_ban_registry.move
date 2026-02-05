@@ -198,6 +198,9 @@ module std::test_leader_ban_registry {
         assert!(leader_ban_registry::get_consecutive_count_from_vp(vp) == 3, 8);
         assert!(vector::length(&ban_registry) == 1, 9);
 
+        // At round 28, validator 1 is banned again, consecutive_bans=4
+        // Ban duration = min(4 * 2^4, 20) = 20 rounds (capped at max)
+        // With the reset, the ban starts fresh from round 28
         leader_ban_registry::update_ban_registry(
             0, 12 + (4 * 4), option::some(1), vector[0]
         );
@@ -206,35 +209,118 @@ module std::test_leader_ban_registry {
         assert!(leader_ban_registry::get_consecutive_count_from_vp(vp) == 4, 8);
         assert!(vector::length(&ban_registry) == 1, 9);
 
-        // at 5th interval even though validator 1 is added a failed proposal index it will be removed from registry
-        // because max duration is set to 5
-        leader_ban_registry::update_ban_registry(
-            0, 12 + (4 * 5), option::some(1), vector[0]
-        );
+        // Now test ban expiry WITHOUT re-banning the validator
+        // The ban was set at round 28 with duration 20, so ban expires at round 28 + 20 = 48
+        // Then probation lasts for 4 rounds (probation_elections=1 * committee_size=4)
+        // Full reinstatement happens at round 48 + 4 = 52
+
+        // At round 47, the ban should still be active (1 round remaining)
+        leader_ban_registry::update_ban_registry(0, 47, option::some(1), vector::empty());
         let ban_registry = leader_ban_registry::get_ban_registry();
-        assert!(vector::length(&ban_registry) == 0, 10);
+        assert!(vector::length(&ban_registry) == 1, 10);
+        let vp = vector::borrow(&ban_registry, 0);
+        assert!(!leader_ban_registry::is_on_probation_from_vp(vp), 100); // Still banned, not on probation
+
+        // At round 48, the ban expires and validator transitions to probation
+        leader_ban_registry::update_ban_registry(0, 48, option::some(1), vector::empty());
+        let ban_registry = leader_ban_registry::get_ban_registry();
+        assert!(vector::length(&ban_registry) == 1, 11); // Still in registry (on probation)
+        let vp = vector::borrow(&ban_registry, 0);
+        assert!(leader_ban_registry::is_on_probation_from_vp(vp), 101); // Now on probation
+
+        // At round 51, probation should still be active (1 round remaining)
+        leader_ban_registry::update_ban_registry(0, 51, option::some(1), vector::empty());
+        let ban_registry = leader_ban_registry::get_ban_registry();
+        assert!(vector::length(&ban_registry) == 1, 12);
+        let vp = vector::borrow(&ban_registry, 0);
+        assert!(leader_ban_registry::is_on_probation_from_vp(vp), 102);
+
+        // At round 52, probation expires and validator is fully reinstated
+        leader_ban_registry::update_ban_registry(0, 52, option::some(1), vector::empty());
+        let ban_registry = leader_ban_registry::get_ban_registry();
+        assert!(vector::length(&ban_registry) == 0, 13); // Fully removed from registry
 
         // Now lets try to fail 3 of them
-        leader_ban_registry::update_ban_registry(0, 33, option::some(3), vector[0, 1, 2]);
+        leader_ban_registry::update_ban_registry(0, 60, option::some(3), vector[0, 1, 2]);
         let ban_registry = leader_ban_registry::get_ban_registry();
         // only 2 will be banned because of proposer limit of 2
-        assert!(vector::length(&ban_registry) == 2, 11);
+        assert!(vector::length(&ban_registry) == 2, 14);
 
+        // Re-ban both validators to increase consecutive count
+        // Round 64: re-ban, consecutive_bans=1, duration=8, resets from round 64
         leader_ban_registry::update_ban_registry(
-            0, 33 + (4 * 1), option::some(2), vector[0, 1]
+            0, 60 + (4 * 1), option::some(2), vector[0, 1]
         );
+        // Round 68: re-ban, consecutive_bans=2, duration=16, resets from round 68
         leader_ban_registry::update_ban_registry(
-            0, 33 + (4 * 2), option::some(2), vector[0, 1]
+            0, 60 + (4 * 2), option::some(2), vector[0, 1]
         );
+
+        // Now test ban expiry across epoch change WITHOUT re-banning
+        // Ban was set at round 68 with duration 16, so ban expires at round 68 + 16 = 84
+        // Then probation lasts for 4 rounds, full reinstatement at round 84 + 4 = 88
+        // First trigger epoch change
         leader_ban_registry::on_new_epoch(); // assuming every time this is called first before any epoch change
-        leader_ban_registry::update_ban_registry(1, 0, option::some(2), vector[0, 1]);
-        leader_ban_registry::update_ban_registry(1, (4 * 1), option::some(2), vector[0, 1]);
-        leader_ban_registry::update_ban_registry(1, (4 * 2), option::some(2), vector[0, 1]);
-        leader_ban_registry::update_ban_registry(1, (4 * 3), option::some(2), vector[0, 1]);
 
+        // In epoch 1, advance rounds without re-banning to let the ban expire naturally
+        // Previous epoch ended at round 68, rounds_served_in_previous_epochs will be updated
+        // For validators banned at epoch 0 round 68:
+        // After on_new_epoch: rounds_served_in_previous_epochs = 0 + (68 - 68) = 0
+        // (since epoch_earned == latest_view.epoch, we use latest_view.round - round_earned)
+
+        // At epoch 1 round 0, ban should still be active (rounds_served = 0 + 0 = 0, need 16)
+        leader_ban_registry::update_ban_registry(1, 0, option::some(2), vector::empty());
         let ban_registry = leader_ban_registry::get_ban_registry();
-        // after epoch change and enough round the ban has been lifted correctly.
-        assert!(vector::length(&ban_registry) == 0, 12);
+        assert!(vector::length(&ban_registry) == 2, 15);
+        let vp = vector::borrow(&ban_registry, 0);
+        assert!(!leader_ban_registry::is_on_probation_from_vp(vp), 103);
+
+        // At epoch 1 round 15, ban should still be active (rounds_served = 0 + 15 = 15, need 16)
+        leader_ban_registry::update_ban_registry(1, 15, option::some(2), vector::empty());
+        let ban_registry = leader_ban_registry::get_ban_registry();
+        assert!(vector::length(&ban_registry) == 2, 16);
+
+        // At epoch 1 round 16, ban expires and validators transition to probation
+        leader_ban_registry::update_ban_registry(1, 16, option::some(2), vector::empty());
+        let ban_registry = leader_ban_registry::get_ban_registry();
+        assert!(vector::length(&ban_registry) == 2, 17); // Still in registry (on probation)
+        let vp = vector::borrow(&ban_registry, 0);
+        assert!(leader_ban_registry::is_on_probation_from_vp(vp), 104);
+
+        // At epoch 1 round 19, probation still active (1 round remaining)
+        leader_ban_registry::update_ban_registry(1, 19, option::some(2), vector::empty());
+        let ban_registry = leader_ban_registry::get_ban_registry();
+        assert!(vector::length(&ban_registry) == 2, 18);
+
+        // At epoch 1 round 20, probation expires and validators are fully reinstated
+        leader_ban_registry::update_ban_registry(1, 20, option::some(2), vector::empty());
+        let ban_registry = leader_ban_registry::get_ban_registry();
+        // after epoch change and enough rounds, the ban and probation have been lifted correctly
+        assert!(vector::length(&ban_registry) == 0, 19);
+
+        // Test: Re-banning during probation should increase consecutive count
+        // Ban validator 1 fresh
+        leader_ban_registry::update_ban_registry(1, 25, option::some(2), vector[0]);
+        let ban_registry = leader_ban_registry::get_ban_registry();
+        assert!(vector::length(&ban_registry) == 1, 20);
+        let vp = vector::borrow(&ban_registry, 0);
+        assert!(leader_ban_registry::get_consecutive_count_from_vp(vp) == 0, 105);
+        assert!(!leader_ban_registry::is_on_probation_from_vp(vp), 106);
+
+        // Ban duration = 4 rounds, so ban expires at round 25 + 4 = 29
+        // Transition to probation at round 29
+        leader_ban_registry::update_ban_registry(1, 29, option::some(2), vector::empty());
+        let ban_registry = leader_ban_registry::get_ban_registry();
+        let vp = vector::borrow(&ban_registry, 0);
+        assert!(leader_ban_registry::is_on_probation_from_vp(vp), 107);
+        assert!(leader_ban_registry::get_consecutive_count_from_vp(vp) == 0, 108);
+
+        // Re-ban during probation should increase consecutive count and reset to banned state
+        leader_ban_registry::update_ban_registry(1, 30, option::some(2), vector[0]);
+        let ban_registry = leader_ban_registry::get_ban_registry();
+        let vp = vector::borrow(&ban_registry, 0);
+        assert!(leader_ban_registry::get_consecutive_count_from_vp(vp) == 1, 109); // Consecutive count increased
+        assert!(!leader_ban_registry::is_on_probation_from_vp(vp), 110); // Back to banned state
 
     }
 }

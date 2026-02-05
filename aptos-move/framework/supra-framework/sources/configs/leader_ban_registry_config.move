@@ -42,7 +42,9 @@ module supra_framework::leader_ban_registry_config {
         /// Denotes max election count denied
         max_elections_denied: u32,
         /// Denotes minimum unbanned proposer count
-        minimum_unbanned_proposers: u8
+        minimum_unbanned_proposers: u8,
+        /// Denotes the number of elections a validator must serve on probation after ban expires
+        probation_elections: u8
     }
 
     /// Publishes the BanRegistryParameters config.
@@ -129,7 +131,7 @@ module supra_framework::leader_ban_registry_config {
     }
 
     #[view]
-    public fun get_ban_registry_params_v0(): (u8, u32, u8) acquires BanRegistryParameters, BanRegistryParametersV0 {
+    public fun get_ban_registry_params_v0(): (u8, u32, u8, u8) acquires BanRegistryParameters, BanRegistryParametersV0 {
         if (exists<BanRegistryParameters>(@supra_framework)) {
             let ban_registry_config =
                 borrow_global<BanRegistryParameters>(@supra_framework);
@@ -139,11 +141,12 @@ module supra_framework::leader_ban_registry_config {
                 return (
                     ban_registry_params.initial_elections_denied,
                     ban_registry_params.max_elections_denied,
-                    ban_registry_params.minimum_unbanned_proposers
+                    ban_registry_params.minimum_unbanned_proposers,
+                    ban_registry_params.probation_elections
                 )
             }
         };
-        (0, 0, 0)
+        (0, 0, 0, 0)
     }
 
     /// Provide initial election denied value
@@ -188,19 +191,35 @@ module supra_framework::leader_ban_registry_config {
         0
     }
 
+    /// Provide probation elections value
+    public fun get_probation_elections(): u8 acquires BanRegistryParameters, BanRegistryParametersV0 {
+        if (exists<BanRegistryParameters>(@supra_framework)) {
+            let ban_registry_config =
+                borrow_global<BanRegistryParameters>(@supra_framework);
+            if (ban_registry_config.version == 0) {
+                let ban_registry_params =
+                    borrow_global<BanRegistryParametersV0>(@supra_framework);
+                return ban_registry_params.probation_elections
+            }
+        };
+        0
+    }
+
     /// Decoding bytes to `BanRegistryParametersV0` using bcs
     fun deserialise_v0_params(bytes: vector<u8>): Option<BanRegistryParametersV0> {
         let bcs_bytes = decode_bcs::new(bytes);
         let initial_elections_denied: u8 = decode_bcs::peel_u8(&mut bcs_bytes);
         let max_elections_denied: u32 = decode_bcs::peel_u32(&mut bcs_bytes);
         let minimum_unbanned_proposers: u8 = decode_bcs::peel_u8(&mut bcs_bytes);
+        let probation_elections: u8 = decode_bcs::peel_u8(&mut bcs_bytes);
         // making sure no bytes left to decode means correct parameter version
         if (vector::length(&decode_bcs::into_remainder_bytes(bcs_bytes)) == 0) {
             return option::some(
                 BanRegistryParametersV0 {
                     initial_elections_denied,
                     max_elections_denied,
-                    minimum_unbanned_proposers
+                    minimum_unbanned_proposers,
+                    probation_elections
                 }
             )
         };
@@ -212,7 +231,8 @@ module supra_framework::leader_ban_registry_config {
         BanRegistryParametersV0 {
             initial_elections_denied: 1,
             max_elections_denied: 5,
-            minimum_unbanned_proposers: 2
+            minimum_unbanned_proposers: 2,
+            probation_elections: 1
         }
     }
 
@@ -220,12 +240,14 @@ module supra_framework::leader_ban_registry_config {
     public fun get_custom_ban_registry_params_v0(
         initial_elections_denied: u8,
         max_elections_denied: u32,
-        minimum_unbanned_proposers: u8
+        minimum_unbanned_proposers: u8,
+        probation_elections: u8
     ): BanRegistryParametersV0 {
         BanRegistryParametersV0 {
             initial_elections_denied,
             max_elections_denied,
-            minimum_unbanned_proposers
+            minimum_unbanned_proposers,
+            probation_elections
         }
     }
 
