@@ -303,7 +303,7 @@ impl TryFrom<GlobalRestoreOpt> for GlobalRestoreOptions {
             // TODO(DP) as we don't support this feature yet removing the usage for IndexerDB itself.
             let internal_indexer_db = if opt.enable_state_indices {
                 // InternalIndexerDBService::get_indexer_db_for_restore(db_dir.as_path())
-                anyhow::anyhow!(String::from("Removed the usage of indexer here"))
+                return Err(anyhow::anyhow!(String::from("Removed the usage of indexer here")))
             } else {
                 None
             };
