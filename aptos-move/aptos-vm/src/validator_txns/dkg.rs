@@ -20,7 +20,7 @@ use aptos_vm_types::output::VMOutput;
 use move_core_types::{
     account_address::AccountAddress,
     value::{serialize_values, MoveValue},
-    vm_status::{AbortLocation, StatusCode, VMStatus},
+    vm_status::VMStatus,
 };
 use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
 use move_vm_types::gas::UnmeteredGasMeter;

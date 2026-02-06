@@ -2960,10 +2960,10 @@ impl VMValidator for AptosVM {
                 }
             },
             DKGTransactionType::PublicKeyShares => {
-                // dkg meta should be already set
-                if in_progress_session_state.dkg_meta_transcript.len() == 0 {
-                    return VMValidatorResult::error(StatusCode::DKG_META_NOT_SET);
-                }
+                // for public shares trasaction, dkg meta should be already set
+                // but it is possible due to network asynchrony, that public shares transaction is processed before dkg meta transaction
+                // in which case, dkg meta is not set yet
+                // so we cannot impose this condition
             },
         }
 
