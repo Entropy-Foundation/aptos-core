@@ -24,7 +24,7 @@ aptos-protos = { workspace = true }
 aptos-rest-client = { workspace = true }
 diesel = { workspace = true, features = ["postgres_backend"] }
 diesel-async = { workspace = true }
-#processor = { workspace = true }
+processor = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
