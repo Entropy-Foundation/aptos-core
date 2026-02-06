@@ -50,7 +50,7 @@ aptos-vm-environment = { workspace = true }
 aptos-vm-genesis = { workspace = true }
 aptos-vm-logging = { workspace = true }
 aptos-vm-types = { workspace = true }
-aptos-workspace-server = { workspace = true }
+# aptos-workspace-server = { workspace = true }
 async-trait = { workspace = true }
 backoff = { workspace = true }
 base64 = { workspace = true }

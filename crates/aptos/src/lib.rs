@@ -15,14 +15,14 @@ pub mod stake;
 #[cfg(any(test, feature = "fuzzing"))]
 pub mod test;
 pub mod update;
-pub mod workspace;
+// pub mod workspace;
 pub mod supra_specific;
 
 use crate::common::{
     types::{CliCommand, CliResult, CliTypedResult},
     utils::cli_build_information,
 };
-use aptos_workspace_server::WorkspaceCommand;
+// use aptos_workspace_server::WorkspaceCommand;
 use async_trait::async_trait;
 use clap::Parser;
 use std::collections::BTreeMap;
@@ -53,8 +53,8 @@ pub enum Tool {
     Stake(stake::StakeTool),
     #[clap(subcommand)]
     Update(update::UpdateTool),
-    #[clap(subcommand, hide(true))]
-    Workspace(WorkspaceCommand),
+    // #[clap(subcommand, hide(true))]
+    // Workspace(WorkspaceCommand),
 }
 
 impl Tool {
