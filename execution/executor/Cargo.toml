@@ -21,7 +21,6 @@ aptos-drop-helper = { workspace = true }
 aptos-executor-service = { workspace = true }
 aptos-executor-types = { workspace = true }
 aptos-experimental-runtimes = { workspace = true }
-aptos-indexer-grpc-table-info = { workspace = true }
 aptos-infallible = { workspace = true }
 aptos-logger = { workspace = true }
 aptos-metrics-core = { workspace = true }
@@ -53,6 +52,7 @@ arr_macro = { workspace = true }
 criterion = { workspace = true }
 proptest = { workspace = true }
 rand = { workspace = true }
+aptos-indexer-grpc-table-info = { workspace = true }
 
 [features]
 default = []

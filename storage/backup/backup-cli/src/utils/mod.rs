@@ -25,7 +25,7 @@ use aptos_db::{
     },
 };
 use aptos_db_indexer_schemas::metadata::StateSnapshotProgress;
-use aptos_indexer_grpc_table_info::internal_indexer_db_service::InternalIndexerDBService;
+// use aptos_indexer_grpc_table_info::internal_indexer_db_service::InternalIndexerDBService;
 use aptos_infallible::duration_since_epoch;
 use aptos_jellyfish_merkle::{NodeBatch, TreeWriter};
 use aptos_logger::info;
@@ -300,8 +300,10 @@ impl TryFrom<GlobalRestoreOpt> for GlobalRestoreOptions {
         let run_mode = if let Some(db_dir) = &opt.db_dir {
             // for restore, we can always start state store with empty buffered_state since we will restore
             // TODO(grao): Support path override here.
+            // TODO(DP) as we don't support this feature yet removing the usage for IndexerDB itself.
             let internal_indexer_db = if opt.enable_state_indices {
-                InternalIndexerDBService::get_indexer_db_for_restore(db_dir.as_path())
+                // InternalIndexerDBService::get_indexer_db_for_restore(db_dir.as_path())
+                anyhow::anyhow!(String::from("Removed the usage of indexer here"))
             } else {
                 None
             };
