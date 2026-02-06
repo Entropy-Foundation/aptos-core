@@ -74,7 +74,7 @@ impl Tool {
             // Node(tool) => tool.execute().await,
             Stake(tool) => tool.execute().await,
             Update(tool) => tool.execute().await,
-            Workspace(workspace) => workspace.execute_serialized_without_logger().await,
+            // Workspace(workspace) => workspace.execute_serialized_without_logger().await,
         }
     }
 }
