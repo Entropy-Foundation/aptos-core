@@ -1,4 +1,7 @@
-/// Maintains the list of banned validators and updates counters on every epoch
+/// Maintains the list of banned validators and updates counters on every epoch.
+///
+/// This implementation assumes that each validator is elected once every `n` consensus rounds on expectation,
+/// where `n` is the number of validators in the consensus committee (i.e. the `ValidatorSet`).
 module supra_framework::leader_ban_registry {
     use std::error;
     use std::features;
@@ -25,32 +28,37 @@ module supra_framework::leader_ban_registry {
     /// Latest view already initialized
     const ELATEST_VIEW_ALREADY_EXISTS: u64 = 3;
 
-    /// Holds metrics for banned round, epoch and round served in prev epoch
+    /// Information about a ban that is currently in effect for a validator.
     struct ActiveBan has store, drop, copy {
-        /// Epoch in which the ban was issued
+        /// The consensus epoch in which the current ban was issued (if `on_probation` is `false`) or
+        /// when its probation period started (if `on_probation` is `true`).
         epoch_earned: u64,
-        /// Round in which the ban was issued
+        /// The consensus round in which the current ban was issued (if `on_probation` is `false`) or
+        /// when its probation period started (if `on_probation` is `true`).
         round_earned: u64,
         /// Round count incremented on every epoch change
-        rounds_served_in_previous_epochs: u64
+        rounds_served_in_previous_epochs: u64,
+        /// If `true` then the current ban period has expired and the validator is currently on probation; i.e., it is
+        /// eligible for election but will be banned for a longer period if it once again fails to propose a canonical
+        /// block when elected. If `true` then the other fields of this struct denote the consensus view in which
+        /// the probation period started.
+        on_probation: bool
     }
 
     /// Holds validator metrics regarding duration pool address etc
-    struct ValidatorBansWithAddress has store, drop, copy {
-        /// Holds active ban counts
+    struct ValidatorBans has store, drop, copy {
+        /// Information about the ban that is currently in effect.
         active: ActiveBan,
-        /// Consecutive ban count
+        /// The number of consecutive probations that this validator has failed.
         consecutive_bans: u32,
         /// Validator's pool address
-        pool_address: address,
-        /// Whether the validator is on probation (ban expired but still in registry)
-        on_probation: bool
+        pool_address: address
     }
 
     /// Holds ban registry
     struct BanRegistry has drop, store, key {
         /// List of validator active bans with pool address
-        bans: vector<ValidatorBansWithAddress>
+        bans: vector<ValidatorBans>
     }
 
     /// Holds latest processed round and epoch
@@ -70,12 +78,13 @@ module supra_framework::leader_ban_registry {
         epoch: u64,
         /// Round
         round: u64,
-        /// Consecutive bans count
+        /// The number of consecutive probations that this validator has failed.
         consecutive_bans: u32
     }
 
     #[event]
-    /// Emits when validator ban lifted and probation period starts
+    /// Emitted when a validator's ban is lifted and its probation period starts. A validator that is on probation is
+    /// eligible for election again, but will be banned for longer if it once again fails to propose a canonical block.
     struct ReinstatedWithProbation has drop, store {
         /// Validator's pool address
         pool_address: address,
@@ -86,7 +95,7 @@ module supra_framework::leader_ban_registry {
     }
 
     #[event]
-    /// Emits when validator probation period ends and is fully reinstated
+    /// Emitted when a validator's probation period ends without the validator earning a new ban.
     struct Reinstated has drop, store {
         /// Validator's pool address
         pool_address: address,
@@ -115,7 +124,7 @@ module supra_framework::leader_ban_registry {
 
     #[view]
     /// Returns list of validators active ban with it's pool address
-    public fun get_ban_registry(): vector<ValidatorBansWithAddress> acquires BanRegistry {
+    public fun get_ban_registry(): vector<ValidatorBans> acquires BanRegistry {
         if (!exists<BanRegistry>(@supra_framework)) {
             return vector::empty()
         };
@@ -124,7 +133,7 @@ module supra_framework::leader_ban_registry {
     }
 
     #[view]
-    /// Return initial ban duration
+    /// Return latest view
     public fun get_latest_view(): LatestView acquires LatestView {
         if (!exists<LatestView>(@supra_framework)) {
             return LatestView { epoch: 0, round: 0 }
@@ -134,7 +143,8 @@ module supra_framework::leader_ban_registry {
     }
 
     #[view]
-    /// Return initial ban duration
+    /// Returns the number of consensus rounds that a validator is banned for when it fails to propose a
+    /// canonical block when elected as leader whilst not on probation.
     public fun get_initial_ban_duration(): u64 {
         let initial_elections_denied =
             leader_ban_registry_config::get_initial_elections_denied();
@@ -143,7 +153,8 @@ module supra_framework::leader_ban_registry {
     }
 
     #[view]
-    /// Returns max ban duration
+    /// Returns the maximum number of consensus rounds that a validator may banned for when it repeatedly fails to
+    /// propose a canonical block when elected as leader whilst on probation.
     public fun get_max_ban_duration(): u64 {
         let max_elections_denied = leader_ban_registry_config::get_max_elections_denied();
         let committee_size = stake::get_committee_size();
@@ -151,11 +162,59 @@ module supra_framework::leader_ban_registry {
     }
 
     #[view]
-    /// Returns probation duration (constant, does not change based on consecutive bans)
+    /// Returns the number of consensus rounds that a validator is considered to be on probation for after having
+    /// served its most recent ban.
     public fun get_probation_duration(): u64 {
         let probation_elections = leader_ban_registry_config::get_probation_elections();
         let committee_size = stake::get_committee_size();
         committee_size * (probation_elections as u64)
+    }
+
+    #[view]
+    /// Returns the number of consensus rounds remaining in the ban for the validator with the given
+    /// pool address. Returns 0 if the validator is not banned (including if it is on probation).
+    public fun get_remaining_ban_duration(pool_address: address): u64 acquires BanRegistry, LatestView {
+        if (!exists<BanRegistry>(@supra_framework) || !exists<LatestView>(@supra_framework)) {
+            return 0
+        };
+        let ban_registry = borrow_global<BanRegistry>(@supra_framework);
+        let latest_view = borrow_global<LatestView>(@supra_framework);
+        let (found, index) = vector::find(
+            &ban_registry.bans,
+            |v| {
+                let v: &ValidatorBans = v;
+                v.pool_address == pool_address && !v.active.on_probation
+            }
+        );
+        if (found) {
+            remaining_ban_duration(vector::borrow(&ban_registry.bans, index), latest_view)
+        } else {
+            0
+        }
+    }
+
+    #[view]
+    /// Returns the number of consensus rounds remaining in the probation period for the validator
+    /// with the given pool address. Returns 0 if the validator is not on probation.
+    public fun get_remaining_probation_duration(pool_address: address): u64 acquires BanRegistry, LatestView {
+        if (!exists<BanRegistry>(@supra_framework) || !exists<LatestView>(@supra_framework)) {
+            return 0
+        };
+        let ban_registry = borrow_global<BanRegistry>(@supra_framework);
+        let latest_view = borrow_global<LatestView>(@supra_framework);
+        let (found, index) = vector::find(
+            &ban_registry.bans,
+            |v| {
+                let v: &ValidatorBans = v;
+                v.pool_address == pool_address && v.active.on_probation
+            }
+        );
+        if (found) {
+            let probation_dur = get_probation_duration();
+            remaining_probation_duration(vector::borrow(&ban_registry.bans, index), latest_view, probation_dur)
+        } else {
+            0
+        }
     }
 
     /// Add or update the ban registry as per block metadata
@@ -177,12 +236,6 @@ module supra_framework::leader_ban_registry {
 
         // remove expired bans
         reinstate_expired_bans(latest_view, ban_registry);
-
-        // unban the proposer
-        if (std::option::is_some(&proposer_index)) {
-            let extracted_proposer_index = *std::option::borrow(&mut proposer_index);
-            reinstate_proposer(latest_view, extracted_proposer_index, ban_registry);
-        };
     }
 
     /// Adds failed proposer indices to ban registry
@@ -199,25 +252,30 @@ module supra_framework::leader_ban_registry {
             |failed_validator_index| {
                 let validator_pool_address_opt =
                     stake::get_pool_address_from_index(failed_validator_index);
+
                 if (option::is_some(&validator_pool_address_opt)) {
                     let validator_pool_address =
                         option::extract(&mut validator_pool_address_opt);
                     let (is_banned, index) = vector::find(
                         &ban_registry.bans,
                         |v| {
-                            let v: &ValidatorBansWithAddress = v;
+                            let v: &ValidatorBans = v;
                             validator_pool_address == v.pool_address
                         }
                     );
                     if (is_banned) {
-                        // Validator is already in registry (either banned or on probation)
-                        // Re-banning resets the ban period and increases consecutive count
+                        // Validator is already in registry (either banned or on probation).
+                        // Re-banning resets the ban period and increases consecutive count.
+                        // If the consensus code is implemented correctly then the validator should
+                        // not be re-banned whilst serving a ban as it should not be eligible for election
+                        // when banned (i.e. this branch should only be taken when a validator is on probation).
                         let bans = vector::borrow_mut(&mut ban_registry.bans, index);
                         bans.consecutive_bans = bans.consecutive_bans + 1;
                         bans.active.round_earned = latest_view.round;
                         bans.active.epoch_earned = latest_view.epoch;
                         bans.active.rounds_served_in_previous_epochs = 0;
-                        bans.on_probation = false; // Reset to banned state
+                        bans.active.on_probation = false; // Reset to banned state
+
                         if (features::module_event_enabled()) {
                             event::emit(
                                 Banned {
@@ -231,15 +289,15 @@ module supra_framework::leader_ban_registry {
                     } else {
                         let ban_registry_len = vector::length(&ban_registry.bans);
                         if (can_be_banned(ban_registry_len)) {
-                            let ban_with_address = ValidatorBansWithAddress {
+                            let ban_with_address = ValidatorBans {
                                 active: ActiveBan {
                                     epoch_earned: latest_view.epoch,
                                     round_earned: latest_view.round,
-                                    rounds_served_in_previous_epochs: 0
+                                    rounds_served_in_previous_epochs: 0,
+                                    on_probation: false
                                 },
                                 consecutive_bans: 0,
-                                pool_address: validator_pool_address,
-                                on_probation: false
+                                pool_address: validator_pool_address
                             };
                             vector::push_back(&mut ban_registry.bans, ban_with_address);
 
@@ -273,8 +331,8 @@ module supra_framework::leader_ban_registry {
         vector::for_each_ref(
             &ban_registry.bans,
             |v| {
-                let v: &ValidatorBansWithAddress = v;
-                if (!v.on_probation && remaining_ban_duration(v, latest_view) == 0) {
+                let v: &ValidatorBans = v;
+                if (!v.active.on_probation && remaining_ban_duration(v, latest_view) == 0) {
                     vector::push_back(&mut pool_addresses_to_probation, v.pool_address);
                 }
             }
@@ -286,17 +344,18 @@ module supra_framework::leader_ban_registry {
                 let (found, index) = vector::find(
                     &ban_registry.bans,
                     |v| {
-                        let v: &ValidatorBansWithAddress = v;
+                        let v: &ValidatorBans = v;
                         &v.pool_address == p
                     }
                 );
                 if (found) {
                     let ban = vector::borrow_mut(&mut ban_registry.bans, index);
-                    ban.on_probation = true;
+                    ban.active.on_probation = true;
                     // Reset active fields so probation duration is calculated from this point
                     ban.active.epoch_earned = latest_view.epoch;
                     ban.active.round_earned = latest_view.round;
                     ban.active.rounds_served_in_previous_epochs = 0;
+
                     if (features::module_event_enabled()) {
                         event::emit(
                             ReinstatedWithProbation {
@@ -315,8 +374,8 @@ module supra_framework::leader_ban_registry {
         vector::for_each_ref(
             &ban_registry.bans,
             |v| {
-                let v: &ValidatorBansWithAddress = v;
-                if (v.on_probation
+                let v: &ValidatorBans = v;
+                if (v.active.on_probation
                     && remaining_probation_duration(v, latest_view, probation_duration) == 0) {
                     vector::push_back(&mut pool_addresses_for_full_reinstatement, v.pool_address);
                 }
@@ -329,12 +388,13 @@ module supra_framework::leader_ban_registry {
                 let (found, index) = vector::find(
                     &ban_registry.bans,
                     |v| {
-                        let v: &ValidatorBansWithAddress = v;
+                        let v: &ValidatorBans = v;
                         &v.pool_address == p
                     }
                 );
                 if (found) {
                     vector::swap_remove(&mut ban_registry.bans, index);
+
                     if (features::module_event_enabled()) {
                         event::emit(
                             Reinstated {
@@ -349,40 +409,12 @@ module supra_framework::leader_ban_registry {
         );
     }
 
-    /// Remvoing an entry of validator from registry if found at proposer index
-    fun reinstate_proposer(
-        latest_view: &LatestView, proposer_index: u64, ban_registry: &mut BanRegistry
-    ) {
-        let validator_pool_address_opt =
-            stake::get_pool_address_from_index(proposer_index);
-        if (option::is_some(&validator_pool_address_opt)) {
-            let validator_pool_address = option::extract(
-                &mut validator_pool_address_opt
-            );
-            let (is_banned, index) = vector::find(
-                &ban_registry.bans,
-                |v| {
-                    let v: &ValidatorBansWithAddress = v;
-                    validator_pool_address == v.pool_address
-                }
-            );
-            if (is_banned) {
-                vector::swap_remove(&mut ban_registry.bans, index);
-                if (features::module_event_enabled()) {
-                    event::emit(
-                        Reinstated {
-                            round: latest_view.round,
-                            epoch: latest_view.epoch,
-                            pool_address: validator_pool_address
-                        }
-                    )
-                }
-            };
-        };
-    }
-
-    /// Update counts on every epoch
-    /// Only run after committee has been updated from reconfigure
+    /// Increments the total number of consensus rounds served by each banned validator and removes 
+    /// registry entries for validators that have left the validator set.
+    ///
+    /// The number of rounds in each epoch may vary due to network asynchrony, so we must record the
+    /// number of rounds served in previous epochs to be able to ensure that a banned validator serves its
+    /// full ban period when its ban span multiple epochs.
     public(friend) fun on_new_epoch() acquires BanRegistry, LatestView {
         if (!exists<LatestView>(@supra_framework)) { return };
         if (!exists<BanRegistry>(@supra_framework)) { return };
@@ -396,17 +428,16 @@ module supra_framework::leader_ban_registry {
         vector::for_each_mut(
             &mut ban_registry.bans,
             |v| {
-                let v: &mut ValidatorBansWithAddress = v;
-                if (has_started(&v.active, latest_view)) {
+                let v: &mut ValidatorBans = v;
+                if (vector::contains(&new_committee_pool_addresses, &v.pool_address)) {
                     if (latest_view.epoch > v.active.epoch_earned) {
                         v.active.rounds_served_in_previous_epochs = v.active.rounds_served_in_previous_epochs
                             + latest_view.round;
-                    } else {
-                        v.active.rounds_served_in_previous_epochs = v.active.rounds_served_in_previous_epochs
-                            + latest_view.round - v.active.round_earned;
-                    }
-                };
-                if (!vector::contains(&new_committee_pool_addresses, &v.pool_address)) {
+                    } else if (latest_view.epoch == v.active.epoch_earned && latest_view.round > v.active.round_earned) {
+                        v.active.rounds_served_in_previous_epochs = latest_view.round - v.active.round_earned;
+                    };
+                    // else: The ban hasn't started yet.
+                } else {
                     vector::push_back(&mut retired_validators, v.pool_address)
                 }
             }
@@ -418,12 +449,13 @@ module supra_framework::leader_ban_registry {
                 let (is_banned, index) = vector::find(
                     &ban_registry.bans,
                     |v| {
-                        let v: &ValidatorBansWithAddress = v;
+                        let v: &ValidatorBans = v;
                         &v.pool_address == p
                     }
                 );
                 if (is_banned) {
                     vector::swap_remove(&mut ban_registry.bans, index);
+
                     if (features::module_event_enabled()) {
                         event::emit(
                             Reinstated {
@@ -438,18 +470,9 @@ module supra_framework::leader_ban_registry {
         );
     }
 
-    /// Checks if ban has already started
-    fun has_started(active_ban: &ActiveBan, latest_view: &LatestView): bool {
-        active_ban.epoch_earned < latest_view.epoch
-            || (
-                active_ban.epoch_earned == latest_view.epoch
-                    && active_ban.round_earned < latest_view.round
-            )
-    }
-
     /// Calculate the number of rounds remaining in a given ban (not including probation).
     fun remaining_ban_duration(
-        ban: &ValidatorBansWithAddress, latest_view: &LatestView
+        ban: &ValidatorBans, latest_view: &LatestView
     ): u64 {
         let initial_ban_duration = get_initial_ban_duration();
         let max_ban_duration = get_max_ban_duration();
@@ -458,10 +481,13 @@ module supra_framework::leader_ban_registry {
         let rounds_served =
             if (latest_view.epoch > ban.active.epoch_earned) {
                 ban.active.rounds_served_in_previous_epochs + latest_view.round
-            } else {
+            } else if (latest_view.epoch == ban.active.epoch_earned && latest_view.round > ban.active.round_earned) {
                 latest_view.round - ban.active.round_earned
+            } else {
+                // The ban hasn't started yet.
+                0
             };
-        if (duration >= rounds_served) {
+        if (duration > rounds_served) {
             duration - rounds_served
         } else { 0 }
     }
@@ -469,15 +495,18 @@ module supra_framework::leader_ban_registry {
     /// Calculate the number of rounds remaining in probation.
     /// Probation duration is constant and does not scale with consecutive bans.
     fun remaining_probation_duration(
-        ban: &ValidatorBansWithAddress, latest_view: &LatestView, probation_duration: u64
+        ban: &ValidatorBans, latest_view: &LatestView, probation_duration: u64
     ): u64 {
         let rounds_served =
             if (latest_view.epoch > ban.active.epoch_earned) {
                 ban.active.rounds_served_in_previous_epochs + latest_view.round
-            } else {
+            } else if (latest_view.epoch == ban.active.epoch_earned && latest_view.round > ban.active.round_earned) {
                 latest_view.round - ban.active.round_earned
+            } else {
+                // The ban hasn't started yet.
+                0
             };
-        if (probation_duration >= rounds_served) {
+        if (probation_duration > rounds_served) {
             probation_duration - rounds_served
         } else { 0 }
     }
@@ -500,22 +529,22 @@ module supra_framework::leader_ban_registry {
 
     #[test_only]
     public fun get_pool_address_from_vp(
-        validator_with_pool_addr: &ValidatorBansWithAddress
+        validator_with_pool_addr: &ValidatorBans
     ): address {
         validator_with_pool_addr.pool_address
     }
 
     #[test_only]
     public fun get_consecutive_count_from_vp(
-        validator_with_pool_addr: &ValidatorBansWithAddress
+        validator_with_pool_addr: &ValidatorBans
     ): u32 {
         validator_with_pool_addr.consecutive_bans
     }
 
     #[test_only]
     public fun is_on_probation_from_vp(
-        validator_with_pool_addr: &ValidatorBansWithAddress
+        validator_with_pool_addr: &ValidatorBans
     ): bool {
-        validator_with_pool_addr.on_probation
+        validator_with_pool_addr.active.on_probation
     }
 }

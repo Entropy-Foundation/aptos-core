@@ -41,9 +41,12 @@ module supra_framework::leader_ban_registry_config {
         initial_elections_denied: u8,
         /// Denotes max election count denied
         max_elections_denied: u32,
-        /// Denotes minimum unbanned proposer count
+        /// Denotes the minimum number of validators that must remain eligible for proposal. This
+        /// helps to preserve liveness in the presence of extended periods of network asynchrony.
         minimum_unbanned_proposers: u8,
-        /// Denotes the number of elections a validator must serve on probation after ban expires
+        /// Denotes the number of elections a validator must serve on probation after ban expires.
+        /// The ban duration compounds each time a validator is banned whilst on probation, and
+        /// resets to the base duration if the validator passes probation.
         probation_elections: u8
     }
 
