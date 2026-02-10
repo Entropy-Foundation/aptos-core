@@ -319,57 +319,18 @@ module supra_framework::leader_ban_registry {
     }
 
     /// Handles ban and probation expiry:
-    /// - When ban expires: transitions to probation, emits ReinstatedWithProbation
     /// - When probation expires: removes from registry, emits Reinstated
+    /// - When ban expires and probation_duration > 0: transitions to probation, emits ReinstatedWithProbation
+    /// - When ban expires and probation_duration == 0: removes from registry, emits Reinstated
     fun reinstate_expired_bans(
         latest_view: &LatestView, ban_registry: &mut BanRegistry
     ) {
         let probation_duration = get_probation_duration();
 
-        // First pass: transition expired bans to probation
-        let pool_addresses_to_probation = vector::empty();
-        vector::for_each_ref(
-            &ban_registry.bans,
-            |v| {
-                let v: &ValidatorBans = v;
-                if (!v.active.on_probation && remaining_ban_duration(v, latest_view) == 0) {
-                    vector::push_back(&mut pool_addresses_to_probation, v.pool_address);
-                }
-            }
-        );
-
-        vector::for_each_ref(
-            &pool_addresses_to_probation,
-            |p| {
-                let (found, index) = vector::find(
-                    &ban_registry.bans,
-                    |v| {
-                        let v: &ValidatorBans = v;
-                        &v.pool_address == p
-                    }
-                );
-                if (found) {
-                    let ban = vector::borrow_mut(&mut ban_registry.bans, index);
-                    ban.active.on_probation = true;
-                    // Reset active fields so probation duration is calculated from this point
-                    ban.active.epoch_earned = latest_view.epoch;
-                    ban.active.round_earned = latest_view.round;
-                    ban.active.rounds_served_in_previous_epochs = 0;
-
-                    if (features::module_event_enabled()) {
-                        event::emit(
-                            ReinstatedWithProbation {
-                                epoch: latest_view.epoch,
-                                round: latest_view.round,
-                                pool_address: *p
-                            }
-                        )
-                    }
-                }
-            }
-        );
-
-        // Second pass: remove validators whose probation has expired
+        // First pass: remove validators whose probation has expired.
+        // Done before ban-to-probation transitions to avoid iterating just-transitioned validators.
+        // Always runs (even when probation_duration == 0) to clean up validators that were already
+        // on probation before a config change set probation_duration to 0.
         let pool_addresses_for_full_reinstatement = vector::empty();
         vector::for_each_ref(
             &ban_registry.bans,
@@ -377,7 +338,9 @@ module supra_framework::leader_ban_registry {
                 let v: &ValidatorBans = v;
                 if (v.active.on_probation
                     && remaining_probation_duration(v, latest_view, probation_duration) == 0) {
-                    vector::push_back(&mut pool_addresses_for_full_reinstatement, v.pool_address);
+                    vector::push_back(
+                        &mut pool_addresses_for_full_reinstatement, v.pool_address
+                    );
                 }
             }
         );
@@ -407,6 +370,79 @@ module supra_framework::leader_ban_registry {
                 }
             }
         );
+
+        // Second pass: handle expired bans
+        let pool_addresses_with_expired_bans = vector::empty();
+        vector::for_each_ref(
+            &ban_registry.bans,
+            |v| {
+                let v: &ValidatorBans = v;
+                if (!v.active.on_probation && remaining_ban_duration(v, latest_view) == 0) {
+                    vector::push_back(&mut pool_addresses_with_expired_bans, v.pool_address);
+                }
+            }
+        );
+
+        if (probation_duration > 0) {
+            // Transition expired bans to probation
+            vector::for_each_ref(
+                &pool_addresses_with_expired_bans,
+                |p| {
+                    let (found, index) = vector::find(
+                        &ban_registry.bans,
+                        |v| {
+                            let v: &ValidatorBans = v;
+                            &v.pool_address == p
+                        }
+                    );
+                    if (found) {
+                        let ban = vector::borrow_mut(&mut ban_registry.bans, index);
+                        ban.active.on_probation = true;
+                        // Reset active fields so probation duration is calculated from this point
+                        ban.active.epoch_earned = latest_view.epoch;
+                        ban.active.round_earned = latest_view.round;
+                        ban.active.rounds_served_in_previous_epochs = 0;
+
+                        if (features::module_event_enabled()) {
+                            event::emit(
+                                ReinstatedWithProbation {
+                                    epoch: latest_view.epoch,
+                                    round: latest_view.round,
+                                    pool_address: *p
+                                }
+                            )
+                        }
+                    }
+                }
+            );
+        } else {
+            // No probation period - directly remove validators whose ban expired
+            vector::for_each_ref(
+                &pool_addresses_with_expired_bans,
+                |p| {
+                    let (found, index) = vector::find(
+                        &ban_registry.bans,
+                        |v| {
+                            let v: &ValidatorBans = v;
+                            &v.pool_address == p
+                        }
+                    );
+                    if (found) {
+                        vector::swap_remove(&mut ban_registry.bans, index);
+
+                        if (features::module_event_enabled()) {
+                            event::emit(
+                                Reinstated {
+                                    epoch: latest_view.epoch,
+                                    round: latest_view.round,
+                                    pool_address: *p
+                                }
+                            )
+                        }
+                    }
+                }
+            );
+        };
     }
 
     /// Increments the total number of consensus rounds served by each banned validator and removes 
