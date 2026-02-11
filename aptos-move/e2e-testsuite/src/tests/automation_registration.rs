@@ -1,3 +1,6 @@
+// Copyright (c) Aptos Foundation
+// SPDX-License-Identifier: Apache-2.0
+
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -8,37 +11,33 @@ use aptos_language_e2e_tests::{
     data_store::FakeDataStore,
     executor::FakeExecutor,
 };
-use aptos_types::account_address::create_multisig_account_address;
-use aptos_types::transaction::automation::Priority;
-use aptos_types::transaction::{ExecutionError, Multisig, MultisigTransactionPayload};
 use aptos_types::{
+    account_address::create_multisig_account_address,
+    contract_event::ContractEvent,
     on_chain_config::{
         AutomationCycleDetails, AutomationCycleInfo, AutomationCycleState, FeatureFlag,
         OnChainConfig,
     },
     transaction::{
         automation::{
-            AutomationRegistryAction, AutomationRegistryRecord, AutomationTaskMetaData,
+            AutomationRegistryAction, AutomationRegistryRecord, AutomationTaskMetaData, Priority,
             RegistrationParams,
         },
-        EntryFunction, ExecutionStatus, SignedTransaction, Transaction, TransactionOutput,
-        TransactionPayload, TransactionStatus,
+        EntryFunction, ExecutionError, ExecutionStatus, Multisig, MultisigTransactionPayload,
+        SignedTransaction, Transaction, TransactionOutput, TransactionPayload, TransactionStatus,
     },
 };
 use aptos_vm::aptos_vm_viewer::AptosVMViewer;
 use move_core_types::{
     account_address::AccountAddress,
     value::{serialize_values, MoveValue},
-    vm_status::StatusCode,
+    vm_status::{StatusCode, StatusCode::FEATURE_UNDER_GATING},
 };
+use serde::{Deserialize, Serialize};
 use std::{
     ops::{Deref, DerefMut},
     time::Instant,
 };
-
-use serde::{Serialize, Deserialize};
-use aptos_types::contract_event::ContractEvent;
-use move_core_types::vm_status::StatusCode::FEATURE_UNDER_GATING;
 
 const TIMESTAMP_NOW_SECONDS: &str = "0x1::timestamp::now_seconds";
 const ACCOUNT_BALANCE: &str = "0x1::coin::balance";
@@ -166,16 +165,12 @@ impl AutomationRegistrationTestContext {
         } else {
             (vec![], flag_value)
         };
-        self.executor.exec(
-            "features",
-            "change_feature_flags_internal",
-            vec![],
-            vec![
+        self.executor
+            .exec("features", "change_feature_flags_internal", vec![], vec![
                 MoveValue::Signer(acc).simple_serialize().unwrap(),
                 bcs::to_bytes(&enabled).unwrap(),
                 bcs::to_bytes(&disabled).unwrap(),
-            ],
-        );
+            ]);
     }
 
     pub(crate) fn toggle_feature_with_registry_reconfig(
@@ -395,11 +390,10 @@ impl AutomationRegistrationTestContext {
     }
 
     pub(crate) fn account_sequence_number(&mut self, account_address: AccountAddress) -> u64 {
-        let view_output = self.execute_view_function(
-            str::parse(ACCOUNT_SEQ_NUM).unwrap(),
-            vec![],
-            vec![account_address.to_vec()],
-        );
+        let view_output =
+            self.execute_view_function(str::parse(ACCOUNT_SEQ_NUM).unwrap(), vec![], vec![
+                account_address.to_vec(),
+            ]);
         let result = view_output.values.expect("Valid result");
         assert_eq!(result.len(), 1);
         bcs::from_bytes::<u64>(&result[0]).unwrap()
@@ -417,13 +411,12 @@ impl AutomationRegistrationTestContext {
     }
 
     pub(crate) fn get_task_details(&mut self, index: u64) -> AutomationTaskMetaData {
-        let view_output = self.execute_view_function(
-            str::parse(AUTOMATION_TASK_DETAILS).unwrap(),
-            vec![],
-            vec![MoveValue::U64(index)
-                .simple_serialize()
-                .expect("Successful serialization")],
-        );
+        let view_output =
+            self.execute_view_function(str::parse(AUTOMATION_TASK_DETAILS).unwrap(), vec![], vec![
+                MoveValue::U64(index)
+                    .simple_serialize()
+                    .expect("Successful serialization"),
+            ]);
         let result = view_output.values.expect("Valid result");
         assert!(!result.is_empty());
         bcs::from_bytes::<AutomationTaskMetaData>(&result[0])
@@ -435,13 +428,11 @@ impl AutomationRegistrationTestContext {
         vm_viewer: &AptosVMViewer<FakeDataStore>,
     ) -> AutomationTaskMetaData {
         let view_output = vm_viewer.execute_view_function(
-            to_view_function(
-                str::parse(AUTOMATION_TASK_DETAILS).unwrap(),
-                vec![],
-                vec![MoveValue::U64(index)
+            to_view_function(str::parse(AUTOMATION_TASK_DETAILS).unwrap(), vec![], vec![
+                MoveValue::U64(index)
                     .simple_serialize()
-                    .expect("Successful serialization")],
-            ),
+                    .expect("Successful serialization"),
+            ]),
             50_000,
         );
         let result = view_output.values.expect("Valid result");
@@ -807,14 +798,11 @@ fn check_automation_registry_actions_on_cycle_transition() {
     let result = test_context
         .execute_tagged_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     let status = result.status().status().expect("Expected execution status");
-    assert!(matches!(
-        status,
-        ExecutionStatus::MoveAbort {
-            location: _,
-            code: _,
-            info: _
-        }
-    ));
+    assert!(matches!(status, ExecutionStatus::MoveAbort {
+        location: _,
+        code: _,
+        info: _
+    }));
 
     test_context.advance_chain_time_in_secs(600);
 
@@ -848,14 +836,11 @@ fn check_automation_registry_actions_on_cycle_transition() {
     );
     let status = result.status().status().expect("Expected execution status");
 
-    assert!(matches!(
-        status,
-        ExecutionStatus::MoveAbort {
-            location: _,
-            code: _,
-            info: _
-        }
-    ));
+    assert!(matches!(status, ExecutionStatus::MoveAbort {
+        location: _,
+        code: _,
+        info: _
+    }));
 
     test_context.execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(
         registry_action_for_task0,
@@ -946,14 +931,11 @@ fn check_automation_registry_actions_on_cycle_suspension() {
         .execute_tagged_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     let status = result.status().status().expect("Expected execution status");
 
-    assert!(matches!(
-        status,
-        ExecutionStatus::MoveAbort {
-            location: _,
-            code: _,
-            info: _
-        }
-    ));
+    assert!(matches!(status, ExecutionStatus::MoveAbort {
+        location: _,
+        code: _,
+        info: _
+    }));
 }
 
 #[test]
@@ -972,7 +954,6 @@ fn check_automation_registry_actions_when_automation_cycle_disabled() {
     ));
 }
 
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct TransactionExecutionFailed {
     multisig_address: AccountAddress,
@@ -984,11 +965,12 @@ struct TransactionExecutionFailed {
 }
 
 fn find_transaction_error(events: &[ContractEvent]) -> Vec<TransactionExecutionFailed> {
-    events.iter().filter(|e| e.is_v2())
+    events
+        .iter()
+        .filter(|e| e.is_v2())
         .map(|e| bcs::from_bytes::<TransactionExecutionFailed>(e.event_data()))
         .filter_map(|d| d.ok())
         .collect()
-
 }
 
 #[test]
@@ -1017,7 +999,9 @@ fn check_system_automation_task_registration() {
     let failed_event = find_transaction_error(output.events());
     assert_eq!(failed_event.len(), 1);
     let expected_execution_error = ExecutionError {
-        abort_location: "0000000000000000000000000000000000000000000000000000000000000001::automation_registry".to_string(),
+        abort_location:
+            "0000000000000000000000000000000000000000000000000000000000000001::automation_registry"
+                .to_string(),
         error_type: "MoveAbort".to_string(),
         error_code: 41,
     };
@@ -1046,7 +1030,6 @@ fn check_system_automation_task_registration() {
         error_code: FEATURE_UNDER_GATING as u64,
     };
     assert_eq!(expected_execution_error, failed_event[0].execution_error);
-
 
     // Try without multisig payload specified
     let proposal_txn =

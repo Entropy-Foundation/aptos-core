@@ -40,10 +40,7 @@ impl fmt::Display for CachedPackageMetadata<'_> {
 
 impl CachedPackageRegistry {
     pub fn new(inner: PackageRegistry, bytecode: BTreeMap<String, Vec<u8>>) -> Self {
-        Self {
-            inner,
-            bytecode,
-        }
+        Self { inner, bytecode }
     }
 
     /// Creates a new registry.

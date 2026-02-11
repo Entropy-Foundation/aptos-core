@@ -66,8 +66,8 @@ use std::{
     str::FromStr,
 };
 pub use stored_package::*;
-use tokio::task;
 use supra_aptos::{SupraCommand, SupraCommandArguments};
+use tokio::task;
 use url::Url;
 
 mod aptos_debug_natives;
@@ -181,7 +181,8 @@ impl FrameworkPackageArgs {
         prompt_options: PromptOptions,
     ) -> CliTypedResult<()> {
         const SUPRA_FRAMEWORK: &str = "SupraFramework";
-        const SUPRA_FRAMEWORK_GIT_PATH: &str = "https://github.com/Entropy-Foundation/aptos-core.git";
+        const SUPRA_FRAMEWORK_GIT_PATH: &str =
+            "https://github.com/Entropy-Foundation/aptos-core.git";
         const SUBDIR_PATH: &str = "aptos-move/framework/supra-framework";
         const DEFAULT_BRANCH: &str = "dev";
 

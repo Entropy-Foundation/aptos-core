@@ -4158,6 +4158,7 @@ dependencies = [
  "move-table-extension",
  "move-vm-runtime",
  "move-vm-types",
+ "nidkg_helper",
  "num-bigint 0.3.3",
  "num-derive",
  "num-traits",
@@ -4704,7 +4705,7 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8824ecca2e851cec16968d54a01dd372ef8f95b244fb84b84e70128be347c3c6"
 dependencies = [
- "term",
+ "term 0.7.0",
 ]
 
 [[package]]
@@ -5237,6 +5238,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bicycl"
+version = "0.1.0"
+source = "git+ssh://git@github.com/Entropy-Foundation/supra-bicycl.git?rev=2ee61ad6773302345bc1742aeeac99655a4c9671#2ee61ad6773302345bc1742aeeac99655a4c9671"
+dependencies = [
+ "cpp_core 0.5.0",
+ "cpp_std",
+ "ritual_build 0.3.0 (git+https://github.com/rust-qt/ritual.git?rev=e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85)",
+]
+
+[[package]]
 name = "bigdecimal"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5764,7 +5775,7 @@ checksum = "4acbb09d9ee8e23699b9634375c72795d095bf268439da88562cf9b501f181fa"
 dependencies = [
  "camino",
  "cargo-platform",
- "semver",
+ "semver 1.0.26",
  "serde",
  "serde_json",
 ]
@@ -5777,7 +5788,7 @@ checksum = "dd5eb614ed4c27c5d706420e4320fbe3216ab31fa1c33cd8246ac36dae4479ba"
 dependencies = [
  "camino",
  "cargo-platform",
- "semver",
+ "semver 1.0.26",
  "serde",
  "serde_json",
  "thiserror 2.0.16",
@@ -6383,12 +6394,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "cpp_core"
+version = "0.5.0"
+source = "git+https://github.com/rust-qt/ritual.git?rev=e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85#e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "cpp_core"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3a4fc172d5c7797a79e4f0e976bec2d4b80b39989d48d58386aaa9a533ff389"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "cpp_demangle"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96e58d342ad113c2b878f16d5d034c03be492ae460cdbc02b7f0f2284d310c7d"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "cpp_std"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc6acdfb694abd411532cd836467462172cf3f9b78d3d3aff28a69d676665339"
+dependencies = [
+ "cpp_core 0.5.1",
+ "ritual_build 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -6557,6 +6595,49 @@ name = "crunchy"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
+
+[[package]]
+name = "crypto"
+version = "0.1.0"
+source = "git+ssh://git@github.com/Entropy-Foundation/crypto.git?rev=217382859edf6efa1dee109e0ee1a9e721dffb3e#217382859edf6efa1dee109e0ee1a9e721dffb3e"
+dependencies = [
+ "arrayvec 0.7.6",
+ "bicycl",
+ "cpp_core 0.5.0",
+ "cpp_std",
+ "crypto 0.1.0 (git+ssh://git@github.com/Entropy-Foundation/crypto.git?rev=c8ecf28393ca2616e9d10ff6e8d7fb3cd4a79085)",
+ "hex",
+ "lazy_static",
+ "miracl_core_bls12381",
+ "miracl_core_bn_eth",
+ "miracl_core_ed25519",
+ "rand 0.8.5",
+ "rand_chacha 0.2.2",
+ "ritual_build 0.3.0 (git+https://github.com/rust-qt/ritual.git?rev=e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85)",
+ "tiny-keccak",
+ "zeroize",
+]
+
+[[package]]
+name = "crypto"
+version = "0.1.0"
+source = "git+ssh://git@github.com/Entropy-Foundation/crypto.git?rev=c8ecf28393ca2616e9d10ff6e8d7fb3cd4a79085#c8ecf28393ca2616e9d10ff6e8d7fb3cd4a79085"
+dependencies = [
+ "arrayvec 0.7.6",
+ "bicycl",
+ "cpp_core 0.5.0",
+ "cpp_std",
+ "hex",
+ "lazy_static",
+ "miracl_core_bls12381",
+ "miracl_core_ed25519",
+ "rand 0.8.5",
+ "rand_chacha 0.2.2",
+ "ritual_build 0.3.0 (git+https://github.com/rust-qt/ritual.git?rev=e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85)",
+ "sha2 0.10.9",
+ "tiny-keccak",
+ "zeroize",
+]
 
 [[package]]
 name = "crypto-bigint"
@@ -7829,6 +7910,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "failure"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d32e9bd16cc02eae7db7ef620b392808b89f6a5e16bb3497d159c6b92a0f4f86"
+dependencies = [
+ "backtrace",
+ "failure_derive",
+]
+
+[[package]]
+name = "failure_derive"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa4da3c766cd7a0db8242e326e9e4e081edd567072893ed320008189715366a4"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+ "synstructure 0.12.6",
+]
+
+[[package]]
 name = "fallible-iterator"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8633,10 +8736,10 @@ dependencies = [
  "itertools 0.14.0",
  "nested",
  "once_cell",
- "pathdiff",
+ "pathdiff 0.2.3",
  "petgraph 0.7.1",
  "rayon",
- "semver",
+ "semver 1.0.26",
  "serde",
  "serde_json",
  "smallvec",
@@ -8655,7 +8758,7 @@ dependencies = [
  "cfg-if",
  "diffus",
  "guppy-workspace-hack",
- "semver",
+ "semver 1.0.26",
  "serde",
  "toml 0.5.11",
 ]
@@ -9641,6 +9744,15 @@ dependencies = [
 
 [[package]]
 name = "itertools"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f56a2d0bc861f9165be4eb3442afd3c236d8a98afd426f65d92324ae1091a484"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
@@ -9829,6 +9941,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kernel32-sys"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
+dependencies = [
+ "winapi 0.2.8",
+ "winapi-build",
+]
+
+[[package]]
 name = "kube"
 version = "0.65.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9930,7 +10052,7 @@ dependencies = [
  "regex",
  "regex-syntax 0.8.6",
  "string_cache",
- "term",
+ "term 0.7.0",
  "tiny-keccak",
  "unicode-xid",
  "walkdir",
@@ -10496,6 +10618,30 @@ dependencies = [
  "libc",
  "wasi 0.11.1+wasi-snapshot-preview1",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "miracl_core_bls12381"
+version = "4.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d07cbe42e2a8dd41df582fb8e00fc24d920b5561cc301fcb6d14e2e0434b500f"
+
+[[package]]
+name = "miracl_core_bn_eth"
+version = "0.1.0"
+source = "git+ssh://git@github.com/Entropy-Foundation/miracl_core_bn_eth.git?rev=4681376012bc6a138a2d60094bd1006b0b1d34ed#4681376012bc6a138a2d60094bd1006b0b1d34ed"
+dependencies = [
+ "miracl_core_bls12381",
+ "rand 0.8.5",
+]
+
+[[package]]
+name = "miracl_core_ed25519"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d18d21ce786ead824ad675617279ab3905866294573a95e93cab0c58f0c17625"
+dependencies = [
+ "miracl_core_bls12381",
 ]
 
 [[package]]
@@ -11098,7 +11244,7 @@ dependencies = [
  "move-stackless-bytecode",
  "once_cell",
  "serde",
- "shell-words",
+ "shell-words 1.1.0",
  "simplelog",
  "tempfile",
  "toml 0.7.8",
@@ -11149,7 +11295,7 @@ dependencies = [
  "move-stackless-bytecode",
  "move-stackless-bytecode-test-utils",
  "serde",
- "shell-words",
+ "shell-words 1.1.0",
  "tempfile",
  "walkdir",
 ]
@@ -11568,6 +11714,28 @@ name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
+
+[[package]]
+name = "nidkg_helper"
+version = "0.4.0"
+source = "git+ssh://git@github.com/Entropy-Foundation/supra-common?tag=v0.21.5#e114ebd7c8e8cf9b198f7b9bffb403e336494055"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "bicycl",
+ "bincode",
+ "crypto 0.1.0 (git+ssh://git@github.com/Entropy-Foundation/crypto.git?rev=217382859edf6efa1dee109e0ee1a9e721dffb3e)",
+ "crypto 0.1.0 (git+ssh://git@github.com/Entropy-Foundation/crypto.git?rev=c8ecf28393ca2616e9d10ff6e8d7fb3cd4a79085)",
+ "hex",
+ "log",
+ "miracl_core_bls12381",
+ "miracl_core_bn_eth",
+ "rand 0.8.5",
+ "serde",
+ "thiserror 1.0.69",
+ "tiny-keccak",
+ "zeroize",
+]
 
 [[package]]
 name = "nix"
@@ -12300,6 +12468,12 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "pathdiff"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3bf70094d203e07844da868b634207e71bfab254fe713171fae9a6e751ccf31"
+
+[[package]]
+name = "pathdiff"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df94ce210e5bc13cb6651479fa48d14f601d9858cfe0467f43ae157023b938d3"
@@ -12968,7 +13142,7 @@ dependencies = [
  "encode_unicode",
  "is-terminal",
  "lazy_static",
- "term",
+ "term 0.7.0",
  "unicode-width 0.1.14",
 ]
 
@@ -13845,6 +14019,72 @@ dependencies = [
 ]
 
 [[package]]
+name = "ritual_build"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f86c36bf720176c6d573d0827cd5b2b9f1c6a3450dc237374a35ce0f2268835"
+dependencies = [
+ "log",
+ "ritual_common 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ritual_build"
+version = "0.3.0"
+source = "git+https://github.com/rust-qt/ritual.git?rev=e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85#e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85"
+dependencies = [
+ "log",
+ "ritual_common 0.3.0 (git+https://github.com/rust-qt/ritual.git?rev=e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85)",
+]
+
+[[package]]
+name = "ritual_common"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28d30de34c9683bedc6f0b1f5a3ef0bb613df7ff7e1833c767eeed45f1a9d2af"
+dependencies = [
+ "bincode",
+ "dunce",
+ "failure",
+ "itertools 0.8.2",
+ "lazy_static",
+ "log",
+ "num_cpus",
+ "pathdiff 0.1.0",
+ "regex",
+ "semver 0.9.0",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "shell-words 0.1.0",
+ "term-painter",
+ "toml 0.4.10",
+]
+
+[[package]]
+name = "ritual_common"
+version = "0.3.0"
+source = "git+https://github.com/rust-qt/ritual.git?rev=e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85#e2b9b40f1ff57743ae0f3bf3cca43ef84545fc85"
+dependencies = [
+ "bincode",
+ "dunce",
+ "failure",
+ "itertools 0.8.2",
+ "lazy_static",
+ "log",
+ "num_cpus",
+ "pathdiff 0.1.0",
+ "regex",
+ "semver 0.9.0",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "shell-words 0.1.0",
+ "term-painter",
+ "toml 0.4.10",
+]
+
+[[package]]
 name = "rlp"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -14014,7 +14254,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
 dependencies = [
- "semver",
+ "semver 1.0.26",
 ]
 
 [[package]]
@@ -14410,12 +14650,21 @@ dependencies = [
  "regex",
  "reqwest",
  "self-replace",
- "semver",
+ "semver 1.0.26",
  "serde_json",
  "tempfile",
  "urlencoding",
  "zip",
  "zipsign-api",
+]
+
+[[package]]
+name = "semver"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
+dependencies = [
+ "semver-parser",
 ]
 
 [[package]]
@@ -14426,6 +14675,12 @@ checksum = "56e6fa9c48d24d85fb3de5ad847117517440f6beceb7798af16b4a87d616b8d0"
 dependencies = [
  "serde",
 ]
+
+[[package]]
+name = "semver-parser"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "sender"
@@ -14808,6 +15063,12 @@ checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
 ]
+
+[[package]]
+name = "shell-words"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39acde55a154c4cd3ae048ac78cc21c25f3a0145e44111b523279113dce0d94a"
 
 [[package]]
 name = "shell-words"
@@ -15401,6 +15662,18 @@ checksum = "2047c6ded9c721764247e62cd3b03c09ffc529b2ba5b10ec482ae507a4a70160"
 
 [[package]]
 name = "synstructure"
+version = "0.12.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f36bdaa60a83aca3921b5259d5400cbf5e90fc51931376a9bd4a0eb79aa7210f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+ "unicode-xid",
+]
+
+[[package]]
+name = "synstructure"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "728a70f3dbaf5bab7f0c4b1ac8d7ae5ea60a4b5549c8a5914361c99147a709d2"
@@ -15539,6 +15812,16 @@ dependencies = [
 
 [[package]]
 name = "term"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa63644f74ce96fbeb9b794f66aff2a52d601cbd5e80f4b97123e3899f4570f1"
+dependencies = [
+ "kernel32-sys",
+ "winapi 0.2.8",
+]
+
+[[package]]
+name = "term"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c59df8ac95d96ff9bede18eb7300b0fda5e5d8d90960e76f8e14ae765eedbf1f"
@@ -15546,6 +15829,15 @@ dependencies = [
  "dirs-next",
  "rustversion",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "term-painter"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dcaa948f0e3e38470cd8dc8dcfe561a75c9e43f28075bb183845be2b9b3c08cf"
+dependencies = [
+ "term 0.4.6",
 ]
 
 [[package]]
@@ -16036,6 +16328,15 @@ dependencies = [
  "futures-sink",
  "pin-project-lite",
  "tokio",
+]
+
+[[package]]
+name = "toml"
+version = "0.4.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "758664fc71a3a69038656bee8b6be6477d2a6c315a6b81f7081f591bffa4111f"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -17134,6 +17435,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "winapi-build"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
+
+[[package]]
 name = "winapi-i686-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -17609,7 +17916,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
- "synstructure",
+ "synstructure 0.13.2",
 ]
 
 [[package]]
@@ -17688,7 +17995,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
- "synstructure",
+ "synstructure 0.13.2",
 ]
 
 [[package]]

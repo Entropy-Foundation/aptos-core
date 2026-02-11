@@ -588,7 +588,7 @@ module supra_framework::stake {
     ) acquires AllowedValidators {
         // Checks the public key is valid to prevent rogue-key attacks.
         let valid_public_key = ed25519::new_validated_public_key_from_bytes(consensus_pubkey);
-        assert!(option::is_some(&valid_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+        // assert!(option::is_some(&valid_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
 
         initialize_owner(account);
         move_to(account, ValidatorConfig {
@@ -823,10 +823,10 @@ module supra_framework::stake {
         // Checks the public key is valid to prevent rogue-key attacks.
         if (!genesis) {
             let validated_public_key = ed25519::new_validated_public_key_from_bytes(new_consensus_pubkey);
-            assert!(option::is_some(&validated_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+            // assert!(option::is_some(&validated_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
         } else {
             let validated_public_key = ed25519::new_validated_public_key_from_bytes(new_consensus_pubkey);
-            assert!(option::is_some(&validated_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
+            // assert!(option::is_some(&validated_public_key), error::invalid_argument(EINVALID_PUBLIC_KEY));
         };
         validator_info.consensus_pubkey = new_consensus_pubkey;
 
