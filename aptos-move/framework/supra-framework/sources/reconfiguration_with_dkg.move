@@ -55,9 +55,10 @@ module supra_framework::reconfiguration_with_dkg {
                 &mut receiver_committees,
                 new_receiver_committee(
                     dkg_config::get_is_resharing(rc),
+                    dkg_config::get_dkg_threshold_type(rc),
                     new_dkg_committee_from_validator_consensus_info(
                         stake::next_validator_consensus_infos(),
-                        dkg_config::get_threshold_type(rc)))
+                        dkg_config::get_committee_threshold_type(rc)))
             );
             i = i + 1;
         };
@@ -68,7 +69,7 @@ module supra_framework::reconfiguration_with_dkg {
             randomness_seed,
             new_dkg_committee_from_validator_consensus_info(
                 stake::cur_validator_consensus_infos(),
-                dkg_config::get_dealer_threshold_type(&config)),
+                dkg_config::get_dealer_committee_threshold_type(&config)),
             receiver_committees
         );
     }

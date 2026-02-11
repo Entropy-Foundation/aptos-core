@@ -26,15 +26,17 @@ module supra_framework::dkg_config {
     struct ReceiverCommitteeConfig has copy, drop, store {
         /// Whether this committee uses resharing from the previous epoch's public key.
         is_resharing: bool,
-        /// The threshold type for this committee (e.g., validity, quorum).
-        threshold_type: CertificateThresholdType,
+        /// The threshold type for this committee (e.g., quorum, clan_majority).
+        committee_threshold_type: CertificateThresholdType,
+        /// The threshold type for output keys in DKG for this committee (e.g., validity, quorum).
+        dkg_threshold_type: CertificateThresholdType,
     }
 
     /// Main DKG configuration stored at @supra_framework.
     /// Controls DKG parameters that can be updated via governance.
     struct DkgConfig has copy, drop, key, store {
-        /// Threshold type for the dealer committee.
-        dealer_threshold_type: CertificateThresholdType,
+        /// Threshold type for the dealer committee. (e.g., quorum, clan_majority).
+        dealer_committee_threshold_type: CertificateThresholdType,
         /// Configuration for each receiver committee.
         /// Default: [(false, validity), (false, quorum)]
         receiver_committees: vector<ReceiverCommitteeConfig>,
@@ -79,7 +81,7 @@ module supra_framework::dkg_config {
             error::invalid_argument(EEMPTY_RECEIVER_COMMITTEES)
         );
         
-        // Validate: if resharing is enabled for a threshold type, it must exist in current config
+        // Validate: if resharing is enabled for a dkg threshold type, it must exist in current config
         let current_config = current();
         let i = 0;
         let len = vector::length(&new_config.receiver_committees);
@@ -88,7 +90,7 @@ module supra_framework::dkg_config {
             if (new_rc.is_resharing) {
                 // Check if this threshold type exists in current config
                 assert!(
-                    has_threshold_type(&current_config, new_rc.threshold_type),
+                    has_key_threshold_type(&current_config, new_rc.dkg_threshold_type),
                     error::invalid_argument(ERESHARING_FOR_NONEXISTENT_THRESHOLD_TYPE)
                 );
             };
@@ -99,12 +101,12 @@ module supra_framework::dkg_config {
     }
     
     /// Check if a threshold type exists in the config's receiver committees.
-    fun has_threshold_type(config: &DkgConfig, threshold_type: CertificateThresholdType): bool {
+    fun has_key_threshold_type(config: &DkgConfig, threshold_type: CertificateThresholdType): bool {
         let i = 0;
         let len = vector::length(&config.receiver_committees);
         while (i < len) {
             let rc = vector::borrow(&config.receiver_committees, i);
-            if (rc.threshold_type == threshold_type) {
+            if (rc.dkg_threshold_type == threshold_type) {
                 return true
             };
             i = i + 1;
@@ -132,11 +134,11 @@ module supra_framework::dkg_config {
 
     /// Create a new DkgConfig.
     public fun new(
-        dealer_threshold_type: CertificateThresholdType,
+        dealer_committee_threshold_type: CertificateThresholdType,
         receiver_committees: vector<ReceiverCommitteeConfig>
     ): DkgConfig {
         DkgConfig {
-            dealer_threshold_type,
+            dealer_committee_threshold_type,
             receiver_committees,
         }
     }
@@ -144,28 +146,34 @@ module supra_framework::dkg_config {
     /// Create a new ReceiverCommitteeConfig.
     public fun new_receiver_committee_config(
         is_resharing: bool,
-        threshold_type: CertificateThresholdType
+        committee_threshold_type: CertificateThresholdType,
+        dkg_threshold_type: CertificateThresholdType
     ): ReceiverCommitteeConfig {
         ReceiverCommitteeConfig {
             is_resharing,
-            threshold_type,
+            committee_threshold_type,
+            dkg_threshold_type,
         }
     }
 
     /// Returns the default DKG configuration:
     /// - Dealer threshold: quorum_certificate_type()
-    /// - Receiver committees: [(false, validity), (false, quorum)]
+    /// - Receiver committees: 
+    ///   - [(is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = validity_certificate_type()), 
+    ///   - (is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = quorum_certificate_type())]
     public fun default(): DkgConfig {
         DkgConfig {
-            dealer_threshold_type: quorum_certificate_type(),
+            dealer_committee_threshold_type: quorum_certificate_type(),
             receiver_committees: vector[
                 ReceiverCommitteeConfig {
                     is_resharing: false,
-                    threshold_type: validity_certificate_type(),
+                    committee_threshold_type: quorum_certificate_type(),
+                    dkg_threshold_type: validity_certificate_type(),
                 },
                 ReceiverCommitteeConfig {
                     is_resharing: false,
-                    threshold_type: quorum_certificate_type(),
+                    committee_threshold_type: quorum_certificate_type(),
+                    dkg_threshold_type: quorum_certificate_type(),
                 },
             ],
         }
@@ -185,8 +193,8 @@ module supra_framework::dkg_config {
     }
 
     /// Get the dealer threshold type from the config.
-    public fun get_dealer_threshold_type(config: &DkgConfig): CertificateThresholdType {
-        config.dealer_threshold_type
+    public fun get_dealer_committee_threshold_type(config: &DkgConfig): CertificateThresholdType {
+        config.dealer_committee_threshold_type
     }
 
     /// Get the receiver committee configs from the DkgConfig.
@@ -199,9 +207,14 @@ module supra_framework::dkg_config {
         config.is_resharing
     }
 
-    /// Get threshold_type from a ReceiverCommitteeConfig.
-    public fun get_threshold_type(config: &ReceiverCommitteeConfig): CertificateThresholdType {
-        config.threshold_type
+    /// Get committee_threshold_type from a ReceiverCommitteeConfig.
+    public fun get_committee_threshold_type(config: &ReceiverCommitteeConfig): CertificateThresholdType {
+        config.committee_threshold_type
+    }
+
+    /// Get dkg_threshold_type from a ReceiverCommitteeConfig.
+    public fun get_dkg_threshold_type(config: &ReceiverCommitteeConfig): CertificateThresholdType {
+        config.dkg_threshold_type
     }
 
     // ========================
@@ -226,7 +239,7 @@ module supra_framework::dkg_config {
         
         // Check dealer threshold type is quorum
         assert!(
-            get_dealer_threshold_type(&config) == quorum_certificate_type(),
+            get_dealer_committee_threshold_type(&config) == quorum_certificate_type(),
             1
         );
 
@@ -234,15 +247,17 @@ module supra_framework::dkg_config {
         let receivers = get_receiver_committee_configs(&config);
         assert!(vector::length(&receivers) == 2, 2);
 
-        // First receiver: (false, validity)
+        // First receiver: (false, quorum, validity)
         let r0 = vector::borrow(&receivers, 0);
         assert!(!get_is_resharing(r0), 3);
-        assert!(get_threshold_type(r0) == validity_certificate_type(), 4);
+        assert!(get_committee_threshold_type(r0) == quorum_certificate_type(), 4);
+        assert!(get_dkg_threshold_type(r0) == validity_certificate_type(), 5);
 
-        // Second receiver: (false, quorum)
+        // Second receiver: (false, quorum,quorum)
         let r1 = vector::borrow(&receivers, 1);
-        assert!(!get_is_resharing(r1), 5);
-        assert!(get_threshold_type(r1) == quorum_certificate_type(), 6);
+        assert!(!get_is_resharing(r1), 6);
+        assert!(get_committee_threshold_type(r1) == quorum_certificate_type(), 4);
+        assert!(get_dkg_threshold_type(r1) == quorum_certificate_type(), 6);
     }
 
     #[test(framework = @0x1)]
@@ -254,8 +269,8 @@ module supra_framework::dkg_config {
         let new_config = new(
             validity_certificate_type(),  // Change dealer to validity
             vector[
-                new_receiver_committee_config(true, validity_certificate_type()),
-                new_receiver_committee_config(true, quorum_certificate_type()),
+                new_receiver_committee_config(true, quorum_certificate_type(), validity_certificate_type()),
+                new_receiver_committee_config(true, quorum_certificate_type(), quorum_certificate_type()),
             ]
         );
 
@@ -271,7 +286,7 @@ module supra_framework::dkg_config {
 
         // Now config should be updated
         let config = current();
-        assert!(get_dealer_threshold_type(&config) == validity_certificate_type(), 2);
+        assert!(get_dealer_committee_threshold_type(&config) == validity_certificate_type(), 2);
         let receivers = get_receiver_committee_configs(&config);
         assert!(get_is_resharing(vector::borrow(&receivers, 0)), 3);
         assert!(get_is_resharing(vector::borrow(&receivers, 1)), 4);
@@ -302,7 +317,7 @@ module supra_framework::dkg_config {
         let bad_config = new(
             quorum_certificate_type(),
             vector[
-                new_receiver_committee_config(true, unanimous_certificate_type()),  // This type doesn't exist!
+                new_receiver_committee_config(true, quorum_certificate_type(),unanimous_certificate_type()),  // This type doesn't exist!
             ]
         );
         set_for_next_epoch(&framework, bad_config);
@@ -317,8 +332,8 @@ module supra_framework::dkg_config {
         let good_config = new(
             quorum_certificate_type(),
             vector[
-                new_receiver_committee_config(true, validity_certificate_type()),   // Exists in default
-                new_receiver_committee_config(true, quorum_certificate_type()),     // Exists in default
+                new_receiver_committee_config(true, quorum_certificate_type(), validity_certificate_type()),   // Exists in default
+                new_receiver_committee_config(true, quorum_certificate_type(), quorum_certificate_type()),     // Exists in default
             ]
         );
         
@@ -341,9 +356,9 @@ module supra_framework::dkg_config {
         let config_with_new_type = new(
             quorum_certificate_type(),
             vector[
-                new_receiver_committee_config(false, validity_certificate_type()),
-                new_receiver_committee_config(false, quorum_certificate_type()),
-                new_receiver_committee_config(false, unanimous_certificate_type()),  // New type, no resharing
+                new_receiver_committee_config(false, quorum_certificate_type(), validity_certificate_type()),
+                new_receiver_committee_config(false, quorum_certificate_type(), quorum_certificate_type()),
+                new_receiver_committee_config(false, quorum_certificate_type(), unanimous_certificate_type()),  // New type, no resharing
             ]
         );
         

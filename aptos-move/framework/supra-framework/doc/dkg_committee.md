@@ -126,6 +126,12 @@
 
 </dd>
 <dt>
+<code>dkg_threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a></code>
+</dt>
+<dd>
+
+</dd>
+<dt>
 <code>committee: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a></code>
 </dt>
 <dd>
@@ -389,7 +395,7 @@ Input for DKG key output - contains threshold type and keys for one committee
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_receiver_committee">new_receiver_committee</a>(is_resharing: bool, committee: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>): <a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">dkg_committee::ReceiverCommittee</a>
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_receiver_committee">new_receiver_committee</a>(is_resharing: bool, dkg_threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>, committee: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>): <a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">dkg_committee::ReceiverCommittee</a>
 </code></pre>
 
 
@@ -398,9 +404,10 @@ Input for DKG key output - contains threshold type and keys for one committee
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_receiver_committee">new_receiver_committee</a>(is_resharing: bool, committee: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">DkgCommittee</a>): <a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">ReceiverCommittee</a>{
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_new_receiver_committee">new_receiver_committee</a>(is_resharing: bool, dkg_threshold_type: CertificateThresholdType, committee: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">DkgCommittee</a>): <a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">ReceiverCommittee</a>{
     <a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">ReceiverCommittee</a>{
         is_resharing,
+        dkg_threshold_type,
         committee
     }
 }

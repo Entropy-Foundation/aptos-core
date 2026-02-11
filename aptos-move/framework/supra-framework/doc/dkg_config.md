@@ -12,16 +12,17 @@ This config can be updated via governance and takes effect at the next epoch.
 -  [Constants](#@Constants_0)
 -  [Function `initialize`](#0x1_dkg_config_initialize)
 -  [Function `set_for_next_epoch`](#0x1_dkg_config_set_for_next_epoch)
--  [Function `has_threshold_type`](#0x1_dkg_config_has_threshold_type)
+-  [Function `has_key_threshold_type`](#0x1_dkg_config_has_key_threshold_type)
 -  [Function `on_new_epoch`](#0x1_dkg_config_on_new_epoch)
 -  [Function `new`](#0x1_dkg_config_new)
 -  [Function `new_receiver_committee_config`](#0x1_dkg_config_new_receiver_committee_config)
 -  [Function `default`](#0x1_dkg_config_default)
 -  [Function `current`](#0x1_dkg_config_current)
--  [Function `get_dealer_threshold_type`](#0x1_dkg_config_get_dealer_threshold_type)
+-  [Function `get_dealer_committee_threshold_type`](#0x1_dkg_config_get_dealer_committee_threshold_type)
 -  [Function `get_receiver_committee_configs`](#0x1_dkg_config_get_receiver_committee_configs)
 -  [Function `get_is_resharing`](#0x1_dkg_config_get_is_resharing)
--  [Function `get_threshold_type`](#0x1_dkg_config_get_threshold_type)
+-  [Function `get_committee_threshold_type`](#0x1_dkg_config_get_committee_threshold_type)
+-  [Function `get_dkg_threshold_type`](#0x1_dkg_config_get_dkg_threshold_type)
 
 
 <pre><code><b>use</b> <a href="config_buffer.md#0x1_config_buffer">0x1::config_buffer</a>;
@@ -56,10 +57,16 @@ Configuration for a single receiver committee in DKG.
  Whether this committee uses resharing from the previous epoch's public key.
 </dd>
 <dt>
-<code>threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a></code>
+<code>committee_threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a></code>
 </dt>
 <dd>
- The threshold type for this committee (e.g., validity, quorum).
+ The threshold type for this committee (e.g., quorum, clan_majority).
+</dd>
+<dt>
+<code>dkg_threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a></code>
+</dt>
+<dd>
+ The threshold type for output keys in DKG for this committee (e.g., validity, quorum).
 </dd>
 </dl>
 
@@ -85,10 +92,10 @@ Controls DKG parameters that can be updated via governance.
 
 <dl>
 <dt>
-<code>dealer_threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a></code>
+<code>dealer_committee_threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a></code>
 </dt>
 <dd>
- Threshold type for the dealer committee.
+ Threshold type for the dealer committee. (e.g., quorum, clan_majority).
 </dd>
 <dt>
 <code>receiver_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">dkg_config::ReceiverCommitteeConfig</a>&gt;</code>
@@ -193,7 +200,7 @@ supra_governance::reconfigure(&framework_signer);
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="dkg_config.md#0x1_dkg_config_EEMPTY_RECEIVER_COMMITTEES">EEMPTY_RECEIVER_COMMITTEES</a>)
     );
 
-    // Validate: <b>if</b> resharing is enabled for a threshold type, it must exist in current config
+    // Validate: <b>if</b> resharing is enabled for a <a href="dkg.md#0x1_dkg">dkg</a> threshold type, it must exist in current config
     <b>let</b> current_config = <a href="dkg_config.md#0x1_dkg_config_current">current</a>();
     <b>let</b> i = 0;
     <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&new_config.receiver_committees);
@@ -202,7 +209,7 @@ supra_governance::reconfigure(&framework_signer);
         <b>if</b> (new_rc.is_resharing) {
             // Check <b>if</b> this threshold type <b>exists</b> in current config
             <b>assert</b>!(
-                <a href="dkg_config.md#0x1_dkg_config_has_threshold_type">has_threshold_type</a>(&current_config, new_rc.threshold_type),
+                <a href="dkg_config.md#0x1_dkg_config_has_key_threshold_type">has_key_threshold_type</a>(&current_config, new_rc.dkg_threshold_type),
                 <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="dkg_config.md#0x1_dkg_config_ERESHARING_FOR_NONEXISTENT_THRESHOLD_TYPE">ERESHARING_FOR_NONEXISTENT_THRESHOLD_TYPE</a>)
             );
         };
@@ -217,14 +224,14 @@ supra_governance::reconfigure(&framework_signer);
 
 </details>
 
-<a id="0x1_dkg_config_has_threshold_type"></a>
+<a id="0x1_dkg_config_has_key_threshold_type"></a>
 
-## Function `has_threshold_type`
+## Function `has_key_threshold_type`
 
 Check if a threshold type exists in the config's receiver committees.
 
 
-<pre><code><b>fun</b> <a href="dkg_config.md#0x1_dkg_config_has_threshold_type">has_threshold_type</a>(config: &<a href="dkg_config.md#0x1_dkg_config_DkgConfig">dkg_config::DkgConfig</a>, threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>): bool
+<pre><code><b>fun</b> <a href="dkg_config.md#0x1_dkg_config_has_key_threshold_type">has_key_threshold_type</a>(config: &<a href="dkg_config.md#0x1_dkg_config_DkgConfig">dkg_config::DkgConfig</a>, threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>): bool
 </code></pre>
 
 
@@ -233,12 +240,12 @@ Check if a threshold type exists in the config's receiver committees.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="dkg_config.md#0x1_dkg_config_has_threshold_type">has_threshold_type</a>(config: &<a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a>, threshold_type: CertificateThresholdType): bool {
+<pre><code><b>fun</b> <a href="dkg_config.md#0x1_dkg_config_has_key_threshold_type">has_key_threshold_type</a>(config: &<a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a>, threshold_type: CertificateThresholdType): bool {
     <b>let</b> i = 0;
     <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&config.receiver_committees);
     <b>while</b> (i &lt; len) {
         <b>let</b> rc = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&config.receiver_committees, i);
-        <b>if</b> (rc.threshold_type == threshold_type) {
+        <b>if</b> (rc.dkg_threshold_type == threshold_type) {
             <b>return</b> <b>true</b>
         };
         i = i + 1;
@@ -292,7 +299,7 @@ Called from reconfiguration_with_dkg::finish().
 Create a new DkgConfig.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_new">new</a>(dealer_threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>, receiver_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">dkg_config::ReceiverCommitteeConfig</a>&gt;): <a href="dkg_config.md#0x1_dkg_config_DkgConfig">dkg_config::DkgConfig</a>
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_new">new</a>(dealer_committee_threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>, receiver_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">dkg_config::ReceiverCommitteeConfig</a>&gt;): <a href="dkg_config.md#0x1_dkg_config_DkgConfig">dkg_config::DkgConfig</a>
 </code></pre>
 
 
@@ -302,11 +309,11 @@ Create a new DkgConfig.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_new">new</a>(
-    dealer_threshold_type: CertificateThresholdType,
+    dealer_committee_threshold_type: CertificateThresholdType,
     receiver_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a>&gt;
 ): <a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a> {
     <a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a> {
-        dealer_threshold_type,
+        dealer_committee_threshold_type,
         receiver_committees,
     }
 }
@@ -323,7 +330,7 @@ Create a new DkgConfig.
 Create a new ReceiverCommitteeConfig.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_new_receiver_committee_config">new_receiver_committee_config</a>(is_resharing: bool, threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>): <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">dkg_config::ReceiverCommitteeConfig</a>
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_new_receiver_committee_config">new_receiver_committee_config</a>(is_resharing: bool, committee_threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>, dkg_threshold_type: <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>): <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">dkg_config::ReceiverCommitteeConfig</a>
 </code></pre>
 
 
@@ -334,11 +341,13 @@ Create a new ReceiverCommitteeConfig.
 
 <pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_new_receiver_committee_config">new_receiver_committee_config</a>(
     is_resharing: bool,
-    threshold_type: CertificateThresholdType
+    committee_threshold_type: CertificateThresholdType,
+    dkg_threshold_type: CertificateThresholdType
 ): <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
     <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
         is_resharing,
-        threshold_type,
+        committee_threshold_type,
+        dkg_threshold_type,
     }
 }
 </code></pre>
@@ -353,7 +362,9 @@ Create a new ReceiverCommitteeConfig.
 
 Returns the default DKG configuration:
 - Dealer threshold: quorum_certificate_type()
-- Receiver committees: [(false, validity), (false, quorum)]
+- Receiver committees:
+- [(is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = validity_certificate_type()),
+- (is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = quorum_certificate_type())]
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_default">default</a>(): <a href="dkg_config.md#0x1_dkg_config_DkgConfig">dkg_config::DkgConfig</a>
@@ -367,15 +378,17 @@ Returns the default DKG configuration:
 
 <pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_default">default</a>(): <a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a> {
     <a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a> {
-        dealer_threshold_type: quorum_certificate_type(),
+        dealer_committee_threshold_type: quorum_certificate_type(),
         receiver_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
             <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
                 is_resharing: <b>false</b>,
-                threshold_type: validity_certificate_type(),
+                committee_threshold_type: quorum_certificate_type(),
+                dkg_threshold_type: validity_certificate_type(),
             },
             <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
                 is_resharing: <b>false</b>,
-                threshold_type: quorum_certificate_type(),
+                committee_threshold_type: quorum_certificate_type(),
+                dkg_threshold_type: quorum_certificate_type(),
             },
         ],
     }
@@ -415,14 +428,14 @@ Get the current DKG config.
 
 </details>
 
-<a id="0x1_dkg_config_get_dealer_threshold_type"></a>
+<a id="0x1_dkg_config_get_dealer_committee_threshold_type"></a>
 
-## Function `get_dealer_threshold_type`
+## Function `get_dealer_committee_threshold_type`
 
 Get the dealer threshold type from the config.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_dealer_threshold_type">get_dealer_threshold_type</a>(config: &<a href="dkg_config.md#0x1_dkg_config_DkgConfig">dkg_config::DkgConfig</a>): <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_dealer_committee_threshold_type">get_dealer_committee_threshold_type</a>(config: &<a href="dkg_config.md#0x1_dkg_config_DkgConfig">dkg_config::DkgConfig</a>): <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>
 </code></pre>
 
 
@@ -431,8 +444,8 @@ Get the dealer threshold type from the config.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_dealer_threshold_type">get_dealer_threshold_type</a>(config: &<a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a>): CertificateThresholdType {
-    config.dealer_threshold_type
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_dealer_committee_threshold_type">get_dealer_committee_threshold_type</a>(config: &<a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a>): CertificateThresholdType {
+    config.dealer_committee_threshold_type
 }
 </code></pre>
 
@@ -490,14 +503,14 @@ Get is_resharing from a ReceiverCommitteeConfig.
 
 </details>
 
-<a id="0x1_dkg_config_get_threshold_type"></a>
+<a id="0x1_dkg_config_get_committee_threshold_type"></a>
 
-## Function `get_threshold_type`
+## Function `get_committee_threshold_type`
 
-Get threshold_type from a ReceiverCommitteeConfig.
+Get committee_threshold_type from a ReceiverCommitteeConfig.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_threshold_type">get_threshold_type</a>(config: &<a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">dkg_config::ReceiverCommitteeConfig</a>): <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_committee_threshold_type">get_committee_threshold_type</a>(config: &<a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">dkg_config::ReceiverCommitteeConfig</a>): <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>
 </code></pre>
 
 
@@ -506,8 +519,33 @@ Get threshold_type from a ReceiverCommitteeConfig.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_threshold_type">get_threshold_type</a>(config: &<a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a>): CertificateThresholdType {
-    config.threshold_type
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_committee_threshold_type">get_committee_threshold_type</a>(config: &<a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a>): CertificateThresholdType {
+    config.committee_threshold_type
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_config_get_dkg_threshold_type"></a>
+
+## Function `get_dkg_threshold_type`
+
+Get dkg_threshold_type from a ReceiverCommitteeConfig.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_dkg_threshold_type">get_dkg_threshold_type</a>(config: &<a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">dkg_config::ReceiverCommitteeConfig</a>): <a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">validator_public_keys::CertificateThresholdType</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_get_dkg_threshold_type">get_dkg_threshold_type</a>(config: &<a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a>): CertificateThresholdType {
+    config.dkg_threshold_type
 }
 </code></pre>
 
