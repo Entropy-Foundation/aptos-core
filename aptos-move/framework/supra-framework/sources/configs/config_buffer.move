@@ -69,7 +69,7 @@ module supra_framework::config_buffer {
     /// Should only be used at the end of a reconfiguration.
     ///
     /// Typically used in `X::on_new_epoch()` where X is an on-chaon config.
-    public fun extract<T: store>(): T acquires PendingConfigs {
+    public(friend) fun extract<T: store>(): T acquires PendingConfigs {
         let configs = borrow_global_mut<PendingConfigs>(@supra_framework);
         let key = type_info::type_name<T>();
         let (_, value_packed) = simple_map::remove(&mut configs.configs, &key);

@@ -188,13 +188,20 @@ module supra_framework::committee_map {
             // f+1, number of nodes in a family committee should be greater than 1
             assert!(num_of_nodes > 1, INVALID_NODE_NUMBERS);
         } else if (committee_type == CLAN) {
-            // 2f+1, number of nodes in a clan committee should be odd and greater than 3
+            // 2f+1, number of nodes in a clan committee should be odd and greater than or equal to 3
             assert!(num_of_nodes >= 3 && num_of_nodes % 2 == 1, INVALID_NODE_NUMBERS);
         } else {
-            // 3f+1, number of nodes in a tribe committee should be in the format of 3f+1 and greater than 4
+            // 3f+1, number of nodes in a tribe committee should be in the format of 3f+1 and greater than or equal to 4
             assert!(num_of_nodes >= 4 && (num_of_nodes - 1) % 3 == 0, INVALID_NODE_NUMBERS);
         };
         committee_type
+    }
+
+    /// Ensures removing exactly one member keeps the committee type invariants valid.
+    fun validate_committee_type_after_member_removal(committee: &CommitteeInfo) {
+        let current_num_of_nodes = simple_map::length(&committee.map);
+        assert!(current_num_of_nodes > 0, INVALID_NODE_NUMBERS);
+        validate_committee_type(committee.committee_type, current_num_of_nodes - 1);
     }
 
     #[view]
@@ -545,6 +552,27 @@ module supra_framework::committee_map {
         let _acquire = &capability::acquire(owner_signer, &OwnerCap {});
 
         let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
+        let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(get_committeeInfo_address(owner_signer));
+
+        // If the node is already associated with another committee, remove the stale entry first.
+        if (simple_map::contains_key(&committee_store.node_to_committee_map, &node_address)) {
+            let old_committee_id = *simple_map::borrow(&committee_store.node_to_committee_map, &node_address);
+            if (old_committee_id != id && simple_map::contains_key(&committee_store.committee_map, &old_committee_id)) {
+                let old_committee = simple_map::borrow_mut(&mut committee_store.committee_map, &old_committee_id);
+                if (does_node_exist(old_committee, node_address)) {
+                    validate_committee_type_after_member_removal(old_committee);
+                    let (_, old_node_info) = simple_map::remove(&mut old_committee.map, &node_address);
+                    emit_event(
+                        &mut event_handler.remove_committee_member,
+                        RemoveCommitteeMemberEvent {
+                            committee_id: old_committee_id,
+                            committee_member: old_node_info
+                        }
+                    )
+                }
+            }
+        };
+
         let committee = simple_map::borrow_mut(&mut committee_store.committee_map, &id);
         let node_info = NodeInfo {
             ip_public_address: copy ip_public_address,
@@ -554,7 +582,6 @@ module supra_framework::committee_map {
             network_port: network_port,
             rpc_port: rpc_port,
         };
-        let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(get_committeeInfo_address(owner_signer));
         if (!does_node_exist(committee, node_address)) {
             emit_event(
                 &mut event_handler.add_committee_member,
@@ -655,6 +682,7 @@ module supra_framework::committee_map {
         let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
         let committee = simple_map::borrow_mut(&mut committee_store.committee_map, &id);
         ensure_node_address_exist(committee, node_address);
+        validate_committee_type_after_member_removal(committee);
         let (_, node_info) = simple_map::remove(&mut committee.map, &node_address);
         let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(get_committeeInfo_address(owner_signer));
         emit_event(
@@ -878,6 +906,131 @@ module supra_framework::committee_map {
             vector[123],
             vector[123]
         );
+    }
+
+    #[test(owner_signer = @0xCEFEF)]
+    #[expected_failure(abort_code = INVALID_NODE_NUMBERS, location = Self)]
+    public entry fun test_remove_committee_member_type_validation(
+        owner_signer: &signer
+    ) acquires CommitteeInfoStore, SupraCommitteeEventHandler {
+        set_up_test(owner_signer);
+        let resource_address = account::create_resource_address(&@0xCEFEF, SEED_COMMITTEE);
+        upsert_committee(
+            owner_signer,
+            resource_address,
+            1,
+            vector[@0x1, @0x2],
+            vector[vector[123], vector[124]],
+            vector[vector[123], vector[124]],
+            vector[vector[123], vector[124]],
+            vector[vector[123], vector[124]],
+            vector[123, 124],
+            vector[123, 124],
+            FAMILY
+        );
+        remove_committee_member(owner_signer, resource_address, 1, @0x1);
+    }
+
+    #[test(owner_signer = @0xCEFEF)]
+    #[expected_failure(abort_code = INVALID_NODE_NUMBERS, location = Self)]
+    public entry fun test_transfer_member_type_validation(
+        owner_signer: &signer
+    ) acquires CommitteeInfoStore, SupraCommitteeEventHandler {
+        set_up_test(owner_signer);
+        let resource_address = account::create_resource_address(&@0xCEFEF, SEED_COMMITTEE);
+        upsert_committee(
+            owner_signer,
+            resource_address,
+            1,
+            vector[@0x1, @0x2],
+            vector[vector[123], vector[124]],
+            vector[vector[123], vector[124]],
+            vector[vector[123], vector[124]],
+            vector[vector[123], vector[124]],
+            vector[123, 124],
+            vector[123, 124],
+            FAMILY
+        );
+        upsert_committee(
+            owner_signer,
+            resource_address,
+            2,
+            vector[@0x3, @0x4],
+            vector[vector[125], vector[126]],
+            vector[vector[125], vector[126]],
+            vector[vector[125], vector[126]],
+            vector[vector[125], vector[126]],
+            vector[125, 126],
+            vector[125, 126],
+            FAMILY
+        );
+        upsert_committee_member(
+            owner_signer,
+            resource_address,
+            2,
+            @0x1,
+            vector[127],
+            vector[127],
+            vector[127],
+            vector[127],
+            127,
+            127
+        );
+    }
+
+    #[test(owner_signer = @0xCEFEF)]
+    public entry fun test_transfer_committee_member_removes_old_committee_entry(
+        owner_signer: &signer
+    ) acquires CommitteeInfoStore, SupraCommitteeEventHandler {
+        set_up_test(owner_signer);
+        let resource_address = account::create_resource_address(&@0xCEFEF, SEED_COMMITTEE);
+        upsert_committee(
+            owner_signer,
+            resource_address,
+            1,
+            vector[@0x1, @0x2, @0x5],
+            vector[vector[123], vector[124], vector[125]],
+            vector[vector[123], vector[124], vector[125]],
+            vector[vector[123], vector[124], vector[125]],
+            vector[vector[123], vector[124], vector[125]],
+            vector[123, 124, 125],
+            vector[123, 124, 125],
+            1
+        );
+        upsert_committee(
+            owner_signer,
+            resource_address,
+            2,
+            vector[@0x3, @0x4],
+            vector[vector[125], vector[126]],
+            vector[vector[125], vector[126]],
+            vector[vector[125], vector[126]],
+            vector[vector[125], vector[126]],
+            vector[125, 126],
+            vector[125, 126],
+            1
+        );
+        upsert_committee_member(
+            owner_signer,
+            resource_address,
+            2,
+            @0x1,
+            vector[127],
+            vector[127],
+            vector[127],
+            vector[127],
+            127,
+            127
+        );
+
+        let (exists_in_old_committee, _) = find_node_in_committee(resource_address, 1, @0x1);
+        assert!(!exists_in_old_committee, 1);
+        assert!(get_committee_id(resource_address, @0x1) == 2, 2);
+        let (exists_in_new_committee, _) = find_node_in_committee(resource_address, 2, @0x1);
+        assert!(exists_in_new_committee, 3);
+
+        // Should succeed because node_to_committee_map and committee maps stay in sync.
+        remove_committee(owner_signer, resource_address, 1);
     }
 
     #[test(owner_signer = @0xCEFEF)]

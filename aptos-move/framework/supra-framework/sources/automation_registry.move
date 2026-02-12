@@ -822,21 +822,23 @@ module supra_framework::automation_registry {
 
     /// Retrieves specific metadata details of an automation task entry by its task index.
     ///
-    /// 1. `address`                 - The owner of the task.
-    /// 2. `vector<u8>`              - The payload transaction (encoded).
-    /// 3. `u64`                     - The expiry time of the task (timestamp).
-    /// 4. `vector<u8>`              - The hash of the transaction.
-    /// 5. `u64`                     - The maximum gas amount allowed for the task.
-    /// 6. `u64`                     - The gas price cap for executing the task.
-    /// 7. `u64`                     - The automation fee cap for the current epoch.
-    /// 8. `vector<vector<u8>>`      - Auxiliary data related to the task (can be multiple items).
-    /// 9. `u64`                     - The time at which the task was registered (timestamp).
-    /// 10. `u8`                     - The state of the task (e.g., active, cancelled, completed).
-    /// 11. `u64`                    - The locked fee reserved for the next epoch execution.
+    /// 1. `u64`                     - The task index.
+    /// 2. `address`                 - The owner of the task.
+    /// 3. `vector<u8>`              - The payload transaction (encoded).
+    /// 4. `u64`                     - The expiry time of the task (timestamp).
+    /// 5. `vector<u8>`              - The hash of the transaction.
+    /// 6. `u64`                     - The maximum gas amount allowed for the task.
+    /// 7. `u64`                     - The gas price cap for executing the task.
+    /// 8. `u64`                     - The automation fee cap for the current epoch.
+    /// 9. `vector<vector<u8>>`      - Auxiliary data related to the task (can be multiple items).
+    /// 10. `u64`                    - The time at which the task was registered (timestamp).
+    /// 11. `u8`                     - The state of the task (e.g., active, cancelled, completed).
+    /// 12. `u64`                    - The locked fee reserved for the next epoch execution.
     public fun deconstruct_task_metadata(
         task_metadata: &AutomationTaskMetaData
-    ): (address, vector<u8>, u64, vector<u8>, u64, u64, u64, vector<vector<u8>>, u64, u8, u64) {
+    ): (u64, address, vector<u8>, u64, vector<u8>, u64, u64, u64, vector<vector<u8>>, u64, u8, u64) {
         (
+            task_metadata.task_index,
             task_metadata.owner,
             task_metadata.payload_tx,
             task_metadata.expiry_time,

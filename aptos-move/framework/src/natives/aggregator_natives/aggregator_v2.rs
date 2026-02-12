@@ -49,7 +49,7 @@ pub const EAGGREGATOR_FUNCTION_NOT_YET_SUPPORTED: u64 = 0x03_0009;
 
 /// The maximum length of the input string for derived string snapshot.
 /// If we want to increase this, we need to modify BITS_FOR_SIZE in types/src/delayed_fields.rs.
-pub const DERIVED_STRING_INPUT_MAX_LENGTH: usize = 1024;
+pub const DERIVED_STRING_INPUT_MAX_LENGTH: usize = 256;
 
 fn get_width_by_type(ty_arg: &Type, error_code_if_incorrect: u64) -> SafeNativeResult<u32> {
     match ty_arg {

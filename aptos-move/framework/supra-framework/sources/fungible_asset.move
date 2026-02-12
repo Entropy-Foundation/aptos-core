@@ -894,6 +894,28 @@ module supra_framework::fungible_asset {
         let metadata_address = object::object_address(&metadata_ref.metadata);
         let mutable_metadata = borrow_global_mut<Metadata>(metadata_address);
 
+        // Validate all provided values before mutating any metadata fields.
+        if (option::is_some(&name)){
+            let new_name = option::borrow(&name);
+            assert!(string::length(new_name) <= MAX_NAME_LENGTH, error::out_of_range(ENAME_TOO_LONG));
+        };
+        if (option::is_some(&symbol)){
+            let new_symbol = option::borrow(&symbol);
+            assert!(string::length(new_symbol) <= MAX_SYMBOL_LENGTH, error::out_of_range(ESYMBOL_TOO_LONG));
+        };
+        if (option::is_some(&decimals)){
+            let new_decimals = option::borrow(&decimals);
+            assert!(*new_decimals <= MAX_DECIMALS, error::out_of_range(EDECIMALS_TOO_LARGE));
+        };
+        if (option::is_some(&icon_uri)){
+            let new_icon_uri = option::borrow(&icon_uri);
+            assert!(string::length(new_icon_uri) <= MAX_URI_LENGTH, error::out_of_range(EURI_TOO_LONG));
+        };
+        if (option::is_some(&project_uri)){
+            let new_project_uri = option::borrow(&project_uri);
+            assert!(string::length(new_project_uri) <= MAX_URI_LENGTH, error::out_of_range(EURI_TOO_LONG));
+        };
+
         if (option::is_some(&name)){
             mutable_metadata.name = option::extract(&mut name);
         };
