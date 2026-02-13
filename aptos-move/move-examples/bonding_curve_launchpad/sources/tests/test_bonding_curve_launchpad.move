@@ -3,10 +3,10 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
     use aptos_std::string;
     use aptos_std::signer;
     use aptos_std::math64;
-    use aptos_framework::account;
-    use aptos_framework::coin;
-    use aptos_framework::aptos_coin::{Self, AptosCoin};
-    use aptos_framework::primary_fungible_store;
+    use supra_framework::account;
+    use supra_framework::coin;
+    use supra_framework::supra_coin::{Self, SupraCoin};
+    use supra_framework::primary_fungible_store;
     use bonding_curve_launchpad::bonding_curve_launchpad;
     use bonding_curve_launchpad::liquidity_pairs;
     use swap::test_helpers;
@@ -18,15 +18,15 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
 
     //---------------------------Test Helpers---------------------------
     fun test_setup_accounts(
-        aptos_framework: &signer, _swap_dex_signer: &signer, bonding_curve_creator: &signer
+        supra_framework: &signer, _swap_dex_signer: &signer, bonding_curve_creator: &signer
     ) {
         account::create_account_for_test(@0x1);
         account::create_account_for_test(@0xcafe);
         account::create_account_for_test(@bonding_curve_launchpad);
         account::create_account_for_test(@0x803);
-        coin::register<AptosCoin>(bonding_curve_creator);
+        coin::register<SupraCoin>(bonding_curve_creator);
 
-        let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(aptos_framework);
+        let (burn_cap, mint_cap) = supra_coin::initialize_for_test(supra_framework);
         let bcc_coins = coin::mint(1_000_000_000_000_000, &mint_cap);
         let bcc_address = signer::address_of(bonding_curve_creator);
         coin::deposit(bcc_address, bcc_coins);
@@ -56,7 +56,7 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
     }
 
     #[test(deployer = @bonding_curve_launchpad)]
-    #[expected_failure(abort_code = 393218, location = aptos_framework::object)]
+    #[expected_failure(abort_code = 393218, location = supra_framework::object)]
     public fun test_nonexistant_get_metadata(deployer: &signer) {
         account::create_account_for_test(@0x1);
         liquidity_pairs::initialize_for_test(deployer);
@@ -68,22 +68,22 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
 
     //---------------------------E2E Tests---------------------------
     #[test(
-        aptos_framework = @0x1,
+        supra_framework = @0x1,
         swap_dex_signer = @0xcafe,
         bcl_owner_signer = @bonding_curve_launchpad,
         bonding_curve_creator = @0x803
     )]
     fun test_e2e_bonding_curve_creation(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         swap_dex_signer: &signer,
         bcl_owner_signer: &signer,
         bonding_curve_creator: &signer
     ) {
-        test_setup_accounts(aptos_framework, swap_dex_signer, bonding_curve_creator);
+        test_setup_accounts(supra_framework, swap_dex_signer, bonding_curve_creator);
         test_setup_initialize_contracts(swap_dex_signer, bcl_owner_signer);
         // Create FA and LiquidityPair, w.o Initial Swap.
         let user_address = signer::address_of(bonding_curve_creator);
-        let starting_apt_balance = coin::balance<AptosCoin>(user_address);
+        let starting_apt_balance = coin::balance<SupraCoin>(user_address);
         let name = string::utf8(b"SheepyCoin");
         let symbol = string::utf8(b"SHEEP");
         bonding_curve_launchpad::create_fa_pair(
@@ -100,27 +100,27 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
                 b"https://t4.ftcdn.net/jpg/03/12/95/13/360_F_312951336_8LxW7gBLHslTnpbOAwxFo5FpD2R5vGxu.jpg"
             )
         );
-        assert!(coin::balance<AptosCoin>(user_address) == starting_apt_balance, EUSER_APT_BALANCE_INCORRECT);
+        assert!(coin::balance<SupraCoin>(user_address) == starting_apt_balance, EUSER_APT_BALANCE_INCORRECT);
         assert!(bonding_curve_launchpad::get_balance(name, symbol, user_address) == 0, EUSER_FA_BALANCE_INCORRECT);
     }
 
     #[test(
-        aptos_framework = @0x1,
+        supra_framework = @0x1,
         swap_dex_signer = @0xcafe,
         bcl_owner_signer = @bonding_curve_launchpad,
         bonding_curve_creator = @0x803
     )]
     fun test_e2e_bonding_curve_creation_with_initial_liquidity(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         swap_dex_signer: &signer,
         bcl_owner_signer: &signer,
         bonding_curve_creator: &signer
     ) {
-        test_setup_accounts(aptos_framework, swap_dex_signer, bonding_curve_creator);
+        test_setup_accounts(supra_framework, swap_dex_signer, bonding_curve_creator);
         test_setup_initialize_contracts(swap_dex_signer, bcl_owner_signer);
         // Create FA and LiquidityPair, w/ Initial Swap.
         let user_address = signer::address_of(bonding_curve_creator);
-        let starting_apt_balance = coin::balance<AptosCoin>(user_address);
+        let starting_apt_balance = coin::balance<SupraCoin>(user_address);
         let name = string::utf8(b"SheepyCoin");
         let symbol = string::utf8(b"SHEEP");
         bonding_curve_launchpad::create_fa_pair(
@@ -137,23 +137,23 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
                 b"https://t4.ftcdn.net/jpg/03/12/95/13/360_F_312951336_8LxW7gBLHslTnpbOAwxFo5FpD2R5vGxu.jpg"
             )
         );
-        assert!(coin::balance<AptosCoin>(user_address) == starting_apt_balance - 1000, EUSER_APT_BALANCE_INCORRECT);
+        assert!(coin::balance<SupraCoin>(user_address) == starting_apt_balance - 1000, EUSER_APT_BALANCE_INCORRECT);
         assert!(bonding_curve_launchpad::get_balance(name, symbol, user_address) == 16, EUSER_FA_BALANCE_INCORRECT);
     }
 
     #[test(
-        aptos_framework = @0x1,
+        supra_framework = @0x1,
         swap_dex_signer = @0xcafe,
         bcl_owner_signer = @bonding_curve_launchpad,
         bonding_curve_creator = @0x803
     )]
     fun test_e2e_bonding_curve_creation_multiple(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         swap_dex_signer: &signer,
         bcl_owner_signer: &signer,
         bonding_curve_creator: &signer
     ) {
-        test_setup_accounts(aptos_framework, swap_dex_signer, bonding_curve_creator);
+        test_setup_accounts(supra_framework, swap_dex_signer, bonding_curve_creator);
         test_setup_initialize_contracts(swap_dex_signer, bcl_owner_signer);
         // Create FA and LiquidityPair, w.o Initial Swap.
         let name = string::utf8(b"SheepyCoin");
@@ -191,26 +191,26 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
     }
 
     #[test(
-        aptos_framework = @0x1,
+        supra_framework = @0x1,
         swap_dex_signer = @0xcafe,
         bcl_owner_signer = @bonding_curve_launchpad,
         bonding_curve_creator = @0x803
     )]
     fun test_e2e_directional_swaps(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         swap_dex_signer: &signer,
         bcl_owner_signer: &signer,
         bonding_curve_creator: &signer
     ) {
-        test_e2e_bonding_curve_creation(aptos_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
+        test_e2e_bonding_curve_creation(supra_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
         let user_address = signer::address_of(bonding_curve_creator);
         let name = string::utf8(b"SheepyCoin");
         let symbol = string::utf8(b"SHEEP");
-        let starting_apt_balance = coin::balance<AptosCoin>(user_address);
+        let starting_apt_balance = coin::balance<SupraCoin>(user_address);
         // SUPRA -> FA
         bonding_curve_launchpad::swap(bonding_curve_creator, name, symbol, false, 100_000_000);
         assert!(
-            coin::balance<AptosCoin>(user_address) == starting_apt_balance - 100_000_000,
+            coin::balance<SupraCoin>(user_address) == starting_apt_balance - 100_000_000,
             EUSER_APT_BALANCE_INCORRECT
         );
         assert!(
@@ -220,7 +220,7 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
         // FA -> SUPRA
         bonding_curve_launchpad::swap(bonding_curve_creator, name, symbol, true, 1_602_794);
         assert!(
-            coin::balance<AptosCoin>(user_address) == starting_apt_balance - 26,
+            coin::balance<SupraCoin>(user_address) == starting_apt_balance - 26,
             EUSER_APT_BALANCE_INCORRECT
         ); // u256/u64 precision loss.
         assert!(
@@ -230,18 +230,18 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
     }
 
     #[test(
-        aptos_framework = @0x1,
+        supra_framework = @0x1,
         swap_dex_signer = @0xcafe,
         bcl_owner_signer = @bonding_curve_launchpad,
         bonding_curve_creator = @0x803
     )]
     fun test_e2e_graduation(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         swap_dex_signer: &signer,
         bcl_owner_signer: &signer,
         bonding_curve_creator: &signer
     ) {
-        test_e2e_bonding_curve_creation(aptos_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
+        test_e2e_bonding_curve_creation(supra_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
         let grad_apt: u64 = 6_000 * math64::pow(10, (8 as u64));
         let name = string::utf8(b"SheepyCoin");
         let symbol = string::utf8(b"SHEEP");
@@ -257,12 +257,12 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
     }
 
     fun test_e2e_swap_after_graduation(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         swap_dex_signer: &signer,
         bcl_owner_signer: &signer,
         bonding_curve_creator: &signer
     ) {
-        test_e2e_graduation(aptos_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
+        test_e2e_graduation(supra_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
         let fa_obj_metadata =
             bonding_curve_launchpad::get_metadata(
                 string::utf8(b"SheepyCoin"),
@@ -273,20 +273,20 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
 
     // ----E2E EXPECTED FAILING-----
     #[test(
-        aptos_framework = @0x1,
+        supra_framework = @0x1,
         swap_dex_signer = @0xcafe,
         bcl_owner_signer = @bonding_curve_launchpad,
         bonding_curve_creator = @0x803
     )]
     #[expected_failure(abort_code = bonding_curve_launchpad::bonding_curve_launchpad::EFA_EXISTS_ALREADY, location = bonding_curve_launchpad)]
     fun test_e2e_failing_duplicate_FA(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         swap_dex_signer: &signer,
         bcl_owner_signer: &signer,
         bonding_curve_creator: &signer
     ) {
         test_e2e_bonding_curve_creation(
-            aptos_framework,
+            supra_framework,
             swap_dex_signer,
             bcl_owner_signer,
             bonding_curve_creator
@@ -310,19 +310,19 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
     }
 
     #[test(
-        aptos_framework = @0x1,
+        supra_framework = @0x1,
         swap_dex_signer = @0xcafe,
         bcl_owner_signer = @bonding_curve_launchpad,
         bonding_curve_creator = @0x803
     )]
     #[expected_failure(abort_code = liquidity_pairs::ELIQUIDITY_PAIR_DISABLED, location = liquidity_pairs)]
     fun test_e2e_failing_apt_swap_after_graduation(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         swap_dex_signer: &signer,
         bcl_owner_signer: &signer,
         bonding_curve_creator: &signer
     ) {
-        test_e2e_graduation(aptos_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
+        test_e2e_graduation(supra_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
         bonding_curve_launchpad::swap(
             bonding_curve_creator,
             string::utf8(b"SheepyCoin"),
@@ -333,19 +333,19 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
     }
 
     #[test(
-        aptos_framework = @0x1,
+        supra_framework = @0x1,
         swap_dex_signer = @0xcafe,
         bcl_owner_signer = @bonding_curve_launchpad,
         bonding_curve_creator = @0x803
     )]
     #[expected_failure(abort_code = liquidity_pairs::ELIQUIDITY_PAIR_DISABLED, location = liquidity_pairs)]
     fun test_e2e_failing_fa_swap_after_graduation(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         swap_dex_signer: &signer,
         bcl_owner_signer: &signer,
         bonding_curve_creator: &signer
     ) {
-        test_e2e_graduation(aptos_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
+        test_e2e_graduation(supra_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
         bonding_curve_launchpad::swap(
             bonding_curve_creator,
             string::utf8(b"SheepyCoin"),
@@ -356,19 +356,19 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
     }
 
     #[test(
-        aptos_framework = @0x1,
+        supra_framework = @0x1,
         swap_dex_signer = @0xcafe,
         bcl_owner_signer = @bonding_curve_launchpad,
         bonding_curve_creator = @0x803
     )]
-    #[expected_failure(abort_code = 393218, location = aptos_framework::object)]
+    #[expected_failure(abort_code = 393218, location = supra_framework::object)]
     fun test_e2e_failing_swap_of_nonexistant_fa(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         swap_dex_signer: &signer,
         bcl_owner_signer: &signer,
         bonding_curve_creator: &signer
     ) {
-        test_setup_accounts(aptos_framework, swap_dex_signer, bonding_curve_creator);
+        test_setup_accounts(supra_framework, swap_dex_signer, bonding_curve_creator);
         test_setup_initialize_contracts(swap_dex_signer, bcl_owner_signer);
         bonding_curve_launchpad::swap(
             bonding_curve_creator,
@@ -380,20 +380,20 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
     }
 
     #[test(
-        aptos_framework = @0x1,
+        supra_framework = @0x1,
         swap_dex_signer = @0xcafe,
         bcl_owner_signer = @bonding_curve_launchpad,
         bonding_curve_creator = @0x803
     )]
     #[expected_failure(abort_code = bonding_curve_launchpad::bonding_curve_launchpad::EFA_FROZEN, location = bonding_curve_launchpad)]
     fun test_e2e_failing_transfer_of_frozen_fa(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         swap_dex_signer: &signer,
         bcl_owner_signer: &signer,
         bonding_curve_creator: &signer
     ) {
         test_e2e_bonding_curve_creation_with_initial_liquidity(
-            aptos_framework,
+            supra_framework,
             swap_dex_signer,
             bcl_owner_signer,
             bonding_curve_creator
@@ -406,19 +406,19 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
     }
 
     #[test(
-        aptos_framework = @0x1,
+        supra_framework = @0x1,
         swap_dex_signer = @0xcafe,
         bcl_owner_signer = @bonding_curve_launchpad,
         bonding_curve_creator = @0x803
     )]
     #[expected_failure(abort_code = bonding_curve_launchpad::bonding_curve_launchpad::ELIQUIDITY_PAIR_SWAP_AMOUNTIN_INVALID, location = bonding_curve_launchpad)]
     fun test_e2e_failing_swap_of_zero_input_apt(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         swap_dex_signer: &signer,
         bcl_owner_signer: &signer,
         bonding_curve_creator: &signer
     ) {
-        test_e2e_bonding_curve_creation(aptos_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
+        test_e2e_bonding_curve_creation(supra_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
         bonding_curve_launchpad::swap(
             bonding_curve_creator,
             string::utf8(b"SheepyCoin"),
@@ -429,19 +429,19 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
     }
 
     #[test(
-        aptos_framework = @0x1,
+        supra_framework = @0x1,
         swap_dex_signer = @0xcafe,
         bcl_owner_signer = @bonding_curve_launchpad,
         bonding_curve_creator = @0x803
     )]
     #[expected_failure(abort_code = bonding_curve_launchpad::bonding_curve_launchpad::ELIQUIDITY_PAIR_SWAP_AMOUNTIN_INVALID, location = bonding_curve_launchpad)]
     fun test_e2e_failing_swap_of_zero_input_fa(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         swap_dex_signer: &signer,
         bcl_owner_signer: &signer,
         bonding_curve_creator: &signer
     ) {
-        test_e2e_bonding_curve_creation(aptos_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
+        test_e2e_bonding_curve_creation(supra_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
         bonding_curve_launchpad::swap(
             bonding_curve_creator,
             string::utf8(b"SheepyCoin"),
@@ -452,19 +452,19 @@ module bonding_curve_launchpad::test_bonding_curve_launchpad {
     }
 
     #[test(
-        aptos_framework = @0x1,
+        supra_framework = @0x1,
         swap_dex_signer = @0xcafe,
         bcl_owner_signer = @bonding_curve_launchpad,
         bonding_curve_creator = @0x803
     )]
     #[expected_failure(abort_code = liquidity_pairs::EFA_PRIMARY_STORE_DOES_NOT_EXIST, location = liquidity_pairs)]
     fun test_e2e_failing_swap_of_user_without_fa(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         swap_dex_signer: &signer,
         bcl_owner_signer: &signer,
         bonding_curve_creator: &signer
     ) {
-        test_e2e_bonding_curve_creation(aptos_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
+        test_e2e_bonding_curve_creation(supra_framework, swap_dex_signer, bcl_owner_signer, bonding_curve_creator);
         bonding_curve_launchpad::swap(
             bonding_curve_creator,
             string::utf8(b"SheepyCoin"),

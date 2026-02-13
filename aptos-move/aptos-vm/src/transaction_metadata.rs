@@ -32,7 +32,7 @@ fn convert_to_payload_type_reference_meta(payload: &TransactionPayloadInner) -> 
     match multisig_address {
         Some(address) => {
             PayloadTypeReferenceMeta::Multisig(Multisig {
-                multisig_address: address,
+                multisig_address: *address,
                 transaction_payload: match executable {
                     TransactionExecutable::EntryFunction(e) => {
                         // TODO[Orderless]: How to avoid the clone operation here.
@@ -235,12 +235,12 @@ impl From<&AutomatedTransaction> for TransactionMetadata {
     fn from(txn: &AutomatedTransaction) -> Self {
         Self {
             sender: txn.sender(),
-            authentication_key: AuthenticationProof::Key(txn.authenticator().to_vec()),
+            authentication_proof: AuthenticationProof::Key(txn.authenticator().to_vec()),
             secondary_signers: vec![],
-            secondary_authentication_keys: vec![],
-            sequence_number: txn.sequence_number(),
+            secondary_authentication_proofs: vec![],
+            replay_protector: txn.replay_protector(),
             fee_payer: None,
-            fee_payer_authentication_key: None,
+            fee_payer_authentication_proof: None,
             max_gas_amount: txn.max_gas_amount().into(),
             gas_unit_price: txn.gas_unit_price().into(),
             transaction_size: (txn.raw_txn_bytes_len() as u64).into(),

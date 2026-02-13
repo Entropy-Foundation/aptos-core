@@ -363,6 +363,11 @@ impl AptosVM {
         self.move_vm.env.clone()
     }
 
+    #[inline(always)]
+    pub fn environment_ref(&self) -> &AptosEnvironment {
+        &self.move_vm.env
+    }
+
     /// Sets execution concurrency level when invoked the first time.
     pub fn set_concurrency_level_once(mut concurrency_level: usize) {
         concurrency_level = min(concurrency_level, num_cpus::get());
@@ -859,7 +864,6 @@ impl AptosVM {
         let args = transaction_arg_validation::validate_combine_signer_and_txn_args(
             session,
             code_storage,
-            &mut UnmeteredGasMeter,
             serialized_signers,
             convert_txn_args(serialized_script.args()),
             &func,
@@ -935,7 +939,6 @@ impl AptosVM {
         let args = transaction_arg_validation::validate_combine_signer_and_txn_args(
             session,
             module_storage,
-            &mut UnmeteredGasMeter,
             serialized_signers,
             entry_fn.args().to_vec(),
             &function,
@@ -1070,7 +1073,6 @@ impl AptosVM {
             self.validate_automated_function(
                 session,
                 code_storage,
-                gas_meter,
                 serialized_signers,
                 registration_params.automated_function(),
             )?;
@@ -1131,11 +1133,10 @@ impl AptosVM {
         &self,
         session: &mut SessionExt<impl AptosMoveResolver>,
         module_storage: &impl AptosModuleStorage,
-        gas_meter: &mut impl AptosGasMeter,
         senders: &SerializedSigners,
         inner_entry_function: &EntryFunction,
     ) -> Result<(), VMStatus> {
-        let function = session.load_function(
+        let function = module_storage.load_function(
             inner_entry_function.module(),
             inner_entry_function.function(),
             inner_entry_function.ty_args(),
@@ -1148,7 +1149,6 @@ impl AptosVM {
         transaction_arg_validation::validate_combine_signer_and_txn_args(
             session,
             module_storage,
-            gas_meter,
             senders,
             actual_args,
             &function,
@@ -2662,40 +2662,51 @@ impl AptosVM {
         match execution_result {
             Ok(result) => ViewFunctionOutput::new(Ok(result), gas_used),
             Err(e) => {
-                let vm_status = e.clone().into_vm_status();
-                match vm_status {
-                    VMStatus::MoveAbort(_, _) => {},
-                    _ => {
-                        let message = e
-                            .message()
-                            .map(|m| m.to_string())
-                            .unwrap_or_else(|| e.to_string());
-                        return ViewFunctionOutput::new_error_message(
-                            message,
-                            Some(vm_status.status_code()),
-                            gas_used,
-                        );
-                    },
-                }
-                let txn_status =
-                    TransactionStatus::from_vm_status(vm_status.clone(), vm.features());
-                let execution_status = match txn_status {
-                    TransactionStatus::Keep(status) => status,
-                    _ => ExecutionStatus::MiscellaneousError(Some(vm_status.status_code())),
-                };
-                let status_with_abort_info = vm.inject_abort_info_if_available(
-                    &module_storage,
-                    &traversal_context,
-                    &log_context,
-                    execution_status,
-                );
-                ViewFunctionOutput::new_move_abort_error(
-                    status_with_abort_info,
-                    Some(vm_status.status_code()),
-                    gas_used,
-                )
+                vm.view_function_output_from_error(e, gas_used, &module_storage, &traversal_context, &log_context)
             },
         }
+    }
+
+    pub(crate) fn view_function_output_from_error(&self,
+                                  e: VMError,
+                                  gas_used: u64,
+                                  module_storage: &impl AptosModuleStorage,
+                                  traversal_context: &TraversalContext,
+                                  log_context: &AdapterLogSchema,
+    ) -> ViewFunctionOutput {
+        let vm_status = e.clone().into_vm_status();
+        match vm_status {
+            VMStatus::MoveAbort(_, _) => {},
+            _ => {
+                let message = e
+                    .message()
+                    .map(|m| m.to_string())
+                    .unwrap_or_else(|| e.to_string());
+                return ViewFunctionOutput::new_error_message(
+                    message,
+                    Some(vm_status.status_code()),
+                    gas_used,
+                );
+            },
+        }
+        let txn_status =
+            TransactionStatus::from_vm_status(vm_status.clone(), self.features());
+        let execution_status = match txn_status {
+            TransactionStatus::Keep(status) => status,
+            _ => ExecutionStatus::MiscellaneousError(Some(vm_status.status_code())),
+        };
+        let status_with_abort_info = self.inject_abort_info_if_available(
+            module_storage,
+            traversal_context,
+            log_context,
+            execution_status,
+        );
+        ViewFunctionOutput::new_move_abort_error(
+            status_with_abort_info,
+            Some(vm_status.status_code()),
+            gas_used,
+        )
+
     }
 
     pub(crate) fn gas_used(max_gas_amount: Gas, gas_meter: &impl AptosGasMeter) -> u64 {
@@ -2796,12 +2807,12 @@ impl AptosVM {
 
         if let Some(task_registration_params) = executable.as_automation_registration_params() {
             check_automation_task_gas(
-                get_or_vm_startup_failure(&self.gas_params(log_context), log_context)?,
+                self.gas_params(log_context)?,
                 self.gas_feature_version(),
                 self.features(),
                 task_registration_params,
                 log_context,
-            )
+            )?;
         }
 
         if let Some(multisig_address) = extra_config.multisig_address() {

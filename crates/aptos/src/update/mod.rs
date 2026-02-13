@@ -6,7 +6,10 @@
 
 mod aptos;
 mod helpers;
+mod move_mutation_test;
 mod movefmt;
+mod prover_dependencies;
+mod prover_dependency_installer;
 mod revela;
 mod tool;
 mod update_helper;
@@ -25,7 +28,7 @@ trait BinaryUpdater {
     fn check(&self) -> bool;
 
     /// Only used for messages we print to the user.
-    fn pretty_name(&self) -> &'static str;
+    fn pretty_name(&self) -> String;
 
     /// Return information about whether an update is required.
     fn get_update_info(&self) -> Result<UpdateRequiredInfo>;
@@ -89,7 +92,7 @@ impl UpdateRequiredInfo {
         match self.current_version {
             Some(ref current_version) => {
                 // ignore ".beta" or ".rc" for version comparison
-                // because bump_is_greater only supports comparison bewteen `x.y.z`
+                // because bump_is_greater only supports comparison between `x.y.z`
                 // as a result, `1.0.0.rc1` cannot be updated to `1.0.0.rc2`
                 let target_version = if self.target_version.ends_with(".beta") {
                     &self.target_version[0..self.target_version.len() - 5]

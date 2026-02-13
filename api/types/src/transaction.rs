@@ -209,8 +209,8 @@ pub enum ReplayProtector {
 #[oai(one_of, discriminator_name = "type", rename_all = "snake_case")]
 pub enum Transaction {
     PendingTransaction(PendingTransaction),
-    UserTransaction(Box<UserTransaction>),
-    AutomatedTransaction(Box<AutomatedTransaction>),
+    UserTransaction(UserTransaction),
+    AutomatedTransaction(AutomatedTransaction),
     GenesisTransaction(GenesisTransaction),
     BlockMetadataTransaction(BlockMetadataTransaction),
     StateCheckpointTransaction(StateCheckpointTransaction),
@@ -372,12 +372,12 @@ impl
         // Note: In the execution flow AutomationRegistration transaction hash calculation should be
         // updated to APTOS style if APTOS DB and API flow is going to be utilized to request automation
         // registration transaction data.
-        Transaction::AutomatedTransaction(Box::new(AutomatedTransaction {
+        Transaction::AutomatedTransaction(AutomatedTransaction {
             meta: (txn.authenticator().into(), txn, payload).into(),
             info,
             events,
             timestamp: timestamp.into(),
-        }))
+        })
     }
 }
 

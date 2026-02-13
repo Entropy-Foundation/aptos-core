@@ -18,6 +18,8 @@ module supra_framework::create_signer {
     friend supra_framework::object;
     friend supra_framework::automation_registry;
     friend supra_framework::transaction_validation;
+    friend supra_framework::permissioned_signer;
+    friend supra_framework::account_abstraction;
 
     public(friend) native fun create_signer(addr: address): signer;
 }

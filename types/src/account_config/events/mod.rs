@@ -41,8 +41,6 @@ pub mod mutate_property_map;
 pub mod mutate_token_property_map_event;
 pub mod new_block;
 pub mod new_epoch;
-pub mod coin;
-pub mod fa;
 pub mod offer;
 pub mod opt_in_transfer;
 pub mod opt_in_transfer_event;
@@ -103,8 +101,6 @@ pub use mutate_property_map::*;
 pub use mutate_token_property_map_event::*;
 pub use new_block::*;
 pub use new_epoch::*;
-pub use coin::*;
-pub use fa::*;
 pub use offer::*;
 pub use opt_in_transfer::*;
 pub use opt_in_transfer_event::*;
@@ -127,6 +123,6 @@ pub use uri_mutation_event::*;
 pub use withdraw_event::*;
 
 pub fn is_aptos_governance_create_proposal_event(event_type: &str) -> bool {
-    event_type == "0x1::aptos_governance::CreateProposal"
-        || event_type == "0x1::aptos_governance::CreateProposalEvent"
+    event_type == "0x1::supra_governance::CreateProposal"
+        || event_type == "0x1::supra_governance::CreateProposalEvent"
 }

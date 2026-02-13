@@ -221,6 +221,14 @@ pub fn convert_transaction_payload(
                     convert_automation_payload(ap),
                 ),
             ),
+            extra_config: Some(
+                transaction::transaction_payload::ExtraConfig::ExtraConfigV1(
+                    transaction::ExtraConfigV1 {
+                        multisig_address: None,
+                        replay_protection_nonce: nonce,
+                    },
+                ),
+            ),
         },
     }
 }
@@ -976,7 +984,7 @@ pub fn convert_transaction(
                     max_gas_amount: at.meta.max_gas_amount.0,
                     gas_unit_price: at.meta.gas_unit_price.0,
                     expiration_timestamp_secs,
-                    payload: Some(convert_transaction_payload(&at.meta.payload)),
+                    payload: Some(convert_transaction_payload(&at.meta.payload,Some(at.meta.index.0))),
                     registration_hash: at.meta.registration_hash.0.to_vec(),
                 }),
                 events: convert_events(&at.events),

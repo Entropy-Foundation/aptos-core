@@ -474,7 +474,14 @@ pub(crate) fn run_automated_transaction_prologue(
     log_context: &AdapterLogSchema,
     traversal_context: &mut TraversalContext,
 ) -> Result<(), VMStatus> {
-    let txn_task_id = txn_data.sequence_number();
+    let txn_task_id = match txn_data.replay_protector {
+        ReplayProtector::SequenceNumber(seq_num) => {
+            seq_num
+        },
+        ReplayProtector::Nonce(_) => {
+            unreachable!("AutomatedTransaction cannot have nonce")
+        },
+    };
     let txn_gas_price = txn_data.gas_unit_price();
     let txn_max_gas_units = txn_data.max_gas_amount();
     let txn_expiration_timestamp_secs = txn_data.expiration_timestamp_secs();
@@ -513,7 +520,14 @@ pub(crate) fn run_automated_transaction_prologue_v2(
     log_context: &AdapterLogSchema,
     traversal_context: &mut TraversalContext,
 ) -> Result<(), VMStatus> {
-    let txn_task_id = txn_data.sequence_number();
+    let txn_task_id = match txn_data.replay_protector {
+        ReplayProtector::SequenceNumber(seq_num) => {
+            seq_num
+        },
+        ReplayProtector::Nonce(_) => {
+            unreachable!("AutomatedTransaction cannot have nonce")
+        },
+    };
     let txn_gas_price = txn_data.gas_unit_price();
     let txn_max_gas_units = txn_data.max_gas_amount();
     let txn_expiration_timestamp_secs = txn_data.expiration_timestamp_secs();
@@ -910,11 +924,11 @@ pub(crate) fn run_automated_txn_failure_epilogue(
         txn_data,
         task_type,
         features,
-        traversal_context,
+        traversal_context
     )
-    .or_else(|e| {
+    .or_else(|err| {
         expect_only_successful_execution(
-            e,
+            err,
             APTOS_TRANSACTION_VALIDATION
                 .automated_txn_epilogue_name
                 .as_str(),

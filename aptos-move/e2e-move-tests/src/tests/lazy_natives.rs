@@ -1,7 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{assert_success, MoveHarness};
+use crate::{assert_success, assert_vm_status, MoveHarness};
 use aptos_package_builder::PackageBuilder;
 use move_core_types::vm_status::StatusCode;
 
@@ -35,16 +35,11 @@ fn lazy_natives() {
     ));
 
     // Should not be able to call something entry
-    let result = h.try_run_entry_function(
+    let status = h.run_entry_function(
         &acc,
         str::parse("0x1::test::something").unwrap(),
         vec![],
         vec![],
     );
-
-    assert!(result.is_err());
-    let status = result.unwrap_err();
-
-    assert_eq!(status.status_code(), StatusCode::MISSING_NATIVE_FUNCTION);
-    assert!(status.message().unwrap().contains("`undefined`"));
+    assert_vm_status!(status, StatusCode::MISSING_NATIVE_FUNCTION)
 }

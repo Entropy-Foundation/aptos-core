@@ -2958,7 +2958,7 @@ module supra_framework::automation_registry {
     /// Note this function should be called in scope of migrate_v2 after automation configuration has been migrated V2 as well
     fun update_config_from_buffer_for_migration(cycle_info: &mut AutomationCycleDetails) acquires ActiveAutomationRegistryConfigV2 {
         if (config_buffer::does_exist<AutomationRegistryConfig>()) {
-            let buffer = config_buffer::extract<AutomationRegistryConfig>();
+            let buffer = config_buffer::extract_v2<AutomationRegistryConfig>();
             let automation_registry_config = &mut borrow_global_mut<ActiveAutomationRegistryConfigV2>(
                 @supra_framework
             ).main_config;
@@ -2980,7 +2980,7 @@ module supra_framework::automation_registry {
         if (!config_buffer::does_exist<AutomationRegistryConfigV2>()) {
             return
         };
-        let buffer = config_buffer::extract<AutomationRegistryConfigV2>();
+        let buffer = config_buffer::extract_v2<AutomationRegistryConfigV2>();
         let active_config = borrow_global_mut<ActiveAutomationRegistryConfigV2>(
             @supra_framework
         );

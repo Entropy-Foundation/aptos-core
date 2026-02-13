@@ -9,14 +9,11 @@ use aptos::{
     move_tool::{RunFunction, RunScript},
     stake::IncreaseLockup,
 };
-use aptos_api_types::U64;
 use aptos_crypto::ed25519::Ed25519PrivateKey;
 use aptos_genesis::keys::PrivateIdentity;
-use aptos_rest_client::Client;
 use aptos_temppath::TempPath;
 use aptos_types::account_address::AccountAddress;
 use clap::Parser;
-use serde::Deserialize;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -35,11 +32,6 @@ pub struct NetworkConfig {
     pub validator_account: AccountAddress,
     pub validator_key: Ed25519PrivateKey,
     pub framework_git_rev: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct CreateProposalEvent {
-    proposal_id: U64,
 }
 
 impl NetworkConfig {
@@ -81,21 +73,25 @@ impl NetworkConfig {
         &self,
         metadata: &ProposalMetadata,
         script_path: Vec<PathBuf>,
+        node_api_key: Option<String>,
     ) -> Result<()> {
         let mut proposals = vec![];
         for path in script_path.iter() {
             let proposal_id = self
-                .create_governance_proposal(path.as_path(), metadata, false)
+                .create_governance_proposal(path.as_path(), metadata, false, node_api_key.clone())
                 .await?;
-            self.vote_proposal(proposal_id).await?;
+            self.vote_proposal(proposal_id, node_api_key.clone())
+                .await?;
             proposals.push(proposal_id);
         }
 
         // Wait for the voting period to pass
         sleep(Duration::from_secs(40));
         for (proposal_id, path) in proposals.iter().zip(script_path.iter()) {
-            self.add_proposal_to_allow_list(*proposal_id).await?;
-            self.execute_proposal(*proposal_id, path.as_path()).await?;
+            self.add_proposal_to_allow_list(*proposal_id, node_api_key.clone())
+                .await?;
+            self.execute_proposal(*proposal_id, path.as_path(), node_api_key.clone())
+                .await?;
         }
         Ok(())
     }
@@ -111,17 +107,26 @@ impl NetworkConfig {
         &self,
         metadata: &ProposalMetadata,
         script_path: Vec<PathBuf>,
+        node_api_key: Option<String>,
     ) -> Result<()> {
         let first_script = script_path.first().unwrap();
         let proposal_id = self
-            .create_governance_proposal(first_script.as_path(), metadata, true)
+            .create_governance_proposal(
+                first_script.as_path(),
+                metadata,
+                true,
+                node_api_key.clone(),
+            )
             .await?;
-        self.vote_proposal(proposal_id).await?;
+        self.vote_proposal(proposal_id, node_api_key.clone())
+            .await?;
         // Wait for the proposal to resolve.
         sleep(Duration::from_secs(40));
         for path in script_path {
-            self.add_proposal_to_allow_list(proposal_id).await?;
-            self.execute_proposal(proposal_id, path.as_path()).await?;
+            self.add_proposal_to_allow_list(proposal_id, node_api_key.clone())
+                .await?;
+            self.execute_proposal(proposal_id, path.as_path(), node_api_key.clone())
+                .await?;
         }
         Ok(())
     }
@@ -135,7 +140,7 @@ impl NetworkConfig {
 
         std::fs::write(fas_script_path.as_path(), format!(r#"
         script {{
-            use aptos_framework::supra_governance;
+            use supra_framework::supra_governance;
 
             fun main(core_resources: &signer) {{
                 let core_signer = supra_governance::get_signer_testnet_only(core_resources, @0000000000000000000000000000000000000000000000000000000000000001);
@@ -180,6 +185,7 @@ impl NetworkConfig {
         script_path: &Path,
         metadata: &ProposalMetadata,
         is_multi_step: bool,
+        node_api_key: Option<String>,
     ) -> Result<u64> {
         println!("Creating proposal: {:?}", script_path);
 
@@ -212,49 +218,44 @@ impl NetworkConfig {
             "--assume-yes",
         ];
 
+        if let Some(api_key) = node_api_key.as_ref() {
+            args.push("--node-api-key");
+            args.push(api_key.as_str());
+        }
+
         if is_multi_step {
             args.push("--is-multi-step");
         }
 
         let rev_string = self.framework_git_rev.clone();
-        let framework_path = supra_framework_path();
-        if let Some(rev) = &rev_string {
+        let framework_path = aptos_framework_path();
+        let proposal_summary = if let Some(rev) = &rev_string {
             args.push("--framework-git-rev");
             args.push(rev.as_str());
-            SubmitProposal::try_parse_from(args)?.execute().await?;
+            SubmitProposal::try_parse_from(args)?.execute().await?
         } else {
             args.push("--framework-local-dir");
             args.push(framework_path.as_os_str().to_str().unwrap());
-            SubmitProposal::try_parse_from(args)?.execute().await?;
+            SubmitProposal::try_parse_from(args)?.execute().await?
         };
 
-        // Get proposal id.
-        let event = Client::new(self.endpoint.clone())
-            .get_account_events(
-                AccountAddress::ONE,
-                "0x1::supra_governance::GovernanceEvents",
-                "create_proposal_events",
-                None,
-                Some(1),
-            )
-            .await?
-            .into_inner()
-            .pop()
-            .unwrap();
-
-        Ok(*serde_json::from_value::<CreateProposalEvent>(event.data)?
+        Ok(proposal_summary
             .proposal_id
-            .inner())
+            .expect("Failed to extract proposal id"))
     }
 
-    pub async fn vote_proposal(&self, proposal_id: u64) -> Result<()> {
+    pub async fn vote_proposal(
+        &self,
+        proposal_id: u64,
+        node_api_key: Option<String>,
+    ) -> Result<()> {
         println!("Voting proposal id {:?}", proposal_id);
 
         let address_string = format!("{}", self.validator_account);
         let privkey_string = self.get_hex_encoded_validator_key();
         let proposal_id = format!("{}", proposal_id);
 
-        let args = vec![
+        let mut args = vec![
             "",
             "--pool-addresses",
             address_string.as_str(),
@@ -270,15 +271,20 @@ impl NetworkConfig {
             self.endpoint.as_str(),
         ];
 
+        if let Some(api_key) = node_api_key.as_ref() {
+            args.push("--node-api-key");
+            args.push(api_key.as_str());
+        }
+
         SubmitVote::try_parse_from(args)?.execute().await?;
         Ok(())
     }
 
-    pub async fn mint_to_validator(&self) -> Result<()> {
+    pub async fn mint_to_validator(&self, node_api_key: Option<String>) -> Result<()> {
         let address_args = format!("address:{}", self.validator_account);
 
         println!("Minting to validator account");
-        let args = vec![
+        let mut args = vec![
             "",
             "--function-id",
             "0x1::supra_coin::mint",
@@ -296,14 +302,23 @@ impl NetworkConfig {
             self.endpoint.as_str(),
         ];
 
+        if let Some(api_key) = node_api_key.as_ref() {
+            args.push("--node-api-key");
+            args.push(api_key.as_str());
+        }
+
         RunFunction::try_parse_from(args)?.execute().await?;
         Ok(())
     }
 
-    pub async fn add_proposal_to_allow_list(&self, proposal_id: u64) -> Result<()> {
+    pub async fn add_proposal_to_allow_list(
+        &self,
+        proposal_id: u64,
+        node_api_key: Option<String>,
+    ) -> Result<()> {
         let proposal_id = format!("u64:{}", proposal_id);
 
-        let args = vec![
+        let mut args = vec![
             "",
             "--function-id",
             "0x1::supra_governance::add_approved_script_hash_script",
@@ -319,11 +334,22 @@ impl NetworkConfig {
             "--url",
             self.endpoint.as_str(),
         ];
+
+        if let Some(api_key) = node_api_key.as_ref() {
+            args.push("--node-api-key");
+            args.push(api_key.as_str());
+        }
+
         RunFunction::try_parse_from(args)?.execute().await?;
         Ok(())
     }
 
-    pub async fn execute_proposal(&self, proposal_id: u64, script_path: &Path) -> Result<()> {
+    pub async fn execute_proposal(
+        &self,
+        proposal_id: u64,
+        script_path: &Path,
+        node_api_key: Option<String>,
+    ) -> Result<()> {
         println!(
             "Executing: {:?} at proposal id {:?}",
             script_path, proposal_id
@@ -351,6 +377,11 @@ impl NetworkConfig {
             "2000000",
         ];
 
+        if let Some(api_key) = node_api_key.as_ref() {
+            args.push("--node-api-key");
+            args.push(api_key.as_str());
+        }
+
         let rev = self.framework_git_rev.clone();
         let framework_path = supra_framework_path();
         if let Some(rev) = &rev {
@@ -365,10 +396,10 @@ impl NetworkConfig {
         Ok(())
     }
 
-    async fn increase_lockup(&self) -> Result<()> {
+    async fn increase_lockup(&self, node_api_key: Option<String>) -> Result<()> {
         let validator_account = self.validator_account.to_string();
         let validator_key = self.get_hex_encoded_validator_key();
-        let args = vec![
+        let mut args = vec![
             // Ahhhhh this first empty string is very important
             // parse_from requires argv[0]
             "",
@@ -380,6 +411,12 @@ impl NetworkConfig {
             self.endpoint.as_str(),
             "--assume-yes",
         ];
+
+        if let Some(api_key) = node_api_key.as_ref() {
+            args.push("--node-api-key");
+            args.push(api_key.as_str());
+        }
+
         IncreaseLockup::try_parse_from(args)?.execute().await?;
         Ok(())
     }
@@ -390,6 +427,7 @@ async fn execute_release(
     network_config: NetworkConfig,
     output_dir: Option<PathBuf>,
     validate_release: bool,
+    node_api_key: Option<String>,
 ) -> Result<()> {
     let scripts_path = TempPath::new();
     scripts_path.create_as_dir()?;
@@ -403,7 +441,7 @@ async fn execute_release(
         .generate_release_proposal_scripts(proposal_folder)
         .await?;
 
-    network_config.increase_lockup().await?;
+    network_config.increase_lockup(node_api_key.clone()).await?;
 
     // Execute proposals
     for proposal in &release_config.proposals {
@@ -430,7 +468,11 @@ async fn execute_release(
             ExecutionMode::MultiStep => {
                 network_config.set_fast_resolve(30).await?;
                 network_config
-                    .submit_and_execute_multi_step_proposal(&proposal.metadata, script_paths)
+                    .submit_and_execute_multi_step_proposal(
+                        &proposal.metadata,
+                        script_paths,
+                        node_api_key.clone(),
+                    )
                     .await?;
 
                 network_config.set_fast_resolve(43200).await?;
@@ -452,6 +494,11 @@ async fn execute_release(
                         "--url",
                         network_config.endpoint.as_str(),
                     ];
+
+                    if let Some(api_key) = node_api_key.as_ref() {
+                        args.push("--node-api-key");
+                        args.push(api_key.as_str());
+                    }
 
                     let rev = network_config.framework_git_rev.clone();
                     let framework_path = supra_framework_path();
@@ -479,20 +526,23 @@ async fn execute_release(
 pub async fn validate_config(
     release_config: ReleaseConfig,
     network_config: NetworkConfig,
+    node_api_key: Option<String>,
 ) -> Result<()> {
-    validate_config_and_generate_release(release_config, network_config, None).await
+    validate_config_and_generate_release(release_config, network_config, None, node_api_key).await
 }
 
 pub async fn validate_config_and_generate_release(
     release_config: ReleaseConfig,
     network_config: NetworkConfig,
     output_dir: Option<PathBuf>,
+    node_api_key: Option<String>,
 ) -> Result<()> {
     execute_release(
         release_config.clone(),
         network_config.clone(),
         output_dir,
         true,
+        node_api_key,
     )
     .await
 }

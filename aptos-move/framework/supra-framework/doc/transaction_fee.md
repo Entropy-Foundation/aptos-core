@@ -5,27 +5,29 @@
 
 
 
--  [Resource `AptosCoinCapabilities`](#0x1_transaction_fee_AptosCoinCapabilities)
--  [Resource `AptosFABurnCapabilities`](#0x1_transaction_fee_AptosFABurnCapabilities)
--  [Resource `AptosCoinMintCapability`](#0x1_transaction_fee_AptosCoinMintCapability)
+-  [Resource `SupraCoinCapabilities`](#0x1_transaction_fee_SupraCoinCapabilities)
+-  [Resource `SupraFABurnCapabilities`](#0x1_transaction_fee_SupraFABurnCapabilities)
+-  [Resource `SupraCoinMintCapability`](#0x1_transaction_fee_SupraCoinMintCapability)
 -  [Struct `FeeStatement`](#0x1_transaction_fee_FeeStatement)
--  [Struct `GasAssessment`](#0x1_transaction_fee_GasAssessment)
+-  [Resource `CollectedFeesPerBlock`](#0x1_transaction_fee_CollectedFeesPerBlock)
 -  [Constants](#@Constants_0)
 -  [Function `burn_fee`](#0x1_transaction_fee_burn_fee)
 -  [Function `mint_and_refund`](#0x1_transaction_fee_mint_and_refund)
--  [Function `store_aptos_coin_burn_cap`](#0x1_transaction_fee_store_aptos_coin_burn_cap)
--  [Function `convert_to_aptos_fa_burn_ref`](#0x1_transaction_fee_convert_to_aptos_fa_burn_ref)
--  [Function `store_aptos_coin_mint_cap`](#0x1_transaction_fee_store_aptos_coin_mint_cap)
+-  [Function `store_supra_coin_burn_cap`](#0x1_transaction_fee_store_supra_coin_burn_cap)
+-  [Function `convert_to_supra_fa_burn_ref`](#0x1_transaction_fee_convert_to_supra_fa_burn_ref)
+-  [Function `store_supra_coin_mint_cap`](#0x1_transaction_fee_store_supra_coin_mint_cap)
 -  [Function `emit_fee_statement`](#0x1_transaction_fee_emit_fee_statement)
--  [Function `emit_gas_assessment`](#0x1_transaction_fee_emit_gas_assessment)
+-  [Function `initialize_fee_collection_and_distribution`](#0x1_transaction_fee_initialize_fee_collection_and_distribution)
+-  [Function `upgrade_burn_percentage`](#0x1_transaction_fee_upgrade_burn_percentage)
+-  [Function `initialize_storage_refund`](#0x1_transaction_fee_initialize_storage_refund)
 -  [Specification](#@Specification_1)
     -  [High-level Requirements](#high-level-req)
     -  [Module-level Specification](#module-level-spec)
     -  [Resource `CollectedFeesPerBlock`](#@Specification_1_CollectedFeesPerBlock)
     -  [Function `burn_fee`](#@Specification_1_burn_fee)
     -  [Function `mint_and_refund`](#@Specification_1_mint_and_refund)
-    -  [Function `store_aptos_coin_burn_cap`](#@Specification_1_store_aptos_coin_burn_cap)
-    -  [Function `store_aptos_coin_mint_cap`](#@Specification_1_store_aptos_coin_mint_cap)
+    -  [Function `store_supra_coin_burn_cap`](#@Specification_1_store_supra_coin_burn_cap)
+    -  [Function `store_supra_coin_mint_cap`](#@Specification_1_store_supra_coin_mint_cap)
     -  [Function `emit_fee_statement`](#@Specification_1_emit_fee_statement)
     -  [Function `initialize_fee_collection_and_distribution`](#@Specification_1_initialize_fee_collection_and_distribution)
     -  [Function `initialize_storage_refund`](#@Specification_1_initialize_storage_refund)
@@ -38,6 +40,8 @@
 <b>use</b> <a href="fungible_asset.md#0x1_fungible_asset">0x1::fungible_asset</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
+<b>use</b> <a href="supra_account.md#0x1_supra_account">0x1::supra_account</a>;
+<b>use</b> <a href="supra_coin.md#0x1_supra_coin">0x1::supra_coin</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 </code></pre>
 
@@ -117,7 +121,7 @@ Stores mint capability to mint the refunds.
 
 <dl>
 <dt>
-<code>mint_cap: <a href="coin.md#0x1_coin_MintCapability">coin::MintCapability</a>&lt;<a href="aptos_coin.md#0x1_aptos_coin_AptosCoin">aptos_coin::AptosCoin</a>&gt;</code>
+<code>mint_cap: <a href="coin.md#0x1_coin_MintCapability">coin::MintCapability</a>&lt;<a href="supra_coin.md#0x1_supra_coin_SupraCoin">supra_coin::SupraCoin</a>&gt;</code>
 </dt>
 <dd>
 
@@ -198,17 +202,16 @@ This is meant to emitted as a module event.
 
 </details>
 
-<a id="0x1_transaction_fee_GasAssessment"></a>
+<a id="0x1_transaction_fee_CollectedFeesPerBlock"></a>
 
-## Struct `GasAssessment`
+## Resource `CollectedFeesPerBlock`
 
-Breakdown of the gas consumed by gas-fee-less (i.e. gasless) transactions.
-The consumed amounts serve as a record of the workload of the transaction and
-are not charged to the gas payer's account.
+DEPRECATED: Stores information about the block proposer and the amount of fees
+collected when executing the block.
 
 
-<pre><code>#[<a href="event.md#0x1_event">event</a>]
-<b>struct</b> <a href="transaction_fee.md#0x1_transaction_fee_GasAssessment">GasAssessment</a> <b>has</b> drop, store
+<pre><code>#[deprecated]
+<b>struct</b> <a href="transaction_fee.md#0x1_transaction_fee_CollectedFeesPerBlock">CollectedFeesPerBlock</a> <b>has</b> key
 </code></pre>
 
 
@@ -219,34 +222,22 @@ are not charged to the gas payer's account.
 
 <dl>
 <dt>
-<code>total_assessed_gas_units: u64</code>
+<code>amount: <a href="coin.md#0x1_coin_AggregatableCoin">coin::AggregatableCoin</a>&lt;<a href="supra_coin.md#0x1_supra_coin_SupraCoin">supra_coin::SupraCoin</a>&gt;</code>
 </dt>
 <dd>
- Total gas assessed for transaction execution.
+
 </dd>
 <dt>
-<code>execution_gas_units: u64</code>
+<code>proposer: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<b>address</b>&gt;</code>
 </dt>
 <dd>
- Execution gas charge.
+
 </dd>
 <dt>
-<code>io_gas_units: u64</code>
+<code>burn_percentage: u8</code>
 </dt>
 <dd>
- IO gas charge.
-</dd>
-<dt>
-<code>storage_fee_quants: u64</code>
-</dt>
-<dd>
- Storage fee charge.
-</dd>
-<dt>
-<code>storage_fee_refund_quants: u64</code>
-</dt>
-<dd>
- Storage fee refund.
+
 </dd>
 </dl>
 
@@ -314,18 +305,18 @@ Burn transaction fees in epilogue.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_burn_fee">burn_fee</a>(<a href="account.md#0x1_account">account</a>: <b>address</b>, fee: u64) <b>acquires</b> <a href="transaction_fee.md#0x1_transaction_fee_AptosFABurnCapabilities">AptosFABurnCapabilities</a>, <a href="transaction_fee.md#0x1_transaction_fee_AptosCoinCapabilities">AptosCoinCapabilities</a> {
-    <b>if</b> (<b>exists</b>&lt;<a href="transaction_fee.md#0x1_transaction_fee_AptosFABurnCapabilities">AptosFABurnCapabilities</a>&gt;(@aptos_framework)) {
-        <b>let</b> burn_ref = &<b>borrow_global</b>&lt;<a href="transaction_fee.md#0x1_transaction_fee_AptosFABurnCapabilities">AptosFABurnCapabilities</a>&gt;(@aptos_framework).burn_ref;
-        <a href="aptos_account.md#0x1_aptos_account_burn_from_fungible_store_for_gas">aptos_account::burn_from_fungible_store_for_gas</a>(burn_ref, <a href="account.md#0x1_account">account</a>, fee);
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_burn_fee">burn_fee</a>(<a href="account.md#0x1_account">account</a>: <b>address</b>, fee: u64) <b>acquires</b> <a href="transaction_fee.md#0x1_transaction_fee_SupraFABurnCapabilities">SupraFABurnCapabilities</a>, <a href="transaction_fee.md#0x1_transaction_fee_SupraCoinCapabilities">SupraCoinCapabilities</a> {
+    <b>if</b> (<b>exists</b>&lt;<a href="transaction_fee.md#0x1_transaction_fee_SupraFABurnCapabilities">SupraFABurnCapabilities</a>&gt;(@supra_framework)) {
+        <b>let</b> burn_ref = &<b>borrow_global</b>&lt;<a href="transaction_fee.md#0x1_transaction_fee_SupraFABurnCapabilities">SupraFABurnCapabilities</a>&gt;(@supra_framework).burn_ref;
+        <a href="supra_account.md#0x1_supra_account_burn_from_fungible_store_for_gas">supra_account::burn_from_fungible_store_for_gas</a>(burn_ref, <a href="account.md#0x1_account">account</a>, fee);
     } <b>else</b> {
         <b>let</b> burn_cap = &<b>borrow_global</b>&lt;<a href="transaction_fee.md#0x1_transaction_fee_SupraCoinCapabilities">SupraCoinCapabilities</a>&gt;(@supra_framework).burn_cap;
         <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_operations_default_to_fa_supra_store_enabled">features::operations_default_to_fa_supra_store_enabled</a>()) {
             <b>let</b> (burn_ref, burn_receipt) = <a href="coin.md#0x1_coin_get_paired_burn_ref">coin::get_paired_burn_ref</a>(burn_cap);
-            <a href="aptos_account.md#0x1_aptos_account_burn_from_fungible_store_for_gas">aptos_account::burn_from_fungible_store_for_gas</a>(&burn_ref, <a href="account.md#0x1_account">account</a>, fee);
+            <a href="supra_account.md#0x1_supra_account_burn_from_fungible_store_for_gas">supra_account::burn_from_fungible_store_for_gas</a>(&burn_ref, <a href="account.md#0x1_account">account</a>, fee);
             <a href="coin.md#0x1_coin_return_paired_burn_ref">coin::return_paired_burn_ref</a>(burn_ref, burn_receipt);
         } <b>else</b> {
-            <a href="coin.md#0x1_coin_burn_from_for_gas">coin::burn_from_for_gas</a>&lt;AptosCoin&gt;(
+            <a href="coin.md#0x1_coin_burn_from_for_gas">coin::burn_from_for_gas</a>&lt;SupraCoin&gt;(
                 <a href="account.md#0x1_account">account</a>,
                 fee,
                 burn_cap,
@@ -398,13 +389,13 @@ Only called during genesis.
 
 </details>
 
-<a id="0x1_transaction_fee_convert_to_aptos_fa_burn_ref"></a>
+<a id="0x1_transaction_fee_convert_to_supra_fa_burn_ref"></a>
 
-## Function `convert_to_aptos_fa_burn_ref`
+## Function `convert_to_supra_fa_burn_ref`
 
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_convert_to_aptos_fa_burn_ref">convert_to_aptos_fa_burn_ref</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+<pre><code><b>public</b> entry <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_convert_to_supra_fa_burn_ref">convert_to_supra_fa_burn_ref</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
 </code></pre>
 
 
@@ -413,7 +404,7 @@ Only called during genesis.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_convert_to_aptos_fa_burn_ref">convert_to_aptos_fa_burn_ref</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) <b>acquires</b> <a href="transaction_fee.md#0x1_transaction_fee_SupraCoinCapabilities">SupraCoinCapabilities</a> {
+<pre><code><b>public</b> entry <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_convert_to_supra_fa_burn_ref">convert_to_supra_fa_burn_ref</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) <b>acquires</b> <a href="transaction_fee.md#0x1_transaction_fee_SupraCoinCapabilities">SupraCoinCapabilities</a> {
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_operations_default_to_fa_supra_store_enabled">features::operations_default_to_fa_supra_store_enabled</a>(), <a href="transaction_fee.md#0x1_transaction_fee_EFA_GAS_CHARGING_NOT_ENABLED">EFA_GAS_CHARGING_NOT_ENABLED</a>);
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
     <b>let</b> <a href="transaction_fee.md#0x1_transaction_fee_SupraCoinCapabilities">SupraCoinCapabilities</a> {
@@ -486,7 +477,7 @@ DEPRECATED
 
 
 <pre><code>#[deprecated]
-<b>public</b> <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_initialize_fee_collection_and_distribution">initialize_fee_collection_and_distribution</a>(_aptos_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, _burn_percentage: u8)
+<b>public</b> <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_initialize_fee_collection_and_distribution">initialize_fee_collection_and_distribution</a>(_supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, _burn_percentage: u8)
 </code></pre>
 
 
@@ -495,7 +486,7 @@ DEPRECATED
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_initialize_fee_collection_and_distribution">initialize_fee_collection_and_distribution</a>(_aptos_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, _burn_percentage: u8) {
+<pre><code><b>public</b> <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_initialize_fee_collection_and_distribution">initialize_fee_collection_and_distribution</a>(_supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, _burn_percentage: u8) {
     <b>abort</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_implemented">error::not_implemented</a>(<a href="transaction_fee.md#0x1_transaction_fee_ENO_LONGER_SUPPORTED">ENO_LONGER_SUPPORTED</a>)
 }
 </code></pre>
@@ -512,7 +503,7 @@ DEPRECATED
 
 
 <pre><code>#[deprecated]
-<b>public</b> <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_upgrade_burn_percentage">upgrade_burn_percentage</a>(_aptos_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, _new_burn_percentage: u8)
+<b>public</b> <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_upgrade_burn_percentage">upgrade_burn_percentage</a>(_supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, _new_burn_percentage: u8)
 </code></pre>
 
 
@@ -522,7 +513,7 @@ DEPRECATED
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_upgrade_burn_percentage">upgrade_burn_percentage</a>(
-    _aptos_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    _supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     _new_burn_percentage: u8
 ) {
     <b>abort</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_implemented">error::not_implemented</a>(<a href="transaction_fee.md#0x1_transaction_fee_ENO_LONGER_SUPPORTED">ENO_LONGER_SUPPORTED</a>)
@@ -551,70 +542,6 @@ DEPRECATED
 
 <pre><code><b>public</b> <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_initialize_storage_refund">initialize_storage_refund</a>(_: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
     <b>abort</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_implemented">error::not_implemented</a>(<a href="transaction_fee.md#0x1_transaction_fee_ENO_LONGER_SUPPORTED">ENO_LONGER_SUPPORTED</a>)
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_transaction_fee_emit_fee_statement"></a>
-
-## Function `emit_fee_statement`
-
-
-
-<pre><code><b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_emit_fee_statement">emit_fee_statement</a>(fee_statement: <a href="transaction_fee.md#0x1_transaction_fee_FeeStatement">transaction_fee::FeeStatement</a>)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_emit_fee_statement">emit_fee_statement</a>(fee_statement: <a href="transaction_fee.md#0x1_transaction_fee_FeeStatement">FeeStatement</a>) {
-    <a href="event.md#0x1_event_emit">event::emit</a>(fee_statement)
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_transaction_fee_emit_gas_assessment"></a>
-
-## Function `emit_gas_assessment`
-
-
-
-<pre><code><b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_emit_gas_assessment">emit_gas_assessment</a>(fee_statement: <a href="transaction_fee.md#0x1_transaction_fee_FeeStatement">transaction_fee::FeeStatement</a>)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_emit_gas_assessment">emit_gas_assessment</a>(fee_statement: <a href="transaction_fee.md#0x1_transaction_fee_FeeStatement">FeeStatement</a>) {
-    <b>let</b> <a href="transaction_fee.md#0x1_transaction_fee_FeeStatement">FeeStatement</a> {
-        total_charge_gas_units,
-        execution_gas_units,
-        io_gas_units,
-        storage_fee_quants,
-        storage_fee_refund_quants,
-
-    } = fee_statement;
-    <b>let</b> gas_assesment = <a href="transaction_fee.md#0x1_transaction_fee_GasAssessment">GasAssessment</a> {
-        total_assessed_gas_units: total_charge_gas_units,
-        execution_gas_units,
-        io_gas_units,
-        storage_fee_quants,
-        storage_fee_refund_quants,
-
-    };
-    <a href="event.md#0x1_event_emit">event::emit</a>(gas_assesment)
 }
 </code></pre>
 
@@ -871,7 +798,7 @@ Aborts if module event feature is not enabled.
 
 
 <pre><code>#[deprecated]
-<b>public</b> <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_initialize_fee_collection_and_distribution">initialize_fee_collection_and_distribution</a>(_aptos_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, _burn_percentage: u8)
+<b>public</b> <b>fun</b> <a href="transaction_fee.md#0x1_transaction_fee_initialize_fee_collection_and_distribution">initialize_fee_collection_and_distribution</a>(_supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, _burn_percentage: u8)
 </code></pre>
 
 

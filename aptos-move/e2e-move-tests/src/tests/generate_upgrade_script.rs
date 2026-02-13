@@ -50,7 +50,6 @@ module 0x{}::test {{
                 .to_path_buf()
                 .join(CompiledPackageLayout::Sources.path())
                 .join("proposal.move"),
-            "main".to_string(),
         )
         .unwrap();
     let _ =

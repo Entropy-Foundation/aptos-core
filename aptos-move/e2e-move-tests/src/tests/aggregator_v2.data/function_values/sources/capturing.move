@@ -1,5 +1,5 @@
 module 0x1::capturing {
-    use aptos_framework::aggregator_v2::create_unbounded_aggregator;
+    use supra_framework::aggregator_v2::create_unbounded_aggregator;
 
     public entry fun capture_aggregator() {
         let aggregator = create_unbounded_aggregator<u64>();

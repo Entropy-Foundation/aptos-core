@@ -25,7 +25,7 @@ module aptos_std::any {
         type_name: String,
         data: vector<u8>
     }
-    
+
     /// Create a new `Any` struct with provided parameters
     public fun new(type_name: String, data: vector<u8>): Any {
         Any {

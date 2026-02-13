@@ -37,7 +37,7 @@ use crate::{
     validator_verifier::{ValidatorConsensusInfo, ValidatorVerifier},
     vm_status::VMStatus,
     write_set::{WriteOp, WriteSet, WriteSetMut},
-    AptosCoinType,
+    SupraCoinType,
 };
 use aptos_crypto::{
     ed25519::{self, Ed25519PrivateKey, Ed25519PublicKey},
@@ -63,6 +63,7 @@ use std::{
     iter::Iterator,
     sync::Arc,
 };
+use move_core_types::vm_status::StatusCode;
 
 impl Arbitrary for IndexedTransactionSummary {
     type Parameters = ();
@@ -412,19 +413,19 @@ fn new_raw_transaction(
         TransactionPayload::ModuleBundle(_) => {
             unreachable!("Module bundle payload has been removed")
         },
-        _ => RawTransaction::new(
+        TransactionPayload::AutomationRegistration(automation) => RawTransaction::new_automation(
             sender,
             sequence_number,
-            payload,
+            automation,
             max_gas_amount,
             gas_unit_price,
             expiration_time_secs,
             chain_id,
         ),
-        TransactionPayload::AutomationRegistration(automation) => RawTransaction::new_automation(
+        _ => RawTransaction::new(
             sender,
             sequence_number,
-            automation,
+            payload,
             max_gas_amount,
             gas_unit_price,
             expiration_time_secs,
@@ -571,7 +572,7 @@ prop_compose! {
                     },
                 )
     ) -> TransactionStatus {
-        let (txn_status, _) = TransactionStatus::from_vm_status(vm_status, true, &Features::default());
+        let txn_status = TransactionStatus::from_vm_status(vm_status, &Features::default());
         txn_status
     }
 }
@@ -806,8 +807,8 @@ pub struct CoinStoreResourceGen {
 }
 
 impl CoinStoreResourceGen {
-    pub fn materialize(self) -> CoinStoreResource<AptosCoinType> {
-        CoinStoreResource::<AptosCoinType>::new(
+    pub fn materialize(self) -> CoinStoreResource<SupraCoinType> {
+        CoinStoreResource::<SupraCoinType>::new(
             self.coin,
             false,
             EventHandle::random(0),
@@ -839,7 +840,7 @@ impl AccountStateGen {
                 bcs::to_bytes(&account_resource).unwrap(),
             ),
             (
-                StateKey::resource_typed::<CoinStoreResource<AptosCoinType>>(address).unwrap(),
+                StateKey::resource_typed::<CoinStoreResource<SupraCoinType>>(address).unwrap(),
                 bcs::to_bytes(&balance_resource).unwrap(),
             ),
         ]

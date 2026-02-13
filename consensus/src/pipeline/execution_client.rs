@@ -35,7 +35,7 @@ use aptos_consensus_types::{
     pipelined_block::PipelinedBlock,
     wrapped_ledger_info::WrappedLedgerInfo,
 };
-use aptos_crypto::bls12381::PrivateKey;
+use aptos_crypto::ed25519::PrivateKey;
 use aptos_executor_types::ExecutorResult;
 use aptos_infallible::RwLock;
 use aptos_logger::prelude::*;

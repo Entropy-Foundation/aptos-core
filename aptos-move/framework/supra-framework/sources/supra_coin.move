@@ -254,6 +254,8 @@ module supra_framework::supra_coin {
         let (burn_cap,  mint_cap) = initialize(
             &source,
         );
+        coin::create_coin_conversion_map(&source);
+        coin::create_pairing<SupraCoin>(&source);
         coin::register<SupraCoin>(&source);
         coin::register<SupraCoin>(&destination);
         assert!(*option::borrow(&coin::supply<SupraCoin>()) == 0, 0);
@@ -295,6 +297,8 @@ module supra_framework::supra_coin {
         let (burn_cap,  mint_cap) = initialize(
             &source,
         );
+        coin::create_coin_conversion_map(&source);
+        coin::create_pairing<SupraCoin>(&source);
         coin::register<SupraCoin>(&source);
         coin::register<SupraCoin>(&destination);
         assert!(*option::borrow(&coin::supply<SupraCoin>()) == 0, 0);
@@ -319,6 +323,8 @@ module supra_framework::supra_coin {
         let (burn_cap, mint_cap) = initialize(
             &source,
         );
+        coin::create_coin_conversion_map(&source);
+        coin::create_pairing<SupraCoin>(&source);
         coin::register<SupraCoin>(&source);
         assert!(*option::borrow(&coin::supply<SupraCoin>()) == 0, 0);
 

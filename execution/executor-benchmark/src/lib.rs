@@ -744,6 +744,124 @@ pub fn run_single_with_default_params(
     )
 }
 
+pub enum SingleRunMode {
+    TEST,
+    BENCHMARK {
+        approx_tps: usize,
+        /// Number of blocks to run your test for. ~10-30 is a good number.
+        /// If your workflow has an end (generats no transactions after some point),
+        /// you can set a large number, and test will stop by itself.
+        run_for_blocks: Option<usize>,
+    },
+}
+
+pub fn run_single_with_default_params(
+    transaction_type: TransactionType,
+    test_folder: impl AsRef<Path>,
+    concurrency_level: usize,
+    mode: SingleRunMode,
+) -> SingleRunResults {
+    aptos_logger::Logger::new().init();
+
+    AptosVM::set_num_shards_once(1);
+    AptosVM::set_concurrency_level_once(concurrency_level);
+    AptosVM::set_processed_transactions_detailed_counters();
+
+    rayon::ThreadPoolBuilder::new()
+        .thread_name(|index| format!("rayon-global-{}", index))
+        .build_global()
+        .expect("Failed to build rayon global thread pool.");
+
+    let verify_sequence_numbers = false;
+    let is_keyless = false;
+    let print_transactions = match mode {
+        SingleRunMode::TEST => true,
+        SingleRunMode::BENCHMARK { .. } => false,
+    };
+    let num_accounts = match mode {
+        SingleRunMode::TEST => 100,
+        SingleRunMode::BENCHMARK { .. } => 100000,
+    };
+    let num_blocks = match mode {
+        SingleRunMode::TEST
+        | SingleRunMode::BENCHMARK {
+            run_for_blocks: None,
+            ..
+        } => 30,
+        SingleRunMode::BENCHMARK {
+            run_for_blocks: Some(num_blocks),
+            ..
+        } => num_blocks,
+    };
+    let benchmark_block_size = match mode {
+        SingleRunMode::TEST => 10,
+        SingleRunMode::BENCHMARK { approx_tps, .. } => {
+            debug_assert!(
+                false,
+                "Benchmark shouldn't be run in debug mode, use --release instead."
+            );
+            (approx_tps / 4).clamp(10, 10000)
+        },
+    };
+
+    let num_main_signer_accounts = num_accounts / 5;
+    let num_dst_pool_accounts = num_accounts / 2;
+
+    let storage_dir = test_folder.as_ref().join("db");
+    let checkpoint_dir = test_folder.as_ref().join("cp");
+
+    println!("db_generator::create_db_with_accounts");
+
+    let mut features = default_benchmark_features();
+    features.enable(FeatureFlag::NEW_ACCOUNTS_DEFAULT_TO_FA_APT_STORE);
+    features.enable(FeatureFlag::OPERATIONS_DEFAULT_TO_FA_APT_STORE);
+
+    let init_pipeline_config = PipelineConfig {
+        num_sig_verify_threads: std::cmp::max(1, num_cpus::get() / 3),
+        print_transactions,
+        ..Default::default()
+    };
+
+    create_db_with_accounts::<AptosVMBlockExecutor>(
+        num_accounts,       /* num_accounts */
+        100000 * 100000000, /* init_account_balance */
+        10000,              /* block_size */
+        &storage_dir,
+        NO_OP_STORAGE_PRUNER_CONFIG, /* prune_window */
+        verify_sequence_numbers,
+        true,
+        init_pipeline_config,
+        features.clone(),
+        is_keyless,
+    );
+
+    println!("run_benchmark");
+
+    let execute_pipeline_config = PipelineConfig {
+        generate_then_execute: true,
+        num_sig_verify_threads: std::cmp::max(1, num_cpus::get() / 3),
+        print_transactions,
+        ..Default::default()
+    };
+
+    run_benchmark::<AptosVMBlockExecutor>(
+        benchmark_block_size, /* block_size */
+        num_blocks,           /* num_blocks */
+        BenchmarkWorkload::TransactionMix(vec![(transaction_type, 1)]),
+        1, /* transactions per sender */
+        num_main_signer_accounts,
+        num_dst_pool_accounts,
+        &storage_dir,
+        checkpoint_dir,
+        verify_sequence_numbers,
+        NO_OP_STORAGE_PRUNER_CONFIG,
+        true,
+        execute_pipeline_config,
+        features,
+        is_keyless,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{

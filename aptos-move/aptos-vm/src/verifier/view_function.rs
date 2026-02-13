@@ -11,7 +11,6 @@ use aptos_vm_types::module_and_script_storage::module_storage::AptosModuleStorag
 use move_binary_format::errors::{PartialVMError, PartialVMResult};
 use move_core_types::{identifier::IdentStr, vm_status::StatusCode};
 use move_vm_runtime::LoadedFunction;
-use move_vm_types::gas::UnmeteredGasMeter;
 
 /// Based on the function attributes in the module metadata, determine whether a
 /// function is a view function.

@@ -69,7 +69,7 @@ use aptos_consensus_types::{
     proof_of_store::ProofCache,
     utils::PayloadTxnsSize,
 };
-use aptos_crypto::bls12381::PrivateKey;
+use aptos_crypto::ed25519::PrivateKey;
 use aptos_dkg::{
     pvss::{traits::Transcript, Player},
     weighted_vuf::traits::WeightedVUF,
@@ -1936,7 +1936,8 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
 
     fn load_consensus_key(&self, vv: &ValidatorVerifier) -> anyhow::Result<PrivateKey> {
         match vv.get_public_key(&self.author) {
-            Some(pk) => self
+            Some(pk) =>
+                self
                 .key_storage
                 .consensus_sk_by_pk(pk)
                 .map_err(|e| anyhow!("could not find sk by pk: {:?}", e)),

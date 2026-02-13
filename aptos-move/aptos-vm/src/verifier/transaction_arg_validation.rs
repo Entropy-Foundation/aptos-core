@@ -136,7 +136,6 @@ pub(crate) fn get_allowed_structs(
 pub(crate) fn validate_combine_signer_and_txn_args(
     session: &mut SessionExt<impl AptosMoveResolver>,
     module_storage: &impl ModuleStorage,
-    gas_meter: &mut impl GasMeter,
     serialized_signers: &SerializedSigners,
     args: Vec<Vec<u8>>,
     func: &LoadedFunction,
@@ -200,7 +199,6 @@ pub(crate) fn validate_combine_signer_and_txn_args(
     let args = construct_args(
         session,
         module_storage,
-        gas_meter,
         &func.param_tys()[signer_param_cnt..],
         args,
         func.ty_args(),
@@ -256,13 +254,14 @@ pub(crate) fn is_valid_txn_arg(
 pub(crate) fn construct_args(
     session: &mut SessionExt<impl AptosMoveResolver>,
     module_storage: &impl ModuleStorage,
-    gas_meter: &mut impl GasMeter,
     types: &[Type],
     args: Vec<Vec<u8>>,
     ty_args: &[Type],
     allowed_structs: &ConstructorMap,
     is_view: bool,
 ) -> Result<Vec<Vec<u8>>, VMStatus> {
+    // Perhaps in a future we should do proper gas metering here
+    let mut gas_meter = UnmeteredGasMeter;
     let mut res_args = vec![];
     if types.len() != args.len() {
         return Err(invalid_signature());
@@ -278,7 +277,7 @@ pub(crate) fn construct_args(
             &ty,
             allowed_structs,
             arg,
-            gas_meter,
+            &mut gas_meter,
             is_view,
         )?;
         res_args.push(arg);

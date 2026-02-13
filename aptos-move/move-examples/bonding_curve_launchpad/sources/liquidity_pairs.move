@@ -3,14 +3,14 @@ module bonding_curve_launchpad::liquidity_pairs {
     use std::vector;
     use aptos_std::signer;
     use aptos_std::math128;
-    use aptos_framework::coin;
-    use aptos_framework::aptos_account;
-    use aptos_framework::aptos_coin::{AptosCoin};
-    use aptos_framework::object::{Self, Object, ExtendRef};
-    use aptos_framework::event;
-    use aptos_framework::fungible_asset;
-    use aptos_framework::fungible_asset::{Metadata, TransferRef, FungibleAsset, FungibleStore};
-    use aptos_framework::primary_fungible_store;
+    use supra_framework::coin;
+    use supra_framework::supra_account;
+    use supra_framework::supra_coin::{SupraCoin};
+    use supra_framework::object::{Self, Object, ExtendRef};
+    use supra_framework::event;
+    use supra_framework::fungible_asset;
+    use supra_framework::fungible_asset::{Metadata, TransferRef, FungibleAsset, FungibleStore};
+    use supra_framework::primary_fungible_store;
     use swap::router;
     use swap::liquidity_pool;
     use swap::coin_wrapper;
@@ -65,7 +65,7 @@ module bonding_curve_launchpad::liquidity_pairs {
         signer_extender: ExtendRef
     }
 
-    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
+    #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct LiquidityPair has store, key {
         extend_ref: ExtendRef,
         is_enabled: bool,
@@ -243,7 +243,7 @@ module bonding_curve_launchpad::liquidity_pairs {
             fungible_asset::transfer_ref_metadata(transfer_ref)
         );
         fungible_asset::transfer_with_ref(transfer_ref, from_swapper_store, liquidity_pair.fa_store, fa_given);
-        aptos_account::transfer(&liquidity_pair_signer, swapper_address, apt_gained);
+        supra_account::transfer(&liquidity_pair_signer, swapper_address, apt_gained);
         // Record state changes to the liquidity pair's reserves, and emit changes as events.
         let former_fa_reserves = liquidity_pair.fa_reserves;
         let former_apt_reserves = liquidity_pair.apt_reserves;
@@ -295,7 +295,7 @@ module bonding_curve_launchpad::liquidity_pairs {
             swapper_address,
             fungible_asset::transfer_ref_metadata(transfer_ref)
         );
-        aptos_account::transfer(swapper_account, liquidity_pair_address, apt_given);
+        supra_account::transfer(swapper_account, liquidity_pair_address, apt_given);
         fungible_asset::transfer_with_ref(transfer_ref, liquidity_pair.fa_store, to_swapper_store, fa_gained);
         // Record state changes to the liquidity pair's reserves, and emit changes as events.
         let former_fa_reserves = liquidity_pair.fa_reserves;
@@ -340,9 +340,9 @@ module bonding_curve_launchpad::liquidity_pairs {
         liquidity_pair.is_enabled = false;
         liquidity_pair.is_frozen = false;
         // Offload onto third party, public DEX.
-        router::create_pool_coin<AptosCoin>(fa_object_metadata, false);
+        router::create_pool_coin<SupraCoin>(fa_object_metadata, false);
         let liquidity_pair_signer = object::generate_signer_for_extending(&liquidity_pair.extend_ref);
-        add_liquidity_coin_entry_transfer_ref<AptosCoin>(
+        add_liquidity_coin_entry_transfer_ref<SupraCoin>(
             transfer_ref,
             &liquidity_pair_signer,
             liquidity_pair.fa_store,
@@ -354,7 +354,7 @@ module bonding_curve_launchpad::liquidity_pairs {
             0
         );
         // Send liquidity provider tokens to dead address.
-        let apt_coin_wrapped = coin_wrapper::get_wrapper<AptosCoin>();
+        let apt_coin_wrapped = coin_wrapper::get_wrapper<SupraCoin>();
         let liquidity_obj = liquidity_pool::liquidity_pool(apt_coin_wrapped, fa_object_metadata, false);
         let liquidity_pair_address = signer::address_of(&liquidity_pair_signer);
         liquidity_pool::transfer(

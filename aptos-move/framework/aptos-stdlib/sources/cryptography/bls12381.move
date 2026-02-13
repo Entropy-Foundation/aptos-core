@@ -855,15 +855,13 @@ module aptos_std::bls12381 {
 
         // First, test signatures that verify
         let ok = verify_normal_signature(
-            &signature_from_bytes(x"b01ce4632e94d8c611736e96aa2ad8e0528a02f927a81a92db8047b002a8c71dc2d6bfb94729d0973790c10b6ece446817e4b7543afd7ca9a17c75de301ae835d66231c26a003f11ae26802b98d90869a9e73788c38739f7ac9d52659e1f7cf7"),
-            &public_key_from_bytes(x"94209a296b739577cb076d3bfb1ca8ee936f29b69b7dae436118c4dd1cc26fd43dcd16249476a006b8b949bf022a7858").extract(
-            ),
+            &signature_from_bytes(RANDOM_SIGNATURE),
+            &public_key_from_bytes(RANDOM_PK).extract(),
             message,
         );
         assert!(ok == true, 1);
 
-        let pk = public_key_from_bytes(x"94209a296b739577cb076d3bfb1ca8ee936f29b69b7dae436118c4dd1cc26fd43dcd16249476a006b8b949bf022a7858").extract(
-        );
+        let pk = public_key_from_bytes(RANDOM_PK).extract();
         let pk_with_pop = PublicKeyWithPoP { bytes: pk.bytes };
 
         let ok = verify_signature_share(

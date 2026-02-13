@@ -823,7 +823,7 @@ reusing <code><a href="jwks.md#0x1_jwks_PatchedJWKs">PatchedJWKs</a> { <a href="
 
 <pre><code><b>public</b> <b>fun</b> <a href="jwks.md#0x1_jwks_patch_federated_jwks">patch_federated_jwks</a>(jwk_owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, patches: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="jwks.md#0x1_jwks_Patch">Patch</a>&gt;) <b>acquires</b> <a href="jwks.md#0x1_jwks_FederatedJWKs">FederatedJWKs</a> {
     // Prevents accidental calls in <a href="jwks.md#0x1_jwks">0x1::jwks</a> that install federated JWKs at the Aptos framework <b>address</b>.
-    <b>assert</b>!(!<a href="system_addresses.md#0x1_system_addresses_is_aptos_framework_address">system_addresses::is_aptos_framework_address</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(jwk_owner)),
+    <b>assert</b>!(!<a href="system_addresses.md#0x1_system_addresses_is_supra_framework_address">system_addresses::is_supra_framework_address</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(jwk_owner)),
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="jwks.md#0x1_jwks_EINSTALL_FEDERATED_JWKS_AT_APTOS_FRAMEWORK">EINSTALL_FEDERATED_JWKS_AT_APTOS_FRAMEWORK</a>)
     );
 
@@ -889,7 +889,7 @@ the corresponding attribute in the second JWK as shown below.
 
 ```move
 use std::string::utf8;
-aptos_framework::jwks::update_federated_jwk_set(
+supra_framework::jwks::update_federated_jwk_set(
 jwk_owner,
 b"https://accounts.google.com",
 vector[utf8(b"d7b939771a7800c413f90051012d975981916d71"), utf8(b"b2620d5e7f132b52afe8875cdf3776c064249d04")],
@@ -1061,7 +1061,7 @@ supra_framework::aptos_governance::reconfigure(&framework_signer);
     <b>let</b> provider_set = <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="jwks.md#0x1_jwks_SupportedOIDCProviders">SupportedOIDCProviders</a>&gt;()) {
         <a href="config_buffer.md#0x1_config_buffer_extract_v2">config_buffer::extract_v2</a>&lt;<a href="jwks.md#0x1_jwks_SupportedOIDCProviders">SupportedOIDCProviders</a>&gt;()
     } <b>else</b> {
-        *<b>borrow_global</b>&lt;<a href="jwks.md#0x1_jwks_SupportedOIDCProviders">SupportedOIDCProviders</a>&gt;(@aptos_framework)
+        *<b>borrow_global</b>&lt;<a href="jwks.md#0x1_jwks_SupportedOIDCProviders">SupportedOIDCProviders</a>&gt;(@supra_framework)
     };
 
     <b>let</b> old_config_url = <a href="jwks.md#0x1_jwks_remove_oidc_provider_internal">remove_oidc_provider_internal</a>(&<b>mut</b> provider_set, name);
@@ -1136,7 +1136,7 @@ supra_framework::aptos_governance::reconfigure(&framework_signer);
     <b>let</b> provider_set = <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="jwks.md#0x1_jwks_SupportedOIDCProviders">SupportedOIDCProviders</a>&gt;()) {
         <a href="config_buffer.md#0x1_config_buffer_extract_v2">config_buffer::extract_v2</a>&lt;<a href="jwks.md#0x1_jwks_SupportedOIDCProviders">SupportedOIDCProviders</a>&gt;()
     } <b>else</b> {
-        *<b>borrow_global</b>&lt;<a href="jwks.md#0x1_jwks_SupportedOIDCProviders">SupportedOIDCProviders</a>&gt;(@aptos_framework)
+        *<b>borrow_global</b>&lt;<a href="jwks.md#0x1_jwks_SupportedOIDCProviders">SupportedOIDCProviders</a>&gt;(@supra_framework)
     };
     <b>let</b> ret = <a href="jwks.md#0x1_jwks_remove_oidc_provider_internal">remove_oidc_provider_internal</a>(&<b>mut</b> provider_set, name);
     <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(provider_set);
@@ -1168,8 +1168,8 @@ Only used in reconfigurations to apply the pending <code><a href="jwks.md#0x1_jw
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(framework);
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="jwks.md#0x1_jwks_SupportedOIDCProviders">SupportedOIDCProviders</a>&gt;()) {
         <b>let</b> new_config = <a href="config_buffer.md#0x1_config_buffer_extract_v2">config_buffer::extract_v2</a>&lt;<a href="jwks.md#0x1_jwks_SupportedOIDCProviders">SupportedOIDCProviders</a>&gt;();
-        <b>if</b> (<b>exists</b>&lt;<a href="jwks.md#0x1_jwks_SupportedOIDCProviders">SupportedOIDCProviders</a>&gt;(@aptos_framework)) {
-            *<b>borrow_global_mut</b>&lt;<a href="jwks.md#0x1_jwks_SupportedOIDCProviders">SupportedOIDCProviders</a>&gt;(@aptos_framework) = new_config;
+        <b>if</b> (<b>exists</b>&lt;<a href="jwks.md#0x1_jwks_SupportedOIDCProviders">SupportedOIDCProviders</a>&gt;(@supra_framework)) {
+            *<b>borrow_global_mut</b>&lt;<a href="jwks.md#0x1_jwks_SupportedOIDCProviders">SupportedOIDCProviders</a>&gt;(@supra_framework) = new_config;
         } <b>else</b> {
             <b>move_to</b>(framework, new_config);
         }
@@ -1461,8 +1461,8 @@ and its <code><a href="version.md#0x1_version">version</a></code> equals to the 
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="jwks.md#0x1_jwks_upsert_into_observed_jwks">upsert_into_observed_jwks</a>(fx: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, provider_jwks_vec: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="jwks.md#0x1_jwks_ProviderJWKs">ProviderJWKs</a>&gt;) <b>acquires</b> <a href="jwks.md#0x1_jwks_ObservedJWKs">ObservedJWKs</a>, <a href="jwks.md#0x1_jwks_PatchedJWKs">PatchedJWKs</a>, <a href="jwks.md#0x1_jwks_Patches">Patches</a> {
-    <a href="system_addresses.md#0x1_system_addresses_assert_aptos_framework">system_addresses::assert_aptos_framework</a>(fx);
-    <b>let</b> observed_jwks = <b>borrow_global_mut</b>&lt;<a href="jwks.md#0x1_jwks_ObservedJWKs">ObservedJWKs</a>&gt;(@aptos_framework);
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(fx);
+    <b>let</b> observed_jwks = <b>borrow_global_mut</b>&lt;<a href="jwks.md#0x1_jwks_ObservedJWKs">ObservedJWKs</a>&gt;(@supra_framework);
 
     <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_is_jwk_consensus_per_key_mode_enabled">features::is_jwk_consensus_per_key_mode_enabled</a>()) {
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(provider_jwks_vec, |proposed_provider_jwks|{

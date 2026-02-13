@@ -8,9 +8,8 @@ empty = "0xcafe"
 
 [dev-addresses]
 
-[dependencies.AptosFramework]
-git = "https://github.com/aptos-labs/aptos-framework.git"
-rev = "mainnet"
-subdir = "aptos-framework"
+[dependencies.SupraFramework]
+local = '../../../..'
+subdir = 'aptos-move/framework/supra-framework'
 
 [dev-dependencies]

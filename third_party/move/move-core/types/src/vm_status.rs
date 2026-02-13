@@ -631,7 +631,6 @@ pub enum StatusCode {
     // Gas unit price capacity submitted for the automation-task is above the maximum
     // gas price set in the VM.
     AUTOMATION_TASK_GAS_PRICE_CAP_ABOVE_MAX_BOUND = 50,
-
     // Reserved error code for future use
     RESERVED_VALIDATION_ERROR_10 = 51,
     RESERVED_VALIDATION_ERROR_11 = 52,
@@ -639,6 +638,7 @@ pub enum StatusCode {
     RESERVED_VALIDATION_ERROR_13 = 54,
     RESERVED_VALIDATION_ERROR_14 = 55,
     RESERVED_VALIDATION_ERROR_15 = 56,
+
 
     // When a code module/script is published it is verified. These are the
     // possible errors that can arise from the verification process.

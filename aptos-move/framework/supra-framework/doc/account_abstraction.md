@@ -596,7 +596,7 @@ Note: This is  public entry function, as it requires framework signer, and that 
 only be obtained as a part of the governance script.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="account_abstraction.md#0x1_account_abstraction_register_derivable_authentication_function">register_derivable_authentication_function</a>(aptos_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, module_address: <b>address</b>, module_name: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, function_name: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
+<pre><code><b>public</b> entry <b>fun</b> <a href="account_abstraction.md#0x1_account_abstraction_register_derivable_authentication_function">register_derivable_authentication_function</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, module_address: <b>address</b>, module_name: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, function_name: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
 </code></pre>
 
 
@@ -606,15 +606,15 @@ only be obtained as a part of the governance script.
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="account_abstraction.md#0x1_account_abstraction_register_derivable_authentication_function">register_derivable_authentication_function</a>(
-    aptos_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     module_address: <b>address</b>,
     module_name: String,
     function_name: String,
 ) <b>acquires</b> <a href="account_abstraction.md#0x1_account_abstraction_DerivableDispatchableAuthenticator">DerivableDispatchableAuthenticator</a> {
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_is_derivable_account_abstraction_enabled">features::is_derivable_account_abstraction_enabled</a>(), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="account_abstraction.md#0x1_account_abstraction_EDERIVABLE_ACCOUNT_ABSTRACTION_NOT_ENABLED">EDERIVABLE_ACCOUNT_ABSTRACTION_NOT_ENABLED</a>));
-    <a href="system_addresses.md#0x1_system_addresses_assert_aptos_framework">system_addresses::assert_aptos_framework</a>(aptos_framework);
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
-    <a href="account_abstraction.md#0x1_account_abstraction_DerivableDispatchableAuthenticator">DerivableDispatchableAuthenticator</a>[@aptos_framework].auth_functions.add(
+    <a href="account_abstraction.md#0x1_account_abstraction_DerivableDispatchableAuthenticator">DerivableDispatchableAuthenticator</a>[@supra_framework].auth_functions.add(
         <a href="function_info.md#0x1_function_info_new_function_info_from_address">function_info::new_function_info_from_address</a>(module_address, module_name, function_name),
         DerivableRegisterValue::Empty,
     );
@@ -631,7 +631,7 @@ only be obtained as a part of the governance script.
 
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="account_abstraction.md#0x1_account_abstraction_initialize">initialize</a>(aptos_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+<pre><code><b>public</b> entry <b>fun</b> <a href="account_abstraction.md#0x1_account_abstraction_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
 </code></pre>
 
 
@@ -640,10 +640,10 @@ only be obtained as a part of the governance script.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="account_abstraction.md#0x1_account_abstraction_initialize">initialize</a>(aptos_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
-    <a href="system_addresses.md#0x1_system_addresses_assert_aptos_framework">system_addresses::assert_aptos_framework</a>(aptos_framework);
+<pre><code><b>public</b> entry <b>fun</b> <a href="account_abstraction.md#0x1_account_abstraction_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
     <b>move_to</b>(
-        aptos_framework,
+        supra_framework,
         DerivableDispatchableAuthenticator::V1 { auth_functions: <a href="big_ordered_map.md#0x1_big_ordered_map_new_with_config">big_ordered_map::new_with_config</a>(0, 0, <b>false</b>) }
     );
 }
@@ -669,7 +669,7 @@ only be obtained as a part of the governance script.
 
 
 <pre><code>inline <b>fun</b> <a href="account_abstraction.md#0x1_account_abstraction_resource_addr">resource_addr</a>(source: <b>address</b>): <b>address</b> {
-    <a href="object.md#0x1_object_create_user_derived_object_address">object::create_user_derived_object_address</a>(source, @aptos_fungible_asset)
+    <a href="object.md#0x1_object_create_user_derived_object_address">object::create_user_derived_object_address</a>(source, @supra_fungible_asset)
 }
 </code></pre>
 
@@ -700,7 +700,7 @@ only be obtained as a part of the governance script.
     <b>let</b> addr = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(<a href="account.md#0x1_account">account</a>);
     <b>let</b> resource_addr = <a href="account_abstraction.md#0x1_account_abstraction_resource_addr">resource_addr</a>(addr);
     <b>let</b> dispatcher_auth_function_info = <a href="function_info.md#0x1_function_info_new_function_info_from_address">function_info::new_function_info_from_address</a>(
-        @aptos_framework,
+        @supra_framework,
         <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"<a href="account_abstraction.md#0x1_account_abstraction">account_abstraction</a>"),
         <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"dispatchable_authenticate"),
     );
@@ -795,8 +795,8 @@ only be obtained as a part of the governance script.
 
 
 <pre><code>inline <b>fun</b> <a href="account_abstraction.md#0x1_account_abstraction_dispatchable_derivable_authenticator_internal">dispatchable_derivable_authenticator_internal</a>(): &BigOrderedMap&lt;FunctionInfo, <a href="account_abstraction.md#0x1_account_abstraction_DerivableRegisterValue">DerivableRegisterValue</a>&gt; {
-    <b>assert</b>!(<b>exists</b>&lt;<a href="account_abstraction.md#0x1_account_abstraction_DerivableDispatchableAuthenticator">DerivableDispatchableAuthenticator</a>&gt;(@aptos_framework), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="account_abstraction.md#0x1_account_abstraction_EDERIVABLE_AA_NOT_INITIALIZED">EDERIVABLE_AA_NOT_INITIALIZED</a>));
-    &<a href="account_abstraction.md#0x1_account_abstraction_DerivableDispatchableAuthenticator">DerivableDispatchableAuthenticator</a>[@aptos_framework].auth_functions
+    <b>assert</b>!(<b>exists</b>&lt;<a href="account_abstraction.md#0x1_account_abstraction_DerivableDispatchableAuthenticator">DerivableDispatchableAuthenticator</a>&gt;(@supra_framework), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="account_abstraction.md#0x1_account_abstraction_EDERIVABLE_AA_NOT_INITIALIZED">EDERIVABLE_AA_NOT_INITIALIZED</a>));
+    &<a href="account_abstraction.md#0x1_account_abstraction_DerivableDispatchableAuthenticator">DerivableDispatchableAuthenticator</a>[@supra_framework].auth_functions
 }
 </code></pre>
 

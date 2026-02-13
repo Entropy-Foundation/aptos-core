@@ -5,10 +5,10 @@ use crate::tests::vm_viewer::to_view_function;
 use aptos_cached_packages::{aptos_framework_sdk_builder, aptos_stdlib};
 use aptos_language_e2e_tests::{
     account::{Account, AccountData},
-    data_store::FakeDataStore,
     executor::FakeExecutor,
 };
 use aptos_types::account_address::create_multisig_account_address;
+use aptos_types::state_store::StateView;
 use aptos_types::transaction::automation::Priority;
 use aptos_types::transaction::{ExecutionError, Multisig, MultisigTransactionPayload};
 use aptos_types::{
@@ -432,7 +432,7 @@ impl AutomationRegistrationTestContext {
 
     pub(crate) fn get_task_details_with_vm_viewer(
         index: u64,
-        vm_viewer: &AptosVMViewer<FakeDataStore>,
+        vm_viewer: &AptosVMViewer<impl StateView>,
     ) -> AutomationTaskMetaData {
         let view_output = vm_viewer.execute_view_function(
             to_view_function(
@@ -452,7 +452,7 @@ impl AutomationRegistrationTestContext {
 
     pub(crate) fn get_task_details_bulk(
         indexes: Vec<u64>,
-        vm_viewer: &AptosVMViewer<FakeDataStore>,
+        vm_viewer: &AptosVMViewer<impl StateView>,
     ) -> Vec<AutomationTaskMetaData> {
         let view_output = vm_viewer.execute_view_function(
             to_view_function(
@@ -741,7 +741,7 @@ fn check_task_retrieval_performance() {
         );
     }
 
-    let vm_viewer = AptosVMViewer::new(test_context.data_store());
+    let vm_viewer = AptosVMViewer::new(test_context.state_store());
 
     let step_by_step = Instant::now();
 
@@ -862,7 +862,7 @@ fn check_automation_registry_actions_on_cycle_transition() {
     ));
     let cycle_info = test_context.get_cycle_info();
     assert_eq!(cycle_info.state, AutomationCycleState::FINISHED);
-    let cycle_details = AutomationCycleDetails::fetch_config(test_context.data_store())
+    let cycle_details = AutomationCycleDetails::fetch_config(test_context.state_store())
         .expect("Expected a cycle details");
     let transition_state = cycle_details
         .transition_state

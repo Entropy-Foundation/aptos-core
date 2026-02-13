@@ -75,6 +75,23 @@ E.g.,
 REPORT_STATS=1 TEST_FILTER="bulletproofs" cargo test -- aptos_stdlib --skip prover
 ```
 
+To **filter by test name or module name** in a specific package (e.g., run the `test_empty_range_proof` in `aptos_stdlib::ristretto255_bulletproofs`), run:
+
+```
+TEST_FILTER="test_range_proof" cargo test -- aptos_stdlib --skip prover
+```
+
+Or, e.g., run all the Bulletproof tests:
+```
+TEST_FILTER="bulletproofs" cargo test -- aptos_stdlib --skip prover
+```
+
+To show the amount of time and gas used in every test, set env var `REPORT_STATS=1`.
+E.g.,
+```
+REPORT_STATS=1 TEST_FILTER="bulletproofs" cargo test -- aptos_stdlib --skip prover
+```
+
 Sometimes, Rust runs out of stack memory in dev build mode.  You can address this by either:
 1. Adjusting the stack size
 
@@ -97,7 +114,7 @@ The overall structure of the Supra Framework is as follows:
 ├── aptos-stdlib                                 # Sources, testing and generated documentation for Supra stdlib component
 ├── move-stdlib                                 # Sources, testing and generated documentation for Move stdlib component
 ├── cached-packages                                 # Tooling to generate SDK from move sources.
-├── src                                     # Compilation and generation of information from Move source files in the Supra Framework. Not designed to be used as a Rust library
+├── src                                     # Compilation and generation of information from Move source files in the Aptos Framework. Not designed to be used as a Rust library
 ├── releases                                    # Move release bundles
 └── tests
 ```

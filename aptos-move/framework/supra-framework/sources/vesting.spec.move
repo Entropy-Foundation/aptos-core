@@ -113,7 +113,7 @@ spec supra_framework::vesting {
     }
 
     spec schema AbortsIfPermissionedSigner {
-        use aptos_framework::permissioned_signer;
+        use supra_framework::permissioned_signer;
         s: signer;
         let perm = VestPermission {};
         aborts_if !permissioned_signer::spec_check_permission_exists(s, perm);

@@ -76,11 +76,6 @@ impl ReleaseTarget {
                 Some("cached-packages/src/aptos_token_objects_sdk_builder.rs"),
                 false,
             ),
-            // This is only included when the `build_test_framework` feature is enabled.
-            // It contains Move code for testing purposes only and is not meant to be
-            // included in production releases.
-            #[cfg(feature = "build_test_framework")]
-            ("test-framework", None, false),
             ("aptos-experimental", None, true),
         ];
         // Currently we don't have experimental packages only included in particular targets.

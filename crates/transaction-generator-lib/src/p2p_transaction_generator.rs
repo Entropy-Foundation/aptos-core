@@ -182,7 +182,7 @@ impl P2PTransactionGenerator {
     ) -> SignedTransaction {
         from.sign_with_transaction_builder(
             if self.use_fa_transfer {
-                txn_factory.payload(aptos_stdlib::aptos_account_fungible_transfer_only(
+                txn_factory.payload(aptos_stdlib::supra_account_fungible_transfer_only(
                     *to, num_coins,
                 ))
             } else {

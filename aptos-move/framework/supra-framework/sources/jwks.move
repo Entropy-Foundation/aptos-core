@@ -239,7 +239,7 @@ module supra_framework::jwks {
     ///
     /// ```move
     /// use std::string::utf8;
-    /// aptos_framework::jwks::update_federated_jwk_set(
+    /// supra_framework::jwks::update_federated_jwk_set(
     ///     jwk_owner,
     ///     b"https://accounts.google.com",
     ///     vector[utf8(b"d7b939771a7800c413f90051012d975981916d71"), utf8(b"b2620d5e7f132b52afe8875cdf3776c064249d04")],
@@ -804,7 +804,7 @@ module supra_framework::jwks {
                 },
             ]
         };
-        assert!(expected == borrow_global<PatchedJWKs>(@aptos_framework).jwks, 999);
+        assert!(expected == borrow_global<PatchedJWKs>(@supra_framework).jwks, 999);
 
         // Update a key.
         let alice_jwk_1b = new_rsa_jwk(
@@ -828,7 +828,7 @@ module supra_framework::jwks {
                 },
             ]
         };
-        assert!(expected == borrow_global<PatchedJWKs>(@aptos_framework).jwks, 999);
+        assert!(expected == borrow_global<PatchedJWKs>(@supra_framework).jwks, 999);
 
         // Delete a key.
         let delete_command = new_unsupported_jwk(
@@ -850,7 +850,7 @@ module supra_framework::jwks {
                 },
             ]
         };
-        assert!(expected == borrow_global<PatchedJWKs>(@aptos_framework).jwks, 999);
+        assert!(expected == borrow_global<PatchedJWKs>(@supra_framework).jwks, 999);
     }
 
     #[test]

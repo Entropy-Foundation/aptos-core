@@ -3057,7 +3057,7 @@ module supra_framework::vesting_without_staking {
     }
 
     #[test(supra_framework = @0x1, admin = @0x123)]
-    #[expected_failure(abort_code = 0x60001, location = supra_framework::supra_account)]
+    #[expected_failure(abort_code = 0x60001, location = supra_framework::supra_account)] 
     public entry fun test_set_beneficiary_with_missing_account_should_fail(
         supra_framework: &signer, admin: &signer
     ) acquires AdminStore, VestingContract {

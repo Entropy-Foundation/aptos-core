@@ -36,6 +36,7 @@ module supra_framework::genesis {
     use supra_framework::version;
     use supra_framework::vesting;
     use supra_framework::vesting_without_staking;
+    use supra_framework::nonce_validation;
 
     #[test_only]
     use aptos_std::ed25519;
@@ -174,7 +175,9 @@ module supra_framework::genesis {
         execution_config::set(&supra_framework_account, execution_config);
         supra_config::initialize(&supra_framework_account, supra_config);
         version::initialize(&supra_framework_account, initial_version);
+        stake::initialize_pending_transaction_fee(&supra_framework_account);
         stake::initialize(&supra_framework_account);
+        timestamp::set_time_has_started(&supra_framework_account, genesis_timestamp_in_microseconds);
         staking_config::initialize(
             &supra_framework_account,
             minimum_stake,
@@ -196,7 +199,7 @@ module supra_framework::genesis {
         reconfiguration::initialize(&supra_framework_account);
         block::initialize(&supra_framework_account, epoch_interval_microsecs);
         state_storage::initialize(&supra_framework_account);
-        timestamp::set_time_has_started(&supra_framework_account, genesis_timestamp_in_microseconds);
+        nonce_validation::initialize(&supra_framework_account)
     }
 
     /// Genesis step 2: Initialize Supra coin.
@@ -313,14 +316,18 @@ module supra_framework::genesis {
     /// This creates an funds an account if it doesn't exist.
     /// If it exists, it just returns the signer.
     fun create_account(supra_framework: &signer, account_address: address, balance: u64): signer {
-        if (account::exists_at(account_address)) {
+        let account = if (account::exists_at(account_address)) {
             create_signer(account_address)
         } else {
-            let account = account::create_account(account_address);
+            account::create_account(account_address)
+        };
+
+        if (coin::balance<SupraCoin>(account_address) == 0) {
             coin::register<SupraCoin>(&account);
             supra_coin::mint(supra_framework, account_address, balance);
-            account
-        }
+        };
+
+        account
     }
 
 
@@ -831,10 +838,10 @@ module supra_framework::genesis {
         initialize_supra_coin(supra_framework);
 
         let addr = @0x121341; // 01 -> 0a are taken
-        let test_signer_before = create_account(supra_framework, addr, 15);
+        let test_signer_before = create_account(supra_framework, addr, 151515);
         let test_signer_after = create_account(supra_framework, addr, 500);
         assert!(test_signer_before == test_signer_after, 0);
-        assert!(coin::balance<SupraCoin>(addr) == 15, 1);
+        assert!(coin::balance<SupraCoin>(addr) == 151515, 1);
     }
 
     #[test(supra_framework = @0x1)]
@@ -1152,9 +1159,10 @@ module supra_framework::genesis {
         create_account(supra_framework, withdrawal_address, 0);
         vector::for_each_ref(&shareholders, |addr| {
             let addr: address = *addr;
-            if (!account::exists_at(addr)) {
+            // Note: as exists_at will always give true as default account feature
+            // if (!account::exists_at(addr)) {
                 create_account(supra_framework, addr, 100 * ONE_SUPRA);
-            };
+            // };
         });
         let cliff_period_in_seconds = 100;
         let period_duration_in_seconds = 200;

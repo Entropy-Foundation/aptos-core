@@ -4,10 +4,10 @@
 use crate::MoveHarness;
 use aptos_cached_packages::aptos_stdlib::supra_account_transfer;
 use aptos_language_e2e_tests::account::Account;
-use claims::assert_err_eq;
-use move_core_types::vm_status::StatusCode;
+use crate::assert_success;
 
 #[test]
+#[should_panic] // as we disabled the default account feature
 fn non_existent_sender() {
     let mut h = MoveHarness::new();
 
@@ -21,5 +21,5 @@ fn non_existent_sender() {
         .sign();
 
     let status = h.run(txn);
-    assert_err_eq!(status.status(), StatusCode::SENDING_ACCOUNT_DOES_NOT_EXIST);
+    assert_success!(status);
 }

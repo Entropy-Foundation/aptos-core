@@ -121,16 +121,17 @@ spec supra_framework::supra_governance {
         use supra_framework::chain_status;
         use supra_framework::coin::CoinInfo;
         use supra_framework::supra_coin::SupraCoin;
-        use supra_framework::transaction_fee;
+        use supra_framework::staking_config;
         pragma verify = false; // TODO: set because of timeout (property proved).
         let addr = signer::address_of(supra_framework);
         aborts_if addr != @supra_framework;
         include reconfiguration_with_dkg::FinishRequirement {
             framework: supra_framework
         };
-        include transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply;
         requires chain_status::is_operating();
         requires exists<CoinInfo<SupraCoin>>(@supra_framework);
+        requires exists<staking_config::StakingRewardsConfig>(@supra_framework);
+        include staking_config::StakingRewardsConfigRequirement;
     }
 
     spec get_voting_duration_secs(): u64 {
@@ -403,16 +404,17 @@ spec supra_framework::supra_governance {
         use supra_framework::chain_status;
         use supra_framework::coin::CoinInfo;
         use supra_framework::supra_coin::SupraCoin;
-        use supra_framework::transaction_fee;
+        use supra_framework::staking_config;
         pragma verify = false; // TODO: set because of timeout (property proved).
         aborts_if !system_addresses::is_supra_framework_address(signer::address_of(supra_framework));
         include reconfiguration_with_dkg::FinishRequirement {
             framework: supra_framework
         };
 
-        include transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply;
         requires chain_status::is_operating();
         requires exists<CoinInfo<SupraCoin>>(@supra_framework);
+        requires exists<staking_config::StakingRewardsConfig>(@supra_framework);
+        include staking_config::StakingRewardsConfigRequirement;
     }
 
     /// Signer address must be @core_resources.

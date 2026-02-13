@@ -56,7 +56,7 @@ use aptos_types::{
     },
     vm_status::VMStatus,
     write_set::{WriteOp, WriteSet, WriteSetMut},
-    AptosCoinType, CoinType,
+    SupraCoinType, CoinType,
 };
 use aptos_validator_interface::{DebuggerStateView, RestDebuggerInterface};
 use aptos_vm::{
@@ -686,8 +686,8 @@ impl FakeExecutor {
     }
 
     /// Reads the CoinInfo resource value from this executor's data store.
-    pub fn read_apt_coin_info_resource(&self) -> Option<CoinInfoResource<AptosCoinType>> {
-        self.read_resource(&AptosCoinType::coin_info_address())
+    pub fn read_apt_coin_info_resource(&self) -> Option<CoinInfoResource<SupraCoinType>> {
+        self.read_resource(&SupraCoinType::coin_info_address())
     }
 
     /// Executes the given block of transactions.

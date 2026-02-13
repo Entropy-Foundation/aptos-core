@@ -854,6 +854,16 @@ pub static NUM_TXNS_PER_BLOCK: Lazy<Histogram> = Lazy::new(|| {
     .unwrap()
 });
 
+/// Histogram for the number of bytes in the committed blocks.
+pub static NUM_BYTES_PER_BLOCK: Lazy<Histogram> = Lazy::new(|| {
+    register_histogram!(
+        "aptos_consensus_num_bytes_per_block",
+        "Histogram for the number of bytes per (committed) blocks.",
+        exponential_buckets(/*start=*/ 500.0, /*factor=*/ 1.4, /*count=*/ 32).unwrap()
+    )
+    .unwrap()
+});
+
 // Histogram buckets that expand DEFAULT_BUCKETS with more granularity:
 // * 0.3 to 2.0: step 0.1
 // * 2.0 to 4.0: step 0.2

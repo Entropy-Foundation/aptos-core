@@ -6,4 +6,4 @@ version = "1.0.0"
 aptos_experimental = "0x7"
 
 [dependencies]
-AptosFramework = { local = "../aptos-framework" }
+SupraFramework = { local = "../supra-framework" }

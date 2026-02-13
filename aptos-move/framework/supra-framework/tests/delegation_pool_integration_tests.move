@@ -111,9 +111,10 @@ module supra_framework::delegation_pool_integration_tests {
         should_end_epoch: bool,
     ) {
         let validator_address = signer::address_of(validator);
-        if (!account::exists_at(signer::address_of(validator))) {
+        // Note: as default account feature set exist_at always gives true
+        // if (!account::exists_at(signer::address_of(validator))) {
             account::create_account_for_test(validator_address);
-        };
+        // };
 
         let delegator_address = vector[@0x010, @0x020];
         let principle_stake = vector[0, 0];

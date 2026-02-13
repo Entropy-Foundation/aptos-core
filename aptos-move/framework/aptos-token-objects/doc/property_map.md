@@ -442,16 +442,16 @@ Helper for external entry functions to produce a valid container for property va
     values: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;,
 ): <a href="property_map.md#0x4_property_map_PropertyMap">PropertyMap</a> {
     <b>let</b> length = keys.<a href="property_map.md#0x4_property_map_length">length</a>();
-    <b>assert</b>!(<a href="property_map.md#0x4_property_map_length">length</a> &lt;= <a href="property_map.md#0x4_property_map_MAX_PROPERTY_MAP_SIZE">MAX_PROPERTY_MAP_SIZE</a>, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x4_property_map_ETOO_MANY_PROPERTIES">ETOO_MANY_PROPERTIES</a>));
-    <b>assert</b>!(length == values.<a href="property_map.md#0x4_property_map_length">length</a>(), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x4_property_map_EKEY_VALUE_COUNT_MISMATCH">EKEY_VALUE_COUNT_MISMATCH</a>));
-    <b>assert</b>!(length == types.<a href="property_map.md#0x4_property_map_length">length</a>(), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x4_property_map_EKEY_TYPE_COUNT_MISMATCH">EKEY_TYPE_COUNT_MISMATCH</a>));
+    <b>assert</b>!(<a href="property_map.md#0x4_property_map_length">length</a> &lt;= <a href="property_map.md#0x4_property_map_MAX_PROPERTY_MAP_SIZE">MAX_PROPERTY_MAP_SIZE</a>, <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x4_property_map_ETOO_MANY_PROPERTIES">ETOO_MANY_PROPERTIES</a>));
+    <b>assert</b>!(length == values.<a href="property_map.md#0x4_property_map_length">length</a>(), <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x4_property_map_EKEY_VALUE_COUNT_MISMATCH">EKEY_VALUE_COUNT_MISMATCH</a>));
+    <b>assert</b>!(length == types.<a href="property_map.md#0x4_property_map_length">length</a>(), <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x4_property_map_EKEY_TYPE_COUNT_MISMATCH">EKEY_TYPE_COUNT_MISMATCH</a>));
 
-    <b>let</b> container = <a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_create">simple_map::create</a>&lt;String, <a href="property_map.md#0x4_property_map_PropertyValue">PropertyValue</a>&gt;();
+    <b>let</b> container = <a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_create">simple_map::create</a>&lt;String, <a href="property_map.md#0x4_property_map_PropertyValue">PropertyValue</a>&gt;();
     <b>while</b> (!keys.is_empty()) {
         <b>let</b> key = keys.pop_back();
         <b>assert</b>!(
             key.<a href="property_map.md#0x4_property_map_length">length</a>() &lt;= <a href="property_map.md#0x4_property_map_MAX_PROPERTY_NAME_LENGTH">MAX_PROPERTY_NAME_LENGTH</a>,
-            <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x4_property_map_EPROPERTY_MAP_KEY_TOO_LONG">EPROPERTY_MAP_KEY_TOO_LONG</a>),
+            <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x4_property_map_EPROPERTY_MAP_KEY_TOO_LONG">EPROPERTY_MAP_KEY_TOO_LONG</a>),
         );
 
         <b>let</b> value = values.pop_back();
@@ -677,9 +677,9 @@ Validates property value type against its expected type
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x4_property_map_contains_key">contains_key</a>&lt;T: key&gt;(<a href="../../aptos-framework/doc/object.md#0x1_object">object</a>: &Object&lt;T&gt;, key: &String): bool <b>acquires</b> <a href="property_map.md#0x4_property_map_PropertyMap">PropertyMap</a> {
-    <a href="property_map.md#0x4_property_map_assert_exists">assert_exists</a>(<a href="../../aptos-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(<a href="../../aptos-framework/doc/object.md#0x1_object">object</a>));
-    <b>let</b> <a href="property_map.md#0x4_property_map">property_map</a> = &<a href="property_map.md#0x4_property_map_PropertyMap">PropertyMap</a>[<a href="../../aptos-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(<a href="../../aptos-framework/doc/object.md#0x1_object">object</a>)];
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x4_property_map_contains_key">contains_key</a>&lt;T: key&gt;(<a href="../../supra-framework/doc/object.md#0x1_object">object</a>: &Object&lt;T&gt;, key: &String): bool <b>acquires</b> <a href="property_map.md#0x4_property_map_PropertyMap">PropertyMap</a> {
+    <a href="property_map.md#0x4_property_map_assert_exists">assert_exists</a>(<a href="../../supra-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(<a href="../../supra-framework/doc/object.md#0x1_object">object</a>));
+    <b>let</b> <a href="property_map.md#0x4_property_map">property_map</a> = &<a href="property_map.md#0x4_property_map_PropertyMap">PropertyMap</a>[<a href="../../supra-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(<a href="../../supra-framework/doc/object.md#0x1_object">object</a>)];
     <a href="property_map.md#0x4_property_map">property_map</a>.inner.<a href="property_map.md#0x4_property_map_contains_key">contains_key</a>(key)
 }
 </code></pre>
@@ -703,9 +703,9 @@ Validates property value type against its expected type
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x4_property_map_length">length</a>&lt;T: key&gt;(<a href="../../aptos-framework/doc/object.md#0x1_object">object</a>: &Object&lt;T&gt;): u64 <b>acquires</b> <a href="property_map.md#0x4_property_map_PropertyMap">PropertyMap</a> {
-    <a href="property_map.md#0x4_property_map_assert_exists">assert_exists</a>(<a href="../../aptos-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(<a href="../../aptos-framework/doc/object.md#0x1_object">object</a>));
-    <b>let</b> <a href="property_map.md#0x4_property_map">property_map</a> = &<a href="property_map.md#0x4_property_map_PropertyMap">PropertyMap</a>[<a href="../../aptos-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(<a href="../../aptos-framework/doc/object.md#0x1_object">object</a>)];
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x4_property_map_length">length</a>&lt;T: key&gt;(<a href="../../supra-framework/doc/object.md#0x1_object">object</a>: &Object&lt;T&gt;): u64 <b>acquires</b> <a href="property_map.md#0x4_property_map_PropertyMap">PropertyMap</a> {
+    <a href="property_map.md#0x4_property_map_assert_exists">assert_exists</a>(<a href="../../supra-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(<a href="../../supra-framework/doc/object.md#0x1_object">object</a>));
+    <b>let</b> <a href="property_map.md#0x4_property_map">property_map</a> = &<a href="property_map.md#0x4_property_map_PropertyMap">PropertyMap</a>[<a href="../../supra-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(<a href="../../supra-framework/doc/object.md#0x1_object">object</a>)];
     <a href="property_map.md#0x4_property_map">property_map</a>.inner.<a href="property_map.md#0x4_property_map_length">length</a>()
 }
 </code></pre>
@@ -732,9 +732,9 @@ The preferred method is to use <code>read_&lt;type&gt;</code> where the type is 
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x4_property_map_read">read</a>&lt;T: key&gt;(<a href="../../aptos-framework/doc/object.md#0x1_object">object</a>: &Object&lt;T&gt;, key: &String): (String, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;) <b>acquires</b> <a href="property_map.md#0x4_property_map_PropertyMap">PropertyMap</a> {
-    <a href="property_map.md#0x4_property_map_assert_exists">assert_exists</a>(<a href="../../aptos-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(<a href="../../aptos-framework/doc/object.md#0x1_object">object</a>));
-    <b>let</b> <a href="property_map.md#0x4_property_map">property_map</a> = &<a href="property_map.md#0x4_property_map_PropertyMap">PropertyMap</a>[<a href="../../aptos-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(<a href="../../aptos-framework/doc/object.md#0x1_object">object</a>)];
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x4_property_map_read">read</a>&lt;T: key&gt;(<a href="../../supra-framework/doc/object.md#0x1_object">object</a>: &Object&lt;T&gt;, key: &String): (String, <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;) <b>acquires</b> <a href="property_map.md#0x4_property_map_PropertyMap">PropertyMap</a> {
+    <a href="property_map.md#0x4_property_map_assert_exists">assert_exists</a>(<a href="../../supra-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(<a href="../../supra-framework/doc/object.md#0x1_object">object</a>));
+    <b>let</b> <a href="property_map.md#0x4_property_map">property_map</a> = &<a href="property_map.md#0x4_property_map_PropertyMap">PropertyMap</a>[<a href="../../supra-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(<a href="../../supra-framework/doc/object.md#0x1_object">object</a>)];
     <b>let</b> property_value = <a href="property_map.md#0x4_property_map">property_map</a>.inner.borrow(key);
     <b>let</b> new_type = <a href="property_map.md#0x4_property_map_to_external_type">to_external_type</a>(property_value.type);
     (new_type, property_value.value)

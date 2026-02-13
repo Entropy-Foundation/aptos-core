@@ -3,9 +3,9 @@
 
 //# publish --private-key Alice
 module Alice::hello_world {
-    use aptos_framework::signer;
-    use aptos_framework::coin;
-    use aptos_framework::aptos_coin::AptosCoin;
+    use supra_framework::signer;
+    use supra_framework::coin;
+    use supra_framework::supra_coin::SupraCoin;
     use std::string::{Self, String};
 
     struct ModuleData has key, store {
@@ -21,7 +21,7 @@ module Alice::hello_world {
     }
 
     public fun foo(addr: address): u64 {
-        coin::balance<AptosCoin>(addr)
+        coin::balance<SupraCoin>(addr)
     }
 
     public entry fun hi(sender: &signer, msg: String) acquires ModuleData {

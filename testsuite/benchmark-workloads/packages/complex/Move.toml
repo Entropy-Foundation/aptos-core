@@ -3,7 +3,7 @@ name = 'complex'
 version = '1.0.0'
 
 [dependencies]
-AptosFramework = { local = "../../../../aptos-move/framework/aptos-framework" }
+SupraFramework = { local = "../../../../aptos-move/framework/supra-framework" }
 
 [addresses]
 publisher_address = "0xABCD"

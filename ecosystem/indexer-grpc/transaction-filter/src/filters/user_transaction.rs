@@ -9,6 +9,7 @@ use aptos_protos::transaction::v1::{
 };
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
+use aptos_protos::transaction::v1::multisig_transaction_payload::Payload;
 
 /// We use this for UserTransactions.
 /// We support UserPayload and MultisigPayload
@@ -282,10 +283,11 @@ fn get_entry_function_payload_from_transaction_payload(
                 .transaction_payload
                 .as_ref()
                 .and_then(|tp| tp.payload.as_ref())
-                .map(|payload| match payload {
+                .and_then(|payload| match payload {
                     multisig_transaction_payload::Payload::EntryFunctionPayload(ef_payload) => {
-                        ef_payload
+                        Some(ef_payload)
                     },
+                    Payload::AutomationPayload(_) => None
                 }),
             _ => None,
         }

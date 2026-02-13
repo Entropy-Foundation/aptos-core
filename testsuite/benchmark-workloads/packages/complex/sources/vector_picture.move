@@ -17,7 +17,7 @@ module 0xABCD::vector_picture {
         all: vector<address>,
     }
 
-    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
+    #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct Palette has key {
         vec: vector<Color>,
     }

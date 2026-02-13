@@ -1,7 +1,7 @@
 // Initialize AIP-67 parital governance voting.
 script {
-    use aptos_framework::supra_governance;
-    use aptos_framework::jwks;
+    use supra_framework::supra_governance;
+    use supra_framework::jwks;
 
     fun main(proposal_id: u64) {
         let framework_signer = supra_governance::resolve_multi_step_proposal(

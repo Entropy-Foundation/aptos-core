@@ -2,10 +2,10 @@
 ///
 /// This example requires CLI version 3.1.0 or later.
 module raffle::raffle {
-    use aptos_framework::aptos_coin::AptosCoin;
-    use aptos_framework::coin;
-    use aptos_framework::randomness;
-    use aptos_framework::coin::Coin;
+    use supra_framework::supra_coin::SupraCoin;
+    use supra_framework::coin;
+    use supra_framework::randomness;
+    use supra_framework::coin::Coin;
     use std::signer;
     use std::vector;
 
@@ -28,7 +28,7 @@ module raffle::raffle {
         // **WARNING:** Using SmartVector here will make the module vulnerable to **undergasing attacks**.
         // See [AIP-41](https://github.com/aptos-foundation/AIPs/blob/main/aips/aip-41.md#undergasing-attacks).
         tickets: vector<address>,
-        coins: Coin<AptosCoin>,
+        coins: Coin<SupraCoin>,
         is_closed: bool,
     }
 
@@ -58,7 +58,7 @@ module raffle::raffle {
 
         // Charge the price of a raffle ticket from the user's balance, and
         // accumulate it into the raffle's bounty.
-        let coins = coin::withdraw<AptosCoin>(user, TICKET_PRICE);
+        let coins = coin::withdraw<SupraCoin>(user, TICKET_PRICE);
         coin::merge(&mut raffle.coins, coins);
 
         // Issue a ticket for that user
@@ -94,7 +94,7 @@ module raffle::raffle {
 
         // Pay the winner
         let coins = coin::extract_all(&mut raffle.coins);
-        coin::deposit<AptosCoin>(winner, coins);
+        coin::deposit<SupraCoin>(winner, coins);
         raffle.is_closed = true;
 
         winner

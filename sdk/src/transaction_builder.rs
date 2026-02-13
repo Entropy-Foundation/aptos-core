@@ -233,6 +233,7 @@ impl TransactionFactory {
         &self,
         owners: Vec<AccountAddress>,
         signatures_required: u64,
+        timeout_duration: u64,
     ) -> TransactionBuilder {
         self.payload(
             aptos_stdlib::multisig_account_create_with_existing_account_call(
@@ -240,6 +241,7 @@ impl TransactionFactory {
                 signatures_required,
                 vec![],
                 vec![],
+                timeout_duration
             ),
         )
     }
@@ -248,6 +250,7 @@ impl TransactionFactory {
         &self,
         owners: Vec<AccountAddress>,
         signatures_required: u64,
+        timeout_duration: u64,
     ) -> TransactionBuilder {
         self.payload(
             aptos_stdlib::multisig_account_create_with_existing_account_and_revoke_auth_key_call(
@@ -255,6 +258,7 @@ impl TransactionFactory {
                 signatures_required,
                 vec![],
                 vec![],
+                timeout_duration
             ),
         )
     }

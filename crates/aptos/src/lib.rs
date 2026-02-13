@@ -6,7 +6,6 @@
 pub mod account;
 pub mod common;
 pub mod config;
-pub mod ffi;
 pub mod genesis;
 pub mod governance;
 pub mod move_tool;
@@ -16,12 +15,14 @@ pub mod stake;
 #[cfg(any(test, feature = "fuzzing"))]
 pub mod test;
 pub mod update;
+pub mod workspace;
 pub mod supra_specific;
 
 use crate::common::{
     types::{CliCommand, CliResult, CliTypedResult},
     utils::cli_build_information,
 };
+use aptos_workspace_server::WorkspaceCommand;
 use async_trait::async_trait;
 use clap::Parser;
 use std::collections::BTreeMap;
@@ -52,6 +53,8 @@ pub enum Tool {
     Stake(stake::StakeTool),
     #[clap(subcommand)]
     Update(update::UpdateTool),
+    #[clap(subcommand, hide(true))]
+    Workspace(WorkspaceCommand),
 }
 
 impl Tool {
@@ -71,6 +74,7 @@ impl Tool {
             // Node(tool) => tool.execute().await,
             Stake(tool) => tool.execute().await,
             Update(tool) => tool.execute().await,
+            Workspace(workspace) => workspace.execute_serialized_without_logger().await,
         }
     }
 }

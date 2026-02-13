@@ -24,7 +24,7 @@ module token_offer {
     use marketplace::fee_schedule::{Self, FeeSchedule};
     use marketplace::listing::{Self, TokenV1Container};
     use aptos_token::token::TokenId;
-    use supra_framework::aptos_account;
+    use supra_framework::supra_account;
 
     /// No token offer defined.
     const ENO_TOKEN_OFFER: u64 = 1;
@@ -196,7 +196,7 @@ module token_offer {
     ) {
         let fee = fee_schedule::listing_fee(fee_schedule, total_to_extract);
         let fee_address = fee_schedule::fee_address(fee_schedule);
-        aptos_account::transfer_coins<CoinType>(purchaser, fee_address, fee);
+        supra_account::transfer_coins<CoinType>(purchaser, fee_address, fee);
 
         let coins = coin::withdraw<CoinType>(purchaser, total_to_extract);
         move_to(offer_signer, CoinOffer { coins });
@@ -383,14 +383,14 @@ module token_offer {
 
         let royalty_charge = price * royalty_numerator / royalty_denominator;
         let royalties = coin::extract(&mut coins, royalty_charge);
-        aptos_account::deposit_coins(royalty_payee, royalties);
+        supra_account::deposit_coins(royalty_payee, royalties);
 
         let fee_schedule = token_offer_obj.fee_schedule;
         let commission_charge = fee_schedule::commission(fee_schedule, price);
         let commission = coin::extract(&mut coins, commission_charge);
-        aptos_account::deposit_coins(fee_schedule::fee_address(fee_schedule), commission);
+        supra_account::deposit_coins(fee_schedule::fee_address(fee_schedule), commission);
 
-        aptos_account::deposit_coins(seller, coins);
+        supra_account::deposit_coins(seller, coins);
 
         events::emit_token_offer_filled(
             fee_schedule,
@@ -413,7 +413,7 @@ module token_offer {
     ) acquires CoinOffer, TokenOffer, TokenOfferTokenV1, TokenOfferTokenV2 {
         let token_offer_addr = object::object_address(&token_offer);
         let CoinOffer<CoinType> { coins } = move_from(token_offer_addr);
-        aptos_account::deposit_coins(object::owner(token_offer), coins);
+        supra_account::deposit_coins(object::owner(token_offer), coins);
 
         let TokenOffer {
             fee_schedule: _,

@@ -171,8 +171,8 @@ fn test_event_emission_not_allowed_in_scripts() {
     "#;
     builder.add_source("test.move", source);
     builder.add_local_dep(
-        "AptosFramework",
-        &common::framework_dir_path("aptos-framework").to_string_lossy(),
+        "SupraFramework",
+        &common::framework_dir_path("supra-framework").to_string_lossy(),
     );
 
     let p1_path = builder.write_to_temp().unwrap();
@@ -217,8 +217,8 @@ fn test_event_emission_not_allowed_in_scripts() {
     }
     builder.add_local_dep("P1", p1_path.path().to_str().unwrap());
     builder.add_local_dep(
-        "AptosFramework",
-        &common::framework_dir_path("aptos-framework").to_string_lossy(),
+        "SupraFramework",
+        &common::framework_dir_path("supra-framework").to_string_lossy(),
     );
 
     let p2_path = builder.write_to_temp().unwrap();
@@ -359,8 +359,8 @@ fn test_event_emission_in_modules() {
         builder.add_source(&format!("test{idx}.move"), source);
         builder.add_local_dep("P1", p1_path.path().to_str().unwrap());
         builder.add_local_dep(
-            "AptosFramework",
-            &common::framework_dir_path("aptos-framework").to_string_lossy(),
+            "SupraFramework",
+            &common::framework_dir_path("supra-framework").to_string_lossy(),
         );
         let path = builder.write_to_temp().unwrap();
         let status = h.publish_package_with_options(&acc, path.path(), build_options.clone());

@@ -246,15 +246,15 @@ The maximal number of property that can be stored in property map
     types: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;
 ): <a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a> {
     <b>let</b> length = keys.<a href="property_map.md#0x3_property_map_length">length</a>();
-    <b>assert</b>!(<a href="property_map.md#0x3_property_map_length">length</a> &lt;= <a href="property_map.md#0x3_property_map_MAX_PROPERTY_MAP_SIZE">MAX_PROPERTY_MAP_SIZE</a>, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EPROPERTY_NUMBER_EXCEED_LIMIT">EPROPERTY_NUMBER_EXCEED_LIMIT</a>));
-    <b>assert</b>!(length == values.<a href="property_map.md#0x3_property_map_length">length</a>(), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EKEY_COUNT_NOT_MATCH_VALUE_COUNT">EKEY_COUNT_NOT_MATCH_VALUE_COUNT</a>));
-    <b>assert</b>!(length == types.<a href="property_map.md#0x3_property_map_length">length</a>(), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EKEY_COUNT_NOT_MATCH_TYPE_COUNT">EKEY_COUNT_NOT_MATCH_TYPE_COUNT</a>));
+    <b>assert</b>!(<a href="property_map.md#0x3_property_map_length">length</a> &lt;= <a href="property_map.md#0x3_property_map_MAX_PROPERTY_MAP_SIZE">MAX_PROPERTY_MAP_SIZE</a>, <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EPROPERTY_NUMBER_EXCEED_LIMIT">EPROPERTY_NUMBER_EXCEED_LIMIT</a>));
+    <b>assert</b>!(length == values.<a href="property_map.md#0x3_property_map_length">length</a>(), <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EKEY_COUNT_NOT_MATCH_VALUE_COUNT">EKEY_COUNT_NOT_MATCH_VALUE_COUNT</a>));
+    <b>assert</b>!(length == types.<a href="property_map.md#0x3_property_map_length">length</a>(), <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EKEY_COUNT_NOT_MATCH_TYPE_COUNT">EKEY_COUNT_NOT_MATCH_TYPE_COUNT</a>));
 
     <b>let</b> properties = <a href="property_map.md#0x3_property_map_empty">empty</a>();
 
     for (i in 0..length) {
         <b>let</b> key = keys[i];
-        <b>assert</b>!(key.<a href="property_map.md#0x3_property_map_length">length</a>() &lt;= <a href="property_map.md#0x3_property_map_MAX_PROPERTY_NAME_LENGTH">MAX_PROPERTY_NAME_LENGTH</a>, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EPROPERTY_MAP_NAME_TOO_LONG">EPROPERTY_MAP_NAME_TOO_LONG</a>));
+        <b>assert</b>!(key.<a href="property_map.md#0x3_property_map_length">length</a>() &lt;= <a href="property_map.md#0x3_property_map_MAX_PROPERTY_NAME_LENGTH">MAX_PROPERTY_NAME_LENGTH</a>, <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EPROPERTY_MAP_NAME_TOO_LONG">EPROPERTY_MAP_NAME_TOO_LONG</a>));
         properties.map.<a href="property_map.md#0x3_property_map_add">add</a>(
             key,
             <a href="property_map.md#0x3_property_map_PropertyValue">PropertyValue</a> { value: values[i], type: types[i] }
@@ -289,15 +289,15 @@ Create property map directly from key and property value
     values: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="property_map.md#0x3_property_map_PropertyValue">PropertyValue</a>&gt;
 ): <a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a> {
     <b>let</b> length = keys.<a href="property_map.md#0x3_property_map_length">length</a>();
-    <b>assert</b>!(<a href="property_map.md#0x3_property_map_length">length</a> &lt;= <a href="property_map.md#0x3_property_map_MAX_PROPERTY_MAP_SIZE">MAX_PROPERTY_MAP_SIZE</a>, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EPROPERTY_NUMBER_EXCEED_LIMIT">EPROPERTY_NUMBER_EXCEED_LIMIT</a>));
-    <b>assert</b>!(length == values.<a href="property_map.md#0x3_property_map_length">length</a>(), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EKEY_COUNT_NOT_MATCH_VALUE_COUNT">EKEY_COUNT_NOT_MATCH_VALUE_COUNT</a>));
+    <b>assert</b>!(<a href="property_map.md#0x3_property_map_length">length</a> &lt;= <a href="property_map.md#0x3_property_map_MAX_PROPERTY_MAP_SIZE">MAX_PROPERTY_MAP_SIZE</a>, <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EPROPERTY_NUMBER_EXCEED_LIMIT">EPROPERTY_NUMBER_EXCEED_LIMIT</a>));
+    <b>assert</b>!(length == values.<a href="property_map.md#0x3_property_map_length">length</a>(), <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EKEY_COUNT_NOT_MATCH_VALUE_COUNT">EKEY_COUNT_NOT_MATCH_VALUE_COUNT</a>));
 
     <b>let</b> properties = <a href="property_map.md#0x3_property_map_empty">empty</a>();
 
     for (i in 0..length) {
         <b>let</b> key = keys[i];
         <b>let</b> val = values[i];
-        <b>assert</b>!(key.<a href="property_map.md#0x3_property_map_length">length</a>() &lt;= <a href="property_map.md#0x3_property_map_MAX_PROPERTY_NAME_LENGTH">MAX_PROPERTY_NAME_LENGTH</a>, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EPROPERTY_MAP_NAME_TOO_LONG">EPROPERTY_MAP_NAME_TOO_LONG</a>));
+        <b>assert</b>!(key.<a href="property_map.md#0x3_property_map_length">length</a>() &lt;= <a href="property_map.md#0x3_property_map_MAX_PROPERTY_NAME_LENGTH">MAX_PROPERTY_NAME_LENGTH</a>, <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EPROPERTY_MAP_NAME_TOO_LONG">EPROPERTY_MAP_NAME_TOO_LONG</a>));
         properties.<a href="property_map.md#0x3_property_map_add">add</a>(key, val);
     };
     properties
@@ -340,7 +340,7 @@ Create property map directly from key and property value
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_contains_key">contains_key</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): bool
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_contains_key">contains_key</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): bool
 </code></pre>
 
 
@@ -364,7 +364,7 @@ Create property map directly from key and property value
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_add">add</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, value: <a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_add">add</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, value: <a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>)
 </code></pre>
 
 
@@ -374,8 +374,8 @@ Create property map directly from key and property value
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_add">add</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a>, key: String, value: <a href="property_map.md#0x3_property_map_PropertyValue">PropertyValue</a>) {
-    <b>assert</b>!(key.<a href="property_map.md#0x3_property_map_length">length</a>() &lt;= <a href="property_map.md#0x3_property_map_MAX_PROPERTY_NAME_LENGTH">MAX_PROPERTY_NAME_LENGTH</a>, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EPROPERTY_MAP_NAME_TOO_LONG">EPROPERTY_MAP_NAME_TOO_LONG</a>));
-    <b>assert</b>!(self.map.<a href="property_map.md#0x3_property_map_length">length</a>() &lt; <a href="property_map.md#0x3_property_map_MAX_PROPERTY_MAP_SIZE">MAX_PROPERTY_MAP_SIZE</a>, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_EPROPERTY_NUMBER_EXCEED_LIMIT">EPROPERTY_NUMBER_EXCEED_LIMIT</a>));
+    <b>assert</b>!(key.<a href="property_map.md#0x3_property_map_length">length</a>() &lt;= <a href="property_map.md#0x3_property_map_MAX_PROPERTY_NAME_LENGTH">MAX_PROPERTY_NAME_LENGTH</a>, <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="property_map.md#0x3_property_map_EPROPERTY_MAP_NAME_TOO_LONG">EPROPERTY_MAP_NAME_TOO_LONG</a>));
+    <b>assert</b>!(self.map.<a href="property_map.md#0x3_property_map_length">length</a>() &lt; <a href="property_map.md#0x3_property_map_MAX_PROPERTY_MAP_SIZE">MAX_PROPERTY_MAP_SIZE</a>, <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_EPROPERTY_NUMBER_EXCEED_LIMIT">EPROPERTY_NUMBER_EXCEED_LIMIT</a>));
     self.map.<a href="property_map.md#0x3_property_map_add">add</a>(key, value);
 }
 </code></pre>
@@ -414,7 +414,7 @@ Create property map directly from key and property value
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_borrow">borrow</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): &<a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_borrow">borrow</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): &<a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>
 </code></pre>
 
 
@@ -441,7 +441,7 @@ Create property map directly from key and property value
 Return all the keys in the property map in the order they are added.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_keys">keys</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_keys">keys</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>): <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;
 </code></pre>
 
 
@@ -450,7 +450,7 @@ Return all the keys in the property map in the order they are added.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_keys">keys</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt; {
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_keys">keys</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a>): <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt; {
     self.map.<a href="property_map.md#0x3_property_map_keys">keys</a>()
 }
 </code></pre>
@@ -466,7 +466,7 @@ Return all the keys in the property map in the order they are added.
 Return the types of all properties in the property map in the order they are added.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_types">types</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_types">types</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>): <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;
 </code></pre>
 
 
@@ -475,7 +475,7 @@ Return the types of all properties in the property map in the order they are add
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_types">types</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt; {
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_types">types</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a>): <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt; {
     self.map.<a href="property_map.md#0x3_property_map_values">values</a>().map_ref(|v| {
         v.type
     })
@@ -493,7 +493,7 @@ Return the types of all properties in the property map in the order they are add
 Return the values of all properties in the property map in the order they are added.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_values">values</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_values">values</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>): <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
 </code></pre>
 
 
@@ -502,7 +502,7 @@ Return the values of all properties in the property map in the order they are ad
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_values">values</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt; {
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_values">values</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a>): <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt; {
     self.map.<a href="property_map.md#0x3_property_map_values">values</a>().map_ref(|v| {
         v.value
     })
@@ -519,7 +519,7 @@ Return the values of all properties in the property map in the order they are ad
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_string">read_string</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_string">read_string</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>
 </code></pre>
 
 
@@ -530,8 +530,8 @@ Return the values of all properties in the property map in the order they are ad
 
 <pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_string">read_string</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a>, key: &String): String {
     <b>let</b> prop = self.<a href="property_map.md#0x3_property_map_borrow">borrow</a>(key);
-    <b>assert</b>!(prop.type == <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">0x1::string::String</a>"), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_ETYPE_NOT_MATCH">ETYPE_NOT_MATCH</a>));
-    <a href="../../aptos-framework/../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_string">from_bcs::to_string</a>(prop.value)
+    <b>assert</b>!(prop.type == <a href="../../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"<a href="../../move-stdlib/doc/string.md#0x1_string_String">0x1::string::String</a>"), <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_ETYPE_NOT_MATCH">ETYPE_NOT_MATCH</a>));
+    <a href="../../supra-framework/../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_string">from_bcs::to_string</a>(prop.value)
 }
 </code></pre>
 
@@ -545,7 +545,7 @@ Return the values of all properties in the property map in the order they are ad
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u8">read_u8</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): u8
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u8">read_u8</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): u8
 </code></pre>
 
 
@@ -556,8 +556,8 @@ Return the values of all properties in the property map in the order they are ad
 
 <pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u8">read_u8</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a>, key: &String): u8 {
     <b>let</b> prop = self.<a href="property_map.md#0x3_property_map_borrow">borrow</a>(key);
-    <b>assert</b>!(prop.type == <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"u8"), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_ETYPE_NOT_MATCH">ETYPE_NOT_MATCH</a>));
-    <a href="../../aptos-framework/../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_u8">from_bcs::to_u8</a>(prop.value)
+    <b>assert</b>!(prop.type == <a href="../../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"u8"), <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_ETYPE_NOT_MATCH">ETYPE_NOT_MATCH</a>));
+    <a href="../../supra-framework/../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_u8">from_bcs::to_u8</a>(prop.value)
 }
 </code></pre>
 
@@ -571,7 +571,7 @@ Return the values of all properties in the property map in the order they are ad
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u64">read_u64</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): u64
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u64">read_u64</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): u64
 </code></pre>
 
 
@@ -582,8 +582,8 @@ Return the values of all properties in the property map in the order they are ad
 
 <pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u64">read_u64</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a>, key: &String): u64 {
     <b>let</b> prop = self.<a href="property_map.md#0x3_property_map_borrow">borrow</a>(key);
-    <b>assert</b>!(prop.type == <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"u64"), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_ETYPE_NOT_MATCH">ETYPE_NOT_MATCH</a>));
-    <a href="../../aptos-framework/../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_u64">from_bcs::to_u64</a>(prop.value)
+    <b>assert</b>!(prop.type == <a href="../../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"u64"), <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_ETYPE_NOT_MATCH">ETYPE_NOT_MATCH</a>));
+    <a href="../../supra-framework/../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_u64">from_bcs::to_u64</a>(prop.value)
 }
 </code></pre>
 
@@ -597,7 +597,7 @@ Return the values of all properties in the property map in the order they are ad
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_address">read_address</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <b>address</b>
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_address">read_address</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <b>address</b>
 </code></pre>
 
 
@@ -608,8 +608,8 @@ Return the values of all properties in the property map in the order they are ad
 
 <pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_address">read_address</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a>, key: &String): <b>address</b> {
     <b>let</b> prop = self.<a href="property_map.md#0x3_property_map_borrow">borrow</a>(key);
-    <b>assert</b>!(prop.type == <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"<b>address</b>"), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_ETYPE_NOT_MATCH">ETYPE_NOT_MATCH</a>));
-    <a href="../../aptos-framework/../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_address">from_bcs::to_address</a>(prop.value)
+    <b>assert</b>!(prop.type == <a href="../../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"<b>address</b>"), <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_ETYPE_NOT_MATCH">ETYPE_NOT_MATCH</a>));
+    <a href="../../supra-framework/../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_address">from_bcs::to_address</a>(prop.value)
 }
 </code></pre>
 
@@ -623,7 +623,7 @@ Return the values of all properties in the property map in the order they are ad
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u128">read_u128</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): u128
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u128">read_u128</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): u128
 </code></pre>
 
 
@@ -634,8 +634,8 @@ Return the values of all properties in the property map in the order they are ad
 
 <pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u128">read_u128</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a>, key: &String): u128 {
     <b>let</b> prop = self.<a href="property_map.md#0x3_property_map_borrow">borrow</a>(key);
-    <b>assert</b>!(prop.type == <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"u128"), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_ETYPE_NOT_MATCH">ETYPE_NOT_MATCH</a>));
-    <a href="../../aptos-framework/../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_u128">from_bcs::to_u128</a>(prop.value)
+    <b>assert</b>!(prop.type == <a href="../../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"u128"), <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_ETYPE_NOT_MATCH">ETYPE_NOT_MATCH</a>));
+    <a href="../../supra-framework/../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_u128">from_bcs::to_u128</a>(prop.value)
 }
 </code></pre>
 
@@ -649,7 +649,7 @@ Return the values of all properties in the property map in the order they are ad
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_bool">read_bool</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): bool
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_bool">read_bool</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): bool
 </code></pre>
 
 
@@ -660,8 +660,8 @@ Return the values of all properties in the property map in the order they are ad
 
 <pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_bool">read_bool</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a>, key: &String): bool {
     <b>let</b> prop = self.<a href="property_map.md#0x3_property_map_borrow">borrow</a>(key);
-    <b>assert</b>!(prop.type == <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"bool"), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_ETYPE_NOT_MATCH">ETYPE_NOT_MATCH</a>));
-    <a href="../../aptos-framework/../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_bool">from_bcs::to_bool</a>(prop.value)
+    <b>assert</b>!(prop.type == <a href="../../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"bool"), <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_ETYPE_NOT_MATCH">ETYPE_NOT_MATCH</a>));
+    <a href="../../supra-framework/../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_bool">from_bcs::to_bool</a>(prop.value)
 }
 </code></pre>
 
@@ -675,7 +675,7 @@ Return the values of all properties in the property map in the order they are ad
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_borrow_value">borrow_value</a>(self: &<a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_borrow_value">borrow_value</a>(self: &<a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>): <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 </code></pre>
 
 
@@ -684,7 +684,7 @@ Return the values of all properties in the property map in the order they are ad
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_borrow_value">borrow_value</a>(self: &<a href="property_map.md#0x3_property_map_PropertyValue">PropertyValue</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_borrow_value">borrow_value</a>(self: &<a href="property_map.md#0x3_property_map_PropertyValue">PropertyValue</a>): <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
     self.value
 }
 </code></pre>
@@ -699,7 +699,7 @@ Return the values of all properties in the property map in the order they are ad
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_borrow_type">borrow_type</a>(self: &<a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_borrow_type">borrow_type</a>(self: &<a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>): <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>
 </code></pre>
 
 
@@ -723,7 +723,7 @@ Return the values of all properties in the property map in the order they are ad
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_remove">remove</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): (<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, <a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_remove">remove</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): (<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, <a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>)
 </code></pre>
 
 
@@ -737,7 +737,7 @@ Return the values of all properties in the property map in the order they are ad
     key: &String
 ): (String, <a href="property_map.md#0x3_property_map_PropertyValue">PropertyValue</a>) {
     <b>let</b> found = self.<a href="property_map.md#0x3_property_map_contains_key">contains_key</a>(key);
-    <b>assert</b>!(found, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="property_map.md#0x3_property_map_EPROPERTY_NOT_EXIST">EPROPERTY_NOT_EXIST</a>));
+    <b>assert</b>!(found, <a href="../../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="property_map.md#0x3_property_map_EPROPERTY_NOT_EXIST">EPROPERTY_NOT_EXIST</a>));
     self.map.<a href="property_map.md#0x3_property_map_remove">remove</a>(key)
 }
 </code></pre>
@@ -754,7 +754,7 @@ Update the property in the existing property map
 Allow updating existing keys' value and add new key-value pairs
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_update_property_map">update_property_map</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, keys: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, values: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, types: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;)
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_update_property_map">update_property_map</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, keys: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, values: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, types: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;)
 </code></pre>
 
 
@@ -765,15 +765,15 @@ Allow updating existing keys' value and add new key-value pairs
 
 <pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_update_property_map">update_property_map</a>(
     self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">PropertyMap</a>,
-    keys: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
-    values: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;,
-    types: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
+    keys: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
+    values: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;,
+    types: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
 ) {
     <b>let</b> key_len = keys.<a href="property_map.md#0x3_property_map_length">length</a>();
     <b>let</b> val_len = values.<a href="property_map.md#0x3_property_map_length">length</a>();
     <b>let</b> typ_len = types.<a href="property_map.md#0x3_property_map_length">length</a>();
-    <b>assert</b>!(key_len == val_len, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_EKEY_COUNT_NOT_MATCH_VALUE_COUNT">EKEY_COUNT_NOT_MATCH_VALUE_COUNT</a>));
-    <b>assert</b>!(key_len == typ_len, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_EKEY_COUNT_NOT_MATCH_TYPE_COUNT">EKEY_COUNT_NOT_MATCH_TYPE_COUNT</a>));
+    <b>assert</b>!(key_len == val_len, <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_EKEY_COUNT_NOT_MATCH_VALUE_COUNT">EKEY_COUNT_NOT_MATCH_VALUE_COUNT</a>));
+    <b>assert</b>!(key_len == typ_len, <a href="../../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="property_map.md#0x3_property_map_EKEY_COUNT_NOT_MATCH_TYPE_COUNT">EKEY_COUNT_NOT_MATCH_TYPE_COUNT</a>));
 
     for (i in 0..key_len) {
         <b>let</b> key = &keys[i];
@@ -800,7 +800,7 @@ Allow updating existing keys' value and add new key-value pairs
 
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_update_property_value">update_property_value</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, value: <a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_update_property_value">update_property_value</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, value: <a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>)
 </code></pre>
 
 
@@ -964,7 +964,7 @@ create a property value from generic type data
 ### Function `contains_key`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_contains_key">contains_key</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): bool
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_contains_key">contains_key</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): bool
 </code></pre>
 
 
@@ -980,15 +980,15 @@ create a property value from generic type data
 ### Function `add`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_add">add</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, value: <a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_add">add</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, value: <a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>)
 </code></pre>
 
 
 
 
 <pre><code><b>aborts_if</b> !(key.<a href="property_map.md#0x3_property_map_length">length</a>() &lt;= <a href="property_map.md#0x3_property_map_MAX_PROPERTY_NAME_LENGTH">MAX_PROPERTY_NAME_LENGTH</a>);
-<b>aborts_if</b> !(!<a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key));
-<b>aborts_if</b> !(<a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_len">simple_map::spec_len</a>(self.map) &lt; <a href="property_map.md#0x3_property_map_MAX_PROPERTY_MAP_SIZE">MAX_PROPERTY_MAP_SIZE</a>);
+<b>aborts_if</b> !(!<a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key));
+<b>aborts_if</b> !(<a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_len">simple_map::spec_len</a>(self.map) &lt; <a href="property_map.md#0x3_property_map_MAX_PROPERTY_MAP_SIZE">MAX_PROPERTY_MAP_SIZE</a>);
 </code></pre>
 
 
@@ -1014,13 +1014,13 @@ create a property value from generic type data
 ### Function `borrow`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_borrow">borrow</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): &<a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_borrow">borrow</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): &<a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>
 </code></pre>
 
 
 
 
-<pre><code><b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
+<pre><code><b>aborts_if</b> !<a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
 </code></pre>
 
 
@@ -1030,7 +1030,7 @@ create a property value from generic type data
 ### Function `keys`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_keys">keys</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_keys">keys</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>): <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;
 </code></pre>
 
 
@@ -1046,7 +1046,7 @@ create a property value from generic type data
 ### Function `types`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_types">types</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_types">types</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>): <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;
 </code></pre>
 
 
@@ -1062,7 +1062,7 @@ create a property value from generic type data
 ### Function `values`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_values">values</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_values">values</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>): <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
 </code></pre>
 
 
@@ -1078,7 +1078,7 @@ create a property value from generic type data
 ### Function `read_string`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_string">read_string</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_string">read_string</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>
 </code></pre>
 
 
@@ -1087,10 +1087,10 @@ to <code>prop.type</code>
 
 
 <pre><code><b>pragma</b> aborts_if_is_partial;
-<b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
-<b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_spec_internal_check_utf8">string::spec_internal_check_utf8</a>(b"<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">0x1::string::String</a>");
-<b>let</b> prop = <a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_get">simple_map::spec_get</a>(self.map, key);
-<b>aborts_if</b> prop.type != <a href="property_map.md#0x3_property_map_spec_utf8">spec_utf8</a>(b"<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">0x1::string::String</a>");
+<b>aborts_if</b> !<a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
+<b>aborts_if</b> !<a href="../../move-stdlib/doc/string.md#0x1_string_spec_internal_check_utf8">string::spec_internal_check_utf8</a>(b"<a href="../../move-stdlib/doc/string.md#0x1_string_String">0x1::string::String</a>");
+<b>let</b> prop = <a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_get">simple_map::spec_get</a>(self.map, key);
+<b>aborts_if</b> prop.type != <a href="property_map.md#0x3_property_map_spec_utf8">spec_utf8</a>(b"<a href="../../move-stdlib/doc/string.md#0x1_string_String">0x1::string::String</a>");
 <b>aborts_if</b> !aptos_std::from_bcs::deserializable&lt;String&gt;(prop.value);
 </code></pre>
 
@@ -1100,7 +1100,7 @@ to <code>prop.type</code>
 <a id="0x3_property_map_spec_utf8"></a>
 
 
-<pre><code><b>fun</b> <a href="property_map.md#0x3_property_map_spec_utf8">spec_utf8</a>(bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): String {
+<pre><code><b>fun</b> <a href="property_map.md#0x3_property_map_spec_utf8">spec_utf8</a>(bytes: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): String {
    String { bytes }
 }
 </code></pre>
@@ -1112,16 +1112,16 @@ to <code>prop.type</code>
 ### Function `read_u8`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u8">read_u8</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): u8
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u8">read_u8</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): u8
 </code></pre>
 
 
 
 
 <pre><code><b>let</b> str = b"u8";
-<b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
-<b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_spec_internal_check_utf8">string::spec_internal_check_utf8</a>(str);
-<b>let</b> prop = <a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_get">simple_map::spec_get</a>(self.map, key);
+<b>aborts_if</b> !<a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
+<b>aborts_if</b> !<a href="../../move-stdlib/doc/string.md#0x1_string_spec_internal_check_utf8">string::spec_internal_check_utf8</a>(str);
+<b>let</b> prop = <a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_get">simple_map::spec_get</a>(self.map, key);
 <b>aborts_if</b> prop.type != <a href="property_map.md#0x3_property_map_spec_utf8">spec_utf8</a>(str);
 <b>aborts_if</b> !aptos_std::from_bcs::deserializable&lt;u8&gt;(prop.value);
 </code></pre>
@@ -1133,16 +1133,16 @@ to <code>prop.type</code>
 ### Function `read_u64`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u64">read_u64</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): u64
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u64">read_u64</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): u64
 </code></pre>
 
 
 
 
 <pre><code><b>let</b> str = b"u64";
-<b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
-<b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_spec_internal_check_utf8">string::spec_internal_check_utf8</a>(str);
-<b>let</b> prop = <a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_get">simple_map::spec_get</a>(self.map, key);
+<b>aborts_if</b> !<a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
+<b>aborts_if</b> !<a href="../../move-stdlib/doc/string.md#0x1_string_spec_internal_check_utf8">string::spec_internal_check_utf8</a>(str);
+<b>let</b> prop = <a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_get">simple_map::spec_get</a>(self.map, key);
 <b>aborts_if</b> prop.type != <a href="property_map.md#0x3_property_map_spec_utf8">spec_utf8</a>(str);
 <b>aborts_if</b> !aptos_std::from_bcs::deserializable&lt;u64&gt;(prop.value);
 </code></pre>
@@ -1154,16 +1154,16 @@ to <code>prop.type</code>
 ### Function `read_address`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_address">read_address</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <b>address</b>
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_address">read_address</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): <b>address</b>
 </code></pre>
 
 
 
 
 <pre><code><b>let</b> str = b"<b>address</b>";
-<b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
-<b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_spec_internal_check_utf8">string::spec_internal_check_utf8</a>(str);
-<b>let</b> prop = <a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_get">simple_map::spec_get</a>(self.map, key);
+<b>aborts_if</b> !<a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
+<b>aborts_if</b> !<a href="../../move-stdlib/doc/string.md#0x1_string_spec_internal_check_utf8">string::spec_internal_check_utf8</a>(str);
+<b>let</b> prop = <a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_get">simple_map::spec_get</a>(self.map, key);
 <b>aborts_if</b> prop.type != <a href="property_map.md#0x3_property_map_spec_utf8">spec_utf8</a>(str);
 <b>aborts_if</b> !aptos_std::from_bcs::deserializable&lt;<b>address</b>&gt;(prop.value);
 </code></pre>
@@ -1175,16 +1175,16 @@ to <code>prop.type</code>
 ### Function `read_u128`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u128">read_u128</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): u128
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_u128">read_u128</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): u128
 </code></pre>
 
 
 
 
 <pre><code><b>let</b> str = b"u128";
-<b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
-<b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_spec_internal_check_utf8">string::spec_internal_check_utf8</a>(str);
-<b>let</b> prop = <a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_get">simple_map::spec_get</a>(self.map, key);
+<b>aborts_if</b> !<a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
+<b>aborts_if</b> !<a href="../../move-stdlib/doc/string.md#0x1_string_spec_internal_check_utf8">string::spec_internal_check_utf8</a>(str);
+<b>let</b> prop = <a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_get">simple_map::spec_get</a>(self.map, key);
 <b>aborts_if</b> prop.type != <a href="property_map.md#0x3_property_map_spec_utf8">spec_utf8</a>(str);
 <b>aborts_if</b> !aptos_std::from_bcs::deserializable&lt;u128&gt;(prop.value);
 </code></pre>
@@ -1196,16 +1196,16 @@ to <code>prop.type</code>
 ### Function `read_bool`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_bool">read_bool</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): bool
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_read_bool">read_bool</a>(self: &<a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): bool
 </code></pre>
 
 
 
 
 <pre><code><b>let</b> str = b"bool";
-<b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
-<b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_spec_internal_check_utf8">string::spec_internal_check_utf8</a>(str);
-<b>let</b> prop = <a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_get">simple_map::spec_get</a>(self.map, key);
+<b>aborts_if</b> !<a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
+<b>aborts_if</b> !<a href="../../move-stdlib/doc/string.md#0x1_string_spec_internal_check_utf8">string::spec_internal_check_utf8</a>(str);
+<b>let</b> prop = <a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_get">simple_map::spec_get</a>(self.map, key);
 <b>aborts_if</b> prop.type != <a href="property_map.md#0x3_property_map_spec_utf8">spec_utf8</a>(str);
 <b>aborts_if</b> !aptos_std::from_bcs::deserializable&lt;bool&gt;(prop.value);
 </code></pre>
@@ -1217,7 +1217,7 @@ to <code>prop.type</code>
 ### Function `borrow_value`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_borrow_value">borrow_value</a>(self: &<a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_borrow_value">borrow_value</a>(self: &<a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>): <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 </code></pre>
 
 
@@ -1233,7 +1233,7 @@ to <code>prop.type</code>
 ### Function `borrow_type`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_borrow_type">borrow_type</a>(self: &<a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_borrow_type">borrow_type</a>(self: &<a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>): <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>
 </code></pre>
 
 
@@ -1249,13 +1249,13 @@ to <code>prop.type</code>
 ### Function `remove`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_remove">remove</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): (<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, <a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_remove">remove</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>): (<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, <a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>)
 </code></pre>
 
 
 
 
-<pre><code><b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
+<pre><code><b>aborts_if</b> !<a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
 </code></pre>
 
 
@@ -1265,7 +1265,7 @@ to <code>prop.type</code>
 ### Function `update_property_map`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_update_property_map">update_property_map</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, keys: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, values: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, types: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;)
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_update_property_map">update_property_map</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, keys: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, values: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, types: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;)
 </code></pre>
 
 
@@ -1286,13 +1286,13 @@ to <code>prop.type</code>
 ### Function `update_property_value`
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_update_property_value">update_property_value</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, value: <a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="property_map.md#0x3_property_map_update_property_value">update_property_value</a>(self: &<b>mut</b> <a href="property_map.md#0x3_property_map_PropertyMap">property_map::PropertyMap</a>, key: &<a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, value: <a href="property_map.md#0x3_property_map_PropertyValue">property_map::PropertyValue</a>)
 </code></pre>
 
 
 
 
-<pre><code><b>aborts_if</b> !<a href="../../aptos-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
+<pre><code><b>aborts_if</b> !<a href="../../supra-framework/../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_contains_key">simple_map::spec_contains_key</a>(self.map, key);
 </code></pre>
 
 

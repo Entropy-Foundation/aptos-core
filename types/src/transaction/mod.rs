@@ -13,6 +13,8 @@ use crate::{
     keyless::{KeylessPublicKey, KeylessSignature},
     ledger_info::LedgerInfo,
     proof::{TransactionInfoListWithProof, TransactionInfoWithProof},
+    serde_helper::vec_bytes,
+    transaction::automation::RegistrationParams,
     transaction::authenticator::{
         AccountAuthenticator, AnyPublicKey, AnySignature, SingleKeyAuthenticator,
         TransactionAuthenticator,
@@ -58,7 +60,7 @@ pub mod user_transaction_context;
 pub mod webauthn;
 
 use crate::transaction::automated_transaction::AutomatedTransaction;
-use crate::transaction::automation::{AutomationRegistryRecord, RegistrationParams};
+use crate::transaction::automation::AutomationRegistryRecord;
 pub use self::block_epilogue::{BlockEndInfo, BlockEpiloguePayload, FeeDistribution};
 use crate::{
     block_metadata_ext::BlockMetadataExt,
@@ -76,6 +78,7 @@ use crate::{
 pub use block_output::BlockOutput;
 pub use change_set::ChangeSet;
 pub use module::{Module, ModuleBundle};
+use crate::move_utils::MemberId;
 use move_core_types::identifier::{IdentStr, Identifier};
 use move_core_types::language_storage::{ModuleId, TypeTag};
 pub use move_core_types::transaction_argument::TransactionArgument;
@@ -886,7 +889,7 @@ impl TransactionPayload {
         match self {
             TransactionPayload::Script(_)
             | TransactionPayload::EntryFunction(_)
-            | AutomationRegistration(_)
+            | TransactionPayload::AutomationRegistration(_)
             | TransactionPayload::ModuleBundle(_) => TransactionExtraConfig::V1 {
                 multisig_address: None,
                 replay_protection_nonce: None,
@@ -1810,6 +1813,17 @@ impl TransactionOutput {
             auxiliary_data,
         } = self;
         (write_set, events, gas_used, status, auxiliary_data)
+    }
+
+    // This function is supposed to be called in various tests only
+    pub fn fill_error_status(&mut self) {
+        if let TransactionStatus::Keep(ExecutionStatus::MiscellaneousError(None)) = self.status {
+            if let Some(detail) = self.auxiliary_data.get_detail_error_message() {
+                self.status = TransactionStatus::Keep(ExecutionStatus::MiscellaneousError(Some(
+                    detail.status_code(),
+                )));
+            }
+        }
     }
 
     pub fn ensure_match_transaction_info(
@@ -3040,7 +3054,10 @@ impl Transaction {
             | Transaction::BlockEpilogue(_)
             | Transaction::UserTransaction(_)
             | Transaction::GenesisTransaction(_)
-            | Transaction::ValidatorTransaction(_) => false,
+            | Transaction::AutomatedTransaction(_)
+            | Transaction::AutomationRegistryTransaction(_)
+            | Transaction::ValidatorTransaction(_)
+            | Transaction::SystemAutomatedTransaction(_) => false,
         }
     }
 }
@@ -3116,7 +3133,6 @@ impl std::fmt::Display for ViewFunctionError {
     }
 }
 
-/// Call a Move view function.
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ViewFunction {
     module: ModuleId,
@@ -3178,6 +3194,7 @@ impl ViewFunction {
         (self.module, self.function, self.ty_args, self.args)
     }
 }
+
 pub struct ViewFunctionOutput {
     pub values: Result<Vec<Vec<u8>>, ViewFunctionError>,
     pub gas_used: u64,

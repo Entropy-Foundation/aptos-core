@@ -3,7 +3,7 @@ name = "MultisigManagedCoin"
 version = "0.0.0"
 
 [addresses]
-aptos_framework = "0x1"
+supra_framework = "0x1"
 example_addr = "_"
 
 [dependencies]

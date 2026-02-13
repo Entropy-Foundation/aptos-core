@@ -481,9 +481,9 @@ Mint a token into an existing collection, and retrieve the object / address of t
     // If tokens are freezable, add a transfer ref <b>to</b> be able <b>to</b> <b>freeze</b> transfers
     <b>let</b> freezable_by_creator = <a href="aptos_token.md#0x4_aptos_token_are_collection_tokens_freezable">are_collection_tokens_freezable</a>(<a href="collection.md#0x4_collection">collection</a>);
     <b>if</b> (freezable_by_creator) {
-        <b>let</b> aptos_token_addr = <a href="../../aptos-framework/doc/object.md#0x1_object_address_from_constructor_ref">object::address_from_constructor_ref</a>(&constructor_ref);
+        <b>let</b> aptos_token_addr = <a href="../../supra-framework/doc/object.md#0x1_object_address_from_constructor_ref">object::address_from_constructor_ref</a>(&constructor_ref);
         <b>let</b> <a href="aptos_token.md#0x4_aptos_token">aptos_token</a> = &<b>mut</b> <a href="aptos_token.md#0x4_aptos_token_AptosToken">AptosToken</a>[aptos_token_addr];
-        <b>let</b> transfer_ref = <a href="../../aptos-framework/doc/object.md#0x1_object_generate_transfer_ref">object::generate_transfer_ref</a>(&constructor_ref);
+        <b>let</b> transfer_ref = <a href="../../supra-framework/doc/object.md#0x1_object_generate_transfer_ref">object::generate_transfer_ref</a>(&constructor_ref);
         <a href="aptos_token.md#0x4_aptos_token">aptos_token</a>.transfer_ref.fill(transfer_ref);
     };
 
@@ -891,7 +891,7 @@ With an existing collection, directly mint a soul bound token into the recipient
     <b>let</b> <a href="aptos_token.md#0x4_aptos_token">aptos_token</a> = <a href="aptos_token.md#0x4_aptos_token_authorized_borrow">authorized_borrow</a>(&<a href="token.md#0x4_token">token</a>, creator);
     <b>assert</b>!(
         <a href="aptos_token.md#0x4_aptos_token">aptos_token</a>.burn_ref.is_some(),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="aptos_token.md#0x4_aptos_token_ETOKEN_NOT_BURNABLE">ETOKEN_NOT_BURNABLE</a>),
+        <a href="../../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="aptos_token.md#0x4_aptos_token_ETOKEN_NOT_BURNABLE">ETOKEN_NOT_BURNABLE</a>),
     );
     <b>move</b> <a href="aptos_token.md#0x4_aptos_token">aptos_token</a>;
     <b>let</b> <a href="aptos_token.md#0x4_aptos_token">aptos_token</a> = <b>move_from</b>&lt;<a href="aptos_token.md#0x4_aptos_token_AptosToken">AptosToken</a>&gt;(<a href="../../supra-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(&<a href="token.md#0x4_token">token</a>));
@@ -930,9 +930,9 @@ With an existing collection, directly mint a soul bound token into the recipient
     <b>assert</b>!(
         <a href="aptos_token.md#0x4_aptos_token_are_collection_tokens_freezable">are_collection_tokens_freezable</a>(<a href="token.md#0x4_token_collection_object">token::collection_object</a>(<a href="token.md#0x4_token">token</a>))
             && <a href="aptos_token.md#0x4_aptos_token">aptos_token</a>.transfer_ref.is_some(),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="aptos_token.md#0x4_aptos_token_EFIELD_NOT_MUTABLE">EFIELD_NOT_MUTABLE</a>),
+        <a href="../../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="aptos_token.md#0x4_aptos_token_EFIELD_NOT_MUTABLE">EFIELD_NOT_MUTABLE</a>),
     );
-    <a href="../../aptos-framework/doc/object.md#0x1_object_disable_ungated_transfer">object::disable_ungated_transfer</a>(<a href="aptos_token.md#0x4_aptos_token">aptos_token</a>.transfer_ref.<a href="aptos_token.md#0x4_aptos_token_borrow">borrow</a>());
+    <a href="../../supra-framework/doc/object.md#0x1_object_disable_ungated_transfer">object::disable_ungated_transfer</a>(<a href="aptos_token.md#0x4_aptos_token">aptos_token</a>.transfer_ref.<a href="aptos_token.md#0x4_aptos_token_borrow">borrow</a>());
 }
 </code></pre>
 
@@ -963,9 +963,9 @@ With an existing collection, directly mint a soul bound token into the recipient
     <b>assert</b>!(
         <a href="aptos_token.md#0x4_aptos_token_are_collection_tokens_freezable">are_collection_tokens_freezable</a>(<a href="token.md#0x4_token_collection_object">token::collection_object</a>(<a href="token.md#0x4_token">token</a>))
             && <a href="aptos_token.md#0x4_aptos_token">aptos_token</a>.transfer_ref.is_some(),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="aptos_token.md#0x4_aptos_token_EFIELD_NOT_MUTABLE">EFIELD_NOT_MUTABLE</a>),
+        <a href="../../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="aptos_token.md#0x4_aptos_token_EFIELD_NOT_MUTABLE">EFIELD_NOT_MUTABLE</a>),
     );
-    <a href="../../aptos-framework/doc/object.md#0x1_object_enable_ungated_transfer">object::enable_ungated_transfer</a>(<a href="aptos_token.md#0x4_aptos_token">aptos_token</a>.transfer_ref.<a href="aptos_token.md#0x4_aptos_token_borrow">borrow</a>());
+    <a href="../../supra-framework/doc/object.md#0x1_object_enable_ungated_transfer">object::enable_ungated_transfer</a>(<a href="aptos_token.md#0x4_aptos_token">aptos_token</a>.transfer_ref.<a href="aptos_token.md#0x4_aptos_token_borrow">borrow</a>());
 }
 </code></pre>
 
@@ -1625,7 +1625,7 @@ With an existing collection, directly mint a soul bound token into the recipient
     <b>let</b> aptos_collection = <a href="aptos_token.md#0x4_aptos_token_authorized_borrow_collection">authorized_borrow_collection</a>(&<a href="collection.md#0x4_collection">collection</a>, creator);
     <b>assert</b>!(
         aptos_collection.royalty_mutator_ref.is_some(),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="aptos_token.md#0x4_aptos_token_EFIELD_NOT_MUTABLE">EFIELD_NOT_MUTABLE</a>),
+        <a href="../../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="aptos_token.md#0x4_aptos_token_EFIELD_NOT_MUTABLE">EFIELD_NOT_MUTABLE</a>),
     );
     <a href="royalty.md#0x4_royalty_update">royalty::update</a>(aptos_collection.royalty_mutator_ref.<a href="aptos_token.md#0x4_aptos_token_borrow">borrow</a>(), <a href="royalty.md#0x4_royalty">royalty</a>);
 }

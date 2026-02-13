@@ -1,3 +1,6 @@
+// Copyright (c) Aptos Foundation
+// SPDX-License-Identifier: Apache-2.0
+
 // Copyright (c) Supra Foundation
 // SPDX-License-Identifier: Apache-2.0
 
@@ -54,7 +57,7 @@ impl OnChainEvmGenesisConfig {
             contracts,
         }
     }
-    
+
     /// Derive the EVM chain ID from the Move chain ID.
     fn derive_evm_chain_id_from_move_chain_id(move_chain_id: ChainId) -> u64 {
         let chain_id = move_chain_id.id() as u64;

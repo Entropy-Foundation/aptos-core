@@ -7204,7 +7204,7 @@ Note this function should be called in scope of migrate_v2 after automation conf
 
 <pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_update_config_from_buffer_for_migration">update_config_from_buffer_for_migration</a>(cycle_info: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a> {
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;()) {
-        <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;();
+        <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract_v2">config_buffer::extract_v2</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfig">AutomationRegistryConfig</a>&gt;();
         <b>let</b> automation_registry_config = &<b>mut</b> <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>&gt;(
             @supra_framework
         ).main_config;
@@ -7246,7 +7246,7 @@ The function updates the ActiveAutomationRegistryConfig structure with values ex
     <b>if</b> (!<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfigV2">AutomationRegistryConfigV2</a>&gt;()) {
         <b>return</b>
     };
-    <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfigV2">AutomationRegistryConfigV2</a>&gt;();
+    <b>let</b> buffer = <a href="config_buffer.md#0x1_config_buffer_extract_v2">config_buffer::extract_v2</a>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryConfigV2">AutomationRegistryConfigV2</a>&gt;();
     <b>let</b> active_config = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>&gt;(
         @supra_framework
     );

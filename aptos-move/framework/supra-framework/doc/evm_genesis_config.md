@@ -181,7 +181,7 @@ Otherwise, move the new config to supra_framework.
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="evm_genesis_config.md#0x1_evm_genesis_config_on_new_epoch">on_new_epoch</a>(framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(framework);
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="evm_genesis_config.md#0x1_evm_genesis_config_EvmGenesisConfig">EvmGenesisConfig</a>&gt;()) {
-        <b>let</b> new_config = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="evm_genesis_config.md#0x1_evm_genesis_config_EvmGenesisConfig">EvmGenesisConfig</a>&gt;();
+        <b>let</b> new_config = <a href="config_buffer.md#0x1_config_buffer_extract_v2">config_buffer::extract_v2</a>&lt;<a href="evm_genesis_config.md#0x1_evm_genesis_config_EvmGenesisConfig">EvmGenesisConfig</a>&gt;();
         <b>if</b> (!<b>exists</b>&lt;<a href="evm_genesis_config.md#0x1_evm_genesis_config_EvmGenesisConfig">EvmGenesisConfig</a>&gt;(@supra_framework)) {
             <b>move_to</b>(framework, new_config);
             <a href="event.md#0x1_event_emit">event::emit</a>(<a href="evm_genesis_config.md#0x1_evm_genesis_config_EvmGenesisEvent">EvmGenesisEvent</a> {});

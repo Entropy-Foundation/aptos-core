@@ -1,3 +1,6 @@
+// Copyright (c) Aptos Foundation
+// SPDX-License-Identifier: Apache-2.0
+
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -72,7 +75,7 @@ fn test_vm_viewer() {
     // Now do the same with AptosVMViewer interface
     let viewer_ifc_time = Instant::now();
     let time = Instant::now();
-    let vm_viewer = AptosVMViewer::new(test_executor.data_store());
+    let vm_viewer = AptosVMViewer::new(test_executor.state_store());
     debug!("AptosVMViewer creation time: {}", time.elapsed().as_secs_f64());
     let actual_results = accounts
         .iter()

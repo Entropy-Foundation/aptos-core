@@ -1,69 +1,23 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::{payload::TDataInfo, utils::PayloadTxnsSize};
 use anyhow::{bail, ensure, Context};
-use aptos_crypto::{ed25519, CryptoMaterialError, HashValue};
+use aptos_crypto::{bls12381, ed25519, CryptoMaterialError, HashValue};
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
 use aptos_types::{
-    aggregate_signature::AggregateSignature, validator_signer::ValidatorSigner,
+    aggregate_signature::AggregateSignature, ledger_info::SignatureWithStatus,
+    quorum_store::BatchId, validator_signer::ValidatorSigner,
     validator_verifier::ValidatorVerifier, PeerId,
 };
 use mini_moka::sync::Cache;
 use rand::{seq::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
 use std::{
-    cmp::Ordering,
     fmt::{Display, Formatter},
     hash::Hash,
     ops::Deref,
 };
-
-#[derive(
-    Copy, Clone, Debug, Deserialize, Serialize, PartialEq, Eq, Hash, CryptoHasher, BCSCryptoHash,
-)]
-pub struct BatchId {
-    pub id: u64,
-    /// A number that is stored in the DB and updated only if the value does not exist in
-    /// the DB: (a) at the start of an epoch, or (b) the DB was wiped. When the nonce is updated,
-    /// id starts again at 0. Using the current system time allows the nonce to be ordering.
-    pub nonce: u64,
-}
-
-impl BatchId {
-    pub fn new(nonce: u64) -> Self {
-        Self { id: 0, nonce }
-    }
-
-    pub fn new_for_test(id: u64) -> Self {
-        Self { id, nonce: 0 }
-    }
-
-    pub fn increment(&mut self) {
-        self.id += 1;
-    }
-}
-
-impl PartialOrd<Self> for BatchId {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for BatchId {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match self.nonce.cmp(&other.nonce) {
-            Ordering::Equal => {},
-            ordering => return ordering,
-        }
-        self.id.cmp(&other.id)
-    }
-}
-
-impl Display for BatchId {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "({}, {})", self.id, self.nonce)
-    }
-}
 
 #[derive(
     Clone, Debug, Deserialize, Serialize, CryptoHasher, BCSCryptoHash, PartialEq, Eq, Hash,
@@ -130,18 +84,36 @@ impl BatchInfo {
         self.num_bytes
     }
 
-    pub fn gas_bucket_start(&self) -> u64 {
-        self.gas_bucket_start
+    pub fn size(&self) -> PayloadTxnsSize {
+        PayloadTxnsSize::new(self.num_txns, self.num_bytes)
     }
 
-    pub fn is_expired(&self) -> bool {
-        self.expiration() < aptos_infallible::duration_since_epoch().as_micros() as u64
+    pub fn gas_bucket_start(&self) -> u64 {
+        self.gas_bucket_start
     }
 }
 
 impl Display for BatchInfo {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "({}:{}:{})", self.author, self.batch_id, self.digest)
+    }
+}
+
+impl TDataInfo for BatchInfo {
+    fn num_txns(&self) -> u64 {
+        self.num_txns()
+    }
+
+    fn num_bytes(&self) -> u64 {
+        self.num_bytes()
+    }
+
+    fn info(&self) -> &BatchInfo {
+        self
+    }
+
+    fn signers(&self, _ordered_authors: &[PeerId]) -> Vec<PeerId> {
+        vec![self.author()]
     }
 }
 
@@ -198,7 +170,7 @@ impl SignedBatchInfoMsg {
 pub struct SignedBatchInfo {
     info: BatchInfo,
     signer: PeerId,
-    signature: ed25519::Signature,
+    signature: SignatureWithStatus,
 }
 
 impl SignedBatchInfo {
@@ -211,8 +183,25 @@ impl SignedBatchInfo {
         Ok(Self {
             info: batch_info,
             signer: validator_signer.author(),
-            signature,
+            signature: SignatureWithStatus::from(signature),
         })
+    }
+
+    pub fn new_with_signature(
+        batch_info: BatchInfo,
+        signer: PeerId,
+        signature: ed25519::Signature,
+    ) -> Self {
+        Self {
+            info: batch_info,
+            signer,
+            signature: SignatureWithStatus::from(signature),
+        }
+    }
+
+    #[cfg(any(test, feature = "fuzzing"))]
+    pub fn dummy(batch_info: BatchInfo, signer: PeerId) -> Self {
+        Self::new_with_signature(batch_info, signer, ed25519::Signature::dummy_signature())
     }
 
     pub fn signer(&self) -> PeerId {
@@ -241,10 +230,14 @@ impl SignedBatchInfo {
             );
         }
 
-        Ok(validator.verify(self.signer, &self.info, &self.signature)?)
+        Ok(validator.optimistic_verify(self.signer, &self.info, &self.signature)?)
     }
 
     pub fn signature(&self) -> &ed25519::Signature {
+        self.signature.signature()
+    }
+
+    pub fn signature_with_status(&self) -> &SignatureWithStatus {
         &self.signature
     }
 
@@ -269,6 +262,8 @@ pub enum SignedBatchInfoError {
     InvalidAuthor,
     NotFound,
     AlreadyCommitted,
+    NoTimeStamps,
+    UnableToAggregate,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
@@ -343,17 +338,18 @@ impl ProofOfStore {
         }
         let result = validator
             .verify_multi_signatures(&self.info, &self.multi_signature)
-            .context("Failed to verify ProofOfStore");
+            .context(format!(
+                "Failed to verify ProofOfStore for batch: {:?}",
+                self.info
+            ));
         if result.is_ok() {
             cache.insert(self.info.clone(), self.multi_signature.clone());
         }
         result
     }
 
-    pub fn shuffled_signers(&self, validator: &ValidatorVerifier) -> Vec<PeerId> {
-        let mut ret: Vec<PeerId> = self
-            .multi_signature
-            .get_signers_addresses(&validator.get_ordered_account_addresses());
+    pub fn shuffled_signers(&self, ordered_authors: &[PeerId]) -> Vec<PeerId> {
+        let mut ret: Vec<PeerId> = self.multi_signature.get_signers_addresses(ordered_authors);
         ret.shuffle(&mut thread_rng());
         ret
     }
@@ -372,5 +368,23 @@ impl Deref for ProofOfStore {
 
     fn deref(&self) -> &Self::Target {
         &self.info
+    }
+}
+
+impl TDataInfo for ProofOfStore {
+    fn num_txns(&self) -> u64 {
+        self.num_txns
+    }
+
+    fn num_bytes(&self) -> u64 {
+        self.num_bytes
+    }
+
+    fn info(&self) -> &BatchInfo {
+        self.info()
+    }
+
+    fn signers(&self, ordered_authors: &[PeerId]) -> Vec<PeerId> {
+        self.shuffled_signers(ordered_authors)
     }
 }

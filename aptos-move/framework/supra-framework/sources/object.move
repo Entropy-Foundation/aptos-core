@@ -1186,8 +1186,8 @@ module supra_framework::object {
     fun test_transfer_permission_e2e(
         creator: &signer,
     ) acquires ObjectCore {
-        let aptos_framework = account::create_signer_for_test(@0x1);
-        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        let supra_framework = account::create_signer_for_test(@0x1);
+        timestamp::set_time_has_started_for_testing(&supra_framework);
 
         let (_, hero) = create_hero(creator);
         let (_, weapon) = create_weapon(creator);
@@ -1208,8 +1208,8 @@ module supra_framework::object {
     fun test_transfer_no_permission(
         creator: &signer,
     ) acquires ObjectCore {
-        let aptos_framework = account::create_signer_for_test(@0x1);
-        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        let supra_framework = account::create_signer_for_test(@0x1);
+        timestamp::set_time_has_started_for_testing(&supra_framework);
 
         let (_, hero) = create_hero(creator);
         let (_, weapon) = create_weapon(creator);
@@ -1227,8 +1227,8 @@ module supra_framework::object {
     fun test_create_and_transfer(
         creator: &signer,
     ) acquires ObjectCore {
-        let aptos_framework = account::create_signer_for_test(@0x1);
-        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        let supra_framework = account::create_signer_for_test(@0x1);
+        timestamp::set_time_has_started_for_testing(&supra_framework);
 
         let (_, hero) = create_hero(creator);
         let (weapon_ref, weapon) = create_weapon(creator);

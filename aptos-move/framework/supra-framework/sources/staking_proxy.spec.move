@@ -209,7 +209,7 @@ spec supra_framework::staking_proxy {
     }
 
     spec schema AbortsIfSignerPermissionStakeProxy {
-        use aptos_framework::permissioned_signer;
+        use supra_framework::permissioned_signer;
         s: signer;
         let perm = StakeProxyPermission {};
         aborts_if !permissioned_signer::spec_check_permission_exists(s, perm);

@@ -130,6 +130,7 @@ pub enum FeatureFlag {
     /// Enables bytecode version v8
     VM_BINARY_FORMAT_V8 = 86,
     BULLETPROOFS_BATCH_NATIVES = 87,
+
     // Keeping 4*8 bit reserved to have graceful updated from aptos-mainstream in case of new flags have been added
     // Ends up in 11th byte, 0th bit
     SUPRA_NATIVE_AUTOMATION = 88,
@@ -165,7 +166,10 @@ impl FeatureFlag {
             FeatureFlag::TREAT_FRIEND_AS_PRIVATE,
             FeatureFlag::SHA_512_AND_RIPEMD_160_NATIVES,
             FeatureFlag::APTOS_STD_CHAIN_ID_NATIVES,
+            // Feature flag V6 is used to enable metadata v1 format and needs to stay on, even
+            // if we enable a higher version.
             FeatureFlag::VM_BINARY_FORMAT_V6,
+            FeatureFlag::VM_BINARY_FORMAT_V7, // new 
             FeatureFlag::MULTI_ED25519_PK_VALIDATE_V2_NATIVES,
             FeatureFlag::BLAKE2B_256_NATIVE,
             FeatureFlag::RESOURCE_GROUPS,
@@ -175,9 +179,12 @@ impl FeatureFlag {
             FeatureFlag::BLS12_381_STRUCTURES,
             FeatureFlag::ED25519_PUBKEY_VALIDATE_RETURN_FALSE_WRONG_LENGTH,
             FeatureFlag::STRUCT_CONSTRUCTORS,
+            // FeatureFlag::PERIODICAL_REWARD_RATE_DECREASE, // new
+            // FeatureFlag::PARTIAL_GOVERNANCE_VOTING, // new
             FeatureFlag::SIGNATURE_CHECKER_V2,
             FeatureFlag::STORAGE_SLOT_METADATA,
             FeatureFlag::CHARGE_INVARIANT_VIOLATION,
+            // FeatureFlag::DELEGATION_POOL_PARTIAL_GOVERNANCE_VOTING, //new
             FeatureFlag::APTOS_UNIQUE_IDENTIFIERS,
             FeatureFlag::GAS_PAYER_ENABLED,
             FeatureFlag::BULLETPROOFS_NATIVES,
@@ -200,7 +207,9 @@ impl FeatureFlag {
             FeatureFlag::RESOURCE_GROUPS_SPLIT_IN_VM_CHANGE_SET,
             FeatureFlag::COMMISSION_CHANGE_DELEGATION_POOL,
             FeatureFlag::WEBAUTHN_SIGNATURE,
+            // FeatureFlag::RECONFIGURE_WITH_DKG, //TODO: re-enable once randomness is ready.
             FeatureFlag::KEYLESS_ACCOUNTS,
+            // FeatureFlag::FEDERATED_KEYLESS, // new
             FeatureFlag::KEYLESS_BUT_ZKLESS_ACCOUNTS,
             FeatureFlag::JWK_CONSENSUS,
             FeatureFlag::REFUNDABLE_BYTES,
@@ -215,11 +224,39 @@ impl FeatureFlag {
             FeatureFlag::COIN_TO_FUNGIBLE_ASSET_MIGRATION,
             FeatureFlag::OBJECT_NATIVE_DERIVED_ADDRESS,
             FeatureFlag::DISPATCHABLE_FUNGIBLE_ASSET,
+            FeatureFlag::_DEPRECATED_REMOVE_DETAILED_ERROR_FROM_HASH,
+            // FeatureFlag::NEW_ACCOUNTS_DEFAULT_TO_FA_APT_STORE, // new
+            // FeatureFlag::OPERATIONS_DEFAULT_TO_FA_APT_STORE, // new 
             FeatureFlag::CONCURRENT_FUNGIBLE_ASSETS,
             FeatureFlag::AGGREGATOR_V2_IS_AT_LEAST_API,
             FeatureFlag::CONCURRENT_FUNGIBLE_BALANCE,
             FeatureFlag::_LIMIT_VM_TYPE_SIZE,
             FeatureFlag::ABORT_IF_MULTISIG_PAYLOAD_MISMATCH,
+            FeatureFlag::_DISALLOW_USER_NATIVES,
+            FeatureFlag::ALLOW_SERIALIZED_SCRIPT_ARGS,
+            FeatureFlag::_USE_COMPATIBILITY_CHECKER_V2,
+            FeatureFlag::ENABLE_ENUM_TYPES,
+            FeatureFlag::ENABLE_RESOURCE_ACCESS_CONTROL,
+            FeatureFlag::_REJECT_UNSTABLE_BYTECODE_FOR_SCRIPT,
+            FeatureFlag::TRANSACTION_SIMULATION_ENHANCEMENT,
+            FeatureFlag::NATIVE_MEMORY_OPERATIONS,
+            FeatureFlag::_ENABLE_LOADER_V2,
+            FeatureFlag::_DISALLOW_INIT_MODULE_TO_PUBLISH_MODULES,
+            FeatureFlag::COLLECTION_OWNER,
+            FeatureFlag::PERMISSIONED_SIGNER,
+            FeatureFlag::ENABLE_CALL_TREE_AND_INSTRUCTION_VM_CACHE,
+            FeatureFlag::ACCOUNT_ABSTRACTION,
+            FeatureFlag::BULLETPROOFS_BATCH_NATIVES,
+            FeatureFlag::DERIVABLE_ACCOUNT_ABSTRACTION,
+            FeatureFlag::VM_BINARY_FORMAT_V8,
+            FeatureFlag::ENABLE_FUNCTION_VALUES,
+            // FeatureFlag::NEW_ACCOUNTS_DEFAULT_TO_FA_STORE,
+            // FeatureFlag::DEFAULT_ACCOUNT_RESOURCE,
+            FeatureFlag::JWK_CONSENSUS_PER_KEY_MODE,
+            FeatureFlag::TRANSACTION_PAYLOAD_V2,
+            FeatureFlag::ORDERLESS_TRANSACTIONS,
+            // FeatureFlag::CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION,
+            // FeatureFlag::DISTRIBUTE_TRANSACTION_FEE,
             FeatureFlag::SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK,
             FeatureFlag::PRIVATE_POLL,
             FeatureFlag::SUPRA_AUTOMATION_TASK_SYNC,

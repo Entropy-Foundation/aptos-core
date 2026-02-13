@@ -1,7 +1,7 @@
 #[test_only]
 module aptos_experimental::pre_cancellation_tests {
     use std::option;
-    use aptos_framework::timestamp;
+    use supra_framework::timestamp;
     use aptos_experimental::clearinghouse_test;
     use aptos_experimental::clearinghouse_test::{
         test_market_callbacks,
@@ -18,14 +18,14 @@ module aptos_experimental::pre_cancellation_tests {
 
     const PRE_CANCEL_WINDOW_SECS: u64 = 1; // 1 second
 
-    #[test(aptos_framework = @0x1, admin = @0x1, market_signer = @0x123, maker1 = @0x456)]
+    #[test(supra_framework = @0x1, admin = @0x1, market_signer = @0x123, maker1 = @0x456)]
     public fun test_pre_cancellation_success(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         admin: &signer,
         market_signer: &signer,
         maker1: &signer
     ) {
-        timestamp::set_time_has_started_for_testing(aptos_framework);
+        timestamp::set_time_has_started_for_testing(supra_framework);
         // Setup accounts
         let market = new_market(
             admin,
@@ -86,14 +86,14 @@ module aptos_experimental::pre_cancellation_tests {
         market.destroy_market()
     }
 
-    #[test(aptos_framework = @0x1, admin = @0x1, market_signer = @0x123, maker1 = @0x456)]
+    #[test(supra_framework = @0x1, admin = @0x1, market_signer = @0x123, maker1 = @0x456)]
     public fun test_pre_cancellation_after_order_placement(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         admin: &signer,
         market_signer: &signer,
         maker1: &signer
     ) {
-        timestamp::set_time_has_started_for_testing(aptos_framework);
+        timestamp::set_time_has_started_for_testing(supra_framework);
         // Setup accounts
         let market = new_market(
             admin,
@@ -137,14 +137,14 @@ module aptos_experimental::pre_cancellation_tests {
         market.destroy_market();
     }
 
-    #[test(aptos_framework = @0x1, admin = @0x1, market_signer = @0x123, maker1 = @0x456)]
+    #[test(supra_framework = @0x1, admin = @0x1, market_signer = @0x123, maker1 = @0x456)]
     public fun test_pre_cancellation_after_expiration(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         admin: &signer,
         market_signer: &signer,
         maker1: &signer
     ) {
-        timestamp::set_time_has_started_for_testing(aptos_framework);
+        timestamp::set_time_has_started_for_testing(supra_framework);
         // Setup accounts
         let market = new_market(
             admin,

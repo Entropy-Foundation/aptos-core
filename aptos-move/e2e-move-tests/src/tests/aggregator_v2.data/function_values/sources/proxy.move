@@ -1,5 +1,5 @@
 module 0x1::proxy {
-    use aptos_framework::aggregator_v2::{Self, Aggregator};
+    use supra_framework::aggregator_v2::{Self, Aggregator};
 
     struct Counter has key, store, drop {
         aggregator: Aggregator<u64>,

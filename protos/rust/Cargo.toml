@@ -14,3 +14,4 @@ pbjson = { workspace = true }
 prost = { workspace = true }
 serde = { workspace = true }
 tonic = { workspace = true }
+futures-core = { workspace = true }

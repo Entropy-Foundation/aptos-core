@@ -4,7 +4,7 @@ version = "0.0.1"
 
 [addresses]
 std = "0x1"
-aptos_framework = "0x1"
+supra_framework = "0x1"
 event = "_"
 
 [dependencies]

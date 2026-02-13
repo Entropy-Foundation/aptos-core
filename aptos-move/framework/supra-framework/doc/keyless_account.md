@@ -765,8 +765,8 @@ Only used in reconfigurations to apply the queued up configuration changes, if t
 
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="keyless_account.md#0x1_keyless_account_Groth16VerificationKey">Groth16VerificationKey</a>&gt;()) {
         <b>let</b> vk = <a href="config_buffer.md#0x1_config_buffer_extract_v2">config_buffer::extract_v2</a>();
-        <b>if</b> (<b>exists</b>&lt;<a href="keyless_account.md#0x1_keyless_account_Groth16VerificationKey">Groth16VerificationKey</a>&gt;(@aptos_framework)) {
-            *<b>borrow_global_mut</b>&lt;<a href="keyless_account.md#0x1_keyless_account_Groth16VerificationKey">Groth16VerificationKey</a>&gt;(@aptos_framework) = vk;
+        <b>if</b> (<b>exists</b>&lt;<a href="keyless_account.md#0x1_keyless_account_Groth16VerificationKey">Groth16VerificationKey</a>&gt;(@supra_framework)) {
+            *<b>borrow_global_mut</b>&lt;<a href="keyless_account.md#0x1_keyless_account_Groth16VerificationKey">Groth16VerificationKey</a>&gt;(@supra_framework) = vk;
         } <b>else</b> {
             <b>move_to</b>(fx, vk);
         }
@@ -774,8 +774,8 @@ Only used in reconfigurations to apply the queued up configuration changes, if t
 
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="keyless_account.md#0x1_keyless_account_Configuration">Configuration</a>&gt;()) {
         <b>let</b> config = <a href="config_buffer.md#0x1_config_buffer_extract_v2">config_buffer::extract_v2</a>();
-        <b>if</b> (<b>exists</b>&lt;<a href="keyless_account.md#0x1_keyless_account_Configuration">Configuration</a>&gt;(@aptos_framework)) {
-            *<b>borrow_global_mut</b>&lt;<a href="keyless_account.md#0x1_keyless_account_Configuration">Configuration</a>&gt;(@aptos_framework) = config;
+        <b>if</b> (<b>exists</b>&lt;<a href="keyless_account.md#0x1_keyless_account_Configuration">Configuration</a>&gt;(@supra_framework)) {
+            *<b>borrow_global_mut</b>&lt;<a href="keyless_account.md#0x1_keyless_account_Configuration">Configuration</a>&gt;(@supra_framework) = config;
         } <b>else</b> {
             <b>move_to</b>(fx, config);
         }

@@ -1322,7 +1322,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                 module: module.into(),
                 name: function.into(),
             },
-            type_arguments: ty_args.into_iter().map(|arg| arg.into()).collect(),
+            type_arguments: ty_args.iter().map(|arg| arg.into()).collect(),
         })
     }
 
@@ -1358,7 +1358,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
             module.into(),
             function.name.into(),
             type_arguments
-                .into_iter()
+                .iter()
                 .map(|v| v.try_into())
                 .collect::<Result<_>>()?,
             args,

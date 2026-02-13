@@ -50,7 +50,6 @@ on a proposal multiple times as long as the total voting power of these votes do
 -  [Function `get_signer_testnet_only`](#0x1_supra_governance_get_signer_testnet_only)
 -  [Function `get_signer`](#0x1_supra_governance_get_signer)
 -  [Function `create_proposal_metadata`](#0x1_supra_governance_create_proposal_metadata)
--  [Function `initialize_for_verification`](#0x1_supra_governance_initialize_for_verification)
 -  [Specification](#@Specification_1)
     -  [High-level Requirements](#high-level-req)
     -  [Module-level Specification](#module-level-spec)
@@ -77,7 +76,6 @@ on a proposal multiple times as long as the total voting power of these votes do
     -  [Function `get_signer_testnet_only`](#@Specification_1_get_signer_testnet_only)
     -  [Function `get_signer`](#@Specification_1_get_signer)
     -  [Function `create_proposal_metadata`](#@Specification_1_create_proposal_metadata)
-    -  [Function `initialize_for_verification`](#@Specification_1_initialize_for_verification)
 
 
 <pre><code><b>use</b> <a href="account.md#0x1_account">0x1::account</a>;
@@ -1473,36 +1471,6 @@ Return a signer for making changes to 0x1 as part of on-chain governance proposa
 
 </details>
 
-<a id="0x1_supra_governance_initialize_for_verification"></a>
-
-## Function `initialize_for_verification`
-
-
-
-<pre><code>#[verify_only]
-<b>public</b> <b>fun</b> <a href="supra_governance.md#0x1_supra_governance_initialize_for_verification">initialize_for_verification</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, voting_duration_secs: u64, supra_min_voting_threshold: u64, voters: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="supra_governance.md#0x1_supra_governance_initialize_for_verification">initialize_for_verification</a>(
-    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    voting_duration_secs: u64,
-    supra_min_voting_threshold: u64,
-    voters: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
-) {
-    <a href="supra_governance.md#0x1_supra_governance_initialize">initialize</a>(supra_framework, voting_duration_secs, supra_min_voting_threshold, voters);
-}
-</code></pre>
-
-
-
-</details>
-
 <a id="@Specification_1"></a>
 
 ## Specification
@@ -2135,9 +2103,10 @@ Address @supra_framework must exist ApprovedExecutionHashes and GovernancePropos
 <b>include</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_FinishRequirement">reconfiguration_with_dkg::FinishRequirement</a> {
     framework: supra_framework
 };
-<b>include</b> <a href="transaction_fee.md#0x1_transaction_fee_RequiresCollectedFeesPerValueLeqBlockAptosSupply">transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply</a>;
 <b>requires</b> <a href="chain_status.md#0x1_chain_status_is_operating">chain_status::is_operating</a>();
 <b>requires</b> <b>exists</b>&lt;CoinInfo&lt;SupraCoin&gt;&gt;(@supra_framework);
+<b>requires</b> <b>exists</b>&lt;<a href="staking_config.md#0x1_staking_config_StakingRewardsConfig">staking_config::StakingRewardsConfig</a>&gt;(@supra_framework);
+<b>include</b> <a href="staking_config.md#0x1_staking_config_StakingRewardsConfigRequirement">staking_config::StakingRewardsConfigRequirement</a>;
 </code></pre>
 
 
@@ -2197,9 +2166,10 @@ Address @supra_framework must exist GovernanceConfig and GovernanceEvents.
 <b>include</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_FinishRequirement">reconfiguration_with_dkg::FinishRequirement</a> {
     framework: supra_framework
 };
-<b>include</b> <a href="transaction_fee.md#0x1_transaction_fee_RequiresCollectedFeesPerValueLeqBlockAptosSupply">transaction_fee::RequiresCollectedFeesPerValueLeqBlockAptosSupply</a>;
 <b>requires</b> <a href="chain_status.md#0x1_chain_status_is_operating">chain_status::is_operating</a>();
 <b>requires</b> <b>exists</b>&lt;CoinInfo&lt;SupraCoin&gt;&gt;(@supra_framework);
+<b>requires</b> <b>exists</b>&lt;<a href="staking_config.md#0x1_staking_config_StakingRewardsConfig">staking_config::StakingRewardsConfig</a>&gt;(@supra_framework);
+<b>include</b> <a href="staking_config.md#0x1_staking_config_StakingRewardsConfigRequirement">staking_config::StakingRewardsConfigRequirement</a>;
 </code></pre>
 
 
@@ -2285,24 +2255,6 @@ Address @supra_framework must exist GovernanceResponsbility.
     <b>aborts_if</b> !<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_spec_internal_check_utf8">string::spec_internal_check_utf8</a>(<a href="supra_governance.md#0x1_supra_governance_METADATA_LOCATION_KEY">METADATA_LOCATION_KEY</a>);
     <b>aborts_if</b> !<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_spec_internal_check_utf8">string::spec_internal_check_utf8</a>(<a href="supra_governance.md#0x1_supra_governance_METADATA_HASH_KEY">METADATA_HASH_KEY</a>);
 }
-</code></pre>
-
-
-
-<a id="@Specification_1_initialize_for_verification"></a>
-
-### Function `initialize_for_verification`
-
-
-<pre><code>#[verify_only]
-<b>public</b> <b>fun</b> <a href="supra_governance.md#0x1_supra_governance_initialize_for_verification">initialize_for_verification</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, voting_duration_secs: u64, supra_min_voting_threshold: u64, voters: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;)
-</code></pre>
-
-
-verify_only
-
-
-<pre><code><b>pragma</b> verify = <b>false</b>;
 </code></pre>
 
 

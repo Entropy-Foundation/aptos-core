@@ -82,7 +82,6 @@ impl MVDelayedFieldsError {
     ) -> PanicOr<MVDelayedFieldsError> {
         match err {
             PanicOr::CodeInvariantError(e) => PanicOr::CodeInvariantError(e),
-            PanicOr::MissingNativeFunction(e) => PanicOr::MissingNativeFunction(e),
             PanicOr::Or(DelayedFieldsSpeculativeError::NotFound(_)) => {
                 PanicOr::Or(MVDelayedFieldsError::NotFound)
             },

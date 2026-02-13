@@ -17,7 +17,7 @@
 /// easier accounting and tracking of the deposited/withdrawn coins.
 module swap::coin_wrapper {
     use supra_framework::account::{Self, SignerCapability};
-    use supra_framework::aptos_account;
+    use supra_framework::supra_account;
     use supra_framework::coin::{Self, Coin};
     use supra_framework::fungible_asset::{Self, BurnRef, FungibleAsset, Metadata, MintRef};
     use supra_framework::object::{Self, Object};
@@ -143,7 +143,7 @@ module swap::coin_wrapper {
 
         // Deposit coins into the main resource account and mint&return the wrapper fungible assets.
         let amount = coin::value(&coins);
-        aptos_account::deposit_coins(wrapper_address(), coins);
+        supra_account::deposit_coins(wrapper_address(), coins);
         let mint_ref = &fungible_asset_data<CoinType>().mint_ref;
         fungible_asset::mint(mint_ref, amount)
     }

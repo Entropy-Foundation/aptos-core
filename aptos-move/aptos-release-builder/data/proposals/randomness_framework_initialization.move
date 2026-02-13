@@ -1,14 +1,14 @@
 // Initialize on-chain randomness resources.
 script {
-    use aptos_framework::aptos_governance;
-    use aptos_framework::config_buffer;
-    use aptos_framework::dkg;
-    use aptos_framework::randomness;
-    use aptos_framework::randomness_config;
-    use aptos_framework::reconfiguration_state;
+    use supra_framework::supra_governance;
+    use supra_framework::config_buffer;
+    use supra_framework::dkg;
+    use supra_framework::randomness;
+    use supra_framework::randomness_config;
+    use supra_framework::reconfiguration_state;
 
     fun main(proposal_id: u64) {
-        let framework = aptos_governance::resolve_multi_step_proposal(
+        let framework = supra_governance::resolve_multi_step_proposal(
             proposal_id,
             @0x1,
             {{ script_hash }},

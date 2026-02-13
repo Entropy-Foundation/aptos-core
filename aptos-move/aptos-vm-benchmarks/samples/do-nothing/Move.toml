@@ -2,5 +2,5 @@
 name = 'do-nothing'
 version = '1.0.0'
 [dependencies]
-AptosFramework = { local = "../../../framework/aptos-framework" }
+SupraFramework = { local = "../../../framework/supra-framework" }
 AptosStdlib = { local = "../../../framework/aptos-stdlib" }

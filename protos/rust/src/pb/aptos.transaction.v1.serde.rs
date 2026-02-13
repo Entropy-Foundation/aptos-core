@@ -8519,13 +8519,6 @@ impl serde::Serialize for TransactionPayload {
                 }
             }
         }
-        if let Some(v) = self.extra_config.as_ref() {
-            match v {
-                transaction_payload::ExtraConfig::ExtraConfigV1(v) => {
-                    struct_ser.serialize_field("extraConfigV1", v)?;
-                }
-            }
-        }
         struct_ser.end()
     }
 }

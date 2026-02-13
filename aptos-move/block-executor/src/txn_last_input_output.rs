@@ -43,8 +43,7 @@ macro_rules! forward_on_success_or_skip_rest {
                 ExecutionStatus::Success(t) | ExecutionStatus::SkipRest(t) => t.$f(),
                 ExecutionStatus::Abort(_)
                 | ExecutionStatus::SpeculativeExecutionAbortError(_)
-                | ExecutionStatus::DelayedFieldsCodeInvariantError(_)
-                | ExecutionStatus::MissingNativeFunction(_) => vec![],
+                | ExecutionStatus::DelayedFieldsCodeInvariantError(_) => vec![],
             })
     }};
 }
@@ -194,9 +193,6 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
                 ExecutionStatus::DelayedFieldsCodeInvariantError(_) => Err(code_invariant_error(
                     "Delayed field invariant error cannot be committed",
                 )),
-                ExecutionStatus::MissingNativeFunction(msg) => {
-                    Err(PanicError::MissingNativeFunction(msg.clone()))
-                },
             }
         } else {
             Err(code_invariant_error(
@@ -281,8 +277,7 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
                 ),
                 ExecutionStatus::Abort(_)
                 | ExecutionStatus::SpeculativeExecutionAbortError(_)
-                | ExecutionStatus::DelayedFieldsCodeInvariantError(_)
-                | ExecutionStatus::MissingNativeFunction(_) => None,
+                | ExecutionStatus::DelayedFieldsCodeInvariantError(_) => None,
             })
     }
 
@@ -317,8 +312,7 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
                 },
                 ExecutionStatus::Abort(_)
                 | ExecutionStatus::SpeculativeExecutionAbortError(_)
-                | ExecutionStatus::DelayedFieldsCodeInvariantError(_)
-                | ExecutionStatus::MissingNativeFunction(_) => None,
+                | ExecutionStatus::DelayedFieldsCodeInvariantError(_) => None,
             })
     }
 
@@ -360,8 +354,7 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
                 },
                 ExecutionStatus::Abort(_)
                 | ExecutionStatus::SpeculativeExecutionAbortError(_)
-                | ExecutionStatus::DelayedFieldsCodeInvariantError(_)
-                | ExecutionStatus::MissingNativeFunction(_) => {
+                | ExecutionStatus::DelayedFieldsCodeInvariantError(_) => {
                     Box::new(empty::<(T::Event, Option<MoveTypeLayout>)>())
                 },
             },
@@ -399,8 +392,7 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
             },
             ExecutionStatus::Abort(_)
             | ExecutionStatus::SpeculativeExecutionAbortError(_)
-            | ExecutionStatus::DelayedFieldsCodeInvariantError(_)
-            | ExecutionStatus::MissingNativeFunction(_) => {},
+            | ExecutionStatus::DelayedFieldsCodeInvariantError(_) => {},
         };
         Ok(())
     }
@@ -425,8 +417,7 @@ impl<T: Transaction, O: TransactionOutput<Txn = T>, E: Debug + Send + Clone>
             ExecutionStatus::Success(t) | ExecutionStatus::SkipRest(t) => t.get_write_summary(),
             ExecutionStatus::Abort(_)
             | ExecutionStatus::SpeculativeExecutionAbortError(_)
-            | ExecutionStatus::DelayedFieldsCodeInvariantError(_)
-            | ExecutionStatus::MissingNativeFunction(_) => HashSet::new(),
+            | ExecutionStatus::DelayedFieldsCodeInvariantError(_) => HashSet::new(),
         }
     }
 

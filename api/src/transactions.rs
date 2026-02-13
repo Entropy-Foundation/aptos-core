@@ -1271,6 +1271,12 @@ impl TransactionsApi {
                                 ));
                             }
                         },
+                        TransactionExecutable::AutomationRegistration(params) => {
+                            TransactionsApi::validate_entry_function_payload_format(
+                                ledger_info,
+                                params.automated_function(),
+                            )?;
+                        },
                     },
                 }
                 // TODO: Verify script args?

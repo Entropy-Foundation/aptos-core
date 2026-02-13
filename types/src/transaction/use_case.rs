@@ -32,7 +32,7 @@ fn parse_use_case(payload: &TransactionPayload) -> UseCaseKey {
     use UseCaseKey::*;
 
     let maybe_entry_func = match payload {
-        Script(_) | ModuleBundle(_) | Multisig(_) => None,
+        Script(_) | ModuleBundle(_) | Multisig(_) | AutomationRegistration(_) => None,
         EntryFunction(entry_fun) => Some(entry_fun),
         v2 @ Payload(_) => {
             if let Ok(TransactionExecutableRef::EntryFunction(entry_fun)) = v2.executable_ref() {
@@ -87,6 +87,9 @@ impl UseCaseAwareTransaction for SignatureVerifiedTransaction {
                 | Transaction::StateCheckpoint(_)
                 | Transaction::ValidatorTransaction(_)
                 | Transaction::BlockMetadataExt(_)
+                | Transaction::AutomatedTransaction(_)
+                | Transaction::SystemAutomatedTransaction(_)
+                | Transaction::AutomationRegistryTransaction(_)
                 | Transaction::BlockEpilogue(_) => None,
             },
             // TODO I don't think we want invalid transactions during shuffling, but double check this logic...
