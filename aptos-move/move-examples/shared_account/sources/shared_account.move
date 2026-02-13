@@ -87,9 +87,9 @@ module shared_account::SharedAccount {
         let user_addr1 = signer::address_of(&test_user1);
         let user_addr2 = signer::address_of(&test_user2);
 
-        supra_framework::aptos_account::create_account(user_addr);
-        supra_framework::aptos_account::create_account(user_addr1);
-        supra_framework::aptos_account::create_account(user_addr2);
+        supra_framework::supra_account::create_account(user_addr);
+        supra_framework::supra_account::create_account(user_addr1);
+        supra_framework::supra_account::create_account(user_addr2);
 
         vector::push_back(&mut addresses, user_addr1);
         vector::push_back(&mut addresses, user_addr2);

@@ -4,7 +4,7 @@ module aptos_experimental::market_tests {
     use std::option::Option;
     use std::signer;
     use std::vector;
-    use aptos_framework::timestamp;
+    use supra_framework::timestamp;
     use aptos_experimental::clearinghouse_test;
     use aptos_experimental::clearinghouse_test::{
         test_market_callbacks,
@@ -1006,16 +1006,16 @@ module aptos_experimental::market_tests {
     }
 
     #[test(
-       aptos_framework = @0x1, admin = @0x1, market_signer = @0x123, maker1 = @0x456, maker2 = @0x789
+       supra_framework = @0x1, admin = @0x1, market_signer = @0x123, maker1 = @0x456, maker2 = @0x789
     )]
     public fun test_self_matching_allowed(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         admin: &signer,
         market_signer: &signer,
         maker1: &signer,
         maker2: &signer
     ) {
-        timestamp::set_time_has_started_for_testing(aptos_framework);
+        timestamp::set_time_has_started_for_testing(supra_framework);
         // Setup accounts
         let market = new_market(
             admin,
@@ -1185,14 +1185,14 @@ module aptos_experimental::market_tests {
         market.destroy_market()
     }
 
-    #[test(aptos_framework = @0x1, admin = @0x1, market_signer = @0x123, maker1 = @0x456)]
+    #[test(supra_framework = @0x1, admin = @0x1, market_signer = @0x123, maker1 = @0x456)]
     public fun test_duplicate_client_order_id_not_allowed(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         admin: &signer,
         market_signer: &signer,
         maker1: &signer
     ) {
-        timestamp::set_time_has_started_for_testing(aptos_framework);
+        timestamp::set_time_has_started_for_testing(supra_framework);
         // Setup accounts
         let market = new_market(
             admin,
@@ -1236,14 +1236,14 @@ module aptos_experimental::market_tests {
     }
 
 
-    #[test(aptos_framework = @0x1, admin = @0x1, market_signer = @0x123, maker1 = @0x456)]
+    #[test(supra_framework = @0x1, admin = @0x1, market_signer = @0x123, maker1 = @0x456)]
     public fun test_metadata_update(
-        aptos_framework: &signer,
+        supra_framework: &signer,
         admin: &signer,
         market_signer: &signer,
         maker1: &signer
     ) {
-        timestamp::set_time_has_started_for_testing(aptos_framework);
+        timestamp::set_time_has_started_for_testing(supra_framework);
         // Setup accounts
         let market = new_market(
             admin,

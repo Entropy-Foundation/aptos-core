@@ -1,17 +1,17 @@
 /// Example of a managed stablecoin with mint, burn, freeze and pause functionalities.
 module stablecoin::usdk {
-    use aptos_framework::account;
-    use aptos_framework::dispatchable_fungible_asset;
-    use aptos_framework::event;
-    use aptos_framework::function_info;
-    use aptos_framework::fungible_asset::{Self, MintRef, TransferRef, BurnRef, Metadata, FungibleAsset, FungibleStore};
-    use aptos_framework::object::{Self, Object, ExtendRef};
-    use aptos_framework::primary_fungible_store;
+    use supra_framework::account;
+    use supra_framework::dispatchable_fungible_asset;
+    use supra_framework::event;
+    use supra_framework::function_info;
+    use supra_framework::fungible_asset::{Self, MintRef, TransferRef, BurnRef, Metadata, FungibleAsset, FungibleStore};
+    use supra_framework::object::{Self, Object, ExtendRef};
+    use supra_framework::primary_fungible_store;
     use std::option;
     use std::signer;
     use std::string::{Self, utf8};
     use std::vector;
-    use aptos_framework::chain_id;
+    use supra_framework::chain_id;
 
     /// Caller is not authorized to make this call
     const EUNAUTHORIZED: u64 = 1;
@@ -26,7 +26,7 @@ module stablecoin::usdk {
 
     const ASSET_SYMBOL: vector<u8> = b"USDK";
 
-    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
+    #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct Roles has key {
         master_minter: address,
         minters: vector<address>,
@@ -34,7 +34,7 @@ module stablecoin::usdk {
         denylister: address,
     }
 
-    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
+    #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct Management has key {
         extend_ref: ExtendRef,
         mint_ref: MintRef,
@@ -42,7 +42,7 @@ module stablecoin::usdk {
         transfer_ref: TransferRef,
     }
 
-    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
+    #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct State has key {
         paused: bool,
     }

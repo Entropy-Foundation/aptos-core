@@ -260,6 +260,8 @@ pub(crate) fn construct_args(
     allowed_structs: &ConstructorMap,
     is_view: bool,
 ) -> Result<Vec<Vec<u8>>, VMStatus> {
+    // Perhaps in a future we should do proper gas metering here
+    let mut gas_meter = UnmeteredGasMeter;
     let mut res_args = vec![];
     if types.len() != args.len() {
         return Err(invalid_signature());

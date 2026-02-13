@@ -795,14 +795,6 @@ package.
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(registry.packages, |pack| {
         <a href="code.md#0x1_code_check_dependencies">check_dependencies</a>(code_object_addr, &pack);
     });
-
-    // We unfortunately have <b>to</b> make a <b>copy</b> of each package <b>to</b> avoid borrow checker issues <b>as</b> check_dependencies
-    // needs <b>to</b> borrow <a href="code.md#0x1_code_PackageRegistry">PackageRegistry</a> from the dependency packages.
-    // This would increase the amount of gas used, but this is a rare operation and it's rare <b>to</b> have many packages
-    // in a single <a href="code.md#0x1_code">code</a> <a href="object.md#0x1_object">object</a>.
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(registry.packages, |pack| {
-        <a href="code.md#0x1_code_check_dependencies">check_dependencies</a>(code_object_addr, &pack);
-    });
 }
 </code></pre>
 

@@ -48,9 +48,9 @@ module aptos_experimental::large_packages {
     use std::vector;
     use aptos_std::smart_table::{Self, SmartTable};
 
-    use aptos_framework::code::{Self, PackageRegistry};
-    use aptos_framework::object::{Object};
-    use aptos_framework::object_code_deployment;
+    use supra_framework::code::{Self, PackageRegistry};
+    use supra_framework::object::{Object};
+    use supra_framework::object_code_deployment;
 
     /// code_indices and code_chunks should be the same length.
     const ECODE_MISMATCH: u64 = 1;

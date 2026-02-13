@@ -1,7 +1,7 @@
 // Enable on-chain randomness.
 script {
-    use aptos_framework::aptos_governance;
-    use aptos_framework::randomness_config;
+    use supra_framework::aptos_governance;
+    use supra_framework::randomness_config;
     use aptos_std::fixed_point64;
 
     fun main(proposal_id: u64) {

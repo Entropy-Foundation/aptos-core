@@ -105,8 +105,12 @@ spec supra_framework::optional_aggregator {
             (value > (option::borrow(optional_aggregator.integer).limit - option::borrow(optional_aggregator.integer).value));
     }
 
-    spec switch(_optional_aggregator: &mut OptionalAggregator) {
-        aborts_if true;
+    spec switch(optional_aggregator: &mut OptionalAggregator) {
+        let vec_ref = optional_aggregator.integer.vec;
+        aborts_if is_parallelizable(optional_aggregator) && len(vec_ref) != 0;
+        aborts_if !is_parallelizable(optional_aggregator) && len(vec_ref) == 0;
+        aborts_if !is_parallelizable(optional_aggregator) && !exists<aggregator_factory::AggregatorFactory>(@supra_framework);
+        ensures optional_aggregator_value(optional_aggregator) == optional_aggregator_value(old(optional_aggregator));
     }
 
     spec sub_integer(integer: &mut Integer, value: u128) {
@@ -114,7 +118,7 @@ spec supra_framework::optional_aggregator {
         ensures integer.value == old(integer.value) - value;
     }
 
-    spec new(parallelizable: bool): OptionalAggregator {
+    spec new(limit: u128, parallelizable: bool): OptionalAggregator {
         aborts_if parallelizable && !exists<aggregator_factory::AggregatorFactory>(@supra_framework);
         ensures parallelizable ==> is_parallelizable(result);
         ensures !parallelizable ==> !is_parallelizable(result);

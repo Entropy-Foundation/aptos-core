@@ -1,7 +1,7 @@
 module 0x815::test_module {
     use std::signer;
-    use aptos_framework::account;
-    use aptos_framework::event;
+    use supra_framework::account;
+    use supra_framework::event;
 
     struct EventV1<phantom T> has store, drop {}
 

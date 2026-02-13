@@ -4,11 +4,11 @@
 // Disabled Features: [Bn254Structures]
 //
 script {
-    use aptos_framework::aptos_governance;
+    use supra_framework::supra_governance;
     use std::features;
 
     fun main(core_resources: &signer) {
-        let core_signer = aptos_governance::get_signer_testnet_only(core_resources, @0x1);
+        let core_signer = supra_governance::get_signer_testnet_only(core_resources, @0x1);
 
         let framework_signer = &core_signer;
 
@@ -21,6 +21,6 @@ script {
         ];
 
         features::change_feature_flags_for_next_epoch(framework_signer, enabled_blob, disabled_blob);
-        aptos_governance::reconfigure(framework_signer);
+        supra_governance::reconfigure(framework_signer);
     }
 }

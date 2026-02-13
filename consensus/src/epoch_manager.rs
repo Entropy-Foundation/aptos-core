@@ -69,7 +69,7 @@ use aptos_consensus_types::{
     proof_of_store::ProofCache,
     utils::PayloadTxnsSize,
 };
-use aptos_crypto::bls12381;
+use aptos_crypto::ed25519::PrivateKey;
 use aptos_dkg::{
     pvss::{traits::Transcript, Player},
     weighted_vuf::traits::WeightedVUF,
@@ -1933,57 +1933,25 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
         let oidc_providers = payload.get::<SupportedOIDCProviders>().ok();
         OnChainJWKConsensusConfig::from((features, oidc_providers))
     }
-}
 
-fn new_consensus_key_from_storage(backend: &SecureBackend) -> anyhow::Result<bls12381::PrivateKey> {
-    let storage: Storage = backend.into();
-    storage
-        .available()
-        .map_err(|e| anyhow!("Storage is not available: {e}"))?;
-    storage
-        .get(CONSENSUS_KEY)
-        .map(|v| v.value)
-        .map_err(|e| anyhow!("storage get and map err: {e}"))
-}
-
-fn load_dkg_decrypt_key_from_identity_blob(
-    config: &SafetyRulesConfig,
-) -> anyhow::Result<<DefaultDKG as DKGTrait>::NewValidatorDecryptKey> {
-    let identity_blob = config.initial_safety_rules_config.identity_blob()?;
-    identity_blob.try_into_dkg_new_validator_decrypt_key()
-}
-
-fn load_dkg_decrypt_key_from_secure_storage(
-    config: &SafetyRulesConfig,
-) -> anyhow::Result<<DefaultDKG as DKGTrait>::NewValidatorDecryptKey> {
-    let consensus_key = new_consensus_key_from_storage(&config.backend)?;
-    maybe_dk_from_bls_sk(&consensus_key)
-}
-
-fn load_dkg_decrypt_key(
-    config: &SafetyRulesConfig,
-) -> Option<<DefaultDKG as DKGTrait>::NewValidatorDecryptKey> {
-    match load_dkg_decrypt_key_from_secure_storage(config) {
-        Ok(dk) => {
-            return Some(dk);
-        },
-        Err(e) => {
-            warn!("{e}");
-        },
+    fn load_consensus_key(&self, vv: &ValidatorVerifier) -> anyhow::Result<PrivateKey> {
+        match vv.get_public_key(&self.author) {
+            Some(pk) =>
+                self
+                .key_storage
+                .consensus_sk_by_pk(pk)
+                .map_err(|e| anyhow!("could not find sk by pk: {:?}", e)),
+            None => {
+                warn!("could not find my pk in validator set, loading default sk!");
+                self.key_storage
+                    .default_consensus_sk()
+                    .map_err(|e| anyhow!("could not load default sk: {e}"))
+            },
+        }
     }
-
-    match load_dkg_decrypt_key_from_identity_blob(config) {
-        Ok(dk) => {
-            return Some(dk);
-        },
-        Err(e) => {
-            warn!("{e}");
-        },
-    }
-
-    None
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum NoRandomnessReason {
     VTxnDisabled,

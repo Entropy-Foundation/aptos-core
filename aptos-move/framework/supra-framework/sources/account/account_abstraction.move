@@ -201,7 +201,7 @@ module supra_framework::account_abstraction {
     }
 
     inline fun resource_addr(source: address): address {
-        object::create_user_derived_object_address(source, @aptos_fungible_asset)
+        object::create_user_derived_object_address(source, @supra_fungible_asset)
     }
 
     fun update_dispatchable_authenticator_impl(

@@ -1278,7 +1278,7 @@ Only called during genesis to initialize system resources for this module.
 <pre><code><b>public</b> <b>fun</b> <a href="account.md#0x1_account_create_account_if_does_not_exist">create_account_if_does_not_exist</a>(account_address: <b>address</b>) {
     <b>if</b> (!<a href="account.md#0x1_account_resource_exists_at">resource_exists_at</a>(account_address)) {
         <b>assert</b>!(
-            account_address != @vm_reserved && account_address != @aptos_framework && account_address != @aptos_token,
+            account_address != @vm_reserved && account_address != @supra_framework && account_address != @aptos_token,
             <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="account.md#0x1_account_ECANNOT_RESERVED_ADDRESS">ECANNOT_RESERVED_ADDRESS</a>)
         );
         <a href="account.md#0x1_account_create_account_unchecked">create_account_unchecked</a>(account_address);
@@ -1534,7 +1534,7 @@ When the feature flag is disabled:
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="account.md#0x1_account_originating_address">originating_address</a>(auth_key: <b>address</b>): Option&lt;<b>address</b>&gt; <b>acquires</b> <a href="account.md#0x1_account_OriginatingAddress">OriginatingAddress</a> {
-    <b>let</b> address_map_ref = &<a href="account.md#0x1_account_OriginatingAddress">OriginatingAddress</a>[@aptos_framework].address_map;
+    <b>let</b> address_map_ref = &<a href="account.md#0x1_account_OriginatingAddress">OriginatingAddress</a>[@supra_framework].address_map;
     <b>if</b> (address_map_ref.contains(auth_key)) {
         <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(*address_map_ref.borrow(auth_key))
     } <b>else</b> {
@@ -2210,7 +2210,7 @@ authority of the new authentication key.
     <b>let</b> auth_key_as_address =
         <a href="../../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_address">from_bcs::to_address</a>(<a href="account.md#0x1_account_Account">Account</a>[account_addr].authentication_key);
     <b>let</b> address_map_ref_mut =
-        &<b>mut</b> <a href="account.md#0x1_account_OriginatingAddress">OriginatingAddress</a>[@aptos_framework].address_map;
+        &<b>mut</b> <a href="account.md#0x1_account_OriginatingAddress">OriginatingAddress</a>[@supra_framework].address_map;
     <b>if</b> (address_map_ref_mut.contains(auth_key_as_address)) {
         <b>assert</b>!(
             *address_map_ref_mut.borrow(auth_key_as_address) == account_addr,
@@ -2677,7 +2677,7 @@ in the event of key recovery.
     account_resource: &<b>mut</b> <a href="account.md#0x1_account_Account">Account</a>,
     new_auth_key_vector: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
 ) <b>acquires</b> <a href="account.md#0x1_account_OriginatingAddress">OriginatingAddress</a> {
-    <b>let</b> address_map = &<b>mut</b> <a href="account.md#0x1_account_OriginatingAddress">OriginatingAddress</a>[@aptos_framework].address_map;
+    <b>let</b> address_map = &<b>mut</b> <a href="account.md#0x1_account_OriginatingAddress">OriginatingAddress</a>[@supra_framework].address_map;
     <b>let</b> curr_auth_key = <a href="../../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_address">from_bcs::to_address</a>(account_resource.authentication_key);
     <b>let</b> new_auth_key = <a href="../../aptos-stdlib/doc/from_bcs.md#0x1_from_bcs_to_address">from_bcs::to_address</a>(new_auth_key_vector);
     <b>assert</b>!(

@@ -16,7 +16,7 @@ module aptos_experimental::pre_cancellation_tracker {
     #[test_only]
     use std::vector;
     #[test_only]
-    use aptos_framework::timestamp;
+    use supra_framework::timestamp;
 
     const DUPLICATE_ORDER_PLACEMENT: u64 = 1;
 
@@ -123,11 +123,11 @@ module aptos_experimental::pre_cancellation_tracker {
         account_order_ids.destroy(|_v| {});
     }
 
-    #[test(account = @0x456, aptos_framework = @0x1)]
+    #[test(account = @0x456, supra_framework = @0x1)]
     public fun test_order_id_tracking_flow(
-        account: &signer, aptos_framework: &signer
+        account: &signer, supra_framework: &signer
     ) {
-        timestamp::set_time_has_started_for_testing(aptos_framework);
+        timestamp::set_time_has_started_for_testing(supra_framework);
         // Set short expiration for test purposes
         let expiration_window = 100; // 100 seconds
         let tracker = new_pre_cancellation_tracker(expiration_window);
@@ -148,11 +148,11 @@ module aptos_experimental::pre_cancellation_tracker {
         destroy_tracker(tracker);
     }
 
-    #[test(account = @0x456, aptos_framework = @0x1)]
+    #[test(account = @0x456, supra_framework = @0x1)]
     public fun test_order_expiration(
-        account: &signer, aptos_framework: &signer
+        account: &signer, supra_framework: &signer
     ) {
-        timestamp::set_time_has_started_for_testing(aptos_framework);
+        timestamp::set_time_has_started_for_testing(supra_framework);
         // Set very short expiration for test
         let expiration_window = 10; // 10 seconds
         let tracker = new_pre_cancellation_tracker(expiration_window);
@@ -177,11 +177,11 @@ module aptos_experimental::pre_cancellation_tracker {
         destroy_tracker(tracker);
     }
 
-    #[test(account = @0x456, aptos_framework = @0x1)]
+    #[test(account = @0x456, supra_framework = @0x1)]
     public fun test_garbage_collection(
-        account: &signer, aptos_framework: &signer
+        account: &signer, supra_framework: &signer
     ) {
-        timestamp::set_time_has_started_for_testing(aptos_framework);
+        timestamp::set_time_has_started_for_testing(supra_framework);
         let expiration_window = 5;
         let tracker = new_pre_cancellation_tracker(expiration_window);
         let addr = signer::address_of(account);

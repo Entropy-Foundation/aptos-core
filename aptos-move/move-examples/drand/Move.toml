@@ -9,5 +9,5 @@ SupraFramework = { local = "../../framework/supra-framework" }
 [addresses]
 std = "0x1"
 aptos_std = "0x1"
-aptos_framework = "0x1"
+supra_framework = "0x1"
 drand = "_"

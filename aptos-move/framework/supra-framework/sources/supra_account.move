@@ -322,11 +322,11 @@ module supra_framework::supra_account {
 
     #[test(alice = @0xa11ce, core = @0x1)]
     public fun test_transfer_permission(alice: &signer, core: &signer) {
-        use aptos_framework::permissioned_signer;
+        use supra_framework::permissioned_signer;
 
         let bob = from_bcs::to_address(x"0000000000000000000000000000000000000000000000000000000000000b0b");
 
-        let (burn_cap, mint_cap) = aptos_framework::aptos_coin::initialize_for_test(core);
+        let (burn_cap, mint_cap) = supra_framework::supra_coin::initialize_for_test(core);
         create_account(signer::address_of(alice));
         coin::deposit(signer::address_of(alice), coin::mint(10000, &mint_cap));
 
@@ -346,7 +346,7 @@ module supra_framework::supra_account {
         let (resource_account, _) = account::create_resource_account(alice, vector[]);
         let resource_acc_addr = signer::address_of(&resource_account);
         let (burn_cap, mint_cap) = supra_framework::supra_coin::initialize_for_test(core);
-        assert!(coin::is_account_registered<SupraCoin>(resource_acc_addr), 0);
+        assert!(!coin::is_account_registered<SupraCoin>(resource_acc_addr), 0);
 
         create_account(signer::address_of(alice));
         coin::deposit(signer::address_of(alice), coin::mint(10000, &mint_cap));

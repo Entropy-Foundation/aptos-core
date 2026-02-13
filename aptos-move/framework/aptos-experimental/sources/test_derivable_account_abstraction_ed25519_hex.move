@@ -12,7 +12,7 @@ module aptos_experimental::test_derivable_account_abstraction_ed25519_hex {
         new_signature_from_bytes,
         new_unvalidated_public_key_from_bytes
     };
-    use aptos_framework::auth_data::AbstractionAuthData;
+    use supra_framework::auth_data::AbstractionAuthData;
 
     const EINVALID_SIGNATURE: u64 = 1;
 

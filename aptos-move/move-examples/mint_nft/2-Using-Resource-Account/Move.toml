@@ -7,4 +7,4 @@ SupraFramework = { local = "../../../framework/supra-framework" }
 AptosToken = { local = "../../../framework/aptos-token" }
 
 [addresses]
-aptos_framework = "0x1"
+supra_framework = "0x1"

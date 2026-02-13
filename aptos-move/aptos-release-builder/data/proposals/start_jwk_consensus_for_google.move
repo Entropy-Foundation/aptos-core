@@ -1,7 +1,7 @@
 // Start JWK Consensus for Google.
 script {
-    use aptos_framework::supra_governance;
-    use aptos_framework::jwks;
+    use supra_framework::supra_governance;
+    use supra_framework::jwks;
 
     fun main(proposal_id: u64) {
         let framework_signer = supra_governance::resolve_multi_step_proposal(
@@ -15,6 +15,6 @@ script {
             b"https://accounts.google.com",
             b"https://accounts.google.com/.well-known/openid-configuration"
         );
-        aptos_governance::reconfigure(&framework_signer);
+        supra_framework::reconfigure(&framework_signer);
     }
 }

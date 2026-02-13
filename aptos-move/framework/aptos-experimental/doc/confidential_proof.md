@@ -68,11 +68,11 @@ These proofs ensure correctness for operations such as <code>confidential_transf
 -  [Function `new_scalar_from_pow2`](#0x7_confidential_proof_new_scalar_from_pow2)
 
 
-<pre><code><b>use</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
-<b>use</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
-<b>use</b> <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255">0x1::ristretto255</a>;
-<b>use</b> <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs">0x1::ristretto255_bulletproofs</a>;
-<b>use</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
+<pre><code><b>use</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
+<b>use</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
+<b>use</b> <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255">0x1::ristretto255</a>;
+<b>use</b> <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs">0x1::ristretto255_bulletproofs</a>;
+<b>use</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 <b>use</b> <a href="confidential_balance.md#0x7_confidential_balance">0x7::confidential_balance</a>;
 <b>use</b> <a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal">0x7::ristretto255_twisted_elgamal</a>;
 </code></pre>
@@ -103,7 +103,7 @@ Represents the proof structure for validating a withdrawal operation.
  Sigma proof ensuring that the withdrawal operation maintains balance integrity.
 </dd>
 <dt>
-<code>zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs_RangeProof">ristretto255_bulletproofs::RangeProof</a></code>
+<code>zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs_RangeProof">ristretto255_bulletproofs::RangeProof</a></code>
 </dt>
 <dd>
  Range proof ensuring that the resulting balance chunks are normalized (i.e., within the 16-bit limit).
@@ -137,13 +137,13 @@ Represents the proof structure for validating a transfer operation.
  Sigma proof ensuring that the transfer operation maintains balance integrity and correctness.
 </dd>
 <dt>
-<code>zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs_RangeProof">ristretto255_bulletproofs::RangeProof</a></code>
+<code>zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs_RangeProof">ristretto255_bulletproofs::RangeProof</a></code>
 </dt>
 <dd>
  Range proof ensuring that the resulting balance chunks for the sender are normalized (i.e., within the 16-bit limit).
 </dd>
 <dt>
-<code>zkrp_transfer_amount: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs_RangeProof">ristretto255_bulletproofs::RangeProof</a></code>
+<code>zkrp_transfer_amount: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs_RangeProof">ristretto255_bulletproofs::RangeProof</a></code>
 </dt>
 <dd>
  Range proof ensuring that the transferred amount chunks are normalized (i.e., within the 16-bit limit).
@@ -177,7 +177,7 @@ Represents the proof structure for validating a normalization operation.
  Sigma proof ensuring that the normalization operation maintains balance integrity.
 </dd>
 <dt>
-<code>zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs_RangeProof">ristretto255_bulletproofs::RangeProof</a></code>
+<code>zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs_RangeProof">ristretto255_bulletproofs::RangeProof</a></code>
 </dt>
 <dd>
  Range proof ensuring that the resulting balance chunks are normalized (i.e., within the 16-bit limit).
@@ -211,7 +211,7 @@ Represents the proof structure for validating a key rotation operation.
  Sigma proof ensuring that the key rotation operation preserves balance integrity.
 </dd>
 <dt>
-<code>zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs_RangeProof">ristretto255_bulletproofs::RangeProof</a></code>
+<code>zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs_RangeProof">ristretto255_bulletproofs::RangeProof</a></code>
 </dt>
 <dd>
  Range proof ensuring that the resulting balance chunks after key rotation are normalized (i.e., within the 16-bit limit).
@@ -238,25 +238,25 @@ Represents the proof structure for validating a key rotation operation.
 
 <dl>
 <dt>
-<code>x1: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
+<code>x1: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x2: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
+<code>x2: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x3s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
+<code>x3s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
+<code>x4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
 </dt>
 <dd>
 
@@ -283,25 +283,25 @@ Represents the proof structure for validating a key rotation operation.
 
 <dl>
 <dt>
-<code>a1s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>a1s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a2: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>a2: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a3: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>a3: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>a4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
@@ -328,25 +328,25 @@ Represents the proof structure for validating a key rotation operation.
 
 <dl>
 <dt>
-<code>g1: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>g1: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g2: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>g2: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g3s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>g3s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>g4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
@@ -406,49 +406,49 @@ Represents the proof structure for validating a key rotation operation.
 
 <dl>
 <dt>
-<code>x1: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
+<code>x1: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x2s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
+<code>x2s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x3s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
+<code>x3s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
+<code>x4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x5: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
+<code>x5: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x6s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
+<code>x6s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x7s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;&gt;</code>
+<code>x7s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x8s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
+<code>x8s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
 </dt>
 <dd>
 
@@ -475,37 +475,37 @@ Represents the proof structure for validating a key rotation operation.
 
 <dl>
 <dt>
-<code>a1s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>a1s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a2: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>a2: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a3s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>a3s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>a4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a5: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>a5: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a6s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>a6s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
@@ -532,49 +532,49 @@ Represents the proof structure for validating a key rotation operation.
 
 <dl>
 <dt>
-<code>g1: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>g1: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g2s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>g2s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g3s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>g3s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>g4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g5: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>g5: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g6s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>g6s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g7s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;&gt;</code>
+<code>g7s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g8s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>g8s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
@@ -634,25 +634,25 @@ Represents the proof structure for validating a key rotation operation.
 
 <dl>
 <dt>
-<code>x1: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
+<code>x1: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x2: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
+<code>x2: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x3s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
+<code>x3s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
+<code>x4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
 </dt>
 <dd>
 
@@ -679,25 +679,25 @@ Represents the proof structure for validating a key rotation operation.
 
 <dl>
 <dt>
-<code>a1s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>a1s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a2: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>a2: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a3: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>a3: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>a4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
@@ -724,25 +724,25 @@ Represents the proof structure for validating a key rotation operation.
 
 <dl>
 <dt>
-<code>g1: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>g1: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g2: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>g2: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g3s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>g3s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>g4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
@@ -802,31 +802,31 @@ Represents the proof structure for validating a key rotation operation.
 
 <dl>
 <dt>
-<code>x1: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
+<code>x1: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x2: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
+<code>x2: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x3: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
+<code>x3: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
+<code>x4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>x5s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
+<code>x5s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_CompressedRistretto">ristretto255::CompressedRistretto</a>&gt;</code>
 </dt>
 <dd>
 
@@ -853,31 +853,31 @@ Represents the proof structure for validating a key rotation operation.
 
 <dl>
 <dt>
-<code>a1s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>a1s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a2: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>a2: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a3: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>a3: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a4: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>a4: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>a5s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>a5s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
@@ -904,31 +904,31 @@ Represents the proof structure for validating a key rotation operation.
 
 <dl>
 <dt>
-<code>g1: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>g1: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g2: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>g2: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g3: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
+<code>g3: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a></code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>g4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>g5s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
+<code>g5s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;</code>
 </dt>
 <dd>
 
@@ -980,7 +980,7 @@ Represents the proof structure for validating a key rotation operation.
 
 
 
-<pre><code><b>const</b> <a href="confidential_proof.md#0x7_confidential_proof_BULLETPROOFS_DST">BULLETPROOFS_DST</a>: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; = [65, 112, 116, 111, 115, 67, 111, 110, 102, 105, 100, 101, 110, 116, 105, 97, 108, 65, 115, 115, 101, 116, 47, 66, 117, 108, 108, 101, 116, 112, 114, 111, 111, 102, 82, 97, 110, 103, 101, 80, 114, 111, 111, 102];
+<pre><code><b>const</b> <a href="confidential_proof.md#0x7_confidential_proof_BULLETPROOFS_DST">BULLETPROOFS_DST</a>: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; = [65, 112, 116, 111, 115, 67, 111, 110, 102, 105, 100, 101, 110, 116, 105, 97, 108, 65, 115, 115, 101, 116, 47, 66, 117, 108, 108, 101, 116, 112, 114, 111, 111, 102, 82, 97, 110, 103, 101, 80, 114, 111, 111, 102];
 </code></pre>
 
 
@@ -1016,7 +1016,7 @@ Represents the proof structure for validating a key rotation operation.
 
 
 
-<pre><code><b>const</b> <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_NORMALIZATION_SIGMA_DST">FIAT_SHAMIR_NORMALIZATION_SIGMA_DST</a>: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; = [65, 112, 116, 111, 115, 67, 111, 110, 102, 105, 100, 101, 110, 116, 105, 97, 108, 65, 115, 115, 101, 116, 47, 78, 111, 114, 109, 97, 108, 105, 122, 97, 116, 105, 111, 110, 80, 114, 111, 111, 102, 70, 105, 97, 116, 83, 104, 97, 109, 105, 114];
+<pre><code><b>const</b> <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_NORMALIZATION_SIGMA_DST">FIAT_SHAMIR_NORMALIZATION_SIGMA_DST</a>: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; = [65, 112, 116, 111, 115, 67, 111, 110, 102, 105, 100, 101, 110, 116, 105, 97, 108, 65, 115, 115, 101, 116, 47, 78, 111, 114, 109, 97, 108, 105, 122, 97, 116, 105, 111, 110, 80, 114, 111, 111, 102, 70, 105, 97, 116, 83, 104, 97, 109, 105, 114];
 </code></pre>
 
 
@@ -1025,7 +1025,7 @@ Represents the proof structure for validating a key rotation operation.
 
 
 
-<pre><code><b>const</b> <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_ROTATION_SIGMA_DST">FIAT_SHAMIR_ROTATION_SIGMA_DST</a>: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; = [65, 112, 116, 111, 115, 67, 111, 110, 102, 105, 100, 101, 110, 116, 105, 97, 108, 65, 115, 115, 101, 116, 47, 82, 111, 116, 97, 116, 105, 111, 110, 80, 114, 111, 111, 102, 70, 105, 97, 116, 83, 104, 97, 109, 105, 114];
+<pre><code><b>const</b> <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_ROTATION_SIGMA_DST">FIAT_SHAMIR_ROTATION_SIGMA_DST</a>: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; = [65, 112, 116, 111, 115, 67, 111, 110, 102, 105, 100, 101, 110, 116, 105, 97, 108, 65, 115, 115, 101, 116, 47, 82, 111, 116, 97, 116, 105, 111, 110, 80, 114, 111, 111, 102, 70, 105, 97, 116, 83, 104, 97, 109, 105, 114];
 </code></pre>
 
 
@@ -1034,7 +1034,7 @@ Represents the proof structure for validating a key rotation operation.
 
 
 
-<pre><code><b>const</b> <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_TRANSFER_SIGMA_DST">FIAT_SHAMIR_TRANSFER_SIGMA_DST</a>: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; = [65, 112, 116, 111, 115, 67, 111, 110, 102, 105, 100, 101, 110, 116, 105, 97, 108, 65, 115, 115, 101, 116, 47, 84, 114, 97, 110, 115, 102, 101, 114, 80, 114, 111, 111, 102, 70, 105, 97, 116, 83, 104, 97, 109, 105, 114];
+<pre><code><b>const</b> <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_TRANSFER_SIGMA_DST">FIAT_SHAMIR_TRANSFER_SIGMA_DST</a>: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; = [65, 112, 116, 111, 115, 67, 111, 110, 102, 105, 100, 101, 110, 116, 105, 97, 108, 65, 115, 115, 101, 116, 47, 84, 114, 97, 110, 115, 102, 101, 114, 80, 114, 111, 111, 102, 70, 105, 97, 116, 83, 104, 97, 109, 105, 114];
 </code></pre>
 
 
@@ -1043,7 +1043,7 @@ Represents the proof structure for validating a key rotation operation.
 
 
 
-<pre><code><b>const</b> <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_WITHDRAWAL_SIGMA_DST">FIAT_SHAMIR_WITHDRAWAL_SIGMA_DST</a>: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; = [65, 112, 116, 111, 115, 67, 111, 110, 102, 105, 100, 101, 110, 116, 105, 97, 108, 65, 115, 115, 101, 116, 47, 87, 105, 116, 104, 100, 114, 97, 119, 97, 108, 80, 114, 111, 111, 102, 70, 105, 97, 116, 83, 104, 97, 109, 105, 114];
+<pre><code><b>const</b> <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_WITHDRAWAL_SIGMA_DST">FIAT_SHAMIR_WITHDRAWAL_SIGMA_DST</a>: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; = [65, 112, 116, 111, 115, 67, 111, 110, 102, 105, 100, 101, 110, 116, 105, 97, 108, 65, 115, 115, 101, 116, 47, 87, 105, 116, 104, 100, 114, 97, 119, 97, 108, 80, 114, 111, 111, 102, 70, 105, 97, 116, 83, 104, 97, 109, 105, 114];
 </code></pre>
 
 
@@ -1113,7 +1113,7 @@ under the sender's encryption key (<code>sender_ek</code>) before and after the 
 If all conditions are satisfied, the proof validates the transfer; otherwise, the function causes an error.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_verify_transfer_proof">verify_transfer_proof</a>(sender_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, recipient_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, current_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, sender_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, recipient_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, auditor_eks: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;, auditor_amounts: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;, proof: &<a href="confidential_proof.md#0x7_confidential_proof_TransferProof">confidential_proof::TransferProof</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_verify_transfer_proof">verify_transfer_proof</a>(sender_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, recipient_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, current_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, sender_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, recipient_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, auditor_eks: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;, auditor_amounts: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;, proof: &<a href="confidential_proof.md#0x7_confidential_proof_TransferProof">confidential_proof::TransferProof</a>)
 </code></pre>
 
 
@@ -1129,8 +1129,8 @@ If all conditions are satisfied, the proof validates the transfer; otherwise, th
     new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
     sender_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
     recipient_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
-    auditor_eks: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;twisted_elgamal::CompressedPubkey&gt;,
-    auditor_amounts: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;,
+    auditor_eks: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;twisted_elgamal::CompressedPubkey&gt;,
+    auditor_amounts: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;,
     proof: &<a href="confidential_proof.md#0x7_confidential_proof_TransferProof">TransferProof</a>
 ) {
     <a href="confidential_proof.md#0x7_confidential_proof_verify_transfer_sigma_proof">verify_transfer_sigma_proof</a>(
@@ -1270,7 +1270,7 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
     proof: &<a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProof">WithdrawalSigmaProof</a>
 ) {
     <b>let</b> amount_chunks = <a href="confidential_balance.md#0x7_confidential_balance_split_into_chunks_u64">confidential_balance::split_into_chunks_u64</a>(amount);
-    <b>let</b> amount = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_u64">ristretto255::new_scalar_from_u64</a>(amount);
+    <b>let</b> amount = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_u64">ristretto255::new_scalar_from_u64</a>(amount);
 
     <b>let</b> rho =
         <a href="confidential_proof.md#0x7_confidential_proof_fiat_shamir_withdrawal_sigma_proof_challenge">fiat_shamir_withdrawal_sigma_proof_challenge</a>(
@@ -1279,69 +1279,69 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
 
     <b>let</b> gammas = <a href="confidential_proof.md#0x7_confidential_proof_msm_withdrawal_gammas">msm_withdrawal_gammas</a>(&rho);
 
-    <b>let</b> scalars_lhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[gammas.g1, gammas.g2];
+    <b>let</b> scalars_lhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[gammas.g1, gammas.g2];
     scalars_lhs.append(gammas.g3s);
     scalars_lhs.append(gammas.g4s);
 
-    <b>let</b> points_lhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x1),
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x2)
+    <b>let</b> points_lhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x1),
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x2)
     ];
-    points_lhs.append(proof.xs.x3s.map_ref(|x| <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
-    points_lhs.append(proof.xs.x4s.map_ref(|x| <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
+    points_lhs.append(proof.xs.x3s.map_ref(|x| <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
+    points_lhs.append(proof.xs.x4s.map_ref(|x| <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
 
     <b>let</b> scalar_g =
         <a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(
             &proof.alphas.a1s,
-            &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| <a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
+            &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| <a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
         );
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul_assign">ristretto255::scalar_mul_assign</a>(&<b>mut</b> scalar_g, &gammas.g1);
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul_assign">ristretto255::scalar_mul_assign</a>(&<b>mut</b> scalar_g, &gammas.g1);
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
         &<b>mut</b> scalar_g,
         &<a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(&gammas.g3s, &proof.alphas.a1s)
     );
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_sub_assign">ristretto255::scalar_sub_assign</a>(
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_sub_assign">ristretto255::scalar_sub_assign</a>(
         &<b>mut</b> scalar_g,
         &<a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(&gammas.g1, &rho, &amount)
     );
 
-    <b>let</b> scalar_h = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g2, &proof.alphas.a3);
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <b>let</b> scalar_h = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g2, &proof.alphas.a3);
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
         &<b>mut</b> scalar_h,
         &<a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(&gammas.g3s, &proof.alphas.a4s)
     );
 
-    <b>let</b> scalar_ek = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g2, &rho);
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <b>let</b> scalar_ek = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g2, &rho);
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
         &<b>mut</b> scalar_ek,
         &<a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(&gammas.g4s, &proof.alphas.a4s)
     );
 
-    <b>let</b> scalars_current_balance_d = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+    <b>let</b> scalars_current_balance_d = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
         <a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(&gammas.g1, &proof.alphas.a2, &<a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
     });
 
-    <b>let</b> scalars_new_balance_d = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g4s[i], &rho)
+    <b>let</b> scalars_new_balance_d = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g4s[i], &rho)
     });
 
-    <b>let</b> scalars_current_balance_c = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+    <b>let</b> scalars_current_balance_c = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
         <a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(&gammas.g1, &rho, &<a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
     });
 
-    <b>let</b> scalars_new_balance_c = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g3s[i], &rho)
+    <b>let</b> scalars_new_balance_c = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g3s[i], &rho)
     });
 
-    <b>let</b> scalars_rhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[scalar_g, scalar_h, scalar_ek];
+    <b>let</b> scalars_rhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[scalar_g, scalar_h, scalar_ek];
     scalars_rhs.append(scalars_current_balance_d);
     scalars_rhs.append(scalars_new_balance_d);
     scalars_rhs.append(scalars_current_balance_c);
     scalars_rhs.append(scalars_new_balance_c);
 
-    <b>let</b> points_rhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint">ristretto255::basepoint</a>(),
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>(),
+    <b>let</b> points_rhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint">ristretto255::basepoint</a>(),
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>(),
         twisted_elgamal::pubkey_to_point(ek)
     ];
     points_rhs.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_points_d">confidential_balance::balance_to_points_d</a>(current_balance));
@@ -1349,12 +1349,12 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
     points_rhs.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_points_c">confidential_balance::balance_to_points_c</a>(current_balance));
     points_rhs.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_points_c">confidential_balance::balance_to_points_c</a>(new_balance));
 
-    <b>let</b> lhs = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_lhs, &scalars_lhs);
-    <b>let</b> rhs = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_rhs, &scalars_rhs);
+    <b>let</b> lhs = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_lhs, &scalars_lhs);
+    <b>let</b> rhs = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_rhs, &scalars_rhs);
 
     <b>assert</b>!(
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_equals">ristretto255::point_equals</a>(&lhs, &rhs),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_proof.md#0x7_confidential_proof_ESIGMA_PROTOCOL_VERIFY_FAILED">ESIGMA_PROTOCOL_VERIFY_FAILED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_equals">ristretto255::point_equals</a>(&lhs, &rhs),
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_proof.md#0x7_confidential_proof_ESIGMA_PROTOCOL_VERIFY_FAILED">ESIGMA_PROTOCOL_VERIFY_FAILED</a>)
     );
 }
 </code></pre>
@@ -1370,7 +1370,7 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
 Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProof">TransferSigmaProof</a></code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_verify_transfer_sigma_proof">verify_transfer_sigma_proof</a>(sender_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, recipient_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, current_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, sender_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, recipient_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, auditor_eks: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;, auditor_amounts: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;, proof: &<a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProof">confidential_proof::TransferSigmaProof</a>)
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_verify_transfer_sigma_proof">verify_transfer_sigma_proof</a>(sender_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, recipient_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, current_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, sender_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, recipient_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, auditor_eks: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;, auditor_amounts: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;, proof: &<a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProof">confidential_proof::TransferSigmaProof</a>)
 </code></pre>
 
 
@@ -1386,8 +1386,8 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
     new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
     sender_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
     recipient_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
-    auditor_eks: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;twisted_elgamal::CompressedPubkey&gt;,
-    auditor_amounts: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;,
+    auditor_eks: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;twisted_elgamal::CompressedPubkey&gt;,
+    auditor_amounts: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;,
     proof: &<a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProof">TransferSigmaProof</a>
 ) {
     <b>let</b> rho =
@@ -1405,7 +1405,7 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
 
     <b>let</b> gammas = <a href="confidential_proof.md#0x7_confidential_proof_msm_transfer_gammas">msm_transfer_gammas</a>(&rho, proof.xs.x7s.length());
 
-    <b>let</b> scalars_lhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[gammas.g1];
+    <b>let</b> scalars_lhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[gammas.g1];
     scalars_lhs.append(gammas.g2s);
     scalars_lhs.append(gammas.g3s);
     scalars_lhs.append(gammas.g4s);
@@ -1414,38 +1414,38 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
     gammas.g7s.for_each(|gamma| scalars_lhs.append(gamma));
     scalars_lhs.append(gammas.g8s);
 
-    <b>let</b> points_lhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x1)];
-    points_lhs.append(proof.xs.x2s.map_ref(|x| <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
-    points_lhs.append(proof.xs.x3s.map_ref(|x| <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
-    points_lhs.append(proof.xs.x4s.map_ref(|x| <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
-    points_lhs.push_back(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x5));
-    points_lhs.append(proof.xs.x6s.map_ref(|x| <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
+    <b>let</b> points_lhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x1)];
+    points_lhs.append(proof.xs.x2s.map_ref(|x| <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
+    points_lhs.append(proof.xs.x3s.map_ref(|x| <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
+    points_lhs.append(proof.xs.x4s.map_ref(|x| <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
+    points_lhs.push_back(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x5));
+    points_lhs.append(proof.xs.x6s.map_ref(|x| <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
     proof.xs.x7s.for_each_ref(|xs| {
-        points_lhs.append(xs.map_ref(|x| <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
+        points_lhs.append(xs.map_ref(|x| <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
     });
-    points_lhs.append(proof.xs.x8s.map_ref(|x| <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
+    points_lhs.append(proof.xs.x8s.map_ref(|x| <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
 
     <b>let</b> scalar_g =
         <a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(
             &proof.alphas.a1s,
-            &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| <a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
+            &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| <a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
         );
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul_assign">ristretto255::scalar_mul_assign</a>(&<b>mut</b> scalar_g, &gammas.g1);
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).for_each(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul_assign">ristretto255::scalar_mul_assign</a>(&<b>mut</b> scalar_g, &gammas.g1);
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).for_each(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
             &<b>mut</b> scalar_g,
-            &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g4s[i], &proof.alphas.a4s[i])
+            &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g4s[i], &proof.alphas.a4s[i])
         );
     });
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
         &<b>mut</b> scalar_g,
         &<a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(&gammas.g6s, &proof.alphas.a1s)
     );
 
-    <b>let</b> scalar_h = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g5, &proof.alphas.a5);
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).for_each(
+    <b>let</b> scalar_h = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g5, &proof.alphas.a5);
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).for_each(
         |i| {
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
                 &<b>mut</b> scalar_h,
                 &<a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(
                     &gammas.g1, &proof.alphas.a6s[i], &<a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16)
@@ -1453,9 +1453,9 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
             );
         }
     );
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).for_each(
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).for_each(
         |i| {
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_sub_assign">ristretto255::scalar_sub_assign</a>(
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_sub_assign">ristretto255::scalar_sub_assign</a>(
                 &<b>mut</b> scalar_h,
                 &<a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(
                     &gammas.g1, &proof.alphas.a3s[i], &<a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16)
@@ -1463,50 +1463,50 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
             );
         }
     );
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
         &<b>mut</b> scalar_h,
         &<a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(&gammas.g4s, &proof.alphas.a3s)
     );
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
         &<b>mut</b> scalar_h,
         &<a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(&gammas.g6s, &proof.alphas.a6s)
     );
 
     <b>let</b> scalar_sender_ek = <a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(&gammas.g2s, &proof.alphas.a6s);
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
-        &<b>mut</b> scalar_sender_ek, &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g5, &rho)
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+        &<b>mut</b> scalar_sender_ek, &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g5, &rho)
     );
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
         &<b>mut</b> scalar_sender_ek,
         &<a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(&gammas.g8s, &proof.alphas.a3s)
     );
 
-    <b>let</b> scalar_recipient_ek = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_zero">ristretto255::scalar_zero</a>();
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).for_each(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <b>let</b> scalar_recipient_ek = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_zero">ristretto255::scalar_zero</a>();
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).for_each(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
             &<b>mut</b> scalar_recipient_ek,
-            &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g3s[i], &proof.alphas.a3s[i])
+            &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g3s[i], &proof.alphas.a3s[i])
         );
     });
 
     <b>let</b> scalar_ek_auditors =
         gammas.g7s.map_ref(
-            |gamma: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;Scalar&gt;| {
-                <b>let</b> scalar_auditor_ek = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_zero">ristretto255::scalar_zero</a>();
-                <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).for_each(|i| {
-                    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+            |gamma: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;Scalar&gt;| {
+                <b>let</b> scalar_auditor_ek = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_zero">ristretto255::scalar_zero</a>();
+                <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).for_each(|i| {
+                    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
                         &<b>mut</b> scalar_auditor_ek,
-                        &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gamma[i], &proof.alphas.a3s[i])
+                        &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gamma[i], &proof.alphas.a3s[i])
                     );
                 });
                 scalar_auditor_ek
             }
         );
 
-    <b>let</b> scalars_new_balance_d = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(
+    <b>let</b> scalars_new_balance_d = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(
         |i| {
-            <b>let</b> scalar = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g2s[i], &rho);
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_sub_assign">ristretto255::scalar_sub_assign</a>(
+            <b>let</b> scalar = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g2s[i], &rho);
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_sub_assign">ristretto255::scalar_sub_assign</a>(
                 &<b>mut</b> scalar,
                 &<a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(
                     &gammas.g1, &proof.alphas.a2, &<a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16)
@@ -1516,31 +1516,31 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
         }
     );
 
-    <b>let</b> scalars_recipient_amount_d = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g3s[i], &rho)
+    <b>let</b> scalars_recipient_amount_d = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g3s[i], &rho)
     });
 
-    <b>let</b> scalars_current_balance_d = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+    <b>let</b> scalars_current_balance_d = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
         <a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(&gammas.g1, &proof.alphas.a2, &<a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
     });
 
     <b>let</b> scalars_auditor_amount_d =
         gammas.g7s.map_ref(|gamma| {
-            gamma.map_ref(|gamma| <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(gamma, &rho))
+            gamma.map_ref(|gamma| <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(gamma, &rho))
         });
 
-    <b>let</b> scalars_sender_amount_d = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g8s[i], &rho)
+    <b>let</b> scalars_sender_amount_d = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g8s[i], &rho)
     });
 
-    <b>let</b> scalars_current_balance_c = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+    <b>let</b> scalars_current_balance_c = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
         <a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(&gammas.g1, &rho, &<a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
     });
 
-    <b>let</b> scalars_transfer_amount_c = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).map(
+    <b>let</b> scalars_transfer_amount_c = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).map(
         |i| {
-            <b>let</b> scalar = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g4s[i], &rho);
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_sub_assign">ristretto255::scalar_sub_assign</a>(
+            <b>let</b> scalar = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g4s[i], &rho);
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_sub_assign">ristretto255::scalar_sub_assign</a>(
                 &<b>mut</b> scalar,
                 &<a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(&gammas.g1, &rho, &<a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
             );
@@ -1548,11 +1548,11 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
         }
     );
 
-    <b>let</b> scalars_new_balance_c = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g6s[i], &rho)
+    <b>let</b> scalars_new_balance_c = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g6s[i], &rho)
     });
 
-    <b>let</b> scalars_rhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[scalar_g, scalar_h, scalar_sender_ek, scalar_recipient_ek];
+    <b>let</b> scalars_rhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[scalar_g, scalar_h, scalar_sender_ek, scalar_recipient_ek];
     scalars_rhs.append(scalar_ek_auditors);
     scalars_rhs.append(scalars_new_balance_d);
     scalars_rhs.append(scalars_recipient_amount_d);
@@ -1563,9 +1563,9 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
     scalars_rhs.append(scalars_transfer_amount_c);
     scalars_rhs.append(scalars_new_balance_c);
 
-    <b>let</b> points_rhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint">ristretto255::basepoint</a>(),
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>(),
+    <b>let</b> points_rhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint">ristretto255::basepoint</a>(),
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>(),
         twisted_elgamal::pubkey_to_point(sender_ek),
         twisted_elgamal::pubkey_to_point(recipient_ek)
     ];
@@ -1581,12 +1581,12 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
     points_rhs.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_points_c">confidential_balance::balance_to_points_c</a>(recipient_amount));
     points_rhs.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_points_c">confidential_balance::balance_to_points_c</a>(new_balance));
 
-    <b>let</b> lhs = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_lhs, &scalars_lhs);
-    <b>let</b> rhs = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_rhs, &scalars_rhs);
+    <b>let</b> lhs = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_lhs, &scalars_lhs);
+    <b>let</b> rhs = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_rhs, &scalars_rhs);
 
     <b>assert</b>!(
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_equals">ristretto255::point_equals</a>(&lhs, &rhs),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_proof.md#0x7_confidential_proof_ESIGMA_PROTOCOL_VERIFY_FAILED">ESIGMA_PROTOCOL_VERIFY_FAILED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_equals">ristretto255::point_equals</a>(&lhs, &rhs),
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_proof.md#0x7_confidential_proof_ESIGMA_PROTOCOL_VERIFY_FAILED">ESIGMA_PROTOCOL_VERIFY_FAILED</a>)
     );
 }
 </code></pre>
@@ -1623,65 +1623,65 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
         );
     <b>let</b> gammas = <a href="confidential_proof.md#0x7_confidential_proof_msm_normalization_gammas">msm_normalization_gammas</a>(&rho);
 
-    <b>let</b> scalars_lhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[gammas.g1, gammas.g2];
+    <b>let</b> scalars_lhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[gammas.g1, gammas.g2];
     scalars_lhs.append(gammas.g3s);
     scalars_lhs.append(gammas.g4s);
 
-    <b>let</b> points_lhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x1),
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x2)
+    <b>let</b> points_lhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x1),
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x2)
     ];
-    points_lhs.append(proof.xs.x3s.map_ref(|x| <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
-    points_lhs.append(proof.xs.x4s.map_ref(|x| <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
+    points_lhs.append(proof.xs.x3s.map_ref(|x| <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
+    points_lhs.append(proof.xs.x4s.map_ref(|x| <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
 
     <b>let</b> scalar_g =
         <a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(
             &proof.alphas.a1s,
-            &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| <a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
+            &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| <a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
         );
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul_assign">ristretto255::scalar_mul_assign</a>(&<b>mut</b> scalar_g, &gammas.g1);
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul_assign">ristretto255::scalar_mul_assign</a>(&<b>mut</b> scalar_g, &gammas.g1);
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
         &<b>mut</b> scalar_g,
         &<a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(&gammas.g3s, &proof.alphas.a1s)
     );
 
-    <b>let</b> scalar_h = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g2, &proof.alphas.a3);
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <b>let</b> scalar_h = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g2, &proof.alphas.a3);
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
         &<b>mut</b> scalar_h,
         &<a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(&gammas.g3s, &proof.alphas.a4s)
     );
 
-    <b>let</b> scalar_ek = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g2, &rho);
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <b>let</b> scalar_ek = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g2, &rho);
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
         &<b>mut</b> scalar_ek,
         &<a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(&gammas.g4s, &proof.alphas.a4s)
     );
 
-    <b>let</b> scalars_current_balance_d = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+    <b>let</b> scalars_current_balance_d = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
         <a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(&gammas.g1, &proof.alphas.a2, &<a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
     });
 
-    <b>let</b> scalars_new_balance_d = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g4s[i], &rho)
+    <b>let</b> scalars_new_balance_d = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g4s[i], &rho)
     });
 
-    <b>let</b> scalars_current_balance_c = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+    <b>let</b> scalars_current_balance_c = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
         <a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(&gammas.g1, &rho, &<a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
     });
 
-    <b>let</b> scalars_new_balance_c = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g3s[i], &rho)
+    <b>let</b> scalars_new_balance_c = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g3s[i], &rho)
     });
 
-    <b>let</b> scalars_rhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[scalar_g, scalar_h, scalar_ek];
+    <b>let</b> scalars_rhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[scalar_g, scalar_h, scalar_ek];
     scalars_rhs.append(scalars_current_balance_d);
     scalars_rhs.append(scalars_new_balance_d);
     scalars_rhs.append(scalars_current_balance_c);
     scalars_rhs.append(scalars_new_balance_c);
 
-    <b>let</b> points_rhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint">ristretto255::basepoint</a>(),
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>(),
+    <b>let</b> points_rhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint">ristretto255::basepoint</a>(),
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>(),
         twisted_elgamal::pubkey_to_point(ek)
     ];
     points_rhs.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_points_d">confidential_balance::balance_to_points_d</a>(current_balance));
@@ -1689,12 +1689,12 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
     points_rhs.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_points_c">confidential_balance::balance_to_points_c</a>(current_balance));
     points_rhs.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_points_c">confidential_balance::balance_to_points_c</a>(new_balance));
 
-    <b>let</b> lhs = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_lhs, &scalars_lhs);
-    <b>let</b> rhs = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_rhs, &scalars_rhs);
+    <b>let</b> lhs = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_lhs, &scalars_lhs);
+    <b>let</b> rhs = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_rhs, &scalars_rhs);
 
     <b>assert</b>!(
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_equals">ristretto255::point_equals</a>(&lhs, &rhs),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_proof.md#0x7_confidential_proof_ESIGMA_PROTOCOL_VERIFY_FAILED">ESIGMA_PROTOCOL_VERIFY_FAILED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_equals">ristretto255::point_equals</a>(&lhs, &rhs),
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_proof.md#0x7_confidential_proof_ESIGMA_PROTOCOL_VERIFY_FAILED">ESIGMA_PROTOCOL_VERIFY_FAILED</a>)
     );
 }
 </code></pre>
@@ -1736,71 +1736,71 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
         );
     <b>let</b> gammas = <a href="confidential_proof.md#0x7_confidential_proof_msm_rotation_gammas">msm_rotation_gammas</a>(&rho);
 
-    <b>let</b> scalars_lhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[gammas.g1, gammas.g2, gammas.g3];
+    <b>let</b> scalars_lhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[gammas.g1, gammas.g2, gammas.g3];
     scalars_lhs.append(gammas.g4s);
     scalars_lhs.append(gammas.g5s);
 
-    <b>let</b> points_lhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x1),
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x2),
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x3)
+    <b>let</b> points_lhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x1),
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x2),
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(&proof.xs.x3)
     ];
-    points_lhs.append(proof.xs.x4s.map_ref(|x| <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
-    points_lhs.append(proof.xs.x5s.map_ref(|x| <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
+    points_lhs.append(proof.xs.x4s.map_ref(|x| <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
+    points_lhs.append(proof.xs.x5s.map_ref(|x| <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_decompress">ristretto255::point_decompress</a>(x)));
 
     <b>let</b> scalar_g =
         <a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(
             &proof.alphas.a1s,
-            &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| <a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
+            &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| <a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
         );
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul_assign">ristretto255::scalar_mul_assign</a>(&<b>mut</b> scalar_g, &gammas.g1);
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul_assign">ristretto255::scalar_mul_assign</a>(&<b>mut</b> scalar_g, &gammas.g1);
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
         &<b>mut</b> scalar_g,
         &<a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(&gammas.g4s, &proof.alphas.a1s)
     );
 
-    <b>let</b> scalar_h = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g2, &proof.alphas.a3);
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
-        &<b>mut</b> scalar_h, &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g3, &proof.alphas.a4)
+    <b>let</b> scalar_h = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g2, &proof.alphas.a3);
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+        &<b>mut</b> scalar_h, &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g3, &proof.alphas.a4)
     );
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
         &<b>mut</b> scalar_h,
         &<a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(&gammas.g4s, &proof.alphas.a5s)
     );
 
-    <b>let</b> scalar_ek_cur = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g2, &rho);
+    <b>let</b> scalar_ek_cur = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g2, &rho);
 
-    <b>let</b> scalar_ek_new = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g3, &rho);
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+    <b>let</b> scalar_ek_new = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g3, &rho);
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
         &<b>mut</b> scalar_ek_new,
         &<a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(&gammas.g5s, &proof.alphas.a5s)
     );
 
-    <b>let</b> scalars_current_balance_d = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+    <b>let</b> scalars_current_balance_d = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
         <a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(&gammas.g1, &proof.alphas.a2, &<a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
     });
 
-    <b>let</b> scalars_new_balance_d = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g5s[i], &rho)
+    <b>let</b> scalars_new_balance_d = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g5s[i], &rho)
     });
 
-    <b>let</b> scalars_current_balance_c = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+    <b>let</b> scalars_current_balance_c = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
         <a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(&gammas.g1, &rho, &<a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(i * 16))
     });
 
-    <b>let</b> scalars_new_balance_c = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g4s[i], &rho)
+    <b>let</b> scalars_new_balance_c = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(&gammas.g4s[i], &rho)
     });
 
-    <b>let</b> scalars_rhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[scalar_g, scalar_h, scalar_ek_cur, scalar_ek_new];
+    <b>let</b> scalars_rhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[scalar_g, scalar_h, scalar_ek_cur, scalar_ek_new];
     scalars_rhs.append(scalars_current_balance_d);
     scalars_rhs.append(scalars_new_balance_d);
     scalars_rhs.append(scalars_current_balance_c);
     scalars_rhs.append(scalars_new_balance_c);
 
-    <b>let</b> points_rhs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint">ristretto255::basepoint</a>(),
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>(),
+    <b>let</b> points_rhs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint">ristretto255::basepoint</a>(),
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>(),
         twisted_elgamal::pubkey_to_point(current_ek),
         twisted_elgamal::pubkey_to_point(new_ek)
     ];
@@ -1809,12 +1809,12 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
     points_rhs.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_points_c">confidential_balance::balance_to_points_c</a>(current_balance));
     points_rhs.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_points_c">confidential_balance::balance_to_points_c</a>(new_balance));
 
-    <b>let</b> lhs = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_lhs, &scalars_lhs);
-    <b>let</b> rhs = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_rhs, &scalars_rhs);
+    <b>let</b> lhs = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_lhs, &scalars_lhs);
+    <b>let</b> rhs = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_multi_scalar_mul">ristretto255::multi_scalar_mul</a>(&points_rhs, &scalars_rhs);
 
     <b>assert</b>!(
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_equals">ristretto255::point_equals</a>(&lhs, &rhs),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_proof.md#0x7_confidential_proof_ESIGMA_PROTOCOL_VERIFY_FAILED">ESIGMA_PROTOCOL_VERIFY_FAILED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_equals">ristretto255::point_equals</a>(&lhs, &rhs),
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_proof.md#0x7_confidential_proof_ESIGMA_PROTOCOL_VERIFY_FAILED">ESIGMA_PROTOCOL_VERIFY_FAILED</a>)
     );
 }
 </code></pre>
@@ -1830,7 +1830,7 @@ Verifies the validity of the <code><a href="confidential_proof.md#0x7_confidenti
 Verifies the validity of the <code>NewBalanceRangeProof</code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_verify_new_balance_range_proof">verify_new_balance_range_proof</a>(new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, zkrp_new_balance: &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs_RangeProof">ristretto255_bulletproofs::RangeProof</a>)
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_verify_new_balance_range_proof">verify_new_balance_range_proof</a>(new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, zkrp_new_balance: &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs_RangeProof">ristretto255_bulletproofs::RangeProof</a>)
 </code></pre>
 
 
@@ -1848,13 +1848,13 @@ Verifies the validity of the <code>NewBalanceRangeProof</code>.
     <b>assert</b>!(
         bulletproofs::verify_batch_range_proof(
             &balance_c,
-            &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint">ristretto255::basepoint</a>(),
-            &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>(),
+            &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint">ristretto255::basepoint</a>(),
+            &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>(),
             zkrp_new_balance,
             <a href="confidential_proof.md#0x7_confidential_proof_BULLETPROOFS_NUM_BITS">BULLETPROOFS_NUM_BITS</a>,
             <a href="confidential_proof.md#0x7_confidential_proof_BULLETPROOFS_DST">BULLETPROOFS_DST</a>
         ),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_out_of_range">error::out_of_range</a>(<a href="confidential_proof.md#0x7_confidential_proof_ERANGE_PROOF_VERIFICATION_FAILED">ERANGE_PROOF_VERIFICATION_FAILED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_out_of_range">error::out_of_range</a>(<a href="confidential_proof.md#0x7_confidential_proof_ERANGE_PROOF_VERIFICATION_FAILED">ERANGE_PROOF_VERIFICATION_FAILED</a>)
     );
 }
 </code></pre>
@@ -1870,7 +1870,7 @@ Verifies the validity of the <code>NewBalanceRangeProof</code>.
 Verifies the validity of the <code>TransferBalanceRangeProof</code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_verify_transfer_amount_range_proof">verify_transfer_amount_range_proof</a>(transfer_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, zkrp_transfer_amount: &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs_RangeProof">ristretto255_bulletproofs::RangeProof</a>)
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_verify_transfer_amount_range_proof">verify_transfer_amount_range_proof</a>(transfer_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, zkrp_transfer_amount: &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs_RangeProof">ristretto255_bulletproofs::RangeProof</a>)
 </code></pre>
 
 
@@ -1888,13 +1888,13 @@ Verifies the validity of the <code>TransferBalanceRangeProof</code>.
     <b>assert</b>!(
         bulletproofs::verify_batch_range_proof(
             &balance_c,
-            &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint">ristretto255::basepoint</a>(),
-            &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>(),
+            &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint">ristretto255::basepoint</a>(),
+            &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>(),
             zkrp_transfer_amount,
             <a href="confidential_proof.md#0x7_confidential_proof_BULLETPROOFS_NUM_BITS">BULLETPROOFS_NUM_BITS</a>,
             <a href="confidential_proof.md#0x7_confidential_proof_BULLETPROOFS_DST">BULLETPROOFS_DST</a>
         ),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_out_of_range">error::out_of_range</a>(<a href="confidential_proof.md#0x7_confidential_proof_ERANGE_PROOF_VERIFICATION_FAILED">ERANGE_PROOF_VERIFICATION_FAILED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_out_of_range">error::out_of_range</a>(<a href="confidential_proof.md#0x7_confidential_proof_ERANGE_PROOF_VERIFICATION_FAILED">ERANGE_PROOF_VERIFICATION_FAILED</a>)
     );
 }
 </code></pre>
@@ -1939,7 +1939,7 @@ Deserializes the <code><a href="confidential_proof.md#0x7_confidential_proof_Wit
 Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_WithdrawalProof">WithdrawalProof</a>)</code> if the deserialization is successful; otherwise, returns <code>None</code>.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_withdrawal_proof">deserialize_withdrawal_proof</a>(sigma_proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_WithdrawalProof">confidential_proof::WithdrawalProof</a>&gt;
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_withdrawal_proof">deserialize_withdrawal_proof</a>(sigma_proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_WithdrawalProof">confidential_proof::WithdrawalProof</a>&gt;
 </code></pre>
 
 
@@ -1949,17 +1949,17 @@ Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_Withdra
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_withdrawal_proof">deserialize_withdrawal_proof</a>(
-    sigma_proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+    sigma_proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ): Option&lt;<a href="confidential_proof.md#0x7_confidential_proof_WithdrawalProof">WithdrawalProof</a>&gt; {
     <b>let</b> sigma_proof = <a href="confidential_proof.md#0x7_confidential_proof_deserialize_withdrawal_sigma_proof">deserialize_withdrawal_sigma_proof</a>(sigma_proof_bytes);
     <b>let</b> zkrp_new_balance =
         bulletproofs::range_proof_from_bytes(zkrp_new_balance_bytes);
 
     <b>if</b> (sigma_proof.is_none()) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     };
 
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
         <a href="confidential_proof.md#0x7_confidential_proof_WithdrawalProof">WithdrawalProof</a> { sigma_proof: sigma_proof.extract(), zkrp_new_balance }
     )
 }
@@ -1977,7 +1977,7 @@ Deserializes the <code><a href="confidential_proof.md#0x7_confidential_proof_Tra
 Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_TransferProof">TransferProof</a>)</code> if the deserialization is successful; otherwise, returns <code>None</code>.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_transfer_proof">deserialize_transfer_proof</a>(sigma_proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_transfer_amount_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_TransferProof">confidential_proof::TransferProof</a>&gt;
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_transfer_proof">deserialize_transfer_proof</a>(sigma_proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_transfer_amount_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_TransferProof">confidential_proof::TransferProof</a>&gt;
 </code></pre>
 
 
@@ -1987,9 +1987,9 @@ Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_Transfe
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_transfer_proof">deserialize_transfer_proof</a>(
-    sigma_proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    zkrp_new_balance_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    zkrp_transfer_amount_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+    sigma_proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    zkrp_new_balance_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    zkrp_transfer_amount_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ): Option&lt;<a href="confidential_proof.md#0x7_confidential_proof_TransferProof">TransferProof</a>&gt; {
     <b>let</b> sigma_proof = <a href="confidential_proof.md#0x7_confidential_proof_deserialize_transfer_sigma_proof">deserialize_transfer_sigma_proof</a>(sigma_proof_bytes);
     <b>let</b> zkrp_new_balance =
@@ -1998,10 +1998,10 @@ Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_Transfe
         bulletproofs::range_proof_from_bytes(zkrp_transfer_amount_bytes);
 
     <b>if</b> (sigma_proof.is_none()) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     };
 
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
         <a href="confidential_proof.md#0x7_confidential_proof_TransferProof">TransferProof</a> {
             sigma_proof: sigma_proof.extract(),
             zkrp_new_balance,
@@ -2023,7 +2023,7 @@ Deserializes the <code><a href="confidential_proof.md#0x7_confidential_proof_Nor
 Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_NormalizationProof">NormalizationProof</a>)</code> if the deserialization is successful; otherwise, returns <code>None</code>.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_normalization_proof">deserialize_normalization_proof</a>(sigma_proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_NormalizationProof">confidential_proof::NormalizationProof</a>&gt;
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_normalization_proof">deserialize_normalization_proof</a>(sigma_proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_NormalizationProof">confidential_proof::NormalizationProof</a>&gt;
 </code></pre>
 
 
@@ -2033,17 +2033,17 @@ Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_Normali
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_normalization_proof">deserialize_normalization_proof</a>(
-    sigma_proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+    sigma_proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ): Option&lt;<a href="confidential_proof.md#0x7_confidential_proof_NormalizationProof">NormalizationProof</a>&gt; {
     <b>let</b> sigma_proof = <a href="confidential_proof.md#0x7_confidential_proof_deserialize_normalization_sigma_proof">deserialize_normalization_sigma_proof</a>(sigma_proof_bytes);
     <b>let</b> zkrp_new_balance =
         bulletproofs::range_proof_from_bytes(zkrp_new_balance_bytes);
 
     <b>if</b> (sigma_proof.is_none()) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     };
 
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
         <a href="confidential_proof.md#0x7_confidential_proof_NormalizationProof">NormalizationProof</a> { sigma_proof: sigma_proof.extract(), zkrp_new_balance }
     )
 }
@@ -2061,7 +2061,7 @@ Deserializes the <code><a href="confidential_proof.md#0x7_confidential_proof_Rot
 Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_RotationProof">RotationProof</a>)</code> if the deserialization is successful; otherwise, returns <code>None</code>.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_rotation_proof">deserialize_rotation_proof</a>(sigma_proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_RotationProof">confidential_proof::RotationProof</a>&gt;
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_rotation_proof">deserialize_rotation_proof</a>(sigma_proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_RotationProof">confidential_proof::RotationProof</a>&gt;
 </code></pre>
 
 
@@ -2071,17 +2071,17 @@ Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_Rotatio
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_rotation_proof">deserialize_rotation_proof</a>(
-    sigma_proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+    sigma_proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ): Option&lt;<a href="confidential_proof.md#0x7_confidential_proof_RotationProof">RotationProof</a>&gt; {
     <b>let</b> sigma_proof = <a href="confidential_proof.md#0x7_confidential_proof_deserialize_rotation_sigma_proof">deserialize_rotation_sigma_proof</a>(sigma_proof_bytes);
     <b>let</b> zkrp_new_balance =
         bulletproofs::range_proof_from_bytes(zkrp_new_balance_bytes);
 
     <b>if</b> (sigma_proof.is_none()) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     };
 
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
         <a href="confidential_proof.md#0x7_confidential_proof_RotationProof">RotationProof</a> { sigma_proof: sigma_proof.extract(), zkrp_new_balance }
     )
 }
@@ -2099,7 +2099,7 @@ Deserializes the <code><a href="confidential_proof.md#0x7_confidential_proof_Wit
 Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProof">WithdrawalSigmaProof</a>)</code> if the deserialization is successful; otherwise, returns <code>None</code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_withdrawal_sigma_proof">deserialize_withdrawal_sigma_proof</a>(proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProof">confidential_proof::WithdrawalSigmaProof</a>&gt;
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_withdrawal_sigma_proof">deserialize_withdrawal_sigma_proof</a>(proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProof">confidential_proof::WithdrawalSigmaProof</a>&gt;
 </code></pre>
 
 
@@ -2108,29 +2108,29 @@ Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_Withdra
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_withdrawal_sigma_proof">deserialize_withdrawal_sigma_proof</a>(proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;):
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_withdrawal_sigma_proof">deserialize_withdrawal_sigma_proof</a>(proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;):
     Option&lt;<a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProof">WithdrawalSigmaProof</a>&gt; {
     <b>let</b> alphas_count = 18;
     <b>let</b> xs_count = 18;
 
     <b>if</b> (proof_bytes.length() != 32 * xs_count + 32 * alphas_count) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     };
 
-    <b>let</b> alphas = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, alphas_count).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_bytes">ristretto255::new_scalar_from_bytes</a>(proof_bytes.slice(i * 32, (i + 1) * 32))
+    <b>let</b> alphas = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, alphas_count).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_bytes">ristretto255::new_scalar_from_bytes</a>(proof_bytes.slice(i * 32, (i + 1) * 32))
     });
-    <b>let</b> xs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(alphas_count, alphas_count + xs_count).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_compressed_point_from_bytes">ristretto255::new_compressed_point_from_bytes</a>(
+    <b>let</b> xs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(alphas_count, alphas_count + xs_count).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_compressed_point_from_bytes">ristretto255::new_compressed_point_from_bytes</a>(
             proof_bytes.slice(i * 32, (i + 1) * 32)
         )
     });
 
-    <b>if</b> (alphas.<a href="../../aptos-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|alpha| alpha.is_none()) || xs.<a href="../../aptos-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|x| x.is_none())) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+    <b>if</b> (alphas.<a href="../../supra-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|alpha| alpha.is_none()) || xs.<a href="../../supra-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|x| x.is_none())) {
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     };
 
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
         <a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProof">WithdrawalSigmaProof</a> {
             alphas: <a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProofAlphas">WithdrawalSigmaProofAlphas</a> {
                 a1s: alphas.slice(0, 8).map(|alpha| alpha.extract()),
@@ -2161,7 +2161,7 @@ Deserializes the <code><a href="confidential_proof.md#0x7_confidential_proof_Tra
 Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProof">TransferSigmaProof</a>)</code> if the deserialization is successful; otherwise, returns <code>None</code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_transfer_sigma_proof">deserialize_transfer_sigma_proof</a>(proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProof">confidential_proof::TransferSigmaProof</a>&gt;
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_transfer_sigma_proof">deserialize_transfer_sigma_proof</a>(proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProof">confidential_proof::TransferSigmaProof</a>&gt;
 </code></pre>
 
 
@@ -2170,37 +2170,37 @@ Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_Transfe
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_transfer_sigma_proof">deserialize_transfer_sigma_proof</a>(proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): Option&lt;<a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProof">TransferSigmaProof</a>&gt; {
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_transfer_sigma_proof">deserialize_transfer_sigma_proof</a>(proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): Option&lt;<a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProof">TransferSigmaProof</a>&gt; {
     <b>let</b> alphas_count = 26;
     <b>let</b> xs_count = 30;
 
     <b>if</b> (proof_bytes.length() &lt; 32 * xs_count + 32 * alphas_count) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     };
 
     // Transfer proof may contain additional four Xs for each auditor.
     <b>let</b> auditor_xs = proof_bytes.length() - (32 * xs_count + 32 * alphas_count);
 
     <b>if</b> (auditor_xs % 128 != 0) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     };
 
     xs_count += auditor_xs / 32;
 
-    <b>let</b> alphas = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, alphas_count).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_bytes">ristretto255::new_scalar_from_bytes</a>(proof_bytes.slice(i * 32, (i + 1) * 32))
+    <b>let</b> alphas = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, alphas_count).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_bytes">ristretto255::new_scalar_from_bytes</a>(proof_bytes.slice(i * 32, (i + 1) * 32))
     });
-    <b>let</b> xs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(alphas_count, alphas_count + xs_count).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_compressed_point_from_bytes">ristretto255::new_compressed_point_from_bytes</a>(
+    <b>let</b> xs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(alphas_count, alphas_count + xs_count).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_compressed_point_from_bytes">ristretto255::new_compressed_point_from_bytes</a>(
             proof_bytes.slice(i * 32, (i + 1) * 32)
         )
     });
 
-    <b>if</b> (alphas.<a href="../../aptos-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|alpha| alpha.is_none()) || xs.<a href="../../aptos-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|x| x.is_none())) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+    <b>if</b> (alphas.<a href="../../supra-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|alpha| alpha.is_none()) || xs.<a href="../../supra-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|x| x.is_none())) {
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     };
 
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
         <a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProof">TransferSigmaProof</a> {
             alphas: <a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProofAlphas">TransferSigmaProofAlphas</a> {
                 a1s: alphas.slice(0, 8).map(|alpha| alpha.extract()),
@@ -2217,8 +2217,8 @@ Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_Transfe
                 x4s: xs.slice(13, 17).map(|x| x.extract()),
                 x5: xs[17].extract(),
                 x6s: xs.slice(18, 26).map(|x| x.extract()),
-                x7s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range_with_step">vector::range_with_step</a>(26, xs_count - 4, 4).map(|i| {
-                    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(i, i + 4).map(|j| xs[j].extract())
+                x7s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range_with_step">vector::range_with_step</a>(26, xs_count - 4, 4).map(|i| {
+                    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(i, i + 4).map(|j| xs[j].extract())
                 }),
                 x8s: xs.slice(xs_count - 4, xs_count).map(|x| x.extract())
             }
@@ -2239,7 +2239,7 @@ Deserializes the <code><a href="confidential_proof.md#0x7_confidential_proof_Nor
 Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_NormalizationSigmaProof">NormalizationSigmaProof</a>)</code> if the deserialization is successful; otherwise, returns <code>None</code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_normalization_sigma_proof">deserialize_normalization_sigma_proof</a>(proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_NormalizationSigmaProof">confidential_proof::NormalizationSigmaProof</a>&gt;
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_normalization_sigma_proof">deserialize_normalization_sigma_proof</a>(proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_NormalizationSigmaProof">confidential_proof::NormalizationSigmaProof</a>&gt;
 </code></pre>
 
 
@@ -2249,29 +2249,29 @@ Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_Normali
 
 
 <pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_normalization_sigma_proof">deserialize_normalization_sigma_proof</a>(
-    proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+    proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ): Option&lt;<a href="confidential_proof.md#0x7_confidential_proof_NormalizationSigmaProof">NormalizationSigmaProof</a>&gt; {
     <b>let</b> alphas_count = 18;
     <b>let</b> xs_count = 18;
 
     <b>if</b> (proof_bytes.length() != 32 * xs_count + 32 * alphas_count) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     };
 
-    <b>let</b> alphas = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, alphas_count).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_bytes">ristretto255::new_scalar_from_bytes</a>(proof_bytes.slice(i * 32, (i + 1) * 32))
+    <b>let</b> alphas = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, alphas_count).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_bytes">ristretto255::new_scalar_from_bytes</a>(proof_bytes.slice(i * 32, (i + 1) * 32))
     });
-    <b>let</b> xs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(alphas_count, alphas_count + xs_count).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_compressed_point_from_bytes">ristretto255::new_compressed_point_from_bytes</a>(
+    <b>let</b> xs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(alphas_count, alphas_count + xs_count).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_compressed_point_from_bytes">ristretto255::new_compressed_point_from_bytes</a>(
             proof_bytes.slice(i * 32, (i + 1) * 32)
         )
     });
 
-    <b>if</b> (alphas.<a href="../../aptos-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|alpha| alpha.is_none()) || xs.<a href="../../aptos-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|x| x.is_none())) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+    <b>if</b> (alphas.<a href="../../supra-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|alpha| alpha.is_none()) || xs.<a href="../../supra-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|x| x.is_none())) {
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     };
 
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
         <a href="confidential_proof.md#0x7_confidential_proof_NormalizationSigmaProof">NormalizationSigmaProof</a> {
             alphas: <a href="confidential_proof.md#0x7_confidential_proof_NormalizationSigmaProofAlphas">NormalizationSigmaProofAlphas</a> {
                 a1s: alphas.slice(0, 8).map(|alpha| alpha.extract()),
@@ -2302,7 +2302,7 @@ Deserializes the <code><a href="confidential_proof.md#0x7_confidential_proof_Rot
 Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProof">RotationSigmaProof</a>)</code> if the deserialization is successful; otherwise, returns <code>None</code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_rotation_sigma_proof">deserialize_rotation_sigma_proof</a>(proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProof">confidential_proof::RotationSigmaProof</a>&gt;
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_rotation_sigma_proof">deserialize_rotation_sigma_proof</a>(proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProof">confidential_proof::RotationSigmaProof</a>&gt;
 </code></pre>
 
 
@@ -2311,28 +2311,28 @@ Returns <code>Some(<a href="confidential_proof.md#0x7_confidential_proof_Rotatio
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_rotation_sigma_proof">deserialize_rotation_sigma_proof</a>(proof_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): Option&lt;<a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProof">RotationSigmaProof</a>&gt; {
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_deserialize_rotation_sigma_proof">deserialize_rotation_sigma_proof</a>(proof_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): Option&lt;<a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProof">RotationSigmaProof</a>&gt; {
     <b>let</b> alphas_count = 19;
     <b>let</b> xs_count = 19;
 
     <b>if</b> (proof_bytes.length() != 32 * xs_count + 32 * alphas_count) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     };
 
-    <b>let</b> alphas = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, alphas_count).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_bytes">ristretto255::new_scalar_from_bytes</a>(proof_bytes.slice(i * 32, (i + 1) * 32))
+    <b>let</b> alphas = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, alphas_count).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_bytes">ristretto255::new_scalar_from_bytes</a>(proof_bytes.slice(i * 32, (i + 1) * 32))
     });
-    <b>let</b> xs = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(alphas_count, alphas_count + xs_count).map(|i| {
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_compressed_point_from_bytes">ristretto255::new_compressed_point_from_bytes</a>(
+    <b>let</b> xs = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(alphas_count, alphas_count + xs_count).map(|i| {
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_compressed_point_from_bytes">ristretto255::new_compressed_point_from_bytes</a>(
             proof_bytes.slice(i * 32, (i + 1) * 32)
         )
     });
 
-    <b>if</b> (alphas.<a href="../../aptos-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|alpha| alpha.is_none()) || xs.<a href="../../aptos-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|x| x.is_none())) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+    <b>if</b> (alphas.<a href="../../supra-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|alpha| alpha.is_none()) || xs.<a href="../../supra-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|x| x.is_none())) {
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     };
 
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
         <a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProof">RotationSigmaProof</a> {
             alphas: <a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProofAlphas">RotationSigmaProofAlphas</a> {
                 a1s: alphas.slice(0, 8).map(|alpha| alpha.extract()),
@@ -2365,7 +2365,7 @@ Returns the Fiat Shamir DST for the <code><a href="confidential_proof.md#0x7_con
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_withdrawal_sigma_dst">get_fiat_shamir_withdrawal_sigma_dst</a>(): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+<b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_withdrawal_sigma_dst">get_fiat_shamir_withdrawal_sigma_dst</a>(): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 </code></pre>
 
 
@@ -2374,7 +2374,7 @@ Returns the Fiat Shamir DST for the <code><a href="confidential_proof.md#0x7_con
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_withdrawal_sigma_dst">get_fiat_shamir_withdrawal_sigma_dst</a>(): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_withdrawal_sigma_dst">get_fiat_shamir_withdrawal_sigma_dst</a>(): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
     <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_WITHDRAWAL_SIGMA_DST">FIAT_SHAMIR_WITHDRAWAL_SIGMA_DST</a>
 }
 </code></pre>
@@ -2391,7 +2391,7 @@ Returns the Fiat Shamir DST for the <code><a href="confidential_proof.md#0x7_con
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_transfer_sigma_dst">get_fiat_shamir_transfer_sigma_dst</a>(): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+<b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_transfer_sigma_dst">get_fiat_shamir_transfer_sigma_dst</a>(): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 </code></pre>
 
 
@@ -2400,7 +2400,7 @@ Returns the Fiat Shamir DST for the <code><a href="confidential_proof.md#0x7_con
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_transfer_sigma_dst">get_fiat_shamir_transfer_sigma_dst</a>(): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_transfer_sigma_dst">get_fiat_shamir_transfer_sigma_dst</a>(): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
     <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_TRANSFER_SIGMA_DST">FIAT_SHAMIR_TRANSFER_SIGMA_DST</a>
 }
 </code></pre>
@@ -2417,7 +2417,7 @@ Returns the Fiat Shamir DST for the <code><a href="confidential_proof.md#0x7_con
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_normalization_sigma_dst">get_fiat_shamir_normalization_sigma_dst</a>(): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+<b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_normalization_sigma_dst">get_fiat_shamir_normalization_sigma_dst</a>(): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 </code></pre>
 
 
@@ -2426,7 +2426,7 @@ Returns the Fiat Shamir DST for the <code><a href="confidential_proof.md#0x7_con
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_normalization_sigma_dst">get_fiat_shamir_normalization_sigma_dst</a>(): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_normalization_sigma_dst">get_fiat_shamir_normalization_sigma_dst</a>(): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
     <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_NORMALIZATION_SIGMA_DST">FIAT_SHAMIR_NORMALIZATION_SIGMA_DST</a>
 }
 </code></pre>
@@ -2443,7 +2443,7 @@ Returns the Fiat Shamir DST for the <code><a href="confidential_proof.md#0x7_con
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_rotation_sigma_dst">get_fiat_shamir_rotation_sigma_dst</a>(): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+<b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_rotation_sigma_dst">get_fiat_shamir_rotation_sigma_dst</a>(): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 </code></pre>
 
 
@@ -2452,7 +2452,7 @@ Returns the Fiat Shamir DST for the <code><a href="confidential_proof.md#0x7_con
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_rotation_sigma_dst">get_fiat_shamir_rotation_sigma_dst</a>(): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_fiat_shamir_rotation_sigma_dst">get_fiat_shamir_rotation_sigma_dst</a>(): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
     <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_ROTATION_SIGMA_DST">FIAT_SHAMIR_ROTATION_SIGMA_DST</a>
 }
 </code></pre>
@@ -2469,7 +2469,7 @@ Returns the DST for the range proofs.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_bulletproofs_dst">get_bulletproofs_dst</a>(): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+<b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_bulletproofs_dst">get_bulletproofs_dst</a>(): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 </code></pre>
 
 
@@ -2478,7 +2478,7 @@ Returns the DST for the range proofs.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_bulletproofs_dst">get_bulletproofs_dst</a>(): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_get_bulletproofs_dst">get_bulletproofs_dst</a>(): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
     <a href="confidential_proof.md#0x7_confidential_proof_BULLETPROOFS_DST">BULLETPROOFS_DST</a>
 }
 </code></pre>
@@ -2520,7 +2520,7 @@ Returns the maximum number of bits of the normalized chunk for the range proofs.
 Derives the Fiat-Shamir challenge for the <code><a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProof">WithdrawalSigmaProof</a></code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_fiat_shamir_withdrawal_sigma_proof_challenge">fiat_shamir_withdrawal_sigma_proof_challenge</a>(ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, amount_chunks: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;, current_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, proof_xs: &<a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProofXs">confidential_proof::WithdrawalSigmaProofXs</a>): <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_fiat_shamir_withdrawal_sigma_proof_challenge">fiat_shamir_withdrawal_sigma_proof_challenge</a>(ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, amount_chunks: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;, current_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, proof_xs: &<a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProofXs">confidential_proof::WithdrawalSigmaProofXs</a>): <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>
 </code></pre>
 
 
@@ -2531,7 +2531,7 @@ Derives the Fiat-Shamir challenge for the <code><a href="confidential_proof.md#0
 
 <pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_fiat_shamir_withdrawal_sigma_proof_challenge">fiat_shamir_withdrawal_sigma_proof_challenge</a>(
     ek: &twisted_elgamal::CompressedPubkey,
-    amount_chunks: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;Scalar&gt;,
+    amount_chunks: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;Scalar&gt;,
     current_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
     proof_xs: &<a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProofXs">WithdrawalSigmaProofXs</a>
 ): Scalar {
@@ -2539,28 +2539,28 @@ Derives the Fiat-Shamir challenge for the <code><a href="confidential_proof.md#0
     <b>let</b> bytes = <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_WITHDRAWAL_SIGMA_DST">FIAT_SHAMIR_WITHDRAWAL_SIGMA_DST</a>;
 
     bytes.append(
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint_compressed">ristretto255::basepoint_compressed</a>())
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint_compressed">ristretto255::basepoint_compressed</a>())
     );
     bytes.append(
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_compress">ristretto255::point_compress</a>(&<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>())
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_compress">ristretto255::point_compress</a>(&<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>())
         )
     );
     bytes.append(twisted_elgamal::pubkey_to_bytes(ek));
     amount_chunks.for_each_ref(|chunk| {
-        bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_to_bytes">ristretto255::scalar_to_bytes</a>(chunk));
+        bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_to_bytes">ristretto255::scalar_to_bytes</a>(chunk));
     });
     bytes.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_bytes">confidential_balance::balance_to_bytes</a>(current_balance));
-    bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x1));
-    bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x2));
+    bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x1));
+    bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x2));
     proof_xs.x3s.for_each_ref(|x| {
-        bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
+        bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
     });
     proof_xs.x4s.for_each_ref(|x| {
-        bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
+        bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
     });
 
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(bytes)
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(bytes)
 }
 </code></pre>
 
@@ -2575,7 +2575,7 @@ Derives the Fiat-Shamir challenge for the <code><a href="confidential_proof.md#0
 Derives the Fiat-Shamir challenge for the <code><a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProof">TransferSigmaProof</a></code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_fiat_shamir_transfer_sigma_proof_challenge">fiat_shamir_transfer_sigma_proof_challenge</a>(sender_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, recipient_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, current_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, sender_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, recipient_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, auditor_eks: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;, auditor_amounts: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;, proof_xs: &<a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProofXs">confidential_proof::TransferSigmaProofXs</a>): <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_fiat_shamir_transfer_sigma_proof_challenge">fiat_shamir_transfer_sigma_proof_challenge</a>(sender_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, recipient_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, current_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, sender_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, recipient_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, auditor_eks: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;, auditor_amounts: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;, proof_xs: &<a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProofXs">confidential_proof::TransferSigmaProofXs</a>): <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>
 </code></pre>
 
 
@@ -2591,19 +2591,19 @@ Derives the Fiat-Shamir challenge for the <code><a href="confidential_proof.md#0
     new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
     sender_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
     recipient_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
-    auditor_eks: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;twisted_elgamal::CompressedPubkey&gt;,
-    auditor_amounts: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;,
+    auditor_eks: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;twisted_elgamal::CompressedPubkey&gt;,
+    auditor_amounts: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;,
     proof_xs: &<a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProofXs">TransferSigmaProofXs</a>
 ): Scalar {
     // rho = H(DST, G, H, P_s, P_r, P_a_{1..n}, (C_cur, D_cur)_{1..8}, (C_v, D_v)_{1..4}, D_a_{1..4n}, D_s_{1..4}, (C_new, D_new)_{1..8}, X_{1..30 + 4n})
     <b>let</b> bytes = <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_TRANSFER_SIGMA_DST">FIAT_SHAMIR_TRANSFER_SIGMA_DST</a>;
 
     bytes.append(
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint_compressed">ristretto255::basepoint_compressed</a>())
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint_compressed">ristretto255::basepoint_compressed</a>())
     );
     bytes.append(
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_compress">ristretto255::point_compress</a>(&<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>())
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_compress">ristretto255::point_compress</a>(&<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>())
         )
     );
     bytes.append(twisted_elgamal::pubkey_to_bytes(sender_ek));
@@ -2616,42 +2616,42 @@ Derives the Fiat-Shamir challenge for the <code><a href="confidential_proof.md#0
     auditor_amounts.for_each_ref(|balance| {
         <a href="confidential_balance.md#0x7_confidential_balance_balance_to_points_d">confidential_balance::balance_to_points_d</a>(balance).for_each_ref(|d| {
             bytes.append(
-                <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(
-                    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_compress">ristretto255::point_compress</a>(d)
+                <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(
+                    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_compress">ristretto255::point_compress</a>(d)
                 )
             );
         });
     });
     <a href="confidential_balance.md#0x7_confidential_balance_balance_to_points_d">confidential_balance::balance_to_points_d</a>(sender_amount).for_each_ref(|d| {
         bytes.append(
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_compress">ristretto255::point_compress</a>(d))
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_compress">ristretto255::point_compress</a>(d))
         );
     });
     bytes.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_bytes">confidential_balance::balance_to_bytes</a>(new_balance));
-    bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x1));
+    bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x1));
     proof_xs.x2s.for_each_ref(|x| {
-        bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
+        bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
     });
     proof_xs.x3s.for_each_ref(|x| {
-        bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
+        bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
     });
     proof_xs.x4s.for_each_ref(|x| {
-        bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
+        bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
     });
-    bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x5));
+    bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x5));
     proof_xs.x6s.for_each_ref(|x| {
-        bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
+        bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
     });
     proof_xs.x7s.for_each_ref(|xs| {
         xs.for_each_ref(|x| {
-            bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
+            bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
         });
     });
     proof_xs.x8s.for_each_ref(|x| {
-        bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
+        bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
     });
 
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(bytes)
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(bytes)
 }
 </code></pre>
 
@@ -2666,7 +2666,7 @@ Derives the Fiat-Shamir challenge for the <code><a href="confidential_proof.md#0
 Derives the Fiat-Shamir challenge for the <code><a href="confidential_proof.md#0x7_confidential_proof_NormalizationSigmaProof">NormalizationSigmaProof</a></code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_fiat_shamir_normalization_sigma_proof_challenge">fiat_shamir_normalization_sigma_proof_challenge</a>(ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, current_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, proof_xs: &<a href="confidential_proof.md#0x7_confidential_proof_NormalizationSigmaProofXs">confidential_proof::NormalizationSigmaProofXs</a>): <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_fiat_shamir_normalization_sigma_proof_challenge">fiat_shamir_normalization_sigma_proof_challenge</a>(ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, current_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, proof_xs: &<a href="confidential_proof.md#0x7_confidential_proof_NormalizationSigmaProofXs">confidential_proof::NormalizationSigmaProofXs</a>): <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>
 </code></pre>
 
 
@@ -2685,26 +2685,26 @@ Derives the Fiat-Shamir challenge for the <code><a href="confidential_proof.md#0
     <b>let</b> bytes = <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_NORMALIZATION_SIGMA_DST">FIAT_SHAMIR_NORMALIZATION_SIGMA_DST</a>;
 
     bytes.append(
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint_compressed">ristretto255::basepoint_compressed</a>())
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint_compressed">ristretto255::basepoint_compressed</a>())
     );
     bytes.append(
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_compress">ristretto255::point_compress</a>(&<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>())
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_compress">ristretto255::point_compress</a>(&<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>())
         )
     );
     bytes.append(twisted_elgamal::pubkey_to_bytes(ek));
     bytes.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_bytes">confidential_balance::balance_to_bytes</a>(current_balance));
     bytes.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_bytes">confidential_balance::balance_to_bytes</a>(new_balance));
-    bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x1));
-    bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x2));
+    bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x1));
+    bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x2));
     proof_xs.x3s.for_each_ref(|x| {
-        bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
+        bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
     });
     proof_xs.x4s.for_each_ref(|x| {
-        bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
+        bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
     });
 
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(bytes)
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(bytes)
 }
 </code></pre>
 
@@ -2719,7 +2719,7 @@ Derives the Fiat-Shamir challenge for the <code><a href="confidential_proof.md#0
 Derives the Fiat-Shamir challenge for the <code><a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProof">RotationSigmaProof</a></code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_fiat_shamir_rotation_sigma_proof_challenge">fiat_shamir_rotation_sigma_proof_challenge</a>(current_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, new_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, current_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, proof_xs: &<a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProofXs">confidential_proof::RotationSigmaProofXs</a>): <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_fiat_shamir_rotation_sigma_proof_challenge">fiat_shamir_rotation_sigma_proof_challenge</a>(current_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, new_ek: &<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, current_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, new_balance: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, proof_xs: &<a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProofXs">confidential_proof::RotationSigmaProofXs</a>): <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>
 </code></pre>
 
 
@@ -2739,28 +2739,28 @@ Derives the Fiat-Shamir challenge for the <code><a href="confidential_proof.md#0
     <b>let</b> bytes = <a href="confidential_proof.md#0x7_confidential_proof_FIAT_SHAMIR_ROTATION_SIGMA_DST">FIAT_SHAMIR_ROTATION_SIGMA_DST</a>;
 
     bytes.append(
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint_compressed">ristretto255::basepoint_compressed</a>())
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_basepoint_compressed">ristretto255::basepoint_compressed</a>())
     );
     bytes.append(
-        <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_compress">ristretto255::point_compress</a>(&<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>())
+        <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_compressed_point_to_bytes">ristretto255::compressed_point_to_bytes</a>(
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_compress">ristretto255::point_compress</a>(&<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_hash_to_point_base">ristretto255::hash_to_point_base</a>())
         )
     );
     bytes.append(twisted_elgamal::pubkey_to_bytes(current_ek));
     bytes.append(twisted_elgamal::pubkey_to_bytes(new_ek));
     bytes.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_bytes">confidential_balance::balance_to_bytes</a>(current_balance));
     bytes.append(<a href="confidential_balance.md#0x7_confidential_balance_balance_to_bytes">confidential_balance::balance_to_bytes</a>(new_balance));
-    bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x1));
-    bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x2));
-    bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x3));
+    bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x1));
+    bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x2));
+    bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(&proof_xs.x3));
     proof_xs.x4s.for_each_ref(|x| {
-        bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
+        bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
     });
     proof_xs.x5s.for_each_ref(|x| {
-        bytes.append(<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
+        bytes.append(<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_to_bytes">ristretto255::point_to_bytes</a>(x));
     });
 
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(bytes)
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(bytes)
 }
 </code></pre>
 
@@ -2775,7 +2775,7 @@ Derives the Fiat-Shamir challenge for the <code><a href="confidential_proof.md#0
 Returns the scalar multipliers for the <code><a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProof">WithdrawalSigmaProof</a></code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_withdrawal_gammas">msm_withdrawal_gammas</a>(rho: &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>): <a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProofGammas">confidential_proof::WithdrawalSigmaProofGammas</a>
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_withdrawal_gammas">msm_withdrawal_gammas</a>(rho: &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>): <a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProofGammas">confidential_proof::WithdrawalSigmaProofGammas</a>
 </code></pre>
 
 
@@ -2786,13 +2786,13 @@ Returns the scalar multipliers for the <code><a href="confidential_proof.md#0x7_
 
 <pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_withdrawal_gammas">msm_withdrawal_gammas</a>(rho: &Scalar): <a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProofGammas">WithdrawalSigmaProofGammas</a> {
     <a href="confidential_proof.md#0x7_confidential_proof_WithdrawalSigmaProofGammas">WithdrawalSigmaProofGammas</a> {
-        g1: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 1)),
-        g2: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 2)),
-        g3s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 3, (i <b>as</b> u8)))
+        g1: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 1)),
+        g2: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 2)),
+        g3s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 3, (i <b>as</b> u8)))
         }),
-        g4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 4, (i <b>as</b> u8)))
+        g4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 4, (i <b>as</b> u8)))
         })
     }
 }
@@ -2809,7 +2809,7 @@ Returns the scalar multipliers for the <code><a href="confidential_proof.md#0x7_
 Returns the scalar multipliers for the <code><a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProof">TransferSigmaProof</a></code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_transfer_gammas">msm_transfer_gammas</a>(rho: &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>, auditors_count: u64): <a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProofGammas">confidential_proof::TransferSigmaProofGammas</a>
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_transfer_gammas">msm_transfer_gammas</a>(rho: &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>, auditors_count: u64): <a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProofGammas">confidential_proof::TransferSigmaProofGammas</a>
 </code></pre>
 
 
@@ -2820,31 +2820,31 @@ Returns the scalar multipliers for the <code><a href="confidential_proof.md#0x7_
 
 <pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_transfer_gammas">msm_transfer_gammas</a>(rho: &Scalar, auditors_count: u64): <a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProofGammas">TransferSigmaProofGammas</a> {
     <a href="confidential_proof.md#0x7_confidential_proof_TransferSigmaProofGammas">TransferSigmaProofGammas</a> {
-        g1: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 1)),
-        g2s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 2, (i <b>as</b> u8)))
+        g1: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 1)),
+        g2s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 2, (i <b>as</b> u8)))
         }),
-        g3s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).map(|i| {
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 3, (i <b>as</b> u8)))
+        g3s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).map(|i| {
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 3, (i <b>as</b> u8)))
         }),
-        g4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).map(|i| {
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 4, (i <b>as</b> u8)))
+        g4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).map(|i| {
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 4, (i <b>as</b> u8)))
         }),
-        g5: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 5)),
-        g6s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 6, (i <b>as</b> u8)))
+        g5: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 5)),
+        g6s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 6, (i <b>as</b> u8)))
         }),
-        g7s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, auditors_count).map(
+        g7s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, auditors_count).map(
             |i| {
-                <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).map(|j| {
-                    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(
+                <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).map(|j| {
+                    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(
                         <a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, (i + 7 <b>as</b> u8), (j <b>as</b> u8))
                     )
                 })
             }
         ),
-        g8s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).map(|i| {
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 8, (i <b>as</b> u8)))
+        g8s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 4).map(|i| {
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 8, (i <b>as</b> u8)))
         })
     }
 }
@@ -2861,7 +2861,7 @@ Returns the scalar multipliers for the <code><a href="confidential_proof.md#0x7_
 Returns the scalar multipliers for the <code><a href="confidential_proof.md#0x7_confidential_proof_NormalizationSigmaProof">NormalizationSigmaProof</a></code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_normalization_gammas">msm_normalization_gammas</a>(rho: &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>): <a href="confidential_proof.md#0x7_confidential_proof_NormalizationSigmaProofGammas">confidential_proof::NormalizationSigmaProofGammas</a>
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_normalization_gammas">msm_normalization_gammas</a>(rho: &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>): <a href="confidential_proof.md#0x7_confidential_proof_NormalizationSigmaProofGammas">confidential_proof::NormalizationSigmaProofGammas</a>
 </code></pre>
 
 
@@ -2872,13 +2872,13 @@ Returns the scalar multipliers for the <code><a href="confidential_proof.md#0x7_
 
 <pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_normalization_gammas">msm_normalization_gammas</a>(rho: &Scalar): <a href="confidential_proof.md#0x7_confidential_proof_NormalizationSigmaProofGammas">NormalizationSigmaProofGammas</a> {
     <a href="confidential_proof.md#0x7_confidential_proof_NormalizationSigmaProofGammas">NormalizationSigmaProofGammas</a> {
-        g1: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 1)),
-        g2: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 2)),
-        g3s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 3, (i <b>as</b> u8)))
+        g1: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 1)),
+        g2: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 2)),
+        g3s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 3, (i <b>as</b> u8)))
         }),
-        g4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 4, (i <b>as</b> u8)))
+        g4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 4, (i <b>as</b> u8)))
         })
     }
 }
@@ -2895,7 +2895,7 @@ Returns the scalar multipliers for the <code><a href="confidential_proof.md#0x7_
 Returns the scalar multipliers for the <code><a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProof">RotationSigmaProof</a></code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_rotation_gammas">msm_rotation_gammas</a>(rho: &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>): <a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProofGammas">confidential_proof::RotationSigmaProofGammas</a>
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_rotation_gammas">msm_rotation_gammas</a>(rho: &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>): <a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProofGammas">confidential_proof::RotationSigmaProofGammas</a>
 </code></pre>
 
 
@@ -2906,14 +2906,14 @@ Returns the scalar multipliers for the <code><a href="confidential_proof.md#0x7_
 
 <pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_rotation_gammas">msm_rotation_gammas</a>(rho: &Scalar): <a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProofGammas">RotationSigmaProofGammas</a> {
     <a href="confidential_proof.md#0x7_confidential_proof_RotationSigmaProofGammas">RotationSigmaProofGammas</a> {
-        g1: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 1)),
-        g2: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 2)),
-        g3: <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 3)),
-        g4s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 4, (i <b>as</b> u8)))
+        g1: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 1)),
+        g2: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 2)),
+        g3: <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho, 3)),
+        g4s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 4, (i <b>as</b> u8)))
         }),
-        g5s: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 5, (i <b>as</b> u8)))
+        g5s: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, 8).map(|i| {
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_sha2_512">ristretto255::new_scalar_from_sha2_512</a>(<a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho, 5, (i <b>as</b> u8)))
         })
     }
 }
@@ -2930,7 +2930,7 @@ Returns the scalar multipliers for the <code><a href="confidential_proof.md#0x7_
 Returns the scalar multiplier computed as a hash of the provided <code>rho</code> and corresponding <code>gamma</code> index.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho: &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>, i: u8): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho: &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>, i: u8): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 </code></pre>
 
 
@@ -2939,8 +2939,8 @@ Returns the scalar multiplier computed as a hash of the provided <code>rho</code
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho: &Scalar, i: u8): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
-    <b>let</b> bytes = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_to_bytes">ristretto255::scalar_to_bytes</a>(rho);
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_1">msm_gamma_1</a>(rho: &Scalar, i: u8): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
+    <b>let</b> bytes = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_to_bytes">ristretto255::scalar_to_bytes</a>(rho);
     bytes.push_back(i);
     bytes
 }
@@ -2957,7 +2957,7 @@ Returns the scalar multiplier computed as a hash of the provided <code>rho</code
 Returns the scalar multiplier computed as a hash of the provided <code>rho</code> and corresponding <code>gamma</code> indices.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho: &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>, i: u8, j: u8): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho: &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>, i: u8, j: u8): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 </code></pre>
 
 
@@ -2966,8 +2966,8 @@ Returns the scalar multiplier computed as a hash of the provided <code>rho</code
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho: &Scalar, i: u8, j: u8): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
-    <b>let</b> bytes = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_to_bytes">ristretto255::scalar_to_bytes</a>(rho);
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_msm_gamma_2">msm_gamma_2</a>(rho: &Scalar, i: u8, j: u8): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
+    <b>let</b> bytes = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_to_bytes">ristretto255::scalar_to_bytes</a>(rho);
     bytes.push_back(i);
     bytes.push_back(j);
     bytes
@@ -2985,7 +2985,7 @@ Returns the scalar multiplier computed as a hash of the provided <code>rho</code
 Calculates the product of the provided scalars.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(scalar1: &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>, scalar2: &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>, scalar3: &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>): <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_scalar_mul_3">scalar_mul_3</a>(scalar1: &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>, scalar2: &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>, scalar3: &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>): <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>
 </code></pre>
 
 
@@ -2999,8 +2999,8 @@ Calculates the product of the provided scalars.
 ): Scalar {
     <b>let</b> result = *scalar1;
 
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul_assign">ristretto255::scalar_mul_assign</a>(&<b>mut</b> result, scalar2);
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul_assign">ristretto255::scalar_mul_assign</a>(&<b>mut</b> result, scalar3);
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul_assign">ristretto255::scalar_mul_assign</a>(&<b>mut</b> result, scalar2);
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul_assign">ristretto255::scalar_mul_assign</a>(&<b>mut</b> result, scalar3);
 
     result
 }
@@ -3017,7 +3017,7 @@ Calculates the product of the provided scalars.
 Calculates the linear combination of the provided scalars.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(lhs: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;, rhs: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;): <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(lhs: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;, rhs: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>&gt;): <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>
 </code></pre>
 
 
@@ -3027,15 +3027,15 @@ Calculates the linear combination of the provided scalars.
 
 
 <pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_scalar_linear_combination">scalar_linear_combination</a>(
-    lhs: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;Scalar&gt;, rhs: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;Scalar&gt;
+    lhs: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;Scalar&gt;, rhs: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;Scalar&gt;
 ): Scalar {
-    <b>let</b> result = <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_zero">ristretto255::scalar_zero</a>();
+    <b>let</b> result = <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_zero">ristretto255::scalar_zero</a>();
 
     lhs.zip_ref(
         rhs,
         |l, r| {
-            <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
-                &<b>mut</b> result, &<a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(l, r)
+            <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_add_assign">ristretto255::scalar_add_assign</a>(
+                &<b>mut</b> result, &<a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_scalar_mul">ristretto255::scalar_mul</a>(l, r)
             );
         }
     );
@@ -3055,7 +3055,7 @@ Calculates the linear combination of the provided scalars.
 Raises 2 to the power of the provided exponent and returns the result as a scalar.
 
 
-<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(exp: u64): <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>
+<pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(exp: u64): <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_Scalar">ristretto255::Scalar</a>
 </code></pre>
 
 
@@ -3065,7 +3065,7 @@ Raises 2 to the power of the provided exponent and returns the result as a scala
 
 
 <pre><code><b>fun</b> <a href="confidential_proof.md#0x7_confidential_proof_new_scalar_from_pow2">new_scalar_from_pow2</a>(exp: u64): Scalar {
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_u128">ristretto255::new_scalar_from_u128</a>(1 &lt;&lt; (exp <b>as</b> u8))
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_new_scalar_from_u128">ristretto255::new_scalar_from_u128</a>(1 &lt;&lt; (exp <b>as</b> u8))
 }
 </code></pre>
 

@@ -152,6 +152,16 @@ Return type
 ## Constants
 
 
+<a id="0x1_enumerable_map_EVECTOR_EMPTY"></a>
+
+Vector is empty
+
+
+<pre><code><b>const</b> <a href="enumerable_map.md#0x1_enumerable_map_EVECTOR_EMPTY">EVECTOR_EMPTY</a>: u64 = 3;
+</code></pre>
+
+
+
 <a id="0x1_enumerable_map_EKEY_ABSENT"></a>
 
 Key is absent in the map
@@ -168,16 +178,6 @@ Key is already present in the map
 
 
 <pre><code><b>const</b> <a href="enumerable_map.md#0x1_enumerable_map_EKEY_ALREADY_ADDED">EKEY_ALREADY_ADDED</a>: u64 = 1;
-</code></pre>
-
-
-
-<a id="0x1_enumerable_map_EVECTOR_EMPTY"></a>
-
-Vector is empty
-
-
-<pre><code><b>const</b> <a href="enumerable_map.md#0x1_enumerable_map_EVECTOR_EMPTY">EVECTOR_EMPTY</a>: u64 = 3;
 </code></pre>
 
 

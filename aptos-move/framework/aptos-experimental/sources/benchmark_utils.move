@@ -1,6 +1,6 @@
 module aptos_experimental::benchmark_utils {
-    use aptos_framework::account;
-    use aptos_framework::aptos_account;
+    use supra_framework::account;
+    use supra_framework::supra_account;
 
     /// Entry function that creates account resource, and funds the account.
     /// This makes sure that transactions later don't need to create an account,
@@ -9,6 +9,6 @@ module aptos_experimental::benchmark_utils {
         source: &signer, to: address, amount: u64
     ) {
         account::create_account_if_does_not_exist(to);
-        aptos_account::transfer(source, to, amount);
+        supra_account::transfer(source, to, amount);
     }
 }

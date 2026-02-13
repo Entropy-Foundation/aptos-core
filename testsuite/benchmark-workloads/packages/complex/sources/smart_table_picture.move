@@ -14,7 +14,7 @@ module 0xABCD::smart_table_picture {
         all: vector<address>,
     }
 
-    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
+    #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     struct Palette has key {
         pixels: SmartTable<u32, u8>,
     }

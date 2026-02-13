@@ -498,9 +498,6 @@ where
                                 m
                             )));
                         },
-                        PanicOr::MissingNativeFunction(m) => {
-                            return Err(PanicError::MissingNativeFunction(m));
-                        },
                         PanicOr::Or(_) => {
                             read_set.capture_delayed_field_read_error(&PanicOr::Or(
                                 MVDelayedFieldsError::DeltaApplicationFailure,
@@ -1050,8 +1047,7 @@ where
                     txn_commit_listener.on_execution_aborted(txn_idx);
                 },
                 ExecutionStatus::SpeculativeExecutionAbortError(msg)
-                | ExecutionStatus::DelayedFieldsCodeInvariantError(msg)
-                | ExecutionStatus::MissingNativeFunction(msg) => {
+                | ExecutionStatus::DelayedFieldsCodeInvariantError(msg) => {
                     panic!("Cannot be materializing with {}", msg);
                 },
             }
@@ -1069,8 +1065,7 @@ where
             },
             ExecutionStatus::Abort(_) => (),
             ExecutionStatus::SpeculativeExecutionAbortError(msg)
-            | ExecutionStatus::DelayedFieldsCodeInvariantError(msg)
-            | ExecutionStatus::MissingNativeFunction(msg) => {
+            | ExecutionStatus::DelayedFieldsCodeInvariantError(msg) => {
                 panic!("Cannot be materializing with {}", msg);
             },
         };
@@ -2014,21 +2009,6 @@ where
                     alert!("Sequential execution DelayedFieldsCodeInvariantError error by transaction {}: {}", idx as TxnIndex, msg);
                     return Err(SequentialBlockExecutionError::ErrorToReturn(
                         BlockExecutionError::FatalBlockExecutorError(code_invariant_error(msg)),
-                    ));
-                },
-                ExecutionStatus::MissingNativeFunction(msg) => {
-                    if let Some(commit_hook) = &self.transaction_commit_hook {
-                        commit_hook.on_execution_aborted(idx as TxnIndex);
-                    }
-                    alert!(
-                        "Sequential execution MissingNativeFunction error by transaction {}: {}",
-                        idx as TxnIndex,
-                        msg
-                    );
-                    return Err(SequentialBlockExecutionError::ErrorToReturn(
-                        BlockExecutionError::FatalBlockExecutorError(
-                            PanicError::MissingNativeFunction(msg),
-                        ),
                     ));
                 },
                 ExecutionStatus::SpeculativeExecutionAbortError(msg) => {

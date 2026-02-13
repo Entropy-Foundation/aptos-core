@@ -1,5 +1,5 @@
 module 0x1::function_store {
-    use aptos_framework::aggregator_v2::{Aggregator, create_unbounded_aggregator, try_add};
+    use supra_framework::aggregator_v2::{Aggregator, create_unbounded_aggregator, try_add};
 
     struct FunctionStore has key, store {
         // Capturing aggregators, snapshots or anything that contains delayed fields is not

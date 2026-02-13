@@ -600,13 +600,6 @@ impl<
                 sub_status: None,
                 message: Some(err_msg),
             }),
-            Err(BlockExecutionError::FatalBlockExecutorError(
-                PanicError::MissingNativeFunction(err_msg),
-            )) => Err(VMStatus::Error {
-                status_code: StatusCode::MISSING_NATIVE_FUNCTION,
-                sub_status: None,
-                message: Some(err_msg),
-            }),
             Err(BlockExecutionError::FatalVMError(err)) => Err(err),
         }
     }

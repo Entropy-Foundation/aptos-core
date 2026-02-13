@@ -11,13 +11,13 @@ use crate::{
     thread::ThreadService,
     SafetyRules, TSafetyRules,
 };
-use anyhow::anyhow;
 use aptos_config::config::{InitialSafetyRulesConfig, SafetyRulesConfig, SafetyRulesService};
-use aptos_crypto::ed25519::PrivateKey;
+use aptos_crypto::ed25519::{PrivateKey, PublicKey};
 use aptos_global_constants::CONSENSUS_KEY;
 use aptos_infallible::RwLock;
+use aptos_logger::{info, warn};
 use aptos_secure_storage::{KVStorage, Storage};
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, sync::Arc, time::Instant};
 
 pub fn storage(config: &SafetyRulesConfig) -> PersistentSafetyStorage {
     let backend = &config.backend;
@@ -45,14 +45,17 @@ pub fn storage(config: &SafetyRulesConfig) -> PersistentSafetyStorage {
     } else {
         let storage =
             PersistentSafetyStorage::new(internal_storage, config.enable_cached_safety_data);
-        // If it's initialized, then we can continue
-        if storage.author().is_ok() {
+
+        let mut storage = if storage.author().is_ok() {
             storage
         } else if !matches!(
             config.initial_safety_rules_config,
             InitialSafetyRulesConfig::None
         ) {
-            let identity_blob = config.initial_safety_rules_config.identity_blob().unwrap();
+            let identity_blob = config
+                .initial_safety_rules_config
+                .identity_blob()
+                .expect("No identity blob in initial safety rules config");
             let waypoint = config.initial_safety_rules_config.waypoint();
 
             let backend = &config.backend;
@@ -72,19 +75,32 @@ pub fn storage(config: &SafetyRulesConfig) -> PersistentSafetyStorage {
             panic!(
                 "Safety rules storage is not initialized, provide an initial safety rules config"
             )
-        }
-    }
-}
+        };
 
-pub fn load_consensus_key_from_secure_storage(
-    config: &SafetyRulesConfig,
-) -> anyhow::Result<PrivateKey> {
-    let storage: Storage = (&config.backend).into();
-    let storage = Box::new(storage);
-    let response = storage.get::<PrivateKey>(CONSENSUS_KEY).map_err(|e| {
-        anyhow!("load_consensus_key_from_secure_storage failed with storage read error: {e}")
-    })?;
-    Ok(response.value)
+        // Ensuring all the overriding consensus keys are in the storage.
+        let timer = Instant::now();
+        for blob in config
+            .initial_safety_rules_config
+            .overriding_identity_blobs()
+            .unwrap_or_default()
+        {
+            if let Some(sk) = blob.consensus_private_key {
+                let pk_hex = hex::encode(PublicKey::from(&sk).to_bytes());
+                let storage_key = format!("{}_{}", CONSENSUS_KEY, pk_hex);
+                match storage.internal_store().set(storage_key.as_str(), sk) {
+                    Ok(_) => {
+                        info!("Setting {storage_key} succeeded.");
+                    },
+                    Err(e) => {
+                        warn!("Setting {storage_key} failed with internal store set error: {e}");
+                    },
+                }
+            }
+        }
+        info!("Overriding key work time: {:?}", timer.elapsed());
+
+        storage
+    }
 }
 
 enum SafetyRulesWrapper {
@@ -114,7 +130,7 @@ impl SafetyRulesManager {
     }
 
     pub fn new_local(storage: PersistentSafetyStorage) -> Self {
-        let safety_rules = SafetyRules::new(storage);
+        let safety_rules = SafetyRules::new(storage, true);
         Self {
             internal_safety_rules: SafetyRulesWrapper::Local(Arc::new(RwLock::new(safety_rules))),
         }
@@ -128,7 +144,7 @@ impl SafetyRulesManager {
     }
 
     pub fn new_serializer(storage: PersistentSafetyStorage) -> Self {
-        let safety_rules = SafetyRules::new(storage);
+        let safety_rules = SafetyRules::new(storage, false);
         let serializer_service = SerializerService::new(safety_rules);
         Self {
             internal_safety_rules: SafetyRulesWrapper::Serializer(Arc::new(RwLock::new(

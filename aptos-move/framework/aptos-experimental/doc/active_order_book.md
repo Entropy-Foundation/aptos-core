@@ -34,9 +34,9 @@ This is internal module, which cannot be used directly, use OrderBook instead.
 -  [Function `place_maker_order`](#0x7_active_order_book_place_maker_order)
 
 
-<pre><code><b>use</b> <a href="../../aptos-framework/doc/big_ordered_map.md#0x1_big_ordered_map">0x1::big_ordered_map</a>;
-<b>use</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
-<b>use</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
+<pre><code><b>use</b> <a href="../../supra-framework/doc/big_ordered_map.md#0x1_big_ordered_map">0x1::big_ordered_map</a>;
+<b>use</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
+<b>use</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
 <b>use</b> <a href="order_book_types.md#0x7_order_book_types">0x7::order_book_types</a>;
 </code></pre>
 
@@ -138,13 +138,13 @@ that is taken first, is the one inserted first, amongst those with same bid pric
 
 <dl>
 <dt>
-<code>buys: <a href="../../aptos-framework/doc/big_ordered_map.md#0x1_big_ordered_map_BigOrderedMap">big_ordered_map::BigOrderedMap</a>&lt;<a href="active_order_book.md#0x7_active_order_book_ActiveBidKey">active_order_book::ActiveBidKey</a>, <a href="active_order_book.md#0x7_active_order_book_ActiveBidData">active_order_book::ActiveBidData</a>&gt;</code>
+<code>buys: <a href="../../supra-framework/doc/big_ordered_map.md#0x1_big_ordered_map_BigOrderedMap">big_ordered_map::BigOrderedMap</a>&lt;<a href="active_order_book.md#0x7_active_order_book_ActiveBidKey">active_order_book::ActiveBidKey</a>, <a href="active_order_book.md#0x7_active_order_book_ActiveBidData">active_order_book::ActiveBidData</a>&gt;</code>
 </dt>
 <dd>
 
 </dd>
 <dt>
-<code>sells: <a href="../../aptos-framework/doc/big_ordered_map.md#0x1_big_ordered_map_BigOrderedMap">big_ordered_map::BigOrderedMap</a>&lt;<a href="active_order_book.md#0x7_active_order_book_ActiveBidKey">active_order_book::ActiveBidKey</a>, <a href="active_order_book.md#0x7_active_order_book_ActiveBidData">active_order_book::ActiveBidData</a>&gt;</code>
+<code>sells: <a href="../../supra-framework/doc/big_ordered_map.md#0x1_big_ordered_map_BigOrderedMap">big_ordered_map::BigOrderedMap</a>&lt;<a href="active_order_book.md#0x7_active_order_book_ActiveBidKey">active_order_book::ActiveBidKey</a>, <a href="active_order_book.md#0x7_active_order_book_ActiveBidData">active_order_book::ActiveBidData</a>&gt;</code>
 </dt>
 <dd>
 
@@ -229,7 +229,7 @@ Picks the best (i.e. highest) bid (i.e. buy) price from the active order book.
 aborts if there are no buys
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="active_order_book.md#0x7_active_order_book_best_bid_price">best_bid_price</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="active_order_book.md#0x7_active_order_book_best_bid_price">best_bid_price</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;
 </code></pre>
 
 
@@ -240,10 +240,10 @@ aborts if there are no buys
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="active_order_book.md#0x7_active_order_book_best_bid_price">best_bid_price</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">ActiveOrderBook</a>): Option&lt;u64&gt; {
     <b>if</b> (self.buys.is_empty()) {
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     } <b>else</b> {
         <b>let</b> (back_key, _back_value) = self.buys.borrow_back();
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(back_key.price)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(back_key.price)
     }
 }
 </code></pre>
@@ -260,7 +260,7 @@ Picks the best (i.e. lowest) ask (i.e. sell) price from the active order book.
 aborts if there are no sells
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="active_order_book.md#0x7_active_order_book_best_ask_price">best_ask_price</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="active_order_book.md#0x7_active_order_book_best_ask_price">best_ask_price</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;
 </code></pre>
 
 
@@ -271,10 +271,10 @@ aborts if there are no sells
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="active_order_book.md#0x7_active_order_book_best_ask_price">best_ask_price</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">ActiveOrderBook</a>): Option&lt;u64&gt; {
     <b>if</b> (self.sells.is_empty()) {
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     } <b>else</b> {
         <b>let</b> (front_key, _front_value) = self.sells.borrow_front();
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(front_key.price)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(front_key.price)
     }
 }
 </code></pre>
@@ -289,7 +289,7 @@ aborts if there are no sells
 
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="active_order_book.md#0x7_active_order_book_get_mid_price">get_mid_price</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="active_order_book.md#0x7_active_order_book_get_mid_price">get_mid_price</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;
 </code></pre>
 
 
@@ -302,9 +302,9 @@ aborts if there are no sells
     <b>let</b> best_bid = self.<a href="active_order_book.md#0x7_active_order_book_best_bid_price">best_bid_price</a>();
     <b>let</b> best_ask = self.<a href="active_order_book.md#0x7_active_order_book_best_ask_price">best_ask_price</a>();
     <b>if</b> (best_bid.is_none() || best_ask.is_none()) {
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
     } <b>else</b> {
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(
             (best_bid.destroy_some() + best_ask.destroy_some()) / 2
         )
     }
@@ -321,7 +321,7 @@ aborts if there are no sells
 
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="active_order_book.md#0x7_active_order_book_get_slippage_price">get_slippage_price</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>, is_bid: bool, slippage_pct: u64): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="active_order_book.md#0x7_active_order_book_get_slippage_price">get_slippage_price</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>, is_bid: bool, slippage_pct: u64): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;
 </code></pre>
 
 
@@ -335,16 +335,16 @@ aborts if there are no sells
 ): Option&lt;u64&gt; {
     <b>let</b> mid_price = self.<a href="active_order_book.md#0x7_active_order_book_get_mid_price">get_mid_price</a>();
     <b>if</b> (mid_price.is_none()) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>();
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>();
     };
     <b>let</b> mid_price = mid_price.destroy_some();
     <b>let</b> slippage = mul_div(
         mid_price, slippage_pct, get_slippage_pct_precision() * 100
     );
     <b>if</b> (is_bid) {
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(mid_price + slippage)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(mid_price + slippage)
     } <b>else</b> {
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(mid_price - slippage)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(mid_price - slippage)
     }
 }
 </code></pre>
@@ -359,7 +359,7 @@ aborts if there are no sells
 
 
 
-<pre><code><b>fun</b> <a href="active_order_book.md#0x7_active_order_book_get_impact_bid_price">get_impact_bid_price</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>, impact_size: u64): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;
+<pre><code><b>fun</b> <a href="active_order_book.md#0x7_active_order_book_get_impact_bid_price">get_impact_bid_price</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>, impact_size: u64): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;
 </code></pre>
 
 
@@ -373,7 +373,7 @@ aborts if there are no sells
     <b>let</b> total_size = 0;
     <b>let</b> orders = &self.buys;
     <b>if</b> (orders.is_empty()) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>();
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>();
     };
     <b>let</b> (front_key, front_value) = orders.borrow_back();
     <b>while</b> (total_size &lt; impact_size) {
@@ -393,7 +393,7 @@ aborts if there are no sells
         front_key = next_key.destroy_some();
         front_value = orders.borrow(&front_key);
     };
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>((total_value / (total_size <b>as</b> u128)) <b>as</b> u64)
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>((total_value / (total_size <b>as</b> u128)) <b>as</b> u64)
 }
 </code></pre>
 
@@ -407,7 +407,7 @@ aborts if there are no sells
 
 
 
-<pre><code><b>fun</b> <a href="active_order_book.md#0x7_active_order_book_get_impact_ask_price">get_impact_ask_price</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>, impact_size: u64): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;
+<pre><code><b>fun</b> <a href="active_order_book.md#0x7_active_order_book_get_impact_ask_price">get_impact_ask_price</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>, impact_size: u64): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;
 </code></pre>
 
 
@@ -421,7 +421,7 @@ aborts if there are no sells
     <b>let</b> total_size = 0;
     <b>let</b> orders = &self.sells;
     <b>if</b> (orders.is_empty()) {
-        <b>return</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>();
+        <b>return</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>();
     };
     <b>let</b> (front_key, front_value) = orders.borrow_front();
     <b>while</b> (total_size &lt; impact_size) {
@@ -440,7 +440,7 @@ aborts if there are no sells
         front_key = next_key.destroy_some();
         front_value = orders.borrow(&front_key);
     };
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>((total_value / (total_size <b>as</b> u128)) <b>as</b> u64)
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>((total_value / (total_size <b>as</b> u128)) <b>as</b> u64)
 }
 </code></pre>
 
@@ -557,7 +557,7 @@ aborts if there are no sells
 Check if the order is a taker order - i.e. if it can be immediately matched with the order book fully or partially.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="active_order_book.md#0x7_active_order_book_is_taker_order">is_taker_order</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>, price: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;, is_bid: bool): bool
+<pre><code><b>public</b> <b>fun</b> <a href="active_order_book.md#0x7_active_order_book_is_taker_order">is_taker_order</a>(self: &<a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>, price: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;, is_bid: bool): bool
 </code></pre>
 
 
@@ -597,7 +597,7 @@ Check if the order is a taker order - i.e. if it can be immediately matched with
 
 
 
-<pre><code><b>fun</b> <a href="active_order_book.md#0x7_active_order_book_single_match_with_current_active_order">single_match_with_current_active_order</a>(remaining_size: u64, cur_key: <a href="active_order_book.md#0x7_active_order_book_ActiveBidKey">active_order_book::ActiveBidKey</a>, cur_value: <a href="active_order_book.md#0x7_active_order_book_ActiveBidData">active_order_book::ActiveBidData</a>, orders: &<b>mut</b> <a href="../../aptos-framework/doc/big_ordered_map.md#0x1_big_ordered_map_BigOrderedMap">big_ordered_map::BigOrderedMap</a>&lt;<a href="active_order_book.md#0x7_active_order_book_ActiveBidKey">active_order_book::ActiveBidKey</a>, <a href="active_order_book.md#0x7_active_order_book_ActiveBidData">active_order_book::ActiveBidData</a>&gt;): <a href="order_book_types.md#0x7_order_book_types_ActiveMatchedOrder">order_book_types::ActiveMatchedOrder</a>
+<pre><code><b>fun</b> <a href="active_order_book.md#0x7_active_order_book_single_match_with_current_active_order">single_match_with_current_active_order</a>(remaining_size: u64, cur_key: <a href="active_order_book.md#0x7_active_order_book_ActiveBidKey">active_order_book::ActiveBidKey</a>, cur_value: <a href="active_order_book.md#0x7_active_order_book_ActiveBidData">active_order_book::ActiveBidData</a>, orders: &<b>mut</b> <a href="../../supra-framework/doc/big_ordered_map.md#0x1_big_ordered_map_BigOrderedMap">big_ordered_map::BigOrderedMap</a>&lt;<a href="active_order_book.md#0x7_active_order_book_ActiveBidKey">active_order_book::ActiveBidKey</a>, <a href="active_order_book.md#0x7_active_order_book_ActiveBidData">active_order_book::ActiveBidData</a>&gt;): <a href="order_book_types.md#0x7_order_book_types_ActiveMatchedOrder">order_book_types::ActiveMatchedOrder</a>
 </code></pre>
 
 
@@ -647,7 +647,7 @@ Check if the order is a taker order - i.e. if it can be immediately matched with
 
 
 
-<pre><code><b>fun</b> <a href="active_order_book.md#0x7_active_order_book_get_single_match_for_buy_order">get_single_match_for_buy_order</a>(self: &<b>mut</b> <a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>, price: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;, size: u64): <a href="order_book_types.md#0x7_order_book_types_ActiveMatchedOrder">order_book_types::ActiveMatchedOrder</a>
+<pre><code><b>fun</b> <a href="active_order_book.md#0x7_active_order_book_get_single_match_for_buy_order">get_single_match_for_buy_order</a>(self: &<b>mut</b> <a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>, price: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;, size: u64): <a href="order_book_types.md#0x7_order_book_types_ActiveMatchedOrder">order_book_types::ActiveMatchedOrder</a>
 </code></pre>
 
 
@@ -684,7 +684,7 @@ Check if the order is a taker order - i.e. if it can be immediately matched with
 
 
 
-<pre><code><b>fun</b> <a href="active_order_book.md#0x7_active_order_book_get_single_match_for_sell_order">get_single_match_for_sell_order</a>(self: &<b>mut</b> <a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>, price: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;, size: u64): <a href="order_book_types.md#0x7_order_book_types_ActiveMatchedOrder">order_book_types::ActiveMatchedOrder</a>
+<pre><code><b>fun</b> <a href="active_order_book.md#0x7_active_order_book_get_single_match_for_sell_order">get_single_match_for_sell_order</a>(self: &<b>mut</b> <a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>, price: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;, size: u64): <a href="order_book_types.md#0x7_order_book_types_ActiveMatchedOrder">order_book_types::ActiveMatchedOrder</a>
 </code></pre>
 
 
@@ -721,7 +721,7 @@ Check if the order is a taker order - i.e. if it can be immediately matched with
 
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="active_order_book.md#0x7_active_order_book_get_single_match_result">get_single_match_result</a>(self: &<b>mut</b> <a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>, price: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;, size: u64, is_bid: bool): <a href="order_book_types.md#0x7_order_book_types_ActiveMatchedOrder">order_book_types::ActiveMatchedOrder</a>
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="active_order_book.md#0x7_active_order_book_get_single_match_result">get_single_match_result</a>(self: &<b>mut</b> <a href="active_order_book.md#0x7_active_order_book_ActiveOrderBook">active_order_book::ActiveOrderBook</a>, price: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;u64&gt;, size: u64, is_bid: bool): <a href="order_book_types.md#0x7_order_book_types_ActiveMatchedOrder">order_book_types::ActiveMatchedOrder</a>
 </code></pre>
 
 
@@ -849,7 +849,7 @@ Decrease the size of the order in the order book without altering its position i
     <b>let</b> key = <a href="active_order_book.md#0x7_active_order_book_ActiveBidKey">ActiveBidKey</a> { price, tie_breaker };
     <b>let</b> value = <a href="active_order_book.md#0x7_active_order_book_ActiveBidData">ActiveBidData</a> { order_id, size };
     // Assert that this is not a taker order
-    <b>assert</b>!(!self.<a href="active_order_book.md#0x7_active_order_book_is_taker_order">is_taker_order</a>(<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(price), is_bid), <a href="active_order_book.md#0x7_active_order_book_EINVALID_MAKER_ORDER">EINVALID_MAKER_ORDER</a>);
+    <b>assert</b>!(!self.<a href="active_order_book.md#0x7_active_order_book_is_taker_order">is_taker_order</a>(<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(price), is_bid), <a href="active_order_book.md#0x7_active_order_book_EINVALID_MAKER_ORDER">EINVALID_MAKER_ORDER</a>);
     <b>if</b> (is_bid) {
         self.buys.add(key, value);
     } <b>else</b> {

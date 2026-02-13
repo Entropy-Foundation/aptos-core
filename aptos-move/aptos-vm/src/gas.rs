@@ -11,7 +11,7 @@ use aptos_gas_schedule::{
 };
 use aptos_logger::{enabled, Level};
 use aptos_memory_usage_tracker::MemoryTrackedGasMeter;
-use aptos_types::on_chain_config::{ConfigStorage, FeatureFlag, Features, GasSchedule, GasScheduleV2, OnChainConfig};
+use aptos_types::on_chain_config::{FeatureFlag, Features};
 use aptos_types::transaction::{RawTransaction, TransactionPayload};
 use aptos_types::transaction::automation::RegistrationParams;
 use aptos_vm_logging::{log_schema::AdapterLogSchema, speculative_log, speculative_warn};
@@ -57,7 +57,6 @@ pub (crate) struct TransactionGasCheckInvariants {
     pub(crate) transaction_size: NumBytes,
     pub(crate) script_size: NumBytes,
     pub(crate) is_keyless: bool,
-    pub(crate) is_account_init_for_sponsored_transaction: bool,
 }
 
 pub(crate) fn check_gas(
@@ -76,9 +75,48 @@ pub(crate) fn check_gas(
         transaction_size: txn_metadata.transaction_size,
         script_size: txn_metadata.script_size,
         is_keyless: txn_metadata.is_keyless(),
-        is_account_init_for_sponsored_transaction: crate::aptos_vm::is_account_init_for_sponsored_transaction(txn_metadata, features, resolver)?,
     };
-    check_gas_for_parameters(gas_params, gas_feature_version, features, txn_gas_metadata, is_approved_gov_script, log_context)
+    check_gas_for_parameters(gas_params, gas_feature_version, txn_gas_metadata, is_approved_gov_script, log_context)?;
+    let txn_gas_params = &gas_params.vm.txn;
+    // If this is for a potentially new account, ensure there's enough gas to cover storage, execution, and IO costs.
+    // TODO: This isn't the cleaning code, thus we localize it just here and will remove it
+    // once accountv2 is available and we no longer need to create accounts.
+    let gas_unit_price: u64 = txn_metadata.gas_unit_price().into();
+    if crate::aptos_vm::should_create_account_resource(
+        txn_metadata,
+        features,
+        resolver,
+        module_storage,
+    )? && (gas_unit_price != 0 || !features.is_default_account_resource_enabled())
+    {
+        let max_gas_amount: u64 = txn_metadata.max_gas_amount().into();
+        let pricing = DiskSpacePricing::new(gas_feature_version, features);
+        let storage_fee_per_account_create: u64 = pricing
+            .hack_estimated_fee_for_account_creation(txn_gas_params)
+            .into();
+
+        let expected = gas_unit_price * 10
+            + if features.is_new_account_default_to_fa_store() {
+                1
+            } else {
+                2
+            } * storage_fee_per_account_create;
+        let actual = gas_unit_price * max_gas_amount;
+        if actual < expected {
+            speculative_warn!(
+                log_context,
+                format!(
+                    "[VM] Insufficient gas for account creation; min {}, submitted {}",
+                    expected, actual,
+                ),
+            );
+            return Err(VMStatus::error(
+                StatusCode::MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS,
+                None,
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Checks gas parameters and maps the gas related error status code to Automation invariants.
@@ -105,12 +143,10 @@ pub(crate) fn check_automation_task_gas(
         transaction_size: (size_in_bytes as u64).into(),
         script_size: NumBytes::zero().into(),
         is_keyless: false,
-        is_account_init_for_sponsored_transaction: false,
     };
     let results = check_gas_for_parameters(
         gas_params,
         gas_feature_version,
-        features,
         gas_check_invariants,
         false,
         log_context,
@@ -151,7 +187,6 @@ pub(crate) fn check_automation_task_gas(
 pub(crate) fn check_gas_for_parameters(
     gas_params: &AptosGasParameters,
     gas_feature_version: u64,
-    features: &Features,
     txn_gas_metadata: TransactionGasCheckInvariants,
     is_approved_gov_script: bool,
     log_context: &AdapterLogSchema,
@@ -229,7 +264,7 @@ pub(crate) fn check_gas_for_parameters(
         .calculate_intrinsic_gas(raw_bytes_len)
         .evaluate(gas_feature_version, &gas_params.vm);
     let total_rounded: Gas = (intrinsic_gas + keyless).to_unit_round_up_with_params(txn_gas_params);
-    if txn_metadata.max_gas_amount() < total_rounded {
+    if txn_gas_metadata.max_gas_amount < total_rounded {
         speculative_warn!(
             log_context,
             format!(
@@ -278,45 +313,6 @@ pub(crate) fn check_gas_for_parameters(
             StatusCode::GAS_UNIT_PRICE_ABOVE_MAX_BOUND,
             None,
         ));
-    }
-
-    // If this is for a potentially new account, ensure there's enough gas to cover storage, execution, and IO costs.
-    // TODO: This isn't the cleaning code, thus we localize it just here and will remove it
-    // once accountv2 is available and we no longer need to create accounts.
-    let gas_unit_price: u64 = txn_metadata.gas_unit_price().into();
-    if crate::aptos_vm::should_create_account_resource(
-        txn_metadata,
-        features,
-        resolver,
-        module_storage,
-    )? && (gas_unit_price != 0 || !features.is_default_account_resource_enabled())
-    {
-        let max_gas_amount: u64 = txn_metadata.max_gas_amount().into();
-        let pricing = DiskSpacePricing::new(gas_feature_version, features);
-        let storage_fee_per_account_create: u64 = pricing
-            .hack_estimated_fee_for_account_creation(txn_gas_params)
-            .into();
-
-        let expected = gas_unit_price * 10
-            + if features.is_new_account_default_to_fa_store() {
-                1
-            } else {
-                2
-            } * storage_fee_per_account_create;
-        let actual = gas_unit_price * max_gas_amount;
-        if actual < expected {
-            speculative_warn!(
-                log_context,
-                format!(
-                    "[VM] Insufficient gas for account creation; min {}, submitted {}",
-                    expected, actual,
-                ),
-            );
-            return Err(VMStatus::error(
-                StatusCode::MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS,
-                None,
-            ));
-        }
     }
     Ok(())
 }

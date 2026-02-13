@@ -67,7 +67,7 @@ async fn test_move_compile_flow() {
     assert_eq!(manifest.dependencies.len(), 1);
 
     let dependency = manifest.dependencies.iter().next().unwrap();
-    assert_eq!("AptosFramework", dependency.0.to_string());
+    assert_eq!("SupraFramework", dependency.0.to_string());
 
     // Now try to compile real code
     cli.add_move_files();

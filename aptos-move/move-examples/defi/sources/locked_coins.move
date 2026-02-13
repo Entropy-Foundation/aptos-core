@@ -272,7 +272,7 @@ module defi::locked_coins {
     #[test_only]
     use supra_framework::supra_coin::{Self, SupraCoin};
     #[test_only]
-    use supra_framework::aptos_account;
+    use supra_framework::supra_account;
 
     #[test_only]
     fun setup(supra_framework: &signer, sponsor: &signer): BurnCapability<SupraCoin> {
@@ -293,7 +293,7 @@ module defi::locked_coins {
         supra_framework: &signer, sponsor: &signer, recipient: &signer) acquires Locks {
         let burn_cap = setup(supra_framework, sponsor);
         let recipient_addr = signer::address_of(recipient);
-        aptos_account::create_account(recipient_addr);
+        supra_account::create_account(recipient_addr);
         let sponsor_address = signer::address_of(sponsor);
         initialize_sponsor<SupraCoin>(sponsor, sponsor_address);
         add_locked_coins<SupraCoin>(sponsor, recipient_addr, 1000, 1000);
@@ -311,7 +311,7 @@ module defi::locked_coins {
         supra_framework: &signer, sponsor: &signer, recipient: &signer) acquires Locks {
         let burn_cap = setup(supra_framework, sponsor);
         let recipient_addr = signer::address_of(recipient);
-        aptos_account::create_account(recipient_addr);
+        supra_account::create_account(recipient_addr);
         let sponsor_address = signer::address_of(sponsor);
         initialize_sponsor<SupraCoin>(sponsor, sponsor_address);
         add_locked_coins<SupraCoin>(sponsor, recipient_addr, 1000, 1000);
@@ -326,7 +326,7 @@ module defi::locked_coins {
         supra_framework: &signer, sponsor: &signer, recipient: &signer) acquires Locks {
         let burn_cap = setup(supra_framework, sponsor);
         let recipient_addr = signer::address_of(recipient);
-        aptos_account::create_account(recipient_addr);
+        supra_account::create_account(recipient_addr);
         let sponsor_address = signer::address_of(sponsor);
         initialize_sponsor<SupraCoin>(sponsor, sponsor_address);
         add_locked_coins<SupraCoin>(sponsor, recipient_addr, 1000, 1000);
@@ -341,7 +341,7 @@ module defi::locked_coins {
         supra_framework: &signer, sponsor: &signer, recipient: &signer) acquires Locks {
         let burn_cap = setup(supra_framework, sponsor);
         let recipient_addr = signer::address_of(recipient);
-        aptos_account::create_account(recipient_addr);
+        supra_account::create_account(recipient_addr);
         let sponsor_address = signer::address_of(sponsor);
         initialize_sponsor<SupraCoin>(sponsor, sponsor_address);
         add_locked_coins<SupraCoin>(sponsor, recipient_addr, 1000, 1000);
@@ -365,8 +365,8 @@ module defi::locked_coins {
         let sponsor_addr = signer::address_of(sponsor);
         let recipient_1_addr = signer::address_of(recipient_1);
         let recipient_2_addr = signer::address_of(recipient_2);
-        aptos_account::create_account(recipient_1_addr);
-        aptos_account::create_account(recipient_2_addr);
+        supra_account::create_account(recipient_1_addr);
+        supra_account::create_account(recipient_2_addr);
         let sponsor_address = signer::address_of(sponsor);
         initialize_sponsor<SupraCoin>(sponsor, sponsor_address);
         batch_add_locked_coins<SupraCoin>(
@@ -395,8 +395,8 @@ module defi::locked_coins {
         let burn_cap = setup(supra_framework, sponsor);
         let recipient_addr = signer::address_of(recipient);
         let withdrawal_addr = signer::address_of(withdrawal);
-        aptos_account::create_account(withdrawal_addr);
-        aptos_account::create_account(recipient_addr);
+        supra_account::create_account(withdrawal_addr);
+        supra_account::create_account(recipient_addr);
         let sponsor_address = signer::address_of(sponsor);
         initialize_sponsor<SupraCoin>(sponsor, withdrawal_addr);
         add_locked_coins<SupraCoin>(sponsor, recipient_addr, 1000, 1000);
@@ -425,9 +425,9 @@ module defi::locked_coins {
         let recipient_1_addr = signer::address_of(recipient_1);
         let recipient_2_addr = signer::address_of(recipient_2);
         let withdrawal_addr = signer::address_of(withdrawal);
-        aptos_account::create_account(recipient_1_addr);
-        aptos_account::create_account(recipient_2_addr);
-        aptos_account::create_account(withdrawal_addr);
+        supra_account::create_account(recipient_1_addr);
+        supra_account::create_account(recipient_2_addr);
+        supra_account::create_account(withdrawal_addr);
         let sponsor_address = signer::address_of(sponsor);
         initialize_sponsor<SupraCoin>(sponsor, withdrawal_addr);
         batch_add_locked_coins<SupraCoin>(
@@ -456,8 +456,8 @@ module defi::locked_coins {
         let burn_cap = setup(supra_framework, sponsor);
         let recipient_addr = signer::address_of(recipient);
         let withdrawal_addr = signer::address_of(withdrawal);
-        aptos_account::create_account(recipient_addr);
-        aptos_account::create_account(withdrawal_addr);
+        supra_account::create_account(recipient_addr);
+        supra_account::create_account(withdrawal_addr);
         let sponsor_address = signer::address_of(sponsor);
         initialize_sponsor<SupraCoin>(sponsor, withdrawal_addr);
         add_locked_coins<SupraCoin>(sponsor, recipient_addr, 1000, 1000);
@@ -475,8 +475,8 @@ module defi::locked_coins {
         let burn_cap = setup(supra_framework, sponsor);
         let recipient_addr = signer::address_of(recipient);
         let withdrawal_addr = signer::address_of(withdrawal);
-        aptos_account::create_account(recipient_addr);
-        aptos_account::create_account(withdrawal_addr);
+        supra_account::create_account(recipient_addr);
+        supra_account::create_account(withdrawal_addr);
         let sponsor_address = signer::address_of(sponsor);
         initialize_sponsor<SupraCoin>(sponsor, withdrawal_addr);
         assert!(withdrawal_address<SupraCoin>(sponsor_address) == withdrawal_addr, 0);

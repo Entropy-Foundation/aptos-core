@@ -3,9 +3,9 @@ script {
     use std::string::{utf8};
     use std::option;
 
-    use aptos_framework::object::{Self, object_from_constructor_ref};
-    use aptos_framework::fungible_asset::{Self, Metadata};
-    use aptos_framework::primary_fungible_store::{Self};
+    use supra_framework::object::{Self, object_from_constructor_ref};
+    use supra_framework::fungible_asset::{Self, Metadata};
+    use supra_framework::primary_fungible_store::{Self};
 
     const ASSET_SYMBOL: vector<u8> = b"FA";
 

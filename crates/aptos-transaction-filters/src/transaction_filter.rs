@@ -330,6 +330,7 @@ fn matches_entry_function(
                 MultisigTransactionPayload::EntryFunction(entry_function) => {
                     compare_entry_function(entry_function, address, module_name, function)
                 },
+                MultisigTransactionPayload::AutomationRegistration(_) => false,
             })
             .unwrap_or(false),
         TransactionPayload::EntryFunction(entry_function) => {
@@ -341,8 +342,10 @@ fn matches_entry_function(
                 TransactionExecutableRef::EntryFunction(entry_function) => {
                     compare_entry_function(entry_function, address, module_name, function)
                 },
+                TransactionExecutableRef::AutomationRegistration(_) => false,
             }
         },
+        TransactionPayload::AutomationRegistration(_) => false,
     }
 }
 
@@ -361,6 +364,7 @@ fn matches_entry_function_module_address(
                 MultisigTransactionPayload::EntryFunction(entry_function) => {
                     compare_entry_function_module_address(entry_function, module_address)
                 },
+                MultisigTransactionPayload::AutomationRegistration(_) => false,
             })
             .unwrap_or(false),
         TransactionPayload::EntryFunction(entry_function) => {
@@ -372,8 +376,10 @@ fn matches_entry_function_module_address(
                 TransactionExecutableRef::EntryFunction(entry_function) => {
                     compare_entry_function_module_address(entry_function, module_address)
                 },
+                TransactionExecutableRef::AutomationRegistration(_) => false,
             }
         },
+        TransactionPayload::AutomationRegistration(_) => false,
     }
 }
 
@@ -397,6 +403,7 @@ fn matches_multisig_address(
                     .unwrap_or(false),
             }
         },
+        TransactionPayload::AutomationRegistration(_) => false,
     }
 }
 
@@ -419,8 +426,10 @@ fn matches_script_argument_address(
                 TransactionExecutableRef::Script(script) => {
                     compare_script_argument_address(script, address)
                 },
+                TransactionExecutableRef::AutomationRegistration(_) => false,
             }
         },
+        TransactionPayload::AutomationRegistration(_) => false,
     }
 }
 

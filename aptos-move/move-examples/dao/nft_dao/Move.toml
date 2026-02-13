@@ -5,7 +5,7 @@ upgrade_policy = "immutable"
 
 [addresses]
 dao_platform = "_"
-aptos_framework = "0x1"
+supra_framework = "0x1"
 
 [dependencies]
 SupraFramework = { local = "../../../framework/supra-framework" }

@@ -138,7 +138,7 @@ module supra_framework::managed_coin {
     #[test_only]
     struct FakeMoney {}
 
-    #[test(framework = @aptos_framework, source = @0xa11ce, destination = @0xb0b, mod_account = @0x1)]
+    #[test(framework = @supra_framework, source = @0xa11ce, destination = @0xb0b, mod_account = @0x1)]
     public entry fun test_end_to_end(
         framework: signer,
         source: signer,
@@ -151,7 +151,7 @@ module supra_framework::managed_coin {
         supra_framework::account::create_account_for_test(destination_addr);
         supra_framework::account::create_account_for_test(signer::address_of(&mod_account));
         aggregator_factory::initialize_aggregator_factory_for_test(&mod_account);
-        aptos_framework::coin::create_coin_conversion_map(&framework);
+        supra_framework::coin::create_coin_conversion_map(&framework);
 
         initialize<FakeMoney>(
             &mod_account,
@@ -200,9 +200,9 @@ module supra_framework::managed_coin {
     ) acquires Capabilities {
         let source_addr = signer::address_of(&source);
         let destination_addr = signer::address_of(&destination);
-        aptos_framework::account::create_account_for_test(source_addr);
-        aptos_framework::account::create_account_for_test(destination_addr);
-        aptos_framework::account::create_account_for_test(signer::address_of(&mod_account));
+        supra_framework::account::create_account_for_test(source_addr);
+        supra_framework::account::create_account_for_test(destination_addr);
+        supra_framework::account::create_account_for_test(signer::address_of(&mod_account));
         aggregator_factory::initialize_aggregator_factory_for_test(&mod_account);
 
         initialize<FakeMoney>(
@@ -222,7 +222,7 @@ module supra_framework::managed_coin {
         coin::destroy_burn_cap(burn_cap);
     }
 
-    #[test(framework = @aptos_framework, source = @0xa11ce, destination = @0xb0b, mod_account = @0x1)]
+    #[test(framework = @supra_framework, source = @0xa11ce, destination = @0xb0b, mod_account = @0x1)]
     #[expected_failure(abort_code = 0x60001, location = Self)]
     public entry fun fail_mint(
         framework: signer,
@@ -236,7 +236,7 @@ module supra_framework::managed_coin {
         supra_framework::account::create_account_for_test(signer::address_of(&destination));
         supra_framework::account::create_account_for_test(signer::address_of(&mod_account));
         aggregator_factory::initialize_aggregator_factory_for_test(&mod_account);
-        aptos_framework::coin::create_coin_conversion_map(&framework);
+        supra_framework::coin::create_coin_conversion_map(&framework);
 
 
         initialize<FakeMoney>(&mod_account, b"Fake money", b"FMD", 1, true);
@@ -247,7 +247,7 @@ module supra_framework::managed_coin {
         mint<FakeMoney>(&destination, source_addr, 100);
     }
 
-    #[test(framework = @aptos_framework, source = @0xa11ce, destination = @0xb0b, mod_account = @0x1)]
+    #[test(framework = @supra_framework, source = @0xa11ce, destination = @0xb0b, mod_account = @0x1)]
     #[expected_failure(abort_code = 0x60001, location = Self)]
     public entry fun fail_burn(
         framework: signer,
@@ -261,7 +261,7 @@ module supra_framework::managed_coin {
         supra_framework::account::create_account_for_test(signer::address_of(&destination));
         supra_framework::account::create_account_for_test(signer::address_of(&mod_account));
         aggregator_factory::initialize_aggregator_factory_for_test(&mod_account);
-        aptos_framework::coin::create_coin_conversion_map(&framework);
+        supra_framework::coin::create_coin_conversion_map(&framework);
 
 
         initialize<FakeMoney>(&mod_account, b"Fake money", b"FMD", 1, true);

@@ -103,10 +103,6 @@ impl ExecutorTask for AptosExecutorTask {
                     ExecutionStatus::DelayedFieldsCodeInvariantError(
                         err.message().cloned().unwrap_or_default(),
                     )
-                } else if err.status_code() == StatusCode::MISSING_NATIVE_FUNCTION {
-                    ExecutionStatus::MissingNativeFunction(
-                        err.message().cloned().unwrap_or_default(),
-                    )
                 } else {
                     ExecutionStatus::Abort(err)
                 }

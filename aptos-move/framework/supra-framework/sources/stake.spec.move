@@ -119,20 +119,18 @@ spec supra_framework::stake {
     // Function specifications
     // -----------------------
 
-    spec initialize_validator_fees(aptos_framework: &signer) {
-        let aptos_addr = signer::address_of(aptos_framework);
-        aborts_if !system_addresses::is_aptos_framework_address(aptos_addr);
-        aborts_if exists<ValidatorFees>(aptos_addr);
-        ensures exists<ValidatorFees>(aptos_addr);
-    }
-
     spec initialize_validator(
         account: &signer,
         consensus_pubkey: vector<u8>,
         network_addresses: vector<u8>,
         fullnode_addresses: vector<u8>,
     ){
-        let pubkey_from_pop = bls12381::spec_public_key_from_bytes_with_pop(
+        pragma verify = false;
+
+        include AbortsIfSignerPermissionStake {
+            s: account
+        };
+        let is_public_key_validated = aptos_std::ed25519::spec_public_key_validate_internal(
             consensus_pubkey,
         );
         aborts_if !is_public_key_validated;
@@ -524,8 +522,6 @@ spec supra_framework::stake {
         let post post_stake_pool = global<StakePool>(pool_address);
         let post post_active_value = post_stake_pool.active.value;
         let post post_pending_inactive_value = post_stake_pool.pending_inactive.value;
-        let fees_table = global<ValidatorFees>(@aptos_framework).fees_table;
-        let post post_fees_table = global<ValidatorFees>(@aptos_framework).fees_table;
         let post post_inactive_value = post_stake_pool.inactive.value;
         ensures post_stake_pool.pending_active.value == 0;
         // the amount stored in the stake pool should not changed after the update
@@ -540,7 +536,7 @@ spec supra_framework::stake {
     }
 
     spec schema AbortsIfSignerPermissionStake {
-        use aptos_framework::permissioned_signer;
+        use supra_framework::permissioned_signer;
         s: signer;
         let perm = StakeManagementPermission {};
         aborts_if !permissioned_signer::spec_check_permission_exists(s, perm);
@@ -556,7 +552,7 @@ spec supra_framework::stake {
         aborts_if !exists<ValidatorConfig>(pool_address);
         aborts_if global<ValidatorConfig>(pool_address).validator_index >= len(validator_perf.validators);
 
-        let aptos_addr = type_info::type_of<AptosCoin>().account_address;
+        let aptos_addr = type_info::type_of<SupraCoin>().account_address;
         aborts_if !exists<ValidatorFees>(aptos_addr);
 
         let stake_pool = global<StakePool>(pool_address);
@@ -769,20 +765,6 @@ spec supra_framework::stake {
             active == initial_stake_amount;
     }
 
-    spec add_transaction_fee(validator_addr: address, fee: Coin<AptosCoin>) {
-        aborts_if !exists<ValidatorFees>(@aptos_framework);
-        let fees_table = global<ValidatorFees>(@aptos_framework).fees_table;
-        let post post_fees_table = global<ValidatorFees>(@aptos_framework).fees_table;
-        let collected_fee = table::spec_get(fees_table, validator_addr);
-        let post post_collected_fee = table::spec_get(post_fees_table, validator_addr);
-        ensures if (table::spec_contains(fees_table, validator_addr)) {
-            post_collected_fee.value == collected_fee.value + fee.value
-        } else {
-            table::spec_contains(post_fees_table, validator_addr) &&
-            table::spec_get(post_fees_table, validator_addr) == fee
-        };
-    }
-
     spec update_voting_power_increase(increase_amount: u64) {
         requires !reconfiguration_state::spec_is_in_progress();
         aborts_if !exists<ValidatorSet>(@supra_framework);
@@ -957,13 +939,12 @@ spec supra_framework::stake {
     // These resources are required to successfully execute `on_new_epoch`, which cannot
     // be discharged by the global invariants because `on_new_epoch` is called in genesis.
     spec schema ResourceRequirement {
-        requires exists<AptosCoinCapabilities>(@aptos_framework);
-        requires exists<ValidatorPerformance>(@aptos_framework);
-        requires exists<ValidatorSet>(@aptos_framework);
-        requires exists<StakingConfig>(@aptos_framework);
-        requires exists<StakingRewardsConfig>(@aptos_framework) || !features::spec_periodical_reward_rate_decrease_enabled();
-        requires exists<timestamp::CurrentTimeMicroseconds>(@aptos_framework);
-        requires exists<ValidatorFees>(@aptos_framework);
+        requires exists<SupraCoinCapabilities>(@supra_framework);
+        requires exists<ValidatorPerformance>(@supra_framework);
+        requires exists<ValidatorSet>(@supra_framework);
+        requires exists<StakingConfig>(@supra_framework);
+        requires exists<StakingRewardsConfig>(@supra_framework) || !features::spec_periodical_reward_rate_decrease_enabled();
+        requires exists<timestamp::CurrentTimeMicroseconds>(@supra_framework);
     }
 
     // Adding helper function in staking_config leads to an unexpected error

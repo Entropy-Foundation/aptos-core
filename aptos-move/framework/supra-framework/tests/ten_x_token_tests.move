@@ -52,7 +52,7 @@ module supra_framework::ten_x_token_tests {
     }
 
     #[test(creator = @0xcafe)]
-    #[expected_failure(abort_code=0x1001C, location=aptos_framework::fungible_asset)]
+    #[expected_failure(abort_code=0x1001C, location=supra_framework::fungible_asset)]
     fun ten_x_balance_abort(
         creator: &signer,
     ) {
@@ -67,7 +67,7 @@ module supra_framework::ten_x_token_tests {
     }
 
     #[test(creator = @0xcafe)]
-    #[expected_failure(abort_code=0x1001C, location=aptos_framework::fungible_asset)]
+    #[expected_failure(abort_code=0x1001C, location=supra_framework::fungible_asset)]
     fun ten_x_supply_abort(
         creator: &signer,
     ) {

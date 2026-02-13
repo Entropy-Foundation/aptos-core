@@ -46,9 +46,61 @@ async fn test_multisig_transaction_with_payload_succeeds() {
         .execute_multisig_transaction(owner_account_1, multisig_account, 202)
         .await;
 
-    // The multisig tx that transfers away 1000 SUPRA should have succeeded.
-    assert_multisig_tx_executed(&mut context, multisig_account, multisig_payload, 1).await;
+    // The multisig tx that transfers away 1000 APT should have succeeded.
     assert_eq!(0, context.get_apt_balance(multisig_account).await);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_multisig_transaction_with_existing_account() {
+    let mut context = new_test_context(current_function_name!());
+    let multisig_account = &mut context.create_account().await;
+    let owner_account_1 = &mut context.create_account().await;
+    let owner_account_2 = &mut context.create_account().await;
+    let owner_account_3 = &mut context.create_account().await;
+    let owners = vec![
+        owner_account_1.address(),
+        owner_account_2.address(),
+        owner_account_3.address(),
+    ];
+    context
+        .create_multisig_account_with_existing_account(multisig_account, owners.clone(), 2, 1000)
+        .await;
+    assert_owners(&context, multisig_account.address(), owners).await;
+    assert_signature_threshold(&context, multisig_account.address(), 2).await;
+
+    let multisig_payload = construct_multisig_txn_transfer_payload(owner_account_1.address(), 1000);
+    context
+        .create_multisig_transaction(
+            owner_account_1,
+            multisig_account.address(),
+            multisig_payload.clone(),
+        )
+        .await;
+    // Owner 2 approves and owner 3 rejects. There are still 2 approvals total (owners 1 and 2) so
+    // the transaction can still be executed.
+    context
+        .approve_multisig_transaction(owner_account_2, multisig_account.address(), 1)
+        .await;
+    context
+        .reject_multisig_transaction(owner_account_3, multisig_account.address(), 1)
+        .await;
+
+    let org_multisig_balance = context.get_apt_balance(multisig_account.address()).await;
+    let org_owner_1_balance = context.get_apt_balance(owner_account_1.address()).await;
+
+    context
+        .execute_multisig_transaction(owner_account_2, multisig_account.address(), 202)
+        .await;
+
+    // The multisig tx that transfers away 1000 APT should have succeeded.
+    assert_eq!(
+        org_multisig_balance - 1000,
+        context.get_apt_balance(multisig_account.address()).await
+    );
+    assert_eq!(
+        org_owner_1_balance + 1000,
+        context.get_apt_balance(owner_account_1.address()).await
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -97,17 +149,12 @@ async fn test_multisig_transaction_to_update_owners() {
         .await;
 
     // There should be 4 owners now.
-    assert_multisig_tx_executed(&mut context, multisig_account, add_owners_payload, 1).await;
-    assert_owners(
-        &context,
-        multisig_account,
-        vec![
-            owner_account_1.address(),
-            owner_account_2.address(),
-            owner_account_3.address(),
-            owner_account_4.address(),
-        ],
-    )
+    assert_owners(&context, multisig_account, vec![
+        owner_account_1.address(),
+        owner_account_2.address(),
+        owner_account_3.address(),
+        owner_account_4.address(),
+    ])
     .await;
 
     let remove_owners_payload = bcs::to_bytes(&MultisigTransactionPayload::EntryFunction(
@@ -135,16 +182,11 @@ async fn test_multisig_transaction_to_update_owners() {
         .execute_multisig_transaction(owner_account_1, multisig_account, 202)
         .await;
     // There should be 3 owners now that owner 4 has been kicked out.
-    assert_multisig_tx_executed(&mut context, multisig_account, remove_owners_payload, 2).await;
-    assert_owners(
-        &context,
-        multisig_account,
-        vec![
-            owner_account_1.address(),
-            owner_account_2.address(),
-            owner_account_3.address(),
-        ],
-    )
+    assert_owners(&context, multisig_account, vec![
+        owner_account_1.address(),
+        owner_account_2.address(),
+        owner_account_3.address(),
+    ])
     .await;
 }
 
@@ -188,13 +230,6 @@ async fn test_multisig_transaction_update_signature_threshold() {
         .await;
 
     // The signature threshold should be 1-of-2 now.
-    assert_multisig_tx_executed(
-        &mut context,
-        multisig_account,
-        signature_threshold_payload,
-        1,
-    )
-    .await;
     assert_signature_threshold(&context, multisig_account, 1).await;
 }
 
@@ -244,7 +279,6 @@ async fn test_multisig_transaction_with_payload_and_failing_execution() {
         .await;
 
     // Balance didn't change since the target transaction failed.
-    assert_multisig_tx_execution_failed(&mut context, multisig_account, multisig_payload, 1).await;
     assert_eq!(1000, context.get_apt_balance(multisig_account).await);
 }
 
@@ -275,8 +309,7 @@ async fn test_multisig_transaction_with_payload_hash() {
         )
         .await;
 
-    // The multisig tx that transfers away 1000 SUPRA should have succeeded.
-    assert_multisig_tx_executed(&mut context, multisig_account, multisig_payload, 1).await;
+    // The multisig tx that transfers away 1000 APT should have succeeded.
     assert_eq!(0, context.get_apt_balance(multisig_account).await);
 }
 
@@ -310,7 +343,6 @@ async fn test_multisig_transaction_with_payload_hash_and_failing_execution() {
             202,
         )
         .await;
-    assert_multisig_tx_execution_failed(&mut context, multisig_account, multisig_payload, 1).await;
     // Balance didn't change since the target transaction failed.
     assert_eq!(1000, context.get_apt_balance(multisig_account).await);
 }
@@ -368,8 +400,7 @@ async fn test_multisig_transaction_with_matching_payload() {
         )
         .await;
 
-    // The multisig tx that transfers away 1000 SUPRA should have succeeded.
-    assert_multisig_tx_executed(&mut context, multisig_account, multisig_payload, 1).await;
+    // The multisig tx that transfers away 1000 APT should have succeeded.
     assert_eq!(0, context.get_apt_balance(multisig_account).await);
 }
 
@@ -423,14 +454,18 @@ async fn test_multisig_transaction_simulation() {
         .create_multisig_account(
             owner_account_1,
             vec![owner_account_2.address(), owner_account_3.address()],
-            2,    /* 2-of-3 */
+            1,    /* 1-of-3 */
             1000, /* initial balance */
             None,
         )
         .await;
 
-    // Should be able to simulate the multisig tx without having enough approvals or the transaction
-    // created.
+    let multisig_payload = construct_multisig_txn_transfer_payload(owner_account_1.address(), 1000);
+    context
+        .create_multisig_transaction(owner_account_1, multisig_account, multisig_payload.clone())
+        .await;
+
+    // Simulate the multisig tx
     let simulation_resp = context
         .simulate_multisig_transaction(
             owner_account_1,
@@ -448,14 +483,79 @@ async fn test_multisig_transaction_simulation() {
     let withdraw_event = &simulation_resp["events"].as_array().unwrap()[0];
     assert_eq!(
         withdraw_event["type"].as_str().unwrap(),
-        "0x1::coin::CoinWithdraw"
+        "0x1::fungible_asset::Withdraw"
     );
-    let withdraw_from_account =
-        AccountAddress::from_hex_literal(withdraw_event["data"]["account"].as_str().unwrap())
-            .unwrap();
     let withdrawn_amount = withdraw_event["data"]["amount"].as_str().unwrap();
-    assert_eq!(withdraw_from_account, multisig_account);
     assert_eq!(withdrawn_amount, "1000");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_multisig_transaction_simulation_2_of_3() {
+    let mut context = new_test_context(current_function_name!());
+    let owner_account_1 = &mut context.create_account().await;
+    let owner_account_2 = &mut context.create_account().await;
+    let owner_account_3 = &mut context.create_account().await;
+    let multisig_account = context
+        .create_multisig_account(
+            owner_account_1,
+            vec![owner_account_2.address(), owner_account_3.address()],
+            2,    /* 2-of-3 */
+            1000, /* initial balance */
+        )
+        .await;
+
+    let multisig_payload = construct_multisig_txn_transfer_payload(owner_account_1.address(), 1000);
+    context
+        .create_multisig_transaction(owner_account_1, multisig_account, multisig_payload.clone())
+        .await;
+
+    context
+        .approve_multisig_transaction(owner_account_2, multisig_account, 1)
+        .await;
+
+    // Simulate the multisig transaction
+    let simulation_resp = context
+        .simulate_multisig_transaction(
+            owner_account_1,
+            multisig_account,
+            "0x1::aptos_account::transfer",
+            &[],
+            &[&owner_account_1.address().to_hex_literal(), "1000"],
+            200,
+        )
+        .await;
+    // Validate that the simulation did successfully execute a transfer of 1000 coins from the
+    // multisig account.
+    let simulation_resp = &simulation_resp.as_array().unwrap()[0];
+    assert!(simulation_resp["success"].as_bool().unwrap());
+    let withdraw_event = &simulation_resp["events"].as_array().unwrap()[0];
+    assert_eq!(
+        withdraw_event["type"].as_str().unwrap(),
+        "0x1::fungible_asset::Withdraw"
+    );
+    let withdrawn_amount = withdraw_event["data"]["amount"].as_str().unwrap();
+    assert_eq!(withdrawn_amount, "1000");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_multisig_transaction_simulation_fail() {
+    let mut context = new_test_context(current_function_name!());
+    let owner_account_1 = &mut context.create_account().await;
+    let owner_account_2 = &mut context.create_account().await;
+    let owner_account_3 = &mut context.create_account().await;
+    let multisig_account = context
+        .create_multisig_account(
+            owner_account_1,
+            vec![owner_account_2.address(), owner_account_3.address()],
+            1,    /* 1-of-3 */
+            1000, /* initial balance */
+        )
+        .await;
+
+    let multisig_payload = construct_multisig_txn_transfer_payload(owner_account_1.address(), 2000);
+    context
+        .create_multisig_transaction(owner_account_1, multisig_account, multisig_payload.clone())
+        .await;
 
     // Simulating transferring more than what the multisig account has should fail.
     let simulation_resp = context
@@ -469,7 +569,56 @@ async fn test_multisig_transaction_simulation() {
         )
         .await;
     let simulation_resp = &simulation_resp.as_array().unwrap()[0];
+    let transaction_failed = &simulation_resp["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|event| {
+            event["type"]
+                .as_str()
+                .unwrap()
+                .contains("TransactionExecutionFailed")
+        });
+    assert!(transaction_failed);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_multisig_transaction_simulation_fail_2_of_3_insufficient_approvals() {
+    let mut context = new_test_context(current_function_name!());
+    let owner_account_1 = &mut context.create_account().await;
+    let owner_account_2 = &mut context.create_account().await;
+    let owner_account_3 = &mut context.create_account().await;
+    let multisig_account = context
+        .create_multisig_account(
+            owner_account_1,
+            vec![owner_account_2.address(), owner_account_3.address()],
+            2,    /* 2-of-3 */
+            1000, /* initial balance */
+        )
+        .await;
+
+    let multisig_payload = construct_multisig_txn_transfer_payload(owner_account_1.address(), 2000);
+    context
+        .create_multisig_transaction(owner_account_1, multisig_account, multisig_payload.clone())
+        .await;
+
+    // Simulating without sufficient approvals has should fail.
+    let simulation_resp = context
+        .simulate_multisig_transaction(
+            owner_account_1,
+            multisig_account,
+            "0x1::aptos_account::transfer",
+            &[],
+            &[&owner_account_1.address().to_hex_literal(), "1000"],
+            200,
+        )
+        .await;
+    let simulation_resp = &simulation_resp.as_array().unwrap()[0];
     assert!(!simulation_resp["success"].as_bool().unwrap());
+    assert!(simulation_resp["vm_status"]
+        .as_str()
+        .unwrap()
+        .contains("MULTISIG_TRANSACTION_INSUFFICIENT_APPROVALS"));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -486,6 +635,11 @@ async fn test_simulate_multisig_transaction_should_charge_gas_against_sender() {
         )
         .await;
     assert_eq!(10, context.get_apt_balance(multisig_account).await);
+
+    let multisig_payload = construct_multisig_txn_transfer_payload(owner_account.address(), 10);
+    context
+        .create_multisig_transaction(owner_account, multisig_account, multisig_payload.clone())
+        .await;
 
     // This simulation should succeed because gas should be paid out of the sender account (owner),
     // not the multisig account itself.
@@ -559,42 +713,4 @@ fn construct_multisig_txn_transfer_payload(recipient: AccountAddress, amount: u6
         ),
     ))
     .unwrap()
-}
-
-async fn assert_multisig_tx_executed(
-    context: &mut TestContext,
-    multisig_account: AccountAddress,
-    payload: Vec<u8>,
-    sequence_number: usize,
-) {
-    let transaction_execution_events = context
-        .get(format!("/accounts/{}/events/0x1::multisig_account::MultisigAccount/execute_transaction_events", multisig_account).as_str())
-        .await;
-    let transaction_execution_events = transaction_execution_events.as_array().unwrap();
-    assert_eq!(sequence_number, transaction_execution_events.len());
-    let expected_payload = format!("0x{}", hex::encode(payload));
-    assert_eq!(
-        expected_payload,
-        transaction_execution_events[sequence_number - 1]["data"]["transaction_payload"]
-            .as_str()
-            .unwrap()
-    );
-}
-
-async fn assert_multisig_tx_execution_failed(
-    context: &mut TestContext,
-    multisig_account: AccountAddress,
-    payload: Vec<u8>,
-    sequence_number: usize,
-) {
-    let transaction_execution_failed_events = context
-        .get(format!("/accounts/{}/events/0x1::multisig_account::MultisigAccount/transaction_execution_failed_events", multisig_account).as_str())
-        .await;
-    let transaction_execution_failed_events =
-        transaction_execution_failed_events.as_array().unwrap();
-    assert_eq!(1, transaction_execution_failed_events.len());
-    let event_data = &transaction_execution_failed_events[sequence_number - 1]["data"];
-    assert_eq!("65542", event_data["execution_error"]["error_code"]);
-    let expected_payload = format!("0x{}", hex::encode(payload));
-    assert_eq!(expected_payload, event_data["transaction_payload"],);
 }

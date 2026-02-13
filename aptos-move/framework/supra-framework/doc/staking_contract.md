@@ -1299,26 +1299,6 @@ pool.
 ## Constants
 
 
-<a id="0x1_staking_contract_EINVALID_COMMISSION_PERCENTAGE"></a>
-
-Commission percentage has to be between 0 and 100.
-
-
-<pre><code><b>const</b> <a href="staking_contract.md#0x1_staking_contract_EINVALID_COMMISSION_PERCENTAGE">EINVALID_COMMISSION_PERCENTAGE</a>: u64 = 2;
-</code></pre>
-
-
-
-<a id="0x1_staking_contract_EOPERATOR_BENEFICIARY_CHANGE_NOT_SUPPORTED"></a>
-
-Changing beneficiaries for operators is not supported.
-
-
-<pre><code><b>const</b> <a href="staking_contract.md#0x1_staking_contract_EOPERATOR_BENEFICIARY_CHANGE_NOT_SUPPORTED">EOPERATOR_BENEFICIARY_CHANGE_NOT_SUPPORTED</a>: u64 = 9;
-</code></pre>
-
-
-
 <a id="0x1_staking_contract_ECANT_MERGE_STAKING_CONTRACTS"></a>
 
 Staking contracts can't be merged.
@@ -1391,7 +1371,7 @@ Staker has no staking contracts.
 
 <a id="0x1_staking_contract_EOPERATOR_BENEFICIARY_CHANGE_NOT_SUPPORTED"></a>
 
-Chaning beneficiaries for operators is not supported.
+Changing beneficiaries for operators is not supported.
 
 
 <pre><code><b>const</b> <a href="staking_contract.md#0x1_staking_contract_EOPERATOR_BENEFICIARY_CHANGE_NOT_SUPPORTED">EOPERATOR_BENEFICIARY_CHANGE_NOT_SUPPORTED</a>: u64 = 9;
@@ -3712,8 +3692,8 @@ a staking_contract exists for the staker/operator pair.
     <b>requires</b> <b>exists</b>&lt;<a href="staking_config.md#0x1_staking_config_StakingRewardsConfig">staking_config::StakingRewardsConfig</a>&gt;(
         @supra_framework
     ) || !std::features::spec_periodical_reward_rate_decrease_enabled();
-    <b>requires</b> <b>exists</b>&lt;aptos_framework::timestamp::CurrentTimeMicroseconds&gt;(@aptos_framework);
-    <b>requires</b> <b>exists</b>&lt;<a href="stake.md#0x1_stake_AptosCoinCapabilities">stake::AptosCoinCapabilities</a>&gt;(@aptos_framework);
+    <b>requires</b> <b>exists</b>&lt;supra_framework::timestamp::CurrentTimeMicroseconds&gt;(@supra_framework);
+    <b>requires</b> <b>exists</b>&lt;<a href="stake.md#0x1_stake_SupraCoinCapabilities">stake::SupraCoinCapabilities</a>&gt;(@supra_framework);
 }
 </code></pre>
 

@@ -223,7 +223,7 @@ Typically used in <code>X::on_new_epoch()</code> where X is an on-chaon config.
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="config_buffer.md#0x1_config_buffer_extract_v2">extract_v2</a>&lt;T: store&gt;(): T <b>acquires</b> <a href="config_buffer.md#0x1_config_buffer_PendingConfigs">PendingConfigs</a> {
-    <b>let</b> configs = <b>borrow_global_mut</b>&lt;<a href="config_buffer.md#0x1_config_buffer_PendingConfigs">PendingConfigs</a>&gt;(@aptos_framework);
+    <b>let</b> configs = <b>borrow_global_mut</b>&lt;<a href="config_buffer.md#0x1_config_buffer_PendingConfigs">PendingConfigs</a>&gt;(@supra_framework);
     <b>let</b> key = <a href="../../aptos-stdlib/doc/type_info.md#0x1_type_info_type_name">type_info::type_name</a>&lt;T&gt;();
     <b>let</b> (_, value_packed) = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_remove">simple_map::remove</a>(&<b>mut</b> configs.configs, &key);
     <a href="../../aptos-stdlib/doc/any.md#0x1_any_unpack">any::unpack</a>(value_packed)

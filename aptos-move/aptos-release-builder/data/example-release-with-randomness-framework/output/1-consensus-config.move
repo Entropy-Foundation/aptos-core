@@ -32,11 +32,11 @@
 // }
 
 script {
-    use aptos_framework::aptos_governance;
-    use aptos_framework::consensus_config;
+    use supra_framework::supra_governance;
+    use supra_framework::consensus_config;
 
     fun main(core_resources: &signer) {
-        let core_signer = aptos_governance::get_signer_testnet_only(core_resources, @0x1);
+        let core_signer = supra_governance::get_signer_testnet_only(core_resources, @0x1);
 
         let framework_signer = &core_signer;
 
@@ -49,6 +49,6 @@ script {
         ];
 
         consensus_config::set_for_next_epoch(framework_signer, consensus_blob);
-        aptos_governance::reconfigure(framework_signer);
+        supra_governance::reconfigure(framework_signer);
     }
 }

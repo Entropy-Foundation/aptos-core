@@ -74,23 +74,62 @@ module supra_framework::optional_aggregator {
     }
 
     /// Creates a new optional aggregator.
-    public(friend) fun new(parallelizable: bool): OptionalAggregator {
+    public(friend) fun new(limit: u128, parallelizable: bool): OptionalAggregator {
         if (parallelizable) {
             OptionalAggregator {
-                aggregator: option::some(aggregator_factory::create_aggregator_internal()),
+                aggregator: option::some(aggregator_factory::create_aggregator_internal(limit)),
                 integer: option::none(),
             }
         } else {
             OptionalAggregator {
                 aggregator: option::none(),
-                integer: option::some(new_integer(MAX_U128)),
+                integer: option::some(new_integer(limit)),
             }
         }
     }
 
     /// Switches between parallelizable and non-parallelizable implementations.
-    public fun switch(_optional_aggregator: &mut OptionalAggregator) {
-        abort error::invalid_state(ESWITCH_DEPRECATED)
+    public fun switch(optional_aggregator: &mut OptionalAggregator) {
+        // abort error::invalid_state(ESWITCH_DEPRECATED)
+        let value = read(optional_aggregator);
+        switch_and_zero_out(optional_aggregator);
+        add(optional_aggregator, value);
+    }
+
+    /// Switches between parallelizable and non-parallelizable implementations, setting
+    /// the value of the new optional aggregator to zero.
+    fun switch_and_zero_out(optional_aggregator: &mut OptionalAggregator) {
+        if (is_parallelizable(optional_aggregator)) {
+            switch_to_integer_and_zero_out(optional_aggregator);
+        } else {
+            switch_to_aggregator_and_zero_out(optional_aggregator);
+        }
+    }
+
+    /// Switches from parallelizable to non-parallelizable implementation, zero-initializing
+    /// the value.
+    fun switch_to_integer_and_zero_out(
+        optional_aggregator: &mut OptionalAggregator
+    ): u128 {
+        let aggregator = option::extract(&mut optional_aggregator.aggregator);
+        let limit = aggregator::limit(&aggregator);
+        aggregator::destroy(aggregator);
+        let integer = new_integer(limit);
+        option::fill(&mut optional_aggregator.integer, integer);
+        limit
+    }
+
+    /// Switches from non-parallelizable to parallelizable implementation, zero-initializing
+    /// the value.
+    fun switch_to_aggregator_and_zero_out(
+        optional_aggregator: &mut OptionalAggregator
+    ): u128 {
+        let integer = option::extract(&mut optional_aggregator.integer);
+        let limit = limit(&integer);
+        destroy_integer(integer);
+        let aggregator = aggregator_factory::create_aggregator_internal(limit);
+        option::fill(&mut optional_aggregator.aggregator, aggregator);
+        limit
     }
 
     /// Destroys optional aggregator.
@@ -159,10 +198,9 @@ module supra_framework::optional_aggregator {
     }
 
     #[test(account = @supra_framework)]
-    #[expected_failure(abort_code = 0x030003, location = Self)]
     fun optional_aggregator_swith_fail_test(account: signer) {
         aggregator_factory::initialize_aggregator_factory(&account);
-        let aggregator = new(true);
+        let aggregator = new(MAX_U128,true);
         switch(&mut aggregator);
         destroy(aggregator);
     }
@@ -171,7 +209,7 @@ module supra_framework::optional_aggregator {
     fun optional_aggregator_test_integer(account: signer) {
         aggregator_factory::initialize_aggregator_factory(&account);
 
-        let aggregator = new(false);
+        let aggregator = new(MAX_U128,false);
         assert!(!is_parallelizable(&aggregator), 0);
 
         add(&mut aggregator, 12);
@@ -194,7 +232,7 @@ module supra_framework::optional_aggregator {
     #[test(account = @supra_framework)]
     fun optional_aggregator_test_aggregator(account: signer) {
         aggregator_factory::initialize_aggregator_factory(&account);
-        let aggregator = new(true);
+        let aggregator = new(MAX_U128,true);
         assert!(is_parallelizable(&aggregator), 0);
 
         add(&mut aggregator, 12);
@@ -218,16 +256,16 @@ module supra_framework::optional_aggregator {
     fun optional_aggregator_destroy_test(account: signer) {
         aggregator_factory::initialize_aggregator_factory(&account);
 
-        let aggregator = new(false);
+        let aggregator = new(MAX_U128,false);
         destroy(aggregator);
 
-        let aggregator = new(true);
+        let aggregator = new(MAX_U128,true);
         destroy(aggregator);
 
-        let aggregator = new(false);
+        let aggregator = new(MAX_U128,false);
         assert!(destroy_optional_integer(aggregator) == MAX_U128, 0);
 
-        let aggregator = new(true);
+        let aggregator = new(MAX_U128,true);
         assert!(destroy_optional_aggregator(aggregator) == MAX_U128, 0);
     }
 
@@ -235,7 +273,7 @@ module supra_framework::optional_aggregator {
     #[expected_failure(abort_code = 0x020001, location = Self)]
     fun non_parallelizable_aggregator_overflow_test(account: signer) {
         aggregator_factory::initialize_aggregator_factory(&account);
-        let aggregator = new(false);
+        let aggregator = new(MAX_U128,false);
         add(&mut aggregator, MAX_U128 - 15);
 
         // Overflow!
@@ -248,7 +286,7 @@ module supra_framework::optional_aggregator {
     #[expected_failure(abort_code = 0x020002, location = Self)]
     fun non_parallelizable_aggregator_underflow_test(account: signer) {
         aggregator_factory::initialize_aggregator_factory(&account);
-        let aggregator = new(false);
+        let aggregator = new(MAX_U128,false);
 
         // Underflow!
         sub(&mut aggregator, 100);
@@ -261,7 +299,7 @@ module supra_framework::optional_aggregator {
     #[expected_failure(abort_code = 0x020001, location = supra_framework::aggregator)]
     fun parallelizable_aggregator_overflow_test(account: signer) {
         aggregator_factory::initialize_aggregator_factory(&account);
-        let aggregator = new(true);
+        let aggregator = new(MAX_U128,true);
         add(&mut aggregator, MAX_U128 - 15);
 
         // Overflow!
@@ -274,7 +312,7 @@ module supra_framework::optional_aggregator {
     #[expected_failure(abort_code = 0x020002, location = supra_framework::aggregator)]
     fun parallelizable_aggregator_underflow_test(account: signer) {
         aggregator_factory::initialize_aggregator_factory(&account);
-        let aggregator = new(true);
+        let aggregator = new(MAX_U128,true);
 
         // Underflow!
         add(&mut aggregator, 99);

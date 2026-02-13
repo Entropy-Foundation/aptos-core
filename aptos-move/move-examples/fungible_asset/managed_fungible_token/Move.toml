@@ -3,7 +3,7 @@ name = "ManagedFungibleToken"
 version = "0.0.0"
 
 [addresses]
-aptos_framework = "0x1"
+supra_framework = "0x1"
 aptos_token_objects = "0x4"
 example_addr = "_"
 

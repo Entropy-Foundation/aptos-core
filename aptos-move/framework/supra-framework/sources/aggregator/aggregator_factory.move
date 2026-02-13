@@ -38,14 +38,14 @@ module supra_framework::aggregator_factory {
     }
 
     /// Creates a new aggregator instance which overflows on exceeding a `limit`.
-    public(friend) fun create_aggregator_internal(): Aggregator acquires AggregatorFactory {
+    public(friend) fun create_aggregator_internal(limit: u128): Aggregator acquires AggregatorFactory {
         assert!(
             exists<AggregatorFactory>(@supra_framework),
             error::not_found(EAGGREGATOR_FACTORY_NOT_FOUND)
         );
 
         let aggregator_factory = borrow_global_mut<AggregatorFactory>(@supra_framework);
-        new_aggregator(aggregator_factory, MAX_U128)
+        new_aggregator(aggregator_factory, limit)
     }
 
     #[deprecated]
@@ -56,11 +56,11 @@ module supra_framework::aggregator_factory {
 
         // Only Supra Framework (0x1) account can call this for now.
         system_addresses::assert_supra_framework(account);
-        assert!(
-            limit == MAX_U128,
-            error::invalid_argument(EAGG_V1_LIMIT_DEPRECATED)
-        );
-        create_aggregator_internal()
+        // assert!(
+        //     limit == MAX_U128,
+        //     error::invalid_argument(EAGG_V1_LIMIT_DEPRECATED)
+        // );
+        create_aggregator_internal(limit)
     }
 
     /// Returns a new aggregator.
@@ -68,7 +68,7 @@ module supra_framework::aggregator_factory {
 
     #[test_only]
     public fun create_aggregator_for_test(): Aggregator acquires AggregatorFactory {
-        create_aggregator_internal()
+        create_aggregator_internal(MAX_U128)
     }
 
     #[test_only]

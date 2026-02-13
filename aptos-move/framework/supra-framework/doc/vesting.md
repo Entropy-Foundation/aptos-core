@@ -1502,26 +1502,6 @@ Shareholders list cannot be empty.
 
 
 
-<a id="0x1_vesting_ENO_VESTING_PERMISSION"></a>
-
-Current permissioned signer cannot perform vesting operations.
-
-
-<pre><code><b>const</b> <a href="vesting.md#0x1_vesting_ENO_VESTING_PERMISSION">ENO_VESTING_PERMISSION</a>: u64 = 17;
-</code></pre>
-
-
-
-<a id="0x1_vesting_EPENDING_STAKE_FOUND"></a>
-
-Cannot terminate the vesting contract with pending active stake. Need to wait until next epoch.
-
-
-<pre><code><b>const</b> <a href="vesting.md#0x1_vesting_EPENDING_STAKE_FOUND">EPENDING_STAKE_FOUND</a>: u64 = 11;
-</code></pre>
-
-
-
 <a id="0x1_vesting_EPERMISSION_DENIED"></a>
 
 Account is not admin or does not have the required role to take this action.
@@ -1668,6 +1648,36 @@ Vesting contract has been terminated and all funds have been released back to th
 
 
 <pre><code><b>const</b> <a href="vesting.md#0x1_vesting_VESTING_POOL_TERMINATED">VESTING_POOL_TERMINATED</a>: u64 = 2;
+</code></pre>
+
+
+
+<a id="0x1_vesting_ENO_VESTING_PERMISSION"></a>
+
+Current permissioned signer cannot perform vesting operations.
+
+
+<pre><code><b>const</b> <a href="vesting.md#0x1_vesting_ENO_VESTING_PERMISSION">ENO_VESTING_PERMISSION</a>: u64 = 17;
+</code></pre>
+
+
+
+<a id="0x1_vesting_EPENDING_STAKE_FOUND"></a>
+
+Cannot terminate the vesting contract with pending active stake. Need to wait until next epoch.
+
+
+<pre><code><b>const</b> <a href="vesting.md#0x1_vesting_EPENDING_STAKE_FOUND">EPENDING_STAKE_FOUND</a>: u64 = 11;
+</code></pre>
+
+
+
+<a id="0x1_vesting_MAXIMUM_SHAREHOLDERS"></a>
+
+Maximum number of shareholders a vesting pool can support.
+
+
+<pre><code><b>const</b> <a href="vesting.md#0x1_vesting_MAXIMUM_SHAREHOLDERS">MAXIMUM_SHAREHOLDERS</a>: u64 = 30;
 </code></pre>
 
 

@@ -6,5 +6,5 @@ version = "0.0.0"
 example_addr = "_"
 
 [dependencies]
-AptosFramework = { local = "../../../../../framework/aptos-framework" }
+SupraFramework = { local = "../../../../../framework/supra-framework" }
 ManagedFungibleAsset =  { local = "../../../../../move-examples/fungible_asset/managed_fungible_asset" }

@@ -3,6 +3,7 @@
 
 use crate::{components::get_signer_arg, utils::*};
 use anyhow::Result;
+use aptos_crypto::HashValue;
 use aptos_types::on_chain_config::{FeatureFlag as AptosFeatureFlag, Features as AptosFeatures};
 use move_model::{code_writer::CodeWriter, emit, emitln, model::Loc};
 use serde::{Deserialize, Serialize};
@@ -121,6 +122,33 @@ pub enum FeatureFlag {
     DefaultToConcurrentFungibleBalance,
     LimitVMTypeSize,
     AbortIfMultisigPayloadMismatch,
+    DisallowUserNative,
+    AllowSerializedScriptArgs,
+    UseCompatibilityCheckerV2,
+    EnableEnumTypes,
+    EnableResourceAccessControl,
+    RejectUnstableBytecodeForScript,
+    FederatedKeyless,
+    TransactionSimulationEnhancement,
+    CollectionOwner,
+    NativeMemoryOperations,
+    EnableLoaderV2,
+    DisallowInitModuleToPublishModules,
+    EnableCallTreeAndInstructionVMCache,
+    PermissionedSigner,
+    AccountAbstraction,
+    VMBinaryFormatV8,
+    BulletproofsBatchNatives,
+    DerivableAccountAbstraction,
+    EnableFunctionValues,
+    NewAccountsDefaultToFaStore,
+    DefaultAccountResource,
+    JwkConsensusPerKeyMode,
+    TransactionPayloadV2,
+    OrderlessTransactions,
+    EnableLazyLoading,
+    CalculateTransactionFeeForDistribution,
+    DistributeTransactionFee,
     SupraNativeAutomation,
     SupraEthTrie,
     SupraAutomationPayloadGasCheck,
@@ -153,7 +181,8 @@ fn generate_features_blob(writer: &CodeWriter, data: &[u64]) {
 pub fn generate_feature_upgrade_proposal(
     features: &Features,
     is_testnet: bool,
-    next_execution_hash: Vec<u8>,
+    next_execution_hash: Option<HashValue>,
+    is_multi_step: bool,
 ) -> Result<Vec<(String, String)>> {
     let signer_arg = get_signer_arg(is_testnet, &next_execution_hash);
     let mut result = vec![];
@@ -182,7 +211,8 @@ pub fn generate_feature_upgrade_proposal(
     let proposal = generate_governance_proposal(
         &writer,
         is_testnet,
-        next_execution_hash.clone(),
+        next_execution_hash,
+        is_multi_step,
         &["std::features"],
         |writer| {
             emit!(writer, "let enabled_blob: vector<u64> = ");
@@ -211,7 +241,7 @@ impl From<FeatureFlag> for AptosFeatureFlag {
         match f {
             FeatureFlag::CodeDependencyCheck => AptosFeatureFlag::CODE_DEPENDENCY_CHECK,
             FeatureFlag::CollectAndDistributeGasFees => {
-                AptosFeatureFlag::COLLECT_AND_DISTRIBUTE_GAS_FEES
+                AptosFeatureFlag::_DEPRECATED_COLLECT_AND_DISTRIBUTE_GAS_FEES
             },
             FeatureFlag::TreatFriendAsPrivate => AptosFeatureFlag::TREAT_FRIEND_AS_PRIVATE,
             FeatureFlag::Sha512AndRipeMd160Natives => {
@@ -220,6 +250,7 @@ impl From<FeatureFlag> for AptosFeatureFlag {
             FeatureFlag::AptosStdChainIdNatives => AptosFeatureFlag::APTOS_STD_CHAIN_ID_NATIVES,
             FeatureFlag::VMBinaryFormatV6 => AptosFeatureFlag::VM_BINARY_FORMAT_V6,
             FeatureFlag::VMBinaryFormatV7 => AptosFeatureFlag::VM_BINARY_FORMAT_V7,
+            FeatureFlag::VMBinaryFormatV8 => AptosFeatureFlag::VM_BINARY_FORMAT_V8,
             FeatureFlag::MultiEd25519PkValidateV2Natives => {
                 AptosFeatureFlag::MULTI_ED25519_PK_VALIDATE_V2_NATIVES
             },
@@ -277,10 +308,12 @@ impl From<FeatureFlag> for AptosFeatureFlag {
             },
             FeatureFlag::Bn254Structures => AptosFeatureFlag::BN254_STRUCTURES,
             FeatureFlag::WebAuthnSignature => AptosFeatureFlag::WEBAUTHN_SIGNATURE,
-            FeatureFlag::ReconfigureWithDkg => AptosFeatureFlag::RECONFIGURE_WITH_DKG,
+            FeatureFlag::ReconfigureWithDkg => AptosFeatureFlag::_DEPRECATED_RECONFIGURE_WITH_DKG,
             FeatureFlag::KeylessAccounts => AptosFeatureFlag::KEYLESS_ACCOUNTS,
             FeatureFlag::KeylessButZklessAccounts => AptosFeatureFlag::KEYLESS_BUT_ZKLESS_ACCOUNTS,
-            FeatureFlag::RemoveDetailedError => AptosFeatureFlag::REMOVE_DETAILED_ERROR_FROM_HASH,
+            FeatureFlag::RemoveDetailedError => {
+                AptosFeatureFlag::_DEPRECATED_REMOVE_DETAILED_ERROR_FROM_HASH
+            },
             FeatureFlag::JwkConsensus => AptosFeatureFlag::JWK_CONSENSUS,
             FeatureFlag::ConcurrentFungibleAssets => AptosFeatureFlag::CONCURRENT_FUNGIBLE_ASSETS,
             FeatureFlag::RefundableBytes => AptosFeatureFlag::REFUNDABLE_BYTES,
@@ -294,7 +327,7 @@ impl From<FeatureFlag> for AptosFeatureFlag {
                 AptosFeatureFlag::DELEGATION_POOL_ALLOWLISTING
             },
             FeatureFlag::ModuleEventMigration => AptosFeatureFlag::MODULE_EVENT_MIGRATION,
-            FeatureFlag::RejectUnstableBytecode => AptosFeatureFlag::REJECT_UNSTABLE_BYTECODE,
+            FeatureFlag::RejectUnstableBytecode => AptosFeatureFlag::_REJECT_UNSTABLE_BYTECODE,
             FeatureFlag::TransactionContextExtension => {
                 AptosFeatureFlag::TRANSACTION_CONTEXT_EXTENSION
             },
@@ -321,11 +354,57 @@ impl From<FeatureFlag> for AptosFeatureFlag {
             FeatureFlag::DefaultToConcurrentFungibleBalance => {
                 AptosFeatureFlag::DEFAULT_TO_CONCURRENT_FUNGIBLE_BALANCE
             },
-            FeatureFlag::LimitVMTypeSize => AptosFeatureFlag::LIMIT_VM_TYPE_SIZE,
+            FeatureFlag::LimitVMTypeSize => AptosFeatureFlag::_LIMIT_VM_TYPE_SIZE,
             FeatureFlag::AbortIfMultisigPayloadMismatch => {
                 AptosFeatureFlag::ABORT_IF_MULTISIG_PAYLOAD_MISMATCH
             },
-            FeatureFlag::SupraNativeAutomation => AptosFeatureFlag::SUPRA_NATIVE_AUTOMATION,
+            FeatureFlag::DisallowUserNative => AptosFeatureFlag::_DISALLOW_USER_NATIVES,
+            FeatureFlag::AllowSerializedScriptArgs => {
+                AptosFeatureFlag::ALLOW_SERIALIZED_SCRIPT_ARGS
+            },
+            FeatureFlag::UseCompatibilityCheckerV2 => {
+                AptosFeatureFlag::_USE_COMPATIBILITY_CHECKER_V2
+            },
+            FeatureFlag::EnableEnumTypes => AptosFeatureFlag::ENABLE_ENUM_TYPES,
+            FeatureFlag::EnableResourceAccessControl => {
+                AptosFeatureFlag::ENABLE_RESOURCE_ACCESS_CONTROL
+            },
+            FeatureFlag::RejectUnstableBytecodeForScript => {
+                AptosFeatureFlag::_REJECT_UNSTABLE_BYTECODE_FOR_SCRIPT
+            },
+            FeatureFlag::FederatedKeyless => AptosFeatureFlag::FEDERATED_KEYLESS,
+            FeatureFlag::TransactionSimulationEnhancement => {
+                AptosFeatureFlag::TRANSACTION_SIMULATION_ENHANCEMENT
+            },
+            FeatureFlag::CollectionOwner => AptosFeatureFlag::COLLECTION_OWNER,
+            FeatureFlag::NativeMemoryOperations => AptosFeatureFlag::NATIVE_MEMORY_OPERATIONS,
+            FeatureFlag::EnableLoaderV2 => AptosFeatureFlag::_ENABLE_LOADER_V2,
+            FeatureFlag::DisallowInitModuleToPublishModules => {
+                AptosFeatureFlag::_DISALLOW_INIT_MODULE_TO_PUBLISH_MODULES
+            },
+            FeatureFlag::EnableCallTreeAndInstructionVMCache => {
+                AptosFeatureFlag::ENABLE_CALL_TREE_AND_INSTRUCTION_VM_CACHE
+            },
+            FeatureFlag::PermissionedSigner => AptosFeatureFlag::PERMISSIONED_SIGNER,
+            FeatureFlag::AccountAbstraction => AptosFeatureFlag::ACCOUNT_ABSTRACTION,
+            FeatureFlag::BulletproofsBatchNatives => AptosFeatureFlag::BULLETPROOFS_BATCH_NATIVES,
+            FeatureFlag::DerivableAccountAbstraction => {
+                AptosFeatureFlag::DERIVABLE_ACCOUNT_ABSTRACTION
+            },
+            FeatureFlag::EnableFunctionValues => AptosFeatureFlag::ENABLE_FUNCTION_VALUES,
+            FeatureFlag::NewAccountsDefaultToFaStore => {
+                AptosFeatureFlag::NEW_ACCOUNTS_DEFAULT_TO_FA_STORE
+            },
+            FeatureFlag::DefaultAccountResource => AptosFeatureFlag::DEFAULT_ACCOUNT_RESOURCE,
+            FeatureFlag::JwkConsensusPerKeyMode => AptosFeatureFlag::JWK_CONSENSUS_PER_KEY_MODE,
+            FeatureFlag::TransactionPayloadV2 => AptosFeatureFlag::TRANSACTION_PAYLOAD_V2,
+            FeatureFlag::OrderlessTransactions => AptosFeatureFlag::ORDERLESS_TRANSACTIONS,
+            FeatureFlag::EnableLazyLoading => AptosFeatureFlag::ENABLE_LAZY_LOADING,
+            FeatureFlag::CalculateTransactionFeeForDistribution => {
+                AptosFeatureFlag::CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION
+            },
+            FeatureFlag::DistributeTransactionFee => AptosFeatureFlag::DISTRIBUTE_TRANSACTION_FEE,
+                FeatureFlag::SupraNativeAutomation => AptosFeatureFlag::SUPRA_NATIVE_AUTOMATION,
             FeatureFlag::SupraEthTrie => AptosFeatureFlag::SUPRA_ETH_TRIE,
             FeatureFlag::SupraAutomationPayloadGasCheck => {
                 AptosFeatureFlag::SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK
@@ -349,7 +428,7 @@ impl From<AptosFeatureFlag> for FeatureFlag {
     fn from(f: AptosFeatureFlag) -> Self {
         match f {
             AptosFeatureFlag::CODE_DEPENDENCY_CHECK => FeatureFlag::CodeDependencyCheck,
-            AptosFeatureFlag::COLLECT_AND_DISTRIBUTE_GAS_FEES => {
+            AptosFeatureFlag::_DEPRECATED_COLLECT_AND_DISTRIBUTE_GAS_FEES => {
                 FeatureFlag::CollectAndDistributeGasFees
             },
             AptosFeatureFlag::TREAT_FRIEND_AS_PRIVATE => FeatureFlag::TreatFriendAsPrivate,
@@ -359,6 +438,7 @@ impl From<AptosFeatureFlag> for FeatureFlag {
             AptosFeatureFlag::APTOS_STD_CHAIN_ID_NATIVES => FeatureFlag::AptosStdChainIdNatives,
             AptosFeatureFlag::VM_BINARY_FORMAT_V6 => FeatureFlag::VMBinaryFormatV6,
             AptosFeatureFlag::VM_BINARY_FORMAT_V7 => FeatureFlag::VMBinaryFormatV7,
+            AptosFeatureFlag::VM_BINARY_FORMAT_V8 => FeatureFlag::VMBinaryFormatV8,
             AptosFeatureFlag::MULTI_ED25519_PK_VALIDATE_V2_NATIVES => {
                 FeatureFlag::MultiEd25519PkValidateV2Natives
             },
@@ -416,10 +496,12 @@ impl From<AptosFeatureFlag> for FeatureFlag {
             },
             AptosFeatureFlag::BN254_STRUCTURES => FeatureFlag::Bn254Structures,
             AptosFeatureFlag::WEBAUTHN_SIGNATURE => FeatureFlag::WebAuthnSignature,
-            AptosFeatureFlag::RECONFIGURE_WITH_DKG => FeatureFlag::ReconfigureWithDkg,
+            AptosFeatureFlag::_DEPRECATED_RECONFIGURE_WITH_DKG => FeatureFlag::ReconfigureWithDkg,
             AptosFeatureFlag::KEYLESS_ACCOUNTS => FeatureFlag::KeylessAccounts,
             AptosFeatureFlag::KEYLESS_BUT_ZKLESS_ACCOUNTS => FeatureFlag::KeylessButZklessAccounts,
-            AptosFeatureFlag::REMOVE_DETAILED_ERROR_FROM_HASH => FeatureFlag::RemoveDetailedError,
+            AptosFeatureFlag::_DEPRECATED_REMOVE_DETAILED_ERROR_FROM_HASH => {
+                FeatureFlag::RemoveDetailedError
+            },
             AptosFeatureFlag::JWK_CONSENSUS => FeatureFlag::JwkConsensus,
             AptosFeatureFlag::CONCURRENT_FUNGIBLE_ASSETS => FeatureFlag::ConcurrentFungibleAssets,
             AptosFeatureFlag::REFUNDABLE_BYTES => FeatureFlag::RefundableBytes,
@@ -433,7 +515,7 @@ impl From<AptosFeatureFlag> for FeatureFlag {
                 FeatureFlag::DelegationPoolAllowlisting
             },
             AptosFeatureFlag::MODULE_EVENT_MIGRATION => FeatureFlag::ModuleEventMigration,
-            AptosFeatureFlag::REJECT_UNSTABLE_BYTECODE => FeatureFlag::RejectUnstableBytecode,
+            AptosFeatureFlag::_REJECT_UNSTABLE_BYTECODE => FeatureFlag::RejectUnstableBytecode,
             AptosFeatureFlag::TRANSACTION_CONTEXT_EXTENSION => {
                 FeatureFlag::TransactionContextExtension
             },
@@ -460,11 +542,57 @@ impl From<AptosFeatureFlag> for FeatureFlag {
             AptosFeatureFlag::DEFAULT_TO_CONCURRENT_FUNGIBLE_BALANCE => {
                 FeatureFlag::DefaultToConcurrentFungibleBalance
             },
-            AptosFeatureFlag::LIMIT_VM_TYPE_SIZE => FeatureFlag::LimitVMTypeSize,
+            AptosFeatureFlag::_LIMIT_VM_TYPE_SIZE => FeatureFlag::LimitVMTypeSize,
             AptosFeatureFlag::ABORT_IF_MULTISIG_PAYLOAD_MISMATCH => {
                 FeatureFlag::AbortIfMultisigPayloadMismatch
             },
-            AptosFeatureFlag::SUPRA_NATIVE_AUTOMATION => FeatureFlag::SupraNativeAutomation,
+            AptosFeatureFlag::_DISALLOW_USER_NATIVES => FeatureFlag::DisallowUserNative,
+            AptosFeatureFlag::ALLOW_SERIALIZED_SCRIPT_ARGS => {
+                FeatureFlag::AllowSerializedScriptArgs
+            },
+            AptosFeatureFlag::_USE_COMPATIBILITY_CHECKER_V2 => {
+                FeatureFlag::UseCompatibilityCheckerV2
+            },
+            AptosFeatureFlag::ENABLE_ENUM_TYPES => FeatureFlag::EnableEnumTypes,
+            AptosFeatureFlag::ENABLE_RESOURCE_ACCESS_CONTROL => {
+                FeatureFlag::EnableResourceAccessControl
+            },
+            AptosFeatureFlag::_REJECT_UNSTABLE_BYTECODE_FOR_SCRIPT => {
+                FeatureFlag::RejectUnstableBytecodeForScript
+            },
+            AptosFeatureFlag::FEDERATED_KEYLESS => FeatureFlag::FederatedKeyless,
+            AptosFeatureFlag::TRANSACTION_SIMULATION_ENHANCEMENT => {
+                FeatureFlag::TransactionSimulationEnhancement
+            },
+            AptosFeatureFlag::COLLECTION_OWNER => FeatureFlag::CollectionOwner,
+            AptosFeatureFlag::NATIVE_MEMORY_OPERATIONS => FeatureFlag::NativeMemoryOperations,
+            AptosFeatureFlag::_ENABLE_LOADER_V2 => FeatureFlag::EnableLoaderV2,
+            AptosFeatureFlag::_DISALLOW_INIT_MODULE_TO_PUBLISH_MODULES => {
+                FeatureFlag::DisallowInitModuleToPublishModules
+            },
+            AptosFeatureFlag::ENABLE_CALL_TREE_AND_INSTRUCTION_VM_CACHE => {
+                FeatureFlag::EnableCallTreeAndInstructionVMCache
+            },
+            AptosFeatureFlag::PERMISSIONED_SIGNER => FeatureFlag::PermissionedSigner,
+            AptosFeatureFlag::ACCOUNT_ABSTRACTION => FeatureFlag::AccountAbstraction,
+            AptosFeatureFlag::BULLETPROOFS_BATCH_NATIVES => FeatureFlag::BulletproofsBatchNatives,
+            AptosFeatureFlag::DERIVABLE_ACCOUNT_ABSTRACTION => {
+                FeatureFlag::DerivableAccountAbstraction
+            },
+            AptosFeatureFlag::ENABLE_FUNCTION_VALUES => FeatureFlag::EnableFunctionValues,
+            AptosFeatureFlag::NEW_ACCOUNTS_DEFAULT_TO_FA_STORE => {
+                FeatureFlag::NewAccountsDefaultToFaStore
+            },
+            AptosFeatureFlag::DEFAULT_ACCOUNT_RESOURCE => FeatureFlag::DefaultAccountResource,
+            AptosFeatureFlag::JWK_CONSENSUS_PER_KEY_MODE => FeatureFlag::JwkConsensusPerKeyMode,
+            AptosFeatureFlag::TRANSACTION_PAYLOAD_V2 => FeatureFlag::TransactionPayloadV2,
+            AptosFeatureFlag::ORDERLESS_TRANSACTIONS => FeatureFlag::OrderlessTransactions,
+            AptosFeatureFlag::ENABLE_LAZY_LOADING => FeatureFlag::EnableLazyLoading,
+            AptosFeatureFlag::CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION => {
+                FeatureFlag::CalculateTransactionFeeForDistribution
+            },
+            AptosFeatureFlag::DISTRIBUTE_TRANSACTION_FEE => FeatureFlag::DistributeTransactionFee,
+                AptosFeatureFlag::SUPRA_NATIVE_AUTOMATION => FeatureFlag::SupraNativeAutomation,
             AptosFeatureFlag::SUPRA_ETH_TRIE => FeatureFlag::SupraEthTrie,
             AptosFeatureFlag::SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK => {
                 FeatureFlag::SupraAutomationPayloadGasCheck

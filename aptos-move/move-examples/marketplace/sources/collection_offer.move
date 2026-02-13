@@ -26,7 +26,7 @@ module collection_offer {
     use marketplace::events;
     use marketplace::fee_schedule::{Self, FeeSchedule};
     use marketplace::listing::{Self, TokenV1Container};
-    use supra_framework::aptos_account;
+    use supra_framework::supra_account;
 
     /// No collection offer defined.
     const ENO_COLLECTION_OFFER: u64 = 1;
@@ -199,7 +199,7 @@ module collection_offer {
     ) {
         let fee = fee_schedule::listing_fee(fee_schedule, total_to_extract);
         let fee_address = fee_schedule::fee_address(fee_schedule);
-        aptos_account::transfer_coins<CoinType>(purchaser, fee_address, fee);
+        supra_account::transfer_coins<CoinType>(purchaser, fee_address, fee);
 
         let coins = coin::withdraw<CoinType>(purchaser, total_to_extract);
         move_to(offer_signer, CoinOffer { coins });
@@ -392,17 +392,17 @@ module collection_offer {
         let royalty_charge = listing::bounded_percentage(price, royalty_numerator, royalty_denominator);
 
         let royalties = coin::extract(&mut coins, royalty_charge);
-        aptos_account::deposit_coins(royalty_payee, royalties);
+        supra_account::deposit_coins(royalty_payee, royalties);
 
         // Commission can only be of whatever is left
         let fee_schedule = collection_offer_obj.fee_schedule;
         let commission_charge = fee_schedule::commission(fee_schedule, price);
         let actual_commission_charge = math64::min(commission_charge, coin::value(&coins));
         let commission = coin::extract(&mut coins, actual_commission_charge);
-        aptos_account::deposit_coins(fee_schedule::fee_address(fee_schedule), commission);
+        supra_account::deposit_coins(fee_schedule::fee_address(fee_schedule), commission);
 
         // Seller gets what is left
-        aptos_account::deposit_coins(seller, coins);
+        supra_account::deposit_coins(seller, coins);
 
         events::emit_collection_offer_filled(
             fee_schedule,
@@ -428,7 +428,7 @@ module collection_offer {
     ) acquires CoinOffer, CollectionOffer, CollectionOfferTokenV1, CollectionOfferTokenV2 {
         let collection_offer_addr = object::object_address(&collection_offer);
         let CoinOffer<CoinType> { coins } = move_from(collection_offer_addr);
-        aptos_account::deposit_coins(object::owner(collection_offer), coins);
+        supra_account::deposit_coins(object::owner(collection_offer), coins);
 
         let CollectionOffer {
             fee_schedule: _,

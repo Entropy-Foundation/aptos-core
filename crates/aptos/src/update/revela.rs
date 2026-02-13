@@ -3,7 +3,7 @@
 
 use super::{update_binary, BinaryUpdater, UpdateRequiredInfo};
 use crate::{
-    common::types::{CliCommand, CliTypedResult},
+    common::types::{CliCommand, CliTypedResult, PromptOptions},
     update::update_helper::{build_updater, get_path},
 };
 use anyhow::{Context, Result};
@@ -47,6 +47,9 @@ pub struct RevelaUpdateTool {
     /// If set, it will check if there are updates for the tool, but not actually update
     #[clap(long, default_value_t = false)]
     check: bool,
+
+    #[clap(flatten)]
+    pub prompt_options: PromptOptions,
 }
 
 impl BinaryUpdater for RevelaUpdateTool {
@@ -54,8 +57,8 @@ impl BinaryUpdater for RevelaUpdateTool {
         self.check
     }
 
-    fn pretty_name(&self) -> &'static str {
-        "Revela"
+    fn pretty_name(&self) -> String {
+        "Revela".to_string()
     }
 
     /// Return information about whether an update is required.
@@ -99,6 +102,7 @@ impl BinaryUpdater for RevelaUpdateTool {
             "unknown-linux-gnu",
             "apple-darwin",
             "pc-windows-gnu",
+            self.prompt_options.assume_yes,
         )
     }
 }
@@ -115,5 +119,11 @@ impl CliCommand<String> for RevelaUpdateTool {
 }
 
 pub fn get_revela_path() -> Result<PathBuf> {
-    get_path("decompiler", REVELA_EXE_ENV, REVELA_BINARY_NAME, REVELA_EXE)
+    get_path(
+        "decompiler",
+        REVELA_EXE_ENV,
+        REVELA_BINARY_NAME,
+        REVELA_EXE,
+        false,
+    )
 }

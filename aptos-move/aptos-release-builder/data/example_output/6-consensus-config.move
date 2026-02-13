@@ -25,8 +25,8 @@
 // )
 
 script {
-    use aptos_framework::supra_governance;
-    use aptos_framework::consensus_config;
+    use supra_framework::supra_governance;
+    use supra_framework::consensus_config;
     use std::vector;
 
     fun main(proposal_id: u64) {

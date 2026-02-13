@@ -199,7 +199,7 @@ module post_mint_reveal_nft::minting {
     public entry fun set_treasury(admin: &signer, new_treasury_address: address) acquires NFTMintConfig {
         assert!(signer::address_of(admin) == @post_mint_reveal_nft, error::permission_denied(ENOT_AUTHORIZED));
         assert!(account::exists_at(new_treasury_address), error::invalid_argument(EACCOUNT_DOES_NOT_EXIST));
-        aptos_account::assert_account_is_registered_for_apt(new_treasury_address);
+        supra_account::assert_account_is_registered_for_apt(new_treasury_address);
         let nft_mint_config = borrow_global_mut<NFTMintConfig>(@post_mint_reveal_nft);
         nft_mint_config.treasury = new_treasury_address;
     }
@@ -639,7 +639,7 @@ module post_mint_reveal_nft::minting {
     // ======================================================================
     #[test_only]
     use supra_framework::account::create_account_for_test;
-    use supra_framework::aptos_account;
+    use supra_framework::supra_account;
 
     #[test_only]
     public fun set_up_test(

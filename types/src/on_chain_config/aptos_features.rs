@@ -12,7 +12,8 @@ use move_core_types::{
 };
 use serde::{Deserialize, Serialize};
 use strum_macros::{EnumString, FromRepr};
-/// The feature flags define in the Move source. This must stay aligned with the constants there.
+
+/// The feature flags defined in the Move source. This must stay aligned with the constants there.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, FromRepr, EnumString)]
 #[allow(non_camel_case_types)]
 pub enum FeatureFlag {
@@ -21,7 +22,7 @@ pub enum FeatureFlag {
     SHA_512_AND_RIPEMD_160_NATIVES = 3,
     APTOS_STD_CHAIN_ID_NATIVES = 4,
     VM_BINARY_FORMAT_V6 = 5,
-    COLLECT_AND_DISTRIBUTE_GAS_FEES = 6,
+    _DEPRECATED_COLLECT_AND_DISTRIBUTE_GAS_FEES = 6,
     MULTI_ED25519_PK_VALIDATE_V2_NATIVES = 7,
     BLAKE2B_256_NATIVE = 8,
     RESOURCE_GROUPS = 9,
@@ -60,10 +61,11 @@ pub enum FeatureFlag {
     COMMISSION_CHANGE_DELEGATION_POOL = 42,
     BN254_STRUCTURES = 43,
     WEBAUTHN_SIGNATURE = 44,
-    RECONFIGURE_WITH_DKG = 45,
+    _DEPRECATED_RECONFIGURE_WITH_DKG = 45,
     KEYLESS_ACCOUNTS = 46,
     KEYLESS_BUT_ZKLESS_ACCOUNTS = 47,
-    REMOVE_DETAILED_ERROR_FROM_HASH = 48,
+    /// This feature was never used.
+    _DEPRECATED_REMOVE_DETAILED_ERROR_FROM_HASH = 48,
     JWK_CONSENSUS = 49,
     CONCURRENT_FUNGIBLE_ASSETS = 50,
     REFUNDABLE_BYTES = 51,
@@ -73,7 +75,8 @@ pub enum FeatureFlag {
     MULTISIG_V2_ENHANCEMENT = 55,
     DELEGATION_POOL_ALLOWLISTING = 56,
     MODULE_EVENT_MIGRATION = 57,
-    REJECT_UNSTABLE_BYTECODE = 58,
+    /// Enabled on mainnet, can never be disabled.
+    _REJECT_UNSTABLE_BYTECODE = 58,
     TRANSACTION_CONTEXT_EXTENSION = 59,
     COIN_TO_FUNGIBLE_ASSET_MIGRATION = 60,
     PRIMARY_APT_FUNGIBLE_STORE_AT_USER_ADDRESS = 61,
@@ -84,9 +87,51 @@ pub enum FeatureFlag {
     AGGREGATOR_V2_IS_AT_LEAST_API = 66,
     CONCURRENT_FUNGIBLE_BALANCE = 67,
     DEFAULT_TO_CONCURRENT_FUNGIBLE_BALANCE = 68,
-    LIMIT_VM_TYPE_SIZE = 69,
+    /// Enabled on mainnet, cannot be disabled.
+    _LIMIT_VM_TYPE_SIZE = 69,
     ABORT_IF_MULTISIG_PAYLOAD_MISMATCH = 70,
-    // Keeping 16 bit reserved to have graceful updated from aptos-mainstream in case of new flags have been added
+    /// Enabled on mainnet, cannot be disabled.
+    _DISALLOW_USER_NATIVES = 71,
+    ALLOW_SERIALIZED_SCRIPT_ARGS = 72,
+    /// Enabled on mainnet, cannot be disabled.
+    _USE_COMPATIBILITY_CHECKER_V2 = 73,
+    ENABLE_ENUM_TYPES = 74,
+    ENABLE_RESOURCE_ACCESS_CONTROL = 75,
+    /// Enabled on mainnet, can never be disabled.
+    _REJECT_UNSTABLE_BYTECODE_FOR_SCRIPT = 76,
+    FEDERATED_KEYLESS = 77,
+    TRANSACTION_SIMULATION_ENHANCEMENT = 78,
+    COLLECTION_OWNER = 79,
+    /// covers mem::swap and vector::move_range
+    /// AIP-105 (https://github.com/aptos-foundation/AIPs/blob/main/aips/aip-105.md)
+    NATIVE_MEMORY_OPERATIONS = 80,
+    /// The feature was used to gate the rollout of new loader used by Move VM. It was enabled on
+    /// mainnet and can no longer be disabled.
+    _ENABLE_LOADER_V2 = 81,
+    /// Prior to this feature flag, it was possible to attempt 'init_module' to publish modules
+    /// that results in a new package created but without any code. With this feature, it is no
+    /// longer possible and an explicit error is returned if publishing is attempted. The feature
+    /// was enabled on mainnet and will not be disabled.
+    _DISALLOW_INIT_MODULE_TO_PUBLISH_MODULES = 82,
+    /// We keep the Call Tree cache and instruction (per-instruction)
+    /// cache together here.  Generally, we could allow Call Tree
+    /// cache and disallow instruction cache, however there's little
+    /// benefit of such approach: First, instruction cache requires
+    /// call-tree cache to be enabled, and provides relatively little
+    /// overhead in terms of memory footprint. On the other side,
+    /// providing separate choices could lead to code bloat, as the
+    /// dynamic config is converted into multiple different
+    /// implementations. If required in the future, we can add a flag
+    /// to explicitly disable the instruction cache.
+    ENABLE_CALL_TREE_AND_INSTRUCTION_VM_CACHE = 83,
+    /// AIP-103 (https://github.com/aptos-foundation/AIPs/blob/main/aips/aip-103.md)
+    PERMISSIONED_SIGNER = 84,
+    ACCOUNT_ABSTRACTION = 85,
+    /// Enables bytecode version v8
+    VM_BINARY_FORMAT_V8 = 86,
+    BULLETPROOFS_BATCH_NATIVES = 87,
+
+    // Keeping 4*8 bit reserved to have graceful updated from aptos-mainstream in case of new flags have been added
     // Ends up in 11th byte, 0th bit
     SUPRA_NATIVE_AUTOMATION = 88,
     SUPRA_ETH_TRIE = 89,
@@ -97,6 +142,21 @@ pub enum FeatureFlag {
     SUPRA_RLP_ENCODE = 94,
     SUPRA_DELEGATION_POOL_IDENTITY = 95,
     SUPRA_AUTOMATION_V2 = 96,
+
+
+    DERIVABLE_ACCOUNT_ABSTRACTION = 97,
+    /// Whether function values are enabled.
+    ENABLE_FUNCTION_VALUES = 98,
+    NEW_ACCOUNTS_DEFAULT_TO_FA_STORE = 99,
+    DEFAULT_ACCOUNT_RESOURCE = 100,
+    JWK_CONSENSUS_PER_KEY_MODE = 101,
+    TRANSACTION_PAYLOAD_V2 = 102,
+    ORDERLESS_TRANSACTIONS = 103,
+    // TODO(lazy-loading): Add link to AIP and its number + brief description.
+    ENABLE_LAZY_LOADING = 104,
+
+    CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION = 105,
+    DISTRIBUTE_TRANSACTION_FEE = 106,
 }
 
 impl FeatureFlag {
@@ -106,7 +166,10 @@ impl FeatureFlag {
             FeatureFlag::TREAT_FRIEND_AS_PRIVATE,
             FeatureFlag::SHA_512_AND_RIPEMD_160_NATIVES,
             FeatureFlag::APTOS_STD_CHAIN_ID_NATIVES,
+            // Feature flag V6 is used to enable metadata v1 format and needs to stay on, even
+            // if we enable a higher version.
             FeatureFlag::VM_BINARY_FORMAT_V6,
+            FeatureFlag::VM_BINARY_FORMAT_V7, // new 
             FeatureFlag::MULTI_ED25519_PK_VALIDATE_V2_NATIVES,
             FeatureFlag::BLAKE2B_256_NATIVE,
             FeatureFlag::RESOURCE_GROUPS,
@@ -116,9 +179,12 @@ impl FeatureFlag {
             FeatureFlag::BLS12_381_STRUCTURES,
             FeatureFlag::ED25519_PUBKEY_VALIDATE_RETURN_FALSE_WRONG_LENGTH,
             FeatureFlag::STRUCT_CONSTRUCTORS,
+            // FeatureFlag::PERIODICAL_REWARD_RATE_DECREASE, // new
+            // FeatureFlag::PARTIAL_GOVERNANCE_VOTING, // new
             FeatureFlag::SIGNATURE_CHECKER_V2,
             FeatureFlag::STORAGE_SLOT_METADATA,
             FeatureFlag::CHARGE_INVARIANT_VIOLATION,
+            // FeatureFlag::DELEGATION_POOL_PARTIAL_GOVERNANCE_VOTING, //new
             FeatureFlag::APTOS_UNIQUE_IDENTIFIERS,
             FeatureFlag::GAS_PAYER_ENABLED,
             FeatureFlag::BULLETPROOFS_NATIVES,
@@ -143,6 +209,7 @@ impl FeatureFlag {
             FeatureFlag::WEBAUTHN_SIGNATURE,
             // FeatureFlag::RECONFIGURE_WITH_DKG, //TODO: re-enable once randomness is ready.
             FeatureFlag::KEYLESS_ACCOUNTS,
+            // FeatureFlag::FEDERATED_KEYLESS, // new
             FeatureFlag::KEYLESS_BUT_ZKLESS_ACCOUNTS,
             FeatureFlag::JWK_CONSENSUS,
             FeatureFlag::REFUNDABLE_BYTES,
@@ -152,17 +219,44 @@ impl FeatureFlag {
             FeatureFlag::MULTISIG_V2_ENHANCEMENT,
             FeatureFlag::DELEGATION_POOL_ALLOWLISTING,
             FeatureFlag::MODULE_EVENT_MIGRATION,
-            FeatureFlag::REJECT_UNSTABLE_BYTECODE,
+            FeatureFlag::_REJECT_UNSTABLE_BYTECODE,
             FeatureFlag::TRANSACTION_CONTEXT_EXTENSION,
             FeatureFlag::COIN_TO_FUNGIBLE_ASSET_MIGRATION,
             FeatureFlag::OBJECT_NATIVE_DERIVED_ADDRESS,
             FeatureFlag::DISPATCHABLE_FUNGIBLE_ASSET,
-            FeatureFlag::REMOVE_DETAILED_ERROR_FROM_HASH,
+            FeatureFlag::_DEPRECATED_REMOVE_DETAILED_ERROR_FROM_HASH,
+            // FeatureFlag::NEW_ACCOUNTS_DEFAULT_TO_FA_APT_STORE, // new
+            // FeatureFlag::OPERATIONS_DEFAULT_TO_FA_APT_STORE, // new 
             FeatureFlag::CONCURRENT_FUNGIBLE_ASSETS,
             FeatureFlag::AGGREGATOR_V2_IS_AT_LEAST_API,
             FeatureFlag::CONCURRENT_FUNGIBLE_BALANCE,
-            FeatureFlag::LIMIT_VM_TYPE_SIZE,
+            FeatureFlag::_LIMIT_VM_TYPE_SIZE,
             FeatureFlag::ABORT_IF_MULTISIG_PAYLOAD_MISMATCH,
+            FeatureFlag::_DISALLOW_USER_NATIVES,
+            FeatureFlag::ALLOW_SERIALIZED_SCRIPT_ARGS,
+            FeatureFlag::_USE_COMPATIBILITY_CHECKER_V2,
+            FeatureFlag::ENABLE_ENUM_TYPES,
+            FeatureFlag::ENABLE_RESOURCE_ACCESS_CONTROL,
+            FeatureFlag::_REJECT_UNSTABLE_BYTECODE_FOR_SCRIPT,
+            FeatureFlag::TRANSACTION_SIMULATION_ENHANCEMENT,
+            FeatureFlag::NATIVE_MEMORY_OPERATIONS,
+            FeatureFlag::_ENABLE_LOADER_V2,
+            FeatureFlag::_DISALLOW_INIT_MODULE_TO_PUBLISH_MODULES,
+            FeatureFlag::COLLECTION_OWNER,
+            FeatureFlag::PERMISSIONED_SIGNER,
+            FeatureFlag::ENABLE_CALL_TREE_AND_INSTRUCTION_VM_CACHE,
+            FeatureFlag::ACCOUNT_ABSTRACTION,
+            FeatureFlag::BULLETPROOFS_BATCH_NATIVES,
+            FeatureFlag::DERIVABLE_ACCOUNT_ABSTRACTION,
+            FeatureFlag::VM_BINARY_FORMAT_V8,
+            FeatureFlag::ENABLE_FUNCTION_VALUES,
+            // FeatureFlag::NEW_ACCOUNTS_DEFAULT_TO_FA_STORE,
+            // FeatureFlag::DEFAULT_ACCOUNT_RESOURCE,
+            FeatureFlag::JWK_CONSENSUS_PER_KEY_MODE,
+            FeatureFlag::TRANSACTION_PAYLOAD_V2,
+            FeatureFlag::ORDERLESS_TRANSACTIONS,
+            // FeatureFlag::CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION,
+            // FeatureFlag::DISTRIBUTE_TRANSACTION_FEE,
             FeatureFlag::SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK,
             FeatureFlag::PRIVATE_POLL,
             FeatureFlag::SUPRA_AUTOMATION_TASK_SYNC,
@@ -189,7 +283,6 @@ impl Default for Features {
         for feature in FeatureFlag::default_features() {
             features.enable(feature);
         }
-
         features
     }
 }
@@ -245,6 +338,14 @@ impl Features {
         self.is_enabled(FeatureFlag::STORAGE_SLOT_METADATA)
     }
 
+    pub fn is_account_abstraction_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::ACCOUNT_ABSTRACTION)
+    }
+
+    pub fn is_derivable_account_abstraction_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::DERIVABLE_ACCOUNT_ABSTRACTION)
+    }
+
     pub fn is_module_event_enabled(&self) -> bool {
         self.is_enabled(FeatureFlag::MODULE_EVENT)
     }
@@ -294,20 +395,56 @@ impl Features {
         self.is_enabled(FeatureFlag::KEYLESS_ACCOUNTS_WITH_PASSKEYS)
     }
 
-    pub fn is_remove_detailed_error_from_hash_enabled(&self) -> bool {
-        self.is_enabled(FeatureFlag::REMOVE_DETAILED_ERROR_FROM_HASH)
+    pub fn is_federated_keyless_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::FEDERATED_KEYLESS)
     }
 
     pub fn is_refundable_bytes_enabled(&self) -> bool {
         self.is_enabled(FeatureFlag::REFUNDABLE_BYTES)
     }
 
-    pub fn is_limit_type_size_enabled(&self) -> bool {
-        self.is_enabled(FeatureFlag::LIMIT_VM_TYPE_SIZE)
-    }
-
     pub fn is_abort_if_multisig_payload_mismatch_enabled(&self) -> bool {
         self.is_enabled(FeatureFlag::ABORT_IF_MULTISIG_PAYLOAD_MISMATCH)
+    }
+
+    pub fn is_transaction_simulation_enhancement_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::TRANSACTION_SIMULATION_ENHANCEMENT)
+    }
+
+    pub fn is_native_memory_operations_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::NATIVE_MEMORY_OPERATIONS)
+    }
+
+    pub fn is_call_tree_and_instruction_vm_cache_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::ENABLE_CALL_TREE_AND_INSTRUCTION_VM_CACHE)
+    }
+
+    pub fn is_lazy_loading_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::ENABLE_LAZY_LOADING)
+    }
+
+    pub fn is_default_account_resource_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::DEFAULT_ACCOUNT_RESOURCE)
+    }
+
+    pub fn is_new_account_default_to_fa_store(&self) -> bool {
+        self.is_enabled(FeatureFlag::NEW_ACCOUNTS_DEFAULT_TO_FA_STORE)
+    }
+
+    pub fn is_transaction_payload_v2_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::TRANSACTION_PAYLOAD_V2)
+    }
+
+    pub fn is_orderless_txns_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::ORDERLESS_TRANSACTIONS)
+    }
+
+    pub fn is_calculate_transaction_fee_for_distribution_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION)
+    }
+
+    pub fn is_distribute_transaction_fee_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::DISTRIBUTE_TRANSACTION_FEE)
     }
 
     pub fn get_max_identifier_size(&self) -> u64 {
@@ -319,7 +456,9 @@ impl Features {
     }
 
     pub fn get_max_binary_format_version(&self) -> u32 {
-        if self.is_enabled(FeatureFlag::VM_BINARY_FORMAT_V7) {
+        if self.is_enabled(FeatureFlag::VM_BINARY_FORMAT_V8) {
+            file_format_common::VERSION_8
+        } else if self.is_enabled(FeatureFlag::VM_BINARY_FORMAT_V7) {
             file_format_common::VERSION_7
         } else if self.is_enabled(FeatureFlag::VM_BINARY_FORMAT_V6) {
             file_format_common::VERSION_6
@@ -367,13 +506,13 @@ mod test {
     #[test]
     fn test_min_max_binary_format() {
         // Ensure querying max binary format implementation is correct and checks
-        // versions 5 to 7.
+        // versions 5 to 8.
         assert_eq!(
             file_format_common::VERSION_5,
             file_format_common::VERSION_MIN
         );
         assert_eq!(
-            file_format_common::VERSION_7,
+            file_format_common::VERSION_8,
             file_format_common::VERSION_MAX
         );
     }

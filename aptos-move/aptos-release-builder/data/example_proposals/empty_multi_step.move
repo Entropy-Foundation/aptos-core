@@ -1,7 +1,7 @@
 // Empty governance proposal to demonstrate functionality for including proposal in the release builder;
 //
 script {
-    use aptos_framework::supra_governance;
+    use supra_framework::supra_governance;
     use std::features;
 
     fun main(proposal_id: u64) {

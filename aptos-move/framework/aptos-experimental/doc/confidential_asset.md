@@ -72,23 +72,23 @@ It enables private transfers by obfuscating token amounts while keeping sender a
 -  [Function `init_module_for_genesis`](#0x7_confidential_asset_init_module_for_genesis)
 
 
-<pre><code><b>use</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs">0x1::bcs</a>;
-<b>use</b> <a href="../../aptos-framework/doc/chain_id.md#0x1_chain_id">0x1::chain_id</a>;
-<b>use</b> <a href="../../aptos-framework/doc/coin.md#0x1_coin">0x1::coin</a>;
-<b>use</b> <a href="../../aptos-framework/doc/dispatchable_fungible_asset.md#0x1_dispatchable_fungible_asset">0x1::dispatchable_fungible_asset</a>;
-<b>use</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
-<b>use</b> <a href="../../aptos-framework/doc/event.md#0x1_event">0x1::event</a>;
-<b>use</b> <a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset">0x1::fungible_asset</a>;
-<b>use</b> <a href="../../aptos-framework/doc/object.md#0x1_object">0x1::object</a>;
-<b>use</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
-<b>use</b> <a href="../../aptos-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store">0x1::primary_fungible_store</a>;
-<b>use</b> <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255">0x1::ristretto255</a>;
-<b>use</b> <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs">0x1::ristretto255_bulletproofs</a>;
-<b>use</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
-<b>use</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string">0x1::string</a>;
-<b>use</b> <a href="../../aptos-framework/../aptos-stdlib/doc/string_utils.md#0x1_string_utils">0x1::string_utils</a>;
-<b>use</b> <a href="../../aptos-framework/doc/system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
-<b>use</b> <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
+<pre><code><b>use</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs">0x1::bcs</a>;
+<b>use</b> <a href="../../supra-framework/doc/chain_id.md#0x1_chain_id">0x1::chain_id</a>;
+<b>use</b> <a href="../../supra-framework/doc/coin.md#0x1_coin">0x1::coin</a>;
+<b>use</b> <a href="../../supra-framework/doc/dispatchable_fungible_asset.md#0x1_dispatchable_fungible_asset">0x1::dispatchable_fungible_asset</a>;
+<b>use</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
+<b>use</b> <a href="../../supra-framework/doc/event.md#0x1_event">0x1::event</a>;
+<b>use</b> <a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset">0x1::fungible_asset</a>;
+<b>use</b> <a href="../../supra-framework/doc/object.md#0x1_object">0x1::object</a>;
+<b>use</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
+<b>use</b> <a href="../../supra-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store">0x1::primary_fungible_store</a>;
+<b>use</b> <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255">0x1::ristretto255</a>;
+<b>use</b> <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255_bulletproofs.md#0x1_ristretto255_bulletproofs">0x1::ristretto255_bulletproofs</a>;
+<b>use</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
+<b>use</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string">0x1::string</a>;
+<b>use</b> <a href="../../supra-framework/../aptos-stdlib/doc/string_utils.md#0x1_string_utils">0x1::string_utils</a>;
+<b>use</b> <a href="../../supra-framework/doc/system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
+<b>use</b> <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 <b>use</b> <a href="confidential_balance.md#0x7_confidential_balance">0x7::confidential_balance</a>;
 <b>use</b> <a href="confidential_proof.md#0x7_confidential_proof">0x7::confidential_proof</a>;
 <b>use</b> <a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal">0x7::ristretto255_twisted_elgamal</a>;
@@ -195,7 +195,7 @@ Represents the controller for the primary FA stores and <code><a href="confident
  This flag is managed by the governance module.
 </dd>
 <dt>
-<code>extend_ref: <a href="../../aptos-framework/doc/object.md#0x1_object_ExtendRef">object::ExtendRef</a></code>
+<code>extend_ref: <a href="../../supra-framework/doc/object.md#0x1_object_ExtendRef">object::ExtendRef</a></code>
 </dt>
 <dd>
  Used to derive a signer that owns all the FAs' primary stores and <code><a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a></code> objects.
@@ -231,7 +231,7 @@ Represents the configuration of a token.
  Can be toggled by the governance module. The withdrawals are always allowed.
 </dd>
 <dt>
-<code>auditor_ek: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;</code>
+<code>auditor_ek: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;</code>
 </dt>
 <dd>
  The auditor's public key for the token. If the auditor is not set, this field is <code>None</code>.
@@ -250,7 +250,7 @@ Represents the configuration of a token.
 Emitted when tokens are brought into the protocol.
 
 
-<pre><code>#[<a href="../../aptos-framework/doc/event.md#0x1_event">event</a>]
+<pre><code>#[<a href="../../supra-framework/doc/event.md#0x1_event">event</a>]
 <b>struct</b> <a href="confidential_asset.md#0x7_confidential_asset_Deposited">Deposited</a> <b>has</b> drop, store
 </code></pre>
 
@@ -291,7 +291,7 @@ Emitted when tokens are brought into the protocol.
 Emitted when tokens are brought out of the protocol.
 
 
-<pre><code>#[<a href="../../aptos-framework/doc/event.md#0x1_event">event</a>]
+<pre><code>#[<a href="../../supra-framework/doc/event.md#0x1_event">event</a>]
 <b>struct</b> <a href="confidential_asset.md#0x7_confidential_asset_Withdrawn">Withdrawn</a> <b>has</b> drop, store
 </code></pre>
 
@@ -333,7 +333,7 @@ Emitted when tokens are transferred within the protocol between users' confident
 Note that a numeric amount is not included, as it is hidden.
 
 
-<pre><code>#[<a href="../../aptos-framework/doc/event.md#0x1_event">event</a>]
+<pre><code>#[<a href="../../supra-framework/doc/event.md#0x1_event">event</a>]
 <b>struct</b> <a href="confidential_asset.md#0x7_confidential_asset_Transferred">Transferred</a> <b>has</b> drop, store
 </code></pre>
 
@@ -592,7 +592,7 @@ The testnet chain ID.
 
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_init_module">init_module</a>(deployer: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_init_module">init_module</a>(deployer: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
 </code></pre>
 
 
@@ -601,22 +601,22 @@ The testnet chain ID.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_init_module">init_module</a>(deployer: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_init_module">init_module</a>(deployer: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
     <b>assert</b>!(
         bulletproofs::get_max_range_bits()
             &gt;= <a href="confidential_proof.md#0x7_confidential_proof_get_bulletproofs_num_bits">confidential_proof::get_bulletproofs_num_bits</a>(),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_internal">error::internal</a>(<a href="confidential_asset.md#0x7_confidential_asset_ERANGE_PROOF_SYSTEM_HAS_INSUFFICIENT_RANGE">ERANGE_PROOF_SYSTEM_HAS_INSUFFICIENT_RANGE</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_internal">error::internal</a>(<a href="confidential_asset.md#0x7_confidential_asset_ERANGE_PROOF_SYSTEM_HAS_INSUFFICIENT_RANGE">ERANGE_PROOF_SYSTEM_HAS_INSUFFICIENT_RANGE</a>)
     );
 
-    <b>let</b> deployer_address = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(deployer);
+    <b>let</b> deployer_address = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(deployer);
 
-    <b>let</b> fa_controller_ctor_ref = &<a href="../../aptos-framework/doc/object.md#0x1_object_create_object">object::create_object</a>(deployer_address);
+    <b>let</b> fa_controller_ctor_ref = &<a href="../../supra-framework/doc/object.md#0x1_object_create_object">object::create_object</a>(deployer_address);
 
     <b>move_to</b>(
         deployer,
         <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
-            allow_list_enabled: <a href="../../aptos-framework/doc/chain_id.md#0x1_chain_id_get">chain_id::get</a>() == <a href="confidential_asset.md#0x7_confidential_asset_MAINNET_CHAIN_ID">MAINNET_CHAIN_ID</a>,
-            extend_ref: <a href="../../aptos-framework/doc/object.md#0x1_object_generate_extend_ref">object::generate_extend_ref</a>(fa_controller_ctor_ref)
+            allow_list_enabled: <a href="../../supra-framework/doc/chain_id.md#0x1_chain_id_get">chain_id::get</a>() == <a href="confidential_asset.md#0x7_confidential_asset_MAINNET_CHAIN_ID">MAINNET_CHAIN_ID</a>,
+            extend_ref: <a href="../../supra-framework/doc/object.md#0x1_object_generate_extend_ref">object::generate_extend_ref</a>(fa_controller_ctor_ref)
         }
     );
 }
@@ -636,7 +636,7 @@ intend to transact with.
 Users are also responsible for generating a Twisted ElGamal key pair on their side.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_register">register</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, ek: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_register">register</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, ek: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
 </code></pre>
 
 
@@ -646,7 +646,7 @@ Users are also responsible for generating a Twisted ElGamal key pair on their si
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_register">register</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;, ek: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;, ek: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a> {
     <b>let</b> ek = twisted_elgamal::new_pubkey_from_bytes(ek).extract();
 
@@ -669,7 +669,7 @@ However, tokens within the protocol become obfuscated through confidential trans
 subsequent transactions.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit_to">deposit_to</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, <b>to</b>: <b>address</b>, amount: u64)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit_to">deposit_to</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, <b>to</b>: <b>address</b>, amount: u64)
 </code></pre>
 
 
@@ -679,7 +679,7 @@ subsequent transactions.
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit_to">deposit_to</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     token: Object&lt;Metadata&gt;,
     <b>to</b>: <b>address</b>,
     amount: u64
@@ -699,7 +699,7 @@ subsequent transactions.
 The same as <code>deposit_to</code>, but the recipient is the sender.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit">deposit</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, amount: u64)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit">deposit</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, amount: u64)
 </code></pre>
 
 
@@ -709,12 +709,12 @@ The same as <code>deposit_to</code>, but the recipient is the sender.
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit">deposit</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;, amount: u64
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;, amount: u64
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a> {
     <a href="confidential_asset.md#0x7_confidential_asset_deposit_to_internal">deposit_to_internal</a>(
         sender,
         token,
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender),
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender),
         amount
     )
 }
@@ -731,7 +731,7 @@ The same as <code>deposit_to</code>, but the recipient is the sender.
 The same as <code>deposit_to</code>, but converts coins to missing FA first.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit_coins_to">deposit_coins_to</a>&lt;CoinType&gt;(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <b>to</b>: <b>address</b>, amount: u64)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit_coins_to">deposit_coins_to</a>&lt;CoinType&gt;(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <b>to</b>: <b>address</b>, amount: u64)
 </code></pre>
 
 
@@ -741,7 +741,7 @@ The same as <code>deposit_to</code>, but converts coins to missing FA first.
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit_coins_to">deposit_coins_to</a>&lt;CoinType&gt;(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <b>to</b>: <b>address</b>, amount: u64
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <b>to</b>: <b>address</b>, amount: u64
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a> {
     <b>let</b> token = <a href="confidential_asset.md#0x7_confidential_asset_ensure_sufficient_fa">ensure_sufficient_fa</a>&lt;CoinType&gt;(sender, amount).extract();
 
@@ -760,7 +760,7 @@ The same as <code>deposit_to</code>, but converts coins to missing FA first.
 The same as <code>deposit</code>, but converts coins to missing FA first.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit_coins">deposit_coins</a>&lt;CoinType&gt;(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, amount: u64)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit_coins">deposit_coins</a>&lt;CoinType&gt;(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, amount: u64)
 </code></pre>
 
 
@@ -770,14 +770,14 @@ The same as <code>deposit</code>, but converts coins to missing FA first.
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit_coins">deposit_coins</a>&lt;CoinType&gt;(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, amount: u64
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, amount: u64
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a> {
     <b>let</b> token = <a href="confidential_asset.md#0x7_confidential_asset_ensure_sufficient_fa">ensure_sufficient_fa</a>&lt;CoinType&gt;(sender, amount).extract();
 
     <a href="confidential_asset.md#0x7_confidential_asset_deposit_to_internal">deposit_to_internal</a>(
         sender,
         token,
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender),
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender),
         amount
     )
 }
@@ -797,7 +797,7 @@ The withdrawn amount is publicly visible, as this process requires a normal tran
 The sender provides their new normalized confidential balance, encrypted with fresh randomness to preserve privacy.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_withdraw_to">withdraw_to</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, <b>to</b>: <b>address</b>, amount: u64, new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, sigma_proof: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_withdraw_to">withdraw_to</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, <b>to</b>: <b>address</b>, amount: u64, new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, sigma_proof: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
 </code></pre>
 
 
@@ -807,13 +807,13 @@ The sender provides their new normalized confidential balance, encrypted with fr
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_withdraw_to">withdraw_to</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     token: Object&lt;Metadata&gt;,
     <b>to</b>: <b>address</b>,
     amount: u64,
-    new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    sigma_proof: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+    new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    sigma_proof: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
     <b>let</b> new_balance =
         <a href="confidential_balance.md#0x7_confidential_balance_new_actual_balance_from_bytes">confidential_balance::new_actual_balance_from_bytes</a>(new_balance).extract();
@@ -823,7 +823,7 @@ The sender provides their new normalized confidential balance, encrypted with fr
 
     <a href="confidential_asset.md#0x7_confidential_asset_withdraw_to_internal">withdraw_to_internal</a>(sender, token, <b>to</b>, amount, new_balance, proof);
 
-    <a href="../../aptos-framework/doc/event.md#0x1_event_emit">event::emit</a>(<a href="confidential_asset.md#0x7_confidential_asset_Withdrawn">Withdrawn</a> { from: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender), <b>to</b>, amount });
+    <a href="../../supra-framework/doc/event.md#0x1_event_emit">event::emit</a>(<a href="confidential_asset.md#0x7_confidential_asset_Withdrawn">Withdrawn</a> { from: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender), <b>to</b>, amount });
 }
 </code></pre>
 
@@ -838,7 +838,7 @@ The sender provides their new normalized confidential balance, encrypted with fr
 The same as <code>withdraw_to</code>, but the recipient is the sender.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_withdraw">withdraw</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, amount: u64, new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, sigma_proof: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_withdraw">withdraw</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, amount: u64, new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, sigma_proof: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
 </code></pre>
 
 
@@ -848,17 +848,17 @@ The same as <code>withdraw_to</code>, but the recipient is the sender.
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_withdraw">withdraw</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     token: Object&lt;Metadata&gt;,
     amount: u64,
-    new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    sigma_proof: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+    new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    sigma_proof: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
     <a href="confidential_asset.md#0x7_confidential_asset_withdraw_to">withdraw_to</a>(
         sender,
         token,
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender),
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender),
         amount,
         new_balance,
         zkrp_new_balance,
@@ -886,7 +886,7 @@ Warning: If the auditor feature is enabled, the sender must include the auditor 
 <code>auditor_eks</code> vector.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_confidential_transfer">confidential_transfer</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, <b>to</b>: <b>address</b>, new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, sender_amount: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, recipient_amount: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, auditor_eks: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, auditor_amounts: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_transfer_amount: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, sigma_proof: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_confidential_transfer">confidential_transfer</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, <b>to</b>: <b>address</b>, new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, sender_amount: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, recipient_amount: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, auditor_eks: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, auditor_amounts: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_transfer_amount: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, sigma_proof: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
 </code></pre>
 
 
@@ -896,17 +896,17 @@ Warning: If the auditor feature is enabled, the sender must include the auditor 
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_confidential_transfer">confidential_transfer</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     token: Object&lt;Metadata&gt;,
     <b>to</b>: <b>address</b>,
-    new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    sender_amount: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    recipient_amount: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    auditor_eks: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    auditor_amounts: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    zkrp_transfer_amount: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    sigma_proof: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+    new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    sender_amount: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    recipient_amount: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    auditor_eks: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    auditor_amounts: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    zkrp_transfer_amount: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    sigma_proof: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
     <b>let</b> new_balance =
         <a href="confidential_balance.md#0x7_confidential_balance_new_actual_balance_from_bytes">confidential_balance::new_actual_balance_from_bytes</a>(new_balance).extract();
@@ -950,7 +950,7 @@ The sender provides their new normalized confidential balance, encrypted with th
 to preserve privacy.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rotate_encryption_key">rotate_encryption_key</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, new_ek: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, sigma_proof: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rotate_encryption_key">rotate_encryption_key</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, new_ek: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, sigma_proof: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
 </code></pre>
 
 
@@ -960,12 +960,12 @@ to preserve privacy.
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rotate_encryption_key">rotate_encryption_key</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     token: Object&lt;Metadata&gt;,
-    new_ek: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    sigma_proof: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+    new_ek: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    sigma_proof: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
     <b>let</b> new_ek = twisted_elgamal::new_pubkey_from_bytes(new_ek).extract();
     <b>let</b> new_balance =
@@ -992,7 +992,7 @@ chunk overflows.
 The sender provides their new normalized confidential balance, encrypted with fresh randomness to preserve privacy.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_normalize">normalize</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, sigma_proof: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_normalize">normalize</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, sigma_proof: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
 </code></pre>
 
 
@@ -1002,11 +1002,11 @@ The sender provides their new normalized confidential balance, encrypted with fr
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_normalize">normalize</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     token: Object&lt;Metadata&gt;,
-    new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    sigma_proof: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+    new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    sigma_proof: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
     <b>let</b> new_balance =
         <a href="confidential_balance.md#0x7_confidential_balance_new_actual_balance_from_bytes">confidential_balance::new_actual_balance_from_bytes</a>(new_balance).extract();
@@ -1030,7 +1030,7 @@ The sender provides their new normalized confidential balance, encrypted with fr
 Freezes the confidential account for the specified token, disabling all incoming transactions.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_freeze_token">freeze_token</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_freeze_token">freeze_token</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
 </code></pre>
 
 
@@ -1040,7 +1040,7 @@ Freezes the confidential account for the specified token, disabling all incoming
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_freeze_token">freeze_token</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
     <a href="confidential_asset.md#0x7_confidential_asset_freeze_token_internal">freeze_token_internal</a>(sender, token);
 }
@@ -1057,7 +1057,7 @@ Freezes the confidential account for the specified token, disabling all incoming
 Unfreezes the confidential account for the specified token, re-enabling incoming transactions.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_unfreeze_token">unfreeze_token</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_unfreeze_token">unfreeze_token</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
 </code></pre>
 
 
@@ -1067,7 +1067,7 @@ Unfreezes the confidential account for the specified token, re-enabling incoming
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_unfreeze_token">unfreeze_token</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
     <a href="confidential_asset.md#0x7_confidential_asset_unfreeze_token_internal">unfreeze_token_internal</a>(sender, token);
 }
@@ -1085,7 +1085,7 @@ Adds the pending balance to the actual balance for the specified token, resettin
 This operation is necessary to use tokens from the pending balance for outgoing transactions.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rollover_pending_balance">rollover_pending_balance</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rollover_pending_balance">rollover_pending_balance</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
 </code></pre>
 
 
@@ -1095,7 +1095,7 @@ This operation is necessary to use tokens from the pending balance for outgoing 
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rollover_pending_balance">rollover_pending_balance</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
     <a href="confidential_asset.md#0x7_confidential_asset_rollover_pending_balance_internal">rollover_pending_balance_internal</a>(sender, token);
 }
@@ -1113,7 +1113,7 @@ Before calling <code>rotate_encryption_key</code>, we need to rollover the pendi
 any new payments being come.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rollover_pending_balance_and_freeze">rollover_pending_balance_and_freeze</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rollover_pending_balance_and_freeze">rollover_pending_balance_and_freeze</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
 </code></pre>
 
 
@@ -1123,7 +1123,7 @@ any new payments being come.
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rollover_pending_balance_and_freeze">rollover_pending_balance_and_freeze</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
     <a href="confidential_asset.md#0x7_confidential_asset_rollover_pending_balance">rollover_pending_balance</a>(sender, token);
     <a href="confidential_asset.md#0x7_confidential_asset_freeze_token">freeze_token</a>(sender, token);
@@ -1142,7 +1142,7 @@ After rotating the encryption key, we may want to unfreeze the token to allow pa
 This function facilitates making both calls in a single transaction.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rotate_encryption_key_and_unfreeze">rotate_encryption_key_and_unfreeze</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, new_ek: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, new_confidential_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, rotate_proof: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rotate_encryption_key_and_unfreeze">rotate_encryption_key_and_unfreeze</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, new_ek: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, new_confidential_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, rotate_proof: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
 </code></pre>
 
 
@@ -1152,12 +1152,12 @@ This function facilitates making both calls in a single transaction.
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rotate_encryption_key_and_unfreeze">rotate_encryption_key_and_unfreeze</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     token: Object&lt;Metadata&gt;,
-    new_ek: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    new_confidential_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    zkrp_new_balance: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    rotate_proof: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+    new_ek: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    new_confidential_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    zkrp_new_balance: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    rotate_proof: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
     <a href="confidential_asset.md#0x7_confidential_asset_rotate_encryption_key">rotate_encryption_key</a>(
         sender,
@@ -1182,7 +1182,7 @@ This function facilitates making both calls in a single transaction.
 Enables the allow list, restricting confidential transfers to tokens on the allow list.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_enable_allow_list">enable_allow_list</a>(aptos_framework: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_enable_allow_list">enable_allow_list</a>(supra_framework: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
 </code></pre>
 
 
@@ -1191,14 +1191,14 @@ Enables the allow list, restricting confidential transfers to tokens on the allo
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_enable_allow_list">enable_allow_list</a>(aptos_framework: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
-    <a href="../../aptos-framework/doc/system_addresses.md#0x1_system_addresses_assert_aptos_framework">system_addresses::assert_aptos_framework</a>(aptos_framework);
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_enable_allow_list">enable_allow_list</a>(supra_framework: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
+    <a href="../../supra-framework/doc/system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
     <b>let</b> fa_controller = <b>borrow_global_mut</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a>&gt;(@aptos_experimental);
 
     <b>assert</b>!(
         !fa_controller.allow_list_enabled,
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EALLOW_LIST_ENABLED">EALLOW_LIST_ENABLED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EALLOW_LIST_ENABLED">EALLOW_LIST_ENABLED</a>)
     );
 
     fa_controller.allow_list_enabled = <b>true</b>;
@@ -1216,7 +1216,7 @@ Enables the allow list, restricting confidential transfers to tokens on the allo
 Disables the allow list, allowing confidential transfers for all tokens.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_disable_allow_list">disable_allow_list</a>(aptos_framework: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_disable_allow_list">disable_allow_list</a>(supra_framework: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
 </code></pre>
 
 
@@ -1225,14 +1225,14 @@ Disables the allow list, allowing confidential transfers for all tokens.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_disable_allow_list">disable_allow_list</a>(aptos_framework: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
-    <a href="../../aptos-framework/doc/system_addresses.md#0x1_system_addresses_assert_aptos_framework">system_addresses::assert_aptos_framework</a>(aptos_framework);
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_disable_allow_list">disable_allow_list</a>(supra_framework: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
+    <a href="../../supra-framework/doc/system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
     <b>let</b> fa_controller = <b>borrow_global_mut</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a>&gt;(@aptos_experimental);
 
     <b>assert</b>!(
         fa_controller.allow_list_enabled,
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EALLOW_LIST_DISABLED">EALLOW_LIST_DISABLED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EALLOW_LIST_DISABLED">EALLOW_LIST_DISABLED</a>)
     );
 
     fa_controller.allow_list_enabled = <b>false</b>;
@@ -1250,7 +1250,7 @@ Disables the allow list, allowing confidential transfers for all tokens.
 Enables confidential transfers for the specified token.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_enable_token">enable_token</a>(aptos_framework: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_enable_token">enable_token</a>(supra_framework: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
 </code></pre>
 
 
@@ -1260,13 +1260,13 @@ Enables confidential transfers for the specified token.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_enable_token">enable_token</a>(
-    aptos_framework: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
+    supra_framework: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
-    <a href="../../aptos-framework/doc/system_addresses.md#0x1_system_addresses_assert_aptos_framework">system_addresses::assert_aptos_framework</a>(aptos_framework);
+    <a href="../../supra-framework/doc/system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
     <b>let</b> fa_config = <b>borrow_global_mut</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a>&gt;(<a href="confidential_asset.md#0x7_confidential_asset_ensure_fa_config_exists">ensure_fa_config_exists</a>(token));
 
-    <b>assert</b>!(!fa_config.allowed, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_ETOKEN_ENABLED">ETOKEN_ENABLED</a>));
+    <b>assert</b>!(!fa_config.allowed, <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_ETOKEN_ENABLED">ETOKEN_ENABLED</a>));
 
     fa_config.allowed = <b>true</b>;
 }
@@ -1283,7 +1283,7 @@ Enables confidential transfers for the specified token.
 Disables confidential transfers for the specified token.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_disable_token">disable_token</a>(aptos_framework: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_disable_token">disable_token</a>(supra_framework: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
 </code></pre>
 
 
@@ -1293,13 +1293,13 @@ Disables confidential transfers for the specified token.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_disable_token">disable_token</a>(
-    aptos_framework: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
+    supra_framework: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
-    <a href="../../aptos-framework/doc/system_addresses.md#0x1_system_addresses_assert_aptos_framework">system_addresses::assert_aptos_framework</a>(aptos_framework);
+    <a href="../../supra-framework/doc/system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
     <b>let</b> fa_config = <b>borrow_global_mut</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a>&gt;(<a href="confidential_asset.md#0x7_confidential_asset_ensure_fa_config_exists">ensure_fa_config_exists</a>(token));
 
-    <b>assert</b>!(fa_config.allowed, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_ETOKEN_DISABLED">ETOKEN_DISABLED</a>));
+    <b>assert</b>!(fa_config.allowed, <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_ETOKEN_DISABLED">ETOKEN_DISABLED</a>));
 
     fa_config.allowed = <b>false</b>;
 }
@@ -1316,7 +1316,7 @@ Disables confidential transfers for the specified token.
 Sets the auditor's public key for the specified token.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_set_auditor">set_auditor</a>(aptos_framework: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, new_auditor_ek: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_set_auditor">set_auditor</a>(supra_framework: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, new_auditor_ek: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
 </code></pre>
 
 
@@ -1326,9 +1326,9 @@ Sets the auditor's public key for the specified token.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_set_auditor">set_auditor</a>(
-    aptos_framework: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;, new_auditor_ek: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+    supra_framework: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;, new_auditor_ek: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
-    <a href="../../aptos-framework/doc/system_addresses.md#0x1_system_addresses_assert_aptos_framework">system_addresses::assert_aptos_framework</a>(aptos_framework);
+    <a href="../../supra-framework/doc/system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
 
     <b>let</b> fa_config = <b>borrow_global_mut</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a>&gt;(<a href="confidential_asset.md#0x7_confidential_asset_ensure_fa_config_exists">ensure_fa_config_exists</a>(token));
 
@@ -1340,7 +1340,7 @@ Sets the auditor's public key for the specified token.
                 twisted_elgamal::new_pubkey_from_bytes(new_auditor_ek);
             <b>assert</b>!(
                 new_auditor_ek.is_some(),
-                <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_EAUDITOR_EK_DESERIALIZATION_FAILED">EAUDITOR_EK_DESERIALIZATION_FAILED</a>)
+                <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_EAUDITOR_EK_DESERIALIZATION_FAILED">EAUDITOR_EK_DESERIALIZATION_FAILED</a>)
             );
             new_auditor_ek
         };
@@ -1359,7 +1359,7 @@ Checks if the user has a confidential asset store for the specified token.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_has_confidential_asset_store">has_confidential_asset_store</a>(user: <b>address</b>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): bool
+<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_has_confidential_asset_store">has_confidential_asset_store</a>(user: <b>address</b>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): bool
 </code></pre>
 
 
@@ -1413,7 +1413,7 @@ Checks if the token is allowed for confidential transfers.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_is_token_allowed">is_token_allowed</a>(token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): bool
+<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_is_token_allowed">is_token_allowed</a>(token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): bool
 </code></pre>
 
 
@@ -1463,7 +1463,7 @@ Otherwise, all tokens are allowed.
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_is_allow_list_enabled">is_allow_list_enabled</a>(): bool <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
     <b>assert</b>!(
         <a href="confidential_asset.md#0x7_confidential_asset_confidential_asset_controller_exists">confidential_asset_controller_exists</a>(),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EFA_CONTROLLER_NOT_INSTALLED">EFA_CONTROLLER_NOT_INSTALLED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EFA_CONTROLLER_NOT_INSTALLED">EFA_CONTROLLER_NOT_INSTALLED</a>)
     );
     <b>borrow_global</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a>&gt;(@aptos_experimental).allow_list_enabled
 }
@@ -1481,7 +1481,7 @@ Returns the pending balance of the user for the specified token.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_pending_balance">pending_balance</a>(owner: <b>address</b>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="confidential_balance.md#0x7_confidential_balance_CompressedConfidentialBalance">confidential_balance::CompressedConfidentialBalance</a>
+<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_pending_balance">pending_balance</a>(owner: <b>address</b>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="confidential_balance.md#0x7_confidential_balance_CompressedConfidentialBalance">confidential_balance::CompressedConfidentialBalance</a>
 </code></pre>
 
 
@@ -1495,7 +1495,7 @@ Returns the pending balance of the user for the specified token.
 ): <a href="confidential_balance.md#0x7_confidential_balance_CompressedConfidentialBalance">confidential_balance::CompressedConfidentialBalance</a> <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
     <b>assert</b>!(
         <a href="confidential_asset.md#0x7_confidential_asset_has_confidential_asset_store">has_confidential_asset_store</a>(owner, token),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
     );
 
     <b>let</b> ca_store =
@@ -1517,7 +1517,7 @@ Returns the actual balance of the user for the specified token.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_actual_balance">actual_balance</a>(owner: <b>address</b>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="confidential_balance.md#0x7_confidential_balance_CompressedConfidentialBalance">confidential_balance::CompressedConfidentialBalance</a>
+<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_actual_balance">actual_balance</a>(owner: <b>address</b>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="confidential_balance.md#0x7_confidential_balance_CompressedConfidentialBalance">confidential_balance::CompressedConfidentialBalance</a>
 </code></pre>
 
 
@@ -1531,7 +1531,7 @@ Returns the actual balance of the user for the specified token.
 ): <a href="confidential_balance.md#0x7_confidential_balance_CompressedConfidentialBalance">confidential_balance::CompressedConfidentialBalance</a> <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
     <b>assert</b>!(
         <a href="confidential_asset.md#0x7_confidential_asset_has_confidential_asset_store">has_confidential_asset_store</a>(owner, token),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
     );
 
     <b>let</b> ca_store =
@@ -1553,7 +1553,7 @@ Returns the encryption key (EK) of the user for the specified token.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_encryption_key">encryption_key</a>(user: <b>address</b>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>
+<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_encryption_key">encryption_key</a>(user: <b>address</b>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>
 </code></pre>
 
 
@@ -1567,7 +1567,7 @@ Returns the encryption key (EK) of the user for the specified token.
 ): twisted_elgamal::CompressedPubkey <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
     <b>assert</b>!(
         <a href="confidential_asset.md#0x7_confidential_asset_has_confidential_asset_store">has_confidential_asset_store</a>(user, token),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
     );
 
     <b>borrow_global_mut</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>&gt;(<a href="confidential_asset.md#0x7_confidential_asset_get_user_address">get_user_address</a>(user, token)).ek
@@ -1586,7 +1586,7 @@ Checks if the user's actual balance is normalized for the specified token.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_is_normalized">is_normalized</a>(user: <b>address</b>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): bool
+<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_is_normalized">is_normalized</a>(user: <b>address</b>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): bool
 </code></pre>
 
 
@@ -1600,7 +1600,7 @@ Checks if the user's actual balance is normalized for the specified token.
 ): bool <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
     <b>assert</b>!(
         <a href="confidential_asset.md#0x7_confidential_asset_has_confidential_asset_store">has_confidential_asset_store</a>(user, token),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
     );
 
     <b>borrow_global</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>&gt;(<a href="confidential_asset.md#0x7_confidential_asset_get_user_address">get_user_address</a>(user, token)).normalized
@@ -1619,7 +1619,7 @@ Checks if the user's confidential asset store is frozen for the specified token.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_is_frozen">is_frozen</a>(user: <b>address</b>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): bool
+<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_is_frozen">is_frozen</a>(user: <b>address</b>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): bool
 </code></pre>
 
 
@@ -1631,7 +1631,7 @@ Checks if the user's confidential asset store is frozen for the specified token.
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_is_frozen">is_frozen</a>(user: <b>address</b>, token: Object&lt;Metadata&gt;): bool <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
     <b>assert</b>!(
         <a href="confidential_asset.md#0x7_confidential_asset_has_confidential_asset_store">has_confidential_asset_store</a>(user, token),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
     );
 
     <b>borrow_global</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>&gt;(<a href="confidential_asset.md#0x7_confidential_asset_get_user_address">get_user_address</a>(user, token)).frozen
@@ -1651,7 +1651,7 @@ If the auditing feature is disabled for the token, the encryption key is set to 
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_auditor">get_auditor</a>(token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;
+<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_auditor">get_auditor</a>(token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;
 </code></pre>
 
 
@@ -1685,7 +1685,7 @@ Returns the circulating supply of the confidential asset.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_confidential_asset_balance">confidential_asset_balance</a>(token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): u64
+<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_confidential_asset_balance">confidential_asset_balance</a>(token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): u64
 </code></pre>
 
 
@@ -1697,11 +1697,11 @@ Returns the circulating supply of the confidential asset.
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_confidential_asset_balance">confidential_asset_balance</a>(token: Object&lt;Metadata&gt;): u64 <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
     <b>let</b> fa_store_address = <a href="confidential_asset.md#0x7_confidential_asset_get_fa_store_address">get_fa_store_address</a>();
     <b>assert</b>!(
-        <a href="../../aptos-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store_primary_store_exists">primary_fungible_store::primary_store_exists</a>(fa_store_address, token),
+        <a href="../../supra-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store_primary_store_exists">primary_fungible_store::primary_store_exists</a>(fa_store_address, token),
         <a href="confidential_asset.md#0x7_confidential_asset_EINTERNAL_ERROR">EINTERNAL_ERROR</a>
     );
 
-    <a href="../../aptos-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store_balance">primary_fungible_store::balance</a>(fa_store_address, token)
+    <a href="../../supra-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store_balance">primary_fungible_store::balance</a>(fa_store_address, token)
 }
 </code></pre>
 
@@ -1717,7 +1717,7 @@ Returns the pending balance transfer count for the specified token.
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_pending_balance_transfer_count">get_pending_balance_transfer_count</a>(user: <b>address</b>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): u64
+<b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_pending_balance_transfer_count">get_pending_balance_transfer_count</a>(user: <b>address</b>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): u64
 </code></pre>
 
 
@@ -1731,7 +1731,7 @@ Returns the pending balance transfer count for the specified token.
 ): u64 <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
     <b>assert</b>!(
         <a href="confidential_asset.md#0x7_confidential_asset_has_confidential_asset_store">has_confidential_asset_store</a>(user, token),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
     );
 
     <b>borrow_global</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>&gt;(<a href="confidential_asset.md#0x7_confidential_asset_get_user_address">get_user_address</a>(user, token)).pending_counter
@@ -1749,7 +1749,7 @@ Returns the pending balance transfer count for the specified token.
 Implementation of the <code>register</code> entry function.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_register_internal">register_internal</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, ek: <a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_register_internal">register_internal</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, ek: <a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>)
 </code></pre>
 
 
@@ -1759,15 +1759,15 @@ Implementation of the <code>register</code> entry function.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_register_internal">register_internal</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;, ek: twisted_elgamal::CompressedPubkey
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;, ek: twisted_elgamal::CompressedPubkey
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a> {
-    <b>assert</b>!(<a href="confidential_asset.md#0x7_confidential_asset_is_token_allowed">is_token_allowed</a>(token), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_ETOKEN_DISABLED">ETOKEN_DISABLED</a>));
+    <b>assert</b>!(<a href="confidential_asset.md#0x7_confidential_asset_is_token_allowed">is_token_allowed</a>(token), <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_ETOKEN_DISABLED">ETOKEN_DISABLED</a>));
 
-    <b>let</b> user = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
+    <b>let</b> user = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
 
     <b>assert</b>!(
         !<a href="confidential_asset.md#0x7_confidential_asset_has_confidential_asset_store">has_confidential_asset_store</a>(user, token),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_already_exists">error::already_exists</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_ALREADY_PUBLISHED">ECA_STORE_ALREADY_PUBLISHED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_already_exists">error::already_exists</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_ALREADY_PUBLISHED">ECA_STORE_ALREADY_PUBLISHED</a>)
     );
 
     <b>let</b> ca_store = <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
@@ -1794,7 +1794,7 @@ Implementation of the <code>register</code> entry function.
 Implementation of the <code>deposit_to</code> entry function.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit_to_internal">deposit_to_internal</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, <b>to</b>: <b>address</b>, amount: u64)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit_to_internal">deposit_to_internal</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, <b>to</b>: <b>address</b>, amount: u64)
 </code></pre>
 
 
@@ -1804,24 +1804,24 @@ Implementation of the <code>deposit_to</code> entry function.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deposit_to_internal">deposit_to_internal</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     token: Object&lt;Metadata&gt;,
     <b>to</b>: <b>address</b>,
     amount: u64
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a> {
-    <b>assert</b>!(<a href="confidential_asset.md#0x7_confidential_asset_is_token_allowed">is_token_allowed</a>(token), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_ETOKEN_DISABLED">ETOKEN_DISABLED</a>));
-    <b>assert</b>!(!<a href="confidential_asset.md#0x7_confidential_asset_is_frozen">is_frozen</a>(<b>to</b>, token), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EALREADY_FROZEN">EALREADY_FROZEN</a>));
+    <b>assert</b>!(<a href="confidential_asset.md#0x7_confidential_asset_is_token_allowed">is_token_allowed</a>(token), <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_ETOKEN_DISABLED">ETOKEN_DISABLED</a>));
+    <b>assert</b>!(!<a href="confidential_asset.md#0x7_confidential_asset_is_frozen">is_frozen</a>(<b>to</b>, token), <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EALREADY_FROZEN">EALREADY_FROZEN</a>));
 
-    <b>let</b> from = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
+    <b>let</b> from = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
 
     <b>let</b> sender_fa_store =
-        <a href="../../aptos-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store_ensure_primary_store_exists">primary_fungible_store::ensure_primary_store_exists</a>(from, token);
+        <a href="../../supra-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store_ensure_primary_store_exists">primary_fungible_store::ensure_primary_store_exists</a>(from, token);
     <b>let</b> ca_fa_store =
-        <a href="../../aptos-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store_ensure_primary_store_exists">primary_fungible_store::ensure_primary_store_exists</a>(
+        <a href="../../supra-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store_ensure_primary_store_exists">primary_fungible_store::ensure_primary_store_exists</a>(
             <a href="confidential_asset.md#0x7_confidential_asset_get_fa_store_address">get_fa_store_address</a>(), token
         );
 
-    <a href="../../aptos-framework/doc/dispatchable_fungible_asset.md#0x1_dispatchable_fungible_asset_transfer">dispatchable_fungible_asset::transfer</a>(
+    <a href="../../supra-framework/doc/dispatchable_fungible_asset.md#0x1_dispatchable_fungible_asset_transfer">dispatchable_fungible_asset::transfer</a>(
         sender, sender_fa_store, ca_fa_store, amount
     );
 
@@ -1839,12 +1839,12 @@ Implementation of the <code>deposit_to</code> entry function.
 
     <b>assert</b>!(
         ca_store.pending_counter &lt; <a href="confidential_asset.md#0x7_confidential_asset_MAX_TRANSFERS_BEFORE_ROLLOVER">MAX_TRANSFERS_BEFORE_ROLLOVER</a>,
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_EINTERNAL_ERROR">EINTERNAL_ERROR</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_EINTERNAL_ERROR">EINTERNAL_ERROR</a>)
     );
 
     ca_store.pending_counter += 1;
 
-    <a href="../../aptos-framework/doc/event.md#0x1_event_emit">event::emit</a>(<a href="confidential_asset.md#0x7_confidential_asset_Deposited">Deposited</a> { from, <b>to</b>, amount });
+    <a href="../../supra-framework/doc/event.md#0x1_event_emit">event::emit</a>(<a href="confidential_asset.md#0x7_confidential_asset_Deposited">Deposited</a> { from, <b>to</b>, amount });
 }
 </code></pre>
 
@@ -1860,7 +1860,7 @@ Implementation of the <code>withdraw_to</code> entry function.
 Withdrawals are always allowed, regardless of the token allow status.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_withdraw_to_internal">withdraw_to_internal</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, <b>to</b>: <b>address</b>, amount: u64, new_balance: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, proof: <a href="confidential_proof.md#0x7_confidential_proof_WithdrawalProof">confidential_proof::WithdrawalProof</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_withdraw_to_internal">withdraw_to_internal</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, <b>to</b>: <b>address</b>, amount: u64, new_balance: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, proof: <a href="confidential_proof.md#0x7_confidential_proof_WithdrawalProof">confidential_proof::WithdrawalProof</a>)
 </code></pre>
 
 
@@ -1870,14 +1870,14 @@ Withdrawals are always allowed, regardless of the token allow status.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_withdraw_to_internal">withdraw_to_internal</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     token: Object&lt;Metadata&gt;,
     <b>to</b>: <b>address</b>,
     amount: u64,
     new_balance: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
     proof: WithdrawalProof
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
-    <b>let</b> from = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
+    <b>let</b> from = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
 
     <b>let</b> sender_ek = <a href="confidential_asset.md#0x7_confidential_asset_encryption_key">encryption_key</a>(from, token);
 
@@ -1897,7 +1897,7 @@ Withdrawals are always allowed, regardless of the token allow status.
     ca_store.normalized = <b>true</b>;
     ca_store.actual_balance = <a href="confidential_balance.md#0x7_confidential_balance_compress_balance">confidential_balance::compress_balance</a>(&new_balance);
 
-    <a href="../../aptos-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store_transfer">primary_fungible_store::transfer</a>(&<a href="confidential_asset.md#0x7_confidential_asset_get_fa_store_signer">get_fa_store_signer</a>(), token, <b>to</b>, amount);
+    <a href="../../supra-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store_transfer">primary_fungible_store::transfer</a>(&<a href="confidential_asset.md#0x7_confidential_asset_get_fa_store_signer">get_fa_store_signer</a>(), token, <b>to</b>, amount);
 }
 </code></pre>
 
@@ -1912,7 +1912,7 @@ Withdrawals are always allowed, regardless of the token allow status.
 Implementation of the <code>confidential_transfer</code> entry function.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_confidential_transfer_internal">confidential_transfer_internal</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, <b>to</b>: <b>address</b>, new_balance: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, sender_amount: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, recipient_amount: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, auditor_eks: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;, auditor_amounts: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;, proof: <a href="confidential_proof.md#0x7_confidential_proof_TransferProof">confidential_proof::TransferProof</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_confidential_transfer_internal">confidential_transfer_internal</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, <b>to</b>: <b>address</b>, new_balance: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, sender_amount: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, recipient_amount: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, auditor_eks: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;, auditor_amounts: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;, proof: <a href="confidential_proof.md#0x7_confidential_proof_TransferProof">confidential_proof::TransferProof</a>)
 </code></pre>
 
 
@@ -1922,18 +1922,18 @@ Implementation of the <code>confidential_transfer</code> entry function.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_confidential_transfer_internal">confidential_transfer_internal</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     token: Object&lt;Metadata&gt;,
     <b>to</b>: <b>address</b>,
     new_balance: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
     sender_amount: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
     recipient_amount: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
-    auditor_eks: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;twisted_elgamal::CompressedPubkey&gt;,
-    auditor_amounts: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;,
+    auditor_eks: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;twisted_elgamal::CompressedPubkey&gt;,
+    auditor_amounts: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;,
     proof: TransferProof
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
-    <b>assert</b>!(<a href="confidential_asset.md#0x7_confidential_asset_is_token_allowed">is_token_allowed</a>(token), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_ETOKEN_DISABLED">ETOKEN_DISABLED</a>));
-    <b>assert</b>!(!<a href="confidential_asset.md#0x7_confidential_asset_is_frozen">is_frozen</a>(<b>to</b>, token), <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EALREADY_FROZEN">EALREADY_FROZEN</a>));
+    <b>assert</b>!(<a href="confidential_asset.md#0x7_confidential_asset_is_token_allowed">is_token_allowed</a>(token), <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_ETOKEN_DISABLED">ETOKEN_DISABLED</a>));
+    <b>assert</b>!(!<a href="confidential_asset.md#0x7_confidential_asset_is_frozen">is_frozen</a>(<b>to</b>, token), <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EALREADY_FROZEN">EALREADY_FROZEN</a>));
     <b>assert</b>!(
         <a href="confidential_asset.md#0x7_confidential_asset_validate_auditors">validate_auditors</a>(
             token,
@@ -1942,14 +1942,14 @@ Implementation of the <code>confidential_transfer</code> entry function.
             &auditor_amounts,
             &proof
         ),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_EINVALID_AUDITORS">EINVALID_AUDITORS</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_EINVALID_AUDITORS">EINVALID_AUDITORS</a>)
     );
     <b>assert</b>!(
         <a href="confidential_balance.md#0x7_confidential_balance_balance_c_equals">confidential_balance::balance_c_equals</a>(&sender_amount, &recipient_amount),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_EINVALID_SENDER_AMOUNT">EINVALID_SENDER_AMOUNT</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_EINVALID_SENDER_AMOUNT">EINVALID_SENDER_AMOUNT</a>)
     );
 
-    <b>let</b> from = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
+    <b>let</b> from = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
 
     <b>let</b> sender_ek = <a href="confidential_asset.md#0x7_confidential_asset_encryption_key">encryption_key</a>(from, token);
     <b>let</b> recipient_ek = <a href="confidential_asset.md#0x7_confidential_asset_encryption_key">encryption_key</a>(<b>to</b>, token);
@@ -1985,7 +1985,7 @@ Implementation of the <code>confidential_transfer</code> entry function.
 
     <b>assert</b>!(
         recipient_ca_store.pending_counter &lt; <a href="confidential_asset.md#0x7_confidential_asset_MAX_TRANSFERS_BEFORE_ROLLOVER">MAX_TRANSFERS_BEFORE_ROLLOVER</a>,
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_EINTERNAL_ERROR">EINTERNAL_ERROR</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_EINTERNAL_ERROR">EINTERNAL_ERROR</a>)
     );
 
     <b>let</b> recipient_pending_balance =
@@ -2001,7 +2001,7 @@ Implementation of the <code>confidential_transfer</code> entry function.
         &recipient_pending_balance
     );
 
-    <a href="../../aptos-framework/doc/event.md#0x1_event_emit">event::emit</a>(<a href="confidential_asset.md#0x7_confidential_asset_Transferred">Transferred</a> { from, <b>to</b> });
+    <a href="../../supra-framework/doc/event.md#0x1_event_emit">event::emit</a>(<a href="confidential_asset.md#0x7_confidential_asset_Transferred">Transferred</a> { from, <b>to</b> });
 }
 </code></pre>
 
@@ -2016,7 +2016,7 @@ Implementation of the <code>confidential_transfer</code> entry function.
 Implementation of the <code>rotate_encryption_key</code> entry function.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rotate_encryption_key_internal">rotate_encryption_key_internal</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, new_ek: <a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, new_balance: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, proof: <a href="confidential_proof.md#0x7_confidential_proof_RotationProof">confidential_proof::RotationProof</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rotate_encryption_key_internal">rotate_encryption_key_internal</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, new_ek: <a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>, new_balance: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, proof: <a href="confidential_proof.md#0x7_confidential_proof_RotationProof">confidential_proof::RotationProof</a>)
 </code></pre>
 
 
@@ -2026,13 +2026,13 @@ Implementation of the <code>rotate_encryption_key</code> entry function.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rotate_encryption_key_internal">rotate_encryption_key_internal</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     token: Object&lt;Metadata&gt;,
     new_ek: twisted_elgamal::CompressedPubkey,
     new_balance: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
     proof: RotationProof
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
-    <b>let</b> user = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
+    <b>let</b> user = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
     <b>let</b> current_ek = <a href="confidential_asset.md#0x7_confidential_asset_encryption_key">encryption_key</a>(user, token);
 
     <b>let</b> ca_store =
@@ -2045,7 +2045,7 @@ Implementation of the <code>rotate_encryption_key</code> entry function.
     // To guarantee this, the user must call `rollover_pending_balance_and_freeze` beforehand.
     <b>assert</b>!(
         <a href="confidential_balance.md#0x7_confidential_balance_is_zero_balance">confidential_balance::is_zero_balance</a>(&pending_balance),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_ENOT_ZERO_BALANCE">ENOT_ZERO_BALANCE</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_ENOT_ZERO_BALANCE">ENOT_ZERO_BALANCE</a>)
     );
 
     <b>let</b> current_balance =
@@ -2077,7 +2077,7 @@ Implementation of the <code>rotate_encryption_key</code> entry function.
 Implementation of the <code>normalize</code> entry function.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_normalize_internal">normalize_internal</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, new_balance: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, proof: <a href="confidential_proof.md#0x7_confidential_proof_NormalizationProof">confidential_proof::NormalizationProof</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_normalize_internal">normalize_internal</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, new_balance: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, proof: <a href="confidential_proof.md#0x7_confidential_proof_NormalizationProof">confidential_proof::NormalizationProof</a>)
 </code></pre>
 
 
@@ -2087,18 +2087,18 @@ Implementation of the <code>normalize</code> entry function.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_normalize_internal">normalize_internal</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     token: Object&lt;Metadata&gt;,
     new_balance: <a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
     proof: NormalizationProof
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
-    <b>let</b> user = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
+    <b>let</b> user = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
     <b>let</b> sender_ek = <a href="confidential_asset.md#0x7_confidential_asset_encryption_key">encryption_key</a>(user, token);
 
     <b>let</b> ca_store =
         <b>borrow_global_mut</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>&gt;(<a href="confidential_asset.md#0x7_confidential_asset_get_user_address">get_user_address</a>(user, token));
 
-    <b>assert</b>!(!ca_store.normalized, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EALREADY_NORMALIZED">EALREADY_NORMALIZED</a>));
+    <b>assert</b>!(!ca_store.normalized, <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EALREADY_NORMALIZED">EALREADY_NORMALIZED</a>));
 
     <b>let</b> current_balance =
         <a href="confidential_balance.md#0x7_confidential_balance_decompress_balance">confidential_balance::decompress_balance</a>(&ca_store.actual_balance);
@@ -2126,7 +2126,7 @@ Implementation of the <code>normalize</code> entry function.
 Implementation of the <code>rollover_pending_balance</code> entry function.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rollover_pending_balance_internal">rollover_pending_balance_internal</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rollover_pending_balance_internal">rollover_pending_balance_internal</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
 </code></pre>
 
 
@@ -2136,19 +2136,19 @@ Implementation of the <code>rollover_pending_balance</code> entry function.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_rollover_pending_balance_internal">rollover_pending_balance_internal</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
-    <b>let</b> user = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
+    <b>let</b> user = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
 
     <b>assert</b>!(
         <a href="confidential_asset.md#0x7_confidential_asset_has_confidential_asset_store">has_confidential_asset_store</a>(user, token),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
     );
 
     <b>let</b> ca_store =
         <b>borrow_global_mut</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>&gt;(<a href="confidential_asset.md#0x7_confidential_asset_get_user_address">get_user_address</a>(user, token));
 
-    <b>assert</b>!(ca_store.normalized, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_ENORMALIZATION_REQUIRED">ENORMALIZATION_REQUIRED</a>));
+    <b>assert</b>!(ca_store.normalized, <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_ENORMALIZATION_REQUIRED">ENORMALIZATION_REQUIRED</a>));
 
     <b>let</b> actual_balance =
         <a href="confidential_balance.md#0x7_confidential_balance_decompress_balance">confidential_balance::decompress_balance</a>(&ca_store.actual_balance);
@@ -2175,7 +2175,7 @@ Implementation of the <code>rollover_pending_balance</code> entry function.
 Implementation of the <code>freeze_token</code> entry function.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_freeze_token_internal">freeze_token_internal</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_freeze_token_internal">freeze_token_internal</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
 </code></pre>
 
 
@@ -2185,19 +2185,19 @@ Implementation of the <code>freeze_token</code> entry function.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_freeze_token_internal">freeze_token_internal</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
-    <b>let</b> user = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
+    <b>let</b> user = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
 
     <b>assert</b>!(
         <a href="confidential_asset.md#0x7_confidential_asset_has_confidential_asset_store">has_confidential_asset_store</a>(user, token),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
     );
 
     <b>let</b> ca_store =
         <b>borrow_global_mut</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>&gt;(<a href="confidential_asset.md#0x7_confidential_asset_get_user_address">get_user_address</a>(user, token));
 
-    <b>assert</b>!(!ca_store.frozen, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EALREADY_FROZEN">EALREADY_FROZEN</a>));
+    <b>assert</b>!(!ca_store.frozen, <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EALREADY_FROZEN">EALREADY_FROZEN</a>));
 
     ca_store.frozen = <b>true</b>;
 }
@@ -2214,7 +2214,7 @@ Implementation of the <code>freeze_token</code> entry function.
 Implementation of the <code>unfreeze_token</code> entry function.
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_unfreeze_token_internal">unfreeze_token_internal</a>(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
+<pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_unfreeze_token_internal">unfreeze_token_internal</a>(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;)
 </code></pre>
 
 
@@ -2224,19 +2224,19 @@ Implementation of the <code>unfreeze_token</code> entry function.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_unfreeze_token_internal">unfreeze_token_internal</a>(
-    sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
+    sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;
 ) <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a> {
-    <b>let</b> user = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
+    <b>let</b> user = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
 
     <b>assert</b>!(
         <a href="confidential_asset.md#0x7_confidential_asset_has_confidential_asset_store">has_confidential_asset_store</a>(user, token),
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="confidential_asset.md#0x7_confidential_asset_ECA_STORE_NOT_PUBLISHED">ECA_STORE_NOT_PUBLISHED</a>)
     );
 
     <b>let</b> ca_store =
         <b>borrow_global_mut</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a>&gt;(<a href="confidential_asset.md#0x7_confidential_asset_get_user_address">get_user_address</a>(user, token));
 
-    <b>assert</b>!(ca_store.frozen, <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_ENOT_FROZEN">ENOT_FROZEN</a>));
+    <b>assert</b>!(ca_store.frozen, <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_ENOT_FROZEN">ENOT_FROZEN</a>));
 
     ca_store.frozen = <b>false</b>;
 }
@@ -2255,7 +2255,7 @@ If the object does not exist, creates it.
 Used only for internal purposes.
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_ensure_fa_config_exists">ensure_fa_config_exists</a>(token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <b>address</b>
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_ensure_fa_config_exists">ensure_fa_config_exists</a>(token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <b>address</b>
 </code></pre>
 
 
@@ -2291,7 +2291,7 @@ Used only for internal purposes.
 Returns an object for handling all the FA primary stores, and returns a signer for it.
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_fa_store_signer">get_fa_store_signer</a>(): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_fa_store_signer">get_fa_store_signer</a>(): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>
 </code></pre>
 
 
@@ -2300,8 +2300,8 @@ Returns an object for handling all the FA primary stores, and returns a signer f
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_fa_store_signer">get_fa_store_signer</a>(): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a> <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
-    <a href="../../aptos-framework/doc/object.md#0x1_object_generate_signer_for_extending">object::generate_signer_for_extending</a>(
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_fa_store_signer">get_fa_store_signer</a>(): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a> <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
+    <a href="../../supra-framework/doc/object.md#0x1_object_generate_signer_for_extending">object::generate_signer_for_extending</a>(
         &<b>borrow_global</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a>&gt;(@aptos_experimental).extend_ref
     )
 }
@@ -2328,7 +2328,7 @@ Returns the address that handles all the FA primary stores.
 
 
 <pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_fa_store_address">get_fa_store_address</a>(): <b>address</b> <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
-    <a href="../../aptos-framework/doc/object.md#0x1_object_address_from_extend_ref">object::address_from_extend_ref</a>(
+    <a href="../../supra-framework/doc/object.md#0x1_object_address_from_extend_ref">object::address_from_extend_ref</a>(
         &<b>borrow_global</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a>&gt;(@aptos_experimental).extend_ref
     )
 }
@@ -2345,7 +2345,7 @@ Returns the address that handles all the FA primary stores.
 Returns an object for handling the <code><a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a></code> and returns a signer for it.
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_user_signer">get_user_signer</a>(user: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_user_signer">get_user_signer</a>(user: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>
 </code></pre>
 
 
@@ -2354,10 +2354,10 @@ Returns an object for handling the <code><a href="confidential_asset.md#0x7_conf
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_user_signer">get_user_signer</a>(user: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a> {
-    <b>let</b> user_ctor = &<a href="../../aptos-framework/doc/object.md#0x1_object_create_named_object">object::create_named_object</a>(user, <a href="confidential_asset.md#0x7_confidential_asset_construct_user_seed">construct_user_seed</a>(token));
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_user_signer">get_user_signer</a>(user: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, token: Object&lt;Metadata&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a> {
+    <b>let</b> user_ctor = &<a href="../../supra-framework/doc/object.md#0x1_object_create_named_object">object::create_named_object</a>(user, <a href="confidential_asset.md#0x7_confidential_asset_construct_user_seed">construct_user_seed</a>(token));
 
-    <a href="../../aptos-framework/doc/object.md#0x1_object_generate_signer">object::generate_signer</a>(user_ctor)
+    <a href="../../supra-framework/doc/object.md#0x1_object_generate_signer">object::generate_signer</a>(user_ctor)
 }
 </code></pre>
 
@@ -2372,7 +2372,7 @@ Returns an object for handling the <code><a href="confidential_asset.md#0x7_conf
 Returns the address that handles the user's <code><a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a></code> object for the specified user and token.
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_user_address">get_user_address</a>(user: <b>address</b>, token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <b>address</b>
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_user_address">get_user_address</a>(user: <b>address</b>, token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <b>address</b>
 </code></pre>
 
 
@@ -2382,7 +2382,7 @@ Returns the address that handles the user's <code><a href="confidential_asset.md
 
 
 <pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_user_address">get_user_address</a>(user: <b>address</b>, token: Object&lt;Metadata&gt;): <b>address</b> {
-    <a href="../../aptos-framework/doc/object.md#0x1_object_create_object_address">object::create_object_address</a>(&user, <a href="confidential_asset.md#0x7_confidential_asset_construct_user_seed">construct_user_seed</a>(token))
+    <a href="../../supra-framework/doc/object.md#0x1_object_create_object_address">object::create_object_address</a>(&user, <a href="confidential_asset.md#0x7_confidential_asset_construct_user_seed">construct_user_seed</a>(token))
 }
 </code></pre>
 
@@ -2397,7 +2397,7 @@ Returns the address that handles the user's <code><a href="confidential_asset.md
 Returns an object for handling the <code><a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a></code>, and returns a signer for it.
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_fa_config_signer">get_fa_config_signer</a>(token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_fa_config_signer">get_fa_config_signer</a>(token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>
 </code></pre>
 
 
@@ -2406,14 +2406,14 @@ Returns an object for handling the <code><a href="confidential_asset.md#0x7_conf
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_fa_config_signer">get_fa_config_signer</a>(token: Object&lt;Metadata&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a> <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_fa_config_signer">get_fa_config_signer</a>(token: Object&lt;Metadata&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a> <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
     <b>let</b> fa_ext = &<b>borrow_global</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a>&gt;(@aptos_experimental).extend_ref;
-    <b>let</b> fa_ext_signer = <a href="../../aptos-framework/doc/object.md#0x1_object_generate_signer_for_extending">object::generate_signer_for_extending</a>(fa_ext);
+    <b>let</b> fa_ext_signer = <a href="../../supra-framework/doc/object.md#0x1_object_generate_signer_for_extending">object::generate_signer_for_extending</a>(fa_ext);
 
     <b>let</b> fa_ctor =
-        &<a href="../../aptos-framework/doc/object.md#0x1_object_create_named_object">object::create_named_object</a>(&fa_ext_signer, <a href="confidential_asset.md#0x7_confidential_asset_construct_fa_seed">construct_fa_seed</a>(token));
+        &<a href="../../supra-framework/doc/object.md#0x1_object_create_named_object">object::create_named_object</a>(&fa_ext_signer, <a href="confidential_asset.md#0x7_confidential_asset_construct_fa_seed">construct_fa_seed</a>(token));
 
-    <a href="../../aptos-framework/doc/object.md#0x1_object_generate_signer">object::generate_signer</a>(fa_ctor)
+    <a href="../../supra-framework/doc/object.md#0x1_object_generate_signer">object::generate_signer</a>(fa_ctor)
 }
 </code></pre>
 
@@ -2428,7 +2428,7 @@ Returns an object for handling the <code><a href="confidential_asset.md#0x7_conf
 Returns the address that handles primary FA store and <code><a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a></code> objects for the specified token.
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_fa_config_address">get_fa_config_address</a>(token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <b>address</b>
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_fa_config_address">get_fa_config_address</a>(token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <b>address</b>
 </code></pre>
 
 
@@ -2439,9 +2439,9 @@ Returns the address that handles primary FA store and <code><a href="confidentia
 
 <pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_get_fa_config_address">get_fa_config_address</a>(token: Object&lt;Metadata&gt;): <b>address</b> <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
     <b>let</b> fa_ext = &<b>borrow_global</b>&lt;<a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a>&gt;(@aptos_experimental).extend_ref;
-    <b>let</b> fa_ext_address = <a href="../../aptos-framework/doc/object.md#0x1_object_address_from_extend_ref">object::address_from_extend_ref</a>(fa_ext);
+    <b>let</b> fa_ext_address = <a href="../../supra-framework/doc/object.md#0x1_object_address_from_extend_ref">object::address_from_extend_ref</a>(fa_ext);
 
-    <a href="../../aptos-framework/doc/object.md#0x1_object_create_object_address">object::create_object_address</a>(&fa_ext_address, <a href="confidential_asset.md#0x7_confidential_asset_construct_fa_seed">construct_fa_seed</a>(token))
+    <a href="../../supra-framework/doc/object.md#0x1_object_create_object_address">object::create_object_address</a>(&fa_ext_address, <a href="confidential_asset.md#0x7_confidential_asset_construct_fa_seed">construct_fa_seed</a>(token))
 }
 </code></pre>
 
@@ -2457,7 +2457,7 @@ Constructs a unique seed for the user's <code><a href="confidential_asset.md#0x7
 As all the <code><a href="confidential_asset.md#0x7_confidential_asset_ConfidentialAssetStore">ConfidentialAssetStore</a></code>'s have the same type, we need to differentiate them by the seed.
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_construct_user_seed">construct_user_seed</a>(token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_construct_user_seed">construct_user_seed</a>(token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 </code></pre>
 
 
@@ -2466,12 +2466,12 @@ As all the <code><a href="confidential_asset.md#0x7_confidential_asset_Confident
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_construct_user_seed">construct_user_seed</a>(token: Object&lt;Metadata&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs_to_bytes">bcs::to_bytes</a>(
-        &<a href="../../aptos-framework/../aptos-stdlib/doc/string_utils.md#0x1_string_utils_format2">string_utils::format2</a>(
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_construct_user_seed">construct_user_seed</a>(token: Object&lt;Metadata&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs_to_bytes">bcs::to_bytes</a>(
+        &<a href="../../supra-framework/../aptos-stdlib/doc/string_utils.md#0x1_string_utils_format2">string_utils::format2</a>(
             &b"<a href="confidential_asset.md#0x7_confidential_asset">confidential_asset</a>::{}::token::{}::user",
             @aptos_experimental,
-            <a href="../../aptos-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(&token)
+            <a href="../../supra-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(&token)
         )
     )
 }
@@ -2489,7 +2489,7 @@ Constructs a unique seed for the FA's <code><a href="confidential_asset.md#0x7_c
 As all the <code><a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a></code>'s have the same type, we need to differentiate them by the seed.
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_construct_fa_seed">construct_fa_seed</a>(token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_construct_fa_seed">construct_fa_seed</a>(token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 </code></pre>
 
 
@@ -2498,12 +2498,12 @@ As all the <code><a href="confidential_asset.md#0x7_confidential_asset_FAConfig"
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_construct_fa_seed">construct_fa_seed</a>(token: Object&lt;Metadata&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
-    <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs_to_bytes">bcs::to_bytes</a>(
-        &<a href="../../aptos-framework/../aptos-stdlib/doc/string_utils.md#0x1_string_utils_format2">string_utils::format2</a>(
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_construct_fa_seed">construct_fa_seed</a>(token: Object&lt;Metadata&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
+    <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/bcs.md#0x1_bcs_to_bytes">bcs::to_bytes</a>(
+        &<a href="../../supra-framework/../aptos-stdlib/doc/string_utils.md#0x1_string_utils_format2">string_utils::format2</a>(
             &b"<a href="confidential_asset.md#0x7_confidential_asset">confidential_asset</a>::{}::token::{}::fa",
             @aptos_experimental,
-            <a href="../../aptos-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(&token)
+            <a href="../../supra-framework/doc/object.md#0x1_object_object_address">object::object_address</a>(&token)
         )
     )
 }
@@ -2525,7 +2525,7 @@ Note: If the asset-specific auditor is not set, the validation is successful for
 Otherwise, returns <code><b>true</b></code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_validate_auditors">validate_auditors</a>(token: <a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, transfer_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, auditor_eks: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;, auditor_amounts: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;, proof: &<a href="confidential_proof.md#0x7_confidential_proof_TransferProof">confidential_proof::TransferProof</a>): bool
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_validate_auditors">validate_auditors</a>(token: <a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;, transfer_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>, auditor_eks: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;, auditor_amounts: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;, proof: &<a href="confidential_proof.md#0x7_confidential_proof_TransferProof">confidential_proof::TransferProof</a>): bool
 </code></pre>
 
 
@@ -2537,8 +2537,8 @@ Otherwise, returns <code><b>true</b></code>.
 <pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_validate_auditors">validate_auditors</a>(
     token: Object&lt;Metadata&gt;,
     transfer_amount: &<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>,
-    auditor_eks: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;twisted_elgamal::CompressedPubkey&gt;,
-    auditor_amounts: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;,
+    auditor_eks: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;twisted_elgamal::CompressedPubkey&gt;,
+    auditor_amounts: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;,
     proof: &TransferProof
 ): bool <b>acquires</b> <a href="confidential_asset.md#0x7_confidential_asset_FAConfig">FAConfig</a>, <a href="confidential_asset.md#0x7_confidential_asset_FAController">FAController</a> {
     <b>if</b> (!auditor_amounts.all(|auditor_amount| {
@@ -2566,7 +2566,7 @@ Otherwise, returns <code><b>true</b></code>.
         twisted_elgamal::pubkey_to_point(&asset_auditor_ek.extract());
     <b>let</b> first_auditor_ek = twisted_elgamal::pubkey_to_point(&auditor_eks[0]);
 
-    <a href="../../aptos-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_equals">ristretto255::point_equals</a>(&asset_auditor_ek, &first_auditor_ek)
+    <a href="../../supra-framework/../aptos-stdlib/doc/ristretto255.md#0x1_ristretto255_point_equals">ristretto255::point_equals</a>(&asset_auditor_ek, &first_auditor_ek)
 }
 </code></pre>
 
@@ -2579,10 +2579,10 @@ Otherwise, returns <code><b>true</b></code>.
 ## Function `deserialize_auditor_eks`
 
 Deserializes the auditor EKs from a byte array.
-Returns <code>Some(<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;twisted_elgamal::CompressedPubkey&gt;)</code> if the deserialization is successful, otherwise <code>None</code>.
+Returns <code>Some(<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;twisted_elgamal::CompressedPubkey&gt;)</code> if the deserialization is successful, otherwise <code>None</code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deserialize_auditor_eks">deserialize_auditor_eks</a>(auditor_eks_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;&gt;
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deserialize_auditor_eks">deserialize_auditor_eks</a>(auditor_eks_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="ristretto255_twisted_elgamal.md#0x7_ristretto255_twisted_elgamal_CompressedPubkey">ristretto255_twisted_elgamal::CompressedPubkey</a>&gt;&gt;
 </code></pre>
 
 
@@ -2592,21 +2592,21 @@ Returns <code>Some(<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib
 
 
 <pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deserialize_auditor_eks">deserialize_auditor_eks</a>(
-    auditor_eks_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
-): Option&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;twisted_elgamal::CompressedPubkey&gt;&gt; {
+    auditor_eks_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+): Option&lt;<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;twisted_elgamal::CompressedPubkey&gt;&gt; {
     <b>if</b> (auditor_eks_bytes.length() % 32 != 0) {
         <b>return</b> std::option::none()
     };
 
     <b>let</b> auditors_count = auditor_eks_bytes.length() / 32;
 
-    <b>let</b> auditor_eks = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, auditors_count).map(|i| {
+    <b>let</b> auditor_eks = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, auditors_count).map(|i| {
         twisted_elgamal::new_pubkey_from_bytes(
             auditor_eks_bytes.slice(i * 32, (i + 1) * 32)
         )
     });
 
-    <b>if</b> (auditor_eks.<a href="../../aptos-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|ek| ek.is_none())) {
+    <b>if</b> (auditor_eks.<a href="../../supra-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|ek| ek.is_none())) {
         <b>return</b> std::option::none()
     };
 
@@ -2623,10 +2623,10 @@ Returns <code>Some(<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib
 ## Function `deserialize_auditor_amounts`
 
 Deserializes the auditor amounts from a byte array.
-Returns <code>Some(<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;)</code> if the deserialization is successful, otherwise <code>None</code>.
+Returns <code>Some(<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;)</code> if the deserialization is successful, otherwise <code>None</code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deserialize_auditor_amounts">deserialize_auditor_amounts</a>(auditor_amounts_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;&gt;
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deserialize_auditor_amounts">deserialize_auditor_amounts</a>(auditor_amounts_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;&gt;
 </code></pre>
 
 
@@ -2636,21 +2636,21 @@ Returns <code>Some(<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib
 
 
 <pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_deserialize_auditor_amounts">deserialize_auditor_amounts</a>(
-    auditor_amounts_bytes: <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
-): Option&lt;<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;&gt; {
+    auditor_amounts_bytes: <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+): Option&lt;<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="confidential_balance.md#0x7_confidential_balance_ConfidentialBalance">confidential_balance::ConfidentialBalance</a>&gt;&gt; {
     <b>if</b> (auditor_amounts_bytes.length() % 256 != 0) {
         <b>return</b> std::option::none()
     };
 
     <b>let</b> auditors_count = auditor_amounts_bytes.length() / 256;
 
-    <b>let</b> auditor_amounts = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, auditors_count).map(|i| {
+    <b>let</b> auditor_amounts = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_range">vector::range</a>(0, auditors_count).map(|i| {
         <a href="confidential_balance.md#0x7_confidential_balance_new_pending_balance_from_bytes">confidential_balance::new_pending_balance_from_bytes</a>(
             auditor_amounts_bytes.slice(i * 256, (i + 1) * 256)
         )
     });
 
-    <b>if</b> (auditor_amounts.<a href="../../aptos-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|ek| ek.is_none())) {
+    <b>if</b> (auditor_amounts.<a href="../../supra-framework/../aptos-stdlib/doc/any.md#0x1_any">any</a>(|ek| ek.is_none())) {
         <b>return</b> std::option::none()
     };
 
@@ -2672,7 +2672,7 @@ Converts coins to missing FA.
 Returns <code>Some(Object&lt;Metadata&gt;)</code> if user has a suffucient amount of FA to proceed, otherwise <code>None</code>.
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_ensure_sufficient_fa">ensure_sufficient_fa</a>&lt;CoinType&gt;(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, amount: u64): <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../aptos-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../aptos-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;&gt;
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_ensure_sufficient_fa">ensure_sufficient_fa</a>&lt;CoinType&gt;(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, amount: u64): <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../supra-framework/doc/object.md#0x1_object_Object">object::Object</a>&lt;<a href="../../supra-framework/doc/fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;&gt;
 </code></pre>
 
 
@@ -2681,28 +2681,28 @@ Returns <code>Some(Object&lt;Metadata&gt;)</code> if user has a suffucient amoun
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_ensure_sufficient_fa">ensure_sufficient_fa</a>&lt;CoinType&gt;(sender: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, amount: u64): Option&lt;Object&lt;Metadata&gt;&gt; {
-    <b>let</b> user = <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
-    <b>let</b> fa = <a href="../../aptos-framework/doc/coin.md#0x1_coin_paired_metadata">coin::paired_metadata</a>&lt;CoinType&gt;();
+<pre><code><b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_ensure_sufficient_fa">ensure_sufficient_fa</a>&lt;CoinType&gt;(sender: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, amount: u64): Option&lt;Object&lt;Metadata&gt;&gt; {
+    <b>let</b> user = <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(sender);
+    <b>let</b> fa = <a href="../../supra-framework/doc/coin.md#0x1_coin_paired_metadata">coin::paired_metadata</a>&lt;CoinType&gt;();
 
     <b>if</b> (fa.is_none()) {
         <b>return</b> fa;
     };
 
-    <b>let</b> fa_balance = <a href="../../aptos-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store_balance">primary_fungible_store::balance</a>(user, *fa.borrow());
+    <b>let</b> fa_balance = <a href="../../supra-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store_balance">primary_fungible_store::balance</a>(user, *fa.borrow());
 
     <b>if</b> (fa_balance &gt;= amount) {
         <b>return</b> fa;
     };
 
-    <b>if</b> (<a href="../../aptos-framework/doc/coin.md#0x1_coin_balance">coin::balance</a>&lt;CoinType&gt;(user) &lt; amount) {
+    <b>if</b> (<a href="../../supra-framework/doc/coin.md#0x1_coin_balance">coin::balance</a>&lt;CoinType&gt;(user) &lt; amount) {
         <b>return</b> std::option::none();
     };
 
-    <b>let</b> coin_amount = <a href="../../aptos-framework/doc/coin.md#0x1_coin_withdraw">coin::withdraw</a>&lt;CoinType&gt;(sender, amount - fa_balance);
-    <b>let</b> fa_amount = <a href="../../aptos-framework/doc/coin.md#0x1_coin_coin_to_fungible_asset">coin::coin_to_fungible_asset</a>(coin_amount);
+    <b>let</b> coin_amount = <a href="../../supra-framework/doc/coin.md#0x1_coin_withdraw">coin::withdraw</a>&lt;CoinType&gt;(sender, amount - fa_balance);
+    <b>let</b> fa_amount = <a href="../../supra-framework/doc/coin.md#0x1_coin_coin_to_fungible_asset">coin::coin_to_fungible_asset</a>(coin_amount);
 
-    <a href="../../aptos-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store_deposit">primary_fungible_store::deposit</a>(user, fa_amount);
+    <a href="../../supra-framework/doc/primary_fungible_store.md#0x1_primary_fungible_store_deposit">primary_fungible_store::deposit</a>(user, fa_amount);
 
     fa
 }
@@ -2718,7 +2718,7 @@ Returns <code>Some(Object&lt;Metadata&gt;)</code> if user has a suffucient amoun
 
 
 
-<pre><code>entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_init_module_for_genesis">init_module_for_genesis</a>(deployer: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+<pre><code>entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_init_module_for_genesis">init_module_for_genesis</a>(deployer: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
 </code></pre>
 
 
@@ -2727,18 +2727,18 @@ Returns <code>Some(Object&lt;Metadata&gt;)</code> if user has a suffucient amoun
 <summary>Implementation</summary>
 
 
-<pre><code>entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_init_module_for_genesis">init_module_for_genesis</a>(deployer: &<a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
+<pre><code>entry <b>fun</b> <a href="confidential_asset.md#0x7_confidential_asset_init_module_for_genesis">init_module_for_genesis</a>(deployer: &<a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
     <b>assert</b>!(
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(deployer) == @aptos_experimental,
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_EINIT_MODULE_FAILED">EINIT_MODULE_FAILED</a>)
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(deployer) == @aptos_experimental,
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="confidential_asset.md#0x7_confidential_asset_EINIT_MODULE_FAILED">EINIT_MODULE_FAILED</a>)
     );
     <b>assert</b>!(
-        <a href="../../aptos-framework/doc/chain_id.md#0x1_chain_id_get">chain_id::get</a>() != <a href="confidential_asset.md#0x7_confidential_asset_MAINNET_CHAIN_ID">MAINNET_CHAIN_ID</a>,
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EINIT_MODULE_FAILED">EINIT_MODULE_FAILED</a>)
+        <a href="../../supra-framework/doc/chain_id.md#0x1_chain_id_get">chain_id::get</a>() != <a href="confidential_asset.md#0x7_confidential_asset_MAINNET_CHAIN_ID">MAINNET_CHAIN_ID</a>,
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EINIT_MODULE_FAILED">EINIT_MODULE_FAILED</a>)
     );
     <b>assert</b>!(
-        <a href="../../aptos-framework/doc/chain_id.md#0x1_chain_id_get">chain_id::get</a>() != <a href="confidential_asset.md#0x7_confidential_asset_TESTNET_CHAIN_ID">TESTNET_CHAIN_ID</a>,
-        <a href="../../aptos-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EINIT_MODULE_FAILED">EINIT_MODULE_FAILED</a>)
+        <a href="../../supra-framework/doc/chain_id.md#0x1_chain_id_get">chain_id::get</a>() != <a href="confidential_asset.md#0x7_confidential_asset_TESTNET_CHAIN_ID">TESTNET_CHAIN_ID</a>,
+        <a href="../../supra-framework/../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="confidential_asset.md#0x7_confidential_asset_EINIT_MODULE_FAILED">EINIT_MODULE_FAILED</a>)
     );
     <a href="confidential_asset.md#0x7_confidential_asset_init_module">init_module</a>(deployer)
 }

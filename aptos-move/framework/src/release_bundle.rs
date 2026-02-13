@@ -11,7 +11,6 @@ use move_core_types::language_storage::ModuleId;
 use move_model::{code_writer::CodeWriter, emit, emitln, model::Loc};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
-use aptos_crypto::HashValue;
 
 /// A release bundle consists of a list of release packages.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -166,7 +165,6 @@ impl ReleasePackage {
         &self,
         for_address: AccountAddress,
         out: PathBuf,
-        function_name: String,
     ) -> anyhow::Result<()> {
         self.generate_script_proposal_impl(for_address, out, false, false, None)
     }
@@ -175,7 +173,6 @@ impl ReleasePackage {
         &self,
         for_address: AccountAddress,
         out: PathBuf,
-        function_name: String,
     ) -> anyhow::Result<()> {
         self.generate_script_proposal_impl(for_address, out, true, false, None)
     }
@@ -186,7 +183,7 @@ impl ReleasePackage {
         out: PathBuf,
         next_execution_hash: Option<HashValue>,
     ) -> anyhow::Result<()> {
-        self.generate_script_proposal_impl(for_address, out, true, true, next_execution_hash, function_name)
+        self.generate_script_proposal_impl(for_address, out, true, true, next_execution_hash)
     }
 
     fn generate_script_proposal_impl(
@@ -215,7 +212,7 @@ impl ReleasePackage {
         emitln!(writer, "use supra_framework::code;\n");
 
         if is_testnet && !is_multi_step {
-            emitln!(writer, "fun {function_name} (core_resources: &signer) {{");
+            emitln!(writer, "fun main(core_resources: &signer) {{");
             writer.indent();
             emitln!(
                 writer,
@@ -223,7 +220,7 @@ impl ReleasePackage {
                 for_address
             );
         } else if !is_multi_step {
-            emitln!(writer, "fun {} (proposal_id: u64) {{", function_name);
+            emitln!(writer, "fun main(proposal_id: u64) {");
             writer.indent();
             emitln!(
                 writer,
@@ -231,7 +228,7 @@ impl ReleasePackage {
                 for_address
             );
         } else {
-            emitln!(writer, "fun {} (proposal_id: u64) {{", function_name);
+            emitln!(writer, "fun main(proposal_id: u64) {");
             writer.indent();
             generate_next_execution_hash_blob(&writer, for_address, next_execution_hash);
         }

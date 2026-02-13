@@ -1,10 +1,13 @@
+// Copyright (c) Aptos Foundation
+// SPDX-License-Identifier: Apache-2.0
+
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
 use std::cmp::Ordering;
 use crate::chain_id::ChainId;
 use crate::transaction::automation::{AutomationTaskMetaData, AutomationTaskType, Priority};
-use crate::transaction::{EntryFunction, RawTransaction, Transaction, TransactionPayload};
+use crate::transaction::{EntryFunction, RawTransaction, ReplayProtector, Transaction, TransactionPayload};
 use anyhow::anyhow;
 use aptos_crypto::HashValue;
 use derive_getters::Getters;
@@ -145,6 +148,11 @@ impl AutomatedTransaction {
     /// otherwise None.
     pub fn duration_since(&self, base_timestamp: u64) -> Option<u64> {
         self.expiration_timestamp_secs().checked_sub(base_timestamp)
+    }
+
+
+    pub fn replay_protector(&self) -> ReplayProtector {
+        self.raw_txn.replay_protector()
     }
 }
 

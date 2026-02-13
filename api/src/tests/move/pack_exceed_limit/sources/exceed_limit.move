@@ -1,6 +1,6 @@
 module addr::exceed_limit {
     use std::option::Option;
-    use aptos_framework::account::Account;
+    use supra_framework::account::Account;
     use std::signer;
     use std::string::{Self};
     use std::simple_map::{SimpleMap, Self};

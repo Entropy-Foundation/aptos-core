@@ -79,13 +79,6 @@ spec supra_framework::code {
         aborts_if !permissioned_signer::spec_check_permission_exists(s, perm);
     }
 
-    spec schema AbortsIfPermissionedSigner {
-        use aptos_framework::permissioned_signer;
-        s: signer;
-        let perm = CodePublishingPermission {};
-        aborts_if !permissioned_signer::spec_check_permission_exists(s, perm);
-    }
-
     spec initialize(supra_framework: &signer, package_owner: &signer, metadata: PackageMetadata) {
         let aptos_addr = signer::address_of(supra_framework);
         let owner_addr = signer::address_of(package_owner);

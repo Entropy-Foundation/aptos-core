@@ -44,6 +44,9 @@ use std::{
 async fn test_analyze_validators() {
     let (swarm, cli, _faucet) = SwarmBuilder::new_local(1)
         .with_aptos()
+        .with_init_config(Arc::new(|_, conf, _| {
+            conf.indexer_db_config.enable_event = true;
+        }))
         .with_init_genesis_stake(Arc::new(|_i, genesis_stake_amount| {
             *genesis_stake_amount = 100000;
         }))
@@ -202,7 +205,11 @@ async fn test_onchain_config_change() {
                     alg: ConsensusAlgorithmConfig::Jolteon { main, .. },
                     ..
                 } => main,
-                _ => unimplemented!(),
+                OnChainConsensusConfig::V4 {
+                    alg: ConsensusAlgorithmConfig::Jolteon { main, .. },
+                    ..
+                } => main,
+                _ => panic!("Other branches for OnChainConsensusConfig are not covered"),
             };
 
             let leader_reputation_type =
@@ -388,7 +395,7 @@ async fn test_onchain_shuffling_change() {
 
     assert_eq!(
         current_execution_config.transaction_shuffler_type(),
-        TransactionShufflerType::SenderAwareV2(32),
+        TransactionShufflerType::default_for_genesis(),
     );
 
     assert_reordering(&mut swarm, true).await;
@@ -618,6 +625,7 @@ async fn test_nodes_rewards() {
             conf.consensus.round_initial_timeout_ms = 200;
             conf.consensus.quorum_store_poll_time_ms = 100;
             conf.api.failpoints_enabled = true;
+            conf.indexer_db_config.enable_event = true;
         }))
         .with_init_genesis_stake(Arc::new(|i, genesis_stake_amount| {
             // make sure we have quorum
@@ -1336,6 +1344,8 @@ async fn test_owner_create_and_delegate_flow() {
             operator_cli_index,
             Some(owner_cli_index),
             operator_keys.consensus_public_key(),
+            operator_keys.consensus_proof_of_possession(),
+            None,
         )
         .await
         .unwrap(),

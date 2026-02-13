@@ -3,7 +3,7 @@ name = "framework_usecases"
 version = "0.0.0"
 
 [dependencies]
-AptosFramework = { local = "../../../../aptos-move/framework/aptos-framework" }
+SupraFramework = { local = "../../../../aptos-move/framework/supra-framework" }
 AptosToken = { local = "../../../../aptos-move/framework/aptos-token" }
 AptosTokenObjects = { local = "../../../../aptos-move/framework/aptos-token-objects" }
 

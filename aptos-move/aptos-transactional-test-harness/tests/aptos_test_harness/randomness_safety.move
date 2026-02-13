@@ -3,7 +3,7 @@
 
 //# publish --private-key alice
 module alice::randomness_user {
-    use aptos_framework::randomness;
+    use supra_framework::randomness;
 
     fun uses_randomness(): u8 {
         randomness::u8_integer()

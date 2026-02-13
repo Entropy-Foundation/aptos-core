@@ -160,9 +160,9 @@
 
 ## Function `chain_id`
 
-Returns the current chain ID, mirroring what <code>aptos_framework::chain_id::get()</code> would return, except in <code>#[test]</code>
-functions, where this will always return <code>4u8</code> as the chain ID, whereas <code>aptos_framework::chain_id::get()</code> will
-return whichever ID was passed to <code>aptos_framework::chain_id::initialize_for_test()</code>.
+Returns the current chain ID, mirroring what <code>supra_framework::chain_id::get()</code> would return, except in <code>#[test]</code>
+functions, where this will always return <code>4u8</code> as the chain ID, whereas <code>supra_framework::chain_id::get()</code> will
+return whichever ID was passed to <code>supra_framework::chain_id::initialize_for_test()</code>.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="type_info.md#0x1_type_info_chain_id">chain_id</a>(): u8
@@ -215,7 +215,7 @@ Return the <code><a href="type_info.md#0x1_type_info_TypeInfo">TypeInfo</a></cod
 ## Function `type_name`
 
 Return the human readable string for the type, including the address, module name, and any type arguments.
-Example: 0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>
+Example: 0x1::coin::CoinStore<0x1::supra_coin::SupraCoin>
 Or: 0x1::table::Table<0x1::string::String, 0x1::string::String>
 
 

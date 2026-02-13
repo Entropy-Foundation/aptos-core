@@ -32,7 +32,7 @@ use aptos_config::config::{BatchTransactionFilterConfig, QuorumStoreConfig};
 use aptos_consensus_types::{
     common::Author, proof_of_store::ProofCache, request_response::GetPayloadCommand,
 };
-use aptos_crypto::bls12381::PrivateKey;
+use aptos_crypto::ed25519::PrivateKey;
 use aptos_logger::prelude::*;
 use aptos_mempool::QuorumStoreRequest;
 use aptos_storage_interface::DbReader;

@@ -5,7 +5,7 @@
 /// The coins provided by the users are wrapped and coins are returned to users by unwrapping internal fungible asset
 /// with coin_wrapper.
 module swap::router {
-    use supra_framework::aptos_account;
+    use supra_framework::supra_account;
     use supra_framework::coin::{Self, Coin};
     use supra_framework::fungible_asset::{Self, FungibleAsset, Metadata};
     use supra_framework::object::{Self, Object};
@@ -127,7 +127,7 @@ module swap::router {
     ) {
         let in = primary_fungible_store::withdraw(user, from_token, amount_in);
         let out = swap_asset_for_coin<ToCoin>(in, amount_out_min, is_stable);
-        aptos_account::deposit_coins(recipient, out);
+        supra_account::deposit_coins(recipient, out);
     }
 
     /// Similar to swap_asset_for_coin_entry but returns the coin received for composability with other modules.
@@ -376,7 +376,7 @@ module swap::router {
     ) {
         let (amount_1, amount_2) =
             remove_liquidity_coin<CoinType>(lp, token_2, is_stable, liquidity, amount_1_min, amount_2_min);
-        aptos_account::deposit_coins<CoinType>(recipient, amount_1);
+        supra_account::deposit_coins<CoinType>(recipient, amount_1);
         primary_fungible_store::deposit(recipient, amount_2);
     }
 
@@ -408,8 +408,8 @@ module swap::router {
     ) {
         let (amount_1, amount_2) =
             remove_liquidity_both_coins<CoinType1, CoinType2>(lp, is_stable, liquidity, amount_1_min, amount_2_min);
-        aptos_account::deposit_coins<CoinType1>(recipient, amount_1);
-        aptos_account::deposit_coins<CoinType2>(recipient, amount_2);
+        supra_account::deposit_coins<CoinType1>(recipient, amount_1);
+        supra_account::deposit_coins<CoinType2>(recipient, amount_2);
     }
 
     /// Similiar to `remove_liquidity_both_coins_entry` but returns the received coins instead of depositing them.

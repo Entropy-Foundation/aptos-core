@@ -52,7 +52,7 @@ module staking::oracle {
     }
 
     #[test_only]
-    use aptos_framework::account;
+    use supra_framework::account;
 
     // This struct is used to test the commission contract only and will not be used in production.
     struct TestPrice has key {

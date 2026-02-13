@@ -54,10 +54,10 @@ spec supra_framework::aggregator_factory {
         ensures exists<AggregatorFactory>(addr);
     }
 
-    spec create_aggregator_internal(): Aggregator {
+    spec create_aggregator_internal(limit: u128): Aggregator {
         /// [high-level-req-2]
         include CreateAggregatorInternalAbortsIf;
-        ensures aggregator::spec_get_limit(result) == MAX_U128;
+        ensures aggregator::spec_get_limit(result) == limit;
         ensures aggregator::spec_aggregator_get_val(result) == 0;
     }
     spec schema CreateAggregatorInternalAbortsIf {

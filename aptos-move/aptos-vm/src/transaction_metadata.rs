@@ -10,21 +10,61 @@ use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
     transaction::{
-        user_transaction_context::UserTransactionContext, EntryFunction, Multisig,
-        SignedTransaction, TransactionPayload,
+        authenticator::AuthenticationProof, user_transaction_context::UserTransactionContext,
+        EntryFunction, Multisig, MultisigTransactionPayload, ReplayProtector, SignedTransaction,
+        TransactionExecutable, TransactionExecutableRef, TransactionExtraConfig,
+        TransactionPayload, TransactionPayloadInner,
     },
 };
 use aptos_types::transaction::user_transaction_context::{PayloadTypeReference, PayloadTypeReferenceContext};
 
 pub type PayloadTypeReferenceMeta = PayloadTypeReference<EntryFunction, Multisig>;
+
+fn convert_to_payload_type_reference_meta(payload: &TransactionPayloadInner) -> PayloadTypeReferenceMeta {
+    let TransactionPayloadInner::V1 {
+        executable,
+        extra_config:
+        TransactionExtraConfig::V1 {
+            multisig_address,
+            ..
+        },
+    } = payload;
+    match multisig_address {
+        Some(address) => {
+            PayloadTypeReferenceMeta::Multisig(Multisig {
+                multisig_address: *address,
+                transaction_payload: match executable {
+                    TransactionExecutable::EntryFunction(e) => {
+                        // TODO[Orderless]: How to avoid the clone operation here.
+                        Some(MultisigTransactionPayload::EntryFunction(e.clone()))
+                    },
+                    _ => None,
+                }
+            })
+        },
+        None => {
+            match executable {
+                TransactionExecutable::EntryFunction(e) => {
+                    PayloadTypeReferenceMeta::UserEntryFunction(e.clone())
+                }
+                _ => {
+                    PayloadTypeReferenceMeta::Other
+                }
+            }
+        }
+    }
+}
+
 pub struct TransactionMetadata {
     pub sender: AccountAddress,
-    pub authentication_key: Vec<u8>,
+    pub authentication_proof: AuthenticationProof,
     pub secondary_signers: Vec<AccountAddress>,
-    pub secondary_authentication_keys: Vec<Vec<u8>>,
-    pub sequence_number: u64,
+    pub secondary_authentication_proofs: Vec<AuthenticationProof>,
+    pub replay_protector: ReplayProtector,
     pub fee_payer: Option<AccountAddress>,
-    pub fee_payer_authentication_key: Option<Vec<u8>>,
+    /// `None` if the [TransactionAuthenticator] lacks an authenticator for the fee payer.
+    /// `Some([])` if the authenticator for the fee payer is a [NoAccountAuthenticator].
+    pub fee_payer_authentication_proof: Option<AuthenticationProof>,
     pub max_gas_amount: Gas,
     pub gas_unit_price: FeePerGasUnit,
     pub transaction_size: NumBytes,
@@ -45,41 +85,42 @@ impl TransactionMetadata {
             TransactionPayload::EntryFunction(e) => PayloadTypeReferenceMeta::UserEntryFunction(e.clone()),
             TransactionPayload::Multisig(m) => PayloadTypeReferenceMeta::Multisig(m.clone()),
             TransactionPayload::AutomationRegistration(_) => PayloadTypeReferenceMeta::AutomationRegistration,
+            TransactionPayload::Payload(payload_inner) => convert_to_payload_type_reference_meta(payload_inner),
         };
         Self {
             sender: txn.sender(),
-            authentication_key: txn.authenticator().sender().authentication_key().to_vec(),
+            authentication_proof: txn.authenticator().sender().authentication_proof(),
             secondary_signers: txn.authenticator().secondary_signer_addresses(),
-            secondary_authentication_keys: txn
+            secondary_authentication_proofs: txn
                 .authenticator()
                 .secondary_signers()
                 .iter()
-                .map(|account_auth| account_auth.authentication_key().to_vec())
+                .map(|account_auth| account_auth.authentication_proof())
                 .collect(),
-            sequence_number: txn.sequence_number(),
+            replay_protector: txn.replay_protector(),
             fee_payer: txn.authenticator_ref().fee_payer_address(),
-            fee_payer_authentication_key: txn
+            fee_payer_authentication_proof: txn
                 .authenticator()
                 .fee_payer_signer()
-                .map(|signer| signer.authentication_key().to_vec()),
+                .map(|signer| signer.authentication_proof()),
             max_gas_amount: txn.max_gas_amount().into(),
             gas_unit_price: txn.gas_unit_price().into(),
             transaction_size: (txn.raw_txn_bytes_len() as u64).into(),
             expiration_timestamp_secs: txn.expiration_timestamp_secs(),
             chain_id: txn.chain_id(),
-            script_hash: match txn.payload() {
-                TransactionPayload::Script(s) => HashValue::sha3_256_of(s.code()).to_vec(),
-                TransactionPayload::EntryFunction(_) => vec![],
-                TransactionPayload::Multisig(_) => vec![],
-
-                // Deprecated. Return an empty vec because we cannot do anything
-                // else here, only `unreachable!` otherwise.
-                TransactionPayload::ModuleBundle(_) => vec![],
-                TransactionPayload::AutomationRegistration(_) => vec![],
+            script_hash: if let Ok(TransactionExecutableRef::Script(s)) =
+                txn.payload().executable_ref()
+            {
+                HashValue::sha3_256_of(s.code()).to_vec()
+            } else {
+                vec![]
             },
-            script_size: match txn.payload() {
-                TransactionPayload::Script(s) => (s.code().len() as u64).into(),
-                _ => NumBytes::zero(),
+            script_size: if let Ok(TransactionExecutableRef::Script(s)) =
+                txn.payload().executable_ref()
+            {
+                (s.code().len() as u64).into()
+            } else {
+                NumBytes::zero()
             },
             is_keyless: aptos_types::keyless::get_authenticators(txn)
                 .map(|res| !res.is_empty())
@@ -122,12 +163,25 @@ impl TransactionMetadata {
         senders
     }
 
-    pub fn authentication_key(&self) -> &[u8] {
-        &self.authentication_key
+    pub fn authentication_proofs(&self) -> Vec<&AuthenticationProof> {
+        let mut proofs = vec![self.authentication_proof()];
+        proofs.extend(self.secondary_authentication_proofs.iter());
+        proofs
     }
 
-    pub fn sequence_number(&self) -> u64 {
-        self.sequence_number
+    pub fn authentication_proof(&self) -> &AuthenticationProof {
+        &self.authentication_proof
+    }
+
+    pub fn replay_protector(&self) -> ReplayProtector {
+        self.replay_protector
+    }
+
+    pub fn is_orderless(&self) -> bool {
+        match self.replay_protector {
+            ReplayProtector::SequenceNumber(_) => false,
+            ReplayProtector::Nonce(_) => true,
+        }
     }
 
     pub fn transaction_size(&self) -> NumBytes {
@@ -181,12 +235,12 @@ impl From<&AutomatedTransaction> for TransactionMetadata {
     fn from(txn: &AutomatedTransaction) -> Self {
         Self {
             sender: txn.sender(),
-            authentication_key: txn.authenticator().to_vec(),
+            authentication_proof: AuthenticationProof::Key(txn.authenticator().to_vec()),
             secondary_signers: vec![],
-            secondary_authentication_keys: vec![],
-            sequence_number: txn.sequence_number(),
+            secondary_authentication_proofs: vec![],
+            replay_protector: txn.replay_protector(),
             fee_payer: None,
-            fee_payer_authentication_key: None,
+            fee_payer_authentication_proof: None,
             max_gas_amount: txn.max_gas_amount().into(),
             gas_unit_price: txn.gas_unit_price().into(),
             transaction_size: (txn.raw_txn_bytes_len() as u64).into(),

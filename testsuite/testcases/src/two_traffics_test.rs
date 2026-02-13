@@ -9,8 +9,8 @@ use aptos_forge::{
     success_criteria::{SuccessCriteria, SuccessCriteriaChecker},
     EmitJobRequest, NetworkContextSynchronizer, NetworkTest, Result, Swarm, Test, TestReport,
 };
-use aptos_logger::info;
 use async_trait::async_trait;
+use log::info;
 use std::{sync::Arc, time::Duration};
 
 pub struct TwoTrafficsTest {
@@ -47,6 +47,7 @@ impl NetworkLoadTest for TwoTrafficsTest {
             duration,
             WARMUP_DURATION_FRACTION,
             COOLDOWN_DURATION_FRACTION,
+            None,
             None,
         )
         .await?;

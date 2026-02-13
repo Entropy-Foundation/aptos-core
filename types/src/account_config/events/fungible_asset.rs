@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::move_utils::move_event_v2::MoveEventV2Type;
+use derive_getters::Getters;
 use move_core_types::{
     account_address::AccountAddress, ident_str, identifier::IdentStr, move_resource::MoveStructType,
+    language_storage::TypeTag,
 };
 use serde::{Deserialize, Serialize};
+use once_cell::sync::Lazy;
 
 /// Struct that represents a Withdraw event.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Getters)]
 pub struct WithdrawFAEvent {
     pub store: AccountAddress,
     pub amount: u64,
@@ -22,7 +25,7 @@ impl MoveStructType for WithdrawFAEvent {
 }
 
 /// Struct that represents a Deposit event.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Getters)]
 pub struct DepositFAEvent {
     pub store: AccountAddress,
     pub amount: u64,
@@ -34,3 +37,9 @@ impl MoveStructType for DepositFAEvent {
     const MODULE_NAME: &'static IdentStr = ident_str!("fungible_asset");
     const STRUCT_NAME: &'static IdentStr = ident_str!("Deposit");
 }
+
+pub static FA_WITHDRAW_EVENT_TYPE_TAG: Lazy<TypeTag> =
+    Lazy::new(|| TypeTag::Struct(Box::new(WithdrawFAEvent::struct_tag())));
+
+pub static FA_DEPOSIT_EVENT_TYPE_TAG: Lazy<TypeTag> =
+    Lazy::new(|| TypeTag::Struct(Box::new(DepositFAEvent::struct_tag())));

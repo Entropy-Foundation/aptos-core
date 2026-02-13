@@ -34,13 +34,13 @@ use aptos_types::{
         TransactionArgument, TransactionOutput, TransactionPayload, TransactionStatus,
         ViewFunctionOutput,
     },
-    AptosCoinType,
+    SupraCoinType,
 };
 use claims::assert_ok;
 use move_core_types::{
     language_storage::{StructTag, TypeTag},
     move_resource::MoveStructType,
-    value::MoveValue,
+    value::MoveValue,vm_status::VMStatus
 };
 use move_package::package_hooks::register_package_hooks;
 use once_cell::sync::Lazy;
@@ -876,9 +876,9 @@ impl MoveHarness {
     }
 
     pub fn read_aptos_balance(&self, addr: &AccountAddress) -> u64 {
-        self.read_resource::<CoinStoreResource<AptosCoinType>>(
+        self.read_resource::<CoinStoreResource<SupraCoinType>>(
             addr,
-            CoinStoreResource::<AptosCoinType>::struct_tag(),
+            CoinStoreResource::<SupraCoinType>::struct_tag(),
         )
         .map(|c| c.coin())
         .unwrap_or(0)

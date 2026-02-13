@@ -58,6 +58,9 @@ impl Multisig {
             Some(MultisigTransactionPayload::EntryFunction(entry)) => {
                 TransactionExecutable::EntryFunction(entry.clone())
             },
+            Some(MultisigTransactionPayload::AutomationRegistration(params)) => {
+                TransactionExecutable::AutomationRegistration(params.clone())
+            },
             None => TransactionExecutable::Empty,
         }
     }
@@ -66,6 +69,9 @@ impl Multisig {
         match &self.transaction_payload {
             Some(MultisigTransactionPayload::EntryFunction(entry)) => {
                 TransactionExecutableRef::EntryFunction(entry)
+            },
+            Some(MultisigTransactionPayload::AutomationRegistration(params)) => {
+                TransactionExecutableRef::AutomationRegistration(params)
             },
             None => TransactionExecutableRef::Empty,
         }

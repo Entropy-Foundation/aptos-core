@@ -1,6 +1,6 @@
 script {
     use std::signer;
-    use supra_framework::aptos_account;
+    use supra_framework::supra_account;
     use supra_framework::supra_coin;
     use supra_framework::coin;
 
@@ -17,6 +17,6 @@ script {
             supra_coin::mint(minter, minter_addr, amount + GAS_BUFFER);
         };
 
-        aptos_account::transfer(minter, dst_addr, amount);
+        supra_account::transfer(minter, dst_addr, amount);
     }
 }

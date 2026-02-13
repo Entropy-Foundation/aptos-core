@@ -1683,7 +1683,7 @@ Define the derived supply dispatch with the provided function.
     // Verify that caller type matches callee type so wrongly typed function cannot be registered.
     <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_for_each_ref">option::for_each_ref</a>(&dispatch_function, |supply_function| {
         <b>let</b> <a href="function_info.md#0x1_function_info">function_info</a> = <a href="function_info.md#0x1_function_info_new_function_info_from_address">function_info::new_function_info_from_address</a>(
-            @aptos_framework,
+            @supra_framework,
             <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"<a href="dispatchable_fungible_asset.md#0x1_dispatchable_fungible_asset">dispatchable_fungible_asset</a>"),
             <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(b"dispatchable_derived_supply"),
         );
@@ -1742,10 +1742,10 @@ Check the requirements for registering a dispatchable function.
 <pre><code>inline <b>fun</b> <a href="fungible_asset.md#0x1_fungible_asset_register_dispatch_function_sanity_check">register_dispatch_function_sanity_check</a>(
     constructor_ref: &ConstructorRef,
 )  {
-    // Cannot register hook for APT.
+    // Cannot register hook for SUPRA.
     <b>assert</b>!(
-        <a href="object.md#0x1_object_address_from_constructor_ref">object::address_from_constructor_ref</a>(constructor_ref) != @aptos_fungible_asset,
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="fungible_asset.md#0x1_fungible_asset_EAPT_NOT_DISPATCHABLE">EAPT_NOT_DISPATCHABLE</a>)
+        <a href="object.md#0x1_object_address_from_constructor_ref">object::address_from_constructor_ref</a>(constructor_ref) != @supra_fungible_asset,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="fungible_asset.md#0x1_fungible_asset_ESUP_NOT_DISPATCHABLE">ESUP_NOT_DISPATCHABLE</a>)
     );
     <b>assert</b>!(
         !<a href="object.md#0x1_object_can_generate_delete_ref">object::can_generate_delete_ref</a>(constructor_ref),
@@ -2672,37 +2672,7 @@ Return whether a fungible asset type is dispatchable.
 <pre><code><b>fun</b> <a href="fungible_asset.md#0x1_fungible_asset_has_balance_dispatch_function">has_balance_dispatch_function</a>(metadata: Object&lt;<a href="fungible_asset.md#0x1_fungible_asset_Metadata">Metadata</a>&gt;): bool <b>acquires</b> <a href="fungible_asset.md#0x1_fungible_asset_DispatchFunctionStore">DispatchFunctionStore</a> {
     <b>let</b> metadata_addr = <a href="object.md#0x1_object_object_address">object::object_address</a>(&metadata);
     // Short circuit on APT for better perf
-    <b>if</b> (metadata_addr != @aptos_fungible_asset && <b>exists</b>&lt;<a href="fungible_asset.md#0x1_fungible_asset_DispatchFunctionStore">DispatchFunctionStore</a>&gt;(metadata_addr)) {
-        <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&<b>borrow_global</b>&lt;<a href="fungible_asset.md#0x1_fungible_asset_DispatchFunctionStore">DispatchFunctionStore</a>&gt;(metadata_addr).withdraw_function)
-    } <b>else</b> {
-        <b>false</b>
-    }
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_fungible_asset_has_balance_dispatch_function"></a>
-
-## Function `has_balance_dispatch_function`
-
-
-
-<pre><code><b>fun</b> <a href="fungible_asset.md#0x1_fungible_asset_has_balance_dispatch_function">has_balance_dispatch_function</a>(metadata: <a href="object.md#0x1_object_Object">object::Object</a>&lt;<a href="fungible_asset.md#0x1_fungible_asset_Metadata">fungible_asset::Metadata</a>&gt;): bool
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="fungible_asset.md#0x1_fungible_asset_has_balance_dispatch_function">has_balance_dispatch_function</a>(metadata: Object&lt;<a href="fungible_asset.md#0x1_fungible_asset_Metadata">Metadata</a>&gt;): bool <b>acquires</b> <a href="fungible_asset.md#0x1_fungible_asset_DispatchFunctionStore">DispatchFunctionStore</a> {
-    <b>let</b> metadata_addr = <a href="object.md#0x1_object_object_address">object::object_address</a>(&metadata);
-    // Short circuit on APT for better perf
-    <b>if</b> (metadata_addr != @aptos_fungible_asset && <b>exists</b>&lt;<a href="fungible_asset.md#0x1_fungible_asset_DispatchFunctionStore">DispatchFunctionStore</a>&gt;(metadata_addr)) {
+    <b>if</b> (metadata_addr != @supra_fungible_asset && <b>exists</b>&lt;<a href="fungible_asset.md#0x1_fungible_asset_DispatchFunctionStore">DispatchFunctionStore</a>&gt;(metadata_addr)) {
         <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&<b>borrow_global</b>&lt;<a href="fungible_asset.md#0x1_fungible_asset_DispatchFunctionStore">DispatchFunctionStore</a>&gt;(metadata_addr).derived_balance_function)
     } <b>else</b> {
         <b>false</b>
@@ -2731,7 +2701,7 @@ Return whether a fungible asset type is dispatchable.
 
 <pre><code><b>fun</b> <a href="fungible_asset.md#0x1_fungible_asset_has_supply_dispatch_function">has_supply_dispatch_function</a>(metadata_addr: <b>address</b>): bool {
     // Short circuit on APT for better perf
-    <b>if</b> (metadata_addr != @aptos_fungible_asset) {
+    <b>if</b> (metadata_addr != @supra_fungible_asset) {
         <b>exists</b>&lt;<a href="fungible_asset.md#0x1_fungible_asset_DeriveSupply">DeriveSupply</a>&gt;(metadata_addr)
     } <b>else</b> {
         <b>false</b>

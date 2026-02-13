@@ -1,6 +1,6 @@
 script {
-    use aptos_framework::aptos_coin;
-    use aptos_framework::coin;
+    use supra_framework::supra_coin;
+    use supra_framework::coin;
 
     use std::signer;
 
@@ -9,7 +9,7 @@ script {
     fun main(attacker: &signer) {
         let attacker_addr = signer::address_of(attacker);
 
-        let old_balance = coin::balance<aptos_coin::AptosCoin>(attacker_addr);
+        let old_balance = coin::balance<supra_coin::SupraCoin>(attacker_addr);
 
         // SECURITY: The fact that `randomly_pick_winner` is a *private* entry function is what
         // prevents this call here. The compiler will output the following error:
@@ -31,7 +31,7 @@ script {
         // (Commented out to ensure this Move example compiles.)
         //raffle::raffle::randomly_pick_winner_internal();
 
-        let new_balance = coin::balance<aptos_coin::AptosCoin>(attacker_addr);
+        let new_balance = coin::balance<supra_coin::SupraCoin>(attacker_addr);
 
         // The attacker can see if his balance remained the same. If it did, then
         // the attacker knows they did NOT win the raffle and can abort everything.

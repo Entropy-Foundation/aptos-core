@@ -161,6 +161,9 @@ impl AptosDebugger {
                         // TODO[Orderless]: Implement this
                         unimplemented!("not supported yet")
                     },
+                    TransactionExecutableRef::AutomationRegistration(_) => {
+                        unimplemented!("not supported yet")
+                    }
                 };
                 gas_profiler
             },
@@ -396,6 +399,7 @@ fn print_transaction_stats(sig_verified_txns: &[SignatureVerifiedTransaction], v
                     ),
                     Ok(TransactionExecutableRef::Script(_)) => "script".to_string(),
                     Ok(TransactionExecutableRef::Empty) => "empty".to_string(),
+                    Ok(TransactionExecutableRef::AutomationRegistration(_)) => "automation_registration".to_string(),
                     Err(e) => {
                         panic!("deprecated transaction payload: {}", e)
                     },

@@ -1,11 +1,11 @@
 #[test_only]
 module stablecoin::usdk_tests {
     use std::signer;
-    use aptos_framework::primary_fungible_store;
-    use aptos_framework::dispatchable_fungible_asset;
-    use aptos_framework::fungible_asset::{Self, FungibleStore};
+    use supra_framework::primary_fungible_store;
+    use supra_framework::dispatchable_fungible_asset;
+    use supra_framework::fungible_asset::{Self, FungibleStore};
     use stablecoin::usdk;
-    use aptos_framework::object;
+    use supra_framework::object;
 
     #[test(creator = @0xcafe, minter = @0xface, master_minter = @0xbab, denylister = @0xcade)]
     fun test_basic_flow(creator: &signer, minter: &signer, master_minter: &signer, denylister: &signer) {
@@ -47,7 +47,7 @@ module stablecoin::usdk_tests {
 
     // test the ability of a denylisted account to transfer out newly created store
     #[test(creator = @0xcafe, denylister = @0xcade, receiver = @0xdead)]
-    #[expected_failure(abort_code = 327683, location = aptos_framework::object)]
+    #[expected_failure(abort_code = 327683, location = supra_framework::object)]
     fun test_untransferrable_store(creator: &signer, denylister: &signer, receiver: &signer) {
         usdk::init_for_test(creator);
         let receiver_address = signer::address_of(receiver);

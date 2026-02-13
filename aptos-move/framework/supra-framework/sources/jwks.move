@@ -182,7 +182,7 @@ module supra_framework::jwks {
     /// reusing `PatchedJWKs { jwks: AllProviderJWKs }`, which is a JWK-consensus-specific struct.
     public fun patch_federated_jwks(jwk_owner: &signer, patches: vector<Patch>) acquires FederatedJWKs {
         // Prevents accidental calls in 0x1::jwks that install federated JWKs at the Aptos framework address.
-        assert!(!system_addresses::is_aptos_framework_address(signer::address_of(jwk_owner)),
+        assert!(!system_addresses::is_supra_framework_address(signer::address_of(jwk_owner)),
             error::invalid_argument(EINSTALL_FEDERATED_JWKS_AT_APTOS_FRAMEWORK)
         );
 
@@ -239,7 +239,7 @@ module supra_framework::jwks {
     ///
     /// ```move
     /// use std::string::utf8;
-    /// aptos_framework::jwks::update_federated_jwk_set(
+    /// supra_framework::jwks::update_federated_jwk_set(
     ///     jwk_owner,
     ///     b"https://accounts.google.com",
     ///     vector[utf8(b"d7b939771a7800c413f90051012d975981916d71"), utf8(b"b2620d5e7f132b52afe8875cdf3776c064249d04")],
@@ -768,7 +768,7 @@ module supra_framework::jwks {
         assert!(expected == borrow_global<ObservedJWKs>(@supra_framework).jwks, 4);
     }
 
-    #[test(fx = @aptos_framework)]
+    #[test(fx = @supra_framework)]
     fun test_observed_jwks_operations_per_key_mode(fx: &signer) acquires ObservedJWKs, PatchedJWKs, Patches {
         initialize_for_test(fx);
         features::change_feature_flags_for_testing(fx, vector[features::get_jwk_consensus_per_key_mode_feature()], vector[]);
@@ -804,7 +804,7 @@ module supra_framework::jwks {
                 },
             ]
         };
-        assert!(expected == borrow_global<PatchedJWKs>(@aptos_framework).jwks, 999);
+        assert!(expected == borrow_global<PatchedJWKs>(@supra_framework).jwks, 999);
 
         // Update a key.
         let alice_jwk_1b = new_rsa_jwk(
@@ -828,7 +828,7 @@ module supra_framework::jwks {
                 },
             ]
         };
-        assert!(expected == borrow_global<PatchedJWKs>(@aptos_framework).jwks, 999);
+        assert!(expected == borrow_global<PatchedJWKs>(@supra_framework).jwks, 999);
 
         // Delete a key.
         let delete_command = new_unsupported_jwk(
@@ -850,92 +850,7 @@ module supra_framework::jwks {
                 },
             ]
         };
-        assert!(expected == borrow_global<PatchedJWKs>(@aptos_framework).jwks, 999);
-    }
-
-    #[test(fx = @aptos_framework)]
-    fun test_observed_jwks_operations_per_key_mode(fx: &signer) acquires ObservedJWKs, PatchedJWKs, Patches {
-        initialize_for_test(fx);
-        features::change_feature_flags_for_testing(fx, vector[features::get_jwk_consensus_per_key_mode_feature()], vector[]);
-
-        let mandatory_jwk= new_rsa_jwk(
-            utf8(b"kid999"),
-            utf8(b"RS256"),
-            utf8(b"AQAB"),
-            utf8(b"999999999"),
-        );
-
-        set_patches(fx, vector[new_patch_upsert_jwk(b"alice", mandatory_jwk)]);
-
-        // Insert a key.
-        let alice_jwk_1 = new_rsa_jwk(
-            utf8(b"kid123"),
-            utf8(b"RS256"),
-            utf8(b"AQAB"),
-            utf8(b"999999999"),
-        );
-        let key_level_update_0 = ProviderJWKs {
-            issuer: b"alice",
-            version: 1,
-            jwks: vector[alice_jwk_1],
-        };
-        upsert_into_observed_jwks(fx, vector[key_level_update_0]);
-        let expected = AllProvidersJWKs {
-            entries: vector[
-                ProviderJWKs {
-                    issuer: b"alice",
-                    version: 1,
-                    jwks: vector[alice_jwk_1, mandatory_jwk],
-                },
-            ]
-        };
-        assert!(expected == borrow_global<PatchedJWKs>(@aptos_framework).jwks, 999);
-
-        // Update a key.
-        let alice_jwk_1b = new_rsa_jwk(
-            utf8(b"kid123"),
-            utf8(b"RS256"),
-            utf8(b"AQAB"),
-            utf8(b"88888888"),
-        );
-        let key_level_update_1 = ProviderJWKs {
-            issuer: b"alice",
-            version: 2,
-            jwks: vector[alice_jwk_1b],
-        };
-        upsert_into_observed_jwks(fx, vector[key_level_update_1]);
-        let expected = AllProvidersJWKs {
-            entries: vector[
-                ProviderJWKs {
-                    issuer: b"alice",
-                    version: 2,
-                    jwks: vector[alice_jwk_1b, mandatory_jwk],
-                },
-            ]
-        };
-        assert!(expected == borrow_global<PatchedJWKs>(@aptos_framework).jwks, 999);
-
-        // Delete a key.
-        let delete_command = new_unsupported_jwk(
-            b"kid123",
-            DELETE_COMMAND_INDICATOR,
-        );
-        let key_level_update_1 = ProviderJWKs {
-            issuer: b"alice",
-            version: 3,
-            jwks: vector[delete_command],
-        };
-        upsert_into_observed_jwks(fx, vector[key_level_update_1]);
-        let expected = AllProvidersJWKs {
-            entries: vector[
-                ProviderJWKs {
-                    issuer: b"alice",
-                    version: 3,
-                    jwks: vector[mandatory_jwk],
-                },
-            ]
-        };
-        assert!(expected == borrow_global<PatchedJWKs>(@aptos_framework).jwks, 999);
+        assert!(expected == borrow_global<PatchedJWKs>(@supra_framework).jwks, 999);
     }
 
     #[test]

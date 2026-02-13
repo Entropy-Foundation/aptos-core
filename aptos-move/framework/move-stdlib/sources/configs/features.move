@@ -91,16 +91,18 @@ module std::features {
         is_enabled(VM_BINARY_FORMAT_V6)
     }
 
-    /// Whether gas fees are collected and distributed to the block proposers.
+    #[deprecated]
+    /// Deprecated feature
     /// Lifetime: transient
     const COLLECT_AND_DISTRIBUTE_GAS_FEES: u64 = 6;
 
-    public fun get_collect_and_distribute_gas_fees_feature(): u64 {
-        COLLECT_AND_DISTRIBUTE_GAS_FEES
-    }
+    #[deprecated]
+    /// Deprecated feature
+    public fun get_collect_and_distribute_gas_fees_feature(): u64 { COLLECT_AND_DISTRIBUTE_GAS_FEES }
 
-    public fun collect_and_distribute_gas_fees(): bool acquires Features {
-        is_enabled(COLLECT_AND_DISTRIBUTE_GAS_FEES)
+    #[deprecated]
+    public fun collect_and_distribute_gas_fees(): bool {
+        false
     }
 
     /// Whether the new `aptos_stdlib::multi_ed25519::public_key_validate_internal_v2()` native is enabled.
@@ -400,7 +402,7 @@ module std::features {
         is_enabled(BN254_STRUCTURES)
     }
 
-    /// Deprecated by `aptos_framework::randomness_config::RandomnessConfig`.
+    /// Deprecated by `supra_framework::randomness_config::RandomnessConfig`.
     const RECONFIGURE_WITH_DKG: u64 = 45;
 
     public fun get_reconfigure_with_dkg_feature(): u64 {
@@ -437,7 +439,7 @@ module std::features {
         is_enabled(KEYLESS_BUT_ZKLESS_ACCOUNTS)
     }
 
-    /// Deprecated by `aptos_framework::jwk_consensus_config::JWKConsensusConfig`.
+    /// Deprecated by `supra_framework::jwk_consensus_config::JWKConsensusConfig`.
     const JWK_CONSENSUS: u64 = 49;
 
     public fun get_jwk_consensus_feature(): u64 {
@@ -660,6 +662,70 @@ module std::features {
         is_enabled(ABORT_IF_MULTISIG_PAYLOAD_MISMATCH)
     }
 
+    /// Whether the simulation enhancement is enabled. This enables the simulation without an authentication check,
+    /// the sponsored transaction simulation when the fee payer is set to 0x0, and the multisig transaction
+    /// simulation consistnet with the execution.
+    ///
+    /// Lifetime: transient
+    const TRANSACTION_SIMULATION_ENHANCEMENT: u64 = 78;
+
+    public fun get_transaction_simulation_enhancement_feature(): u64 { TRANSACTION_SIMULATION_ENHANCEMENT }
+
+    public fun transaction_simulation_enhancement_enabled(): bool acquires Features {
+        is_enabled(TRANSACTION_SIMULATION_ENHANCEMENT)
+    }
+
+    const COLLECTION_OWNER: u64 = 79;
+
+    public fun get_collection_owner_feature(): u64 { COLLECTION_OWNER }
+
+    public fun is_collection_owner_enabled(): bool acquires Features {
+        is_enabled(COLLECTION_OWNER)
+    }
+
+    const NATIVE_MEMORY_OPERATIONS: u64 = 80;
+
+    public fun get_native_memory_operations_feature(): u64 { NATIVE_MEMORY_OPERATIONS }
+
+    public fun is_native_memory_operations_enabled(): bool acquires Features {
+        is_enabled(NATIVE_MEMORY_OPERATIONS)
+    }
+
+    const PERMISSIONED_SIGNER: u64 = 84;
+
+    public fun get_permissioned_signer_feature(): u64 { PERMISSIONED_SIGNER }
+
+    public fun is_permissioned_signer_enabled(): bool acquires Features {
+        is_enabled(PERMISSIONED_SIGNER)
+    }
+
+    /// Whether the account abstraction is enabled.
+    ///
+    /// Lifetime: transient
+    const ACCOUNT_ABSTRACTION: u64 = 85;
+
+    public fun get_account_abstraction_feature(): u64 { ACCOUNT_ABSTRACTION }
+
+    public fun is_account_abstraction_enabled(): bool acquires Features {
+        is_enabled(ACCOUNT_ABSTRACTION)
+    }
+
+    /// Whether bytecode version v8 is enabled.
+    /// Lifetime: transient
+    ///
+    /// We do not expect use from Move, so for now only for documentation purposes here
+    const VM_BINARY_FORMAT_V8: u64 = 86;
+
+    /// Whether the batch Bulletproofs native functions are available. This is needed because of the introduction of a new native function.
+    /// Lifetime: transient
+    const BULLETPROOFS_BATCH_NATIVES: u64 = 87;
+
+    public fun get_bulletproofs_batch_feature(): u64 { BULLETPROOFS_BATCH_NATIVES }
+
+    public fun bulletproofs_batch_enabled(): bool acquires Features {
+        is_enabled(BULLETPROOFS_BATCH_NATIVES)
+    }
+
     /// Whether Supra native automation is enabled. Once enabled, the native automation feature can be utilized,
     /// enabling automation task registration, execution and cancellation.
     ///
@@ -784,6 +850,89 @@ module std::features {
         is_enabled(SUPRA_AUTOMATION_V2)
     }
 
+    /// Whether the account abstraction is enabled.
+    ///
+    /// Lifetime: transient
+    const DERIVABLE_ACCOUNT_ABSTRACTION: u64 = 97;
+
+    public fun is_derivable_account_abstraction_enabled(): bool acquires Features {
+        is_enabled(DERIVABLE_ACCOUNT_ABSTRACTION)
+    }
+
+    #[deprecated]
+    public fun is_domain_account_abstraction_enabled(): bool {
+        false
+    }
+
+    /// Whether function values are enabled.
+    /// Lifetime: transient
+    ///
+    /// We do not expect use from Move, so for now only for documentation purposes here
+    const ENABLE_FUNCTION_VALUES: u64 = 98;
+
+    /// Whether new accounts default to the Fungible Asset store.
+    /// Lifetime: transient
+    const NEW_ACCOUNTS_DEFAULT_TO_FA_STORE: u64 = 99;
+
+    public fun get_new_accounts_default_to_fa_store_feature(): u64 { NEW_ACCOUNTS_DEFAULT_TO_FA_STORE }
+
+    public fun new_accounts_default_to_fa_store_enabled(): bool acquires Features {
+        is_enabled(NEW_ACCOUNTS_DEFAULT_TO_FA_STORE)
+    }
+
+    /// Lifetime: transient
+    const DEFAULT_ACCOUNT_RESOURCE: u64 = 100;
+
+    public fun get_default_account_resource_feature(): u64 { DEFAULT_ACCOUNT_RESOURCE }
+
+    public fun is_default_account_resource_enabled(): bool acquires Features {
+        is_enabled(DEFAULT_ACCOUNT_RESOURCE)
+    }
+
+    /// If enabled, JWK consensus should run in per-key mode, where:
+    /// - The consensus is for key-level updates
+    ///   (e.g., "issuer A key 1 should be deleted", "issuer B key 2 should be upserted");
+    /// - transaction type `ValidatorTransaction::ObservedJWKUpdate` is reused;
+    /// - while a key-level update is mostly represented by a new type `KeyLevelUpdate` locally,
+    ///   For simplicity, it is represented by type `ProviderJWKs` (used to represent issuer-level update)
+    ///   in JWK Consensus messages, in validator transactions, and in Move.
+    const JWK_CONSENSUS_PER_KEY_MODE: u64 = 101;
+
+    public fun get_jwk_consensus_per_key_mode_feature(): u64 { JWK_CONSENSUS_PER_KEY_MODE }
+
+    public fun is_jwk_consensus_per_key_mode_enabled(): bool acquires Features {
+        is_enabled(JWK_CONSENSUS_PER_KEY_MODE)
+    }
+
+    /// Whether orderless transactions are enabled.
+    /// Lifetime: transient
+    const ORDERLESS_TRANSACTIONS: u64 = 103;
+
+    public fun get_orderless_transactions_feature(): u64 { ORDERLESS_TRANSACTIONS }
+
+    public fun orderless_transactions_enabled(): bool acquires Features {
+        is_enabled(ORDERLESS_TRANSACTIONS)
+    }
+
+    /// Whether to calculate the transaction fee for distribution.
+    const CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION: u64 = 105;
+
+    public fun get_calculate_transaction_fee_for_distribution_feature(): u64 { CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION }
+
+    public fun is_calculate_transaction_fee_for_distribution_enabled(): bool acquires Features {
+        is_enabled(CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION)
+    }
+
+    /// Whether to distribute transaction fee to validators.
+    const DISTRIBUTE_TRANSACTION_FEE: u64 = 106;
+
+    public fun get_distribute_transaction_fee_feature(): u64 { DISTRIBUTE_TRANSACTION_FEE }
+
+    public fun is_distribute_transaction_fee_enabled(): bool acquires Features {
+        is_enabled(DISTRIBUTE_TRANSACTION_FEE)
+    }
+
+
     // ============================================================================================
     // Feature Flag Implementation
 
@@ -823,19 +972,13 @@ module std::features {
         if (!exists<Features>(@std)) {
             move_to<Features>(framework, Features { features: vector[] })
         };
-        let features = &mut borrow_global_mut<Features>(@std).features;
-        vector::for_each_ref(
-            &enable,
-            |feature| {
-                set(features, *feature, true);
-            }
-        );
-        vector::for_each_ref(
-            &disable,
-            |feature| {
-                set(features, *feature, false);
-            }
-        );
+        let features = &mut Features[@std].features;
+        enable.for_each_ref(|feature| {
+            set(features, *feature, true);
+        });
+        disable.for_each_ref(|feature| {
+            set(features, *feature, false);
+        });
     }
 
     /// Enable and disable features for the next epoch.
@@ -848,18 +991,17 @@ module std::features {
         );
 
         // Figure out the baseline feature vec that the diff will be applied to.
-        let new_feature_vec =
-            if (exists<PendingFeatures>(@std)) {
-                // If there is a buffered feature vec, use it as the baseline.
-                let PendingFeatures { features } = move_from<PendingFeatures>(@std);
-                features
-            } else if (exists<Features>(@std)) {
-                // Otherwise, use the currently effective feature flag vec as the baseline, if it exists.
-                borrow_global<Features>(@std).features
-            } else {
-                // Otherwise, use an empty feature vec.
-                vector[]
-            };
+        let new_feature_vec = if (exists<PendingFeatures>(@std)) {
+            // If there is a buffered feature vec, use it as the baseline.
+            let PendingFeatures { features } = move_from<PendingFeatures>(@std);
+            features
+        } else if (exists<Features>(@std)) {
+            // Otherwise, use the currently effective feature flag vec as the baseline, if it exists.
+            Features[@std].features
+        } else {
+            // Otherwise, use an empty feature vec.
+            vector[]
+        };
 
         // Apply the diff and save it to the buffer.
         apply_diff(&mut new_feature_vec, enable, disable);
@@ -875,7 +1017,7 @@ module std::features {
         if (exists<PendingFeatures>(@std)) {
             let PendingFeatures { features } = move_from<PendingFeatures>(@std);
             if (exists<Features>(@std)) {
-                borrow_global_mut<Features>(@std).features = features;
+                Features[@std].features = features;
             } else {
                 move_to(framework, Features { features })
             }
@@ -885,43 +1027,38 @@ module std::features {
     #[view]
     /// Check whether the feature is enabled.
     public fun is_enabled(feature: u64): bool acquires Features {
-        exists<Features>(@std)
-            && contains(&borrow_global<Features>(@std).features, feature)
+        exists<Features>(@std) &&
+            contains(&Features[@std].features, feature)
     }
 
     /// Helper to include or exclude a feature flag.
     fun set(features: &mut vector<u8>, feature: u64, include: bool) {
         let byte_index = feature / 8;
         let bit_mask = 1 << ((feature % 8) as u8);
-        while (vector::length(features) <= byte_index) { vector::push_back(features, 0) };
-        let entry = vector::borrow_mut(features, byte_index);
-        if (include) *entry = *entry | bit_mask
-        else *entry = *entry & (0xff ^ bit_mask)
+        while (features.length() <= byte_index) {
+            features.push_back(0)
+        };
+
+        if (include)
+            features[byte_index] |= bit_mask
+        else
+            features[byte_index] &= (0xff ^ bit_mask)
     }
 
     /// Helper to check whether a feature flag is enabled.
     fun contains(features: &vector<u8>, feature: u64): bool {
         let byte_index = feature / 8;
         let bit_mask = 1 << ((feature % 8) as u8);
-        byte_index < vector::length(features)
-            && (*vector::borrow(features, byte_index) & bit_mask) != 0
+        byte_index < features.length() && (features[byte_index] & bit_mask) != 0
     }
 
-    fun apply_diff(
-        features: &mut vector<u8>, enable: vector<u64>, disable: vector<u64>
-    ) {
-        vector::for_each(
-            enable,
-            |feature| {
-                set(features, feature, true);
-            }
-        );
-        vector::for_each(
-            disable,
-            |feature| {
-                set(features, feature, false);
-            }
-        );
+    fun apply_diff(features: &mut vector<u8>, enable: vector<u64>, disable: vector<u64>) {
+        enable.for_each(|feature| {
+            set(features, feature, true);
+        });
+        disable.for_each(|feature| {
+            set(features, feature, false);
+        });
     }
 
     fun ensure_framework_signer(account: &signer) {

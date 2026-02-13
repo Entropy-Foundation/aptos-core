@@ -1,6 +1,7 @@
 /// This module defines a struct storing the metadata of the block and new block events.
 module supra_framework::block {
     use std::error;
+    use std::option;
     use std::vector;
     use aptos_std::table_with_length::{Self, TableWithLength};
     use std::option::Option;
@@ -14,6 +15,7 @@ module supra_framework::block {
     use supra_framework::state_storage;
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
+    use supra_framework::automation_registry;
 
     friend supra_framework::genesis;
 

@@ -5,12 +5,12 @@ module aptos_experimental::confidential_asset_tests {
     use std::signer;
     use std::string::utf8;
     use aptos_std::ristretto255::Scalar;
-    use aptos_framework::account;
-    use aptos_framework::chain_id;
-    use aptos_framework::coin;
-    use aptos_framework::fungible_asset::{Self, Metadata};
-    use aptos_framework::object::{Self, Object};
-    use aptos_framework::primary_fungible_store;
+    use supra_framework::account;
+    use supra_framework::chain_id;
+    use supra_framework::coin;
+    use supra_framework::fungible_asset::{Self, Metadata};
+    use supra_framework::object::{Self, Object};
+    use supra_framework::primary_fungible_store;
 
     use aptos_experimental::confidential_asset;
     use aptos_experimental::confidential_balance;
@@ -292,7 +292,7 @@ module aptos_experimental::confidential_asset_tests {
     #[
         test(
             confidential_asset = @aptos_experimental,
-            aptos_fx = @aptos_framework,
+            aptos_fx = @supra_framework,
             fa = @0xfa,
             alice = @0xa1,
             bob = @0xb0
@@ -346,7 +346,7 @@ module aptos_experimental::confidential_asset_tests {
     #[
         test(
             confidential_asset = @aptos_experimental,
-            aptos_fx = @aptos_framework,
+            aptos_fx = @supra_framework,
             fa = @0xfa,
             alice = @0xa1,
             bob = @0xb0
@@ -402,7 +402,7 @@ module aptos_experimental::confidential_asset_tests {
     #[
         test(
             confidential_asset = @aptos_experimental,
-            aptos_fx = @aptos_framework,
+            aptos_fx = @supra_framework,
             fa = @0xfa,
             alice = @0xa1,
             bob = @0xb0
@@ -468,7 +468,7 @@ module aptos_experimental::confidential_asset_tests {
     #[
         test(
             confidential_asset = @aptos_experimental,
-            aptos_fx = @aptos_framework,
+            aptos_fx = @supra_framework,
             fa = @0xfa,
             alice = @0xa1,
             bob = @0xb0
@@ -553,7 +553,7 @@ module aptos_experimental::confidential_asset_tests {
     #[
         test(
             confidential_asset = @aptos_experimental,
-            aptos_fx = @aptos_framework,
+            aptos_fx = @supra_framework,
             fa = @0xfa,
             alice = @0xa1,
             bob = @0xb0
@@ -618,7 +618,7 @@ module aptos_experimental::confidential_asset_tests {
     #[
         test(
             confidential_asset = @aptos_experimental,
-            aptos_fx = @aptos_framework,
+            aptos_fx = @supra_framework,
             fa = @0xfa,
             alice = @0xa1,
             bob = @0xb0
@@ -679,7 +679,7 @@ module aptos_experimental::confidential_asset_tests {
     #[
         test(
             confidential_asset = @aptos_experimental,
-            aptos_fx = @aptos_framework,
+            aptos_fx = @supra_framework,
             fa = @0xfa,
             alice = @0xa1,
             bob = @0xb0
@@ -750,7 +750,7 @@ module aptos_experimental::confidential_asset_tests {
     #[
         test(
             confidential_asset = @aptos_experimental,
-            aptos_fx = @aptos_framework,
+            aptos_fx = @supra_framework,
             fa = @0xfa,
             alice = @0xa1
         )
@@ -785,7 +785,7 @@ module aptos_experimental::confidential_asset_tests {
     #[
         test(
             confidential_asset = @aptos_experimental,
-            aptos_fx = @aptos_framework,
+            aptos_fx = @supra_framework,
             fa = @0xfa,
             alice = @0xa1
         )
@@ -820,7 +820,7 @@ module aptos_experimental::confidential_asset_tests {
     #[
         test(
             confidential_asset = @aptos_experimental,
-            aptos_fx = @aptos_framework,
+            aptos_fx = @supra_framework,
             alice = @0xa1
         )
     ]
@@ -850,8 +850,9 @@ module aptos_experimental::confidential_asset_tests {
         account::create_account_if_does_not_exist(alice_addr);
         coin::register<MockCoin>(&alice);
         coin::deposit(alice_addr, coin_amount);
-
+        
         coin::create_pairing<MockCoin>(&aptos_fx);
+        coin::migrate_to_fungible_store<MockCoin>(&alice);
 
         let token = coin::paired_metadata<MockCoin>().extract();
 
@@ -860,13 +861,16 @@ module aptos_experimental::confidential_asset_tests {
         confidential_asset::register(
             &alice, token, twisted_elgamal::pubkey_to_bytes(&alice_ek)
         );
+
+        aptos_std::debug::print(&std::string::utf8(b"before final deposit"));
         confidential_asset::deposit(&alice, token, 100);
+        aptos_std::debug::print(&std::string::utf8(b"final deposit"));
     }
 
     #[
         test(
             confidential_asset = @aptos_experimental,
-            aptos_fx = @aptos_framework,
+            aptos_fx = @supra_framework,
             alice = @0xa1
         )
     ]
@@ -898,6 +902,8 @@ module aptos_experimental::confidential_asset_tests {
         coin::deposit(alice_addr, coin_amount);
 
         coin::create_pairing<MockCoin>(&aptos_fx);
+        
+        coin::migrate_to_fungible_store<MockCoin>(&alice);
 
         let token = coin::paired_metadata<MockCoin>().extract();
 

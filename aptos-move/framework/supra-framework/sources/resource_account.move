@@ -268,7 +268,7 @@ module supra_framework::resource_account {
     #[test(framework = @0x1, user = @0x2345)]
     #[expected_failure(abort_code = 0x60005, location = supra_framework::coin)]
     public entry fun without_coin(framework: signer, user: signer) acquires Container {
-        let fa_features = vector[std::features::get_new_accounts_default_to_fa_store_feature(), std::features::get_new_accounts_default_to_fa_apt_store_feature(), std::features::get_operations_default_to_fa_apt_store_feature()];
+        let fa_features = vector[std::features::get_new_accounts_default_to_fa_store_feature(), std::features::get_new_accounts_default_to_fa_supra_store_feature(), std::features::get_operations_default_to_fa_supra_store_feature()];
         std::features::change_feature_flags_for_testing(&framework, vector[], fa_features);
         let user_addr = signer::address_of(&user);
         let (burn, mint) = supra_framework::supra_coin::initialize_for_test(&framework);

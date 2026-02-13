@@ -1,5 +1,5 @@
 module 0xcafe::test {
-    use aptos_framework::code;
+    use supra_framework::code;
 
     fun init_module(s: &signer) {
         // The following metadata and code corresponds to an immutable package called `Package` with compatibility
