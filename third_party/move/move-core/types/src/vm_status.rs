@@ -615,20 +615,18 @@ pub enum StatusCode {
     DKG_TRANSACTION_INVALID_EPOCH_NUM = 52,
     // DKG meta has already set so DKGMeta transaction should fail
     DKG_META_ALREADY_SET = 53,
-    // DKG meta has not been set so PublicKeyShares transaction should fail
-    DKG_META_NOT_SET = 54,
     // DKG transaction data is invalid
-    DKG_TRANSACTION_NOT_VALID = 55,
+    DKG_TRANSACTION_NOT_VALID = 54,
     // The sender of the dkg transaction is not a family node
-    DKG_TRANSACTION_SENDER_NOT_FAMILY_NODE = 56,
+    DKG_TRANSACTION_SENDER_NOT_FAMILY_NODE = 55,
     // Failed to get the public keys for the signer clan nodes
-    DKG_FAILED_TO_GET_CLAN_NODE_PUBKEYS = 57,
+    DKG_FAILED_TO_GET_CLAN_NODE_PUBKEYS = 56,
     // Failed to deserialize the aggregated signature
-    DKG_FAILED_TO_DESER_AGG_SIG = 58,
+    DKG_FAILED_TO_DESER_AGG_SIG = 57,
     // Failed to aggregate the public keys for the signer clan nodes
-    DKG_FAILED_TO_AGGREGATE_PUBLIC_KEYS = 59,
+    DKG_FAILED_TO_AGGREGATE_PUBLIC_KEYS = 58,
     // Failed to verify the clan committee aggregated signature
-    DKG_AGG_SIG_VERIFICATION_FAILED = 60,
+    DKG_AGG_SIG_VERIFICATION_FAILED = 59,
     // When a code module/script is published it is verified. These are the
     // possible errors that can arise from the verification process.
     // Verification Errors: 1000-1999
