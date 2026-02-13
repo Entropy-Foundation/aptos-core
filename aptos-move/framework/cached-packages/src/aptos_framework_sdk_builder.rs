@@ -147,6 +147,17 @@ pub enum EntryFunctionCall {
         cap_update_table: Vec<u8>,
     },
 
+    /// Cancel System automation task with specified task_index.
+    /// Only existing task, which is PENDING or ACTIVE, can be cancelled and only by task owner.
+    /// If the task is
+    ///   - active, its state is updated to be CANCELLED.
+    ///   - pending, it is removed form the list.
+    ///   - cancelled, an error is reported
+    /// Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
+    AutomationRegistryCancelSystemTask {
+        task_index: u64,
+    },
+
     /// Cancel Automation task with specified task_index.
     /// Only existing task, which is PENDING or ACTIVE, can be cancelled and only by task owner.
     /// If the task is
@@ -156,6 +167,15 @@ pub enum EntryFunctionCall {
     /// Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
     AutomationRegistryCancelTask {
         task_index: u64,
+    },
+
+    /// Immediately stops system automation tasks for the specified `task_indexes`.
+    /// Only tasks that exist and are owned by the sender can be stopped.
+    /// If any of the specified tasks are not owned by the sender, the transaction will abort.
+    /// When a task is stopped, the committed gas for the next epoch is reduced
+    /// by the max gas amount of the stopped task.
+    AutomationRegistryStopSystemTasks {
+        task_indexes: Vec<u64>,
     },
 
     /// Immediately stops automation tasks for the specified `task_indexes`.
@@ -545,6 +565,11 @@ pub enum EntryFunctionCall {
         amount: u64,
     },
 
+    PboDelegationPoolAdminIncreaseLastUnlockPeriod {
+        pool_address: AccountAddress,
+        additional_periods: u64,
+    },
+
     /// Allows a delegator to delegate its voting power to a voter. If this delegator already has a delegated voter,
     /// this change won't take effects until the next lockup period.
     PboDelegationPoolDelegateVotingPower {
@@ -681,6 +706,15 @@ pub enum EntryFunctionCall {
         unlock_denominator: u64,
         unlock_start_time: u64,
         unlock_duration: u64,
+    },
+
+    PboDelegationPoolUpdateUnlockingScheduleUnchecked {
+        pool_address: AccountAddress,
+        unlock_numerators: Vec<u64>,
+        unlock_denominator: u64,
+        unlock_start_time: u64,
+        unlock_duration: u64,
+        last_unlock_period: u64,
     },
 
     /// Withdraw `amount` of owned inactive stake from the delegation pool at `pool_address`.
@@ -1134,6 +1168,11 @@ pub enum EntryFunctionCall {
         contract_addresses: Vec<AccountAddress>,
     },
 
+    VestingWithoutStakingAdminDelayVesting {
+        contract_address: AccountAddress,
+        delay_periods: u64,
+    },
+
     /// Withdraw all funds to the preset vesting contract's withdrawal address. This can only be called if the contract
     /// has already been terminated.
     VestingWithoutStakingAdminWithdraw {
@@ -1269,8 +1308,14 @@ impl EntryFunctionCall {
                 new_public_key_bytes,
                 cap_update_table,
             ),
+            AutomationRegistryCancelSystemTask { task_index } => {
+                automation_registry_cancel_system_task(task_index)
+            },
             AutomationRegistryCancelTask { task_index } => {
                 automation_registry_cancel_task(task_index)
+            },
+            AutomationRegistryStopSystemTasks { task_indexes } => {
+                automation_registry_stop_system_tasks(task_indexes)
             },
             AutomationRegistryStopTasks { task_indexes } => {
                 automation_registry_stop_tasks(task_indexes)
@@ -1583,6 +1628,13 @@ impl EntryFunctionCall {
                 pool_address,
                 amount,
             } => pbo_delegation_pool_add_stake(pool_address, amount),
+            PboDelegationPoolAdminIncreaseLastUnlockPeriod {
+                pool_address,
+                additional_periods,
+            } => pbo_delegation_pool_admin_increase_last_unlock_period(
+                pool_address,
+                additional_periods,
+            ),
             PboDelegationPoolDelegateVotingPower {
                 pool_address,
                 new_voter,
@@ -1697,6 +1749,21 @@ impl EntryFunctionCall {
                 unlock_denominator,
                 unlock_start_time,
                 unlock_duration,
+            ),
+            PboDelegationPoolUpdateUnlockingScheduleUnchecked {
+                pool_address,
+                unlock_numerators,
+                unlock_denominator,
+                unlock_start_time,
+                unlock_duration,
+                last_unlock_period,
+            } => pbo_delegation_pool_update_unlocking_schedule_unchecked(
+                pool_address,
+                unlock_numerators,
+                unlock_denominator,
+                unlock_start_time,
+                unlock_duration,
+                last_unlock_period,
             ),
             PboDelegationPoolWithdraw {
                 pool_address,
@@ -1949,6 +2016,10 @@ impl EntryFunctionCall {
             } => vesting_update_voter(contract_address, new_voter),
             VestingVest { contract_address } => vesting_vest(contract_address),
             VestingVestMany { contract_addresses } => vesting_vest_many(contract_addresses),
+            VestingWithoutStakingAdminDelayVesting {
+                contract_address,
+                delay_periods,
+            } => vesting_without_staking_admin_delay_vesting(contract_address, delay_periods),
             VestingWithoutStakingAdminWithdraw { contract_address } => {
                 vesting_without_staking_admin_withdraw(contract_address)
             },
@@ -2288,6 +2359,28 @@ pub fn account_rotate_authentication_key_with_rotation_capability(
     ))
 }
 
+/// Cancel System automation task with specified task_index.
+/// Only existing task, which is PENDING or ACTIVE, can be cancelled and only by task owner.
+/// If the task is
+///   - active, its state is updated to be CANCELLED.
+///   - pending, it is removed form the list.
+///   - cancelled, an error is reported
+/// Committed gas-limit is updated by reducing it with the max-gas-amount of the cancelled task.
+pub fn automation_registry_cancel_system_task(task_index: u64) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("automation_registry").to_owned(),
+        ),
+        ident_str!("cancel_system_task").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&task_index).unwrap()],
+    ))
+}
+
 /// Cancel Automation task with specified task_index.
 /// Only existing task, which is PENDING or ACTIVE, can be cancelled and only by task owner.
 /// If the task is
@@ -2307,6 +2400,26 @@ pub fn automation_registry_cancel_task(task_index: u64) -> TransactionPayload {
         ident_str!("cancel_task").to_owned(),
         vec![],
         vec![bcs::to_bytes(&task_index).unwrap()],
+    ))
+}
+
+/// Immediately stops system automation tasks for the specified `task_indexes`.
+/// Only tasks that exist and are owned by the sender can be stopped.
+/// If any of the specified tasks are not owned by the sender, the transaction will abort.
+/// When a task is stopped, the committed gas for the next epoch is reduced
+/// by the max gas amount of the stopped task.
+pub fn automation_registry_stop_system_tasks(task_indexes: Vec<u64>) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("automation_registry").to_owned(),
+        ),
+        ident_str!("stop_system_tasks").to_owned(),
+        vec![],
+        vec![bcs::to_bytes(&task_indexes).unwrap()],
     ))
 }
 
@@ -3432,6 +3545,27 @@ pub fn pbo_delegation_pool_add_stake(
     ))
 }
 
+pub fn pbo_delegation_pool_admin_increase_last_unlock_period(
+    pool_address: AccountAddress,
+    additional_periods: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("pbo_delegation_pool").to_owned(),
+        ),
+        ident_str!("admin_increase_last_unlock_period").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&pool_address).unwrap(),
+            bcs::to_bytes(&additional_periods).unwrap(),
+        ],
+    ))
+}
+
 /// Allows a delegator to delegate its voting power to a voter. If this delegator already has a delegated voter,
 /// this change won't take effects until the next lockup period.
 pub fn pbo_delegation_pool_delegate_voting_power(
@@ -3819,6 +3953,35 @@ pub fn pbo_delegation_pool_update_unlocking_schedule(
             bcs::to_bytes(&unlock_denominator).unwrap(),
             bcs::to_bytes(&unlock_start_time).unwrap(),
             bcs::to_bytes(&unlock_duration).unwrap(),
+        ],
+    ))
+}
+
+pub fn pbo_delegation_pool_update_unlocking_schedule_unchecked(
+    pool_address: AccountAddress,
+    unlock_numerators: Vec<u64>,
+    unlock_denominator: u64,
+    unlock_start_time: u64,
+    unlock_duration: u64,
+    last_unlock_period: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("pbo_delegation_pool").to_owned(),
+        ),
+        ident_str!("update_unlocking_schedule_unchecked").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&pool_address).unwrap(),
+            bcs::to_bytes(&unlock_numerators).unwrap(),
+            bcs::to_bytes(&unlock_denominator).unwrap(),
+            bcs::to_bytes(&unlock_start_time).unwrap(),
+            bcs::to_bytes(&unlock_duration).unwrap(),
+            bcs::to_bytes(&last_unlock_period).unwrap(),
         ],
     ))
 }
@@ -5293,6 +5456,27 @@ pub fn vesting_vest_many(contract_addresses: Vec<AccountAddress>) -> Transaction
     ))
 }
 
+pub fn vesting_without_staking_admin_delay_vesting(
+    contract_address: AccountAddress,
+    delay_periods: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("vesting_without_staking").to_owned(),
+        ),
+        ident_str!("admin_delay_vesting").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&contract_address).unwrap(),
+            bcs::to_bytes(&delay_periods).unwrap(),
+        ],
+    ))
+}
+
 /// Withdraw all funds to the preset vesting contract's withdrawal address. This can only be called if the contract
 /// has already been terminated.
 pub fn vesting_without_staking_admin_withdraw(
@@ -5659,12 +5843,36 @@ mod decoder {
         }
     }
 
+    pub fn automation_registry_cancel_system_task(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::AutomationRegistryCancelSystemTask {
+                task_index: bcs::from_bytes(script.args().get(0)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn automation_registry_cancel_task(
         payload: &TransactionPayload,
     ) -> Option<EntryFunctionCall> {
         if let TransactionPayload::EntryFunction(script) = payload {
             Some(EntryFunctionCall::AutomationRegistryCancelTask {
                 task_index: bcs::from_bytes(script.args().get(0)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn automation_registry_stop_system_tasks(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::AutomationRegistryStopSystemTasks {
+                task_indexes: bcs::from_bytes(script.args().get(0)?).ok()?,
             })
         } else {
             None
@@ -6321,6 +6529,21 @@ mod decoder {
         }
     }
 
+    pub fn pbo_delegation_pool_admin_increase_last_unlock_period(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(
+                EntryFunctionCall::PboDelegationPoolAdminIncreaseLastUnlockPeriod {
+                    pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
+                    additional_periods: bcs::from_bytes(script.args().get(1)?).ok()?,
+                },
+            )
+        } else {
+            None
+        }
+    }
+
     pub fn pbo_delegation_pool_delegate_voting_power(
         payload: &TransactionPayload,
     ) -> Option<EntryFunctionCall> {
@@ -6552,6 +6775,25 @@ mod decoder {
                     unlock_denominator: bcs::from_bytes(script.args().get(2)?).ok()?,
                     unlock_start_time: bcs::from_bytes(script.args().get(3)?).ok()?,
                     unlock_duration: bcs::from_bytes(script.args().get(4)?).ok()?,
+                },
+            )
+        } else {
+            None
+        }
+    }
+
+    pub fn pbo_delegation_pool_update_unlocking_schedule_unchecked(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(
+                EntryFunctionCall::PboDelegationPoolUpdateUnlockingScheduleUnchecked {
+                    pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
+                    unlock_numerators: bcs::from_bytes(script.args().get(1)?).ok()?,
+                    unlock_denominator: bcs::from_bytes(script.args().get(2)?).ok()?,
+                    unlock_start_time: bcs::from_bytes(script.args().get(3)?).ok()?,
+                    unlock_duration: bcs::from_bytes(script.args().get(4)?).ok()?,
+                    last_unlock_period: bcs::from_bytes(script.args().get(5)?).ok()?,
                 },
             )
         } else {
@@ -7423,6 +7665,19 @@ mod decoder {
         }
     }
 
+    pub fn vesting_without_staking_admin_delay_vesting(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::VestingWithoutStakingAdminDelayVesting {
+                contract_address: bcs::from_bytes(script.args().get(0)?).ok()?,
+                delay_periods: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn vesting_without_staking_admin_withdraw(
         payload: &TransactionPayload,
     ) -> Option<EntryFunctionCall> {
@@ -7627,8 +7882,16 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
             Box::new(decoder::account_rotate_authentication_key_with_rotation_capability),
         );
         map.insert(
+            "automation_registry_cancel_system_task".to_string(),
+            Box::new(decoder::automation_registry_cancel_system_task),
+        );
+        map.insert(
             "automation_registry_cancel_task".to_string(),
             Box::new(decoder::automation_registry_cancel_task),
+        );
+        map.insert(
+            "automation_registry_stop_system_tasks".to_string(),
+            Box::new(decoder::automation_registry_stop_system_tasks),
         );
         map.insert(
             "automation_registry_stop_tasks".to_string(),
@@ -7819,6 +8082,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
             Box::new(decoder::pbo_delegation_pool_add_stake),
         );
         map.insert(
+            "pbo_delegation_pool_admin_increase_last_unlock_period".to_string(),
+            Box::new(decoder::pbo_delegation_pool_admin_increase_last_unlock_period),
+        );
+        map.insert(
             "pbo_delegation_pool_delegate_voting_power".to_string(),
             Box::new(decoder::pbo_delegation_pool_delegate_voting_power),
         );
@@ -7878,6 +8145,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "pbo_delegation_pool_update_unlocking_schedule".to_string(),
             Box::new(decoder::pbo_delegation_pool_update_unlocking_schedule),
+        );
+        map.insert(
+            "pbo_delegation_pool_update_unlocking_schedule_unchecked".to_string(),
+            Box::new(decoder::pbo_delegation_pool_update_unlocking_schedule_unchecked),
         );
         map.insert(
             "pbo_delegation_pool_withdraw".to_string(),
@@ -8168,6 +8439,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "vesting_vest_many".to_string(),
             Box::new(decoder::vesting_vest_many),
+        );
+        map.insert(
+            "vesting_without_staking_admin_delay_vesting".to_string(),
+            Box::new(decoder::vesting_without_staking_admin_delay_vesting),
         );
         map.insert(
             "vesting_without_staking_admin_withdraw".to_string(),
