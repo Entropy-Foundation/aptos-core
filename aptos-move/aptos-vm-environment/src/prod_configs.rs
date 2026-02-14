@@ -142,11 +142,13 @@ pub fn aptos_prod_vm_config(
     let deserializer_config = aptos_prod_deserializer_config(features);
     let verifier_config = aptos_prod_verifier_config(gas_feature_version, features);
 
-    let layout_max_size = if gas_feature_version >= RELEASE_V1_30 {
-        512
-    } else {
-        256
-    };
+    // TODO: We need to study the impact of this and specially configs associated with RELEASE_V1_30.
+    // let layout_max_size = if gas_feature_version >= RELEASE_V1_30 {
+    //     512
+    // } else {
+    //     256
+    // };
+    let layout_max_size = 512;
 
     // Value runtime depth checks have been introduced together with function values and are only
     // enabled when the function values are enabled. Previously, checks were performed over types
