@@ -17,19 +17,34 @@ module supra_framework::committee_map {
     use supra_framework::account::{Self, new_event_handle};
 
     /// The number of committee is not equal to the number of committee member
-    const INVALID_COMMITTEE_NUMBERS: u64 = 4;
+    const EINVALID_COMMITTEE_NUMBERS: u64 = 4;
 
     /// The node is not found in the committee
-    const NODE_NOT_FOUND: u64 = 5;
+    const ENODE_NOT_FOUND: u64 = 5;
 
     /// The committee is not found
-    const INVALID_COMMITTEE_ID: u64 = 6;
+    const EINVALID_COMMITTEE_ID: u64 = 6;
 
     /// The committee type is invalid
-    const INVALID_COMMITTEE_TYPE: u64 = 7;
+    const EINVALID_COMMITTEE_TYPE: u64 = 7;
 
     /// The number of nodes in the committee is invalid
-    const INVALID_NODE_NUMBERS: u64 = 8;
+    const EINVALID_NODE_NUMBERS: u64 = 8;
+
+    /// The number of nodes in the CLAN is invalid
+    const EINVALID_CLAN_NODE_NUMBERS: u64 = 9;
+
+    /// The number of nodes in the FAMILY is invalid
+    const EINVALID_FAMILIY_NODE_NUMBERS: u64 = 10;
+
+    /// The number of nodes in the TRIBE is invalid
+    const EINVALID_TRIBE_NODE_NUMBERS: u64 = 11;
+
+    /// The number of nodes in the committee is ZERO
+    const EZERO_COMMITTEE_NODE_NUMBER: u64 = 12;
+
+    /// The number of nodes in the CLAN is too small or even
+    const ECLAN_TOO_SMALL_OR_EVEN_NODES_IN_CLAN: u64 = 13;
 
     /// Define the CommitteeType as constants
     const FAMILY: u8 = 1;
@@ -138,7 +153,7 @@ module supra_framework::committee_map {
     }
     /// Internal - Assert if the node exists in the committee
     fun ensure_node_address_exist(committee: &CommitteeInfo, node_address: address) {
-        assert!(does_node_exist(committee, node_address), error::invalid_argument(NODE_NOT_FOUND))
+        assert!(does_node_exist(committee, node_address), error::invalid_argument(ENODE_NOT_FOUND))
     }
 
     /// Internal - create OwnerCap
@@ -183,24 +198,24 @@ module supra_framework::committee_map {
 
     // Function to validate the committee type from an integer
     fun validate_committee_type(committee_type: u8, num_of_nodes: u64): u8 {
-        assert!(committee_type >= FAMILY && committee_type <= TRIBE, INVALID_COMMITTEE_TYPE);
+        assert!(committee_type >= FAMILY && committee_type <= TRIBE, EINVALID_COMMITTEE_TYPE);
         if (committee_type == FAMILY) {
             // f+1, number of nodes in a family committee should be greater than 1
-            assert!(num_of_nodes > 1, INVALID_NODE_NUMBERS);
+            assert!(num_of_nodes > 1, EINVALID_FAMILIY_NODE_NUMBERS);
         } else if (committee_type == CLAN) {
             // 2f+1, number of nodes in a clan committee should be odd and greater than or equal to 3
-            assert!(num_of_nodes >= 3 && num_of_nodes % 2 == 1, INVALID_NODE_NUMBERS);
+            assert!(num_of_nodes >= 3 && num_of_nodes % 2 == 1, ECLAN_TOO_SMALL_OR_EVEN_NODES_IN_CLAN);
         } else {
             // 3f+1, number of nodes in a tribe committee should be in the format of 3f+1 and greater than or equal to 4
-            assert!(num_of_nodes >= 4 && (num_of_nodes - 1) % 3 == 0, INVALID_NODE_NUMBERS);
+            assert!(num_of_nodes >= 4 && (num_of_nodes - 1) % 3 == 0, EINVALID_TRIBE_NODE_NUMBERS);
         };
         committee_type
     }
 
     /// Ensures removing exactly one member keeps the committee type invariants valid.
-    fun validate_committee_type_after_member_removal(committee: &CommitteeInfo) {
+    fun assert_removal_allowed(committee: &CommitteeInfo) {
         let current_num_of_nodes = simple_map::length(&committee.map);
-        assert!(current_num_of_nodes > 0, INVALID_NODE_NUMBERS);
+        assert!(current_num_of_nodes > 0, EZERO_COMMITTEE_NODE_NUMBER);
         validate_committee_type(committee.committee_type, current_num_of_nodes - 1);
     }
 
@@ -256,7 +271,7 @@ module supra_framework::committee_map {
         let committee = simple_map::borrow(&committee_store.committee_map, &id);
         let (addrs, nodes) = simple_map::to_vec_pair(committee.map);
         let (flag, index) = vector::index_of(&addrs, &node_address);
-        assert!(flag, error::invalid_argument(NODE_NOT_FOUND));
+        assert!(flag, error::invalid_argument(ENODE_NOT_FOUND));
         let node_info = vector::borrow(&nodes, index);
 
         NodeData {
@@ -343,27 +358,27 @@ module supra_framework::committee_map {
         let node_address_len = vector::length(&node_addresses);
         assert!(
             node_address_len == vector::length(&ip_public_address),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EEINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             node_address_len == vector::length(&node_public_key),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EEINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             node_address_len == vector::length(&network_public_key),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EEINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             node_address_len == vector::length(&cg_public_key),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EEINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             node_address_len == vector::length(&network_port),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EEINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             node_address_len == vector::length(&rpc_port),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EEINVALID_COMMITTEE_NUMBERS)
         );
         // Only the OwnerCap capability can access it
         let _acquire = &capability::acquire(owner_signer, &OwnerCap {});
@@ -437,31 +452,31 @@ module supra_framework::committee_map {
         let ids_len = vector::length(&ids);
         assert!(
             ids_len == vector::length(&node_addresses_bulk),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             ids_len == vector::length(&ip_public_address_bulk),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             ids_len == vector::length(&node_public_key_bulk),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             ids_len == vector::length(&network_public_key_bulk),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             ids_len == vector::length(&cg_public_key_bulk),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             ids_len == vector::length(&network_port_bulk),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             ids_len == vector::length(&rpc_por_bulkt),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EINVALID_COMMITTEE_NUMBERS)
         );
         while (vector::length(&ids) != 0) {
             let id = vector::pop_back(&mut ids);
@@ -501,7 +516,7 @@ module supra_framework::committee_map {
         let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
         assert!(
             simple_map::contains_key(&committee_store.committee_map, &id),
-            error::invalid_argument(INVALID_COMMITTEE_ID)
+            error::invalid_argument(EINVALID_COMMITTEE_ID)
         );
         let (id, committee_info) = simple_map::remove(&mut committee_store.committee_map, &id);
         // Also remove the node_to_committee_map
@@ -560,7 +575,7 @@ module supra_framework::committee_map {
             if (old_committee_id != id && simple_map::contains_key(&committee_store.committee_map, &old_committee_id)) {
                 let old_committee = simple_map::borrow_mut(&mut committee_store.committee_map, &old_committee_id);
                 if (does_node_exist(old_committee, node_address)) {
-                    validate_committee_type_after_member_removal(old_committee);
+                    assert_removal_allowed(old_committee);
                     let (_, old_node_info) = simple_map::remove(&mut old_committee.map, &node_address);
                     emit_event(
                         &mut event_handler.remove_committee_member,
@@ -619,31 +634,31 @@ module supra_framework::committee_map {
         // Assert the length of the vector for two are the same
         assert!(
             vector::length(&ids) == vector::length(&node_addresses),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             vector::length(&ids) == vector::length(&ip_public_address),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             vector::length(&ids) == vector::length(&node_public_key),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             vector::length(&ids) == vector::length(&network_public_key),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             vector::length(&ids) == vector::length(&cg_public_key),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             vector::length(&ids) == vector::length(&network_port),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EINVALID_COMMITTEE_NUMBERS)
         );
         assert!(
             vector::length(&ids) == vector::length(&rpc_port),
-            error::invalid_argument(INVALID_COMMITTEE_NUMBERS)
+            error::invalid_argument(EINVALID_COMMITTEE_NUMBERS)
         );
         while (vector::length(&ids) != 0) {
             let id = vector::pop_back(&mut ids);
@@ -682,7 +697,7 @@ module supra_framework::committee_map {
         let committee_store = borrow_global_mut<CommitteeInfoStore>(com_store_addr);
         let committee = simple_map::borrow_mut(&mut committee_store.committee_map, &id);
         ensure_node_address_exist(committee, node_address);
-        validate_committee_type_after_member_removal(committee);
+        assert_removal_allowed(committee);
         let (_, node_info) = simple_map::remove(&mut committee.map, &node_address);
         let event_handler = borrow_global_mut<SupraCommitteeEventHandler>(get_committeeInfo_address(owner_signer));
         emit_event(
@@ -909,7 +924,7 @@ module supra_framework::committee_map {
     }
 
     #[test(owner_signer = @0xCEFEF)]
-    #[expected_failure(abort_code = INVALID_NODE_NUMBERS, location = Self)]
+    #[expected_failure(abort_code = EINVALID_NODE_NUMBERS, location = Self)]
     public entry fun test_remove_committee_member_type_validation(
         owner_signer: &signer
     ) acquires CommitteeInfoStore, SupraCommitteeEventHandler {
@@ -932,7 +947,7 @@ module supra_framework::committee_map {
     }
 
     #[test(owner_signer = @0xCEFEF)]
-    #[expected_failure(abort_code = INVALID_NODE_NUMBERS, location = Self)]
+    #[expected_failure(abort_code = EINVALID_NODE_NUMBERS, location = Self)]
     public entry fun test_transfer_member_type_validation(
         owner_signer: &signer
     ) acquires CommitteeInfoStore, SupraCommitteeEventHandler {
