@@ -4,6 +4,7 @@ module std::test_leader_ban_registry {
     use std::option;
     use std::vector;
     use aptos_std::ed25519;
+    use supra_framework::validator_public_keys;
     use supra_framework::supra_coin;
     use supra_framework::coin;
     use supra_framework::supra_coin::SupraCoin;
@@ -21,10 +22,10 @@ module std::test_leader_ban_registry {
         validator_4: &signer
     ) {
         // initialise stake module
-        let (_v_1_s_key, v_1_p_key) = ed25519::generate_keys();
-        let (_v_2_s_key, v_2_p_key) = ed25519::generate_keys();
-        let (_v_3_s_key, v_3_p_key) = ed25519::generate_keys();
-        let (_v_4_s_key, v_4_p_key) = ed25519::generate_keys();
+        let (_v_1_s_key, v_1_p_key) = validator_public_keys::generate_keys();
+        let (_v_2_s_key, v_2_p_key) = validator_public_keys::generate_keys();
+        let (_v_3_s_key, v_3_p_key) = validator_public_keys::generate_keys();
+        let (_v_4_s_key, v_4_p_key) = validator_public_keys::generate_keys();
 
         stake::initialize_for_test(sender);
         account::create_account_for_test(signer::address_of(validator_1));
@@ -80,25 +81,25 @@ module std::test_leader_ban_registry {
         );
 
         stake::join_validator_set_for_test(
-            &ed25519::public_key_to_unvalidated(&v_4_p_key),
+            &v_4_p_key,
             validator_4,
             signer::address_of(validator_4),
             false
         );
         stake::join_validator_set_for_test(
-            &ed25519::public_key_to_unvalidated(&v_3_p_key),
+            &v_3_p_key,
             validator_3,
             signer::address_of(validator_3),
             false
         );
         stake::join_validator_set_for_test(
-            &ed25519::public_key_to_unvalidated(&v_2_p_key),
+            &v_2_p_key,
             validator_2,
             signer::address_of(validator_2),
             false
         );
         stake::join_validator_set_for_test(
-            &ed25519::public_key_to_unvalidated(&v_1_p_key),
+            &v_1_p_key,
             validator_1,
             signer::address_of(validator_1),
             true
