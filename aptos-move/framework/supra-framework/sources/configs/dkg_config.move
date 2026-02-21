@@ -9,7 +9,9 @@ module supra_framework::dkg_config {
     use supra_framework::validator_public_keys::{
         CertificateThresholdType,
         validity_certificate_type,
-        quorum_certificate_type
+        quorum_certificate_type,
+        bcft_quorum_certificate_type,
+        clan_majority_certificate_type,
     };
     #[test_only]
     use supra_framework::validator_public_keys::unanimous_certificate_type;
@@ -159,8 +161,8 @@ module supra_framework::dkg_config {
     /// Returns the default DKG configuration:
     /// - Dealer threshold: quorum_certificate_type()
     /// - Receiver committees: 
-    ///   - [(is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = validity_certificate_type()), 
-    ///   - (is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = quorum_certificate_type())]
+    ///   - [(is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = bcft_quorum_certificate_type()), 
+    ///   - (is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = clan_majority_certificate_type())]
     public fun default(): DkgConfig {
         DkgConfig {
             dealer_committee_threshold_type: quorum_certificate_type(),
@@ -168,12 +170,12 @@ module supra_framework::dkg_config {
                 ReceiverCommitteeConfig {
                     is_resharing: false,
                     committee_threshold_type: quorum_certificate_type(),
-                    dkg_threshold_type: validity_certificate_type(),
+                    dkg_threshold_type: bcft_quorum_certificate_type(),
                 },
                 ReceiverCommitteeConfig {
                     is_resharing: false,
                     committee_threshold_type: quorum_certificate_type(),
-                    dkg_threshold_type: quorum_certificate_type(),
+                    dkg_threshold_type: clan_majority_certificate_type(),
                 },
             ],
         }
@@ -247,17 +249,17 @@ module supra_framework::dkg_config {
         let receivers = get_receiver_committee_configs(&config);
         assert!(vector::length(&receivers) == 2, 2);
 
-        // First receiver: (false, quorum, validity)
+        // First receiver: (false, quorum, bcft_quorum)
         let r0 = vector::borrow(&receivers, 0);
         assert!(!get_is_resharing(r0), 3);
         assert!(get_committee_threshold_type(r0) == quorum_certificate_type(), 4);
-        assert!(get_dkg_threshold_type(r0) == validity_certificate_type(), 5);
+        assert!(get_dkg_threshold_type(r0) == bcft_quorum_certificate_type(), 5);
 
-        // Second receiver: (false, quorum,quorum)
+        // Second receiver: (false, quorum, clan_majority)
         let r1 = vector::borrow(&receivers, 1);
         assert!(!get_is_resharing(r1), 6);
         assert!(get_committee_threshold_type(r1) == quorum_certificate_type(), 4);
-        assert!(get_dkg_threshold_type(r1) == quorum_certificate_type(), 6);
+        assert!(get_dkg_threshold_type(r1) == clan_majority_certificate_type(), 6);
     }
 
     #[test(framework = @0x1)]
@@ -269,8 +271,8 @@ module supra_framework::dkg_config {
         let new_config = new(
             validity_certificate_type(),  // Change dealer to validity
             vector[
-                new_receiver_committee_config(true, quorum_certificate_type(), validity_certificate_type()),
-                new_receiver_committee_config(true, quorum_certificate_type(), quorum_certificate_type()),
+                new_receiver_committee_config(true, quorum_certificate_type(), bcft_quorum_certificate_type()),
+                new_receiver_committee_config(true, quorum_certificate_type(), clan_majority_certificate_type()),
             ]
         );
 
@@ -332,8 +334,8 @@ module supra_framework::dkg_config {
         let good_config = new(
             quorum_certificate_type(),
             vector[
-                new_receiver_committee_config(true, quorum_certificate_type(), validity_certificate_type()),   // Exists in default
-                new_receiver_committee_config(true, quorum_certificate_type(), quorum_certificate_type()),     // Exists in default
+                new_receiver_committee_config(true, quorum_certificate_type(), bcft_quorum_certificate_type()),
+                new_receiver_committee_config(true, quorum_certificate_type(), clan_majority_certificate_type()),
             ]
         );
         

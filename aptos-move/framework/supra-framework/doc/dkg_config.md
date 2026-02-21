@@ -363,8 +363,8 @@ Create a new ReceiverCommitteeConfig.
 Returns the default DKG configuration:
 - Dealer threshold: quorum_certificate_type()
 - Receiver committees:
-- [(is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = validity_certificate_type()),
-- (is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = quorum_certificate_type())]
+- [(is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = bcft_quorum_certificate_type()),
+- (is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = clan_majority_certificate_type())]
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_default">default</a>(): <a href="dkg_config.md#0x1_dkg_config_DkgConfig">dkg_config::DkgConfig</a>
@@ -383,12 +383,12 @@ Returns the default DKG configuration:
             <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
                 is_resharing: <b>false</b>,
                 committee_threshold_type: quorum_certificate_type(),
-                dkg_threshold_type: validity_certificate_type(),
+                dkg_threshold_type: bcft_quorum_certificate_type(),
             },
             <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
                 is_resharing: <b>false</b>,
                 committee_threshold_type: quorum_certificate_type(),
-                dkg_threshold_type: quorum_certificate_type(),
+                dkg_threshold_type: clan_majority_certificate_type(),
             },
         ],
     }
