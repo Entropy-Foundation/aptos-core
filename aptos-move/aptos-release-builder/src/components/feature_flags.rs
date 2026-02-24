@@ -132,6 +132,7 @@ pub enum FeatureFlag {
     SupraAutomationV2,
     SupraBlsKeys,
     SupraBcftCertificates,
+    SupraTransactionInclusionProofs,
 }
 
 fn generate_features_blob(writer: &CodeWriter, data: &[u64]) {
@@ -344,6 +345,9 @@ impl From<FeatureFlag> for AptosFeatureFlag {
             FeatureFlag::SupraAutomationV2 => AptosFeatureFlag::SUPRA_AUTOMATION_V2,
             FeatureFlag::SupraBlsKeys => AptosFeatureFlag::SUPRA_BLS_KEYS,
             FeatureFlag::SupraBcftCertificates => AptosFeatureFlag::SUPRA_BCFT_CERTIFICATES,
+            FeatureFlag::SupraTransactionInclusionProofs => {
+                AptosFeatureFlag::SUPRA_TRANSACTIONS_INCLUSION_PROOFS
+            },
         }
     }
 }
@@ -485,6 +489,9 @@ impl From<AptosFeatureFlag> for FeatureFlag {
             AptosFeatureFlag::SUPRA_AUTOMATION_V2 => FeatureFlag::SupraAutomationV2,
             AptosFeatureFlag::SUPRA_BLS_KEYS => FeatureFlag::SupraBlsKeys,
             AptosFeatureFlag::SUPRA_BCFT_CERTIFICATES => FeatureFlag::SupraBcftCertificates,
+            AptosFeatureFlag::SUPRA_TRANSACTIONS_INCLUSION_PROOFS => {
+                FeatureFlag::SupraTransactionInclusionProofs
+            },
         }
     }
 }
