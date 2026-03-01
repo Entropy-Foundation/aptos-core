@@ -9,7 +9,6 @@ use crate::{
     MoveValue, VerifyInput, VerifyInputWithRecursion, U64,
 };
 use alloy::primitives::Keccak256;
-use alloy_rlp::Encodable;
 use anyhow::{anyhow, bail, Context as AnyhowContext, Error as AnyhowError};
 use aptos_crypto::{
     ed25519::{self, Ed25519PublicKey, ED25519_PUBLIC_KEY_LENGTH, ED25519_SIGNATURE_LENGTH},
@@ -881,7 +880,7 @@ pub struct EventV1 {
     pub typ: MoveType,
     /// The JSON representation of the event
     pub data: serde_json::Value,
-    /// The hash of the event, derived from `RLP(event)` + `keccak256`.
+    /// The hash of the event, derived from `keccak256`.
     ///
     /// TODO: Yes, you are correct—this is a hack that saves us from making a large number of changes
     /// in the `rpc_node` just to support `EventV2`. Please do not take this hack lightly; take a
@@ -896,10 +895,8 @@ pub struct EventV1 {
 
 impl From<(&ContractEvent, serde_json::Value)> for EventV1 {
     fn from((event, data): (&ContractEvent, serde_json::Value)) -> Self {
-        let mut buf = Vec::new();
-        Encodable::encode(&event, &mut buf);
         let mut hasher = Keccak256::new();
-        hasher.update(buf);
+        hasher.update(event.as_bytes_for_hash());
         let hash = Some(HashValue(aptos_crypto::HashValue::new(*hasher.finalize())));
 
         match event {
@@ -925,7 +922,7 @@ impl From<(&ContractEvent, serde_json::Value)> for EventV1 {
 /// This type is a v2 of [EventV1] with the hash.
 ///
 /// The `hash` field is computed by:
-/// 1. Encoding the `event` structure using `RLP` (Recursive Length Prefix).
+/// 1. Encoding the `event` structure using `as_bytes_for_hash` method of [`ContractEvent`].
 /// 2. Hashing the resulting byte array using the `Keccak-256`.
 // Note: For API types versioning, our team follows a full-clone approach over composition
 // due to its flexibility. Therefore, a full clone is used here instead of composition.
@@ -940,16 +937,14 @@ pub struct EventV2 {
     pub typ: MoveType,
     /// The JSON representation of the event
     pub data: serde_json::Value,
-    /// The hash of the event, derived from `RLP(event)` + `keccak256`.
+    /// The hash of the event, derived from `keccak256`.
     pub hash: HashValue,
 }
 
 impl From<(&ContractEvent, serde_json::Value)> for EventV2 {
     fn from((event, data): (&ContractEvent, serde_json::Value)) -> Self {
-        let mut buf = Vec::new();
-        Encodable::encode(&event, &mut buf);
         let mut hasher = Keccak256::new();
-        hasher.update(buf);
+        hasher.update(event.as_bytes_for_hash());
         let hash = HashValue(aptos_crypto::HashValue::new(*hasher.finalize()));
 
         match event {

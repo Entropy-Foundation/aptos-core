@@ -26,7 +26,6 @@ ark-ff = { workspace = true }
 ark-groth16 = { workspace = true }
 ark-serialize = { workspace = true }
 arr_macro = { workspace = true }
-alloy-rlp = { workspace = true, optional = true, features = ["derive"] }
 base64 = { workspace = true }
 bcs = { workspace = true }
 bytes = { workspace = true }
@@ -103,7 +102,6 @@ fuzzing = [
   "aptos-crypto/fuzzing",
   "move-core-types/fuzzing",
 ]
-rlp_encoding = ["alloy-rlp", "move-core-types/rlp_encoding"]
 rest_api_schema = ["utoipa"]
 
 [[bench]]

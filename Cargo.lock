@@ -170,28 +170,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "alloy-rlp"
-version = "0.3.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f70d83b765fdc080dbcd4f4db70d8d23fe4761f2f02ebfa9146b833900634b4"
-dependencies = [
- "alloy-rlp-derive",
- "arrayvec 0.7.6",
- "bytes",
-]
-
-[[package]]
-name = "alloy-rlp-derive"
-version = "0.3.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64b728d511962dda67c1bc7ea7c03736ec275ed2cf4c35d9585298ac9ccf3b73"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.106",
-]
-
-[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -561,7 +539,6 @@ name = "aptos-api-types"
 version = "0.0.1"
 dependencies = [
  "alloy",
- "alloy-rlp",
  "anyhow",
  "aptos-config",
  "aptos-crypto",
@@ -4121,7 +4098,6 @@ name = "aptos-types"
 version = "0.0.3"
 dependencies = [
  "ahash 0.8.12",
- "alloy-rlp",
  "anyhow",
  "aptos-bitvec",
  "aptos-crypto",
@@ -10971,7 +10947,6 @@ dependencies = [
 name = "move-core-types"
 version = "0.0.4"
 dependencies = [
- "alloy-rlp",
  "anyhow",
  "arbitrary",
  "bcs 0.1.4",

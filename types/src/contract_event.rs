@@ -165,11 +165,28 @@ impl ContractEvent {
     pub fn expect_new_block_event(&self) -> Result<NewBlockEvent> {
         NewBlockEvent::try_from_bytes(self.event_data())
     }
+
+    pub fn as_bytes_for_hash(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        match self {
+            ContractEvent::V1(event) => {
+                bytes.extend_from_slice(&event.key().get_creation_number().to_le_bytes());
+                bytes.extend_from_slice(event.key().get_creator_address().as_ref());
+                bytes.extend_from_slice(&event.sequence_number().to_le_bytes());
+                bytes.extend_from_slice(event.type_tag().to_canonical_string().as_bytes());
+                bytes.extend_from_slice(event.event_data());
+            },
+            ContractEvent::V2(event) => {
+                bytes.extend_from_slice(event.type_tag().to_canonical_string().as_bytes());
+                bytes.extend_from_slice(event.event_data());
+            },
+        }
+        bytes
+    }
 }
 
 /// Entry produced via a call to the `emit_event` builtin.
 #[derive(Hash, Clone, Eq, PartialEq, Serialize, Deserialize, CryptoHasher)]
-#[cfg_attr(feature = "rlp_encoding", derive(alloy_rlp::RlpEncodable))]
 pub struct ContractEventV1 {
     /// The unique key that the event was emitted to
     key: EventKey,
@@ -233,7 +250,6 @@ impl std::fmt::Debug for ContractEventV1 {
 
 /// Entry produced via a call to the `emit` builtin.
 #[derive(Hash, Clone, Eq, PartialEq, Serialize, Deserialize, CryptoHasher)]
-#[cfg_attr(feature = "rlp_encoding", derive(alloy_rlp::RlpEncodable))]
 pub struct ContractEventV2 {
     /// The type of the data
     type_tag: TypeTag,
@@ -439,21 +455,6 @@ impl EventWithVersion {
         Self {
             transaction_version,
             event,
-        }
-    }
-}
-
-#[cfg(feature = "rlp_encoding")]
-mod rlp_encodable {
-    use crate::contract_event::ContractEvent;
-    use alloy_rlp::Encodable;
-
-    impl Encodable for ContractEvent {
-        fn encode(&self, out: &mut dyn bytes::BufMut) {
-            match self {
-                ContractEvent::V1(contract_event_v1) => contract_event_v1.encode(out),
-                ContractEvent::V2(contract_event_v2) => contract_event_v2.encode(out),
-            }
         }
     }
 }
