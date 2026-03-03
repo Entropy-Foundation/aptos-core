@@ -6,5 +6,3 @@ version = "0.0.0"
 SupraFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/supra-framework/", rev = "main" }
 
 [addresses]
-
-

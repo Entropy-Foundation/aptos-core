@@ -324,7 +324,7 @@ module supra_framework::vesting_without_staking {
         // last vesting fraction must be non zero to ensure that no amount remains unvested forever.
         assert!(
             fixed_point32::get_raw_value(*vector::borrow(&schedule, schedule_len - 1)) !=
-            0,
+                0,
             error::invalid_argument(EEMPTY_VESTING_SCHEDULE),
         );
         assert!(
@@ -939,8 +939,8 @@ module supra_framework::vesting_without_staking {
         let addr = signer::address_of(account);
         assert!(
             addr == vesting_contract.admin
-            || addr
-            == get_role_holder(contract_address, utf8(ROLE_BENEFICIARY_RESETTER)),
+                || addr
+                == get_role_holder(contract_address, utf8(ROLE_BENEFICIARY_RESETTER)),
             error::permission_denied(EPERMISSION_DENIED),
         );
 
@@ -1251,7 +1251,7 @@ module supra_framework::vesting_without_staking {
             );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount_1 = 0;
@@ -1376,7 +1376,7 @@ module supra_framework::vesting_without_staking {
             );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount_1 = 0;
@@ -1502,7 +1502,7 @@ module supra_framework::vesting_without_staking {
             );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount_1 = 0;
@@ -1625,7 +1625,7 @@ module supra_framework::vesting_without_staking {
             );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount_1 = 0;
@@ -1749,7 +1749,7 @@ module supra_framework::vesting_without_staking {
             );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount_1 = 0;
@@ -1999,7 +1999,7 @@ module supra_framework::vesting_without_staking {
             );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount_1 = 0;
@@ -2086,7 +2086,7 @@ module supra_framework::vesting_without_staking {
             );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount_1 = 0;
@@ -2327,7 +2327,7 @@ module supra_framework::vesting_without_staking {
             );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount_1 = 0;
@@ -2392,7 +2392,7 @@ module supra_framework::vesting_without_staking {
             );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount_1 = 0;
@@ -2452,7 +2452,7 @@ module supra_framework::vesting_without_staking {
             );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount_1 = 0;
@@ -2504,7 +2504,7 @@ module supra_framework::vesting_without_staking {
             );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount_1 = 0;
@@ -2537,7 +2537,7 @@ module supra_framework::vesting_without_staking {
 
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 2,
+                * 2,
         );
         vest_individual(contract_address, shareholder_1_address);
         vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 2, 10);
@@ -2564,7 +2564,7 @@ module supra_framework::vesting_without_staking {
 
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 3,
+                * 3,
         );
         vest_individual(contract_address, shareholder_1_address);
         vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 1, 10);
@@ -2624,7 +2624,7 @@ module supra_framework::vesting_without_staking {
             );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount_1 = 0;
@@ -2633,7 +2633,7 @@ module supra_framework::vesting_without_staking {
         // Time is now at the start time, vest will unlock the first period, which is 2/10.
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 50,
+                * 50,
         );
         vest_individual(contract_address, shareholder_1_address);
         vested_amount_1 = vested_amount_1 + GRANT_AMOUNT / 4;
@@ -2713,7 +2713,7 @@ module supra_framework::vesting_without_staking {
             );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount_1 = 0;
@@ -2736,7 +2736,7 @@ module supra_framework::vesting_without_staking {
 
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 2,
+                * 2,
         );
         vest(contract_address);
         vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 2, 10);
@@ -2746,7 +2746,7 @@ module supra_framework::vesting_without_staking {
 
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 3,
+                * 3,
         );
         vest(contract_address);
         vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 1, 10);
@@ -2756,7 +2756,7 @@ module supra_framework::vesting_without_staking {
 
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 4,
+                * 4,
         );
         vest(contract_address);
         vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 1, 10);
@@ -2766,7 +2766,7 @@ module supra_framework::vesting_without_staking {
 
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 5,
+                * 5,
         );
         vest(contract_address);
         vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 1, 10);
@@ -2776,7 +2776,7 @@ module supra_framework::vesting_without_staking {
 
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 6,
+                * 6,
         );
         vest(contract_address);
         vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 1, 10);
@@ -2786,7 +2786,7 @@ module supra_framework::vesting_without_staking {
 
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 7,
+                * 7,
         );
         vest(contract_address);
         vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 1, 10);
@@ -2796,7 +2796,7 @@ module supra_framework::vesting_without_staking {
 
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 8,
+                * 8,
         );
         vest(contract_address);
         vested_amount_1 = vested_amount_1 + fraction(shareholder_1_share, 1, 10);
@@ -2806,7 +2806,7 @@ module supra_framework::vesting_without_staking {
 
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 9,
+                * 9,
         );
         vest(contract_address);
         vested_amount_1 = shareholder_1_share;
@@ -3303,7 +3303,7 @@ module supra_framework::vesting_without_staking {
         );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount = 0;
@@ -3322,7 +3322,7 @@ module supra_framework::vesting_without_staking {
 
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 9,
+                * 9,
         );
         vest(contract_address);
         vested_amount = shareholder_share;
@@ -3352,7 +3352,7 @@ module supra_framework::vesting_without_staking {
         );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount = 0;
@@ -3371,7 +3371,7 @@ module supra_framework::vesting_without_staking {
 
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 9,
+                * 9,
         );
         vest(contract_address);
         vested_amount = shareholder_share;
@@ -3401,7 +3401,7 @@ module supra_framework::vesting_without_staking {
         );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount = 0;
@@ -3424,7 +3424,7 @@ module supra_framework::vesting_without_staking {
 
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 9,
+                * 9,
         );
         vest(contract_address);
         vested_amount = shareholder_share;
@@ -3459,7 +3459,7 @@ module supra_framework::vesting_without_staking {
         );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount = 0;
@@ -3470,7 +3470,7 @@ module supra_framework::vesting_without_staking {
         // Time is now at the start time, vest will unlock the first period, which is 2/10.
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 2,
+                * 2,
         );
         vest(contract_address);
         vested_amount = vested_amount + fraction(shareholder_share, 5, 10);
@@ -3506,7 +3506,7 @@ module supra_framework::vesting_without_staking {
         );
         assert!(
             vector::length(&borrow_global<AdminStore>(admin_address).vesting_contracts) ==
-            1,
+                1,
             0,
         );
         let vested_amount = 0;
@@ -3519,7 +3519,7 @@ module supra_framework::vesting_without_staking {
         // Time is now at the start time, vest will unlock the first period, which is 2/10.
         timestamp::update_global_time_for_test_secs(
             vesting_start_secs(contract_address) + period_duration_secs(contract_address)
-            * 4,
+                * 4,
         );
         vest(contract_address);
         vested_amount = vested_amount + fraction(shareholder_share, 7, 10);
@@ -3587,9 +3587,9 @@ module supra_framework::vesting_without_staking {
         vest_individual(contract_address, shareholder_2_address);
 
         // Assert both shareholders have received their full original amount
-        let (init_amount_1, left_amount_1, _) =
+        let (_init_amount_1, left_amount_1, _) =
             get_vesting_record(contract_address, shareholder_1_address);
-        let (init_amount_2, left_amount_2, _) =
+        let (_init_amount_2, left_amount_2, _) =
             get_vesting_record(contract_address, shareholder_2_address);
 
         assert!(left_amount_1 == 0, left_amount_1);

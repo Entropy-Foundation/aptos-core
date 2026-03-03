@@ -5,131 +5,108 @@ use crate::{
     aptos_vm::get_or_vm_startup_failure,
     errors::expect_only_successful_execution,
     move_vm_ext::{AptosMoveResolver, SessionId},
-    system_module_names::{FINISH_WITH_DKG_RESULT, RECONFIGURATION_WITH_DKG_MODULE},
-    validator_txns::dkg::{
-        ExecutionFailure::{Expected, Unexpected},
-        ExpectedFailure::*,
-    },
-    AptosVM,
+    system_module_names::{FINISH_WITH_DKG_RESULT, RECONFIGURATION_WITH_DKG_MODULE, SET_DKG_META},
+    AptosVM, VMValidator,
 };
 use aptos_types::{
-    dkg::{DKGState, DKGTrait, DKGTranscript, DefaultDKG},
+    dkg::transactions::{DKGTransactionData, DKGTransactionType},
     fee_statement::FeeStatement,
     move_utils::as_move_value::AsMoveValue,
-    on_chain_config::{ConfigurationResource, OnChainConfig},
     transaction::{ExecutionStatus, TransactionStatus},
+    vm_status::DiscardedVMStatus,
 };
 use aptos_vm_logging::log_schema::AdapterLogSchema;
 use aptos_vm_types::output::VMOutput;
 use move_core_types::{
     account_address::AccountAddress,
     value::{serialize_values, MoveValue},
-    vm_status::{AbortLocation, StatusCode, VMStatus},
+    vm_status::VMStatus,
 };
 use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
 use move_vm_types::gas::UnmeteredGasMeter;
 
-#[derive(Debug)]
-enum ExpectedFailure {
-    // Move equivalent: `errors::invalid_argument(*)`
-    EpochNotCurrent = 0x10001,
-    TranscriptDeserializationFailed = 0x10002,
-    TranscriptVerificationFailed = 0x10003,
-
-    // Move equivalent: `errors::invalid_state(*)`
-    MissingResourceDKGState = 0x30001,
-    MissingResourceInprogressDKGSession = 0x30002,
-    MissingResourceConfiguration = 0x30003,
-}
-
 enum ExecutionFailure {
-    Expected(ExpectedFailure),
+    Expected(DiscardedVMStatus),
     Unexpected(VMStatus),
 }
 
 impl AptosVM {
-    pub(crate) fn process_dkg_result(
+    pub(crate) fn process_dkg_transaction(
         &self,
         resolver: &impl AptosMoveResolver,
         log_context: &AdapterLogSchema,
         session_id: SessionId,
-        dkg_transcript: DKGTranscript,
+        dkg_transaction_data: DKGTransactionData,
     ) -> Result<(VMStatus, VMOutput), VMStatus> {
-        match self.process_dkg_result_inner(resolver, log_context, session_id, dkg_transcript) {
+        match self.process_dkg_transaction_inner(
+            resolver,
+            log_context,
+            session_id,
+            dkg_transaction_data,
+        ) {
             Ok((vm_status, vm_output)) => Ok((vm_status, vm_output)),
-            Err(Expected(failure)) => {
+            Err(ExecutionFailure::Expected(status)) => {
                 // Pretend we are inside Move, and expected failures are like Move aborts.
                 Ok((
-                    VMStatus::MoveAbort(AbortLocation::Script, failure as u64),
-                    VMOutput::empty_with_status(TransactionStatus::Discard(StatusCode::ABORTED)),
+                    VMStatus::error(status, None),
+                    VMOutput::empty_with_status(TransactionStatus::Discard(status)),
                 ))
             },
-            Err(Unexpected(vm_status)) => Err(vm_status),
+            Err(ExecutionFailure::Unexpected(vm_status)) => Err(vm_status),
         }
     }
 
-    fn process_dkg_result_inner(
+    fn process_dkg_transaction_inner(
         &self,
         resolver: &impl AptosMoveResolver,
         log_context: &AdapterLogSchema,
         session_id: SessionId,
-        dkg_node: DKGTranscript,
+        dkg_transaction: DKGTransactionData,
     ) -> Result<(VMStatus, VMOutput), ExecutionFailure> {
-        let dkg_state = OnChainConfig::fetch_config(resolver)
-            .ok_or_else(|| Expected(MissingResourceDKGState))?;
-        let config_resource = ConfigurationResource::fetch_config(resolver)
-            .ok_or_else(|| Expected(MissingResourceConfiguration))?;
-        let DKGState { in_progress, .. } = dkg_state;
-        let in_progress_session_state =
-            in_progress.ok_or_else(|| Expected(MissingResourceInprogressDKGSession))?;
-
-        // Check epoch number.
-        if dkg_node.metadata.epoch != config_resource.epoch() {
-            return Err(Expected(EpochNotCurrent));
+        // Verify the dkg transaction before execution
+        if let Some(status) = self
+            .validate_dkg_validator_transaction(dkg_transaction.clone(), resolver)
+            .status()
+        {
+            return Err(ExecutionFailure::Expected(status));
         }
 
-        // Deserialize transcript and verify it.
-        let pub_params = DefaultDKG::new_public_params(&in_progress_session_state.metadata);
-        let transcript = bcs::from_bytes::<<DefaultDKG as DKGTrait>::Transcript>(
-            dkg_node.transcript_bytes.as_slice(),
-        )
-        .map_err(|_| Expected(TranscriptDeserializationFailed))?;
-
-        DefaultDKG::verify_transcript(&pub_params, &transcript)
-            .map_err(|_| Expected(TranscriptVerificationFailed))?;
+        let (function_name, args) = match dkg_transaction.metadata().transaction_type() {
+            DKGTransactionType::DKGMeta => (SET_DKG_META, vec![dkg_transaction
+                .data_bytes()
+                .as_move_value()]),
+            DKGTransactionType::PublicKeyShares => (FINISH_WITH_DKG_RESULT, vec![
+                MoveValue::Signer(AccountAddress::ONE),
+                dkg_transaction.data_bytes().as_move_value(),
+            ]),
+        };
 
         // All check passed, invoke VM to publish DKG result on chain.
         let mut gas_meter = UnmeteredGasMeter;
         let mut session = self.new_session(resolver, session_id, None);
-        let args = vec![
-            MoveValue::Signer(AccountAddress::ONE),
-            dkg_node.transcript_bytes.as_move_value(),
-        ];
 
         let module_storage = TraversalStorage::new();
         session
             .execute_function_bypass_visibility(
                 &RECONFIGURATION_WITH_DKG_MODULE,
-                FINISH_WITH_DKG_RESULT,
+                function_name,
                 vec![],
                 serialize_values(&args),
                 &mut gas_meter,
                 &mut TraversalContext::new(&module_storage),
             )
-            .map_err(|e| {
-                expect_only_successful_execution(e, FINISH_WITH_DKG_RESULT.as_str(), log_context)
-            })
-            .map_err(|r| Unexpected(r.unwrap_err()))?;
+            .map_err(|e| expect_only_successful_execution(e, function_name.as_str(), log_context))
+            .map_err(|r| ExecutionFailure::Unexpected(r.unwrap_err()))?;
 
         let output = crate::aptos_vm::get_system_transaction_output(
             session,
             FeeStatement::zero(),
             ExecutionStatus::Success,
             &get_or_vm_startup_failure(&self.storage_gas_params, log_context)
-                .map_err(Unexpected)?
+                .map_err(ExecutionFailure::Unexpected)?
                 .change_set_configs,
         )
-        .map_err(Unexpected)?;
+        .map_err(ExecutionFailure::Unexpected)?;
 
         Ok((VMStatus::Executed, output))
     }

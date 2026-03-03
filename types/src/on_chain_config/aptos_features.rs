@@ -100,9 +100,11 @@ pub enum FeatureFlag {
     /// This flag should only be enabled after all Validators have updated their keys to the new format, including the BLS keys.
     SUPRA_BLS_KEYS = 97,
     SUPRA_BCFT_CERTIFICATES = 98,
-    SUPRA_TRANSACTIONS_INCLUSION_PROOFS = 99,
+    SUPRA_DKG = 99,
+    SUPRA_TRANSACTIONS_INCLUSION_PROOFS = 100,
 }
 
+//TODO: add dkg feature
 impl FeatureFlag {
     pub fn default_features() -> Vec<Self> {
         vec![
@@ -175,6 +177,7 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_AUTOMATION_V2,
             FeatureFlag::SUPRA_BLS_KEYS,
             FeatureFlag::SUPRA_BCFT_CERTIFICATES,
+            FeatureFlag::SUPRA_DKG,
             FeatureFlag::SUPRA_TRANSACTIONS_INCLUSION_PROOFS,
         ]
     }

@@ -260,8 +260,14 @@ module supra_framework::block {
         failed_proposer_indices: vector<u64>,
         previous_block_votes_bitvec: vector<u8>,
         timestamp: u64,
-        randomness_seed: Option<vector<u8>>,
+        randomness_seed_vec: vector<u8>,
     ) acquires BlockResource, CommitHistory {
+        let randomness_seed = if (vector::length(&randomness_seed_vec) == 0) {
+            option::none()
+        } else {
+            option::some(randomness_seed_vec)
+        };
+
         let epoch_interval = block_prologue_common(
             &vm,
             hash,

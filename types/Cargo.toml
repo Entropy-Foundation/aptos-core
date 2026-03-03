@@ -13,7 +13,6 @@ repository = { workspace = true }
 rust-version = { workspace = true }
 
 [dependencies]
-nidkg_helper = { git = "ssh://git@github.com/Entropy-Foundation/supra-common", tag = "v0.21.5" }
 anyhow = { workspace = true }
 aptos-bitvec = { workspace = true }
 aptos-crypto = { workspace = true }
@@ -30,6 +29,7 @@ base64 = { workspace = true }
 bcs = { workspace = true }
 bytes = { workspace = true }
 derive-getters = { workspace = true }
+crypto = { workspace = true }
 fixed = { workspace = true }
 fxhash = { workspace = true }
 hashbrown = { workspace = true }

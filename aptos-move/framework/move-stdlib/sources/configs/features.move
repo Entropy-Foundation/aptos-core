@@ -811,10 +811,23 @@ module std::features {
         is_enabled(SUPRA_BCFT_CERTIFICATES)
     }
 
+    /// Whether the APIs related to the Supra_Dkg feature are enabled.
+    ///
+    /// Lifetime: transient
+    const SUPRA_DKG: u64 = 99;
+
+    public fun get_supra_dkg_feature(): u64 {
+        SUPRA_DKG
+    }
+
+    public fun supra_dkg_enabled(): bool acquires Features {
+        is_enabled(SUPRA_DKG)
+    }
+
     /// Whether transactions inclusion proofs are enabled.
     ///
     /// Lifetime: permanent
-    const SUPRA_TRANSACTIONS_INCLUSION_PROOFS: u64 = 99;
+    const SUPRA_TRANSACTIONS_INCLUSION_PROOFS: u64 = 100;
 
     public fun get_supra_transactions_inclusion_proofs_feature(): u64 {
         SUPRA_TRANSACTIONS_INCLUSION_PROOFS

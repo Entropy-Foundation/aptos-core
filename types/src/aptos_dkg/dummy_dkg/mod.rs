@@ -1,7 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::dkg::{DKGSessionMetadata, DKGTrait};
+use crate::aptos_dkg::{DKGSessionMetadata, DKGTrait};
 use anyhow::{anyhow, ensure};
 use aptos_crypto::{ed25519, Uniform};
 use rand::{CryptoRng, Rng, RngCore};

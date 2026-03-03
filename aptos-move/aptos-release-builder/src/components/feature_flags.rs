@@ -132,6 +132,7 @@ pub enum FeatureFlag {
     SupraAutomationV2,
     SupraBlsKeys,
     SupraBcftCertificates,
+    SUPRA_DKG,
     SupraTransactionInclusionProofs,
 }
 
@@ -345,6 +346,7 @@ impl From<FeatureFlag> for AptosFeatureFlag {
             FeatureFlag::SupraAutomationV2 => AptosFeatureFlag::SUPRA_AUTOMATION_V2,
             FeatureFlag::SupraBlsKeys => AptosFeatureFlag::SUPRA_BLS_KEYS,
             FeatureFlag::SupraBcftCertificates => AptosFeatureFlag::SUPRA_BCFT_CERTIFICATES,
+            FeatureFlag::SUPRA_DKG => AptosFeatureFlag::SUPRA_DKG,
             FeatureFlag::SupraTransactionInclusionProofs => {
                 AptosFeatureFlag::SUPRA_TRANSACTIONS_INCLUSION_PROOFS
             },
@@ -489,6 +491,7 @@ impl From<AptosFeatureFlag> for FeatureFlag {
             AptosFeatureFlag::SUPRA_AUTOMATION_V2 => FeatureFlag::SupraAutomationV2,
             AptosFeatureFlag::SUPRA_BLS_KEYS => FeatureFlag::SupraBlsKeys,
             AptosFeatureFlag::SUPRA_BCFT_CERTIFICATES => FeatureFlag::SupraBcftCertificates,
+            AptosFeatureFlag::SUPRA_DKG => FeatureFlag::SUPRA_DKG,
             AptosFeatureFlag::SUPRA_TRANSACTIONS_INCLUSION_PROOFS => {
                 FeatureFlag::SupraTransactionInclusionProofs
             },

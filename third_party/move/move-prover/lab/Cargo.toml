@@ -25,7 +25,7 @@ codespan-reporting = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true, features = ["serde"] }
 plotters = { workspace = true, features = [
-    "evcxr",
-    "line_series",
-    "histogram",
+  "evcxr",
+  "line_series",
+  "histogram",
 ] }

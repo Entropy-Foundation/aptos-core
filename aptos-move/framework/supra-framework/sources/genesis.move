@@ -14,6 +14,7 @@ module supra_framework::genesis {
     use supra_framework::chain_status;
     use supra_framework::coin;
     use supra_framework::consensus_config;
+    use supra_framework::dkg_config;
     use supra_framework::execution_config;
     use supra_framework::supra_config;
     use supra_framework::evm_genesis_config;
@@ -38,7 +39,7 @@ module supra_framework::genesis {
     use supra_framework::vesting_without_staking;
 
     #[test_only]
-    use aptos_std::ed25519;
+    use supra_std::validator_public_keys;
 
     #[verify_only]
     use std::features;
@@ -171,6 +172,7 @@ module supra_framework::genesis {
         };
 
         consensus_config::initialize(&supra_framework_account, consensus_config);
+        dkg_config::initialize(&supra_framework_account);
         execution_config::set(&supra_framework_account, execution_config);
         supra_config::initialize(&supra_framework_account, supra_config);
         version::initialize(&supra_framework_account, initial_version);
@@ -909,8 +911,8 @@ module supra_framework::genesis {
 
         initialize_supra_coin(supra_framework);
         let owner = @0x121341;
-        let (_, pk_1) = stake::generate_identity();
-        let _pk_1 = ed25519::unvalidated_public_key_to_bytes(&pk_1);
+        let (_sk_1, pk_1) = stake::generate_identity();
+        let _pk_1 = validator_public_keys::public_key_to_bytes(pk_1);
         create_account(supra_framework, owner, 0);
         let validator_config_commission = ValidatorConfigurationWithCommission {
             validator_config: ValidatorConfiguration {
@@ -972,10 +974,10 @@ module supra_framework::genesis {
         initialize_supra_coin(supra_framework);
         let owner1 = @0x121341;
         create_account(supra_framework, owner1, 0);
-        let (_, pk_1) = stake::generate_identity();
-        let (_, pk_2) = stake::generate_identity();
-        let _pk_1 = ed25519::unvalidated_public_key_to_bytes(&pk_1);
-        let _pk_2 = ed25519::unvalidated_public_key_to_bytes(&pk_2);
+        let (_sk_1, pk_1) = stake::generate_identity();
+        let (_sk_2, pk_2) = stake::generate_identity();
+        let _pk_1 = validator_public_keys::public_key_to_bytes(pk_1);
+        let _pk_2 = validator_public_keys::public_key_to_bytes(pk_2);
         let validator_config_commission1 = ValidatorConfigurationWithCommission {
             validator_config: ValidatorConfiguration {
                 owner_address: owner1,

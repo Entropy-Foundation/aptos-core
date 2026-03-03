@@ -537,6 +537,7 @@ criterion-cpu-time = "0.1.0"
 crossbeam = "0.8.1"
 crossbeam-channel = "0.5.4"
 crossterm = "0.26.1"
+crypto = { git = "ssh://git@github.com/Entropy-Foundation/crypto", rev = "8fa2ea498c1cdef637aff135ce77852d77fcc487" }
 csv = "1.2.1"
 curve25519-dalek = "3"
 curve25519-dalek-ng = "4"
@@ -742,7 +743,7 @@ shell-words = "1.0.0"
 siphasher = "0.3.10"
 serde = { version = "1.0.193", features = ["derive", "rc"] }
 serde-big-array = "0.5.1"
-serde_bytes = "0.11.6"
+serde_bytes = "0.11.19"
 serde_json = { version = "1.0.81", features = [
   "preserve_order",
   "arbitrary_precision",

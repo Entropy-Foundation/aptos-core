@@ -151,6 +151,8 @@ return true.
 -  [Function `supra_validator_identity_v2_enabled`](#0x1_features_supra_validator_identity_v2_enabled)
 -  [Function `get_supra_bcft_certificates_feature`](#0x1_features_get_supra_bcft_certificates_feature)
 -  [Function `supra_bcft_certificates_enabled`](#0x1_features_supra_bcft_certificates_enabled)
+-  [Function `get_supra_dkg_feature`](#0x1_features_get_supra_dkg_feature)
+-  [Function `supra_dkg_enabled`](#0x1_features_supra_dkg_enabled)
 -  [Function `get_supra_transactions_inclusion_proofs_feature`](#0x1_features_get_supra_transactions_inclusion_proofs_feature)
 -  [Function `supra_transactions_inclusion_proofs_enabled`](#0x1_features_supra_transactions_inclusion_proofs_enabled)
 -  [Function `change_feature_flags`](#0x1_features_change_feature_flags)
@@ -973,6 +975,18 @@ Lifetime: permanent
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_DELEGATION_POOL_IDENTITY">SUPRA_DELEGATION_POOL_IDENTITY</a>: u64 = 95;
+</code></pre>
+
+
+
+<a id="0x1_features_SUPRA_DKG"></a>
+
+Whether the APIs related to the Supra_Dkg feature are enabled.
+
+Lifetime: transient
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_DKG">SUPRA_DKG</a>: u64 = 99;
 </code></pre>
 
 
@@ -3927,6 +3941,54 @@ Lifetime: transient
 
 <pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_bcft_certificates_enabled">supra_bcft_certificates_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
     <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_BCFT_CERTIFICATES">SUPRA_BCFT_CERTIFICATES</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_get_supra_dkg_feature"></a>
+
+## Function `get_supra_dkg_feature`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_dkg_feature">get_supra_dkg_feature</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_dkg_feature">get_supra_dkg_feature</a>(): u64 {
+    <a href="features.md#0x1_features_SUPRA_DKG">SUPRA_DKG</a>
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_supra_dkg_enabled"></a>
+
+## Function `supra_dkg_enabled`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_dkg_enabled">supra_dkg_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_dkg_enabled">supra_dkg_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_DKG">SUPRA_DKG</a>)
 }
 </code></pre>
 

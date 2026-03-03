@@ -40,4 +40,3 @@ default = []
 [[bench]]
 name = "v2"
 harness = false
-

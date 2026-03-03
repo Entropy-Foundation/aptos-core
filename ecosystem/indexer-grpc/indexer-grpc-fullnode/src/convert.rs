@@ -962,19 +962,35 @@ fn convert_validator_transaction(
 ) -> transaction::transaction::TxnData {
     transaction::transaction::TxnData::Validator(transaction::ValidatorTransaction {
         validator_transaction_type: match api_validator_txn {
-            ApiValidatorTransactionEnum::DkgResult(dgk_result) => {
+            ApiValidatorTransactionEnum::Dkg(dkg_transaction) => {
                 Some(
-                    validator_transaction::ValidatorTransactionType::DkgUpdate(
-                        validator_transaction::DkgUpdate {
-                            dkg_transcript: Some(validator_transaction::dkg_update::DkgTranscript {
-                                author: dgk_result.dkg_transcript.author.to_string(),
-                                epoch: dgk_result.dkg_transcript.epoch.0,
-                                payload: dgk_result.dkg_transcript.payload.0.clone(),
+                    validator_transaction::ValidatorTransactionType::Dkg(
+                        validator_transaction::DkgTransactionData {
+                            dkg_data: Some(validator_transaction::dkg_data::DkgTransactionData{
+                                epoch: dkg_transaction.dkg_transaction_data.epoch.0,
+                                author: dkg_transaction.dkg_transaction_data.author.to_string(),
+                                bls_aggregate_signature: dkg_transaction.dkg_transaction_data.bls_aggregate_signature.clone(),
+                                signer_indices_clan_committee: dkg_transaction.dkg_transaction_data.signer_indices_clan_committee.clone(),
+                                transaction_type: dkg_transaction.dkg_transaction_data.transaction_type as u32,
+                                payload: dkg_transaction.dkg_transaction_data.payload.0.clone(),
                             }),
                         },
                     )
                 )
-            },
+            }
+            ApiValidatorTransactionEnum::DkgResult(dkg_result) => {
+                Some(
+                    validator_transaction::ValidatorTransactionType::DkgUpdate(
+                        validator_transaction::DkgUpdate {
+                            dkg_transcript: Some(validator_transaction::dkg_update::DkgTranscript {
+                                author: dkg_result.dkg_transcript.author.to_string(),
+                                epoch: dkg_result.dkg_transcript.epoch.0,
+                                payload: dkg_result.dkg_transcript.payload.0.clone(),
+                            }),
+                        },
+                    )
+                )
+            }
             ApiValidatorTransactionEnum::ObservedJwkUpdate(observed_jwk_update) => {
                 Some(
                     validator_transaction::ValidatorTransactionType::ObservedJwkUpdate(

@@ -27,7 +27,10 @@ use crate::{
 };
 use anyhow::anyhow;
 use aptos_block_executor::txn_commit_hook::NoOpTransactionCommitHook;
-use aptos_crypto::HashValue;
+use aptos_crypto::{
+    bls12381::{PublicKey, Signature},
+    HashValue,
+};
 use aptos_framework::{
     natives::{code::PublishRequest, randomness::RandomnessContext},
     RuntimeModuleMetadataV1,
@@ -48,11 +51,15 @@ use aptos_types::{
     block_metadata::BlockMetadata,
     block_metadata_ext::{BlockMetadataExt, BlockMetadataWithRandomness},
     chain_id::ChainId,
+    dkg::{
+        state::DKGState,
+        transactions::{DKGTransactionData, DKGTransactionType},
+    },
     fee_statement::FeeStatement,
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{
-        new_epoch_event_key, ApprovedExecutionHashes, ConfigStorage, FeatureFlag, Features,
-        OnChainConfig, TimedFeatureFlag, TimedFeatures,
+        new_epoch_event_key, ApprovedExecutionHashes, ConfigStorage, ConfigurationResource,
+        FeatureFlag, Features, OnChainConfig, TimedFeatureFlag, TimedFeatures,
     },
     randomness::Randomness,
     state_store::{StateView, TStateView},
@@ -2349,10 +2356,16 @@ impl AptosVM {
             randomness
                 .as_ref()
                 .map(Randomness::randomness_cloned)
+                .unwrap_or_default()
                 .as_move_value(),
         ];
 
         let storage = TraversalStorage::new();
+
+        session
+            .get_native_extensions()
+            .get_mut::<RandomnessContext>()
+            .mark_unbiasable();
 
         session
             .execute_function_bypass_visibility(
@@ -2907,6 +2920,108 @@ impl VMValidator for AptosVM {
             .inc();
 
         result
+    }
+
+    fn validate_dkg_validator_transaction(
+        &self,
+        dkg_transaction: DKGTransactionData,
+        resolver: &impl AptosMoveResolver,
+    ) -> VMValidatorResult {
+        if !self.features().is_enabled(FeatureFlag::SUPRA_DKG) {
+            return VMValidatorResult::error(StatusCode::FEATURE_UNDER_GATING);
+        }
+
+        let dkg_state = match OnChainConfig::fetch_config(resolver) {
+            Some(state) => state,
+            None => return VMValidatorResult::error(StatusCode::RESOURCE_DOES_NOT_EXIST),
+        };
+
+        let config_resource = match ConfigurationResource::fetch_config(resolver) {
+            Some(cfg) => cfg,
+            None => return VMValidatorResult::error(StatusCode::RESOURCE_DOES_NOT_EXIST),
+        };
+
+        let DKGState { in_progress, .. } = dkg_state;
+        let in_progress_session_state = match in_progress {
+            Some(session) => session,
+            None => return VMValidatorResult::error(StatusCode::DKG_SESSION_NOT_IN_PROGRESS),
+        };
+
+        // Check epoch number.
+        if *dkg_transaction.metadata().epoch() != config_resource.epoch() {
+            return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_INVALID_EPOCH_NUM);
+        }
+
+        match dkg_transaction.metadata().transaction_type() {
+            DKGTransactionType::DKGMeta => {
+                // dkg meta should not be already set
+                if in_progress_session_state.dkg_meta_transcript.len() != 0 {
+                    return VMValidatorResult::error(StatusCode::DKG_META_ALREADY_SET);
+                }
+            },
+            DKGTransactionType::PublicKeyShares => {
+                // for public shares trasaction, dkg meta should be already set
+                // but it is possible due to network asynchrony, that public shares transaction is processed before dkg meta transaction
+                // in which case, dkg meta is not set yet
+                // so we cannot impose this condition
+            },
+        }
+
+        let dealer_committee = &in_progress_session_state.metadata.dealer_committee;
+        let randomness_seed = &in_progress_session_state.metadata.randomness_seed;
+
+        if dkg_transaction.data_bytes().is_empty()
+            || dkg_transaction
+                .metadata()
+                .bls_aggregate_signature()
+                .is_empty()
+            || dkg_transaction
+                .metadata()
+                .signer_indices_clan_committee()
+                .is_empty()
+        {
+            return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_NOT_VALID);
+        }
+
+        // verify clan committee multi-signature on the transaction data
+        let signer_bls_pubkeys = match aptos_types::dkg::get_clan_nodes_bls_keys_from_indices(
+            dealer_committee,
+            &dkg_transaction.metadata().signer_indices_clan_committee(),
+            randomness_seed,
+        ) {
+            Ok(bls_keys) => bls_keys,
+            Err(_) => {
+                return VMValidatorResult::error(StatusCode::DKG_FAILED_TO_GET_CLAN_NODE_PUBKEYS);
+            },
+        };
+
+        let agg_sig = match Signature::try_from(
+            dkg_transaction
+                .metadata()
+                .bls_aggregate_signature()
+                .as_slice(),
+        ) {
+            Ok(sig) => sig,
+            Err(_) => {
+                return VMValidatorResult::error(StatusCode::DKG_FAILED_TO_DESER_AGG_SIG);
+            },
+        };
+
+        let agg_pk = match PublicKey::aggregate(signer_bls_pubkeys.iter().collect()) {
+            Ok(pk) => pk,
+            Err(_) => {
+                return VMValidatorResult::error(StatusCode::DKG_FAILED_TO_AGGREGATE_PUBLIC_KEYS);
+            },
+        };
+
+        if agg_sig
+            .verify_aggregate_arbitrary_msg(&[dkg_transaction.data_bytes().as_slice()], &[&agg_pk])
+            .is_err()
+        {
+            return VMValidatorResult::error(StatusCode::DKG_AGG_SIG_VERIFICATION_FAILED);
+        }
+
+        VMValidatorResult::new(None, 0)
     }
 }
 

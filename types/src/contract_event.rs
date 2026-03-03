@@ -4,7 +4,7 @@
 
 use crate::{
     account_config::{DepositEvent, NewBlockEvent, NewEpochEvent, WithdrawEvent},
-    dkg::DKGStartEvent,
+    dkg::events::{DKGFinishEvent, DKGMetaSetEvent, DKGStartEvent},
     event::EventKey,
     jwks::ObservedJWKsUpdated,
     on_chain_config::new_epoch_event_key,
@@ -317,6 +317,24 @@ impl From<(u64, NewEpochEvent)> for ContractEvent {
     }
 }
 
+impl TryFrom<&ContractEvent> for crate::aptos_dkg::DKGStartEvent {
+    type Error = Error;
+
+    fn try_from(event: &ContractEvent) -> Result<Self> {
+        match event {
+            ContractEvent::V1(_) => {
+                bail!("conversion to dkg start event failed with wrong contract event version");
+            },
+            ContractEvent::V2(event) => {
+                if event.type_tag != TypeTag::Struct(Box::new(Self::struct_tag())) {
+                    bail!("conversion to dkg start event failed with wrong type tag")
+                }
+                bcs::from_bytes(&event.event_data).map_err(Into::into)
+            },
+        }
+    }
+}
+
 impl TryFrom<&ContractEvent> for DKGStartEvent {
     type Error = Error;
 
@@ -332,6 +350,69 @@ impl TryFrom<&ContractEvent> for DKGStartEvent {
                 bcs::from_bytes(&event.event_data).map_err(Into::into)
             },
         }
+    }
+}
+
+impl From<DKGStartEvent> for ContractEvent {
+    fn from(event: DKGStartEvent) -> Self {
+        Self::new_v2(
+            TypeTag::from(DKGStartEvent::struct_tag()),
+            bcs::to_bytes(&event).unwrap(),
+        )
+    }
+}
+
+impl TryFrom<&ContractEvent> for DKGFinishEvent {
+    type Error = Error;
+
+    fn try_from(event: &ContractEvent) -> Result<Self> {
+        match event {
+            ContractEvent::V1(_) => {
+                bail!("conversion to dkg finish event failed with wrong contract event version");
+            },
+            ContractEvent::V2(event) => {
+                if event.type_tag != TypeTag::Struct(Box::new(Self::struct_tag())) {
+                    bail!("conversion to dkg finish event failed with wrong type tag")
+                }
+                bcs::from_bytes(&event.event_data).map_err(Into::into)
+            },
+        }
+    }
+}
+
+impl From<DKGFinishEvent> for ContractEvent {
+    fn from(event: DKGFinishEvent) -> Self {
+        Self::new_v2(
+            TypeTag::from(DKGFinishEvent::struct_tag()),
+            bcs::to_bytes(&event).unwrap(),
+        )
+    }
+}
+
+impl TryFrom<&ContractEvent> for DKGMetaSetEvent {
+    type Error = Error;
+
+    fn try_from(event: &ContractEvent) -> Result<Self> {
+        match event {
+            ContractEvent::V1(_) => {
+                bail!("conversion to dkg meta set event failed with wrong contract event version");
+            },
+            ContractEvent::V2(event) => {
+                if event.type_tag != TypeTag::Struct(Box::new(Self::struct_tag())) {
+                    bail!("conversion to dkg meta set event failed with wrong type tag")
+                }
+                bcs::from_bytes(&event.event_data).map_err(Into::into)
+            },
+        }
+    }
+}
+
+impl From<DKGMetaSetEvent> for ContractEvent {
+    fn from(event: DKGMetaSetEvent) -> Self {
+        Self::new_v2(
+            TypeTag::from(DKGMetaSetEvent::struct_tag()),
+            bcs::to_bytes(&event).unwrap(),
+        )
     }
 }
 

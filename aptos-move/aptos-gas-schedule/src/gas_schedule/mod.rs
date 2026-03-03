@@ -9,6 +9,7 @@ mod instr;
 mod macros;
 mod misc;
 mod move_stdlib;
+mod supra_stdlib;
 mod table;
 mod transaction;
 
@@ -16,6 +17,7 @@ pub use aptos_framework::AptosFrameworkGasParameters;
 pub use instr::InstructionGasParameters;
 pub use misc::{AbstractValueSizeGasParameters, MiscGasParameters};
 pub use move_stdlib::MoveStdlibGasParameters;
+pub use supra_stdlib::SupraStdlibGasParameters;
 pub use table::TableGasParameters;
 pub use transaction::TransactionGasParameters;
 
@@ -29,6 +31,7 @@ pub mod gas_params {
         use super::*;
         pub use aptos_framework::gas_params as aptos_framework;
         pub use move_stdlib::gas_params as move_stdlib;
+        pub use supra_stdlib::gas_params as supra_stdlib;
         pub use table::gas_params as table;
     }
 }
@@ -140,6 +143,7 @@ impl InitialGasSchedule for VMGasParameters {
 #[derive(Debug, Clone)]
 pub struct NativeGasParameters {
     pub move_stdlib: MoveStdlibGasParameters,
+    pub supra_stdlib: SupraStdlibGasParameters,
     pub table: TableGasParameters,
     pub aptos_framework: AptosFrameworkGasParameters,
 }
@@ -151,6 +155,10 @@ impl FromOnChainGasSchedule for NativeGasParameters {
     ) -> Result<Self, String> {
         Ok(Self {
             move_stdlib: FromOnChainGasSchedule::from_on_chain_gas_schedule(
+                gas_schedule,
+                feature_version,
+            )?,
+            supra_stdlib: FromOnChainGasSchedule::from_on_chain_gas_schedule(
                 gas_schedule,
                 feature_version,
             )?,
@@ -170,6 +178,7 @@ impl ToOnChainGasSchedule for NativeGasParameters {
     fn to_on_chain_gas_schedule(&self, feature_version: u64) -> Vec<(String, u64)> {
         let mut entries = self.move_stdlib.to_on_chain_gas_schedule(feature_version);
         entries.extend(self.table.to_on_chain_gas_schedule(feature_version));
+        entries.extend(self.supra_stdlib.to_on_chain_gas_schedule(feature_version));
         entries.extend(
             self.aptos_framework
                 .to_on_chain_gas_schedule(feature_version),
@@ -182,6 +191,7 @@ impl NativeGasParameters {
     pub fn zeros() -> Self {
         Self {
             move_stdlib: MoveStdlibGasParameters::zeros(),
+            supra_stdlib: SupraStdlibGasParameters::zeros(),
             table: TableGasParameters::zeros(),
             aptos_framework: AptosFrameworkGasParameters::zeros(),
         }
@@ -192,6 +202,7 @@ impl InitialGasSchedule for NativeGasParameters {
     fn initial() -> Self {
         Self {
             move_stdlib: InitialGasSchedule::initial(),
+            supra_stdlib: InitialGasSchedule::initial(),
             table: InitialGasSchedule::initial(),
             aptos_framework: InitialGasSchedule::initial(),
         }

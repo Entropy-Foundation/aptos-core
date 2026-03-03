@@ -27,4 +27,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pyright]
 reportUndefinedVariable = "none"
-typeCheckingMode = "basic" # TODO(rustielin): eventually make this strict
+typeCheckingMode = "basic"       # TODO(rustielin): eventually make this strict

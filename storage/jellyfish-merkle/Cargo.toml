@@ -45,4 +45,9 @@ rand = { workspace = true }
 
 [features]
 default = []
-fuzzing = ["proptest", "proptest-derive", "aptos-crypto/fuzzing", "aptos-types/fuzzing"]
+fuzzing = [
+  "proptest",
+  "proptest-derive",
+  "aptos-crypto/fuzzing",
+  "aptos-types/fuzzing",
+]

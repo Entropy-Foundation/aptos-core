@@ -128,11 +128,15 @@ pub mod validator_txns;
 pub mod verifier;
 
 pub use crate::aptos_vm::{AptosSimulationVM, AptosVM};
-use crate::sharded_block_executor::{executor_client::ExecutorClient, ShardedBlockExecutor};
+use crate::{
+    move_vm_ext::AptosMoveResolver,
+    sharded_block_executor::{executor_client::ExecutorClient, ShardedBlockExecutor},
+};
 use aptos_types::{
     block_executor::{
         config::BlockExecutorConfigFromOnchain, partitioner::PartitionedTransactions,
     },
+    dkg::transactions::DKGTransactionData,
     state_store::StateView,
     transaction::{
         signature_verified_transaction::SignatureVerifiedTransaction, BlockOutput,
@@ -150,6 +154,12 @@ pub trait VMValidator {
         &self,
         transaction: SignedTransaction,
         state_view: &impl StateView,
+    ) -> VMValidatorResult;
+
+    fn validate_dkg_validator_transaction(
+        &self,
+        dkg_transaction: DKGTransactionData,
+        resolver: &impl AptosMoveResolver,
     ) -> VMValidatorResult;
 }
 

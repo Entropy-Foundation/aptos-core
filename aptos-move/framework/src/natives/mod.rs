@@ -84,6 +84,10 @@ pub fn all_natives(
         cryptography::bls12381_bulletproofs::make_all(builder)
     );
     add_natives_from_module!(
+        "class_groups",
+        cryptography::class_groups::make_all(builder)
+    );
+    add_natives_from_module!(
         "transaction_context",
         transaction_context::make_all(builder)
     );
