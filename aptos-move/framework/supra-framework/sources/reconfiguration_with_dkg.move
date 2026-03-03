@@ -14,6 +14,7 @@ module supra_framework::reconfiguration_with_dkg {
     use supra_framework::jwk_consensus_config;
     use supra_framework::jwks;
     use supra_framework::keyless_account;
+    use supra_framework::leader_ban_registry_config;
     use supra_framework::randomness_api_v0_config;
     use supra_framework::randomness_config;
     use supra_framework::randomness_config_seqnum;
@@ -55,9 +56,10 @@ module supra_framework::reconfiguration_with_dkg {
                 &mut receiver_committees,
                 new_receiver_committee(
                     dkg_config::get_is_resharing(rc),
+                    dkg_config::get_dkg_threshold_type(rc),
                     new_dkg_committee_from_validator_consensus_info(
                         stake::next_validator_consensus_infos(),
-                        dkg_config::get_threshold_type(rc)))
+                        dkg_config::get_committee_threshold_type(rc)))
             );
             i = i + 1;
         };
@@ -68,7 +70,7 @@ module supra_framework::reconfiguration_with_dkg {
             randomness_seed,
             new_dkg_committee_from_validator_consensus_info(
                 stake::cur_validator_consensus_infos(),
-                dkg_config::get_dealer_threshold_type(&config)),
+                dkg_config::get_dealer_committee_threshold_type(&config)),
             receiver_committees
         );
     }
@@ -94,6 +96,7 @@ module supra_framework::reconfiguration_with_dkg {
         jwk_consensus_config::on_new_epoch(framework);
         jwks::on_new_epoch(framework);
         keyless_account::on_new_epoch(framework);
+        leader_ban_registry_config::on_new_epoch(framework);
         randomness_config_seqnum::on_new_epoch(framework);
         randomness_config::on_new_epoch(framework);
         randomness_api_v0_config::on_new_epoch(framework);

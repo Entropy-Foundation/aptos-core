@@ -40,13 +40,15 @@ impl DkgCommittee {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Getters)]
 pub struct ReceiverCommittee {
     is_resharing: bool,
+    dkg_threshold_type: u8,
     committee: DkgCommittee,
 }
 
 impl ReceiverCommittee {
-    pub fn new(is_resharing: bool, committee: DkgCommittee) -> Self {
+    pub fn new(is_resharing: bool, dkg_threshold_type: u8, committee: DkgCommittee) -> Self {
         Self {
             is_resharing,
+            dkg_threshold_type,
             committee,
         }
     }

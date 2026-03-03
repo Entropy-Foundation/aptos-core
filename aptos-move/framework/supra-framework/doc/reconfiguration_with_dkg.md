@@ -67,12 +67,63 @@ Do nothing if one is already in progress.
     };
     <a href="reconfiguration_state.md#0x1_reconfiguration_state_on_reconfig_start">reconfiguration_state::on_reconfig_start</a>();
     <b>let</b> cur_epoch = <a href="reconfiguration.md#0x1_reconfiguration_current_epoch">reconfiguration::current_epoch</a>();
+    <b>let</b> randomness_seed = <a href="randomness.md#0x1_randomness_bytes">randomness::bytes</a>(32);
+
+    // Get DKG configuration (dealer threshold type and receiver committee configs)
+    <b>let</b> config = <a href="dkg_config.md#0x1_dkg_config_current">dkg_config::current</a>();
+    <b>let</b> receiver_configs = <a href="dkg_config.md#0x1_dkg_config_get_receiver_committee_configs">dkg_config::get_receiver_committee_configs</a>(&config);
+
+    // Build receiver committees from config
+    <b>let</b> receiver_committees = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+    <b>let</b> i = 0;
+    <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&receiver_configs);
+    <b>while</b> (i &lt; len) {
+        <b>let</b> rc = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&receiver_configs, i);
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(
+            &<b>mut</b> receiver_committees,
+            new_receiver_committee(
+                <a href="dkg_config.md#0x1_dkg_config_get_is_resharing">dkg_config::get_is_resharing</a>(rc),
+                <a href="dkg_config.md#0x1_dkg_config_get_dkg_threshold_type">dkg_config::get_dkg_threshold_type</a>(rc),
+                new_dkg_committee_from_validator_consensus_info(
+                    <a href="stake.md#0x1_stake_next_validator_consensus_infos">stake::next_validator_consensus_infos</a>(),
+                    <a href="dkg_config.md#0x1_dkg_config_get_committee_threshold_type">dkg_config::get_committee_threshold_type</a>(rc)))
+        );
+        i = i + 1;
+    };
+
+    // DKG for configured receiver committees
     <a href="dkg.md#0x1_dkg_start">dkg::start</a>(
         cur_epoch,
-        <a href="randomness_config.md#0x1_randomness_config_current">randomness_config::current</a>(),
-        <a href="stake.md#0x1_stake_cur_validator_consensus_infos">stake::cur_validator_consensus_infos</a>(),
-        <a href="stake.md#0x1_stake_next_validator_consensus_infos">stake::next_validator_consensus_infos</a>()
+        randomness_seed,
+        new_dkg_committee_from_validator_consensus_info(
+            <a href="stake.md#0x1_stake_cur_validator_consensus_infos">stake::cur_validator_consensus_infos</a>(),
+            <a href="dkg_config.md#0x1_dkg_config_get_dealer_committee_threshold_type">dkg_config::get_dealer_committee_threshold_type</a>(&config)),
+        receiver_committees
     );
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_reconfiguration_with_dkg_set_dkg_meta"></a>
+
+## Function `set_dkg_meta`
+
+
+
+<pre><code><b>fun</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_set_dkg_meta">set_dkg_meta</a>(dkg_meta: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_set_dkg_meta">set_dkg_meta</a>(dkg_meta: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;) {
+    <a href="dkg.md#0x1_dkg_set_dkg_meta">dkg::set_dkg_meta</a>(dkg_meta);
 }
 </code></pre>
 

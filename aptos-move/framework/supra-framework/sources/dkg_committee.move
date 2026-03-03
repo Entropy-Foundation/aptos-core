@@ -17,11 +17,14 @@ module std::dkg_committee {
 
     struct DkgCommittee has copy, drop, store {
         committee: vector<DkgNodeConfig>,
+        // The threshold type for the committee's Byzantine fault tolerance.
         threshold_type: CertificateThresholdType,
     }
 
     struct ReceiverCommittee has copy, drop, store {
         is_resharing: bool,
+        // The threshold type for the output key of the DKG process.
+        dkg_threshold_type: CertificateThresholdType,
         committee: DkgCommittee,
     }
 
@@ -84,9 +87,10 @@ module std::dkg_committee {
         }
     }
 
-    public fun new_receiver_committee(is_resharing: bool, committee: DkgCommittee): ReceiverCommittee{
+    public fun new_receiver_committee(is_resharing: bool, dkg_threshold_type: CertificateThresholdType, committee: DkgCommittee): ReceiverCommittee{
         ReceiverCommittee{
             is_resharing,
+            dkg_threshold_type,
             committee
         }
     }

@@ -611,12 +611,12 @@ pub enum StatusCode {
     AUTOMATION_TASK_GAS_PRICE_CAP_ABOVE_MAX_BOUND = 50,
     // DKG session is currently not in progress
     DKG_SESSION_NOT_IN_PROGRESS = 51,
-    // DKG transaction has an invalid epoch number
-    DKG_TRANSACTION_INVALID_EPOCH_NUM = 52,
+    // DKG transaction has a future epoch number
+    DKG_TRANSACTION_FUTURE_EPOCH_NUM = 52,
+    // DKG transaction has a past epoch number
+    DKG_TRANSACTION_PAST_EPOCH_NUM = 53,
     // DKG meta has already set so DKGMeta transaction should fail
-    DKG_META_ALREADY_SET = 53,
-    // DKG meta has not been set so PublicKeyShares transaction should fail
-    DKG_META_NOT_SET = 54,
+    DKG_META_ALREADY_SET = 54,
     // DKG transaction data is invalid
     DKG_TRANSACTION_NOT_VALID = 55,
     // The sender of the dkg transaction is not a family node
