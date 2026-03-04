@@ -46,6 +46,7 @@ This module defines a struct storing the metadata of the block and new block eve
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
+<b>use</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry">0x1::leader_ban_registry</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
 <b>use</b> <a href="randomness.md#0x1_randomness">0x1::randomness</a>;
 <b>use</b> <a href="reconfiguration.md#0x1_reconfiguration">0x1::reconfiguration</a>;
@@ -630,6 +631,8 @@ Return epoch interval in seconds.
     // transition is the last <a href="block.md#0x1_block">block</a> in the previous epoch.
     <a href="stake.md#0x1_stake_update_performance_statistics">stake::update_performance_statistics</a>(proposer_index, failed_proposer_indices);
     <a href="state_storage.md#0x1_state_storage_on_new_block">state_storage::on_new_block</a>(<a href="reconfiguration.md#0x1_reconfiguration_current_epoch">reconfiguration::current_epoch</a>());
+
+    <a href="leader_ban_registry.md#0x1_leader_ban_registry_update_ban_registry">leader_ban_registry::update_ban_registry</a>(epoch, round, proposer_index, failed_proposer_indices);
 
     <a href="automation_registry.md#0x1_automation_registry_monitor_cycle_end">automation_registry::monitor_cycle_end</a>();
 

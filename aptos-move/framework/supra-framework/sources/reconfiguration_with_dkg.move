@@ -58,7 +58,7 @@ module supra_framework::reconfiguration_with_dkg {
                     dkg_config::get_is_resharing(rc),
                     dkg_config::get_dkg_threshold_type(rc),
                     new_dkg_committee_from_validator_consensus_info(
-                        stake::next_validator_consensus_infos(),
+                        stake::next_epoch_validator_consensus_infos_for_dkg(),
                         dkg_config::get_committee_threshold_type(rc)))
             );
             i = i + 1;

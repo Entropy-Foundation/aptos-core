@@ -28,6 +28,7 @@ Reconfiguration with DKG helper functions.
 <b>use</b> <a href="jwk_consensus_config.md#0x1_jwk_consensus_config">0x1::jwk_consensus_config</a>;
 <b>use</b> <a href="jwks.md#0x1_jwks">0x1::jwks</a>;
 <b>use</b> <a href="keyless_account.md#0x1_keyless_account">0x1::keyless_account</a>;
+<b>use</b> <a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config">0x1::leader_ban_registry_config</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
 <b>use</b> <a href="randomness.md#0x1_randomness">0x1::randomness</a>;
 <b>use</b> <a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config">0x1::randomness_api_v0_config</a>;
@@ -90,7 +91,7 @@ Do nothing if one is already in progress.
                 <a href="dkg_config.md#0x1_dkg_config_get_is_resharing">dkg_config::get_is_resharing</a>(rc),
                 <a href="dkg_config.md#0x1_dkg_config_get_dkg_threshold_type">dkg_config::get_dkg_threshold_type</a>(rc),
                 new_dkg_committee_from_validator_consensus_info(
-                    <a href="stake.md#0x1_stake_next_validator_consensus_infos">stake::next_validator_consensus_infos</a>(),
+                    <a href="stake.md#0x1_stake_next_epoch_validator_consensus_infos_for_dkg">stake::next_epoch_validator_consensus_infos_for_dkg</a>(),
                     <a href="dkg_config.md#0x1_dkg_config_get_committee_threshold_type">dkg_config::get_committee_threshold_type</a>(rc)))
         );
         i = i + 1;
@@ -168,6 +169,7 @@ Run the default reconfiguration to enter the new epoch.
     <a href="jwk_consensus_config.md#0x1_jwk_consensus_config_on_new_epoch">jwk_consensus_config::on_new_epoch</a>(framework);
     <a href="jwks.md#0x1_jwks_on_new_epoch">jwks::on_new_epoch</a>(framework);
     <a href="keyless_account.md#0x1_keyless_account_on_new_epoch">keyless_account::on_new_epoch</a>(framework);
+    <a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config_on_new_epoch">leader_ban_registry_config::on_new_epoch</a>(framework);
     <a href="randomness_config_seqnum.md#0x1_randomness_config_seqnum_on_new_epoch">randomness_config_seqnum::on_new_epoch</a>(framework);
     <a href="randomness_config.md#0x1_randomness_config_on_new_epoch">randomness_config::on_new_epoch</a>(framework);
     <a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_on_new_epoch">randomness_api_v0_config::on_new_epoch</a>(framework);

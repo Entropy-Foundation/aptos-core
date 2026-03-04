@@ -42,6 +42,8 @@ This is the reference documentation of the Supra framework.
 -  [`0x1::jwk_consensus_config`](jwk_consensus_config.md#0x1_jwk_consensus_config)
 -  [`0x1::jwks`](jwks.md#0x1_jwks)
 -  [`0x1::keyless_account`](keyless_account.md#0x1_keyless_account)
+-  [`0x1::leader_ban_registry`](leader_ban_registry.md#0x1_leader_ban_registry)
+-  [`0x1::leader_ban_registry_config`](leader_ban_registry_config.md#0x1_leader_ban_registry_config)
 -  [`0x1::managed_coin`](managed_coin.md#0x1_managed_coin)
 -  [`0x1::multisig_account`](multisig_account.md#0x1_multisig_account)
 -  [`0x1::multisig_voting`](multisig_voting.md#0x1_multisig_voting)
