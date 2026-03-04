@@ -126,7 +126,7 @@ pub fn generate_upgrade_proposals(
             release.generate_script_proposal_multi_step(
                 account,
                 move_script_path.clone(),
-                None, //next_execution_hash_bytes,
+                next_execution_hash_bytes,
                 todo!("function_name"),
             )?;
         };

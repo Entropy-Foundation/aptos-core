@@ -8,7 +8,7 @@ use crate::{
     MoveModuleBytecode, MoveModuleId, MoveResource, MoveScriptBytecode, MoveStructTag, MoveType,
     MoveValue, VerifyInput, VerifyInputWithRecursion, U64,
 };
-use alloy::primitives::Keccak256;
+use sha3::Keccak256;
 use anyhow::{anyhow, bail, Context as AnyhowContext, Error as AnyhowError};
 use aptos_crypto::{
     ed25519::{self, Ed25519PublicKey, ED25519_PUBLIC_KEY_LENGTH, ED25519_SIGNATURE_LENGTH},
