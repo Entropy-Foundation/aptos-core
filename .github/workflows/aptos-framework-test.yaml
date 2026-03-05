@@ -21,7 +21,14 @@ env:
   REPO_KEY: ${{ secrets.REPO_KEY }}
 
 jobs:
-  build:
+  check:
+    runs-on: ghr-elastic-supra-aptos-core-runner
+    timeout-minutes: 10
+    steps:
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v4
+      - run: cargo check --workspace
+  test:
     runs-on: ghr-elastic-supra-aptos-core-runner
     timeout-minutes: 90
     steps:

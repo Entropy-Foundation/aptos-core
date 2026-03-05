@@ -12,7 +12,7 @@ use crate::{
         WriteModule, WriteResource, WriteTableItem,
     },
     view::{ViewFunction, ViewRequest},
-    Address, Bytecode, DirectWriteSet, EntryFunctionId, EntryFunctionPayload, Event,
+    Address, Bytecode, DirectWriteSet, EntryFunctionId, EntryFunctionPayload, EventV1, EventV2,
     HexEncodedBytes, MoveFunction, MoveModuleBytecode, MoveResource, MoveScriptBytecode, MoveType,
     MoveValue, PendingTransaction, ResourceGroup, ScriptPayload, ScriptWriteSet,
     SubmitTransactionRequest, Transaction, TransactionInfo, TransactionOnChainData,
@@ -146,7 +146,6 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
         let resources_with_tag: Vec<(StructTag, Vec<u8>)> = bcs::from_bytes::<ResourceGroup>(bytes)
             .map(|map| {
                 map.into_iter()
-                    .map(|(key, value)| (key, value))
                     .collect::<Vec<_>>()
             })?;
 
@@ -615,7 +614,18 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
         }))
     }
 
-    pub fn try_into_events(&self, events: &[ContractEvent]) -> Result<Vec<Event>> {
+    pub fn try_into_events(&self, events: &[ContractEvent]) -> Result<Vec<EventV1>> {
+        let mut ret = vec![];
+        for event in events {
+            let data = self
+                .inner
+                .view_value(event.type_tag(), event.event_data())?;
+            ret.push((event, MoveValue::try_from(data)?.json()?).into());
+        }
+        Ok(ret)
+    }
+
+    pub fn try_into_v2_events(&self, events: &[ContractEvent]) -> Result<Vec<EventV2>> {
         let mut ret = vec![];
         for event in events {
             let data = self

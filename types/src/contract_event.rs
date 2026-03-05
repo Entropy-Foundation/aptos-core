@@ -165,6 +165,24 @@ impl ContractEvent {
     pub fn expect_new_block_event(&self) -> Result<NewBlockEvent> {
         NewBlockEvent::try_from_bytes(self.event_data())
     }
+
+    pub fn as_bytes_for_hash(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        match self {
+            ContractEvent::V1(event) => {
+                bytes.extend_from_slice(&event.key().get_creation_number().to_le_bytes());
+                bytes.extend_from_slice(event.key().get_creator_address().as_ref());
+                bytes.extend_from_slice(&event.sequence_number().to_le_bytes());
+                bytes.extend_from_slice(event.type_tag().to_canonical_string().as_bytes());
+                bytes.extend_from_slice(event.event_data());
+            },
+            ContractEvent::V2(event) => {
+                bytes.extend_from_slice(event.type_tag().to_canonical_string().as_bytes());
+                bytes.extend_from_slice(event.event_data());
+            },
+        }
+        bytes
+    }
 }
 
 /// Entry produced via a call to the `emit_event` builtin.

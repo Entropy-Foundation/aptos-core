@@ -824,6 +824,19 @@ module std::features {
         is_enabled(SUPRA_DKG)
     }
 
+    /// Whether transactions inclusion proofs are enabled.
+    ///
+    /// Lifetime: permanent
+    const SUPRA_TRANSACTIONS_INCLUSION_PROOFS: u64 = 100;
+
+    public fun get_supra_transactions_inclusion_proofs_feature(): u64 {
+        SUPRA_TRANSACTIONS_INCLUSION_PROOFS
+    }
+
+    public fun supra_transactions_inclusion_proofs_enabled(): bool acquires Features {
+        is_enabled(SUPRA_TRANSACTIONS_INCLUSION_PROOFS)
+    }
+
     // ============================================================================================
     // Feature Flag Implementation
 

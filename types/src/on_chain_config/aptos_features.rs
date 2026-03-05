@@ -101,6 +101,7 @@ pub enum FeatureFlag {
     SUPRA_BLS_KEYS = 97,
     SUPRA_BCFT_CERTIFICATES = 98,
     SUPRA_DKG = 99,
+    SUPRA_TRANSACTIONS_INCLUSION_PROOFS = 100,
 }
 
 //TODO: add dkg feature
@@ -177,6 +178,7 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_BLS_KEYS,
             FeatureFlag::SUPRA_BCFT_CERTIFICATES,
             FeatureFlag::SUPRA_DKG,
+            FeatureFlag::SUPRA_TRANSACTIONS_INCLUSION_PROOFS,
         ]
     }
 }
