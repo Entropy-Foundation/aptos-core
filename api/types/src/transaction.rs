@@ -959,8 +959,8 @@ impl From<(&ContractEvent, serde_json::Value)> for EventV1 {
     fn from((event, data): (&ContractEvent, serde_json::Value)) -> Self {
         let mut hasher = Keccak256::new();
         hasher.update(event.as_bytes_for_hash());
-        let hash_bytes: [u8; 32] = [0u8; 32];
-        hasher.finalize_into(&mut hash_bytes.into());
+        let mut hash_bytes: [u8; 32] = [0u8; 32];
+        hasher.finalize_into((&mut hash_bytes).into());
         let hash = Some(HashValue(aptos_crypto::HashValue::new(hash_bytes)));
 
         match event {
@@ -1009,8 +1009,8 @@ impl From<(&ContractEvent, serde_json::Value)> for EventV2 {
     fn from((event, data): (&ContractEvent, serde_json::Value)) -> Self {
         let mut hasher = Keccak256::new();
         hasher.update(event.as_bytes_for_hash());
-        let hash_bytes: [u8; 32] = [0u8; 32];
-        hasher.finalize_into(&mut hash_bytes.into());
+        let mut hash_bytes: [u8; 32] = [0u8; 32];
+        hasher.finalize_into((&mut hash_bytes).into());
         let hash = HashValue(aptos_crypto::HashValue::new(hash_bytes));
 
         match event {

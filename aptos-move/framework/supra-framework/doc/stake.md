@@ -4261,12 +4261,10 @@ Return the <code>ValidatorConsensusInfo</code> of each current validator, sorted
 
 ## Function `next_epoch_validator_consensus_infos_for_dkg`
 
-Same as <code>next_validator_consensus_infos</code> but uses the current-epoch consensus keys for
+Same as <code>next_validator_consensus_infos</code> but uses the current-epoch config data for
 validators that are already active. This is used when starting DKG: the committee
-membership (active + pending_active) must reflect the next epoch, but the encryption keys
-must be the ones the nodes are *currently running with* so they can decrypt their shares.
-Pending-active (new joiners) have no current-epoch key, so their <code><a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a></code> key is
-used as-is.
+membership (active + pending_active) must reflect the next epoch, but node config should reflect
+current-epoch for the active validators.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="stake.md#0x1_stake_next_epoch_validator_consensus_infos_for_dkg">next_epoch_validator_consensus_infos_for_dkg</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;
