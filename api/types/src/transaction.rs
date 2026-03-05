@@ -8,7 +8,6 @@ use crate::{
     MoveModuleBytecode, MoveModuleId, MoveResource, MoveScriptBytecode, MoveStructTag, MoveType,
     MoveValue, VerifyInput, VerifyInputWithRecursion, U64,
 };
-use sha3::Keccak256;
 use anyhow::{anyhow, bail, Context as AnyhowContext, Error as AnyhowError};
 use aptos_crypto::{
     ed25519::{self, Ed25519PublicKey, ED25519_PUBLIC_KEY_LENGTH, ED25519_SIGNATURE_LENGTH},
@@ -41,6 +40,7 @@ use once_cell::sync::Lazy;
 use poem_openapi::{Object, Union};
 use poem_openapi_derive::Enum;
 use serde::{Deserialize, Serialize};
+use sha3::{digest::FixedOutput, Digest, Keccak256};
 use std::{
     boxed::Box,
     convert::{From, Into, TryFrom, TryInto},
@@ -925,7 +925,7 @@ pub struct DKGTransaction {
     #[serde(flatten)]
     #[oai(flatten)]
     info: TransactionInfo,
-    events: Vec<Event>,
+    events: Vec<EventV1>,
     timestamp: U64,
     pub dkg_transaction_data: ExportedDKGTransactionData,
 }
@@ -959,7 +959,9 @@ impl From<(&ContractEvent, serde_json::Value)> for EventV1 {
     fn from((event, data): (&ContractEvent, serde_json::Value)) -> Self {
         let mut hasher = Keccak256::new();
         hasher.update(event.as_bytes_for_hash());
-        let hash = Some(HashValue(aptos_crypto::HashValue::new(*hasher.finalize())));
+        let hash_bytes: [u8; 32] = [0u8; 32];
+        hasher.finalize_into(&mut hash_bytes.into());
+        let hash = Some(HashValue(aptos_crypto::HashValue::new(hash_bytes)));
 
         match event {
             ContractEvent::V1(v1) => Self {
@@ -1007,7 +1009,9 @@ impl From<(&ContractEvent, serde_json::Value)> for EventV2 {
     fn from((event, data): (&ContractEvent, serde_json::Value)) -> Self {
         let mut hasher = Keccak256::new();
         hasher.update(event.as_bytes_for_hash());
-        let hash = HashValue(aptos_crypto::HashValue::new(*hasher.finalize()));
+        let hash_bytes: [u8; 32] = [0u8; 32];
+        hasher.finalize_into(&mut hash_bytes.into());
+        let hash = HashValue(aptos_crypto::HashValue::new(hash_bytes));
 
         match event {
             ContractEvent::V1(v1) => Self {

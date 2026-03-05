@@ -1035,7 +1035,7 @@ Whether transactions inclusion proofs are enabled.
 Lifetime: permanent
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_TRANSACTIONS_INCLUSION_PROOFS">SUPRA_TRANSACTIONS_INCLUSION_PROOFS</a>: u64 = 99;
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_TRANSACTIONS_INCLUSION_PROOFS">SUPRA_TRANSACTIONS_INCLUSION_PROOFS</a>: u64 = 100;
 </code></pre>
 
 

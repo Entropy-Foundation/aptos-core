@@ -19,6 +19,7 @@
 -  [Function `initialize_supra_native_automation_v2`](#0x1_genesis_initialize_supra_native_automation_v2)
 -  [Function `initialize_core_resources_and_supra_coin`](#0x1_genesis_initialize_core_resources_and_supra_coin)
 -  [Function `initialize_evm_genesis_config`](#0x1_genesis_initialize_evm_genesis_config)
+-  [Function `initialize_leader_ban_registry_config`](#0x1_genesis_initialize_leader_ban_registry_config)
 -  [Function `create_accounts`](#0x1_genesis_create_accounts)
 -  [Function `create_account`](#0x1_genesis_create_account)
 -  [Function `create_multiple_multisig_accounts_with_schema`](#0x1_genesis_create_multiple_multisig_accounts_with_schema)
@@ -59,12 +60,15 @@
 <b>use</b> <a href="coin.md#0x1_coin">0x1::coin</a>;
 <b>use</b> <a href="consensus_config.md#0x1_consensus_config">0x1::consensus_config</a>;
 <b>use</b> <a href="create_signer.md#0x1_create_signer">0x1::create_signer</a>;
+<b>use</b> <a href="dkg_config.md#0x1_dkg_config">0x1::dkg_config</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
 <b>use</b> <a href="evm_genesis_config.md#0x1_evm_genesis_config">0x1::evm_genesis_config</a>;
 <b>use</b> <a href="execution_config.md#0x1_execution_config">0x1::execution_config</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/fixed_point32.md#0x1_fixed_point32">0x1::fixed_point32</a>;
 <b>use</b> <a href="gas_schedule.md#0x1_gas_schedule">0x1::gas_schedule</a>;
+<b>use</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry">0x1::leader_ban_registry</a>;
+<b>use</b> <a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config">0x1::leader_ban_registry_config</a>;
 <b>use</b> <a href="multisig_account.md#0x1_multisig_account">0x1::multisig_account</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
 <b>use</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool">0x1::pbo_delegation_pool</a>;
@@ -611,6 +615,7 @@ Genesis step 1: Initialize supra framework account and core modules on chain.
     };
 
     <a href="consensus_config.md#0x1_consensus_config_initialize">consensus_config::initialize</a>(&supra_framework_account, <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>);
+    <a href="dkg_config.md#0x1_dkg_config_initialize">dkg_config::initialize</a>(&supra_framework_account);
     <a href="execution_config.md#0x1_execution_config_set">execution_config::set</a>(&supra_framework_account, <a href="execution_config.md#0x1_execution_config">execution_config</a>);
     <a href="supra_config.md#0x1_supra_config_initialize">supra_config::initialize</a>(&supra_framework_account, <a href="supra_config.md#0x1_supra_config">supra_config</a>);
     <a href="version.md#0x1_version_initialize">version::initialize</a>(&supra_framework_account, initial_version);
@@ -828,6 +833,35 @@ Initialize the EVM genesis config.
     <a href="evm_genesis_config.md#0x1_evm_genesis_config">evm_genesis_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
 ) {
     <a href="evm_genesis_config.md#0x1_evm_genesis_config_initialize">evm_genesis_config::initialize</a>(supra_framework, <a href="evm_genesis_config.md#0x1_evm_genesis_config">evm_genesis_config</a>);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_genesis_initialize_leader_ban_registry_config"></a>
+
+## Function `initialize_leader_ban_registry_config`
+
+Initialize the leader ban config
+
+
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize_leader_ban_registry_config">initialize_leader_ban_registry_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config">leader_ban_registry_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize_leader_ban_registry_config">initialize_leader_ban_registry_config</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    <a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config">leader_ban_registry_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+) {
+    <a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config_initialize">leader_ban_registry_config::initialize</a>(supra_framework, <a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config">leader_ban_registry_config</a>);
+    <a href="leader_ban_registry.md#0x1_leader_ban_registry_initialize_leader_ban_registry">leader_ban_registry::initialize_leader_ban_registry</a>(supra_framework);
 }
 </code></pre>
 

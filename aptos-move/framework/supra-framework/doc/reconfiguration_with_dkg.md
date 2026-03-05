@@ -7,6 +7,7 @@ Reconfiguration with DKG helper functions.
 
 
 -  [Function `try_start`](#0x1_reconfiguration_with_dkg_try_start)
+-  [Function `set_dkg_meta`](#0x1_reconfiguration_with_dkg_set_dkg_meta)
 -  [Function `finish`](#0x1_reconfiguration_with_dkg_finish)
 -  [Function `finish_with_dkg_result`](#0x1_reconfiguration_with_dkg_finish_with_dkg_result)
 -  [Specification](#@Specification_0)
@@ -18,6 +19,8 @@ Reconfiguration with DKG helper functions.
 <pre><code><b>use</b> <a href="automation_registry.md#0x1_automation_registry">0x1::automation_registry</a>;
 <b>use</b> <a href="consensus_config.md#0x1_consensus_config">0x1::consensus_config</a>;
 <b>use</b> <a href="dkg.md#0x1_dkg">0x1::dkg</a>;
+<b>use</b> <a href="dkg_committee.md#0x1_dkg_committee">0x1::dkg_committee</a>;
+<b>use</b> <a href="dkg_config.md#0x1_dkg_config">0x1::dkg_config</a>;
 <b>use</b> <a href="evm_genesis_config.md#0x1_evm_genesis_config">0x1::evm_genesis_config</a>;
 <b>use</b> <a href="execution_config.md#0x1_execution_config">0x1::execution_config</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
@@ -25,7 +28,9 @@ Reconfiguration with DKG helper functions.
 <b>use</b> <a href="jwk_consensus_config.md#0x1_jwk_consensus_config">0x1::jwk_consensus_config</a>;
 <b>use</b> <a href="jwks.md#0x1_jwks">0x1::jwks</a>;
 <b>use</b> <a href="keyless_account.md#0x1_keyless_account">0x1::keyless_account</a>;
+<b>use</b> <a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config">0x1::leader_ban_registry_config</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
+<b>use</b> <a href="randomness.md#0x1_randomness">0x1::randomness</a>;
 <b>use</b> <a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config">0x1::randomness_api_v0_config</a>;
 <b>use</b> <a href="randomness_config.md#0x1_randomness_config">0x1::randomness_config</a>;
 <b>use</b> <a href="randomness_config_seqnum.md#0x1_randomness_config_seqnum">0x1::randomness_config_seqnum</a>;
@@ -35,6 +40,7 @@ Reconfiguration with DKG helper functions.
 <b>use</b> <a href="supra_config.md#0x1_supra_config">0x1::supra_config</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="validator_consensus_info.md#0x1_validator_consensus_info">0x1::validator_consensus_info</a>;
+<b>use</b> <a href="validator_public_keys.md#0x1_validator_public_keys">0x1::validator_public_keys</a>;
 <b>use</b> <a href="version.md#0x1_version">0x1::version</a>;
 </code></pre>
 
@@ -163,10 +169,12 @@ Run the default reconfiguration to enter the new epoch.
     <a href="jwk_consensus_config.md#0x1_jwk_consensus_config_on_new_epoch">jwk_consensus_config::on_new_epoch</a>(framework);
     <a href="jwks.md#0x1_jwks_on_new_epoch">jwks::on_new_epoch</a>(framework);
     <a href="keyless_account.md#0x1_keyless_account_on_new_epoch">keyless_account::on_new_epoch</a>(framework);
+    <a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config_on_new_epoch">leader_ban_registry_config::on_new_epoch</a>(framework);
     <a href="randomness_config_seqnum.md#0x1_randomness_config_seqnum_on_new_epoch">randomness_config_seqnum::on_new_epoch</a>(framework);
     <a href="randomness_config.md#0x1_randomness_config_on_new_epoch">randomness_config::on_new_epoch</a>(framework);
     <a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_on_new_epoch">randomness_api_v0_config::on_new_epoch</a>(framework);
     <a href="evm_genesis_config.md#0x1_evm_genesis_config_on_new_epoch">evm_genesis_config::on_new_epoch</a>(framework);
+    <a href="dkg_config.md#0x1_dkg_config_on_new_epoch">dkg_config::on_new_epoch</a>(framework);
     <a href="reconfiguration.md#0x1_reconfiguration_reconfigure">reconfiguration::reconfigure</a>();
 }
 </code></pre>
