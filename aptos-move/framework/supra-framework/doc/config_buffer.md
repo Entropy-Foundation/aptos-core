@@ -320,19 +320,4 @@ Typically used in <code>X::on_new_epoch()</code> where X is an on-chaon config.
 </code></pre>
 
 
-
-
-<a id="0x1_config_buffer_OnNewEpochRequirement"></a>
-
-
-<pre><code><b>schema</b> <a href="config_buffer.md#0x1_config_buffer_OnNewEpochRequirement">OnNewEpochRequirement</a>&lt;T&gt; {
-    <b>let</b> type_name = <a href="../../aptos-stdlib/doc/type_info.md#0x1_type_info_type_name">type_info::type_name</a>&lt;T&gt;();
-    <b>let</b> configs = <b>global</b>&lt;<a href="config_buffer.md#0x1_config_buffer_PendingConfigs">PendingConfigs</a>&gt;(@supra_framework);
-    <b>include</b> <a href="config_buffer.md#0x1_config_buffer_spec_fun_does_exist">spec_fun_does_exist</a>&lt;T&gt;(type_name) ==&gt; <a href="../../aptos-stdlib/doc/any.md#0x1_any_UnpackRequirement">any::UnpackRequirement</a>&lt;T&gt; {
-        x: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_spec_get">simple_map::spec_get</a>(configs.configs, type_name)
-    };
-}
-</code></pre>
-
-
 [move-book]: https://aptos.dev/move/book/SUMMARY
