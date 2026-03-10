@@ -536,7 +536,7 @@ criterion-cpu-time = "0.1.0"
 crossbeam = "0.8.1"
 crossbeam-channel = "0.5.4"
 crossterm = "0.26.1"
-crypto = { git = "ssh://git@github.com/Entropy-Foundation/crypto", rev = "0f63d92ddf2c086ff2bd27bb0c2e50254b0c4c45" }
+crypto = { git = "ssh://git@github.com/Entropy-Foundation/crypto", rev = "d045a68" }
 csv = "1.2.1"
 curve25519-dalek = "3"
 curve25519-dalek-ng = "4"
