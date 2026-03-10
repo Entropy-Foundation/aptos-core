@@ -83,7 +83,7 @@ module supra_framework::transaction_validation {
 
     fun verify_gas_payment(
         gas_payer: address, txn_gas_price: u64, txn_gas_units: u64
-    ) {
+    ): u64 {
         let transaction_fee = txn_gas_price * txn_gas_units;
 
         if (features::operations_default_to_fa_supra_store_enabled()) {
@@ -96,7 +96,9 @@ module supra_framework::transaction_validation {
                 coin::is_balance_at_least<SupraCoin>(gas_payer, transaction_fee),
                 error::invalid_argument(PROLOGUE_ECANT_PAY_GAS_DEPOSIT)
             );
-        }
+        };
+
+        transaction_fee
     }
 
     fun prologue_common(
@@ -428,7 +430,8 @@ module supra_framework::transaction_validation {
 
         // it's important to maintain the error code consistent with vm
         // to do failed transaction cleanup.
-        verify_gas_payment(gas_payer, txn_gas_price, txn_max_gas_units);
+        let transaction_fee_amount =
+            verify_gas_payment(gas_payer, txn_gas_price, txn_max_gas_units);
 
         let amount_to_burn =
             if (features::collect_and_distribute_gas_fees()) {

@@ -2882,8 +2882,11 @@ impl VMValidator for AptosVM {
                 return VMValidatorResult::error(StatusCode::INVALID_SIGNATURE);
             },
         };
-        let txn_data = TransactionMetadata::new(&txn);
 
+        // The prologue gas fee check should only be skipped during simulation. 
+        // Transactions that make it to execution should have gas parameters that have been chosen deliberately.
+        let skip_prologue_gas_fee_check = false;
+        let txn_data = TransactionMetadata::new(&txn, skip_prologue_gas_fee_check);
         let resolver = self.as_move_resolver(&state_view);
         let is_approved_gov_script = is_approved_gov_script(&resolver, &txn, &txn_data);
 

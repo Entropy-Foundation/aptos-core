@@ -31,11 +31,11 @@ spec supra_framework::transaction_validation {
     /// Ensure caller is `supra_framework`.
     /// Aborts if TransactionValidation already exists.
     spec initialize(
-    supra_framework: &signer,
-    script_prologue_name: vector<u8>,
-    module_prologue_name: vector<u8>,
-    multi_agent_prologue_name: vector<u8>,
-    user_epilogue_name: vector<u8>,
+        supra_framework: &signer,
+        script_prologue_name: vector<u8>,
+        module_prologue_name: vector<u8>,
+        multi_agent_prologue_name: vector<u8>,
+        user_epilogue_name: vector<u8>
     ) {
         use std::signer;
         let addr = signer::address_of(supra_framework);
@@ -61,6 +61,7 @@ spec supra_framework::transaction_validation {
         txn_max_gas_units: u64;
         txn_expiration_time: u64;
         chain_id: u8;
+        verify_gas_payment: bool;
 
         aborts_if !exists<CurrentTimeMicroseconds>(@supra_framework);
         aborts_if !(timestamp::now_seconds() < txn_expiration_time);
@@ -74,14 +75,26 @@ spec supra_framework::transaction_validation {
                 || account::exists_at(transaction_sender)
                 || transaction_sender == gas_payer
                 || txn_sequence_number > 0
-        ) && (
-            !(txn_sequence_number >= global<Account>(transaction_sender).sequence_number)
-                || !(txn_authentication_key == global<Account>(transaction_sender).authentication_key)
-                || !account::exists_at(transaction_sender)
-                || !(txn_sequence_number == global<Account>(transaction_sender).sequence_number)
-        );
+        )
+            && (
+                !(
+                    txn_sequence_number
+                        >= global<Account>(transaction_sender).sequence_number
+                )
+                    || !(
+                        txn_authentication_key
+                            == global<Account>(transaction_sender).authentication_key
+                    )
+                    || !account::exists_at(transaction_sender)
+                    || !(
+                        txn_sequence_number
+                            == global<Account>(transaction_sender).sequence_number
+                    )
+            );
 
-        aborts_if features::spec_is_enabled(features::SPONSORED_AUTOMATIC_ACCOUNT_CREATION)
+        aborts_if features::spec_is_enabled(
+            features::SPONSORED_AUTOMATIC_ACCOUNT_CREATION
+        )
             && transaction_sender != gas_payer
             && txn_sequence_number == 0
             && !account::exists_at(transaction_sender)
@@ -94,18 +107,23 @@ spec supra_framework::transaction_validation {
         aborts_if !exists<CoinStore<SupraCoin>>(gas_payer);
         // property 1: The sender of a transaction should have sufficient coin balance to pay the transaction fee.
         /// [high-level-req-1]
-        aborts_if !(global<CoinStore<SupraCoin>>(gas_payer).coin.value >= max_transaction_fee);
+        aborts_if !(
+            !verify_gas_payment
+                || global<CoinStore<SupraCoin>>(gas_payer).coin.value
+                    >= max_transaction_fee
+        );
     }
 
     spec prologue_common(
-    sender: signer,
-    gas_payer: address,
-    txn_sequence_number: u64,
-    txn_authentication_key: vector<u8>,
-    txn_gas_price: u64,
-    txn_max_gas_units: u64,
-    txn_expiration_time: u64,
-    chain_id: u8,
+        sender: signer,
+        gas_payer: address,
+        txn_sequence_number: u64,
+        txn_authentication_key: vector<u8>,
+        txn_gas_price: u64,
+        txn_max_gas_units: u64,
+        txn_expiration_time: u64,
+        chain_id: u8,
+        verify_gas_payment: bool
     ) {
         // TODO(fa_migration)
         pragma verify = false;
@@ -113,14 +131,14 @@ spec supra_framework::transaction_validation {
     }
 
     spec script_prologue(
-    sender: signer,
-    txn_sequence_number: u64,
-    txn_public_key: vector<u8>,
-    txn_gas_price: u64,
-    txn_max_gas_units: u64,
-    txn_expiration_time: u64,
-    chain_id: u8,
-    _script_hash: vector<u8>,
+        sender: signer,
+        txn_sequence_number: u64,
+        txn_public_key: vector<u8>,
+        txn_gas_price: u64,
+        txn_max_gas_units: u64,
+        txn_expiration_time: u64,
+        chain_id: u8,
+        verify_gas_payment: bool
     ) {
         // TODO(fa_migration)
         pragma verify = false;
@@ -143,23 +161,23 @@ spec supra_framework::transaction_validation {
         /// [high-level-req-2]
         aborts_if exists i in 0..num_secondary_signers:
             !account::exists_at(secondary_signer_addresses[i])
-                || secondary_signer_public_key_hashes[i] !=
-                account::get_authentication_key(secondary_signer_addresses[i]);
+                || secondary_signer_public_key_hashes[i]
+                    != account::get_authentication_key(secondary_signer_addresses[i]);
 
         // By the end, all secondary signers account should exist and public key hash should match.
         ensures forall i in 0..num_secondary_signers:
             account::exists_at(secondary_signer_addresses[i])
-                && secondary_signer_public_key_hashes[i] ==
-                account::get_authentication_key(secondary_signer_addresses[i]);
+                && secondary_signer_public_key_hashes[i]
+                    == account::get_authentication_key(secondary_signer_addresses[i]);
     }
 
     spec multi_agent_common_prologue(
-    secondary_signer_addresses: vector<address>,
-    secondary_signer_public_key_hashes: vector<vector<u8>>,
+        secondary_signer_addresses: vector<address>,
+        secondary_signer_public_key_hashes: vector<vector<u8>>
     ) {
         include MultiAgentPrologueCommonAbortsIf {
             secondary_signer_addresses,
-            secondary_signer_public_key_hashes,
+            secondary_signer_public_key_hashes
         };
     }
 
@@ -169,23 +187,24 @@ spec supra_framework::transaction_validation {
         txn_gas_price: u64,
         txn_max_gas_units: u64,
         txn_expiration_time: u64,
-        chain_id: u8,
+        chain_id: u8
     ) {
         pragma verify = false;
     }
 
     /// Aborts if length of public key hashed vector
     /// not equal the number of singers.
-    spec multi_agent_script_prologue (
-    sender: signer,
-    txn_sequence_number: u64,
-    txn_sender_public_key: vector<u8>,
-    secondary_signer_addresses: vector<address>,
-    secondary_signer_public_key_hashes: vector<vector<u8>>,
-    txn_gas_price: u64,
-    txn_max_gas_units: u64,
-    txn_expiration_time: u64,
-    chain_id: u8,
+    spec multi_agent_script_prologue(
+        sender: signer,
+        txn_sequence_number: u64,
+        txn_sender_public_key: vector<u8>,
+        secondary_signer_addresses: vector<address>,
+        secondary_signer_public_key_hashes: vector<vector<u8>>,
+        txn_gas_price: u64,
+        txn_max_gas_units: u64,
+        txn_expiration_time: u64,
+        chain_id: u8,
+        verify_gas_payment: bool
     ) {
         pragma verify_duration_estimate = 120;
         let gas_payer = signer::address_of(sender);
@@ -194,26 +213,27 @@ spec supra_framework::transaction_validation {
         include PrologueCommonAbortsIf {
             gas_payer,
             txn_sequence_number,
-            txn_authentication_key: txn_sender_public_key,
+            txn_authentication_key: txn_sender_public_key
         };
         include MultiAgentPrologueCommonAbortsIf {
             secondary_signer_addresses,
-            secondary_signer_public_key_hashes,
+            secondary_signer_public_key_hashes
         };
     }
 
     spec fee_payer_script_prologue(
-    sender: signer,
-    txn_sequence_number: u64,
-    txn_sender_public_key: vector<u8>,
-    secondary_signer_addresses: vector<address>,
-    secondary_signer_public_key_hashes: vector<vector<u8>>,
-    fee_payer_address: address,
-    fee_payer_public_key_hash: vector<u8>,
-    txn_gas_price: u64,
-    txn_max_gas_units: u64,
-    txn_expiration_time: u64,
-    chain_id: u8,
+        sender: signer,
+        txn_sequence_number: u64,
+        txn_sender_public_key: vector<u8>,
+        secondary_signer_addresses: vector<address>,
+        secondary_signer_public_key_hashes: vector<vector<u8>>,
+        fee_payer_address: address,
+        fee_payer_public_key_hash: vector<u8>,
+        txn_gas_price: u64,
+        txn_max_gas_units: u64,
+        txn_expiration_time: u64,
+        chain_id: u8,
+        verify_gas_payment: bool
     ) {
         pragma verify_duration_estimate = 120;
 
@@ -222,15 +242,17 @@ spec supra_framework::transaction_validation {
         include PrologueCommonAbortsIf {
             gas_payer,
             txn_sequence_number,
-            txn_authentication_key: txn_sender_public_key,
+            txn_authentication_key: txn_sender_public_key
         };
         include MultiAgentPrologueCommonAbortsIf {
             secondary_signer_addresses,
-            secondary_signer_public_key_hashes,
+            secondary_signer_public_key_hashes
         };
 
         aborts_if !account::exists_at(gas_payer);
-        aborts_if !(fee_payer_public_key_hash == account::get_authentication_key(gas_payer));
+        aborts_if !(
+            fee_payer_public_key_hash == account::get_authentication_key(gas_payer)
+        );
         aborts_if !features::spec_fee_payer_enabled();
     }
 
@@ -238,11 +260,11 @@ spec supra_framework::transaction_validation {
     /// `SupraCoinCapabilities` and `CoinInfo` should exists.
     /// Skip transaction_fee::burn_fee verification.
     spec epilogue(
-    account: signer,
-    storage_fee_refunded: u64,
-    txn_gas_price: u64,
-    txn_max_gas_units: u64,
-    gas_units_remaining: u64
+        account: signer,
+        storage_fee_refunded: u64,
+        txn_gas_price: u64,
+        txn_max_gas_units: u64,
+        gas_units_remaining: u64
     ) {
         // TODO(fa_migration)
         pragma verify = false;
@@ -273,12 +295,12 @@ spec supra_framework::transaction_validation {
     /// `SupraCoinCapabilities` and `CoinInfo` should exist.
     /// Skip transaction_fee::burn_fee verification.
     spec epilogue_gas_payer(
-    account: signer,
-    gas_payer: address,
-    storage_fee_refunded: u64,
-    txn_gas_price: u64,
-    txn_max_gas_units: u64,
-    gas_units_remaining: u64
+        account: signer,
+        gas_payer: address,
+        storage_fee_refunded: u64,
+        txn_gas_price: u64,
+        txn_max_gas_units: u64,
+        gas_units_remaining: u64
     ) {
         // TODO(fa_migration)
         pragma verify = false;
@@ -294,7 +316,11 @@ spec supra_framework::transaction_validation {
         use supra_framework::coin;
         use supra_framework::coin::{CoinStore, CoinInfo};
         use supra_framework::optional_aggregator;
-        use supra_framework::transaction_fee::{SupraCoinCapabilities, SupraCoinMintCapability, CollectedFeesPerBlock};
+        use supra_framework::transaction_fee::{
+            SupraCoinCapabilities,
+            SupraCoinMintCapability,
+            CollectedFeesPerBlock
+        };
 
         account: signer;
         gas_payer: address;
@@ -324,23 +350,26 @@ spec supra_framework::transaction_validation {
         // ensures balance == pre_balance - transaction_fee_amount + storage_fee_refunded;
         ensures account.sequence_number == pre_account.sequence_number + 1;
 
-
         // Check fee collection.
-        let collect_fee_enabled = features::spec_is_enabled(features::COLLECT_AND_DISTRIBUTE_GAS_FEES);
+        let collect_fee_enabled = features::spec_is_enabled(
+            features::COLLECT_AND_DISTRIBUTE_GAS_FEES
+        );
         let collected_fees = global<CollectedFeesPerBlock>(@supra_framework).amount;
         let aggr = collected_fees.value;
         let aggr_val = aggregator::spec_aggregator_get_val(aggr);
         let aggr_lim = aggregator::spec_get_limit(aggr);
 
         /// [high-level-req-3]
-        aborts_if collect_fee_enabled && !exists<CollectedFeesPerBlock>(@supra_framework);
-        aborts_if collect_fee_enabled && transaction_fee_amount > 0 && aggr_val + transaction_fee_amount > aggr_lim;
+        aborts_if collect_fee_enabled
+            && !exists<CollectedFeesPerBlock>(@supra_framework);
+        aborts_if collect_fee_enabled
+            && transaction_fee_amount > 0
+            && aggr_val + transaction_fee_amount > aggr_lim;
 
         // Check burning.
         //   (Check the total supply aggregator when enabled.)
-        let amount_to_burn = if (collect_fee_enabled) {
-            0
-        } else {
+        let amount_to_burn = if (collect_fee_enabled) { 0 }
+        else {
             transaction_fee_amount - storage_fee_refunded
         };
         let apt_addr = type_info::type_of<SupraCoin>().account_address;
@@ -350,12 +379,18 @@ spec supra_framework::transaction_validation {
         let apt_supply_value = optional_aggregator::optional_aggregator_value(apt_supply);
         let post post_maybe_apt_supply = global<CoinInfo<SupraCoin>>(apt_addr).supply;
         let post post_apt_supply = option::spec_borrow(post_maybe_apt_supply);
-        let post post_apt_supply_value = optional_aggregator::optional_aggregator_value(post_apt_supply);
+        let post post_apt_supply_value = optional_aggregator::optional_aggregator_value(
+            post_apt_supply
+        );
 
-        aborts_if amount_to_burn > 0 && !exists<SupraCoinCapabilities>(@supra_framework);
+        aborts_if amount_to_burn > 0
+            && !exists<SupraCoinCapabilities>(@supra_framework);
         aborts_if amount_to_burn > 0 && !exists<CoinInfo<SupraCoin>>(apt_addr);
-        aborts_if amount_to_burn > 0 && total_supply_enabled && apt_supply_value < amount_to_burn;
-        ensures total_supply_enabled ==> apt_supply_value - amount_to_burn == post_apt_supply_value;
+        aborts_if amount_to_burn > 0
+            && total_supply_enabled
+            && apt_supply_value < amount_to_burn;
+        ensures total_supply_enabled ==>
+            apt_supply_value - amount_to_burn == post_apt_supply_value;
 
         // Check minting.
         let amount_to_mint = if (collect_fee_enabled) {
@@ -367,12 +402,15 @@ spec supra_framework::transaction_validation {
         let post post_total_supply = coin::supply<SupraCoin>;
 
         aborts_if amount_to_mint > 0 && !exists<CoinStore<SupraCoin>>(addr);
-        aborts_if amount_to_mint > 0 && !exists<SupraCoinMintCapability>(@supra_framework);
+        aborts_if amount_to_mint > 0
+            && !exists<SupraCoinMintCapability>(@supra_framework);
         aborts_if amount_to_mint > 0 && total_supply + amount_to_mint > MAX_U128;
-        ensures amount_to_mint > 0 ==> post_total_supply == total_supply + amount_to_mint;
+        ensures amount_to_mint > 0 ==>
+            post_total_supply == total_supply + amount_to_mint;
 
         let aptos_addr = type_info::type_of<SupraCoin>().account_address;
-        aborts_if (amount_to_mint != 0) && !exists<coin::CoinInfo<SupraCoin>>(aptos_addr);
+        aborts_if (amount_to_mint != 0)
+            && !exists<coin::CoinInfo<SupraCoin>>(aptos_addr);
         include coin::CoinAddAbortsIf<SupraCoin> { amount: amount_to_mint };
     }
 }

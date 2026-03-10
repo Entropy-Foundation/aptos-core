@@ -23,7 +23,7 @@ pub fn run_transaction_using_debugger(
     let log_context = AdapterLogSchema::new(state_view.id(), 0);
 
     let resolver = state_view.as_move_resolver();
-    let (vm_status, vm_output) = vm.execute_user_transaction(&resolver, &transaction, &log_context);
+    let (vm_status, vm_output) = vm.execute_user_transaction(&resolver, &transaction, &log_context, false);
 
     Ok((vm_status, vm_output))
 }
@@ -39,7 +39,7 @@ pub fn benchmark_transaction_using_debugger(
     let log_context = AdapterLogSchema::new(state_view.id(), 0);
 
     let resolver = state_view.as_move_resolver();
-    let (vm_status, vm_output) = vm.execute_user_transaction(&resolver, &transaction, &log_context);
+    let (vm_status, vm_output) = vm.execute_user_transaction(&resolver, &transaction, &log_context, false);
 
     let time_cold = {
         let n = 15;
@@ -56,6 +56,7 @@ pub fn benchmark_transaction_using_debugger(
                 &resolver,
                 &transaction,
                 &log_context,
+                false,
             ));
             let t2 = Instant::now();
 
@@ -78,6 +79,7 @@ pub fn benchmark_transaction_using_debugger(
                 &resolver,
                 &transaction,
                 &log_context,
+                false,
             ));
             let t2 = Instant::now();
 

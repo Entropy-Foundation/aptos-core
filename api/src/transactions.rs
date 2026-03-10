@@ -1080,8 +1080,7 @@ impl TransactionsApi {
                                         ledger_info,
                                         params.automated_function(),
                                     )?;
-
-                                }
+                                },
                             }
                         }
                     },
@@ -1382,7 +1381,7 @@ impl TransactionsApi {
         // Supra does not use this function, so we retain its original behavior.
         let skip_prologue_gas_fee_check = false;
         let (vm_status, output) =
-            AptosSimulationVM::create_vm_and_simulate_signed_transaction(&txn, &state_view, skip_prologue_gas_fee_check);
+            AptosSimulationVM::create_vm_and_simulate_signed_transaction(&txn, &state_view);
         let version = ledger_info.version();
 
         // Ensure that all known statuses return their values in the output (even if they aren't supposed to)
@@ -1420,7 +1419,7 @@ impl TransactionsApi {
                                 auto_payload.module_id(),
                                 &auto_payload.function().into(),
                             )
-                        }
+                        },
                     }
                 } else {
                     "Multisig::unknown".to_string()

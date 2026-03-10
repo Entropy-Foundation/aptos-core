@@ -111,6 +111,7 @@ pub(crate) fn run_script_prologue(
             MoveValue::U64(txn_max_gas_units.into()),
             MoveValue::U64(txn_expiration_timestamp_secs),
             MoveValue::U8(chain_id.id()),
+            MoveValue::Bool(txn_data.skip_prologue_gas_fee_check),
         ];
         (&APTOS_TRANSACTION_VALIDATION.fee_payer_prologue_name, args)
     } else if txn_data.is_multi_agent() {
@@ -124,6 +125,7 @@ pub(crate) fn run_script_prologue(
             MoveValue::U64(txn_max_gas_units.into()),
             MoveValue::U64(txn_expiration_timestamp_secs),
             MoveValue::U8(chain_id.id()),
+            MoveValue::Bool(txn_data.skip_prologue_gas_fee_check),
         ];
         (
             &APTOS_TRANSACTION_VALIDATION.multi_agent_prologue_name,
@@ -139,6 +141,7 @@ pub(crate) fn run_script_prologue(
             MoveValue::U64(txn_expiration_timestamp_secs),
             MoveValue::U8(chain_id.id()),
             MoveValue::vector_u8(txn_data.script_hash.clone()),
+            MoveValue::Bool(txn_data.skip_prologue_gas_fee_check),
         ];
         (&APTOS_TRANSACTION_VALIDATION.script_prologue_name, args)
     };
@@ -237,6 +240,7 @@ pub(crate) fn run_automated_transaction_prologue(
         .map_err(expect_no_verification_errors)
         .or_else(|err| convert_prologue_error(err, log_context))
 }
+
 /// Run the prologue for automated transactions where
 /// 1. sender is checked to have enough funds for transaction execution
 /// 2. automated task expiry time is checked.
