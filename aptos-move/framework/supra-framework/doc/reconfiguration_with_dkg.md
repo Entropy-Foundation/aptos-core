@@ -20,6 +20,7 @@ Reconfiguration with DKG helper functions.
 <b>use</b> <a href="consensus_config.md#0x1_consensus_config">0x1::consensus_config</a>;
 <b>use</b> <a href="dkg_committee.md#0x1_dkg_committee">0x1::dkg_committee</a>;
 <b>use</b> <a href="dkg_config.md#0x1_dkg_config">0x1::dkg_config</a>;
+<b>use</b> <a href="evm_contracts_details.md#0x1_evm_contracts_details">0x1::evm_contracts_details</a>;
 <b>use</b> <a href="evm_genesis_config.md#0x1_evm_genesis_config">0x1::evm_genesis_config</a>;
 <b>use</b> <a href="execution_config.md#0x1_execution_config">0x1::execution_config</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
@@ -177,6 +178,7 @@ Run the default reconfiguration to enter the new epoch.
     <a href="randomness_api_v0_config.md#0x1_randomness_api_v0_config_on_new_epoch">randomness_api_v0_config::on_new_epoch</a>(framework);
     <a href="evm_genesis_config.md#0x1_evm_genesis_config_on_new_epoch">evm_genesis_config::on_new_epoch</a>(framework);
     <a href="dkg_config.md#0x1_dkg_config_on_new_epoch">dkg_config::on_new_epoch</a>(framework);
+    <a href="evm_contracts_details.md#0x1_evm_contracts_details_on_new_epoch">evm_contracts_details::on_new_epoch</a>(framework);
     <a href="reconfiguration.md#0x1_reconfiguration_reconfigure">reconfiguration::reconfigure</a>();
 }
 </code></pre>

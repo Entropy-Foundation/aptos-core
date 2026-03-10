@@ -7,6 +7,7 @@ module supra_framework::reconfiguration_with_dkg {
     use std::features;
     use std::option;
     use std::vector;
+    use supra_framework::evm_contracts_details;
     use supra_framework::automation_registry;
     use supra_framework::randomness;
     use supra_framework::consensus_config;
@@ -107,6 +108,7 @@ module supra_framework::reconfiguration_with_dkg {
         randomness_api_v0_config::on_new_epoch(framework);
         evm_genesis_config::on_new_epoch(framework);
         dkg_config::on_new_epoch(framework);
+        evm_contracts_details::on_new_epoch(framework);
         reconfiguration::reconfigure();
     }
 
