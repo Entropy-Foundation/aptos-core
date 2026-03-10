@@ -107,7 +107,8 @@ module supra_framework::transaction_validation {
         txn_gas_price: u64,
         txn_max_gas_units: u64,
         txn_expiration_time: u64,
-        chain_id: u8
+        chain_id: u8,
+        verify_gas_payment: bool
     ) {
         assert!(
             timestamp::now_seconds() < txn_expiration_time,
@@ -164,7 +165,14 @@ module supra_framework::transaction_validation {
             );
         };
 
-        verify_gas_payment(gas_payer, txn_gas_price, txn_max_gas_units);
+        // Should only be false when simulating a transaction with the default max-gas value.
+        // Clients that do not manually specify their own max-gas value should generally be using
+        // simulation to estimate the value of this parameter for their actual transaction.
+        // The transaction will fail during the epilogue with the same error code if the account does not
+        // have enough balance to cover the actual gas payment.
+        if (verify_gas_payment) {
+            verify_gas_payment(gas_payer, txn_gas_price, txn_max_gas_units);
+        }
     }
 
     fun script_prologue(
@@ -175,7 +183,7 @@ module supra_framework::transaction_validation {
         txn_max_gas_units: u64,
         txn_expiration_time: u64,
         chain_id: u8,
-        _script_hash: vector<u8>
+        verify_gas_payment: bool
     ) {
         let gas_payer = signer::address_of(&sender);
         prologue_common(
@@ -186,7 +194,8 @@ module supra_framework::transaction_validation {
             txn_gas_price,
             txn_max_gas_units,
             txn_expiration_time,
-            chain_id
+            chain_id,
+            verify_gas_payment
         )
     }
 
@@ -257,7 +266,8 @@ module supra_framework::transaction_validation {
         txn_gas_price: u64,
         txn_max_gas_units: u64,
         txn_expiration_time: u64,
-        chain_id: u8
+        chain_id: u8,
+        verify_gas_payment: bool
     ) {
         let sender_addr = signer::address_of(&sender);
         prologue_common(
@@ -268,7 +278,8 @@ module supra_framework::transaction_validation {
             txn_gas_price,
             txn_max_gas_units,
             txn_expiration_time,
-            chain_id
+            chain_id,
+            verify_gas_payment
         );
         multi_agent_common_prologue(
             secondary_signer_addresses, secondary_signer_public_key_hashes
@@ -327,7 +338,8 @@ module supra_framework::transaction_validation {
         txn_gas_price: u64,
         txn_max_gas_units: u64,
         txn_expiration_time: u64,
-        chain_id: u8
+        chain_id: u8,
+        verify_gas_payment: bool
     ) {
         assert!(
             features::fee_payer_enabled(),
@@ -341,7 +353,8 @@ module supra_framework::transaction_validation {
             txn_gas_price,
             txn_max_gas_units,
             txn_expiration_time,
-            chain_id
+            chain_id,
+            verify_gas_payment
         );
         multi_agent_common_prologue(
             secondary_signer_addresses, secondary_signer_public_key_hashes

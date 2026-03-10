@@ -35,10 +35,11 @@ pub struct TransactionMetadata {
     pub is_keyless: bool,
     pub payload_type_reference: PayloadTypeReferenceMeta,
     pub txn_app_hash: Vec<u8>,
+    pub skip_prologue_gas_fee_check: bool,
 }
 
 impl TransactionMetadata {
-    pub fn new(txn: &SignedTransaction) -> Self {
+    pub fn new(txn: &SignedTransaction, skip_prologue_gas_fee_check: bool) -> Self {
         let payload_type_reference = match txn.payload() {
             TransactionPayload::Script(_) |
             TransactionPayload::ModuleBundle(_) => PayloadTypeReferenceMeta::Other,
@@ -89,6 +90,7 @@ impl TransactionMetadata {
                 &bcs::to_bytes(&txn).expect("Unable to serialize SignedTransaction"),
             )
             .to_vec(),
+            skip_prologue_gas_fee_check,
         }
     }
 
@@ -197,6 +199,7 @@ impl From<&AutomatedTransaction> for TransactionMetadata {
             is_keyless: false,
             payload_type_reference: PayloadTypeReferenceMeta::UserEntryFunction(txn.payload().clone().into_entry_function()),
             txn_app_hash: txn.hash().to_vec(),
+            skip_prologue_gas_fee_check: false,
         }
     }
 }

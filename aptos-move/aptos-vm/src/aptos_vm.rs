@@ -2009,18 +2009,22 @@ impl AptosVM {
 
     /// Main entrypoint for executing a user transaction that also allows the customization of the
     /// gas meter to be used.
+    /// 
+    /// `skip_prologue_gas_fee_check` should only be set to true when simulating a transaction with
+    /// the default max-gas value.
     pub fn execute_user_transaction_with_custom_gas_meter<G, F>(
         &self,
         resolver: &impl AptosMoveResolver,
         txn: &SignedTransaction,
         log_context: &AdapterLogSchema,
         make_gas_meter: F,
+        skip_prologue_gas_fee_check: bool,
     ) -> Result<(VMStatus, VMOutput, G), VMStatus>
     where
         G: AptosGasMeter,
         F: FnOnce(u64, VMGasParameters, StorageGasParameters, bool, Gas) -> G,
     {
-        let txn_metadata = TransactionMetadata::new(txn);
+        let txn_metadata = TransactionMetadata::new(txn, skip_prologue_gas_fee_check);
 
         let is_approved_gov_script = is_approved_gov_script(resolver, txn, &txn_metadata);
 
@@ -2079,21 +2083,28 @@ impl AptosVM {
                     meter_balance,
                 ))
             },
+            // We do not currently use this function to simulate transactions.
+            false,
         )
     }
 
     /// Executes a user transaction using the production gas meter.
+    /// 
+    /// `skip_prologue_gas_fee_check` should only be set to true when simulating a transaction with
+    /// the default max-gas value.
     pub fn execute_user_transaction(
         &self,
         resolver: &impl AptosMoveResolver,
         txn: &SignedTransaction,
         log_context: &AdapterLogSchema,
+        skip_prologue_gas_fee_check: bool,
     ) -> (VMStatus, VMOutput) {
         match self.execute_user_transaction_with_custom_gas_meter(
             resolver,
             txn,
             log_context,
             make_prod_gas_meter,
+            skip_prologue_gas_fee_check,
         ) {
             Ok((vm_status, vm_output, _gas_meter)) => (vm_status, vm_output),
             Err(vm_status) => {
@@ -2607,7 +2618,10 @@ impl AptosVM {
             Transaction::UserTransaction(txn) => {
                 fail_point!("aptos_vm::execution::user_transaction");
                 let _timer = TXN_TOTAL_SECONDS.start_timer();
-                let (vm_status, output) = self.execute_user_transaction(resolver, txn, log_context);
+                // The prologue gas fee check should only be skipped during simulation. Transactions
+                // that make it to execution should have gas parameters that have been chosen deliberately.
+                let skip_prologue_gas_fee_check = false;
+                let (vm_status, output) = self.execute_user_transaction(resolver, txn, log_context, skip_prologue_gas_fee_check);
 
                 if let StatusType::InvariantViolation = vm_status.status_type() {
                     match vm_status.status_code() {
@@ -2921,7 +2935,16 @@ impl AptosSimulationVM {
 
     /// Simulates a signed transaction (i.e., executes it without performing
     /// signature verification) on a newly created VM instance.
+    /// 
     /// *Precondition:* the transaction must **not** have a valid signature.
+    /// 
+    /// Transactions that have a `max_gas_amount` equal to `u64::MAX` will skip the prologue gas fee check.
+    /// This value will never be deliberately selected by a user for a real transaction as it will always
+    /// result in a failure during execution (since their account will never have enough balance to cover
+    /// the implied gas fee). Consequently, it is a safe value to use as a flag to indicate that the prologue
+    /// gas fee check should be skipped during simulation. This allows clients to use simulation to precisely
+    /// set the `max_gas_amount` parameter of a transaction without having to predict an approximate value
+    /// to use during simulation, which would inevitably be imprecise.
     pub fn create_vm_and_simulate_signed_transaction(
         transaction: &SignedTransaction,
         state_view: &impl StateView,
@@ -2935,8 +2958,9 @@ impl AptosSimulationVM {
         let log_context = AdapterLogSchema::new(state_view.id(), 0);
 
         let resolver = state_view.as_move_resolver();
+        let skip_prologue_gas_fee_check = transaction.max_gas_amount() == u64::MAX;
         let (vm_status, vm_output) =
-            vm.0.execute_user_transaction(&resolver, transaction, &log_context);
+            vm.0.execute_user_transaction(&resolver, transaction, &log_context, skip_prologue_gas_fee_check);
         let txn_output = vm_output
             .try_materialize_into_transaction_output(&resolver)
             .expect("Materializing aggregator V1 deltas should never fail");
