@@ -137,16 +137,24 @@ module supra_framework::transaction_validation {
             );
         };
 
-        let max_transaction_fee = txn_gas_price * txn_max_gas_units;
+        verify_gas_payment(gas_payer, txn_gas_price, txn_max_gas_units);
+    }
+
+    fun verify_gas_payment(
+        gas_payer: address,
+        txn_gas_price: u64,
+        txn_gas_units: u64,
+    ) {
+        let transaction_fee = txn_gas_price * txn_gas_units;
 
         if (features::operations_default_to_fa_supra_store_enabled()) {
             assert!(
-                supra_account::is_fungible_balance_at_least(gas_payer, max_transaction_fee),
+                supra_account::is_fungible_balance_at_least(gas_payer, transaction_fee),
                 error::invalid_argument(PROLOGUE_ECANT_PAY_GAS_DEPOSIT)
             );
         } else {
             assert!(
-                coin::is_balance_at_least<SupraCoin>(gas_payer, max_transaction_fee),
+                coin::is_balance_at_least<SupraCoin>(gas_payer, transaction_fee),
                 error::invalid_argument(PROLOGUE_ECANT_PAY_GAS_DEPOSIT)
             );
         }
@@ -211,20 +219,9 @@ module supra_framework::transaction_validation {
         // Task is not gas-less/GST,
         // gas-less automated transactions are not charged so no need to check eligability to pay the gas-fee.
         if (task_type != GST) {
-            let max_transaction_fee = txn_gas_price * txn_max_gas_units;
-
-            if (features::operations_default_to_fa_supra_store_enabled()) {
-                assert!(
-                    supra_account::is_fungible_balance_at_least(gas_payer, max_transaction_fee),
-                    error::invalid_argument(PROLOGUE_ECANT_PAY_GAS_DEPOSIT)
-                );
-            } else {
-                assert!(
-                    coin::is_balance_at_least<SupraCoin>(gas_payer, max_transaction_fee),
-                    error::invalid_argument(PROLOGUE_ECANT_PAY_GAS_DEPOSIT)
-                );
-            };
+            verify_gas_payment(gas_payer, txn_gas_price, txn_max_gas_units);
         };
+
         assert!(automation_registry::has_sender_active_task_with_id_and_type(address_of(&sender), task_index, task_type),
             error::invalid_state(PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK))
     }
@@ -361,21 +358,10 @@ module supra_framework::transaction_validation {
             (txn_gas_price as u128) * (gas_used as u128) <= MAX_U64,
             error::out_of_range(EOUT_OF_GAS)
         );
-        let transaction_fee_amount = txn_gas_price * gas_used;
 
         // it's important to maintain the error code consistent with vm
         // to do failed transaction cleanup.
-        if (features::operations_default_to_fa_supra_store_enabled()) {
-            assert!(
-                supra_account::is_fungible_balance_at_least(gas_payer, transaction_fee_amount),
-                error::out_of_range(PROLOGUE_ECANT_PAY_GAS_DEPOSIT),
-            );
-        } else {
-            assert!(
-                coin::is_balance_at_least<SupraCoin>(gas_payer, transaction_fee_amount),
-                error::out_of_range(PROLOGUE_ECANT_PAY_GAS_DEPOSIT),
-            );
-        };
+        verify_gas_payment(gas_payer, txn_gas_price, txn_max_gas_units);
 
         let amount_to_burn = if (features::collect_and_distribute_gas_fees()) {
             // TODO(gas): We might want to distinguish the refundable part of the charge and burn it or track
@@ -419,3 +405,4 @@ module supra_framework::transaction_validation {
         account::increment_sequence_number(addr);
     }
 }
+
