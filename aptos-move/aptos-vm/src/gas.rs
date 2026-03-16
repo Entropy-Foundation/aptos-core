@@ -341,7 +341,7 @@ pub(crate) fn check_gas_for_parameters(
         speculative_warn!(
             log_context,
             format!(
-                "[VM] Gas unit error; min {}, submitted {}",
+                "[VM] Gas unit error; max {}, submitted {}",
                 txn_gas_params.max_price_per_gas_unit,
                 txn_gas_metadata.gas_unit_price
             ),
