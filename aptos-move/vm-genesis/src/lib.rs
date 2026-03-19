@@ -335,6 +335,7 @@ pub fn encode_genesis_change_set_for_testnet(
     initialize_randomness_config(&mut session, randomness_config);
     initialize_randomness_resources(&mut session);
     initialize_on_chain_governance(&mut session, genesis_config);
+    initialize_leader_ban_config(&mut session, genesis_config);
 
     if let Some(evm_genesis_config) = evm_genesis_config {
         initialize_evm_genesis_config(&mut session, &evm_genesis_config);
@@ -576,6 +577,22 @@ fn initialize_supra_native_automation(
         session,
         GENESIS_MODULE_NAME,
         "initialize_supra_native_automation_v2",
+        vec![],
+        config.serialize_into_move_values_with_signer(CORE_CODE_ADDRESS),
+    );
+}
+
+fn initialize_leader_ban_config(
+    session: &mut SessionExt,
+    genesis_config: &GenesisConfiguration,
+) {
+    let Some(config) = &genesis_config.leader_ban_registry_config else {
+        return;
+    };
+    exec_function(
+        session,
+        GENESIS_MODULE_NAME,
+        "initialize_leader_ban_registry_config",
         vec![],
         config.serialize_into_move_values_with_signer(CORE_CODE_ADDRESS),
     );

@@ -1,5 +1,9 @@
 use derive_getters::Getters;
 use derive_more::Constructor;
+use move_core_types::{
+    account_address::AccountAddress,
+    value::{serialize_values, MoveValue},
+};
 use serde::{Deserialize, Serialize};
 
 use crate::on_chain_config::OnChainConfig;
@@ -8,7 +12,7 @@ use crate::on_chain_config::OnChainConfig;
 ///
 /// This enum allows for future versions of the configuration to be added without breaking
 /// the backwards compatibility constraints enforced by BCS.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum BanRegistryParameters {
     V0(BanRegistryParametersV0),
 }
@@ -24,13 +28,28 @@ impl OnChainConfig for BanRegistryParameters {
     const TYPE_IDENTIFIER: &'static str = "BanRegistryParameters";
 }
 
+impl BanRegistryParameters {
+    pub fn serialize_into_move_values_with_signer(&self, signer_address: AccountAddress) -> Vec<Vec<u8>> {
+        let arguments:Vec<MoveValue> = match &self {
+            BanRegistryParameters::V0(ban_registry_parameters_v0) => {
+                let params_bytes = bcs::to_bytes(ban_registry_parameters_v0).expect("serialisation of leader ban config failed");
+                vec![
+                    MoveValue::Signer(signer_address),
+                    MoveValue::vector_u8(params_bytes),
+                ]
+            },
+        };
+        serialize_values(&arguments)
+    }
+}
+
 /// The parameters of the consensus leader [`BanRegistry`].
 ///
 /// BCS field order **must** match the Move struct `BanRegistryParametersV0`:
 /// `initial_elections_denied, max_elections_denied, minimum_unbanned_proposers, probation_elections`.
 /// 
 /// The [`Default`] values of the parameters disable banning.
-#[derive(Clone, Constructor, Debug, Default, Deserialize, Getters, Serialize)]
+#[derive(Clone, Constructor, Debug, Default, Deserialize, Eq, PartialEq, Getters, Serialize)]
 pub struct BanRegistryParametersV0 {
     /// The (approximate) initial number of election opportunities denied to a validator that
     /// fails to propose a committed block when elected as leader.
