@@ -5,6 +5,7 @@ use move_core_types::{
     value::{serialize_values, MoveValue},
 };
 use serde::{Deserialize, Serialize};
+use anyhow::format_err;
 
 use crate::on_chain_config::OnChainConfig;
 
@@ -17,6 +18,12 @@ pub enum BanRegistryParameters {
     V0(BanRegistryParametersV0),
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+struct MoveBanRegistryParams {
+    pub config: Vec<u8>,
+    pub version: u8
+}
+
 impl Default for BanRegistryParameters {
     fn default() -> Self {
         BanRegistryParameters::V0(BanRegistryParametersV0::default())
@@ -26,6 +33,20 @@ impl Default for BanRegistryParameters {
 impl OnChainConfig for BanRegistryParameters {
     const MODULE_IDENTIFIER: &'static str = "leader_ban_registry";
     const TYPE_IDENTIFIER: &'static str = "BanRegistryParameters";
+
+    fn deserialize_default_impl(bytes: &[u8]) -> Result<Self> {
+        let move_ban_registry = bcs::from_bytes::<MoveBanRegistryParams>(bytes)
+            .map_err(|e| format_err!("[on-chain config] Failed to deserialize into config: {}", e))?;
+        match move_ban_registry.version {
+            0 => {
+                bcs::from_bytes::<BanRegistryParameters>(&move_ban_registry.config)
+                .map_err(|e| format_err!("[on-chain config] Failed to deserialize into config: {}", e))
+            },
+            _ > {
+                Err(format_err!("[on-chain config] Failed to deserialize into config: Invalid Version: {}", move_ban_registry.version))
+            }
+        }
+    }
 }
 
 impl BanRegistryParameters {
