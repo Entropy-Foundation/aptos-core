@@ -5,7 +5,7 @@ use move_core_types::{
     value::{serialize_values, MoveValue},
 };
 use serde::{Deserialize, Serialize};
-use anyhow::format_err;
+use anyhow::{format_err, Result};
 
 use crate::on_chain_config::OnChainConfig;
 
