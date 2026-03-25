@@ -1687,7 +1687,10 @@ module supra_framework::stake {
             let candidate = if (candidate_idx < num_cur_actives) {
                 vector::borrow(&cur_validator_set.active_validators, candidate_idx)
             } else {
-                vector::borrow(&cur_validator_set.pending_active, candidate_idx - num_cur_actives)
+                // on_new_epoch appends pending_active into active via pop_back, which reverses
+                // the order. Mirror that here so validator indices match after epoch transition.
+                let pending_idx = num_cur_pending_actives - 1 - (candidate_idx - num_cur_actives);
+                vector::borrow(&cur_validator_set.pending_active, pending_idx)
             };
             let stake_pool = borrow_global<StakePool>(candidate.addr);
             let cur_active = coin::value(&stake_pool.active);
