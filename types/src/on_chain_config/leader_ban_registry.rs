@@ -42,7 +42,7 @@ impl OnChainConfig for BanRegistryParameters {
                 bcs::from_bytes::<BanRegistryParameters>(&move_ban_registry.config)
                 .map_err(|e| format_err!("[on-chain config] Failed to deserialize into config: {}", e))
             },
-            _ > {
+            _ => {
                 Err(format_err!("[on-chain config] Failed to deserialize into config: Invalid Version: {}", move_ban_registry.version))
             }
         }
