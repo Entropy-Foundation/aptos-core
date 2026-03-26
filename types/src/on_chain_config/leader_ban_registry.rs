@@ -31,7 +31,7 @@ impl Default for BanRegistryParameters {
 }
 
 impl OnChainConfig for BanRegistryParameters {
-    const MODULE_IDENTIFIER: &'static str = "leader_ban_registry";
+    const MODULE_IDENTIFIER: &'static str = "leader_ban_registry_config";
     const TYPE_IDENTIFIER: &'static str = "BanRegistryParameters";
 
     fn deserialize_default_impl(bytes: &[u8]) -> Result<Self> {
