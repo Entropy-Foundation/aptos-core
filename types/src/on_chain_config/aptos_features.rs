@@ -100,6 +100,8 @@ pub enum FeatureFlag {
     /// This flag should only be enabled after all Validators have updated their keys to the new format, including the BLS keys.
     SUPRA_BLS_KEYS = 97,
     SUPRA_BCFT_CERTIFICATES = 98,
+    /// `SUPRA_BLS_KEYS` must be enabled first, as the new validator identity format is a prerequisite for the DKG.
+    /// The default DKG configuration also requires `SUPRA_BCFT_CERTIFICATES` to be enabled first.
     SUPRA_DKG = 99,
     SUPRA_TRANSACTIONS_INCLUSION_PROOFS = 100,
 }

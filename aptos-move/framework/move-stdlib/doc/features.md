@@ -981,7 +981,9 @@ Lifetime: permanent
 
 <a id="0x1_features_SUPRA_DKG"></a>
 
-Whether the APIs related to the Supra_Dkg feature are enabled.
+Whether the APIs related to the DKG feature are enabled. <code><a href="features.md#0x1_features_SUPRA_BLS_KEYS">SUPRA_BLS_KEYS</a></code> must be enabled first,
+as the new validator identity format is a prerequisite for the DKG. The default DKG configuration
+also requires <code><a href="features.md#0x1_features_SUPRA_BCFT_CERTIFICATES">SUPRA_BCFT_CERTIFICATES</a></code> to be enabled first.
 
 Lifetime: transient
 

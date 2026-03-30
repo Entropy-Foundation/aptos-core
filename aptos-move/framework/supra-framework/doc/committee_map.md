@@ -36,6 +36,7 @@ requirements:
 -  [Function `get_committeeInfo_address`](#0x1_committee_map_get_committeeInfo_address)
 -  [Function `init_module`](#0x1_committee_map_init_module)
 -  [Function `validate_committee_type`](#0x1_committee_map_validate_committee_type)
+-  [Function `assert_removal_allowed`](#0x1_committee_map_assert_removal_allowed)
 -  [Function `get_committee_info`](#0x1_committee_map_get_committee_info)
 -  [Function `get_committee_ids`](#0x1_committee_map_get_committee_ids)
 -  [Function `get_committee_id`](#0x1_committee_map_get_committee_id)
@@ -646,62 +647,112 @@ Capability that grants an owner the right to perform action.
 
 
 
+<a id="0x1_committee_map_ECLAN_TOO_SMALL_OR_EVEN_NODES_IN_CLAN"></a>
+
+The number of nodes in the CLAN is too small or even
+
+
+<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_ECLAN_TOO_SMALL_OR_EVEN_NODES_IN_CLAN">ECLAN_TOO_SMALL_OR_EVEN_NODES_IN_CLAN</a>: u64 = 13;
+</code></pre>
+
+
+
+<a id="0x1_committee_map_EINVALID_CLAN_NODE_NUMBERS"></a>
+
+The number of nodes in the CLAN is invalid
+
+
+<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_EINVALID_CLAN_NODE_NUMBERS">EINVALID_CLAN_NODE_NUMBERS</a>: u64 = 9;
+</code></pre>
+
+
+
+<a id="0x1_committee_map_EINVALID_COMMITTEE_ID"></a>
+
+The committee is not found
+
+
+<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_ID">EINVALID_COMMITTEE_ID</a>: u64 = 6;
+</code></pre>
+
+
+
+<a id="0x1_committee_map_EINVALID_COMMITTEE_NUMBERS"></a>
+
+The number of committees is not equal to the number of committee members
+
+
+<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>: u64 = 4;
+</code></pre>
+
+
+
+<a id="0x1_committee_map_EINVALID_COMMITTEE_TYPE"></a>
+
+The committee type is invalid
+
+
+<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_TYPE">EINVALID_COMMITTEE_TYPE</a>: u64 = 7;
+</code></pre>
+
+
+
+<a id="0x1_committee_map_EINVALID_FAMILIY_NODE_NUMBERS"></a>
+
+The number of nodes in the FAMILY is invalid
+
+
+<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_EINVALID_FAMILIY_NODE_NUMBERS">EINVALID_FAMILIY_NODE_NUMBERS</a>: u64 = 10;
+</code></pre>
+
+
+
+<a id="0x1_committee_map_EINVALID_NODE_NUMBERS"></a>
+
+The number of nodes in the committee is invalid
+
+
+<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_EINVALID_NODE_NUMBERS">EINVALID_NODE_NUMBERS</a>: u64 = 8;
+</code></pre>
+
+
+
+<a id="0x1_committee_map_EINVALID_TRIBE_NODE_NUMBERS"></a>
+
+The number of nodes in the TRIBE is invalid
+
+
+<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_EINVALID_TRIBE_NODE_NUMBERS">EINVALID_TRIBE_NODE_NUMBERS</a>: u64 = 11;
+</code></pre>
+
+
+
+<a id="0x1_committee_map_ENODE_NOT_FOUND"></a>
+
+The node is not found in the committee
+
+
+<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_ENODE_NOT_FOUND">ENODE_NOT_FOUND</a>: u64 = 5;
+</code></pre>
+
+
+
+<a id="0x1_committee_map_EZERO_COMMITTEE_NODE_NUMBER"></a>
+
+The number of nodes in the committee is ZERO
+
+
+<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_EZERO_COMMITTEE_NODE_NUMBER">EZERO_COMMITTEE_NODE_NUMBER</a>: u64 = 12;
+</code></pre>
+
+
+
 <a id="0x1_committee_map_FAMILY"></a>
 
 Define the CommitteeType as constants
 
 
 <pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_FAMILY">FAMILY</a>: u8 = 1;
-</code></pre>
-
-
-
-<a id="0x1_committee_map_INVALID_COMMITTEE_ID"></a>
-
-The committee is not found
-
-
-<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_ID">INVALID_COMMITTEE_ID</a>: u64 = 6;
-</code></pre>
-
-
-
-<a id="0x1_committee_map_INVALID_COMMITTEE_NUMBERS"></a>
-
-The number of committee is not equal to the number of committee member
-
-
-<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>: u64 = 4;
-</code></pre>
-
-
-
-<a id="0x1_committee_map_INVALID_COMMITTEE_TYPE"></a>
-
-The committee type is invalid
-
-
-<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_TYPE">INVALID_COMMITTEE_TYPE</a>: u64 = 7;
-</code></pre>
-
-
-
-<a id="0x1_committee_map_INVALID_NODE_NUMBERS"></a>
-
-The number of nodes in the committee is invalid
-
-
-<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_INVALID_NODE_NUMBERS">INVALID_NODE_NUMBERS</a>: u64 = 8;
-</code></pre>
-
-
-
-<a id="0x1_committee_map_NODE_NOT_FOUND"></a>
-
-The node is not found in the committee
-
-
-<pre><code><b>const</b> <a href="committee_map.md#0x1_committee_map_NODE_NOT_FOUND">NODE_NOT_FOUND</a>: u64 = 5;
 </code></pre>
 
 
@@ -766,7 +817,7 @@ Internal - Assert if the node exists in the committee
 
 
 <pre><code><b>fun</b> <a href="committee_map.md#0x1_committee_map_ensure_node_address_exist">ensure_node_address_exist</a>(committee: &<a href="committee_map.md#0x1_committee_map_CommitteeInfo">CommitteeInfo</a>, node_address: <b>address</b>) {
-    <b>assert</b>!(<a href="committee_map.md#0x1_committee_map_does_node_exist">does_node_exist</a>(committee, node_address), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_NODE_NOT_FOUND">NODE_NOT_FOUND</a>))
+    <b>assert</b>!(<a href="committee_map.md#0x1_committee_map_does_node_exist">does_node_exist</a>(committee, node_address), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_ENODE_NOT_FOUND">ENODE_NOT_FOUND</a>))
 }
 </code></pre>
 
@@ -930,18 +981,45 @@ Its Initial function which will be executed automatically while deployed package
 
 
 <pre><code><b>fun</b> <a href="committee_map.md#0x1_committee_map_validate_committee_type">validate_committee_type</a>(committee_type: u8, num_of_nodes: u64): u8 {
-    <b>assert</b>!(committee_type &gt;= <a href="committee_map.md#0x1_committee_map_FAMILY">FAMILY</a> && committee_type &lt;= <a href="committee_map.md#0x1_committee_map_TRIBE">TRIBE</a>, <a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_TYPE">INVALID_COMMITTEE_TYPE</a>);
+    <b>assert</b>!(committee_type &gt;= <a href="committee_map.md#0x1_committee_map_FAMILY">FAMILY</a> && committee_type &lt;= <a href="committee_map.md#0x1_committee_map_TRIBE">TRIBE</a>, <a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_TYPE">EINVALID_COMMITTEE_TYPE</a>);
     <b>if</b> (committee_type == <a href="committee_map.md#0x1_committee_map_FAMILY">FAMILY</a>) {
         // f+1, number of nodes in a family committee should be greater than 1
-        <b>assert</b>!(num_of_nodes &gt; 1, <a href="committee_map.md#0x1_committee_map_INVALID_NODE_NUMBERS">INVALID_NODE_NUMBERS</a>);
+        <b>assert</b>!(num_of_nodes &gt; 1, <a href="committee_map.md#0x1_committee_map_EINVALID_FAMILIY_NODE_NUMBERS">EINVALID_FAMILIY_NODE_NUMBERS</a>);
     } <b>else</b> <b>if</b> (committee_type == <a href="committee_map.md#0x1_committee_map_CLAN">CLAN</a>) {
-        // 2f+1, number of nodes in a clan committee should be odd and greater than 3
-        <b>assert</b>!(num_of_nodes &gt;= 3 && num_of_nodes % 2 == 1, <a href="committee_map.md#0x1_committee_map_INVALID_NODE_NUMBERS">INVALID_NODE_NUMBERS</a>);
+        // 2f+1, number of nodes in a clan committee should be odd and greater than or equal <b>to</b> 3
+        <b>assert</b>!(num_of_nodes &gt;= 3 && num_of_nodes % 2 == 1, <a href="committee_map.md#0x1_committee_map_ECLAN_TOO_SMALL_OR_EVEN_NODES_IN_CLAN">ECLAN_TOO_SMALL_OR_EVEN_NODES_IN_CLAN</a>);
     } <b>else</b> {
-        // 3f+1, number of nodes in a tribe committee should be in the format of 3f+1 and greater than 4
-        <b>assert</b>!(num_of_nodes &gt;= 4 && (num_of_nodes - 1) % 3 == 0, <a href="committee_map.md#0x1_committee_map_INVALID_NODE_NUMBERS">INVALID_NODE_NUMBERS</a>);
+        // 3f+1, number of nodes in a tribe committee should be in the format of 3f+1 and greater than or equal <b>to</b> 4
+        <b>assert</b>!(num_of_nodes &gt;= 4 && (num_of_nodes - 1) % 3 == 0, <a href="committee_map.md#0x1_committee_map_EINVALID_TRIBE_NODE_NUMBERS">EINVALID_TRIBE_NODE_NUMBERS</a>);
     };
     committee_type
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_committee_map_assert_removal_allowed"></a>
+
+## Function `assert_removal_allowed`
+
+Ensures removing exactly one member keeps the committee type invariants valid.
+
+
+<pre><code><b>fun</b> <a href="committee_map.md#0x1_committee_map_assert_removal_allowed">assert_removal_allowed</a>(committee: &<a href="committee_map.md#0x1_committee_map_CommitteeInfo">committee_map::CommitteeInfo</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="committee_map.md#0x1_committee_map_assert_removal_allowed">assert_removal_allowed</a>(committee: &<a href="committee_map.md#0x1_committee_map_CommitteeInfo">CommitteeInfo</a>) {
+    <b>let</b> current_num_of_nodes = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_length">simple_map::length</a>(&committee.map);
+    <b>assert</b>!(current_num_of_nodes &gt; 0, <a href="committee_map.md#0x1_committee_map_EZERO_COMMITTEE_NODE_NUMBER">EZERO_COMMITTEE_NODE_NUMBER</a>);
+    <a href="committee_map.md#0x1_committee_map_validate_committee_type">validate_committee_type</a>(committee.committee_type, current_num_of_nodes - 1);
 }
 </code></pre>
 
@@ -1076,7 +1154,7 @@ Get the node's information
     <b>let</b> committee = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow">simple_map::borrow</a>(&committee_store.<a href="committee_map.md#0x1_committee_map">committee_map</a>, &id);
     <b>let</b> (addrs, nodes) = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_to_vec_pair">simple_map::to_vec_pair</a>(committee.map);
     <b>let</b> (flag, index) = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_index_of">vector::index_of</a>(&addrs, &node_address);
-    <b>assert</b>!(flag, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_NODE_NOT_FOUND">NODE_NOT_FOUND</a>));
+    <b>assert</b>!(flag, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_ENODE_NOT_FOUND">ENODE_NOT_FOUND</a>));
     <b>let</b> node_info = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&nodes, index);
 
     <a href="committee_map.md#0x1_committee_map_NodeData">NodeData</a> {
@@ -1259,31 +1337,31 @@ This function is used to add a new committee to the store
     rpc_port: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u16&gt;,
     committee_type: u8
 ) <b>acquires</b> <a href="committee_map.md#0x1_committee_map_CommitteeInfoStore">CommitteeInfoStore</a>, <a href="committee_map.md#0x1_committee_map_SupraCommitteeEventHandler">SupraCommitteeEventHandler</a> {
-    // Assert the length of the <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a> for two are the same
+    // Assert the length of the <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a> for two is the same
     <b>let</b> node_address_len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&node_addresses);
     <b>assert</b>!(
         node_address_len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ip_public_address),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         node_address_len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&node_public_key),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         node_address_len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&network_public_key),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         node_address_len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&cg_public_key),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         node_address_len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&network_port),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         node_address_len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&rpc_port),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     // Only the <a href="committee_map.md#0x1_committee_map_OwnerCap">OwnerCap</a> <a href="../../aptos-stdlib/doc/capability.md#0x1_capability">capability</a> can access it
     <b>let</b> _acquire = &<a href="../../aptos-stdlib/doc/capability.md#0x1_capability_acquire">capability::acquire</a>(owner_signer, &<a href="committee_map.md#0x1_committee_map_OwnerCap">OwnerCap</a> {});
@@ -1377,31 +1455,31 @@ Add the committee in bulk
     <b>let</b> ids_len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ids);
     <b>assert</b>!(
         ids_len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&node_addresses_bulk),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         ids_len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ip_public_address_bulk),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         ids_len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&node_public_key_bulk),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         ids_len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&network_public_key_bulk),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         ids_len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&cg_public_key_bulk),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         ids_len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&network_port_bulk),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         ids_len == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&rpc_por_bulkt),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ids) != 0) {
         <b>let</b> id = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> ids);
@@ -1461,7 +1539,7 @@ Remove the committee from the store
     <b>let</b> committee_store = <b>borrow_global_mut</b>&lt;<a href="committee_map.md#0x1_committee_map_CommitteeInfoStore">CommitteeInfoStore</a>&gt;(com_store_addr);
     <b>assert</b>!(
         <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>(&committee_store.<a href="committee_map.md#0x1_committee_map">committee_map</a>, &id),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_ID">INVALID_COMMITTEE_ID</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_ID">EINVALID_COMMITTEE_ID</a>)
     );
     <b>let</b> (id, committee_info) = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_remove">simple_map::remove</a>(&<b>mut</b> committee_store.<a href="committee_map.md#0x1_committee_map">committee_map</a>, &id);
     // Also remove the node_to_committee_map
@@ -1470,7 +1548,7 @@ Remove the committee from the store
         <b>let</b> addr = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> addrs);
         <b>assert</b>!(
             <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>(&committee_store.node_to_committee_map, &addr),
-            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_NODE_NOT_FOUND">NODE_NOT_FOUND</a>)
+            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_ENODE_NOT_FOUND">ENODE_NOT_FOUND</a>)
         );
         <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_remove">simple_map::remove</a>(&<b>mut</b> committee_store.node_to_committee_map, &addr);
     };
@@ -1552,6 +1630,27 @@ Upsert the node to the committee
     <b>let</b> _acquire = &<a href="../../aptos-stdlib/doc/capability.md#0x1_capability_acquire">capability::acquire</a>(owner_signer, &<a href="committee_map.md#0x1_committee_map_OwnerCap">OwnerCap</a> {});
 
     <b>let</b> committee_store = <b>borrow_global_mut</b>&lt;<a href="committee_map.md#0x1_committee_map_CommitteeInfoStore">CommitteeInfoStore</a>&gt;(com_store_addr);
+    <b>let</b> event_handler = <b>borrow_global_mut</b>&lt;<a href="committee_map.md#0x1_committee_map_SupraCommitteeEventHandler">SupraCommitteeEventHandler</a>&gt;(<a href="committee_map.md#0x1_committee_map_get_committeeInfo_address">get_committeeInfo_address</a>(owner_signer));
+
+    // If the node is already associated <b>with</b> another committee, remove the stale entry first.
+    <b>if</b> (<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>(&committee_store.node_to_committee_map, &node_address)) {
+        <b>let</b> old_committee_id = *<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow">simple_map::borrow</a>(&committee_store.node_to_committee_map, &node_address);
+        <b>if</b> (old_committee_id != id && <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>(&committee_store.<a href="committee_map.md#0x1_committee_map">committee_map</a>, &old_committee_id)) {
+            <b>let</b> old_committee = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow_mut">simple_map::borrow_mut</a>(&<b>mut</b> committee_store.<a href="committee_map.md#0x1_committee_map">committee_map</a>, &old_committee_id);
+            <b>if</b> (<a href="committee_map.md#0x1_committee_map_does_node_exist">does_node_exist</a>(old_committee, node_address)) {
+                <a href="committee_map.md#0x1_committee_map_assert_removal_allowed">assert_removal_allowed</a>(old_committee);
+                <b>let</b> (_, old_node_info) = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_remove">simple_map::remove</a>(&<b>mut</b> old_committee.map, &node_address);
+                emit_event(
+                    &<b>mut</b> event_handler.remove_committee_member,
+                    <a href="committee_map.md#0x1_committee_map_RemoveCommitteeMemberEvent">RemoveCommitteeMemberEvent</a> {
+                        committee_id: old_committee_id,
+                        committee_member: old_node_info
+                    }
+                )
+            }
+        }
+    };
+
     <b>let</b> committee = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow_mut">simple_map::borrow_mut</a>(&<b>mut</b> committee_store.<a href="committee_map.md#0x1_committee_map">committee_map</a>, &id);
     <b>let</b> node_info = <a href="committee_map.md#0x1_committee_map_NodeInfo">NodeInfo</a> {
         ip_public_address: <b>copy</b> ip_public_address,
@@ -1561,7 +1660,6 @@ Upsert the node to the committee
         network_port: network_port,
         rpc_port: rpc_port,
     };
-    <b>let</b> event_handler = <b>borrow_global_mut</b>&lt;<a href="committee_map.md#0x1_committee_map_SupraCommitteeEventHandler">SupraCommitteeEventHandler</a>&gt;(<a href="committee_map.md#0x1_committee_map_get_committeeInfo_address">get_committeeInfo_address</a>(owner_signer));
     <b>if</b> (!<a href="committee_map.md#0x1_committee_map_does_node_exist">does_node_exist</a>(committee, node_address)) {
         emit_event(
             &<b>mut</b> event_handler.add_committee_member,
@@ -1619,31 +1717,31 @@ Upsert nodes to the committee
     // Assert the length of the <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a> for two are the same
     <b>assert</b>!(
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ids) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&node_addresses),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ids) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ip_public_address),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ids) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&node_public_key),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ids) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&network_public_key),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ids) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&cg_public_key),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ids) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&network_port),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>assert</b>!(
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ids) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&rpc_port),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_INVALID_COMMITTEE_NUMBERS">INVALID_COMMITTEE_NUMBERS</a>)
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="committee_map.md#0x1_committee_map_EINVALID_COMMITTEE_NUMBERS">EINVALID_COMMITTEE_NUMBERS</a>)
     );
     <b>while</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ids) != 0) {
         <b>let</b> id = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_pop_back">vector::pop_back</a>(&<b>mut</b> ids);
@@ -1702,6 +1800,7 @@ Remove the node from the committee
     <b>let</b> committee_store = <b>borrow_global_mut</b>&lt;<a href="committee_map.md#0x1_committee_map_CommitteeInfoStore">CommitteeInfoStore</a>&gt;(com_store_addr);
     <b>let</b> committee = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow_mut">simple_map::borrow_mut</a>(&<b>mut</b> committee_store.<a href="committee_map.md#0x1_committee_map">committee_map</a>, &id);
     <a href="committee_map.md#0x1_committee_map_ensure_node_address_exist">ensure_node_address_exist</a>(committee, node_address);
+    <a href="committee_map.md#0x1_committee_map_assert_removal_allowed">assert_removal_allowed</a>(committee);
     <b>let</b> (_, node_info) = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_remove">simple_map::remove</a>(&<b>mut</b> committee.map, &node_address);
     <b>let</b> event_handler = <b>borrow_global_mut</b>&lt;<a href="committee_map.md#0x1_committee_map_SupraCommitteeEventHandler">SupraCommitteeEventHandler</a>&gt;(<a href="committee_map.md#0x1_committee_map_get_committeeInfo_address">get_committeeInfo_address</a>(owner_signer));
     emit_event(

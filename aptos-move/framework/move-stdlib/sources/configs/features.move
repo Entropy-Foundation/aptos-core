@@ -811,7 +811,9 @@ module std::features {
         is_enabled(SUPRA_BCFT_CERTIFICATES)
     }
 
-    /// Whether the APIs related to the Supra_Dkg feature are enabled.
+    /// Whether the APIs related to the DKG feature are enabled. `SUPRA_BLS_KEYS` must be enabled first,
+    /// as the new validator identity format is a prerequisite for the DKG. The default DKG configuration
+    /// also requires `SUPRA_BCFT_CERTIFICATES` to be enabled first.
     ///
     /// Lifetime: transient
     const SUPRA_DKG: u64 = 99;
