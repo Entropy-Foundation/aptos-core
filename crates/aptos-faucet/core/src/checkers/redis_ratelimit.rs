@@ -252,7 +252,7 @@ impl CheckerTrait for RedisRatelimitChecker {
         // Generate a key corresponding to this IP address and the current day.
         let (key, _) = self.get_key_and_secs_until_next_day(&data.checker_data.source_ip);
 
-        conn.decr(&key, 1).await.map_err(|e| {
+        conn.decr::<_, _, ()>(&key, 1).await.map_err(|e| {
             AptosTapError::new_with_error_code(
                 format!("Failed to decrement value for redis key {}: {}", key, e),
                 AptosTapErrorCode::StorageError,

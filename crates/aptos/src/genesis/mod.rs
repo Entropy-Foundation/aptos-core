@@ -260,6 +260,7 @@ pub fn fetch_mainnet_genesis_info(git_options: GitOptions) -> CliTypedResult<Mai
             randomness_config_override: None,
             jwk_consensus_config_override: None,
             automation_registry_config: layout.automation_registry_config.clone(),
+            leader_ban_registry_config: layout.leader_ban_registry_config.clone(),
         },
     )?)
 }
@@ -306,6 +307,7 @@ pub fn fetch_genesis_info(git_options: GitOptions) -> CliTypedResult<GenesisInfo
             randomness_config_override: None,
             jwk_consensus_config_override: layout.jwk_consensus_config_override.clone(),
             automation_registry_config: layout.automation_registry_config.clone(),
+            leader_ban_registry_config: layout.leader_ban_registry_config.clone(),
         },
     )?)
 }

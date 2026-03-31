@@ -19,7 +19,7 @@ use aptos_gas_schedule::{
 };
 use aptos_types::{
     account_address::{create_resource_address, create_seed_for_pbo_module},
-    account_config::{self, aptos_test_root_address, events::NewEpochEvent, CORE_CODE_ADDRESS},
+    account_config::{self, CORE_CODE_ADDRESS, aptos_test_root_address, events::NewEpochEvent},
     chain_id::ChainId,
     contract_event::{ContractEvent, ContractEventV1},
     jwks::{
@@ -27,15 +27,11 @@ use aptos_types::{
         secure_test_rsa_jwk,
     },
     keyless::{
-        self, test_utils::get_sample_iss, Groth16VerificationKey, DEVNET_VERIFICATION_KEY,
-        KEYLESS_ACCOUNT_MODULE_NAME,
+        self, DEVNET_VERIFICATION_KEY, Groth16VerificationKey, KEYLESS_ACCOUNT_MODULE_NAME, test_utils::get_sample_iss
     },
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{
-        randomness_api_v0_config::{AllowCustomMaxGasFlag, RequiredGasDeposit},
-        AutomationRegistryConfig, FeatureFlag, Features, GasScheduleV2, OnChainConsensusConfig,
-        OnChainEvmGenesisConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig,
-        OnChainRandomnessConfig, RandomnessConfigMoveStruct, APTOS_MAX_KNOWN_VERSION,
+        APTOS_MAX_KNOWN_VERSION, AutomationRegistryConfig, BanRegistryParameters, BanRegistryParametersV0, FeatureFlag, Features, GasScheduleV2, OnChainConsensusConfig, OnChainEvmGenesisConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig, RandomnessConfigMoveStruct, randomness_api_v0_config::{AllowCustomMaxGasFlag, RequiredGasDeposit}
     },
     transaction::{authenticator::AuthenticationKey, ChangeSet, Transaction, WriteSetPayload},
     validator_public_keys::ValidatorPublicKeys,
@@ -110,6 +106,7 @@ pub struct GenesisConfiguration {
     pub randomness_config_override: Option<OnChainRandomnessConfig>,
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     pub automation_registry_config: Option<AutomationRegistryConfig>,
+    pub leader_ban_registry_config: Option<BanRegistryParameters>,
 }
 
 pub static GENESIS_KEYPAIR: Lazy<(Ed25519PrivateKey, Ed25519PublicKey)> = Lazy::new(|| {
@@ -340,6 +337,7 @@ pub fn encode_genesis_change_set_for_testnet(
     initialize_randomness_config(&mut session, randomness_config);
     initialize_randomness_resources(&mut session);
     initialize_on_chain_governance(&mut session, genesis_config);
+    initialize_leader_ban_config(&mut session, genesis_config);
 
     if let Some(evm_genesis_config) = evm_genesis_config {
         initialize_evm_genesis_config(&mut session, &evm_genesis_config);
@@ -581,6 +579,22 @@ fn initialize_supra_native_automation(
         session,
         GENESIS_MODULE_NAME,
         "initialize_supra_native_automation_v2",
+        vec![],
+        config.serialize_into_move_values_with_signer(CORE_CODE_ADDRESS),
+    );
+}
+
+fn initialize_leader_ban_config(
+    session: &mut SessionExt,
+    genesis_config: &GenesisConfiguration,
+) {
+    let Some(config) = &genesis_config.leader_ban_registry_config else {
+        return;
+    };
+    exec_function(
+        session,
+        GENESIS_MODULE_NAME,
+        "initialize_leader_ban_registry_config",
         vec![],
         config.serialize_into_move_values_with_signer(CORE_CODE_ADDRESS),
     );
@@ -1266,6 +1280,7 @@ pub fn generate_test_genesis(
             randomness_config_override: None,
             jwk_consensus_config_override: None,
             automation_registry_config: Some(AutomationRegistryConfig::default()),
+            leader_ban_registry_config: Some(BanRegistryParameters::default()),
         },
         &OnChainConsensusConfig::default_for_genesis(),
         &OnChainExecutionConfig::default_for_genesis(),
@@ -1334,6 +1349,7 @@ fn mainnet_genesis_config() -> GenesisConfiguration {
         randomness_config_override: None,
         jwk_consensus_config_override: None,
         automation_registry_config: Some(AutomationRegistryConfig::default()),
+        leader_ban_registry_config: Some(BanRegistryParameters::default()),
     }
 }
 

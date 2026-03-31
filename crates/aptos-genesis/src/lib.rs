@@ -27,6 +27,7 @@ use aptos_types::{
     on_chain_config::{
         AutomationRegistryConfig, Features, GasScheduleV2, OnChainConsensusConfig,
         OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig,
+        BanRegistryParameters,
     },
     transaction::Transaction,
     waypoint::Waypoint,
@@ -82,6 +83,7 @@ pub struct GenesisInfo {
     pub randomness_config_override: Option<OnChainRandomnessConfig>,
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     pub automation_registry_config: Option<AutomationRegistryConfig>,
+    pub leader_ban_registry_config: Option<BanRegistryParameters>
 }
 
 impl GenesisInfo {
@@ -124,6 +126,7 @@ impl GenesisInfo {
             randomness_config_override: genesis_config.randomness_config_override.clone(),
             jwk_consensus_config_override: genesis_config.jwk_consensus_config_override.clone(),
             automation_registry_config: genesis_config.automation_registry_config.clone(),
+            leader_ban_registry_config: genesis_config.leader_ban_registry_config.clone(),
         })
     }
 
@@ -167,6 +170,7 @@ impl GenesisInfo {
                 jwk_consensus_config_override: self.jwk_consensus_config_override.clone(),
                 genesis_timestamp_in_microseconds: self.genesis_timestamp_in_microseconds,
                 automation_registry_config: self.automation_registry_config.clone(),
+                leader_ban_registry_config: self.leader_ban_registry_config.clone(),
             },
             &self.consensus_config,
             &self.execution_config,

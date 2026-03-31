@@ -28,8 +28,7 @@ use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
     on_chain_config::{
-        AutomationRegistryConfig, Features, GasScheduleV2, OnChainConsensusConfig,
-        OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig,
+        AutomationRegistryConfig, BanRegistryParameters, Features, GasScheduleV2, OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig
     },
     transaction::Transaction,
     waypoint::Waypoint,
@@ -437,6 +436,7 @@ pub struct GenesisConfiguration {
     pub randomness_config_override: Option<OnChainRandomnessConfig>,
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     pub automation_registry_config: Option<AutomationRegistryConfig>,
+    pub leader_ban_registry_config: Option<BanRegistryParameters>,
 }
 
 pub type InitConfigFn = Arc<dyn Fn(usize, &mut NodeConfig, &mut NodeConfig) + Send + Sync>;
@@ -661,6 +661,7 @@ impl Builder {
             randomness_config_override: None,
             jwk_consensus_config_override: None,
             automation_registry_config: Some(AutomationRegistryConfig::default()),
+            leader_ban_registry_config: Some(BanRegistryParameters::default()),
         };
         if let Some(init_genesis_config) = &self.init_genesis_config {
             (init_genesis_config)(&mut genesis_config);

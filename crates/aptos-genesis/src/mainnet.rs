@@ -14,7 +14,7 @@ use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
     on_chain_config::{
-        AutomationRegistryConfig, Features, OnChainJWKConsensusConfig, OnChainRandomnessConfig,
+        AutomationRegistryConfig, BanRegistryParameters, Features, OnChainJWKConsensusConfig, OnChainRandomnessConfig
     },
     transaction::Transaction,
     waypoint::Waypoint,
@@ -73,6 +73,8 @@ pub struct MainnetGenesisInfo {
     jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     /// Supra native automation feature configuration parameters
     automation_registry_config: Option<AutomationRegistryConfig>,
+    /// Supra native consensus leader ban registry configuration parameters
+    leader_ban_registry_config: Option<BanRegistryParameters>,
 }
 
 impl MainnetGenesisInfo {
@@ -118,6 +120,7 @@ impl MainnetGenesisInfo {
             randomness_config_override: genesis_config.randomness_config_override.clone(),
             jwk_consensus_config_override: genesis_config.jwk_consensus_config_override.clone(),
             automation_registry_config: genesis_config.automation_registry_config.clone(),
+            leader_ban_registry_config: genesis_config.leader_ban_registry_config.clone(),
         })
     }
 
@@ -162,6 +165,7 @@ impl MainnetGenesisInfo {
                 randomness_config_override: self.randomness_config_override.clone(),
                 jwk_consensus_config_override: self.jwk_consensus_config_override.clone(),
                 automation_registry_config: self.automation_registry_config.clone(),
+                leader_ban_registry_config: self.leader_ban_registry_config.clone(),
             },
             b"test".to_vec(),
         )
