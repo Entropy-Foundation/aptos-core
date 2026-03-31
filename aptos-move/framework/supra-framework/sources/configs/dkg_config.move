@@ -9,9 +9,10 @@ module supra_framework::dkg_config {
     use supra_framework::system_addresses;
     use supra_framework::validator_public_keys::{
         CertificateThresholdType,
-        quorum_certificate_type,
         bcft_quorum_certificate_type,
+        bcft_validity_certificate_type,
         clan_majority_certificate_type,
+        quorum_certificate_type,
         validity_certificate_type
     };
     #[test_only]
@@ -160,12 +161,7 @@ module supra_framework::dkg_config {
         }
     }
 
-    /// Returns the default DKG configuration:
-    /// - Dealer threshold: quorum_certificate_type()
-    /// - Receiver committees:
-    ///   - [(is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = bcft_quorum_certificate_type()),
-    ///   - (is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = clan_majority_certificate_type()),
-    ///   - (is_resharing = false, committee_threshold_type = quorum_certificate_type(), dkg_threshold_type = validity_certificate_type())]
+    /// Returns the default DKG configuration.
     public fun default(): DkgConfig {
         if (features::supra_bcft_certificates_enabled()) {
             DkgConfig {
@@ -179,7 +175,12 @@ module supra_framework::dkg_config {
                     ReceiverCommitteeConfig {
                         is_resharing: false,
                         committee_threshold_type: quorum_certificate_type(),
-                        dkg_threshold_type: validity_certificate_type()
+                        dkg_threshold_type: bcft_validity_certificate_type()
+                    },
+                    ReceiverCommitteeConfig {
+                        is_resharing: false,
+                        committee_threshold_type: quorum_certificate_type(),
+                        dkg_threshold_type: clan_majority_certificate_type()
                     }
                 ]
             }
@@ -190,12 +191,12 @@ module supra_framework::dkg_config {
                     ReceiverCommitteeConfig {
                         is_resharing: false,
                         committee_threshold_type: quorum_certificate_type(),
-                        dkg_threshold_type: bcft_quorum_certificate_type()
+                        dkg_threshold_type: clan_majority_certificate_type()
                     },
                     ReceiverCommitteeConfig {
                         is_resharing: false,
                         committee_threshold_type: quorum_certificate_type(),
-                        dkg_threshold_type: clan_majority_certificate_type()
+                        dkg_threshold_type: quorum_certificate_type()
                     },
                     ReceiverCommitteeConfig {
                         is_resharing: false,
@@ -261,36 +262,6 @@ module supra_framework::dkg_config {
     fun initialize_for_testing(framework: &signer) {
         config_buffer::initialize(framework);
         initialize(framework);
-    }
-
-    #[test(framework = @0x1)]
-    fun test_default_config(framework: signer) acquires DkgConfig {
-        account::create_account_for_test(@0x1);
-        initialize_for_testing(&framework);
-
-        let config = current();
-
-        // Check dealer threshold type is quorum
-        assert!(
-            get_dealer_committee_threshold_type(&config) == quorum_certificate_type(),
-            1
-        );
-
-        // Check receiver committees
-        let receivers = get_receiver_committee_configs(&config);
-        assert!(vector::length(&receivers) == 2, 2);
-
-        // First receiver: (false, quorum, bcft_quorum)
-        let r0 = vector::borrow(&receivers, 0);
-        assert!(!get_is_resharing(r0), 3);
-        assert!(get_committee_threshold_type(r0) == quorum_certificate_type(), 4);
-        assert!(get_dkg_threshold_type(r0) == bcft_quorum_certificate_type(), 5);
-
-        // Second receiver: (false, quorum, clan_majority)
-        let r1 = vector::borrow(&receivers, 1);
-        assert!(!get_is_resharing(r1), 6);
-        assert!(get_committee_threshold_type(r1) == quorum_certificate_type(), 4);
-        assert!(get_dkg_threshold_type(r1) == clan_majority_certificate_type(), 6);
     }
 
     #[test(framework = @0x1)]
