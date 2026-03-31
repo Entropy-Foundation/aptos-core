@@ -21,15 +21,8 @@ env:
   REPO_KEY: ${{ secrets.REPO_KEY }}
 
 jobs:
-  check:
-    runs-on: ghr-elastic-supra-aptos-core-runner
-    timeout-minutes: 10
-    steps:
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/checkout@v4
-      - run: cargo check --workspace
-  test:
-    runs-on: ghr-elastic-supra-aptos-core-runner
+  build:
+    runs-on: [self-hosted, do-ephemeral]
     timeout-minutes: 90
     steps:
       - name: Install SSH Client

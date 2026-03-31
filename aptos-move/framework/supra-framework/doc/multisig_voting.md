@@ -1557,7 +1557,11 @@ Return the state of the proposal with given id.
 ): u64 <b>acquires</b> <a href="multisig_voting.md#0x1_multisig_voting_VotingForum">VotingForum</a> {
     <b>if</b> (<a href="multisig_voting.md#0x1_multisig_voting_is_voting_closed">is_voting_closed</a>&lt;ProposalType&gt;(voting_forum_address, proposal_id)) {
         <b>let</b> proposal = <a href="multisig_voting.md#0x1_multisig_voting_get_proposal">get_proposal</a>&lt;ProposalType&gt;(voting_forum_address, proposal_id);
-        <b>if</b> (proposal.yes_votes &gt;= proposal.min_vote_threshold) {
+        <b>let</b> yes_votes = proposal.yes_votes;
+        <b>let</b> no_votes = proposal.no_votes;
+
+        <b>if</b> (yes_votes &gt; no_votes &&
+            yes_votes + no_votes &gt;= proposal.min_vote_threshold) {
             <a href="multisig_voting.md#0x1_multisig_voting_PROPOSAL_STATE_SUCCEEDED">PROPOSAL_STATE_SUCCEEDED</a>
         } <b>else</b> {
             <a href="multisig_voting.md#0x1_multisig_voting_PROPOSAL_STATE_FAILED">PROPOSAL_STATE_FAILED</a>

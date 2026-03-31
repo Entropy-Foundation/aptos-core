@@ -8,6 +8,7 @@ mod genesis_context;
 
 use crate::genesis_context::GenesisStateView;
 use aptos_crypto::{
+    bls12381,
     ed25519,
     ed25519::{Ed25519PrivateKey, Ed25519PublicKey},
     HashValue, PrivateKey, Uniform,
@@ -32,7 +33,8 @@ use aptos_types::{
     on_chain_config::{
         APTOS_MAX_KNOWN_VERSION, AutomationRegistryConfig, BanRegistryParameters, BanRegistryParametersV0, FeatureFlag, Features, GasScheduleV2, OnChainConsensusConfig, OnChainEvmGenesisConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig, RandomnessConfigMoveStruct, randomness_api_v0_config::{AllowCustomMaxGasFlag, RequiredGasDeposit}
     },
-    transaction::{ChangeSet, Transaction, WriteSetPayload, authenticator::AuthenticationKey},
+    transaction::{authenticator::AuthenticationKey, ChangeSet, Transaction, WriteSetPayload},
+    validator_public_keys::ValidatorPublicKeys,
     write_set::TransactionWrite,
 };
 use aptos_vm::{
@@ -1179,7 +1181,35 @@ impl TestValidator {
         let auth_key = AuthenticationKey::ed25519(&key.public_key());
         let owner_address = auth_key.account_address();
         let consensus_key = ed25519::PrivateKey::generate(rng);
-        let consensus_pubkey = consensus_key.public_key().to_bytes().to_vec();
+        let network_pubkey_bytes = consensus_key.public_key().to_bytes().to_vec();
+        let bls_key = bls12381::PrivateKey::generate(rng);
+        let bls_pubkey_bytes = bls12381::PublicKey::from(&bls_key).to_bytes().to_vec();
+        let cg_pubkey_bytes = {
+            let mut cg_rng = crypto::bls12381::cl_utils::rng();
+            crypto::bls12381::cg_encryption::keygen(&mut cg_rng, &[])
+                .expect("CG keygen must succeed")
+                .1
+                .to_vec()
+        };
+        let supra_ed_key = ed25519::PrivateKey::generate(rng);
+        let supra_ed_pubkey_bytes = supra_ed_key.public_key().to_bytes().to_vec();
+        // When SUPRA_BLS_KEYS feature is enabled (default), the genesis validator key must be
+        // BCS-encoded ValidatorPublicKeys, not a plain ed25519 key.
+        let validator_public_keys = ValidatorPublicKeys::new(
+            network_pubkey_bytes,
+            bls_pubkey_bytes,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            cg_pubkey_bytes,
+            supra_ed_pubkey_bytes,
+        );
+        let consensus_pubkey =
+            bcs::to_bytes(&validator_public_keys).expect("ValidatorPublicKeys must serialize");
         let network_address = [0u8; 0].to_vec();
         let full_node_network_address = [0u8; 0].to_vec();
 

@@ -657,7 +657,11 @@ module supra_framework::multisig_voting {
     ): u64 acquires VotingForum {
         if (is_voting_closed<ProposalType>(voting_forum_address, proposal_id)) {
             let proposal = get_proposal<ProposalType>(voting_forum_address, proposal_id);
-            if (proposal.yes_votes >= proposal.min_vote_threshold) {
+            let yes_votes = proposal.yes_votes;
+            let no_votes = proposal.no_votes;
+
+            if (yes_votes > no_votes &&
+                yes_votes + no_votes >= proposal.min_vote_threshold) {
                 PROPOSAL_STATE_SUCCEEDED
             } else {
                 PROPOSAL_STATE_FAILED

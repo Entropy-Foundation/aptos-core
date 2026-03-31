@@ -4311,7 +4311,10 @@ current-epoch for the active validators.
         <b>let</b> candidate = <b>if</b> (candidate_idx &lt; num_cur_actives) {
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&cur_validator_set.active_validators, candidate_idx)
         } <b>else</b> {
-            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&cur_validator_set.pending_active, candidate_idx - num_cur_actives)
+            // on_new_epoch appends pending_active into active via pop_back, which reverses
+            // the order. Mirror that here so validator indices match after epoch transition.
+            <b>let</b> pending_idx = num_cur_pending_actives - 1 - (candidate_idx - num_cur_actives);
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&cur_validator_set.pending_active, pending_idx)
         };
         <b>let</b> stake_pool = <b>borrow_global</b>&lt;<a href="stake.md#0x1_stake_StakePool">StakePool</a>&gt;(candidate.addr);
         <b>let</b> cur_active = <a href="coin.md#0x1_coin_value">coin::value</a>(&stake_pool.active);

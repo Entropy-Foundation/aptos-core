@@ -217,7 +217,7 @@ and any calls will raise this error.
 
 <a id="0x1_aggregator_v2_ECONCAT_STRING_LENGTH_TOO_LARGE"></a>
 
-Arguments passed to concat exceed max limit of 256 bytes (for prefix and suffix together).
+Arguments passed to concat exceed max limit of 1024 bytes (for prefix and suffix together).
 
 
 <pre><code><b>const</b> <a href="aggregator_v2.md#0x1_aggregator_v2_ECONCAT_STRING_LENGTH_TOO_LARGE">ECONCAT_STRING_LENGTH_TOO_LARGE</a>: u64 = 8;
@@ -705,7 +705,7 @@ Useful for when object is sometimes created via string_concat(), and sometimes d
 Concatenates <code>before</code>, <code>snapshot</code> and <code>after</code> into a single string.
 snapshot passed needs to have integer type - currently supported types are u64 and u128.
 Raises EUNSUPPORTED_AGGREGATOR_SNAPSHOT_TYPE if called with another type.
-If length of prefix and suffix together exceed 256 bytes, ECONCAT_STRING_LENGTH_TOO_LARGE is raised.
+If length of prefix and suffix together exceed 1024 bytes, ECONCAT_STRING_LENGTH_TOO_LARGE is raised.
 
 Parallelism info: This operation enables parallelism.
 
