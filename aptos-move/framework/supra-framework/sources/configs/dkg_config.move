@@ -50,6 +50,9 @@ module supra_framework::dkg_config {
     // Initialization
     // ========================
 
+    // TODO: Add the ability to configure DKG during genesis via the genesis config files.
+    // This is not necessary for the initial release.
+    //
     /// Initialize DKG config during genesis.
     public(friend) fun initialize(framework: &signer) {
         system_addresses::assert_supra_framework(framework);
@@ -162,49 +165,28 @@ module supra_framework::dkg_config {
     }
 
     /// Returns the default DKG configuration.
+    ///
+    /// Assumes that the `SUPRA_BCFT_CERTIFICATES` feature flag is enabled.
     public fun default(): DkgConfig {
-        if (features::supra_bcft_certificates_enabled()) {
-            DkgConfig {
-                dealer_committee_threshold_type: quorum_certificate_type(),
-                receiver_committees: vector[
-                    ReceiverCommitteeConfig {
-                        is_resharing: false,
-                        committee_threshold_type: quorum_certificate_type(),
-                        dkg_threshold_type: bcft_quorum_certificate_type()
-                    },
-                    ReceiverCommitteeConfig {
-                        is_resharing: false,
-                        committee_threshold_type: quorum_certificate_type(),
-                        dkg_threshold_type: bcft_validity_certificate_type()
-                    },
-                    ReceiverCommitteeConfig {
-                        is_resharing: false,
-                        committee_threshold_type: quorum_certificate_type(),
-                        dkg_threshold_type: clan_majority_certificate_type()
-                    }
-                ]
-            }
-        } else {
-            DkgConfig {
-                dealer_committee_threshold_type: quorum_certificate_type(),
-                receiver_committees: vector[
-                    ReceiverCommitteeConfig {
-                        is_resharing: false,
-                        committee_threshold_type: quorum_certificate_type(),
-                        dkg_threshold_type: clan_majority_certificate_type()
-                    },
-                    ReceiverCommitteeConfig {
-                        is_resharing: false,
-                        committee_threshold_type: quorum_certificate_type(),
-                        dkg_threshold_type: quorum_certificate_type()
-                    },
-                    ReceiverCommitteeConfig {
-                        is_resharing: false,
-                        committee_threshold_type: quorum_certificate_type(),
-                        dkg_threshold_type: validity_certificate_type()
-                    }
-                ]
-            }
+        DkgConfig {
+            dealer_committee_threshold_type: quorum_certificate_type(),
+            receiver_committees: vector[
+                ReceiverCommitteeConfig {
+                    is_resharing: false,
+                    committee_threshold_type: quorum_certificate_type(),
+                    dkg_threshold_type: bcft_quorum_certificate_type()
+                },
+                ReceiverCommitteeConfig {
+                    is_resharing: false,
+                    committee_threshold_type: quorum_certificate_type(),
+                    dkg_threshold_type: bcft_validity_certificate_type()
+                },
+                ReceiverCommitteeConfig {
+                    is_resharing: false,
+                    committee_threshold_type: quorum_certificate_type(),
+                    dkg_threshold_type: clan_majority_certificate_type()
+                }
+            ]
         }
     }
 
@@ -217,6 +199,14 @@ module supra_framework::dkg_config {
         if (exists<DkgConfig>(@supra_framework)) {
             *borrow_global<DkgConfig>(@supra_framework)
         } else {
+            // This branch should not be executed:
+            //     1. If the network is started from genesis then the default config should be
+            //        applied during genesis.
+            //     2. If the DKG feature flag is enabled in an existing network, then governance
+            //        should set a config before enabling the feature flag.
+            //
+            // This branch exists as a fallback that ensures that the `BlockMetadata` transaction
+            // does not fail in case of misconfiguration.
             default()
         }
     }
