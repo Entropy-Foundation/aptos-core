@@ -175,34 +175,34 @@ crate::gas_schedule::macros::define_gas_parameters!(
         [
             legacy_storage_fee_per_state_slot_create: FeePerSlot,
             { 7..=13 => "storage_fee_per_state_slot_create", 14.. => "legacy_storage_fee_per_state_slot_create" },
-            50000,
+            50000000,
         ],
         [
             storage_fee_per_state_slot: FeePerSlot,
             { 14.. => "storage_fee_per_state_slot" },
             // 0.8 million SUPRA for 2 billion state slots
-            40_000,
+            40_000_000,
         ],
         [
             legacy_storage_fee_per_excess_state_byte: FeePerByte,
             { 7..=13 => "storage_fee_per_excess_state_byte", 14.. => "legacy_storage_fee_per_excess_state_byte" },
-            50,
+            50_000,
         ],
         [
             storage_fee_per_state_byte: FeePerByte,
             { 14.. => "storage_fee_per_state_byte" },
             // 0.8 million SUPRA for 2 TB state bytes
-            40,
+            40_000,
         ],
         [
             legacy_storage_fee_per_event_byte: FeePerByte,
             { 7..=13 => "storage_fee_per_event_byte", 14.. => "legacy_storage_fee_per_event_byte" },
-            20,
+            20_000,
         ],
         [
             legacy_storage_fee_per_transaction_byte: FeePerByte,
             { 7..=13 => "storage_fee_per_transaction_byte", 14.. => "legacy_storage_fee_per_transaction_byte" },
-            20,
+            20_000,
         ],
         [
             max_execution_gas: InternalGas,
@@ -227,12 +227,12 @@ crate::gas_schedule::macros::define_gas_parameters!(
         [
             max_storage_fee: Fee,
             { 7.. => "max_storage_fee" },
-            2_0000_0000, // 2 SUPRA
+            2_000_0000_0000, // 2000 SUPRA
         ],
         [
             max_storage_fee_gov: Fee,
             { RELEASE_V1_13.. => "max_storage_fee.gov" },
-            2_0000_0000,
+            2_000_0000_0000,
         ],
         [
             dependency_per_module: InternalGas,
