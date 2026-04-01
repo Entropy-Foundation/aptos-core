@@ -227,12 +227,12 @@ crate::gas_schedule::macros::define_gas_parameters!(
         [
             max_storage_fee: Fee,
             { 7.. => "max_storage_fee" },
-            2_0000_0000, // 2 SUPRA
+            2_000_0000_0000, // 2000 SUPRA
         ],
         [
             max_storage_fee_gov: Fee,
             { RELEASE_V1_13.. => "max_storage_fee.gov" },
-            2_0000_0000,
+            2_000_0000_0000,
         ],
         [
             dependency_per_module: InternalGas,
