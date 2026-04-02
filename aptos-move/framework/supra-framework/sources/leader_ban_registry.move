@@ -173,8 +173,11 @@ module supra_framework::leader_ban_registry {
     #[view]
     /// Returns the number of consensus rounds remaining in the ban for the validator with the given
     /// pool address. Returns 0 if the validator is not banned (including if it is on probation).
-    public fun get_remaining_ban_duration(pool_address: address): u64 acquires BanRegistry, LatestView {
-        if (!exists<BanRegistry>(@supra_framework) || !exists<LatestView>(@supra_framework)) {
+    public fun get_remaining_ban_duration(
+        pool_address: address
+    ): u64 acquires BanRegistry, LatestView {
+        if (!exists<BanRegistry>(@supra_framework)
+            || !exists<LatestView>(@supra_framework)) {
             return 0
         };
         let ban_registry = borrow_global<BanRegistry>(@supra_framework);
@@ -187,17 +190,20 @@ module supra_framework::leader_ban_registry {
             }
         );
         if (found) {
-            remaining_ban_duration(vector::borrow(&ban_registry.bans, index), latest_view)
-        } else {
-            0
-        }
+            remaining_ban_duration(
+                vector::borrow(&ban_registry.bans, index), latest_view
+            )
+        } else { 0 }
     }
 
     #[view]
     /// Returns the number of consensus rounds remaining in the probation period for the validator
     /// with the given pool address. Returns 0 if the validator is not on probation.
-    public fun get_remaining_probation_duration(pool_address: address): u64 acquires BanRegistry, LatestView {
-        if (!exists<BanRegistry>(@supra_framework) || !exists<LatestView>(@supra_framework)) {
+    public fun get_remaining_probation_duration(
+        pool_address: address
+    ): u64 acquires BanRegistry, LatestView {
+        if (!exists<BanRegistry>(@supra_framework)
+            || !exists<LatestView>(@supra_framework)) {
             return 0
         };
         let ban_registry = borrow_global<BanRegistry>(@supra_framework);
@@ -211,10 +217,12 @@ module supra_framework::leader_ban_registry {
         );
         if (found) {
             let probation_dur = get_probation_duration();
-            remaining_probation_duration(vector::borrow(&ban_registry.bans, index), latest_view, probation_dur)
-        } else {
-            0
-        }
+            remaining_probation_duration(
+                vector::borrow(&ban_registry.bans, index),
+                latest_view,
+                probation_dur
+            )
+        } else { 0 }
     }
 
     /// Add or update the ban registry as per block metadata
@@ -337,7 +345,8 @@ module supra_framework::leader_ban_registry {
             |v| {
                 let v: &ValidatorBans = v;
                 if (v.active.on_probation
-                    && remaining_probation_duration(v, latest_view, probation_duration) == 0) {
+                    && remaining_probation_duration(v, latest_view, probation_duration)
+                        == 0) {
                     vector::push_back(
                         &mut pool_addresses_for_full_reinstatement, v.pool_address
                     );
@@ -377,8 +386,11 @@ module supra_framework::leader_ban_registry {
             &ban_registry.bans,
             |v| {
                 let v: &ValidatorBans = v;
-                if (!v.active.on_probation && remaining_ban_duration(v, latest_view) == 0) {
-                    vector::push_back(&mut pool_addresses_with_expired_bans, v.pool_address);
+                if (!v.active.on_probation
+                    && remaining_ban_duration(v, latest_view) == 0) {
+                    vector::push_back(
+                        &mut pool_addresses_with_expired_bans, v.pool_address
+                    );
                 }
             }
         );
@@ -445,7 +457,7 @@ module supra_framework::leader_ban_registry {
         };
     }
 
-    /// Increments the total number of consensus rounds served by each banned validator and removes 
+    /// Increments the total number of consensus rounds served by each banned validator and removes
     /// registry entries for validators that have left the validator set.
     ///
     /// The number of rounds in each epoch may vary due to network asynchrony, so we must record the
@@ -467,10 +479,13 @@ module supra_framework::leader_ban_registry {
                 let v: &mut ValidatorBans = v;
                 if (vector::contains(&new_committee_pool_addresses, &v.pool_address)) {
                     if (latest_view.epoch > v.active.epoch_earned) {
-                        v.active.rounds_served_in_previous_epochs = v.active.rounds_served_in_previous_epochs
-                            + latest_view.round;
-                    } else if (latest_view.epoch == v.active.epoch_earned && latest_view.round > v.active.round_earned) {
-                        v.active.rounds_served_in_previous_epochs = latest_view.round - v.active.round_earned;
+                        v.active.rounds_served_in_previous_epochs =
+                            v.active.rounds_served_in_previous_epochs
+                                + latest_view.round;
+                    } else if (latest_view.epoch == v.active.epoch_earned
+                        && latest_view.round > v.active.round_earned) {
+                        v.active.rounds_served_in_previous_epochs =
+                            latest_view.round - v.active.round_earned;
                     };
                     // else: The ban hasn't started yet.
                 } else {
@@ -517,7 +532,8 @@ module supra_framework::leader_ban_registry {
         let rounds_served =
             if (latest_view.epoch > ban.active.epoch_earned) {
                 ban.active.rounds_served_in_previous_epochs + latest_view.round
-            } else if (latest_view.epoch == ban.active.epoch_earned && latest_view.round > ban.active.round_earned) {
+            } else if (latest_view.epoch == ban.active.epoch_earned
+                && latest_view.round > ban.active.round_earned) {
                 latest_view.round - ban.active.round_earned
             } else {
                 // The ban hasn't started yet.
@@ -536,7 +552,8 @@ module supra_framework::leader_ban_registry {
         let rounds_served =
             if (latest_view.epoch > ban.active.epoch_earned) {
                 ban.active.rounds_served_in_previous_epochs + latest_view.round
-            } else if (latest_view.epoch == ban.active.epoch_earned && latest_view.round > ban.active.round_earned) {
+            } else if (latest_view.epoch == ban.active.epoch_earned
+                && latest_view.round > ban.active.round_earned) {
                 latest_view.round - ban.active.round_earned
             } else {
                 // The ban hasn't started yet.
