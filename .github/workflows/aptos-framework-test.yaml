@@ -20,7 +20,7 @@ env:
   SCRYPTO_BIN: ~/.cargo/bin/scrypto
 jobs:
   build:
-    runs-on: ghr-elastic-supra-aptos-core-runner
+    runs-on: [self-hosted, do-ephemeral]
     timeout-minutes: 90
     steps:
       - uses: dtolnay/rust-toolchain@stable
