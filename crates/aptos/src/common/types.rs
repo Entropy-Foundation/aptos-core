@@ -1800,7 +1800,7 @@ impl TransactionOptions {
         // Fetch the chain states required for the simulation
         // TODO(Gas): get the following from the chain
         const DEFAULT_GAS_UNIT_PRICE: u64 = 100;
-        const DEFAULT_MAX_GAS: u64 = 2_000_000;
+        const DEFAULT_MAX_GAS: u64 = 2_000_000_000;
 
         let (sender_key, sender_address) = self.get_key_and_address()?;
         let gas_unit_price = self
