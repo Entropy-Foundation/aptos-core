@@ -41,10 +41,10 @@ module supra_framework::evm_contracts_details {
     /// Keys and values will match in lenght and should not be empty, otherwise the call will fail.
     /// Example usage:
     /// ```
-    /// supra_framework::evm_genesis_config::set_for_next_epoch(&framework_signer, vector["contact1_name"], [contract1_address]);
+    /// supra_framework::evm_contracts_details::upsert_for_next_epoch(&framework_signer, vector["contact1_name"], vector[contract1_address]);
     /// supra_framework::supra_governance::reconfigure(&framework_signer);
     /// ```
-    public fun upset_for_next_epoch(account: &signer, keys: vector<String>, values: vector<address>) acquires EvmContractsDetails {
+    public fun upsert_for_next_epoch(account: &signer, keys: vector<String>, values: vector<address>) acquires EvmContractsDetails {
         system_addresses::assert_supra_framework(account);
         assert!(!vector::is_empty(&keys), error::invalid_argument(EEMPTY_DATA));
         assert!(vector::length(&keys) == vector::length(&values), error::invalid_argument(EKEYS_VALUES_MISMATCH));

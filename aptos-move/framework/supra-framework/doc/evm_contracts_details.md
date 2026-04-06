@@ -8,7 +8,7 @@
 -  [Resource `EvmContractsDetails`](#0x1_evm_contracts_details_EvmContractsDetails)
 -  [Constants](#@Constants_0)
 -  [Function `initialize`](#0x1_evm_contracts_details_initialize)
--  [Function `upset_for_next_epoch`](#0x1_evm_contracts_details_upset_for_next_epoch)
+-  [Function `upsert_for_next_epoch`](#0x1_evm_contracts_details_upsert_for_next_epoch)
 -  [Function `on_new_epoch`](#0x1_evm_contracts_details_on_new_epoch)
 
 
@@ -111,20 +111,20 @@ Publishes the EvmContractInfo details.
 
 </details>
 
-<a id="0x1_evm_contracts_details_upset_for_next_epoch"></a>
+<a id="0x1_evm_contracts_details_upsert_for_next_epoch"></a>
 
-## Function `upset_for_next_epoch`
+## Function `upsert_for_next_epoch`
 
 This can be called by on-chain governance to update on-chain evm contract details for the next epoch.
 Keys and values will match in lenght and should not be empty, otherwise the call will fail.
 Example usage:
 ```
-supra_framework::evm_genesis_config::set_for_next_epoch(&framework_signer, vector["contact1_name"], [contract1_address]);
+supra_framework::evm_contracts_details::upsert_for_next_epoch(&framework_signer, vector["contact1_name"], vector[contract1_address]);
 supra_framework::supra_governance::reconfigure(&framework_signer);
 ```
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="evm_contracts_details.md#0x1_evm_contracts_details_upset_for_next_epoch">upset_for_next_epoch</a>(<a href="account.md#0x1_account">account</a>: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;)
+<pre><code><b>public</b> <b>fun</b> <a href="evm_contracts_details.md#0x1_evm_contracts_details_upsert_for_next_epoch">upsert_for_next_epoch</a>(<a href="account.md#0x1_account">account</a>: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;)
 </code></pre>
 
 
@@ -133,7 +133,7 @@ supra_framework::supra_governance::reconfigure(&framework_signer);
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="evm_contracts_details.md#0x1_evm_contracts_details_upset_for_next_epoch">upset_for_next_epoch</a>(<a href="account.md#0x1_account">account</a>: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;, values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;) <b>acquires</b> <a href="evm_contracts_details.md#0x1_evm_contracts_details_EvmContractsDetails">EvmContractsDetails</a> {
+<pre><code><b>public</b> <b>fun</b> <a href="evm_contracts_details.md#0x1_evm_contracts_details_upsert_for_next_epoch">upsert_for_next_epoch</a>(<a href="account.md#0x1_account">account</a>: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;, values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;) <b>acquires</b> <a href="evm_contracts_details.md#0x1_evm_contracts_details_EvmContractsDetails">EvmContractsDetails</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(<a href="account.md#0x1_account">account</a>);
     <b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&keys), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_contracts_details.md#0x1_evm_contracts_details_EEMPTY_DATA">EEMPTY_DATA</a>));
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&keys) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&values), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_contracts_details.md#0x1_evm_contracts_details_EKEYS_VALUES_MISMATCH">EKEYS_VALUES_MISMATCH</a>));
