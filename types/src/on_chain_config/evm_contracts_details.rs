@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Supra.
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::on_chain_config::OnChainConfig;
 use move_core_types::account_address::AccountAddress;
 use serde::{Deserialize, Serialize};

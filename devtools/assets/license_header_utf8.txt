@@ -1,2 +1,2 @@
-Copyright © Aptos Foundation
+Copyright (c) Supra.
 SPDX-License-Identifier: Apache-2.0
