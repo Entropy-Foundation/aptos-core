@@ -5,8 +5,10 @@ use crate::{account_address::AccountAddress, event::EventHandle};
 use move_core_types::{
     ident_str,
     identifier::IdentStr,
+    language_storage::TypeTag,
     move_resource::{MoveResource, MoveStructType},
 };
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -74,14 +76,25 @@ pub struct ReactivateStakeEvent {
     pub amount: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+/// Emitted when a validator's consensus key is rotated via `stake::rotate_consensus_key`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RotateConsensusKeyEvent {
     pub pool_address: AccountAddress,
     pub old_consensus_pubkey: Vec<u8>,
     pub new_consensus_pubkey: Vec<u8>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl MoveStructType for RotateConsensusKeyEvent {
+    const MODULE_NAME: &'static IdentStr = ident_str!("stake");
+    const STRUCT_NAME: &'static IdentStr = ident_str!("RotateConsensusKey");
+}
+
+pub static ROTATE_CONSENSUS_KEY_EVENT_TYPE_TAG: Lazy<TypeTag> =
+    Lazy::new(|| TypeTag::Struct(Box::new(RotateConsensusKeyEvent::struct_tag())));
+
+/// Emitted when a validator's network and fullnode addresses are updated via
+/// `stake::update_network_and_fullnode_addresses`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UpdateNetworkAndFullnodeAddressesEvent {
     pub pool_address: AccountAddress,
     pub old_network_addresses: Vec<u8>,
@@ -89,6 +102,17 @@ pub struct UpdateNetworkAndFullnodeAddressesEvent {
     pub old_fullnode_addresses: Vec<u8>,
     pub new_fullnode_addresses: Vec<u8>,
 }
+
+impl MoveStructType for UpdateNetworkAndFullnodeAddressesEvent {
+    const MODULE_NAME: &'static IdentStr = ident_str!("stake");
+    const STRUCT_NAME: &'static IdentStr = ident_str!("UpdateNetworkAndFullnodeAddresses");
+}
+
+pub static UPDATE_NETWORK_ADDRESSES_EVENT_TYPE_TAG: Lazy<TypeTag> = Lazy::new(|| {
+    TypeTag::Struct(Box::new(
+        UpdateNetworkAndFullnodeAddressesEvent::struct_tag(),
+    ))
+});
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IncreaseLockupEvent {
