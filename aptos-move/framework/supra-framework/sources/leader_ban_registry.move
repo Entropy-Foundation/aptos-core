@@ -243,6 +243,10 @@ module supra_framework::leader_ban_registry {
         let previous_epoch = latest_view.epoch;
         let previous_round = latest_view.round;
 
+        // we expect that current_epoch == latest_view.epoch || current_epoch == latest_view.epoch + 1, 
+        // but we don't assert this to be true here because it should be ensured by the consensus.
+        if (current_epoch < latest_view.epoch) { return };
+
         latest_view.epoch = current_epoch;
         latest_view.round = current_round;
 
