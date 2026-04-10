@@ -236,94 +236,127 @@ module supra_framework::leader_ban_registry {
         if (!exists<LatestView>(@supra_framework)) { return };
         let ban_registry = borrow_global_mut<BanRegistry>(@supra_framework);
         let latest_view = borrow_global_mut<LatestView>(@supra_framework);
+
+        // Save the previous view before updating. Each failed proposer failed at a
+        // distinct round between the previous commit and the current commit, so we
+        // need this to reconstruct the actual round at which each ban was earned.
+        let previous_epoch = latest_view.epoch;
+        let previous_round = latest_view.round;
+
+        // we expect that current_epoch == latest_view.epoch || current_epoch == latest_view.epoch + 1, 
+        // but we don't assert this to be true here because it should be ensured by the consensus.
+        if (current_epoch < latest_view.epoch) { return };
+
         latest_view.epoch = current_epoch;
         latest_view.round = current_round;
 
         // ban the failed proposers
-        ban_failed_proposers(latest_view, failed_proposer_indices, ban_registry);
+        ban_failed_proposers(
+            current_epoch, previous_epoch, previous_round,
+            failed_proposer_indices, ban_registry
+        );
 
         // remove expired bans
         reinstate_expired_bans(latest_view, ban_registry);
     }
 
-    /// Adds failed proposer indices to ban registry
+    /// Adds failed proposer indices to ban registry. Each failed proposer failed at a
+    /// consecutive round between the previous commit and the current commit. The actual
+    /// failed round is reconstructed from the previous view:
+    /// - Same epoch: failed rounds start at `previous_round + 1`
+    /// - Epoch boundary: failed rounds start at `0` (new epoch resets round to 0)
     fun ban_failed_proposers(
-        latest_view: &LatestView,
+        current_epoch: u64,
+        previous_epoch: u64,
+        previous_round: u64,
         failed_proposer_indices: vector<u64>,
         ban_registry: &mut BanRegistry
     ) {
         let initial_ban_duration = get_initial_ban_duration();
         if (initial_ban_duration == 0) { return };
 
-        vector::for_each(
-            failed_proposer_indices,
-            |failed_validator_index| {
-                let validator_pool_address_opt =
-                    stake::get_pool_address_from_index(failed_validator_index);
+        // Compute the first failed round based on whether the epoch changed.
+        let first_failed_round = if (previous_epoch == current_epoch) {
+            previous_round + 1
+        } else {
+            // Epoch boundary: the last block of the previous epoch was committed
+            // successfully, so failures start from round 0 of the new epoch.
+            0
+        };
 
-                if (option::is_some(&validator_pool_address_opt)) {
-                    let validator_pool_address =
-                        option::extract(&mut validator_pool_address_opt);
-                    let (is_banned, index) = vector::find(
-                        &ban_registry.bans,
-                        |v| {
-                            let v: &ValidatorBans = v;
-                            validator_pool_address == v.pool_address
-                        }
-                    );
-                    if (is_banned) {
-                        // Validator is already in registry (either banned or on probation).
-                        // Re-banning resets the ban period and increases consecutive count.
-                        // If the consensus code is implemented correctly then the validator should
-                        // not be re-banned whilst serving a ban as it should not be eligible for election
-                        // when banned (i.e. this branch should only be taken when a validator is on probation).
-                        let bans = vector::borrow_mut(&mut ban_registry.bans, index);
-                        bans.consecutive_bans = bans.consecutive_bans + 1;
-                        bans.active.round_earned = latest_view.round;
-                        bans.active.epoch_earned = latest_view.epoch;
-                        bans.active.rounds_served_in_previous_epochs = 0;
-                        bans.active.on_probation = false; // Reset to banned state
+        let i = 0;
+        let len = vector::length(&failed_proposer_indices);
+        while (i < len) {
+            let failed_validator_index = *vector::borrow(&failed_proposer_indices, i);
+            let failed_round = first_failed_round + i;
+
+            let validator_pool_address_opt =
+                stake::get_pool_address_from_index(failed_validator_index);
+
+            if (option::is_some(&validator_pool_address_opt)) {
+                let validator_pool_address =
+                    option::extract(&mut validator_pool_address_opt);
+                let (is_banned, index) = vector::find(
+                    &ban_registry.bans,
+                    |v| {
+                        let v: &ValidatorBans = v;
+                        validator_pool_address == v.pool_address
+                    }
+                );
+                if (is_banned) {
+                    // Validator is already in registry (either banned or on probation).
+                    // Re-banning resets the ban period and increases consecutive count.
+                    // If the consensus code is implemented correctly then the validator should
+                    // not be re-banned whilst serving a ban as it should not be eligible for election
+                    // when banned (i.e. this branch should only be taken when a validator is on probation).
+                    let bans = vector::borrow_mut(&mut ban_registry.bans, index);
+                    bans.consecutive_bans = bans.consecutive_bans + 1;
+                    bans.active.round_earned = failed_round;
+                    bans.active.epoch_earned = current_epoch;
+                    bans.active.rounds_served_in_previous_epochs = 0;
+                    bans.active.on_probation = false; // Reset to banned state
+
+                    if (features::module_event_enabled()) {
+                        event::emit(
+                            Banned {
+                                pool_address: validator_pool_address,
+                                epoch: current_epoch,
+                                round: failed_round,
+                                consecutive_bans: bans.consecutive_bans
+                            }
+                        );
+                    }
+                } else {
+                    let ban_registry_len = vector::length(&ban_registry.bans);
+                    if (can_be_banned(ban_registry_len)) {
+                        let ban_with_address = ValidatorBans {
+                            active: ActiveBan {
+                                epoch_earned: current_epoch,
+                                round_earned: failed_round,
+                                rounds_served_in_previous_epochs: 0,
+                                on_probation: false
+                            },
+                            consecutive_bans: 0,
+                            pool_address: validator_pool_address
+                        };
+                        vector::push_back(&mut ban_registry.bans, ban_with_address);
 
                         if (features::module_event_enabled()) {
                             event::emit(
                                 Banned {
-                                    pool_address: validator_pool_address,
-                                    epoch: latest_view.epoch,
-                                    round: latest_view.round,
-                                    consecutive_bans: bans.consecutive_bans
+                                    pool_address: ban_with_address.pool_address,
+                                    epoch: ban_with_address.active.epoch_earned,
+                                    round: ban_with_address.active.round_earned,
+                                    consecutive_bans: ban_with_address.consecutive_bans
                                 }
                             );
                         }
-                    } else {
-                        let ban_registry_len = vector::length(&ban_registry.bans);
-                        if (can_be_banned(ban_registry_len)) {
-                            let ban_with_address = ValidatorBans {
-                                active: ActiveBan {
-                                    epoch_earned: latest_view.epoch,
-                                    round_earned: latest_view.round,
-                                    rounds_served_in_previous_epochs: 0,
-                                    on_probation: false
-                                },
-                                consecutive_bans: 0,
-                                pool_address: validator_pool_address
-                            };
-                            vector::push_back(&mut ban_registry.bans, ban_with_address);
-
-                            if (features::module_event_enabled()) {
-                                event::emit(
-                                    Banned {
-                                        pool_address: ban_with_address.pool_address,
-                                        epoch: ban_with_address.active.epoch_earned,
-                                        round: ban_with_address.active.round_earned,
-                                        consecutive_bans: ban_with_address.consecutive_bans
-                                    }
-                                );
-                            }
-                        }
-                    };
+                    }
                 };
-            }
-        );
+            };
+
+            i = i + 1;
+        };
     }
 
     /// Handles ban and probation expiry:
@@ -527,8 +560,19 @@ module supra_framework::leader_ban_registry {
     ): u64 {
         let initial_ban_duration = get_initial_ban_duration();
         let max_ban_duration = get_max_ban_duration();
-        let duration = initial_ban_duration * pow(2, (ban.consecutive_bans as u64));
-        let duration = min(duration, max_ban_duration);
+        // Guard against overflow: pow(2, n) overflows u64 when n >= 64, and the
+        // subsequent multiplication can overflow for smaller exponents. In both cases
+        // the uncapped result would exceed max_ban_duration, so we short-circuit.
+        let duration = if ((ban.consecutive_bans as u64) >= 64) {
+            max_ban_duration
+        } else {
+            let scale = pow(2, (ban.consecutive_bans as u64));
+            if (initial_ban_duration > 0 && scale > max_ban_duration / initial_ban_duration) {
+                max_ban_duration
+            } else {
+                min(initial_ban_duration * scale, max_ban_duration)
+            }
+        };
         let rounds_served =
             if (latest_view.epoch > ban.active.epoch_earned) {
                 ban.active.rounds_served_in_previous_epochs + latest_view.round
