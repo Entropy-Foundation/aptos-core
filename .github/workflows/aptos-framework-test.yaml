@@ -1,4 +1,5 @@
 name: Run aptos framework checks
+
 on:
   push:
     branches: [ "dev", "release/**", "feature/**" ]
@@ -7,25 +8,52 @@ on:
     types: [opened, synchronize, ready_for_review]
     branches: [ "dev", "release/**", "feature/**" ]
     paths-ignore: [ '**/*.md' ]
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   CARGO_NET_GIT_FETCH_WITH_CLI: true
   DOCKER_BUILDKIT: 1
-  FORGE_BIN: ~/.foundry/bin/forge
-  SUI_BIN: ~/.cargo/bin/sui
-  APTOS_BIN: ~/.local/bin/aptos
-  SCRYPTO_BIN: ~/.cargo/bin/scrypto
+
 jobs:
   build:
-    runs-on: ghr-elastic-supra-aptos-core-runner
+    runs-on: [self-hosted, do-ephemeral]
     timeout-minutes: 90
+
     steps:
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/checkout@v4
-      - run: cargo test --release -p aptos-types --lib unit_tests --no-fail-fast
-      - run: cargo test --release -p aptos-framework -- --skip prover
-      - run: RUST_MIN_STACK=104857600 cargo test run -p language-e2e-testsuite --no-fail-fast
-      - run: RUST_MIN_STACK=104857600 cargo test run -p e2e-move-tests --no-fail-fast
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup SSH access
+        run: |
+          mkdir -p ~/.ssh
+
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+          echo "Host github.com
+            StrictHostKeyChecking no
+          " >> ~/.ssh/config
+
+      - name: Test SSH connection
+        run: ssh -T git@github.com || true
+
+      - name: Run aptos-types tests
+        run: cargo test --release -p aptos-types --lib unit_tests --no-fail-fast
+
+      - name: Run aptos-framework tests
+        run: cargo test --release -p aptos-framework -- --skip prover
+
+      - name: Run language e2e tests
+        run: RUST_MIN_STACK=104857600 cargo test run -p language-e2e-testsuite --no-fail-fast
+
+      - name: Run move e2e tests
+        run: RUST_MIN_STACK=104857600 cargo test run -p e2e-move-tests --no-fail-fast

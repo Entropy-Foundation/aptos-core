@@ -17,7 +17,7 @@ use crate::{
 };
 use aptos_crypto::{ed25519::*, traits::*};
 
-const MAX_GAS_AMOUNT: u64 = 1_000_000;
+const MAX_GAS_AMOUNT: u64 = 1_000_000_000;
 const TEST_GAS_PRICE: u64 = 100;
 
 // The block executor onchain config (gas limit parameters) for executor tests

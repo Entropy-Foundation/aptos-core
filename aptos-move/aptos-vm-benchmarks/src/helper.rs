@@ -41,7 +41,7 @@ pub fn execute_module_txn(
     let sign_tx = account
         .transaction()
         .sequence_number(sequence_number)
-        .max_gas_amount(2_000_000)
+        .max_gas_amount(2_000_000_000)
         .gas_unit_price(200)
         .payload(payload)
         .sign();
