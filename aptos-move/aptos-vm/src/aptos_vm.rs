@@ -2364,10 +2364,14 @@ impl AptosVM {
 
         let storage = TraversalStorage::new();
 
-        session
-            .get_native_extensions()
-            .get_mut::<RandomnessContext>()
-            .mark_unbiasable();
+        // During the first epoch in which the feature is activated, threshold keys have not yet been established (they
+        // are produced at the end of that epoch via DKG), so randomness remains biasable for that epoch.
+        if self.features().is_enabled(FeatureFlag::SUPRA_DKG){
+            session
+                .get_native_extensions()
+                .get_mut::<RandomnessContext>()
+                .mark_unbiasable();
+        }
 
         session
             .execute_function_bypass_visibility(

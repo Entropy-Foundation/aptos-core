@@ -1679,137 +1679,37 @@ module supra_framework::stake {
     }
 
     public fun next_validator_consensus_infos(): vector<ValidatorConsensusInfo> acquires ValidatorSet, ValidatorPerformance, StakePool, ValidatorFees, ValidatorConfig {
-        // Init.
-        let cur_validator_set = borrow_global<ValidatorSet>(@supra_framework);
-        let staking_config = staking_config::get();
-        let validator_perf = borrow_global<ValidatorPerformance>(@supra_framework);
-        let (minimum_stake, _) = staking_config::get_required_stake(&staking_config);
-        let (rewards_rate, rewards_rate_denominator) =
-            staking_config::get_reward_rate(&staking_config);
-
-        // Compute new validator set.
-        let new_active_validators = vector[];
-        let num_new_actives = 0;
-        let candidate_idx = 0;
-        let new_total_power = 0;
-        let num_cur_actives = vector::length(&cur_validator_set.active_validators);
-        let num_cur_pending_actives = vector::length(&cur_validator_set.pending_active);
-        spec {
-            assume num_cur_actives + num_cur_pending_actives <= MAX_U64;
-        };
-        let num_candidates = num_cur_actives + num_cur_pending_actives;
-        while ({
-            spec {
-                invariant candidate_idx <= num_candidates;
-                invariant spec_validators_are_initialized(new_active_validators);
-                invariant len(new_active_validators) == num_new_actives;
-                invariant forall i in 0..len(new_active_validators):
-                    new_active_validators[i].config.validator_index == i;
-                invariant num_new_actives <= candidate_idx;
-                invariant spec_validators_are_initialized(new_active_validators);
-            };
-            candidate_idx < num_candidates
-        }) {
-            let candidate_in_current_validator_set = candidate_idx < num_cur_actives;
-            let candidate =
-                if (candidate_idx < num_cur_actives) {
-                    vector::borrow(&cur_validator_set.active_validators, candidate_idx)
-                } else {
-                    vector::borrow(
-                        &cur_validator_set.pending_active,
-                        candidate_idx - num_cur_actives
-                    )
-                };
-            let stake_pool = borrow_global<StakePool>(candidate.addr);
-            let cur_active = coin::value(&stake_pool.active);
-            let cur_pending_active = coin::value(&stake_pool.pending_active);
-            let cur_pending_inactive = coin::value(&stake_pool.pending_inactive);
-
-            let cur_reward =
-                if (candidate_in_current_validator_set && cur_active != 0) {
-                    spec {
-                        assert candidate.config.validator_index
-                            < len(validator_perf.validators);
-                    };
-                    let cur_perf = vector::borrow(
-                        &validator_perf.validators, candidate.config.validator_index
-                    );
-                    spec {
-                        assume cur_perf.successful_proposals
-                            + cur_perf.failed_proposals <= MAX_U64;
-                    };
-                    calculate_rewards_amount(
-                        cur_active,
-                        cur_perf.successful_proposals,
-                        cur_perf.successful_proposals + cur_perf.failed_proposals,
-                        rewards_rate,
-                        rewards_rate_denominator
-                    )
-                } else { 0 };
-
-            let cur_fee = 0;
-            if (features::collect_and_distribute_gas_fees()) {
-                let fees_table =
-                    &borrow_global<ValidatorFees>(@supra_framework).fees_table;
-                if (table::contains(fees_table, candidate.addr)) {
-                    let fee_coin = table::borrow(fees_table, candidate.addr);
-                    cur_fee = coin::value(fee_coin);
-                }
-            };
-
-            let lockup_expired =
-                get_reconfig_start_time_secs() >= stake_pool.locked_until_secs;
-            spec {
-                assume cur_active + cur_pending_active + cur_reward + cur_fee
-                    <= MAX_U64;
-                assume cur_active + cur_pending_inactive + cur_pending_active
-                    + cur_reward + cur_fee <= MAX_U64;
-            };
-            let new_voting_power =
-                cur_active
-                    + if (lockup_expired) { 0 }
-                    else {
-                        cur_pending_inactive
-                    } + cur_pending_active + cur_reward + cur_fee;
-
-            if (new_voting_power >= minimum_stake) {
-                let config = *borrow_global<ValidatorConfig>(candidate.addr);
-                config.validator_index = num_new_actives;
-                let new_validator_info = ValidatorInfo {
-                    addr: candidate.addr,
-                    voting_power: new_voting_power,
-                    config
-                };
-
-                // Update ValidatorSet.
-                spec {
-                    assume new_total_power + new_voting_power <= MAX_U128;
-                };
-                new_total_power = new_total_power + (new_voting_power as u128);
-                vector::push_back(&mut new_active_validators, new_validator_info);
-                num_new_actives = num_new_actives + 1;
-
-            };
-            candidate_idx = candidate_idx + 1;
-        };
-
-        let new_validator_set = ValidatorSet {
-            consensus_scheme: cur_validator_set.consensus_scheme,
-            active_validators: new_active_validators,
-            pending_inactive: vector[],
-            pending_active: vector[],
-            total_voting_power: new_total_power,
-            total_joining_power: 0
-        };
-
+        let new_validator_set = compute_next_validator_set_internal(false, false);
         validator_consensus_infos_from_validator_set(&new_validator_set)
     }
 
     /// Same as `next_validator_consensus_infos` but uses the current-epoch config data for
     /// validators that are already active. This is used when starting DKG: the committee
-    /// membership (active + pending_active) must reflect the next epoch, but node config should reflect
-    /// current-epoch for the active validators.
+    /// membership (active + pending_active) must reflect the next epoch, but node config
+    /// should reflect current-epoch for the active validators to ensure that validators that update
+    /// their configuration do not need to run two copies of themselves to participate in DKG.
     public fun next_epoch_validator_consensus_infos_for_dkg(): vector<ValidatorConsensusInfo> acquires ValidatorSet, ValidatorPerformance, StakePool, ValidatorFees, ValidatorConfig {
+        // on_new_epoch appends pending_active into active via pop_back, which reverses the order.
+        // Mirror that here (reverse_pending_active_order=true) so validator indices match after
+        // the epoch transition. Also use the current-epoch config snapshot for active validators
+        // (use_current_config_for_actives=true) so mid-epoch config changes don't take effect
+        // during DKG.
+        let new_validator_set = compute_next_validator_set_internal(true, true);
+        validator_consensus_infos_from_validator_set(&new_validator_set)
+    }
+
+    /// Computes the validator set for the next epoch.
+    ///
+    /// `reverse_pending_active_order`: when `true`, iterates `pending_active` in reverse so that
+    /// validator indices match the order produced by `on_new_epoch` (which uses `pop_back`).
+    ///
+    /// `use_current_config_for_actives`: when `true`, currently-active validators retain their
+    /// current-epoch `ValidatorConfig` snapshot instead of reading the latest on-chain value.
+    /// New joiners (`pending_active`) always read from `ValidatorConfig` regardless of this flag.
+    fun compute_next_validator_set_internal(
+        reverse_pending_active_order: bool,
+        use_current_config_for_actives: bool,
+    ): ValidatorSet acquires ValidatorSet, ValidatorPerformance, StakePool, ValidatorFees, ValidatorConfig {
         // Init.
         let cur_validator_set = borrow_global<ValidatorSet>(@supra_framework);
         let staking_config = staking_config::get();
@@ -1846,10 +1746,12 @@ module supra_framework::stake {
                 if (candidate_idx < num_cur_actives) {
                     vector::borrow(&cur_validator_set.active_validators, candidate_idx)
                 } else {
-                    // on_new_epoch appends pending_active into active via pop_back, which reverses
-                    // the order. Mirror that here so validator indices match after epoch transition.
                     let pending_idx =
-                        num_cur_pending_actives - 1 - (candidate_idx - num_cur_actives);
+                        if (reverse_pending_active_order) {
+                            num_cur_pending_actives - 1 - (candidate_idx - num_cur_actives)
+                        } else {
+                            candidate_idx - num_cur_actives
+                        };
                     vector::borrow(&cur_validator_set.pending_active, pending_idx)
                 };
             let stake_pool = borrow_global<StakePool>(candidate.addr);
@@ -1857,37 +1759,16 @@ module supra_framework::stake {
             let cur_pending_active = coin::value(&stake_pool.pending_active);
             let cur_pending_inactive = coin::value(&stake_pool.pending_inactive);
 
-            let cur_reward =
-                if (candidate_in_current_validator_set && cur_active != 0) {
-                    spec {
-                        assert candidate.config.validator_index
-                            < len(validator_perf.validators);
-                    };
-                    let cur_perf = vector::borrow(
-                        &validator_perf.validators, candidate.config.validator_index
-                    );
-                    spec {
-                        assume cur_perf.successful_proposals
-                            + cur_perf.failed_proposals <= MAX_U64;
-                    };
-                    calculate_rewards_amount(
-                        cur_active,
-                        cur_perf.successful_proposals,
-                        cur_perf.successful_proposals + cur_perf.failed_proposals,
-                        rewards_rate,
-                        rewards_rate_denominator
-                    )
-                } else { 0 };
+            let cur_reward = calculate_candidate_reward(
+                candidate,
+                candidate_in_current_validator_set,
+                cur_active,
+                validator_perf,
+                rewards_rate,
+                rewards_rate_denominator
+            );
 
-            let cur_fee = 0;
-            if (features::collect_and_distribute_gas_fees()) {
-                let fees_table =
-                    &borrow_global<ValidatorFees>(@supra_framework).fees_table;
-                if (table::contains(fees_table, candidate.addr)) {
-                    let fee_coin = table::borrow(fees_table, candidate.addr);
-                    cur_fee = coin::value(fee_coin);
-                }
-            };
+            let cur_fee = collect_candidate_fee(candidate.addr);
 
             let lockup_expired =
                 get_reconfig_start_time_secs() >= stake_pool.locked_until_secs;
@@ -1905,13 +1786,11 @@ module supra_framework::stake {
                     } + cur_pending_active + cur_reward + cur_fee;
 
             if (new_voting_power >= minimum_stake) {
-                // For currently-active validators, use the full current-epoch config snapshot
-                // so that any mid-epoch changes (consensus key, network addresses, etc.) only
-                // take effect after the epoch transition, not during DKG.
-                // For pending-active (new joiners), read from ValidatorConfig as they have no
-                // prior epoch snapshot.
                 let config =
-                    if (candidate_in_current_validator_set) {
+                    if (use_current_config_for_actives && candidate_in_current_validator_set) {
+                        // Use the current-epoch config snapshot so that any mid-epoch changes
+                        // (consensus key, network addresses, etc.) only take effect after the
+                        // epoch transition, not during DKG.
                         candidate.config
                     } else {
                         *borrow_global<ValidatorConfig>(candidate.addr)
@@ -1930,21 +1809,60 @@ module supra_framework::stake {
                 new_total_power = new_total_power + (new_voting_power as u128);
                 vector::push_back(&mut new_active_validators, new_validator_info);
                 num_new_actives = num_new_actives + 1;
-
             };
             candidate_idx = candidate_idx + 1;
         };
 
-        let new_validator_set = ValidatorSet {
+        ValidatorSet {
             consensus_scheme: cur_validator_set.consensus_scheme,
             active_validators: new_active_validators,
             pending_inactive: vector[],
             pending_active: vector[],
             total_voting_power: new_total_power,
             total_joining_power: 0
-        };
+        }
+    }
 
-        validator_consensus_infos_from_validator_set(&new_validator_set)
+    /// Computes the reward earned by a candidate validator for the current epoch.
+    /// Returns 0 for pending-active validators (not yet in the active set) or validators
+    /// with no active stake.
+    fun calculate_candidate_reward(
+        candidate: &ValidatorInfo,
+        candidate_in_current_validator_set: bool,
+        cur_active: u64,
+        validator_perf: &ValidatorPerformance,
+        rewards_rate: u64,
+        rewards_rate_denominator: u64,
+    ): u64 {
+        if (candidate_in_current_validator_set && cur_active != 0) {
+            spec {
+                assert candidate.config.validator_index < len(validator_perf.validators);
+            };
+            let cur_perf = vector::borrow(
+                &validator_perf.validators, candidate.config.validator_index
+            );
+            spec {
+                assume cur_perf.successful_proposals + cur_perf.failed_proposals <= MAX_U64;
+            };
+            calculate_rewards_amount(
+                cur_active,
+                cur_perf.successful_proposals,
+                cur_perf.successful_proposals + cur_perf.failed_proposals,
+                rewards_rate,
+                rewards_rate_denominator
+            )
+        } else { 0 }
+    }
+
+    /// Returns the accumulated gas fees assigned to `candidate_addr`, or 0 if fee collection
+    /// is disabled or no fees have been recorded for this validator.
+    fun collect_candidate_fee(candidate_addr: address): u64 acquires ValidatorFees {
+        if (features::collect_and_distribute_gas_fees()) {
+            let fees_table = &borrow_global<ValidatorFees>(@supra_framework).fees_table;
+            if (table::contains(fees_table, candidate_addr)) {
+                coin::value(table::borrow(fees_table, candidate_addr))
+            } else { 0 }
+        } else { 0 }
     }
 
     fun validator_consensus_infos_from_validator_set(

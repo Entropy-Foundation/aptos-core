@@ -569,8 +569,11 @@ pool address. Returns 0 if the validator is not banned (including if it is on pr
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_get_remaining_ban_duration">get_remaining_ban_duration</a>(pool_address: <b>address</b>): u64 <b>acquires</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_BanRegistry">BanRegistry</a>, <a href="leader_ban_registry.md#0x1_leader_ban_registry_LatestView">LatestView</a> {
-    <b>if</b> (!<b>exists</b>&lt;<a href="leader_ban_registry.md#0x1_leader_ban_registry_BanRegistry">BanRegistry</a>&gt;(@supra_framework) || !<b>exists</b>&lt;<a href="leader_ban_registry.md#0x1_leader_ban_registry_LatestView">LatestView</a>&gt;(@supra_framework)) {
+<pre><code><b>public</b> <b>fun</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_get_remaining_ban_duration">get_remaining_ban_duration</a>(
+    pool_address: <b>address</b>
+): u64 <b>acquires</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_BanRegistry">BanRegistry</a>, <a href="leader_ban_registry.md#0x1_leader_ban_registry_LatestView">LatestView</a> {
+    <b>if</b> (!<b>exists</b>&lt;<a href="leader_ban_registry.md#0x1_leader_ban_registry_BanRegistry">BanRegistry</a>&gt;(@supra_framework)
+        || !<b>exists</b>&lt;<a href="leader_ban_registry.md#0x1_leader_ban_registry_LatestView">LatestView</a>&gt;(@supra_framework)) {
         <b>return</b> 0
     };
     <b>let</b> ban_registry = <b>borrow_global</b>&lt;<a href="leader_ban_registry.md#0x1_leader_ban_registry_BanRegistry">BanRegistry</a>&gt;(@supra_framework);
@@ -583,10 +586,10 @@ pool address. Returns 0 if the validator is not banned (including if it is on pr
         }
     );
     <b>if</b> (found) {
-        <a href="leader_ban_registry.md#0x1_leader_ban_registry_remaining_ban_duration">remaining_ban_duration</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&ban_registry.bans, index), latest_view)
-    } <b>else</b> {
-        0
-    }
+        <a href="leader_ban_registry.md#0x1_leader_ban_registry_remaining_ban_duration">remaining_ban_duration</a>(
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&ban_registry.bans, index), latest_view
+        )
+    } <b>else</b> { 0 }
 }
 </code></pre>
 
@@ -612,8 +615,11 @@ with the given pool address. Returns 0 if the validator is not on probation.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_get_remaining_probation_duration">get_remaining_probation_duration</a>(pool_address: <b>address</b>): u64 <b>acquires</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_BanRegistry">BanRegistry</a>, <a href="leader_ban_registry.md#0x1_leader_ban_registry_LatestView">LatestView</a> {
-    <b>if</b> (!<b>exists</b>&lt;<a href="leader_ban_registry.md#0x1_leader_ban_registry_BanRegistry">BanRegistry</a>&gt;(@supra_framework) || !<b>exists</b>&lt;<a href="leader_ban_registry.md#0x1_leader_ban_registry_LatestView">LatestView</a>&gt;(@supra_framework)) {
+<pre><code><b>public</b> <b>fun</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_get_remaining_probation_duration">get_remaining_probation_duration</a>(
+    pool_address: <b>address</b>
+): u64 <b>acquires</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_BanRegistry">BanRegistry</a>, <a href="leader_ban_registry.md#0x1_leader_ban_registry_LatestView">LatestView</a> {
+    <b>if</b> (!<b>exists</b>&lt;<a href="leader_ban_registry.md#0x1_leader_ban_registry_BanRegistry">BanRegistry</a>&gt;(@supra_framework)
+        || !<b>exists</b>&lt;<a href="leader_ban_registry.md#0x1_leader_ban_registry_LatestView">LatestView</a>&gt;(@supra_framework)) {
         <b>return</b> 0
     };
     <b>let</b> ban_registry = <b>borrow_global</b>&lt;<a href="leader_ban_registry.md#0x1_leader_ban_registry_BanRegistry">BanRegistry</a>&gt;(@supra_framework);
@@ -627,10 +633,12 @@ with the given pool address. Returns 0 if the validator is not on probation.
     );
     <b>if</b> (found) {
         <b>let</b> probation_dur = <a href="leader_ban_registry.md#0x1_leader_ban_registry_get_probation_duration">get_probation_duration</a>();
-        <a href="leader_ban_registry.md#0x1_leader_ban_registry_remaining_probation_duration">remaining_probation_duration</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&ban_registry.bans, index), latest_view, probation_dur)
-    } <b>else</b> {
-        0
-    }
+        <a href="leader_ban_registry.md#0x1_leader_ban_registry_remaining_probation_duration">remaining_probation_duration</a>(
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&ban_registry.bans, index),
+            latest_view,
+            probation_dur
+        )
+    } <b>else</b> { 0 }
 }
 </code></pre>
 
@@ -813,7 +821,8 @@ Handles ban and probation expiry:
         |v| {
             <b>let</b> v: &<a href="leader_ban_registry.md#0x1_leader_ban_registry_ValidatorBans">ValidatorBans</a> = v;
             <b>if</b> (v.active.on_probation
-                && <a href="leader_ban_registry.md#0x1_leader_ban_registry_remaining_probation_duration">remaining_probation_duration</a>(v, latest_view, probation_duration) == 0) {
+                && <a href="leader_ban_registry.md#0x1_leader_ban_registry_remaining_probation_duration">remaining_probation_duration</a>(v, latest_view, probation_duration)
+                    == 0) {
                 <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(
                     &<b>mut</b> pool_addresses_for_full_reinstatement, v.pool_address
                 );
@@ -853,8 +862,11 @@ Handles ban and probation expiry:
         &ban_registry.bans,
         |v| {
             <b>let</b> v: &<a href="leader_ban_registry.md#0x1_leader_ban_registry_ValidatorBans">ValidatorBans</a> = v;
-            <b>if</b> (!v.active.on_probation && <a href="leader_ban_registry.md#0x1_leader_ban_registry_remaining_ban_duration">remaining_ban_duration</a>(v, latest_view) == 0) {
-                <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> pool_addresses_with_expired_bans, v.pool_address);
+            <b>if</b> (!v.active.on_probation
+                && <a href="leader_ban_registry.md#0x1_leader_ban_registry_remaining_ban_duration">remaining_ban_duration</a>(v, latest_view) == 0) {
+                <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(
+                    &<b>mut</b> pool_addresses_with_expired_bans, v.pool_address
+                );
             }
         }
     );
@@ -963,10 +975,13 @@ full ban period when its ban span multiple epochs.
             <b>let</b> v: &<b>mut</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_ValidatorBans">ValidatorBans</a> = v;
             <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&new_committee_pool_addresses, &v.pool_address)) {
                 <b>if</b> (latest_view.epoch &gt; v.active.epoch_earned) {
-                    v.active.rounds_served_in_previous_epochs = v.active.rounds_served_in_previous_epochs
-                        + latest_view.round;
-                } <b>else</b> <b>if</b> (latest_view.epoch == v.active.epoch_earned && latest_view.round &gt; v.active.round_earned) {
-                    v.active.rounds_served_in_previous_epochs = latest_view.round - v.active.round_earned;
+                    v.active.rounds_served_in_previous_epochs =
+                        v.active.rounds_served_in_previous_epochs
+                            + latest_view.round;
+                } <b>else</b> <b>if</b> (latest_view.epoch == v.active.epoch_earned
+                    && latest_view.round &gt; v.active.round_earned) {
+                    v.active.rounds_served_in_previous_epochs =
+                        latest_view.round - v.active.round_earned;
                 };
                 // <b>else</b>: The ban hasn't started yet.
             } <b>else</b> {
@@ -1033,7 +1048,8 @@ Calculate the number of rounds remaining in a given ban (not including probation
     <b>let</b> rounds_served =
         <b>if</b> (latest_view.epoch &gt; ban.active.epoch_earned) {
             ban.active.rounds_served_in_previous_epochs + latest_view.round
-        } <b>else</b> <b>if</b> (latest_view.epoch == ban.active.epoch_earned && latest_view.round &gt; ban.active.round_earned) {
+        } <b>else</b> <b>if</b> (latest_view.epoch == ban.active.epoch_earned
+            && latest_view.round &gt; ban.active.round_earned) {
             latest_view.round - ban.active.round_earned
         } <b>else</b> {
             // The ban hasn't started yet.
@@ -1072,7 +1088,8 @@ Probation duration is constant and does not scale with consecutive bans.
     <b>let</b> rounds_served =
         <b>if</b> (latest_view.epoch &gt; ban.active.epoch_earned) {
             ban.active.rounds_served_in_previous_epochs + latest_view.round
-        } <b>else</b> <b>if</b> (latest_view.epoch == ban.active.epoch_earned && latest_view.round &gt; ban.active.round_earned) {
+        } <b>else</b> <b>if</b> (latest_view.epoch == ban.active.epoch_earned
+            && latest_view.round &gt; ban.active.round_earned) {
             latest_view.round - ban.active.round_earned
         } <b>else</b> {
             // The ban hasn't started yet.

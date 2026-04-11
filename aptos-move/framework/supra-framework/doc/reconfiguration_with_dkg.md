@@ -92,7 +92,9 @@ Do nothing if one is already in progress.
                 <a href="dkg_config.md#0x1_dkg_config_get_dkg_threshold_type">dkg_config::get_dkg_threshold_type</a>(rc),
                 new_dkg_committee_from_validator_consensus_info(
                     <a href="stake.md#0x1_stake_next_epoch_validator_consensus_infos_for_dkg">stake::next_epoch_validator_consensus_infos_for_dkg</a>(),
-                    <a href="dkg_config.md#0x1_dkg_config_get_committee_threshold_type">dkg_config::get_committee_threshold_type</a>(rc)))
+                    <a href="dkg_config.md#0x1_dkg_config_get_committee_threshold_type">dkg_config::get_committee_threshold_type</a>(rc)
+                )
+            )
         );
         i = i + 1;
     };
@@ -103,7 +105,8 @@ Do nothing if one is already in progress.
         randomness_seed,
         new_dkg_committee_from_validator_consensus_info(
             <a href="stake.md#0x1_stake_cur_validator_consensus_infos">stake::cur_validator_consensus_infos</a>(),
-            <a href="dkg_config.md#0x1_dkg_config_get_dealer_committee_threshold_type">dkg_config::get_dealer_committee_threshold_type</a>(&config)),
+            <a href="dkg_config.md#0x1_dkg_config_get_dealer_committee_threshold_type">dkg_config::get_dealer_committee_threshold_type</a>(&config)
+        ),
         receiver_committees
     );
 }

@@ -1007,7 +1007,7 @@ pub enum EntryFunctionCall {
     },
 
     /// Change epoch immediately.
-    /// If `RECONFIGURE_WITH_DKG` is enabled and we are in the middle of a DKG,
+    /// If `SUPRA_DKG` is enabled and we are in the middle of a DKG,
     /// stop waiting for DKG and enter the new epoch without randomness.
     ///
     /// WARNING: currently only used by tests. In most cases you should use `reconfigure()` instead.
@@ -1021,12 +1021,12 @@ pub enum EntryFunctionCall {
     /// Manually reconfigure. Called at the end of a governance txn that alters on-chain configs.
     ///
     /// WARNING: this function always ensures a reconfiguration starts, but when the reconfiguration finishes depends.
-    /// - If feature `RECONFIGURE_WITH_DKG` is disabled, it finishes immediately.
+    /// - If feature `SUPRA_DKG` is disabled, it finishes immediately.
     ///   - At the end of the calling transaction, we will be in a new epoch.
-    /// - If feature `RECONFIGURE_WITH_DKG` is enabled, it starts DKG, and the new epoch will start in a block prologue after DKG finishes.
+    /// - If feature `SUPRA_DKG` is enabled, it starts DKG, and the new epoch will start in a block prologue after DKG finishes.
     ///
     /// This behavior affects when an update of an on-chain config (e.g. `ConsensusConfig`, `Features`) takes effect,
-    /// since such updates are applied whenever we enter an new epoch.
+    /// since such updates are applied whenever we enter a new epoch.
     SupraGovernanceReconfigure {},
 
     /// Create a single-step proposal with the backing `stake_pool`.
@@ -4932,7 +4932,7 @@ pub fn supra_governance_add_supra_approved_script_hash_script(
 }
 
 /// Change epoch immediately.
-/// If `RECONFIGURE_WITH_DKG` is enabled and we are in the middle of a DKG,
+/// If `SUPRA_DKG` is enabled and we are in the middle of a DKG,
 /// stop waiting for DKG and enter the new epoch without randomness.
 ///
 /// WARNING: currently only used by tests. In most cases you should use `reconfigure()` instead.
@@ -4972,12 +4972,12 @@ pub fn supra_governance_force_end_epoch_test_only() -> TransactionPayload {
 /// Manually reconfigure. Called at the end of a governance txn that alters on-chain configs.
 ///
 /// WARNING: this function always ensures a reconfiguration starts, but when the reconfiguration finishes depends.
-/// - If feature `RECONFIGURE_WITH_DKG` is disabled, it finishes immediately.
+/// - If feature `SUPRA_DKG` is disabled, it finishes immediately.
 ///   - At the end of the calling transaction, we will be in a new epoch.
-/// - If feature `RECONFIGURE_WITH_DKG` is enabled, it starts DKG, and the new epoch will start in a block prologue after DKG finishes.
+/// - If feature `SUPRA_DKG` is enabled, it starts DKG, and the new epoch will start in a block prologue after DKG finishes.
 ///
 /// This behavior affects when an update of an on-chain config (e.g. `ConsensusConfig`, `Features`) takes effect,
-/// since such updates are applied whenever we enter an new epoch.
+/// since such updates are applied whenever we enter a new epoch.
 pub fn supra_governance_reconfigure() -> TransactionPayload {
     TransactionPayload::EntryFunction(EntryFunction::new(
         ModuleId::new(

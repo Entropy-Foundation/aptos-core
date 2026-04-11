@@ -27,7 +27,6 @@ This config can be updated via governance and takes effect at the next epoch.
 
 <pre><code><b>use</b> <a href="config_buffer.md#0x1_config_buffer">0x1::config_buffer</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
-<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="validator_public_keys.md#0x1_validator_public_keys">0x1::validator_public_keys</a>;
 </code></pre>
@@ -364,6 +363,8 @@ Create a new ReceiverCommitteeConfig.
 
 Returns the default DKG configuration.
 
+Assumes that the <code>SUPRA_BCFT_CERTIFICATES</code> feature flag is enabled.
+
 
 <pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_default">default</a>(): <a href="dkg_config.md#0x1_dkg_config_DkgConfig">dkg_config::DkgConfig</a>
 </code></pre>
@@ -375,48 +376,25 @@ Returns the default DKG configuration.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="dkg_config.md#0x1_dkg_config_default">default</a>(): <a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a> {
-    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_bcft_certificates_enabled">features::supra_bcft_certificates_enabled</a>()) {
-        <a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a> {
-            dealer_committee_threshold_type: quorum_certificate_type(),
-            receiver_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
-                <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
-                    is_resharing: <b>false</b>,
-                    committee_threshold_type: quorum_certificate_type(),
-                    dkg_threshold_type: bcft_quorum_certificate_type()
-                },
-                <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
-                    is_resharing: <b>false</b>,
-                    committee_threshold_type: quorum_certificate_type(),
-                    dkg_threshold_type: bcft_validity_certificate_type()
-                },
-                <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
-                    is_resharing: <b>false</b>,
-                    committee_threshold_type: quorum_certificate_type(),
-                    dkg_threshold_type: clan_majority_certificate_type()
-                }
-            ]
-        }
-    } <b>else</b> {
-        <a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a> {
-            dealer_committee_threshold_type: quorum_certificate_type(),
-            receiver_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
-                <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
-                    is_resharing: <b>false</b>,
-                    committee_threshold_type: quorum_certificate_type(),
-                    dkg_threshold_type: clan_majority_certificate_type()
-                },
-                <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
-                    is_resharing: <b>false</b>,
-                    committee_threshold_type: quorum_certificate_type(),
-                    dkg_threshold_type: quorum_certificate_type()
-                },
-                <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
-                    is_resharing: <b>false</b>,
-                    committee_threshold_type: quorum_certificate_type(),
-                    dkg_threshold_type: validity_certificate_type()
-                }
-            ]
-        }
+    <a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a> {
+        dealer_committee_threshold_type: quorum_certificate_type(),
+        receiver_committees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[
+            <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
+                is_resharing: <b>false</b>,
+                committee_threshold_type: quorum_certificate_type(),
+                dkg_threshold_type: bcft_quorum_certificate_type()
+            },
+            <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
+                is_resharing: <b>false</b>,
+                committee_threshold_type: quorum_certificate_type(),
+                dkg_threshold_type: bcft_validity_certificate_type()
+            },
+            <a href="dkg_config.md#0x1_dkg_config_ReceiverCommitteeConfig">ReceiverCommitteeConfig</a> {
+                is_resharing: <b>false</b>,
+                committee_threshold_type: quorum_certificate_type(),
+                dkg_threshold_type: clan_majority_certificate_type()
+            }
+        ]
     }
 }
 </code></pre>
@@ -445,6 +423,14 @@ Get the current DKG config.
     <b>if</b> (<b>exists</b>&lt;<a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a>&gt;(@supra_framework)) {
         *<b>borrow_global</b>&lt;<a href="dkg_config.md#0x1_dkg_config_DkgConfig">DkgConfig</a>&gt;(@supra_framework)
     } <b>else</b> {
+        // This branch should not be executed:
+        //     1. If the network is started from <a href="genesis.md#0x1_genesis">genesis</a> then the default config should be
+        //        applied during <a href="genesis.md#0x1_genesis">genesis</a>.
+        //     2. If the DKG feature flag is enabled in an existing network, then governance
+        //        should set a config before enabling the feature flag.
+        //
+        // This branch <b>exists</b> <b>as</b> a fallback that <b>ensures</b> that the `BlockMetadata` transaction
+        // does not fail in case of misconfiguration.
         <a href="dkg_config.md#0x1_dkg_config_default">default</a>()
     }
 }
