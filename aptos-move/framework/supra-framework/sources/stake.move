@@ -1679,7 +1679,7 @@ module supra_framework::stake {
     }
 
     public fun next_validator_consensus_infos(): vector<ValidatorConsensusInfo> acquires ValidatorSet, ValidatorPerformance, StakePool, ValidatorFees, ValidatorConfig {
-        let new_validator_set = compute_next_validator_set_internal(false, false);
+        let new_validator_set = compute_next_validator_set_internal(false);
         validator_consensus_infos_from_validator_set(&new_validator_set)
     }
 
@@ -1689,25 +1689,21 @@ module supra_framework::stake {
     /// should reflect current-epoch for the active validators to ensure that validators that update
     /// their configuration do not need to run two copies of themselves to participate in DKG.
     public fun next_epoch_validator_consensus_infos_for_dkg(): vector<ValidatorConsensusInfo> acquires ValidatorSet, ValidatorPerformance, StakePool, ValidatorFees, ValidatorConfig {
-        // on_new_epoch appends pending_active into active via pop_back, which reverses the order.
-        // Mirror that here (reverse_pending_active_order=true) so validator indices match after
-        // the epoch transition. Also use the current-epoch config snapshot for active validators
-        // (use_current_config_for_actives=true) so mid-epoch config changes don't take effect
-        // during DKG.
-        let new_validator_set = compute_next_validator_set_internal(true, true);
+        // Use the current-epoch config snapshot for active validators so mid-epoch config changes
+        // do not take effect during DKG (use_current_config_for_actives=true).
+        let new_validator_set = compute_next_validator_set_internal(true);
         validator_consensus_infos_from_validator_set(&new_validator_set)
     }
 
     /// Computes the validator set for the next epoch.
     ///
-    /// `reverse_pending_active_order`: when `true`, iterates `pending_active` in reverse so that
-    /// validator indices match the order produced by `on_new_epoch` (which uses `pop_back`).
-    ///
     /// `use_current_config_for_actives`: when `true`, currently-active validators retain their
     /// current-epoch `ValidatorConfig` snapshot instead of reading the latest on-chain value.
     /// New joiners (`pending_active`) always read from `ValidatorConfig` regardless of this flag.
+    ///
+    /// `pending_active` is iterated in reverse to match the order produced by `on_new_epoch`
+    /// (which appends via `pop_back`).
     fun compute_next_validator_set_internal(
-        reverse_pending_active_order: bool,
         use_current_config_for_actives: bool,
     ): ValidatorSet acquires ValidatorSet, ValidatorPerformance, StakePool, ValidatorFees, ValidatorConfig {
         // Init.
@@ -1747,11 +1743,7 @@ module supra_framework::stake {
                     vector::borrow(&cur_validator_set.active_validators, candidate_idx)
                 } else {
                     let pending_idx =
-                        if (reverse_pending_active_order) {
-                            num_cur_pending_actives - 1 - (candidate_idx - num_cur_actives)
-                        } else {
-                            candidate_idx - num_cur_actives
-                        };
+                        num_cur_pending_actives - 1 - (candidate_idx - num_cur_actives);
                     vector::borrow(&cur_validator_set.pending_active, pending_idx)
                 };
             let stake_pool = borrow_global<StakePool>(candidate.addr);
