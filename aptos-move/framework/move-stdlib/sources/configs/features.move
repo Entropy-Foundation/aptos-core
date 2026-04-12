@@ -784,6 +784,61 @@ module std::features {
         is_enabled(SUPRA_AUTOMATION_V2)
     }
 
+    /// Whether the functionality related to the new validator identity representation is enabled.
+    /// This flag should only be enabled after all Validators have updated their keys to the new format, including the BLS keys.
+    ///
+    /// Lifetime: permanent
+    const SUPRA_BLS_KEYS: u64 = 97;
+
+    public fun get_supra_validator_identity_v2_feature(): u64 {
+        SUPRA_BLS_KEYS
+    }
+
+    public fun supra_validator_identity_v2_enabled(): bool acquires Features {
+        is_enabled(SUPRA_BLS_KEYS)
+    }
+
+    /// Whether BCFT certificate thresholds are enabled.
+    ///
+    /// Lifetime: permanent
+    const SUPRA_BCFT_CERTIFICATES: u64 = 98;
+
+    public fun get_supra_bcft_certificates_feature(): u64 {
+        SUPRA_BCFT_CERTIFICATES
+    }
+
+    public fun supra_bcft_certificates_enabled(): bool acquires Features {
+        is_enabled(SUPRA_BCFT_CERTIFICATES)
+    }
+
+    /// Whether the APIs related to the DKG feature are enabled. `SUPRA_BLS_KEYS` must be enabled first,
+    /// as the new validator identity format is a prerequisite for the DKG. The default DKG configuration
+    /// also requires `SUPRA_BCFT_CERTIFICATES` to be enabled first.
+    ///
+    /// Lifetime: transient
+    const SUPRA_DKG: u64 = 99;
+
+    public fun get_supra_dkg_feature(): u64 {
+        SUPRA_DKG
+    }
+
+    public fun supra_dkg_enabled(): bool acquires Features {
+        is_enabled(SUPRA_DKG)
+    }
+
+    /// Whether transactions inclusion proofs are enabled.
+    ///
+    /// Lifetime: permanent
+    const SUPRA_TRANSACTIONS_INCLUSION_PROOFS: u64 = 100;
+
+    public fun get_supra_transactions_inclusion_proofs_feature(): u64 {
+        SUPRA_TRANSACTIONS_INCLUSION_PROOFS
+    }
+
+    public fun supra_transactions_inclusion_proofs_enabled(): bool acquires Features {
+        is_enabled(SUPRA_TRANSACTIONS_INCLUSION_PROOFS)
+    }
+
     // ============================================================================================
     // Feature Flag Implementation
 

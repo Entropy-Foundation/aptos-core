@@ -1,16 +1,13 @@
+// Copyright (c) Aptos Foundation
+// SPDX-License-Identifier: Apache-2.0
+
 // Copyright (c) 2025 Supra.
 // SPDX-License-Identifier: Apache-2.0
-use aptos_native_interface::{
-    SafeNativeBuilder, SafeNativeContext, SafeNativeResult,
-};
+use aptos_native_interface::{SafeNativeBuilder, SafeNativeContext, SafeNativeResult};
 use move_vm_runtime::native_functions::NativeFunction;
-use move_vm_types::{
-    loaded_data::runtime_types::Type,
-    values::{Value},
-};
+use move_vm_types::{loaded_data::runtime_types::Type, values::Value};
 use smallvec::{smallvec, SmallVec};
-use std::{collections::VecDeque};
-
+use std::collections::VecDeque;
 
 /***************************************************************************************************
  * native fun to check whether the binary has been updated which supports automation registry
@@ -36,9 +33,10 @@ fn native_automation_cycle_management_support(
 pub fn make_all(
     builder: &SafeNativeBuilder,
 ) -> impl Iterator<Item = (String, NativeFunction)> + '_ {
-    let natives = [
-        ("native_automation_cycle_management_support", native_automation_cycle_management_support),
-    ];
+    let natives = [(
+        "native_automation_cycle_management_support",
+        native_automation_cycle_management_support,
+    )];
 
     builder.make_named_natives(natives)
 }

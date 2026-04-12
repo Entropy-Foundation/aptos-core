@@ -5,7 +5,7 @@ use crate::{
     errors::{convert_epilogue_error, convert_prologue_error, expect_only_successful_execution},
     move_vm_ext::SessionExt,
     system_module_names::{
-        EMIT_FEE_STATEMENT, MULTISIG_ACCOUNT_MODULE, TRANSACTION_FEE_MODULE,
+        EMIT_FEE_STATEMENT, EMIT_GAS_ASSESSMENT, MULTISIG_ACCOUNT_MODULE, TRANSACTION_FEE_MODULE,
         VALIDATE_MULTISIG_TRANSACTION,
     },
     testing::{maybe_raise_injected_error, InjectedError},
@@ -13,8 +13,10 @@ use crate::{
 };
 use aptos_gas_algebra::Gas;
 use aptos_types::{
-    account_config::constants::CORE_CODE_ADDRESS, fee_statement::FeeStatement,
-    on_chain_config::Features, transaction::Multisig,
+    account_config::constants::CORE_CODE_ADDRESS,
+    fee_statement::FeeStatement,
+    on_chain_config::Features,
+    transaction::{automation::AutomationTaskType, Multisig},
 };
 use aptos_vm_logging::log_schema::AdapterLogSchema;
 use fail::fail_point;
@@ -30,8 +32,6 @@ use move_core_types::{
 use move_vm_runtime::{logging::expect_no_verification_errors, module_traversal::TraversalContext};
 use move_vm_types::gas::UnmeteredGasMeter;
 use once_cell::sync::Lazy;
-use aptos_types::transaction::automation::AutomationTaskType;
-use crate::system_module_names::EMIT_GAS_ASSESSMENT;
 
 pub static APTOS_TRANSACTION_VALIDATION: Lazy<TransactionValidation> =
     Lazy::new(|| TransactionValidation {
@@ -41,7 +41,8 @@ pub static APTOS_TRANSACTION_VALIDATION: Lazy<TransactionValidation> =
         script_prologue_name: Identifier::new("script_prologue").unwrap(),
         multi_agent_prologue_name: Identifier::new("multi_agent_script_prologue").unwrap(),
         automated_txn_prologue_name: Identifier::new("automated_transaction_prologue").unwrap(),
-        automated_txn_prologue_v2_name: Identifier::new("automated_transaction_prologue_v2").unwrap(),
+        automated_txn_prologue_v2_name: Identifier::new("automated_transaction_prologue_v2")
+            .unwrap(),
         user_epilogue_name: Identifier::new("epilogue").unwrap(),
         user_epilogue_gas_payer_name: Identifier::new("epilogue_gas_payer").unwrap(),
         automated_txn_epilogue_name: Identifier::new("automated_transaction_epilogue").unwrap(),
@@ -387,10 +388,10 @@ fn run_automated_txn_epilogue(
         match task_type {
             AutomationTaskType::User => {
                 emit_fee_statement(session, fee_statement, traversal_context)?;
-            }
+            },
             AutomationTaskType::System => {
                 emit_as_gas_assessment(session, fee_statement, traversal_context)?;
-            }
+            },
         }
     }
 

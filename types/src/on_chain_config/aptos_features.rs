@@ -97,8 +97,16 @@ pub enum FeatureFlag {
     SUPRA_RLP_ENCODE = 94,
     SUPRA_DELEGATION_POOL_IDENTITY = 95,
     SUPRA_AUTOMATION_V2 = 96,
+    /// This flag should only be enabled after all Validators have updated their keys to the new format, including the BLS keys.
+    SUPRA_BLS_KEYS = 97,
+    SUPRA_BCFT_CERTIFICATES = 98,
+    /// `SUPRA_BLS_KEYS` must be enabled first, as the new validator identity format is a prerequisite for the DKG.
+    /// The default DKG configuration also requires `SUPRA_BCFT_CERTIFICATES` to be enabled first.
+    SUPRA_DKG = 99,
+    SUPRA_TRANSACTIONS_INCLUSION_PROOFS = 100,
 }
 
+//TODO: add dkg feature
 impl FeatureFlag {
     pub fn default_features() -> Vec<Self> {
         vec![
@@ -169,6 +177,10 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_COUNT_FAILED_PROPOSALS,
             FeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY,
             FeatureFlag::SUPRA_AUTOMATION_V2,
+            FeatureFlag::SUPRA_BLS_KEYS,
+            FeatureFlag::SUPRA_BCFT_CERTIFICATES,
+            FeatureFlag::SUPRA_DKG,
+            FeatureFlag::SUPRA_TRANSACTIONS_INCLUSION_PROOFS,
         ]
     }
 }

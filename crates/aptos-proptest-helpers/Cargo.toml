@@ -16,5 +16,3 @@ rust-version = { workspace = true }
 crossbeam = { workspace = true }
 proptest = { workspace = true }
 proptest-derive = { workspace = true }
-
-

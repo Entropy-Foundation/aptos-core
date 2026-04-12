@@ -147,6 +147,14 @@ return true.
 -  [Function `supra_delegation_pool_identity_enabled`](#0x1_features_supra_delegation_pool_identity_enabled)
 -  [Function `get_supra_automation_v2_feature`](#0x1_features_get_supra_automation_v2_feature)
 -  [Function `supra_automation_v2_enabled`](#0x1_features_supra_automation_v2_enabled)
+-  [Function `get_supra_validator_identity_v2_feature`](#0x1_features_get_supra_validator_identity_v2_feature)
+-  [Function `supra_validator_identity_v2_enabled`](#0x1_features_supra_validator_identity_v2_enabled)
+-  [Function `get_supra_bcft_certificates_feature`](#0x1_features_get_supra_bcft_certificates_feature)
+-  [Function `supra_bcft_certificates_enabled`](#0x1_features_supra_bcft_certificates_enabled)
+-  [Function `get_supra_dkg_feature`](#0x1_features_get_supra_dkg_feature)
+-  [Function `supra_dkg_enabled`](#0x1_features_supra_dkg_enabled)
+-  [Function `get_supra_transactions_inclusion_proofs_feature`](#0x1_features_get_supra_transactions_inclusion_proofs_feature)
+-  [Function `supra_transactions_inclusion_proofs_enabled`](#0x1_features_supra_transactions_inclusion_proofs_enabled)
 -  [Function `change_feature_flags`](#0x1_features_change_feature_flags)
 -  [Function `change_feature_flags_internal`](#0x1_features_change_feature_flags_internal)
 -  [Function `change_feature_flags_for_next_epoch`](#0x1_features_change_feature_flags_for_next_epoch)
@@ -924,6 +932,31 @@ Lifetime: transient
 
 
 
+<a id="0x1_features_SUPRA_BCFT_CERTIFICATES"></a>
+
+Whether BCFT certificate thresholds are enabled.
+
+Lifetime: permanent
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_BCFT_CERTIFICATES">SUPRA_BCFT_CERTIFICATES</a>: u64 = 98;
+</code></pre>
+
+
+
+<a id="0x1_features_SUPRA_BLS_KEYS"></a>
+
+Whether the functionality related to the new validator identity representation is enabled.
+This flag should only be enabled after all Validators have updated their keys to the new format, including the BLS keys.
+
+Lifetime: permanent
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_BLS_KEYS">SUPRA_BLS_KEYS</a>: u64 = 97;
+</code></pre>
+
+
+
 <a id="0x1_features_SUPRA_COUNT_FAILED_PROPOSALS"></a>
 
 Whether the automation task sync on block basis is enabled.
@@ -942,6 +975,20 @@ Lifetime: permanent
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_DELEGATION_POOL_IDENTITY">SUPRA_DELEGATION_POOL_IDENTITY</a>: u64 = 95;
+</code></pre>
+
+
+
+<a id="0x1_features_SUPRA_DKG"></a>
+
+Whether the APIs related to the DKG feature are enabled. <code><a href="features.md#0x1_features_SUPRA_BLS_KEYS">SUPRA_BLS_KEYS</a></code> must be enabled first,
+as the new validator identity format is a prerequisite for the DKG. The default DKG configuration
+also requires <code><a href="features.md#0x1_features_SUPRA_BCFT_CERTIFICATES">SUPRA_BCFT_CERTIFICATES</a></code> to be enabled first.
+
+Lifetime: transient
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_DKG">SUPRA_DKG</a>: u64 = 99;
 </code></pre>
 
 
@@ -979,6 +1026,18 @@ Lifetime: transient
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_RLP_ENCODE">SUPRA_RLP_ENCODE</a>: u64 = 94;
+</code></pre>
+
+
+
+<a id="0x1_features_SUPRA_TRANSACTIONS_INCLUSION_PROOFS"></a>
+
+Whether transactions inclusion proofs are enabled.
+
+Lifetime: permanent
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_TRANSACTIONS_INCLUSION_PROOFS">SUPRA_TRANSACTIONS_INCLUSION_PROOFS</a>: u64 = 100;
 </code></pre>
 
 
@@ -3788,6 +3847,198 @@ Lifetime: transient
 
 <pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_automation_v2_enabled">supra_automation_v2_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
     <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_AUTOMATION_V2">SUPRA_AUTOMATION_V2</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_get_supra_validator_identity_v2_feature"></a>
+
+## Function `get_supra_validator_identity_v2_feature`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_validator_identity_v2_feature">get_supra_validator_identity_v2_feature</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_validator_identity_v2_feature">get_supra_validator_identity_v2_feature</a>(): u64 {
+    <a href="features.md#0x1_features_SUPRA_BLS_KEYS">SUPRA_BLS_KEYS</a>
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_supra_validator_identity_v2_enabled"></a>
+
+## Function `supra_validator_identity_v2_enabled`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_validator_identity_v2_enabled">supra_validator_identity_v2_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_validator_identity_v2_enabled">supra_validator_identity_v2_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_BLS_KEYS">SUPRA_BLS_KEYS</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_get_supra_bcft_certificates_feature"></a>
+
+## Function `get_supra_bcft_certificates_feature`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_bcft_certificates_feature">get_supra_bcft_certificates_feature</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_bcft_certificates_feature">get_supra_bcft_certificates_feature</a>(): u64 {
+    <a href="features.md#0x1_features_SUPRA_BCFT_CERTIFICATES">SUPRA_BCFT_CERTIFICATES</a>
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_supra_bcft_certificates_enabled"></a>
+
+## Function `supra_bcft_certificates_enabled`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_bcft_certificates_enabled">supra_bcft_certificates_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_bcft_certificates_enabled">supra_bcft_certificates_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_BCFT_CERTIFICATES">SUPRA_BCFT_CERTIFICATES</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_get_supra_dkg_feature"></a>
+
+## Function `get_supra_dkg_feature`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_dkg_feature">get_supra_dkg_feature</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_dkg_feature">get_supra_dkg_feature</a>(): u64 {
+    <a href="features.md#0x1_features_SUPRA_DKG">SUPRA_DKG</a>
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_supra_dkg_enabled"></a>
+
+## Function `supra_dkg_enabled`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_dkg_enabled">supra_dkg_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_dkg_enabled">supra_dkg_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_DKG">SUPRA_DKG</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_get_supra_transactions_inclusion_proofs_feature"></a>
+
+## Function `get_supra_transactions_inclusion_proofs_feature`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_transactions_inclusion_proofs_feature">get_supra_transactions_inclusion_proofs_feature</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_transactions_inclusion_proofs_feature">get_supra_transactions_inclusion_proofs_feature</a>(): u64 {
+    <a href="features.md#0x1_features_SUPRA_TRANSACTIONS_INCLUSION_PROOFS">SUPRA_TRANSACTIONS_INCLUSION_PROOFS</a>
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_supra_transactions_inclusion_proofs_enabled"></a>
+
+## Function `supra_transactions_inclusion_proofs_enabled`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_transactions_inclusion_proofs_enabled">supra_transactions_inclusion_proofs_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_transactions_inclusion_proofs_enabled">supra_transactions_inclusion_proofs_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_TRANSACTIONS_INCLUSION_PROOFS">SUPRA_TRANSACTIONS_INCLUSION_PROOFS</a>)
 }
 </code></pre>
 

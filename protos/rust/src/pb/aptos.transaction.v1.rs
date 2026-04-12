@@ -102,7 +102,7 @@ pub mod transaction {
         }
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum TxnData {
         #[prost(message, tag="7")]
         BlockMetadata(super::BlockMetadataTransaction),
@@ -162,7 +162,7 @@ pub struct ValidatorTransaction {
 /// Nested message and enum types in `ValidatorTransaction`.
 pub mod validator_transaction {
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct ObservedJwkUpdate {
         #[prost(message, optional, tag="1")]
         pub quorum_certified_update: ::core::option::Option<observed_jwk_update::QuorumCertifiedUpdate>,
@@ -170,7 +170,7 @@ pub mod validator_transaction {
     /// Nested message and enum types in `ObservedJwkUpdate`.
     pub mod observed_jwk_update {
         #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+        #[derive(Clone, PartialEq, ::prost::Message)]
         pub struct ExportedProviderJwKs {
             #[prost(string, tag="1")]
             pub issuer: ::prost::alloc::string::String,
@@ -182,7 +182,7 @@ pub mod validator_transaction {
         /// Nested message and enum types in `ExportedProviderJWKs`.
         pub mod exported_provider_jw_ks {
             #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+            #[derive(Clone, PartialEq, ::prost::Message)]
             pub struct Jwk {
                 #[prost(oneof="jwk::JwkType", tags="1, 2")]
                 pub jwk_type: ::core::option::Option<jwk::JwkType>,
@@ -190,7 +190,7 @@ pub mod validator_transaction {
             /// Nested message and enum types in `JWK`.
             pub mod jwk {
                 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+                #[derive(Clone, PartialEq, ::prost::Message)]
                 pub struct Rsa {
                     #[prost(string, tag="1")]
                     pub kid: ::prost::alloc::string::String,
@@ -204,7 +204,7 @@ pub mod validator_transaction {
                     pub n: ::prost::alloc::string::String,
                 }
                 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+                #[derive(Clone, PartialEq, ::prost::Message)]
                 pub struct UnsupportedJwk {
                     #[prost(bytes="vec", tag="1")]
                     pub id: ::prost::alloc::vec::Vec<u8>,
@@ -212,7 +212,7 @@ pub mod validator_transaction {
                     pub payload: ::prost::alloc::vec::Vec<u8>,
                 }
                 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Oneof)]
+                #[derive(Clone, PartialEq, ::prost::Oneof)]
                 pub enum JwkType {
                     #[prost(message, tag="1")]
                     UnsupportedJwk(UnsupportedJwk),
@@ -222,7 +222,7 @@ pub mod validator_transaction {
             }
         }
         #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+        #[derive(Clone, PartialEq, ::prost::Message)]
         pub struct ExportedAggregateSignature {
             #[prost(uint64, repeated, tag="1")]
             pub signer_indices: ::prost::alloc::vec::Vec<u64>,
@@ -231,7 +231,7 @@ pub mod validator_transaction {
             pub sig: ::prost::alloc::vec::Vec<u8>,
         }
         #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+        #[derive(Clone, PartialEq, ::prost::Message)]
         pub struct QuorumCertifiedUpdate {
             #[prost(message, optional, tag="1")]
             pub update: ::core::option::Option<ExportedProviderJwKs>,
@@ -240,7 +240,7 @@ pub mod validator_transaction {
         }
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct DkgUpdate {
         #[prost(message, optional, tag="1")]
         pub dkg_transcript: ::core::option::Option<dkg_update::DkgTranscript>,
@@ -248,7 +248,7 @@ pub mod validator_transaction {
     /// Nested message and enum types in `DkgUpdate`.
     pub mod dkg_update {
         #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+        #[derive(Clone, PartialEq, ::prost::Message)]
         pub struct DkgTranscript {
             #[prost(uint64, tag="1")]
             pub epoch: u64,
@@ -258,13 +258,43 @@ pub mod validator_transaction {
             pub payload: ::prost::alloc::vec::Vec<u8>,
         }
     }
+
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct DkgTransactionData {
+        #[prost(message, optional, tag="1")]
+        pub dkg_data: ::core::option::Option<dkg_data::DkgTransactionData>,
+    }
+
+    /// Nested message and enum types in `DkgTransactionData`.
+    pub mod dkg_data {
+        #[allow(clippy::derive_partial_eq_without_eq)]
+        #[derive(Clone, PartialEq, ::prost::Message)]
+        pub struct DkgTransactionData {
+            #[prost(uint64, tag="1")]
+            pub epoch: u64,
+            #[prost(string, tag="2")]
+            pub author: ::prost::alloc::string::String,
+            #[prost(bytes="vec", tag="3")]
+            pub bls_aggregate_signature: ::prost::alloc::vec::Vec<u8>,
+            #[prost(uint32, repeated, tag="4")]
+            pub signer_indices_clan_committee: ::prost::alloc::vec::Vec<u32>,
+            #[prost(uint32, tag="5")]
+            pub transaction_type: u32,
+            #[prost(bytes="vec", tag="6")]
+            pub payload: ::prost::alloc::vec::Vec<u8>,
+        }
+    }
+
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum ValidatorTransactionType {
         #[prost(message, tag="1")]
         ObservedJwkUpdate(ObservedJwkUpdate),
         #[prost(message, tag="2")]
         DkgUpdate(DkgUpdate),
+        #[prost(message, tag="3")]
+        Dkg(DkgTransactionData),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -421,7 +451,7 @@ pub mod write_set {
         }
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum WriteSet {
         #[prost(message, tag="2")]
         ScriptWriteSet(super::ScriptWriteSet),
@@ -497,7 +527,7 @@ pub mod write_set_change {
         }
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Change {
         #[prost(message, tag="2")]
         DeleteModule(super::DeleteModule),
@@ -655,7 +685,7 @@ pub mod transaction_payload {
         }
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Payload {
         #[prost(message, tag="2")]
         EntryFunctionPayload(super::EntryFunctionPayload),
@@ -749,7 +779,7 @@ pub mod multisig_transaction_payload {
         }
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Payload {
         #[prost(message, tag="2")]
         EntryFunctionPayload(super::EntryFunctionPayload),
@@ -930,7 +960,7 @@ pub struct MoveType {
 /// Nested message and enum types in `MoveType`.
 pub mod move_type {
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct ReferenceType {
         #[prost(bool, tag="1")]
         pub mutable: bool,
@@ -938,7 +968,7 @@ pub mod move_type {
         pub to: ::core::option::Option<::prost::alloc::boxed::Box<super::MoveType>>,
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Content {
         #[prost(message, tag="3")]
         Vector(::prost::alloc::boxed::Box<super::MoveType>),
@@ -1035,7 +1065,7 @@ pub mod signature {
         }
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Signature {
         #[prost(message, tag="2")]
         Ed25519(super::Ed25519Signature),
@@ -1193,7 +1223,7 @@ pub mod any_signature {
     }
     /// Support: >= 1.10.
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum SignatureVariant {
         #[prost(message, tag="3")]
         Ed25519(super::Ed25519),
@@ -1307,7 +1337,7 @@ pub mod account_signature {
         }
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Signature {
         #[prost(message, tag="2")]
         Ed25519(super::Ed25519Signature),

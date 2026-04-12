@@ -7,7 +7,9 @@
 use crate::{
     gas_feature_versions::{RELEASE_V1_14, RELEASE_V1_8, RELEASE_V1_9_SKIPPED},
     gas_schedule::NativeGasParameters,
-    ver::gas_feature_versions::{RELEASE_V1_12, RELEASE_V1_13, RELEASE_V1_16_SUPRA_V1_6_0, RELEASE_V1_16_SUPRA_V1_7_14},
+    ver::gas_feature_versions::{
+        RELEASE_V1_12, RELEASE_V1_13, RELEASE_V1_16_SUPRA_V1_6_0, RELEASE_V1_16_SUPRA_V1_7_14,
+    },
 };
 use aptos_gas_algebra::{
     InternalGas, InternalGasPerAbstractValueUnit, InternalGasPerArg, InternalGasPerByte,

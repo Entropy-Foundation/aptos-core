@@ -35,7 +35,7 @@ serde = { workspace = true, features = ["derive"] }
 
 [features]
 default = [
-    "aptos-cached-packages/fuzzing",
-    "move-core-types/fuzzing",
-    "aptos-types/fuzzing",
+  "aptos-cached-packages/fuzzing",
+  "move-core-types/fuzzing",
+  "aptos-types/fuzzing",
 ]

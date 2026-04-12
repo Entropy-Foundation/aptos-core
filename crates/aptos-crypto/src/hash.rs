@@ -113,7 +113,7 @@ use std::{
     fmt,
     str::FromStr,
 };
-use tiny_keccak::{Hasher, Sha3, Keccak};
+use tiny_keccak::{Hasher, Keccak, Sha3};
 
 /// A prefix used to begin the salt of every hashable structure. The salt
 /// consists in this global prefix, concatenated with the specified
@@ -123,6 +123,8 @@ pub(crate) const HASH_PREFIX: &[u8] = b"SUPRA::";
 /// Output value of our hash function. Intentionally opaque for safety and modularity.
 #[derive(Clone, Copy, Eq, Hash, PartialEq, PartialOrd, Ord)]
 #[cfg_attr(any(test, feature = "fuzzing"), derive(Arbitrary))]
+#[cfg_attr(feature = "rest_api_schema", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "rest_api_schema",schema(as = String))]
 pub struct HashValue {
     hash: [u8; HashValue::LENGTH],
 }
@@ -192,6 +194,7 @@ impl HashValue {
     }
 
     #[cfg(test)]
+    #[allow(missing_docs)]
     pub fn from_iter_sha3<'a, I>(buffers: I) -> Self
     where
         I: IntoIterator<Item = &'a [u8]>,

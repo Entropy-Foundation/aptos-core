@@ -104,10 +104,18 @@ pub fn generate_upgrade_proposals(
 
         // If we're generating a single-step proposal on testnet
         if is_testnet && next_execution_hash.is_empty() {
-            release.generate_script_proposal_testnet(account, move_script_path.clone())?;
+            release.generate_script_proposal_testnet(
+                account,
+                move_script_path.clone(),
+                todo!("function_name"),
+            )?;
             // If we're generating a single-step proposal on mainnet
         } else if next_execution_hash.is_empty() {
-            release.generate_script_proposal(account, move_script_path.clone())?;
+            release.generate_script_proposal(
+                account,
+                move_script_path.clone(),
+                todo!("function_name"),
+            )?;
             // If we're generating a multi-step proposal
         } else {
             let next_execution_hash_bytes = if result.is_empty() {
@@ -119,6 +127,7 @@ pub fn generate_upgrade_proposals(
                 account,
                 move_script_path.clone(),
                 next_execution_hash_bytes,
+                todo!("function_name"),
             )?;
         };
 

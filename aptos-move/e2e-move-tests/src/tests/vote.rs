@@ -1,10 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    supra_governance::*, assert_abort, assert_success,
-    tests::common, MoveHarness,
-};
+use crate::{assert_abort, assert_success, supra_governance::*, tests::common, MoveHarness};
 use aptos_types::account_address::AccountAddress;
 use once_cell::sync::Lazy;
 use std::collections::BTreeMap;
@@ -34,12 +31,7 @@ fn test_supra_vote() {
         true
     ));
     // Voters can vote on a voting proposal.
-    assert_success!(supra_vote(
-        &mut harness,
-        &voter,
-        proposal_id,
-        true
-    ));
+    assert_success!(supra_vote(&mut harness, &voter, proposal_id, true));
 
     // Enable partial governance voting. In production, it requires governance.
     let core_resources =
@@ -51,15 +43,7 @@ fn test_supra_vote() {
     assert_success!(harness.run(txn));
 
     // If a voter has already voted on a proposal before partial voting is enabled, the voter cannot vote on the proposal again.
-    assert_abort!(
-        supra_vote(
-            &mut harness,
-            &voter,
-            proposal_id,
-            true
-        ),
-        0x8000D
-    );
+    assert_abort!(supra_vote(&mut harness, &voter, proposal_id, true), 0x8000D);
 
     assert_success!(supra_create_proposal_v2(
         &mut harness,
@@ -73,27 +57,12 @@ fn test_supra_vote() {
     // Cannot vote on a non-exist proposal.
     let wrong_proposal_id: u64 = 2;
     assert_abort!(
-        supra_vote(
-            &mut harness,
-            &voter,
-            wrong_proposal_id,
-            true
-        ),
+        supra_vote(&mut harness, &voter, wrong_proposal_id, true),
         25863
     );
 
     proposal_id = 1;
     // A voter can vote on a proposal multiple times with both Yes/No.
-    assert_success!(supra_vote(
-        &mut harness,
-        &voter,
-        proposal_id,
-        true
-    ));
-    assert_success!(supra_vote(
-        &mut harness,
-        &voter,
-        proposal_id,
-        false
-    ));
+    assert_success!(supra_vote(&mut harness, &voter, proposal_id, true));
+    assert_success!(supra_vote(&mut harness, &voter, proposal_id, false));
 }

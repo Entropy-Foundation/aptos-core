@@ -81,8 +81,13 @@ impl ValidatorInfo {
     }
 
     /// Returns the key for validating signed messages from this validator
-    pub fn consensus_public_key(&self) -> &ed25519::PublicKey {
-        &self.config.consensus_public_key
+    pub fn consensus_public_key(&self) -> ed25519::PublicKey {
+        self.config.consensus_public_key()
+    }
+
+    /// Returns the key for validating signed messages from this validator
+    pub fn consensus_key_bytes(&self) -> ed25519::PublicKey {
+        self.config.consensus_public_key()
     }
 
     /// Returns the voting power for this validator

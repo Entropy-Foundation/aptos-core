@@ -921,8 +921,7 @@ impl Transaction {
                 (TransactionType::Validator, None, None, txn.info, txn.events)
             },
             BlockEpilogue(_) => (TransactionType::BlockEpilogue, None, None, txn.info, vec![]),
-            AutomatedTransaction(automated_txn)
-            | SystemAutomatedTransaction(automated_txn)=> (
+            AutomatedTransaction(automated_txn) | SystemAutomatedTransaction(automated_txn) => (
                 TransactionType::Automated,
                 None,
                 Some(automated_txn),
@@ -935,7 +934,7 @@ impl Transaction {
                 None,
                 txn.info,
                 txn.events,
-            )
+            ),
         };
 
         // Operations must be sequential and operation index must always be in the same order

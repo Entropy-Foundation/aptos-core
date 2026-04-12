@@ -131,7 +131,7 @@ impl<T: redis::aio::ConnectionLike + Send + Clone> CacheOperator<T> {
 
     pub async fn set_chain_id(&mut self, chain_id: u64) -> anyhow::Result<()> {
         self.conn
-            .set(CACHE_KEY_CHAIN_ID, chain_id)
+            .set::<_, _, ()>(CACHE_KEY_CHAIN_ID, chain_id)
             .await
             .context("Redis chain id update failed.")?;
         Ok(())
@@ -182,7 +182,7 @@ impl<T: redis::aio::ConnectionLike + Send + Clone> CacheOperator<T> {
         latest_version: u64,
     ) -> anyhow::Result<()> {
         self.conn
-            .set(FILE_STORE_LATEST_VERSION, latest_version)
+            .set::<_, _, ()>(FILE_STORE_LATEST_VERSION, latest_version)
             .await?;
         Ok(())
     }
