@@ -38,8 +38,7 @@ mod timed_features;
 mod timestamp;
 mod transaction_fee;
 mod validator_set;
-mod evm_contracts_details;
-
+mod evm_config;
 pub use self::{
     approved_execution_hashes::ApprovedExecutionHashes,
     aptos_features::*,
@@ -76,7 +75,7 @@ pub use self::{
     timestamp::CurrentTimeMicroseconds,
     transaction_fee::TransactionFeeBurnCap,
     validator_set::{ConsensusScheme, ValidatorSet},
-    evm_contracts_details::{OnChainEvmContractsDetails, EvmContractName},
+    evm_config::{EvmConfigKey, EvmConfigValue, EvmContractName, OnChainEvmConfig, OnChainEvmContractsDetails},
 };
 
 /// To register an on-chain config in Rust:
