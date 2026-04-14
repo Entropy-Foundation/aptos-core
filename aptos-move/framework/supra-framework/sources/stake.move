@@ -698,20 +698,7 @@ module supra_framework::stake {
         network_addresses: vector<u8>,
         fullnode_addresses: vector<u8>
     ) acquires AllowedValidators {
-
-        // Checks the public key is valid to prevent rogue-key attacks.
-        if (std::features::supra_validator_identity_v2_enabled()) {
-            let _valid_public_key =
-                validator_public_keys::validator_public_keys_from_bytes(consensus_pubkey);
-        } else {
-            let valid_public_key =
-                ed25519::new_validated_public_key_from_bytes(consensus_pubkey);
-            assert!(
-                option::is_some(&valid_public_key),
-                error::invalid_argument(EINVALID_PUBLIC_KEY)
-            );
-        };
-
+        validate_consensus_public_key(consensus_pubkey);
         initialize_owner(account);
         move_to(
             account,
@@ -722,6 +709,32 @@ module supra_framework::stake {
                 validator_index: 0
             }
         );
+    }
+
+    // Checks the public key is valid to prevent rogue-key attacks.
+    //
+    // The deserializer for the new format currently doesn't offer a way for us to handle
+    // failure, so we expect the new format when the related feature flag has been active
+    // (the flag should only be activated after all validators have migrated to the new
+    // format) and fall back to the new format when deserialization fails before the flag
+    // has been activated.
+    fun validate_consensus_public_key(consensus_pubkey: vector<u8>) {
+        if (std::features::supra_validator_identity_v2_enabled()) {
+            // Expect the new format.
+            let _valid_public_key =
+                validator_public_keys::validator_public_keys_from_bytes(consensus_pubkey);
+        } else {
+            // Check the old format.
+            let maybe_valid_public_key =
+                ed25519::new_validated_public_key_from_bytes(consensus_pubkey);
+
+            if (option::is_none(&maybe_valid_public_key)) {
+                // Fall back to the new format. This enables validators to register their keys in
+                // the new format before the v2 feature flag is activated.
+                let _valid_public_key =
+                    validator_public_keys::validator_public_keys_from_bytes(consensus_pubkey);
+            }
+        };
     }
 
     fun initialize_owner(owner: &signer) acquires AllowedValidators {
@@ -966,36 +979,8 @@ module supra_framework::stake {
         );
         let validator_info = borrow_global_mut<ValidatorConfig>(pool_address);
         let old_consensus_pubkey = validator_info.consensus_pubkey;
-        // Checks the public key is valid to prevent rogue-key attacks.
-        if (!genesis) {
-            if (std::features::supra_validator_identity_v2_enabled()) {
-                let _valid_public_key =
-                    validator_public_keys::validator_public_keys_from_bytes(
-                        new_consensus_pubkey
-                    );
-            } else {
-                let valid_public_key =
-                    ed25519::new_validated_public_key_from_bytes(new_consensus_pubkey);
-                assert!(
-                    option::is_some(&valid_public_key),
-                    error::invalid_argument(EINVALID_PUBLIC_KEY)
-                );
-            };
-        } else {
-            if (std::features::supra_validator_identity_v2_enabled()) {
-                let _valid_public_key =
-                    validator_public_keys::validator_public_keys_from_bytes(
-                        new_consensus_pubkey
-                    );
-            } else {
-                let valid_public_key =
-                    ed25519::new_validated_public_key_from_bytes(new_consensus_pubkey);
-                assert!(
-                    option::is_some(&valid_public_key),
-                    error::invalid_argument(EINVALID_PUBLIC_KEY)
-                );
-            };
-        };
+
+        validate_consensus_public_key(new_consensus_pubkey);
         validator_info.consensus_pubkey = new_consensus_pubkey;
 
         if (std::features::module_event_migration_enabled()) {

@@ -672,11 +672,25 @@ Add or update the ban registry as per block metadata
     <b>if</b> (!<b>exists</b>&lt;<a href="leader_ban_registry.md#0x1_leader_ban_registry_LatestView">LatestView</a>&gt;(@supra_framework)) { <b>return</b> };
     <b>let</b> ban_registry = <b>borrow_global_mut</b>&lt;<a href="leader_ban_registry.md#0x1_leader_ban_registry_BanRegistry">BanRegistry</a>&gt;(@supra_framework);
     <b>let</b> latest_view = <b>borrow_global_mut</b>&lt;<a href="leader_ban_registry.md#0x1_leader_ban_registry_LatestView">LatestView</a>&gt;(@supra_framework);
+
+    // Save the previous view before updating. Each failed proposer failed at a
+    // distinct round between the previous commit and the current commit, so we
+    // need this <b>to</b> reconstruct the actual round at which each ban was earned.
+    <b>let</b> previous_epoch = latest_view.epoch;
+    <b>let</b> previous_round = latest_view.round;
+
+    // we expect that current_epoch == latest_view.epoch || current_epoch == latest_view.epoch + 1,
+    // but we don't <b>assert</b> this <b>to</b> be <b>true</b> here because it should be ensured by the consensus.
+    <b>if</b> (current_epoch &lt; latest_view.epoch) { <b>return</b> };
+
     latest_view.epoch = current_epoch;
     latest_view.round = current_round;
 
     // ban the failed proposers
-    <a href="leader_ban_registry.md#0x1_leader_ban_registry_ban_failed_proposers">ban_failed_proposers</a>(latest_view, failed_proposer_indices, ban_registry);
+    <a href="leader_ban_registry.md#0x1_leader_ban_registry_ban_failed_proposers">ban_failed_proposers</a>(
+        current_epoch, previous_epoch, previous_round,
+        failed_proposer_indices, ban_registry
+    );
 
     // remove expired bans
     <a href="leader_ban_registry.md#0x1_leader_ban_registry_reinstate_expired_bans">reinstate_expired_bans</a>(latest_view, ban_registry);
@@ -691,10 +705,14 @@ Add or update the ban registry as per block metadata
 
 ## Function `ban_failed_proposers`
 
-Adds failed proposer indices to ban registry
+Adds failed proposer indices to ban registry. Each failed proposer failed at a
+consecutive round between the previous commit and the current commit. The actual
+failed round is reconstructed from the previous view:
+- Same epoch: failed rounds start at <code>previous_round + 1</code>
+- Epoch boundary: failed rounds start at <code>0</code> (new epoch resets round to 0)
 
 
-<pre><code><b>fun</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_ban_failed_proposers">ban_failed_proposers</a>(latest_view: &<a href="leader_ban_registry.md#0x1_leader_ban_registry_LatestView">leader_ban_registry::LatestView</a>, failed_proposer_indices: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, ban_registry: &<b>mut</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_BanRegistry">leader_ban_registry::BanRegistry</a>)
+<pre><code><b>fun</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_ban_failed_proposers">ban_failed_proposers</a>(current_epoch: u64, previous_epoch: u64, previous_round: u64, failed_proposer_indices: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;, ban_registry: &<b>mut</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_BanRegistry">leader_ban_registry::BanRegistry</a>)
 </code></pre>
 
 
@@ -704,82 +722,97 @@ Adds failed proposer indices to ban registry
 
 
 <pre><code><b>fun</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_ban_failed_proposers">ban_failed_proposers</a>(
-    latest_view: &<a href="leader_ban_registry.md#0x1_leader_ban_registry_LatestView">LatestView</a>,
+    current_epoch: u64,
+    previous_epoch: u64,
+    previous_round: u64,
     failed_proposer_indices: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;,
     ban_registry: &<b>mut</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry_BanRegistry">BanRegistry</a>
 ) {
     <b>let</b> initial_ban_duration = <a href="leader_ban_registry.md#0x1_leader_ban_registry_get_initial_ban_duration">get_initial_ban_duration</a>();
     <b>if</b> (initial_ban_duration == 0) { <b>return</b> };
 
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(
-        failed_proposer_indices,
-        |failed_validator_index| {
-            <b>let</b> validator_pool_address_opt =
-                <a href="stake.md#0x1_stake_get_pool_address_from_index">stake::get_pool_address_from_index</a>(failed_validator_index);
+    // Compute the first failed round based on whether the epoch changed.
+    <b>let</b> first_failed_round = <b>if</b> (previous_epoch == current_epoch) {
+        previous_round + 1
+    } <b>else</b> {
+        // Epoch boundary: the last <a href="block.md#0x1_block">block</a> of the previous epoch was committed
+        // successfully, so failures start from round 0 of the new epoch.
+        0
+    };
 
-            <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&validator_pool_address_opt)) {
-                <b>let</b> validator_pool_address =
-                    <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> validator_pool_address_opt);
-                <b>let</b> (is_banned, index) = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_find">vector::find</a>(
-                    &ban_registry.bans,
-                    |v| {
-                        <b>let</b> v: &<a href="leader_ban_registry.md#0x1_leader_ban_registry_ValidatorBans">ValidatorBans</a> = v;
-                        validator_pool_address == v.pool_address
-                    }
-                );
-                <b>if</b> (is_banned) {
-                    // Validator is already in registry (either banned or on probation).
-                    // Re-banning resets the ban period and increases consecutive count.
-                    // If the consensus <a href="code.md#0x1_code">code</a> is implemented correctly then the validator should
-                    // not be re-banned whilst serving a ban <b>as</b> it should not be eligible for election
-                    // when banned (i.e. this branch should only be taken when a validator is on probation).
-                    <b>let</b> bans = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow_mut">vector::borrow_mut</a>(&<b>mut</b> ban_registry.bans, index);
-                    bans.consecutive_bans = bans.consecutive_bans + 1;
-                    bans.active.round_earned = latest_view.round;
-                    bans.active.epoch_earned = latest_view.epoch;
-                    bans.active.rounds_served_in_previous_epochs = 0;
-                    bans.active.on_probation = <b>false</b>; // Reset <b>to</b> banned state
+    <b>let</b> i = 0;
+    <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&failed_proposer_indices);
+    <b>while</b> (i &lt; len) {
+        <b>let</b> failed_validator_index = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&failed_proposer_indices, i);
+        <b>let</b> failed_round = first_failed_round + i;
+
+        <b>let</b> validator_pool_address_opt =
+            <a href="stake.md#0x1_stake_get_pool_address_from_index">stake::get_pool_address_from_index</a>(failed_validator_index);
+
+        <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&validator_pool_address_opt)) {
+            <b>let</b> validator_pool_address =
+                <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> validator_pool_address_opt);
+            <b>let</b> (is_banned, index) = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_find">vector::find</a>(
+                &ban_registry.bans,
+                |v| {
+                    <b>let</b> v: &<a href="leader_ban_registry.md#0x1_leader_ban_registry_ValidatorBans">ValidatorBans</a> = v;
+                    validator_pool_address == v.pool_address
+                }
+            );
+            <b>if</b> (is_banned) {
+                // Validator is already in registry (either banned or on probation).
+                // Re-banning resets the ban period and increases consecutive count.
+                // If the consensus <a href="code.md#0x1_code">code</a> is implemented correctly then the validator should
+                // not be re-banned whilst serving a ban <b>as</b> it should not be eligible for election
+                // when banned (i.e. this branch should only be taken when a validator is on probation).
+                <b>let</b> bans = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow_mut">vector::borrow_mut</a>(&<b>mut</b> ban_registry.bans, index);
+                bans.consecutive_bans = bans.consecutive_bans + 1;
+                bans.active.round_earned = failed_round;
+                bans.active.epoch_earned = current_epoch;
+                bans.active.rounds_served_in_previous_epochs = 0;
+                bans.active.on_probation = <b>false</b>; // Reset <b>to</b> banned state
+
+                <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_module_event_enabled">features::module_event_enabled</a>()) {
+                    <a href="event.md#0x1_event_emit">event::emit</a>(
+                        <a href="leader_ban_registry.md#0x1_leader_ban_registry_Banned">Banned</a> {
+                            pool_address: validator_pool_address,
+                            epoch: current_epoch,
+                            round: failed_round,
+                            consecutive_bans: bans.consecutive_bans
+                        }
+                    );
+                }
+            } <b>else</b> {
+                <b>let</b> ban_registry_len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ban_registry.bans);
+                <b>if</b> (<a href="leader_ban_registry.md#0x1_leader_ban_registry_can_be_banned">can_be_banned</a>(ban_registry_len)) {
+                    <b>let</b> ban_with_address = <a href="leader_ban_registry.md#0x1_leader_ban_registry_ValidatorBans">ValidatorBans</a> {
+                        active: <a href="leader_ban_registry.md#0x1_leader_ban_registry_ActiveBan">ActiveBan</a> {
+                            epoch_earned: current_epoch,
+                            round_earned: failed_round,
+                            rounds_served_in_previous_epochs: 0,
+                            on_probation: <b>false</b>
+                        },
+                        consecutive_bans: 0,
+                        pool_address: validator_pool_address
+                    };
+                    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> ban_registry.bans, ban_with_address);
 
                     <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_module_event_enabled">features::module_event_enabled</a>()) {
                         <a href="event.md#0x1_event_emit">event::emit</a>(
                             <a href="leader_ban_registry.md#0x1_leader_ban_registry_Banned">Banned</a> {
-                                pool_address: validator_pool_address,
-                                epoch: latest_view.epoch,
-                                round: latest_view.round,
-                                consecutive_bans: bans.consecutive_bans
+                                pool_address: ban_with_address.pool_address,
+                                epoch: ban_with_address.active.epoch_earned,
+                                round: ban_with_address.active.round_earned,
+                                consecutive_bans: ban_with_address.consecutive_bans
                             }
                         );
                     }
-                } <b>else</b> {
-                    <b>let</b> ban_registry_len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&ban_registry.bans);
-                    <b>if</b> (<a href="leader_ban_registry.md#0x1_leader_ban_registry_can_be_banned">can_be_banned</a>(ban_registry_len)) {
-                        <b>let</b> ban_with_address = <a href="leader_ban_registry.md#0x1_leader_ban_registry_ValidatorBans">ValidatorBans</a> {
-                            active: <a href="leader_ban_registry.md#0x1_leader_ban_registry_ActiveBan">ActiveBan</a> {
-                                epoch_earned: latest_view.epoch,
-                                round_earned: latest_view.round,
-                                rounds_served_in_previous_epochs: 0,
-                                on_probation: <b>false</b>
-                            },
-                            consecutive_bans: 0,
-                            pool_address: validator_pool_address
-                        };
-                        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> ban_registry.bans, ban_with_address);
-
-                        <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_module_event_enabled">features::module_event_enabled</a>()) {
-                            <a href="event.md#0x1_event_emit">event::emit</a>(
-                                <a href="leader_ban_registry.md#0x1_leader_ban_registry_Banned">Banned</a> {
-                                    pool_address: ban_with_address.pool_address,
-                                    epoch: ban_with_address.active.epoch_earned,
-                                    round: ban_with_address.active.round_earned,
-                                    consecutive_bans: ban_with_address.consecutive_bans
-                                }
-                            );
-                        }
-                    }
-                };
+                }
             };
-        }
-    );
+        };
+
+        i = i + 1;
+    };
 }
 </code></pre>
 
@@ -1043,8 +1076,19 @@ Calculate the number of rounds remaining in a given ban (not including probation
 ): u64 {
     <b>let</b> initial_ban_duration = <a href="leader_ban_registry.md#0x1_leader_ban_registry_get_initial_ban_duration">get_initial_ban_duration</a>();
     <b>let</b> max_ban_duration = <a href="leader_ban_registry.md#0x1_leader_ban_registry_get_max_ban_duration">get_max_ban_duration</a>();
-    <b>let</b> duration = initial_ban_duration * pow(2, (ban.consecutive_bans <b>as</b> u64));
-    <b>let</b> duration = <b>min</b>(duration, max_ban_duration);
+    // Guard against overflow: pow(2, n) overflows u64 when n &gt;= 64, and the
+    // subsequent multiplication can overflow for smaller exponents. In both cases
+    // the uncapped result would exceed max_ban_duration, so we short-circuit.
+    <b>let</b> duration = <b>if</b> ((ban.consecutive_bans <b>as</b> u64) &gt;= 64) {
+        max_ban_duration
+    } <b>else</b> {
+        <b>let</b> scale = pow(2, (ban.consecutive_bans <b>as</b> u64));
+        <b>if</b> (initial_ban_duration &gt; 0 && scale &gt; max_ban_duration / initial_ban_duration) {
+            max_ban_duration
+        } <b>else</b> {
+            <b>min</b>(initial_ban_duration * scale, max_ban_duration)
+        }
+    };
     <b>let</b> rounds_served =
         <b>if</b> (latest_view.epoch &gt; ban.active.epoch_earned) {
             ban.active.rounds_served_in_previous_epochs + latest_view.round

@@ -85,6 +85,7 @@ or if their stake drops below the min required, they would get removed at the en
 -  [Function `remove_validators`](#0x1_stake_remove_validators)
 -  [Function `initialize_stake_owner`](#0x1_stake_initialize_stake_owner)
 -  [Function `initialize_validator`](#0x1_stake_initialize_validator)
+-  [Function `validate_consensus_public_key`](#0x1_stake_validate_consensus_public_key)
 -  [Function `initialize_owner`](#0x1_stake_initialize_owner)
 -  [Function `extract_owner_cap`](#0x1_stake_extract_owner_cap)
 -  [Function `deposit_owner_cap`](#0x1_stake_deposit_owner_cap)
@@ -2685,20 +2686,7 @@ Initialize the validator account and give ownership to the signing account.
     network_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
     fullnode_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ) <b>acquires</b> <a href="stake.md#0x1_stake_AllowedValidators">AllowedValidators</a> {
-
-    // Checks the <b>public</b> key is valid <b>to</b> prevent rogue-key attacks.
-    <b>if</b> (std::features::supra_validator_identity_v2_enabled()) {
-        <b>let</b> _valid_public_key =
-            <a href="validator_public_keys.md#0x1_validator_public_keys_validator_public_keys_from_bytes">validator_public_keys::validator_public_keys_from_bytes</a>(consensus_pubkey);
-    } <b>else</b> {
-        <b>let</b> valid_public_key =
-            <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519_new_validated_public_key_from_bytes">ed25519::new_validated_public_key_from_bytes</a>(consensus_pubkey);
-        <b>assert</b>!(
-            <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&valid_public_key),
-            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="stake.md#0x1_stake_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>)
-        );
-    };
-
+    <a href="stake.md#0x1_stake_validate_consensus_public_key">validate_consensus_public_key</a>(consensus_pubkey);
     <a href="stake.md#0x1_stake_initialize_owner">initialize_owner</a>(<a href="account.md#0x1_account">account</a>);
     <b>move_to</b>(
         <a href="account.md#0x1_account">account</a>,
@@ -2709,6 +2697,45 @@ Initialize the validator account and give ownership to the signing account.
             validator_index: 0
         }
     );
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_stake_validate_consensus_public_key"></a>
+
+## Function `validate_consensus_public_key`
+
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_validate_consensus_public_key">validate_consensus_public_key</a>(consensus_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_validate_consensus_public_key">validate_consensus_public_key</a>(consensus_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;) {
+    <b>if</b> (std::features::supra_validator_identity_v2_enabled()) {
+        // Expect the new format.
+        <b>let</b> _valid_public_key =
+            <a href="validator_public_keys.md#0x1_validator_public_keys_validator_public_keys_from_bytes">validator_public_keys::validator_public_keys_from_bytes</a>(consensus_pubkey);
+    } <b>else</b> {
+        // Check the <b>old</b> format.
+        <b>let</b> maybe_valid_public_key =
+            <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519_new_validated_public_key_from_bytes">ed25519::new_validated_public_key_from_bytes</a>(consensus_pubkey);
+
+        <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_none">option::is_none</a>(&maybe_valid_public_key)) {
+            // Fall back <b>to</b> the new format. This enables validators <b>to</b> register their keys in
+            // the new format before the v2 feature flag is activated.
+            <b>let</b> _valid_public_key =
+                <a href="validator_public_keys.md#0x1_validator_public_keys_validator_public_keys_from_bytes">validator_public_keys::validator_public_keys_from_bytes</a>(consensus_pubkey);
+        }
+    };
 }
 </code></pre>
 
@@ -3213,36 +3240,8 @@ Move <code>amount</code> of coins from pending_inactive to active.
     );
     <b>let</b> validator_info = <b>borrow_global_mut</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(pool_address);
     <b>let</b> old_consensus_pubkey = validator_info.consensus_pubkey;
-    // Checks the <b>public</b> key is valid <b>to</b> prevent rogue-key attacks.
-    <b>if</b> (!<a href="genesis.md#0x1_genesis">genesis</a>) {
-        <b>if</b> (std::features::supra_validator_identity_v2_enabled()) {
-            <b>let</b> _valid_public_key =
-                <a href="validator_public_keys.md#0x1_validator_public_keys_validator_public_keys_from_bytes">validator_public_keys::validator_public_keys_from_bytes</a>(
-                    new_consensus_pubkey
-                );
-        } <b>else</b> {
-            <b>let</b> valid_public_key =
-                <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519_new_validated_public_key_from_bytes">ed25519::new_validated_public_key_from_bytes</a>(new_consensus_pubkey);
-            <b>assert</b>!(
-                <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&valid_public_key),
-                <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="stake.md#0x1_stake_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>)
-            );
-        };
-    } <b>else</b> {
-        <b>if</b> (std::features::supra_validator_identity_v2_enabled()) {
-            <b>let</b> _valid_public_key =
-                <a href="validator_public_keys.md#0x1_validator_public_keys_validator_public_keys_from_bytes">validator_public_keys::validator_public_keys_from_bytes</a>(
-                    new_consensus_pubkey
-                );
-        } <b>else</b> {
-            <b>let</b> valid_public_key =
-                <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519_new_validated_public_key_from_bytes">ed25519::new_validated_public_key_from_bytes</a>(new_consensus_pubkey);
-            <b>assert</b>!(
-                <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&valid_public_key),
-                <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="stake.md#0x1_stake_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>)
-            );
-        };
-    };
+
+    <a href="stake.md#0x1_stake_validate_consensus_public_key">validate_consensus_public_key</a>(new_consensus_pubkey);
     validator_info.consensus_pubkey = new_consensus_pubkey;
 
     <b>if</b> (std::features::module_event_migration_enabled()) {
