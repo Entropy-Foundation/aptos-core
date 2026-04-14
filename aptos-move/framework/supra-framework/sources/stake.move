@@ -730,7 +730,9 @@ module supra_framework::stake {
 
             if (option::is_none(&maybe_valid_public_key)) {
                 // Fall back to the new format. This enables validators to register their keys in
-                // the new format before the v2 feature flag is activated.
+                // the new format before the v2 feature flag is activated, which is safe because the
+                // new keys are a superset of the old and the consensus has logic for maintaining
+                // backwards compatibility.
                 let _valid_public_key =
                     validator_public_keys::validator_public_keys_from_bytes(consensus_pubkey);
             }
