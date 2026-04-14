@@ -31,6 +31,15 @@ pub struct GenesisEvmEOA {
 
 /// The Creator address and nonce determines the contract' deployment address.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub enum ContractKind {
+    /// Default contract creation API
+    Create,
+    /// EVM address that creates a contract.
+    Call(String),
+}
+
+/// The Creator address and nonce determines the contract' deployment address.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct GenesisEvmContract {
     /// The creator address of the contract.
     pub creator: String,
@@ -40,6 +49,10 @@ pub struct GenesisEvmContract {
     pub amount: u128,
     /// The bytecode of the contract to deploy.
     pub bytecode: Vec<u8>,
+    /// Type of the contract
+    pub kind: ContractKind,
+    /// Precalculated address of the contract
+    pub deploy_address: String,
 }
 
 impl OnChainEvmGenesisConfig {

@@ -134,6 +134,16 @@ Empty keys/values to update config.
 
 
 
+<a id="0x1_evm_config_EGAS_USED_RATIO_CANNOT_EXCEED_DECIMAL_PRECISION"></a>
+
+gas used ratio cannot exceed decimal precision
+
+
+<pre><code><b>const</b> <a href="evm_config.md#0x1_evm_config_EGAS_USED_RATIO_CANNOT_EXCEED_DECIMAL_PRECISION">EGAS_USED_RATIO_CANNOT_EXCEED_DECIMAL_PRECISION</a>: u64 = 7;
+</code></pre>
+
+
+
 <a id="0x1_evm_config_EINVALID_EVM_ADDRESS"></a>
 
 Invalid EVM address, valid EVM address must fit in 20 bytes
@@ -488,6 +498,9 @@ is not present in the map.
         );
         <b>assert</b>!(*<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow">simple_map::borrow</a>(&<a href="evm_config.md#0x1_evm_config">evm_config</a>.config, &rk) &gt; 0u128, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EMISSING_KEY_OR_INCORRECT_VAL_TYPE">EMISSING_KEY_OR_INCORRECT_VAL_TYPE</a>));
     });
+    <b>let</b> gas_used_ratio = *<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow">simple_map::borrow</a>(&<a href="evm_config.md#0x1_evm_config">evm_config</a>.config, &<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(<a href="evm_config.md#0x1_evm_config_SUPRA_EVM_GAS_USED_RATIO">SUPRA_EVM_GAS_USED_RATIO</a>));
+    <b>let</b> gas_used_ratio_decimal_precision = *<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow">simple_map::borrow</a>(&<a href="evm_config.md#0x1_evm_config">evm_config</a>.config, &<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(<a href="evm_config.md#0x1_evm_config_SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION">SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION</a>));
+    <b>assert</b>!(gas_used_ratio &lt;= gas_used_ratio_decimal_precision, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EGAS_USED_RATIO_CANNOT_EXCEED_DECIMAL_PRECISION">EGAS_USED_RATIO_CANNOT_EXCEED_DECIMAL_PRECISION</a>));
 }
 </code></pre>
 
