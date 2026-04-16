@@ -191,6 +191,16 @@ impl OnChainEvmConfig {
             .copied()
             .ok_or_else(|| anyhow::anyhow!("evm_gas_normalization_denom not found in EvmScalarConfig"))
     }
+
+    pub fn to_move_values(self) -> (MoveValue, MoveValue) {
+        let (keys, values): (Vec<_>, Vec<_>) = self.config.into_iter().map(|(key, value)| {
+            (
+                MoveValue::vector_u8(key.to_string().into_bytes()),
+                MoveValue::U128(value),
+            )
+        }).unzip();
+        (MoveValue::Vector(keys), MoveValue::Vector(values))
+    }
 }
 
 // `OnChainConfig` requires `DeserializeOwned` as a supertrait, but
