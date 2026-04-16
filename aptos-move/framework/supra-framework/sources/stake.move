@@ -44,6 +44,7 @@ module supra_framework::stake {
     friend supra_framework::transaction_fee;
     friend supra_framework::dkg;
     friend supra_framework::leader_ban_registry;
+    friend supra_framework::supra_dkg;
 
     #[test_only]
     friend supra_framework::test_leader_ban_registry;
@@ -734,7 +735,9 @@ module supra_framework::stake {
                 // new keys are a superset of the old and the consensus has logic for maintaining
                 // backwards compatibility.
                 let _valid_public_key =
-                    validator_public_keys::validator_public_keys_from_bytes(consensus_pubkey);
+                    validator_public_keys::validator_public_keys_from_bytes(
+                        consensus_pubkey
+                    );
             }
         };
     }
@@ -1691,7 +1694,7 @@ module supra_framework::stake {
     /// `pending_active` is iterated in reverse to match the order produced by `on_new_epoch`
     /// (which appends via `pop_back`).
     fun compute_next_validator_set_internal(
-        use_current_config_for_actives: bool,
+        use_current_config_for_actives: bool
     ): ValidatorSet acquires ValidatorSet, ValidatorPerformance, StakePool, ValidatorFees, ValidatorConfig {
         // Init.
         let cur_validator_set = borrow_global<ValidatorSet>(@supra_framework);
@@ -1738,14 +1741,15 @@ module supra_framework::stake {
             let cur_pending_active = coin::value(&stake_pool.pending_active);
             let cur_pending_inactive = coin::value(&stake_pool.pending_inactive);
 
-            let cur_reward = calculate_candidate_reward(
-                candidate,
-                candidate_in_current_validator_set,
-                cur_active,
-                validator_perf,
-                rewards_rate,
-                rewards_rate_denominator
-            );
+            let cur_reward =
+                calculate_candidate_reward(
+                    candidate,
+                    candidate_in_current_validator_set,
+                    cur_active,
+                    validator_perf,
+                    rewards_rate,
+                    rewards_rate_denominator
+                );
 
             let cur_fee = collect_candidate_fee(candidate.addr);
 
@@ -1766,7 +1770,8 @@ module supra_framework::stake {
 
             if (new_voting_power >= minimum_stake) {
                 let config =
-                    if (use_current_config_for_actives && candidate_in_current_validator_set) {
+                    if (use_current_config_for_actives
+                        && candidate_in_current_validator_set) {
                         // Use the current-epoch config snapshot so that any mid-epoch changes
                         // (consensus key, network addresses, etc.) only take effect after the
                         // epoch transition, not during DKG.
@@ -1811,17 +1816,19 @@ module supra_framework::stake {
         cur_active: u64,
         validator_perf: &ValidatorPerformance,
         rewards_rate: u64,
-        rewards_rate_denominator: u64,
+        rewards_rate_denominator: u64
     ): u64 {
         if (candidate_in_current_validator_set && cur_active != 0) {
             spec {
-                assert candidate.config.validator_index < len(validator_perf.validators);
+                assert candidate.config.validator_index
+                    < len(validator_perf.validators);
             };
             let cur_perf = vector::borrow(
                 &validator_perf.validators, candidate.config.validator_index
             );
             spec {
-                assume cur_perf.successful_proposals + cur_perf.failed_proposals <= MAX_U64;
+                assume cur_perf.successful_proposals + cur_perf.failed_proposals
+                    <= MAX_U64;
             };
             calculate_rewards_amount(
                 cur_active,

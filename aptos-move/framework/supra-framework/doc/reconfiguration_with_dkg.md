@@ -18,7 +18,6 @@ Reconfiguration with DKG helper functions.
 
 <pre><code><b>use</b> <a href="automation_registry.md#0x1_automation_registry">0x1::automation_registry</a>;
 <b>use</b> <a href="consensus_config.md#0x1_consensus_config">0x1::consensus_config</a>;
-<b>use</b> <a href="dkg.md#0x1_dkg">0x1::dkg</a>;
 <b>use</b> <a href="dkg_committee.md#0x1_dkg_committee">0x1::dkg_committee</a>;
 <b>use</b> <a href="dkg_config.md#0x1_dkg_config">0x1::dkg_config</a>;
 <b>use</b> <a href="evm_genesis_config.md#0x1_evm_genesis_config">0x1::evm_genesis_config</a>;
@@ -38,6 +37,7 @@ Reconfiguration with DKG helper functions.
 <b>use</b> <a href="reconfiguration_state.md#0x1_reconfiguration_state">0x1::reconfiguration_state</a>;
 <b>use</b> <a href="stake.md#0x1_stake">0x1::stake</a>;
 <b>use</b> <a href="supra_config.md#0x1_supra_config">0x1::supra_config</a>;
+<b>use</b> <a href="supra_dkg.md#0x1_supra_dkg">0x1::supra_dkg</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="validator_consensus_info.md#0x1_validator_consensus_info">0x1::validator_consensus_info</a>;
 <b>use</b> <a href="validator_public_keys.md#0x1_validator_public_keys">0x1::validator_public_keys</a>;
@@ -64,12 +64,11 @@ Do nothing if one is already in progress.
 
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_try_start">try_start</a>() {
-    <b>let</b> incomplete_dkg_session = <a href="dkg.md#0x1_dkg_incomplete_session">dkg::incomplete_session</a>();
+    <b>let</b> incomplete_dkg_session = <a href="supra_dkg.md#0x1_supra_dkg_incomplete_session">supra_dkg::incomplete_session</a>();
     <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&incomplete_dkg_session)) {
         <b>let</b> session = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_borrow">option::borrow</a>(&incomplete_dkg_session);
-        <b>if</b> (<a href="dkg.md#0x1_dkg_session_dealer_epoch">dkg::session_dealer_epoch</a>(session) == <a href="reconfiguration.md#0x1_reconfiguration_current_epoch">reconfiguration::current_epoch</a>()) {
-            <b>return</b>
-        }
+        <b>if</b> (<a href="supra_dkg.md#0x1_supra_dkg_session_dealer_epoch">supra_dkg::session_dealer_epoch</a>(session)
+            == <a href="reconfiguration.md#0x1_reconfiguration_current_epoch">reconfiguration::current_epoch</a>()) { <b>return</b> }
     };
     <a href="reconfiguration_state.md#0x1_reconfiguration_state_on_reconfig_start">reconfiguration_state::on_reconfig_start</a>();
     <b>let</b> cur_epoch = <a href="reconfiguration.md#0x1_reconfiguration_current_epoch">reconfiguration::current_epoch</a>();
@@ -100,7 +99,7 @@ Do nothing if one is already in progress.
     };
 
     // DKG for configured receiver committees
-    <a href="dkg.md#0x1_dkg_start">dkg::start</a>(
+    <a href="supra_dkg.md#0x1_supra_dkg_start">supra_dkg::start</a>(
         cur_epoch,
         randomness_seed,
         new_dkg_committee_from_validator_consensus_info(
@@ -132,7 +131,7 @@ Do nothing if one is already in progress.
 
 
 <pre><code><b>fun</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_set_dkg_meta">set_dkg_meta</a>(dkg_meta: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;) {
-    <a href="dkg.md#0x1_dkg_set_dkg_meta">dkg::set_dkg_meta</a>(dkg_meta);
+    <a href="supra_dkg.md#0x1_supra_dkg_set_dkg_meta">supra_dkg::set_dkg_meta</a>(dkg_meta);
 }
 </code></pre>
 
@@ -161,7 +160,7 @@ Run the default reconfiguration to enter the new epoch.
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_finish">finish</a>(framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(framework);
-    <a href="dkg.md#0x1_dkg_try_clear_incomplete_session">dkg::try_clear_incomplete_session</a>(framework);
+    <a href="supra_dkg.md#0x1_supra_dkg_try_clear_incomplete_session">supra_dkg::try_clear_incomplete_session</a>(framework);
     <a href="consensus_config.md#0x1_consensus_config_on_new_epoch">consensus_config::on_new_epoch</a>(framework);
     <a href="execution_config.md#0x1_execution_config_on_new_epoch">execution_config::on_new_epoch</a>(framework);
     <a href="supra_config.md#0x1_supra_config_on_new_epoch">supra_config::on_new_epoch</a>(framework);
@@ -204,7 +203,7 @@ Abort if no DKG is in progress.
 
 
 <pre><code><b>fun</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_finish_with_dkg_result">finish_with_dkg_result</a>(<a href="account.md#0x1_account">account</a>: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, dkg_result: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;) {
-    <a href="dkg.md#0x1_dkg_finish">dkg::finish</a>(dkg_result);
+    <a href="supra_dkg.md#0x1_supra_dkg_finish">supra_dkg::finish</a>(dkg_result);
     <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_finish">finish</a>(<a href="account.md#0x1_account">account</a>);
 }
 </code></pre>
@@ -240,8 +239,8 @@ Abort if no DKG is in progress.
 <b>requires</b> <a href="chain_status.md#0x1_chain_status_is_operating">chain_status::is_operating</a>();
 <b>include</b> <a href="stake.md#0x1_stake_ResourceRequirement">stake::ResourceRequirement</a>;
 <b>include</b> <a href="stake.md#0x1_stake_GetReconfigStartTimeRequirement">stake::GetReconfigStartTimeRequirement</a>;
-<b>include</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_spec_periodical_reward_rate_decrease_enabled">features::spec_periodical_reward_rate_decrease_enabled</a>(
-) ==&gt; <a href="staking_config.md#0x1_staking_config_StakingRewardsConfigEnabledRequirement">staking_config::StakingRewardsConfigEnabledRequirement</a>;
+<b>include</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_spec_periodical_reward_rate_decrease_enabled">features::spec_periodical_reward_rate_decrease_enabled</a>() ==&gt;
+    <a href="staking_config.md#0x1_staking_config_StakingRewardsConfigEnabledRequirement">staking_config::StakingRewardsConfigEnabledRequirement</a>;
 <b>aborts_if</b> <b>false</b>;
 <b>pragma</b> verify_duration_estimate = 600;
 </code></pre>
@@ -309,10 +308,8 @@ Abort if no DKG is in progress.
 
 
 <pre><code><b>pragma</b> verify_duration_estimate = 1500;
-<b>include</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_FinishRequirement">FinishRequirement</a> {
-    framework: <a href="account.md#0x1_account">account</a>
-};
-<b>requires</b> <a href="dkg.md#0x1_dkg_has_incomplete_session">dkg::has_incomplete_session</a>();
+<b>include</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_FinishRequirement">FinishRequirement</a> { framework: <a href="account.md#0x1_account">account</a> };
+<b>requires</b> <a href="supra_dkg.md#0x1_supra_dkg_has_incomplete_session">supra_dkg::has_incomplete_session</a>();
 <b>aborts_if</b> <b>false</b>;
 </code></pre>
 
