@@ -3,10 +3,8 @@ module supra_framework::evm_config {
     use std::error;
     use std::string::{Self,String};
     use std::vector;
-    use aptos_std::copyable_any;
     use aptos_std::simple_map;
     use aptos_std::simple_map::SimpleMap;
-    use aptos_std::type_info;
     use aptos_std::bcs;
     use supra_framework::config_buffer;
     use supra_framework::event;
@@ -34,32 +32,34 @@ module supra_framework::evm_config {
     /// This u64 value is used to scale EVM gas units into Supra gas units.
     const CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM: vector<u8> = b"evm_gas_normalization_denom";
 
+    /// Evm and Move address length
+    const EVM_ADDRESS_BYTE_LENGTH : u64 = 12;
+    const MOVE_ADDRESS_BYTE_LENGTH: u64 = 32;
+
     #[event]
     struct EvmContractsDetails has key, copy, store, drop {
         details: SimpleMap<String, address>,
     }
 
-    /// key-value map of EVM config parameters.
-    /// Values are stored as self-describing copyable_any::Any so the Rust
-    /// layer can decode them by type name without any per-key special-casing.
+    /// key-value map of EVM scalar config parameters.
+    /// Values are plain u128 integers; the Move type system enforces type safety
+    /// at compile time, eliminating the need for self-describing Any wrappers.
     #[event]
-    struct EvmConfig has key, copy, store, drop {
-        config: SimpleMap<String, copyable_any::Any>
+    struct EvmScalarConfig has key, copy, store, drop {
+        config: SimpleMap<String, u128>
     }
 
-    /// Publishes the EvmContractInfo details.
-    /// `config_values` are raw BCS bytes and `config_type_names` are the
-    /// corresponding Move type-name strings (as produced by
-    /// `type_info::type_name<T>()`).  The two vectors must have the same
-    /// length; each (type_name, data) pair is wrapped into a copyable_any::Any
-    /// before being stored.
+    /// Publishes both the EVM contract address map and the scalar config map.
+    /// `contract_keys`/`contract_values` must be the same length and every address
+    /// must be a valid 20-byte EVM address (upper 12 bytes of the 32-byte Move
+    /// address must be zero).  `config_keys`/`config_values` must be the same
+    /// length and must include all required keys (e.g. evm_gas_normalization_denom).
     public(friend) fun initialize(
         supra_framework: &signer,
         contract_keys: vector<String>,
         contract_values: vector<address>,
         config_keys: vector<String>,
-        config_type_names: vector<String>,
-        config_values: vector<vector<u8>>
+        config_values: vector<u128>
     ) {
         system_addresses::assert_supra_framework(supra_framework);
         assert!(!vector::is_empty(&contract_keys), error::invalid_argument(EEMPTY_DATA));
@@ -72,13 +72,6 @@ module supra_framework::evm_config {
             vector::length(&config_keys) == vector::length(&config_values),
             error::invalid_argument(EKEYS_VALUES_MISMATCH)
         );
-        assert!(
-            vector::length(&config_type_names) == vector::length(&config_values),
-            error::invalid_argument(EKEYS_VALUES_MISMATCH)
-        );
-        // Reject any config values with empty BCS payloads - they cannot be decoded.
-        let value_empty = vector::any(&config_values, |v| { vector::is_empty(v) });
-        assert!(!value_empty, error::invalid_argument(EEMPTY_DATA));
         
         // Check that no contract value is invalid EVM address
         let all_valid_evm_address = vector::all(&contract_values,
@@ -91,14 +84,10 @@ module supra_framework::evm_config {
         move_to(supra_framework, contract_details);
         event::emit(contract_details);
 
-        // Zip type names and raw BCS bytes into self-describing Any values.
-        let any_values = vector::zip_map(config_type_names, config_values, |type_name, data| {
-            copyable_any::new(type_name, data)
-        });
-        let evm_config = EvmConfig {
-            config: simple_map::new_from(config_keys, any_values)
+        let evm_config = EvmScalarConfig {
+            config: simple_map::new_from(config_keys, config_values)
         };
-        validate_config(&evm_config);
+        validate_scalar_config(&evm_config);
         move_to(supra_framework, evm_config);
         event::emit(evm_config);
     }
@@ -138,44 +127,42 @@ module supra_framework::evm_config {
     }
 
     /// This can be called by on-chain governance to update on-chain evm config
-    /// for the next epoch.  Values must be self-describing copyable_any::Any
-    /// instances with non-empty data payloads.
+    /// for the next epoch.  Values are plain u128 scalars.
     /// Example usage:
     /// ```
     /// supra_framework::evm_config::upsert_config_for_next_epoch(
-    ///     &framework_signer, vector["config_key"], vector[config_any_value]);
+    ///     &framework_signer, vector["config_key"], vector[new_value]);
     /// supra_framework::supra_governance::reconfigure(&framework_signer);
     /// ```
     public fun upsert_config_for_next_epoch(
         account: &signer,
         keys: vector<String>,
-        values: vector<copyable_any::Any>
-    ) acquires EvmConfig {
+        values: vector<u128>
+    ) acquires EvmScalarConfig {
         system_addresses::assert_supra_framework(account);
         assert!(!vector::is_empty(&keys), error::invalid_argument(EEMPTY_DATA));
         assert!(
             vector::length(&keys) == vector::length(&values),
             error::invalid_argument(EKEYS_VALUES_MISMATCH)
         );
-        // Reject Any values whose data payload is empty - they cannot be decoded.
-        let value_empty = vector::any(&values, |v| { copyable_any::is_empty(v) });
-        assert!(!value_empty, error::invalid_argument(EEMPTY_DATA));
-        if (!exists<EvmConfig>(@supra_framework)) {
+        if (!exists<EvmScalarConfig>(@supra_framework)) {
             let evm_config = 
-                EvmConfig { config: simple_map::new_from(keys, values) };
+                EvmScalarConfig { config: simple_map::new_from(keys, values) };
             // Config did not exist earlier, so validate the config for
             // presence of required keys and value type match
-            validate_config(&evm_config);
-            std::config_buffer::upsert<EvmConfig>(evm_config);
+            validate_scalar_config(&evm_config);
+            std::config_buffer::upsert<EvmScalarConfig>(evm_config);
+            return;
         };
-        let updated_config = *borrow_global<EvmConfig>(@supra_framework);
+        // Copy existing config
+        let updated_config = *borrow_global<EvmScalarConfig>(@supra_framework);
         // We are never removing existing keys so by induction if all required
         // keys are present in config during initialization
         // they will be there later as well, so no need to validate here
         vector::zip(keys, values, |key, value| {
             simple_map::upsert(&mut updated_config.config, key, value);
         });
-        std::config_buffer::upsert<EvmConfig>(updated_config);
+        std::config_buffer::upsert<EvmScalarConfig>(updated_config);
     }
 
     #[view]
@@ -193,12 +180,12 @@ module supra_framework::evm_config {
     }
 
     #[view]
-    /// Returns the self-describing Any value stored under `key` in the EvmConfig map.
+    /// Returns the u128 value stored under `key` in the EvmScalarConfig map.
     /// Aborts with EKEY_NOT_FOUND if the resource has not been initialised or the key
     /// is not present in the map.
-    public fun get_config_value(key: String): copyable_any::Any acquires EvmConfig {
-        assert!(exists<EvmConfig>(@supra_framework), error::not_found(EKEY_NOT_FOUND));
-        let config = borrow_global<EvmConfig>(@supra_framework);
+    public fun get_scalar_config_value(key: String): u128 acquires EvmScalarConfig {
+        assert!(exists<EvmScalarConfig>(@supra_framework), error::not_found(EKEY_NOT_FOUND));
+        let config = borrow_global<EvmScalarConfig>(@supra_framework);
         assert!(
             simple_map::contains_key(&config.config, &key),
             error::not_found(EKEY_NOT_FOUND)
@@ -206,28 +193,16 @@ module supra_framework::evm_config {
         *simple_map::borrow(&config.config, &key)
     }
 
-    #[view]
-    /// Returns the EVM gas normalisation denominator stored in the config.
-    /// Aborts with EKEY_NOT_FOUND if the key is absent, or with a BCS decode
-    /// error if the stored value is not a u64.
-    public fun get_evm_gas_normalization_denom(): u64 acquires EvmConfig {
-        let key = std::string::utf8(CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM);
-        let any_val = get_config_value(key);
-        copyable_any::unpack<u64>(any_val)
-    }
-
-    fun validate_config(evm_config: &EvmConfig) {
+    fun validate_scalar_config(evm_config: &EvmScalarConfig) {
         let required_keys = vector[string::utf8(CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM)];
-        let required_value_types = vector[type_info::type_name<u64>()];
-
-        let all_valid = true;
-        // Check that all the required keys are present and value type matches
-        vector::zip_reverse<String, String>(required_keys, required_value_types, |rk, rvt| {
-            // Assert that all required keys exist and value type matches
-            assert!((simple_map::contains_key<String,copyable_any::Any>(&evm_config.config,&rk) &&
-                    copyable_any::type_name(simple_map::borrow(&evm_config.config,&rk)) == &rvt ), error::invalid_argument(EMISSING_KEY_OR_INCORRECT_VAL_TYPE));
+        // With u128 as the value type, the Move type system prevents type mismatches at
+        // compile time. The only meaningful runtime check is key presence.
+        vector::for_each_reverse(required_keys, |rk| {
+            assert!(
+                simple_map::contains_key<String, u128>(&evm_config.config, &rk),
+                error::invalid_argument(EMISSING_KEY_OR_INCORRECT_VAL_TYPE)
+            );
         });
-        
     }
 
     fun is_valid_evm_address(addr: &address): bool {
@@ -242,14 +217,15 @@ module supra_framework::evm_config {
 
         // Sanity check: BCS encoding of an address is always 32 bytes. If somehow
         // the length differs, the address cannot be valid.
-        if (vector::length(&evm_addr_bytes) != 32) {
+        if (vector::length(&evm_addr_bytes) != MOVE_ADDRESS_BYTE_LENGTH) {
             return false
         };
 
         // Check that all 12 high-order prefix bytes are zero.  A non-zero byte here
         // means the value cannot fit in 20 bytes and is therefore not a valid EVM address.
         let i = 0u64;
-        while (i < 12) {
+        let addr_length_diff = MOVE_ADDRESS_BYTE_LENGTH - EVM_ADDRESS_BYTE_LENGTH;
+        while (i < addr_length_diff) {
             if (*vector::borrow(&evm_addr_bytes, i) != 0u8) {
                 // Non-zero prefix byte found - not a valid 20-byte EVM address.
                 return false
@@ -262,9 +238,10 @@ module supra_framework::evm_config {
 
     /// Only used in reconfigurations to apply the pending configs in buffer, if any.
     /// If supra_framework already holds the resource, overwrite it; otherwise move it in.
-    public(friend) fun on_new_epoch(framework: &signer) acquires EvmConfig, EvmContractsDetails {
+    public(friend) fun on_new_epoch(framework: &signer) acquires EvmScalarConfig, EvmContractsDetails {
         system_addresses::assert_supra_framework(framework);
         if (config_buffer::does_exist<EvmContractsDetails>()) {
+            //TODO: change to extract_v2 when extract_v2 is merged and available
             let new_config = config_buffer::extract<EvmContractsDetails>();
             if (!exists<EvmContractsDetails>(@supra_framework)) {
                 move_to(framework, new_config);
@@ -274,12 +251,13 @@ module supra_framework::evm_config {
             };
             event::emit(new_config)
         };
-        if (config_buffer::does_exist<EvmConfig>()) {
-            let new_config = config_buffer::extract<EvmConfig>();
-            if (!exists<EvmConfig>(@supra_framework)) {
+        if (config_buffer::does_exist<EvmScalarConfig>()) {
+            // change to extract_v2 when it is available
+            let new_config = config_buffer::extract<EvmScalarConfig>();
+            if (!exists<EvmScalarConfig>(@supra_framework)) {
                 move_to(framework, new_config);
             } else {
-                let old_config = borrow_global_mut<EvmConfig>(@supra_framework);
+                let old_config = borrow_global_mut<EvmScalarConfig>(@supra_framework);
                 *old_config = new_config;
             };
             event::emit(new_config)
@@ -330,9 +308,9 @@ module supra_framework::evm_config {
     }
 
     #[test(supra_framework = @supra_framework)]
-    /// Happy-path test: both get_contract_value and get_config_value return the
+    /// Happy-path test: both get_contract_value and get_scalar_config_value return the
     /// values that were seeded into their respective resources.
-    fun test_get_contract_and_config_value_success(supra_framework: signer) acquires EvmContractsDetails, EvmConfig {
+    fun test_get_contract_and_config_value_success(supra_framework: signer) acquires EvmContractsDetails, EvmScalarConfig {
         // Seed EvmContractsDetails with a single entry.
         let contract_key = std::string::utf8(b"usdc_contract");
         let contract_addr = @0xA550C18;
@@ -340,19 +318,17 @@ module supra_framework::evm_config {
             details: simple_map::new_from(vector[contract_key], vector[contract_addr])
         });
 
-        // Seed EvmConfig with a single entry using a typed Any value.
+        // Seed EvmScalarConfig with a single entry using a plain u128 value.
         let config_key = std::string::utf8(b"evm_gas_normalization_denom");
-        let config_value = copyable_any::pack<u64>(42u64);
-        move_to(&supra_framework, EvmConfig {
+        let config_value = 42u128;
+        move_to(&supra_framework, EvmScalarConfig {
             config: simple_map::new_from(vector[config_key], vector[config_value])
         });
 
         // Both lookups must return the exact values that were inserted above.
         assert!(get_contract_value(std::string::utf8(b"usdc_contract")) == contract_addr, 0);
         assert!(
-            copyable_any::unpack<u64>(
-                get_config_value(std::string::utf8(b"evm_gas_normalization_denom"))
-            ) == 42u64,
+            get_scalar_config_value(std::string::utf8(b"evm_gas_normalization_denom")) == 42u128,
             0
         );
     }
@@ -374,37 +350,46 @@ module supra_framework::evm_config {
     }
 
     #[test(supra_framework = @supra_framework)]
-    /// Failure test: get_config_value aborts when the requested key is absent.
+    /// Failure test: get_scalar_config_value aborts when the requested key is absent.
     ///
     /// The expected abort code is error::not_found(EKEY_NOT_FOUND)
     /// = (NOT_FOUND_CATEGORY=6 << 16) | EKEY_NOT_FOUND=4 = 0x60004.
     #[expected_failure(abort_code = 0x60004, location = supra_framework::evm_config)]
-    fun test_get_config_value_key_not_found(supra_framework: signer) acquires EvmConfig {
-        move_to(&supra_framework, EvmConfig {
+    fun test_get_config_value_key_not_found(supra_framework: signer) acquires EvmScalarConfig {
+        move_to(&supra_framework, EvmScalarConfig {
             config: simple_map::new_from(
                 vector[std::string::utf8(b"existing_key")],
-                vector[copyable_any::pack<u64>(1u64)]
+                vector[1u128]
             )
         });
-        get_config_value(std::string::utf8(b"nonexistent_key"));
+        get_scalar_config_value(std::string::utf8(b"nonexistent_key"));
     }
 
     #[test]
-    /// Success test: validate_config must not abort when all required keys are
-    /// present with the correct value types.
+    /// Success test: validate_scalar_config must not abort when all required keys are present.
     ///
-    /// evm_gas_normalization_denom is the sole required key and its type must be
-    /// u64.  A config seeded with exactly that key/type pair must pass validation.
+    /// evm_gas_normalization_denom is the sole required key. A config seeded with that
+    /// key and a plain u128 value must pass validation.
     fun test_validate_config_success() {
         let config_key = std::string::utf8(CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM);
-        // pack<u64> records type_info::type_name<u64>() as the type_name inside
-        // the Any value, which is what validate_config compares against.
-        let config_value = copyable_any::pack<u64>(100u64);
-        let evm_config = EvmConfig {
-            config: simple_map::new_from(vector[config_key], vector[config_value])
+        let evm_config = EvmScalarConfig {
+            config: simple_map::new_from(vector[config_key], vector[100u128])
         };
         // Must complete without aborting.
-        validate_config(&evm_config);
+        validate_scalar_config(&evm_config);
+    }
+
+    #[test]
+    /// Failure test: validate_scalar_config aborts when a required key is absent.
+    ///
+    /// An empty config is missing evm_gas_normalization_denom, so validation must abort.
+    /// The expected abort code is error::invalid_argument(EMISSING_KEY_OR_INCORRECT_VAL_TYPE)
+    /// = (INVALID_ARGUMENT_CATEGORY=1 << 16) | EMISSING_KEY_OR_INCORRECT_VAL_TYPE=5 = 0x10005.
+    #[expected_failure(abort_code = 0x10005, location = supra_framework::evm_config)]
+    fun test_validate_config_missing_required_key() {
+        // An empty config is missing the sole required key -> must abort.
+        let evm_config = EvmScalarConfig { config: simple_map::new() };
+        validate_scalar_config(&evm_config);
     }
 
     #[test(supra_framework = @supra_framework)]
@@ -430,23 +415,5 @@ module supra_framework::evm_config {
         upsert_evm_contract_details_for_next_epoch(&supra_framework, keys, values);
     }
 
-    #[test]
-    /// Failure test: validate_config aborts when the required key is present but
-    /// its value has the wrong type.
-    ///
-    /// evm_gas_normalization_denom must carry a u64 value; packing a u8 instead
-    /// causes the type_name comparison to fail.
-    /// The expected abort code is error::invalid_argument(EMISSING_KEY_OR_INCORRECT_VAL_TYPE)
-    /// = (INVALID_ARGUMENT_CATEGORY=1 << 16) | EMISSING_KEY_OR_INCORRECT_VAL_TYPE=5 = 0x10005.
-    #[expected_failure(abort_code = 0x10005, location = supra_framework::evm_config)]
-    fun test_validate_config_wrong_value_type() {
-        let config_key = std::string::utf8(CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM);
-        // Key is present but packed as u8 instead of the required u64.
-        // type_info::type_name<u8>() != type_info::type_name<u64>(), so validation aborts.
-        let config_value = copyable_any::pack<u8>(42u8);
-        let evm_config = EvmConfig {
-            config: simple_map::new_from(vector[config_key], vector[config_value])
-        };
-        validate_config(&evm_config);
-    }
+
 }

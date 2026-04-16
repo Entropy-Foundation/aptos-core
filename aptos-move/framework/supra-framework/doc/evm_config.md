@@ -14,6 +14,7 @@
 -  [Function `get_contract_value`](#0x1_evm_config_get_contract_value)
 -  [Function `get_config_value`](#0x1_evm_config_get_config_value)
 -  [Function `get_evm_gas_normalization_denom`](#0x1_evm_config_get_evm_gas_normalization_denom)
+-  [Function `validate_config`](#0x1_evm_config_validate_config)
 -  [Function `is_valid_evm_address`](#0x1_evm_config_is_valid_evm_address)
 -  [Function `on_new_epoch`](#0x1_evm_config_on_new_epoch)
 
@@ -27,6 +28,7 @@
 <b>use</b> <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map">0x1::simple_map</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string">0x1::string</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
+<b>use</b> <a href="../../aptos-stdlib/doc/type_info.md#0x1_type_info">0x1::type_info</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 </code></pre>
 
@@ -144,6 +146,16 @@ Input keys and values should have the same amount of data
 
 
 
+<a id="0x1_evm_config_EMISSING_KEY_OR_INCORRECT_VAL_TYPE"></a>
+
+Required Key is missing or value type is incorrect for a key
+
+
+<pre><code><b>const</b> <a href="evm_config.md#0x1_evm_config_EMISSING_KEY_OR_INCORRECT_VAL_TYPE">EMISSING_KEY_OR_INCORRECT_VAL_TYPE</a>: u64 = 5;
+</code></pre>
+
+
+
 <a id="0x1_evm_config_initialize"></a>
 
 ## Function `initialize`
@@ -192,6 +204,11 @@ before being stored.
     <b>let</b> value_empty = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_any">vector::any</a>(&config_values, |v| { <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(v) });
     <b>assert</b>!(!value_empty, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EEMPTY_DATA">EEMPTY_DATA</a>));
 
+    // Check that no contract value is invalid EVM <b>address</b>
+    <b>let</b> all_valid_evm_address = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_all">vector::all</a>(&contract_values,
+    |v|{ <a href="evm_config.md#0x1_evm_config_is_valid_evm_address">is_valid_evm_address</a>(v) });
+    <b>assert</b>!(all_valid_evm_address, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EINVALID_EVM_ADDRESS">EINVALID_EVM_ADDRESS</a>));
+
     <b>let</b> contract_details = <a href="evm_config.md#0x1_evm_config_EvmContractsDetails">EvmContractsDetails</a> {
         details: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_new_from">simple_map::new_from</a>(contract_keys, contract_values)
     };
@@ -205,6 +222,7 @@ before being stored.
     <b>let</b> <a href="evm_config.md#0x1_evm_config">evm_config</a> = <a href="evm_config.md#0x1_evm_config_EvmConfig">EvmConfig</a> {
         config: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_new_from">simple_map::new_from</a>(config_keys, any_values)
     };
+    <a href="evm_config.md#0x1_evm_config_validate_config">validate_config</a>(&<a href="evm_config.md#0x1_evm_config">evm_config</a>);
     <b>move_to</b>(supra_framework, <a href="evm_config.md#0x1_evm_config">evm_config</a>);
     <a href="event.md#0x1_event_emit">event::emit</a>(<a href="evm_config.md#0x1_evm_config">evm_config</a>);
 }
@@ -248,8 +266,8 @@ supra_framework::supra_governance::reconfigure(&framework_signer);
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&keys) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&values),
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EKEYS_VALUES_MISMATCH">EKEYS_VALUES_MISMATCH</a>)
     );
-    <b>let</b> not_evm_address = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_any">vector::any</a>(&values, |v| { !<a href="evm_config.md#0x1_evm_config_is_valid_evm_address">is_valid_evm_address</a>(v) });
-    <b>assert</b>!(!not_evm_address, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EINVALID_EVM_ADDRESS">EINVALID_EVM_ADDRESS</a>));
+    <b>let</b> all_valid_evm_address = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_all">vector::all</a>(&values, |v| { <a href="evm_config.md#0x1_evm_config_is_valid_evm_address">is_valid_evm_address</a>(v) });
+    <b>assert</b>!(all_valid_evm_address, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EINVALID_EVM_ADDRESS">EINVALID_EVM_ADDRESS</a>));
     <b>if</b> (!<b>exists</b>&lt;<a href="evm_config.md#0x1_evm_config_EvmContractsDetails">EvmContractsDetails</a>&gt;(@supra_framework)) {
         std::config_buffer::upsert&lt;<a href="evm_config.md#0x1_evm_config_EvmContractsDetails">EvmContractsDetails</a>&gt;(
             <a href="evm_config.md#0x1_evm_config_EvmContractsDetails">EvmContractsDetails</a> { details: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_new_from">simple_map::new_from</a>(keys, values) }
@@ -307,12 +325,17 @@ supra_framework::supra_governance::reconfigure(&framework_signer);
     <b>let</b> value_empty = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_any">vector::any</a>(&values, |v| { <a href="../../aptos-stdlib/doc/copyable_any.md#0x1_copyable_any_is_empty">copyable_any::is_empty</a>(v) });
     <b>assert</b>!(!value_empty, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EEMPTY_DATA">EEMPTY_DATA</a>));
     <b>if</b> (!<b>exists</b>&lt;<a href="evm_config.md#0x1_evm_config_EvmConfig">EvmConfig</a>&gt;(@supra_framework)) {
-        std::config_buffer::upsert&lt;<a href="evm_config.md#0x1_evm_config_EvmConfig">EvmConfig</a>&gt;(
-            <a href="evm_config.md#0x1_evm_config_EvmConfig">EvmConfig</a> { config: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_new_from">simple_map::new_from</a>(keys, values) }
-        );
-        <b>return</b>
+        <b>let</b> <a href="evm_config.md#0x1_evm_config">evm_config</a> =
+            <a href="evm_config.md#0x1_evm_config_EvmConfig">EvmConfig</a> { config: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_new_from">simple_map::new_from</a>(keys, values) };
+        // Config did not exist earlier, so validate the config for
+        // presence of required keys and value type match
+        <a href="evm_config.md#0x1_evm_config_validate_config">validate_config</a>(&<a href="evm_config.md#0x1_evm_config">evm_config</a>);
+        std::config_buffer::upsert&lt;<a href="evm_config.md#0x1_evm_config_EvmConfig">EvmConfig</a>&gt;(<a href="evm_config.md#0x1_evm_config">evm_config</a>);
     };
     <b>let</b> updated_config = *<b>borrow_global</b>&lt;<a href="evm_config.md#0x1_evm_config_EvmConfig">EvmConfig</a>&gt;(@supra_framework);
+    // We are never removing existing keys so by induction <b>if</b> all required
+    // keys are present in config during initialization
+    // they will be there later <b>as</b> well, so no need <b>to</b> validate here
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_zip">vector::zip</a>(keys, values, |key, value| {
         <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_upsert">simple_map::upsert</a>(&<b>mut</b> updated_config.config, key, value);
     });
@@ -415,6 +438,40 @@ error if the stored value is not a u64.
     <b>let</b> key = std::string::utf8(<a href="evm_config.md#0x1_evm_config_CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM">CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM</a>);
     <b>let</b> any_val = <a href="evm_config.md#0x1_evm_config_get_config_value">get_config_value</a>(key);
     <a href="../../aptos-stdlib/doc/copyable_any.md#0x1_copyable_any_unpack">copyable_any::unpack</a>&lt;u64&gt;(any_val)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_evm_config_validate_config"></a>
+
+## Function `validate_config`
+
+
+
+<pre><code><b>fun</b> <a href="evm_config.md#0x1_evm_config_validate_config">validate_config</a>(<a href="evm_config.md#0x1_evm_config">evm_config</a>: &<a href="evm_config.md#0x1_evm_config_EvmConfig">evm_config::EvmConfig</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="evm_config.md#0x1_evm_config_validate_config">validate_config</a>(<a href="evm_config.md#0x1_evm_config">evm_config</a>: &<a href="evm_config.md#0x1_evm_config_EvmConfig">EvmConfig</a>) {
+    <b>let</b> required_keys = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(<a href="evm_config.md#0x1_evm_config_CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM">CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM</a>)];
+    <b>let</b> required_value_types = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="../../aptos-stdlib/doc/type_info.md#0x1_type_info_type_name">type_info::type_name</a>&lt;u64&gt;()];
+
+    <b>let</b> all_valid = <b>true</b>;
+    // Check that all the required keys are present and value type matches
+    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_zip_reverse">vector::zip_reverse</a>&lt;String, String&gt;(required_keys, required_value_types, |rk, rvt| {
+        // Assert that all required keys exist and value type matches
+        <b>assert</b>!((<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>&lt;String,<a href="../../aptos-stdlib/doc/copyable_any.md#0x1_copyable_any_Any">copyable_any::Any</a>&gt;(&<a href="evm_config.md#0x1_evm_config">evm_config</a>.config,&rk) &&
+                <a href="../../aptos-stdlib/doc/copyable_any.md#0x1_copyable_any_type_name">copyable_any::type_name</a>(<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow">simple_map::borrow</a>(&<a href="evm_config.md#0x1_evm_config">evm_config</a>.config,&rk)) == &rvt ), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EMISSING_KEY_OR_INCORRECT_VAL_TYPE">EMISSING_KEY_OR_INCORRECT_VAL_TYPE</a>));
+    });
+
 }
 </code></pre>
 
