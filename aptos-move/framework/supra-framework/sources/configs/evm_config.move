@@ -122,8 +122,8 @@ module supra_framework::evm_config {
             vector::length(&keys) == vector::length(&values),
             error::invalid_argument(EKEYS_VALUES_MISMATCH)
         );
-        let not_evm_address = vector::any(&values, |v| { !is_valid_evm_address(v) });
-        assert!(!not_evm_address, error::invalid_argument(EINVALID_EVM_ADDRESS));
+        let all_valid_evm_address = vector::all(&values, |v| { is_valid_evm_address(v) });
+        assert!(all_valid_evm_address, error::invalid_argument(EINVALID_EVM_ADDRESS));
         if (!exists<EvmContractsDetails>(@supra_framework)) {
             std::config_buffer::upsert<EvmContractsDetails>(
                 EvmContractsDetails { details: simple_map::new_from(keys, values) }
