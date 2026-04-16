@@ -1,6 +1,7 @@
 module supra_framework::evm_config {
 
     use std::error;
+    use std::signer;
     use std::string::{Self,String};
     use std::vector;
     use aptos_std::simple_map;
@@ -27,6 +28,9 @@ module supra_framework::evm_config {
 
     /// Required Key is missing or value type is incorrect for a key
     const EMISSING_KEY_OR_INCORRECT_VAL_TYPE: u64 = 5;
+
+    /// Resource already exist at address
+    const ERESOURCE_ALREADY_EXISTS: u64 = 6;
 
     /// Well-known config key for the EVM gas normalisation denominator.
     /// This u64 value is used to scale EVM gas units into Supra gas units.
@@ -64,6 +68,9 @@ module supra_framework::evm_config {
         system_addresses::assert_supra_framework(supra_framework);
         assert!(!vector::is_empty(&contract_keys), error::invalid_argument(EEMPTY_DATA));
         assert!(!vector::is_empty(&config_keys), error::invalid_argument(EEMPTY_DATA));
+        let supra_framework_addr = signer::address_of(supra_framework);
+        assert!(!exists<EvmContractsDetails>(supra_framework_addr),error::invalid_state(ERESOURCE_ALREADY_EXISTS));
+        assert!(!exists<EvmScalarConfig>(supra_framework_addr),error::invalid_state(ERESOURCE_ALREADY_EXISTS));
         assert!(
             vector::length(&contract_keys) == vector::length(&contract_values),
             error::invalid_argument(EKEYS_VALUES_MISMATCH)
