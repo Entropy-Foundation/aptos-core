@@ -81,8 +81,9 @@ module supra_framework::evm_config {
         assert!(!value_empty, error::invalid_argument(EEMPTY_DATA));
         
         // Check that no contract value is invalid EVM address
-        let not_valid_evm_address = vector::any(&contract_values,
-        |v|{ !is_valid_evm_address(v) });
+        let all_valid_evm_address = vector::all(&contract_values,
+        |v|{ is_valid_evm_address(v) });
+        assert!(all_valid_evm_address, error::invalid_argument(EINVALID_EVM_ADDRESS));
 
         let contract_details = EvmContractsDetails {
             details: simple_map::new_from(contract_keys, contract_values)
@@ -404,6 +405,29 @@ module supra_framework::evm_config {
         };
         // Must complete without aborting.
         validate_config(&evm_config);
+    }
+
+    #[test(supra_framework = @supra_framework)]
+    /// Failure test: upsert_evm_contract_details_for_next_epoch aborts when any
+    /// address in the values vector is not a valid EVM address.
+    ///
+    /// The call passes one valid address (@0x1, which fits in 20 bytes with all
+    /// leading bytes zero) alongside one invalid address whose most-significant
+    /// byte is non-zero (@0x1000...000).  The presence of the invalid address
+    /// must trigger EINVALID_EVM_ADDRESS regardless of position in the vector.
+    /// The expected abort code is error::invalid_argument(EINVALID_EVM_ADDRESS)
+    /// = (INVALID_ARGUMENT_CATEGORY=1 << 16) | EINVALID_EVM_ADDRESS=3 = 0x10003.
+    #[expected_failure(abort_code = 0x10003, location = supra_framework::evm_config)]
+    fun test_upsert_evm_contract_details_mixed_invalid_address(supra_framework: signer) acquires EvmContractsDetails {
+        let keys = vector[
+            std::string::utf8(b"valid_contract"),
+            std::string::utf8(b"invalid_contract")
+        ];
+        let values = vector[
+            @0x1,                                                                       // valid: fits in 20 bytes
+            @0x1000000000000000000000000000000000000000000000000000000000000000         // invalid: high byte non-zero
+        ];
+        upsert_evm_contract_details_for_next_epoch(&supra_framework, keys, values);
     }
 
     #[test]
