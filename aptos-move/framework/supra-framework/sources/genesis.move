@@ -304,13 +304,13 @@ module supra_framework::genesis {
     /// Initialize the EVM config.
     fun initialize_evm_config(
         supra_framework: &signer,
-        keys: vector<String>,
-        values: vector<address>,
+        contract_names: vector<String>,
+        contract_addresses: vector<address>,
         config_keys: vector<String>,
         config_type_names: vector<String>,
         config_values: vector<vector<u8>>
     ) {
-        evm_config::initialize(supra_framework, keys, values, config_keys, config_type_names, config_values);
+        evm_config::initialize(supra_framework, contract_names, contract_addresses, config_keys, config_type_names, config_values);
     }
 
     /// Initialize the leader ban config

@@ -1,11 +1,12 @@
 module supra_framework::evm_config {
 
     use std::error;
-    use std::string::String;
+    use std::string::{Self,String};
     use std::vector;
     use aptos_std::copyable_any;
     use aptos_std::simple_map;
     use aptos_std::simple_map::SimpleMap;
+    use aptos_std::type_info;
     use aptos_std::bcs;
     use supra_framework::config_buffer;
     use supra_framework::event;
@@ -25,6 +26,9 @@ module supra_framework::evm_config {
 
     /// Requested key does not exist in the map
     const EKEY_NOT_FOUND: u64 = 4;
+
+    /// Required Key is missing or value type is incorrect for a key
+    const EMISSING_KEY_OR_INCORRECT_VAL_TYPE: u64 = 5;
 
     /// Well-known config key for the EVM gas normalisation denominator.
     /// This u64 value is used to scale EVM gas units into Supra gas units.
@@ -75,6 +79,10 @@ module supra_framework::evm_config {
         // Reject any config values with empty BCS payloads - they cannot be decoded.
         let value_empty = vector::any(&config_values, |v| { vector::is_empty(v) });
         assert!(!value_empty, error::invalid_argument(EEMPTY_DATA));
+        
+        // Check that no contract value is invalid EVM address
+        let not_valid_evm_address = vector::any(&contract_values,
+        |v|{ !is_valid_evm_address(v) });
 
         let contract_details = EvmContractsDetails {
             details: simple_map::new_from(contract_keys, contract_values)
@@ -89,6 +97,7 @@ module supra_framework::evm_config {
         let evm_config = EvmConfig {
             config: simple_map::new_from(config_keys, any_values)
         };
+        validate_config(&evm_config);
         move_to(supra_framework, evm_config);
         event::emit(evm_config);
     }
@@ -151,12 +160,17 @@ module supra_framework::evm_config {
         let value_empty = vector::any(&values, |v| { copyable_any::is_empty(v) });
         assert!(!value_empty, error::invalid_argument(EEMPTY_DATA));
         if (!exists<EvmConfig>(@supra_framework)) {
-            std::config_buffer::upsert<EvmConfig>(
-                EvmConfig { config: simple_map::new_from(keys, values) }
-            );
-            return
+            let evm_config = 
+                EvmConfig { config: simple_map::new_from(keys, values) };
+            // Config did not exist earlier, so validate the config for
+            // presence of required keys and value type match
+            validate_config(&evm_config);
+            std::config_buffer::upsert<EvmConfig>(evm_config);
         };
         let updated_config = *borrow_global<EvmConfig>(@supra_framework);
+        // We are never removing existing keys so by induction if all required
+        // keys are present in config during initialization
+        // they will be there later as well, so no need to validate here
         vector::zip(keys, values, |key, value| {
             simple_map::upsert(&mut updated_config.config, key, value);
         });
@@ -199,6 +213,20 @@ module supra_framework::evm_config {
         let key = std::string::utf8(CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM);
         let any_val = get_config_value(key);
         copyable_any::unpack<u64>(any_val)
+    }
+
+    fun validate_config(evm_config: &EvmConfig) {
+        let required_keys = vector[string::utf8(CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM)];
+        let required_value_types = vector[type_info::type_name<u64>()];
+
+        let all_valid = true;
+        // Check that all the required keys are present and value type matches
+        vector::zip_reverse<String, String>(required_keys, required_value_types, |rk, rvt| {
+            // Assert that all required keys exist and value type matches
+            assert!((simple_map::contains_key<String,copyable_any::Any>(&evm_config.config,&rk) &&
+                    copyable_any::type_name(simple_map::borrow(&evm_config.config,&rk)) == &rvt ), error::invalid_argument(EMISSING_KEY_OR_INCORRECT_VAL_TYPE));
+        });
+        
     }
 
     fun is_valid_evm_address(addr: &address): bool {
@@ -358,5 +386,43 @@ module supra_framework::evm_config {
             )
         });
         get_config_value(std::string::utf8(b"nonexistent_key"));
+    }
+
+    #[test]
+    /// Success test: validate_config must not abort when all required keys are
+    /// present with the correct value types.
+    ///
+    /// evm_gas_normalization_denom is the sole required key and its type must be
+    /// u64.  A config seeded with exactly that key/type pair must pass validation.
+    fun test_validate_config_success() {
+        let config_key = std::string::utf8(CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM);
+        // pack<u64> records type_info::type_name<u64>() as the type_name inside
+        // the Any value, which is what validate_config compares against.
+        let config_value = copyable_any::pack<u64>(100u64);
+        let evm_config = EvmConfig {
+            config: simple_map::new_from(vector[config_key], vector[config_value])
+        };
+        // Must complete without aborting.
+        validate_config(&evm_config);
+    }
+
+    #[test]
+    /// Failure test: validate_config aborts when the required key is present but
+    /// its value has the wrong type.
+    ///
+    /// evm_gas_normalization_denom must carry a u64 value; packing a u8 instead
+    /// causes the type_name comparison to fail.
+    /// The expected abort code is error::invalid_argument(EMISSING_KEY_OR_INCORRECT_VAL_TYPE)
+    /// = (INVALID_ARGUMENT_CATEGORY=1 << 16) | EMISSING_KEY_OR_INCORRECT_VAL_TYPE=5 = 0x10005.
+    #[expected_failure(abort_code = 0x10005, location = supra_framework::evm_config)]
+    fun test_validate_config_wrong_value_type() {
+        let config_key = std::string::utf8(CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM);
+        // Key is present but packed as u8 instead of the required u64.
+        // type_info::type_name<u8>() != type_info::type_name<u64>(), so validation aborts.
+        let config_value = copyable_any::pack<u8>(42u8);
+        let evm_config = EvmConfig {
+            config: simple_map::new_from(vector[config_key], vector[config_value])
+        };
+        validate_config(&evm_config);
     }
 }
