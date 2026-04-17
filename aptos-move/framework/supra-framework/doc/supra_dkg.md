@@ -399,10 +399,12 @@ The completed and in-progress DKG sessions.
 
 ## Function `initialize`
 
-Called in genesis to initialize on-chain states.
+Called in genesis to initialize on-chain states when DKG is active from genesis,
+otherwise, must be called from a governance script before the DKG feature flag
+is activated.
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
 </code></pre>
 
 
@@ -411,7 +413,7 @@ Called in genesis to initialize on-chain states.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
+<pre><code><b>public</b> <b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
     <b>if</b> (!<b>exists</b>&lt;<a href="supra_dkg.md#0x1_supra_dkg_DKGState">DKGState</a>&gt;(@supra_framework)) {
         <b>move_to</b>&lt;<a href="supra_dkg.md#0x1_supra_dkg_DKGState">DKGState</a>&gt;(
@@ -469,9 +471,7 @@ Abort if a DKG is already in progress.
         }
     );
 
-    emit(
-        <a href="supra_dkg.md#0x1_supra_dkg_DKGStartEvent">DKGStartEvent</a> { start_time_us, session_metadata: new_session_metadata }
-    );
+    emit(<a href="supra_dkg.md#0x1_supra_dkg_DKGStartEvent">DKGStartEvent</a> { start_time_us, session_metadata: new_session_metadata });
 }
 </code></pre>
 
@@ -730,7 +730,7 @@ Return the dealer epoch of a <code><a href="supra_dkg.md#0x1_supra_dkg_DKGSessio
 ### Function `initialize`
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
+<pre><code><b>public</b> <b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>)
 </code></pre>
 
 

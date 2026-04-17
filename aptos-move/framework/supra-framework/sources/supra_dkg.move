@@ -74,8 +74,10 @@ module supra_framework::supra_dkg {
         commitments: vector<OnChainAggregateCommitment>
     }
 
-    /// Called in genesis to initialize on-chain states.
-    public(friend) fun initialize(supra_framework: &signer) {
+    /// Called in genesis to initialize on-chain states when DKG is active from genesis,
+    /// otherwise, must be called from a governance script before the DKG feature flag
+    /// is activated.
+    public fun initialize(supra_framework: &signer) {
         system_addresses::assert_supra_framework(supra_framework);
         if (!exists<DKGState>(@supra_framework)) {
             move_to<DKGState>(
@@ -113,9 +115,7 @@ module supra_framework::supra_dkg {
             }
         );
 
-        emit(
-            DKGStartEvent { start_time_us, session_metadata: new_session_metadata }
-        );
+        emit(DKGStartEvent { start_time_us, session_metadata: new_session_metadata });
     }
 
     /// Family Node sets the DKGMeta for the in-progress DKG session
