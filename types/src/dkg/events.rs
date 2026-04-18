@@ -12,7 +12,7 @@ pub struct DKGStartEvent {
 }
 
 impl MoveStructType for DKGStartEvent {
-    const MODULE_NAME: &'static IdentStr = ident_str!("dkg");
+    const MODULE_NAME: &'static IdentStr = ident_str!("supra_dkg");
     const STRUCT_NAME: &'static IdentStr = ident_str!("DKGStartEvent");
 }
 
@@ -25,7 +25,7 @@ pub struct DKGMetaSetEvent {
 }
 
 impl MoveStructType for DKGMetaSetEvent {
-    const MODULE_NAME: &'static IdentStr = ident_str!("dkg");
+    const MODULE_NAME: &'static IdentStr = ident_str!("supra_dkg");
     const STRUCT_NAME: &'static IdentStr = ident_str!("DKGMetaSetEvent");
 }
 
@@ -38,7 +38,7 @@ pub struct DKGFinishEvent {
 }
 
 impl MoveStructType for DKGFinishEvent {
-    const MODULE_NAME: &'static IdentStr = ident_str!("dkg");
+    const MODULE_NAME: &'static IdentStr = ident_str!("supra_dkg");
     const STRUCT_NAME: &'static IdentStr = ident_str!("DKGFinishEvent");
 }
 

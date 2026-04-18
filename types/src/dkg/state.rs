@@ -4,7 +4,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-// Reflection of `0x1::dkg::DKGSessionMetadata` in rust.
+// Reflection of `0x1::supra_dkg::DKGSessionMetadata` in rust.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DKGSessionMetadata {
     pub dealer_epoch: u64,
@@ -23,7 +23,7 @@ impl DKGSessionMetadata {
     }
 }
 
-/// Reflection of Move type `0x1::dkg::DKGSessionState`.
+/// Reflection of Move type `0x1::supra_dkg::DKGSessionState`.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DKGSessionState {
     pub metadata: DKGSessionMetadata,
@@ -37,7 +37,7 @@ impl DKGSessionState {
         self.metadata.dealer_epoch + 1
     }
 }
-/// Reflection of Move type `0x1::dkg::DKGState`.
+/// Reflection of Move type `0x1::supra_dkg::DKGState`.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DKGState {
     pub last_completed: Option<DKGSessionState>,
@@ -65,6 +65,6 @@ impl DKGState {
 }
 
 impl OnChainConfig for DKGState {
-    const MODULE_IDENTIFIER: &'static str = "dkg";
+    const MODULE_IDENTIFIER: &'static str = "supra_dkg";
     const TYPE_IDENTIFIER: &'static str = "DKGState";
 }

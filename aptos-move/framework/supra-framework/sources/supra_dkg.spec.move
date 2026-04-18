@@ -1,4 +1,4 @@
-spec supra_framework::dkg {
+spec supra_framework::supra_dkg {
 
     spec module {
         use supra_framework::chain_status;
@@ -14,15 +14,22 @@ spec supra_framework::dkg {
 
     spec start(
         dealer_epoch: u64,
-        randomness_config: RandomnessConfig,
-        dealer_validator_set: vector<ValidatorConsensusInfo>,
-        target_validator_set: vector<ValidatorConsensusInfo>
+        randomness_seed: vector<u8>,
+        dealer_committee: DkgCommittee,
+        target_committees: vector<ReceiverCommittee>
     ) {
         aborts_if !exists<DKGState>(@supra_framework);
         aborts_if !exists<timestamp::CurrentTimeMicroseconds>(@supra_framework);
     }
 
-    spec finish(transcript: vector<u8>) {
+    spec set_dkg_meta(dkg_meta_all_committees: vector<u8>) {
+        use std::option;
+        requires exists<DKGState>(@supra_framework);
+        requires option::is_some(global<DKGState>(@supra_framework).in_progress);
+        aborts_if false;
+    }
+
+    spec finish(target_committees_public_key_shares: vector<u8>) {
         use std::option;
         requires exists<DKGState>(@supra_framework);
         requires option::is_some(global<DKGState>(@supra_framework).in_progress);

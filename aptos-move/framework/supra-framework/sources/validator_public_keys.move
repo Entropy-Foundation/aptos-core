@@ -1,6 +1,5 @@
 // Copyright (c) 2024 Supra.
 module supra_framework::validator_public_keys {
-
     use std::bcs;
     use std::error;
     use std::option;
@@ -105,8 +104,7 @@ module supra_framework::validator_public_keys {
         supra_ed_key: ed25519::SecretKey,
     }
 
-    public fun validator_public_keys_from_bytes(bytes: vector<u8>): ValidatorPublicKeys{
-
+    public fun validator_public_keys_from_bytes(bytes: vector<u8>): ValidatorPublicKeys {
         // bcs deserialization
         let bytes_serialized = any::new(type_info::type_name<ValidatorPublicKeys>(), bytes);
         let validator_public_keys = any::unpack<ValidatorPublicKeys>(bytes_serialized);

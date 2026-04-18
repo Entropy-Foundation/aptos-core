@@ -12,8 +12,8 @@ spec supra_framework::reconfiguration_with_dkg {
         requires chain_status::is_operating();
         include stake::ResourceRequirement;
         include stake::GetReconfigStartTimeRequirement;
-        include features::spec_periodical_reward_rate_decrease_enabled(
-        ) ==> staking_config::StakingRewardsConfigEnabledRequirement;
+        include features::spec_periodical_reward_rate_decrease_enabled() ==>
+            staking_config::StakingRewardsConfigEnabledRequirement;
         aborts_if false;
         pragma verify_duration_estimate = 600; // TODO: set because of timeout (property proved).
     }
@@ -66,12 +66,10 @@ spec supra_framework::reconfiguration_with_dkg {
     }
 
     spec finish_with_dkg_result(account: &signer, dkg_result: vector<u8>) {
-        use supra_framework::dkg;
+        use supra_framework::supra_dkg;
         pragma verify_duration_estimate = 1500;
-        include FinishRequirement {
-            framework: account
-        };
-        requires dkg::has_incomplete_session();
+        include FinishRequirement { framework: account };
+        requires supra_dkg::has_incomplete_session();
         aborts_if false;
     }
 }

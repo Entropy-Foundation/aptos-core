@@ -44,6 +44,7 @@ module supra_framework::stake {
     friend supra_framework::transaction_fee;
     friend supra_framework::dkg;
     friend supra_framework::leader_ban_registry;
+    friend supra_framework::supra_dkg;
 
     #[test_only]
     friend supra_framework::test_leader_ban_registry;
@@ -698,20 +699,7 @@ module supra_framework::stake {
         network_addresses: vector<u8>,
         fullnode_addresses: vector<u8>
     ) acquires AllowedValidators {
-
-        // Checks the public key is valid to prevent rogue-key attacks.
-        if (std::features::supra_validator_identity_v2_enabled()) {
-            let _valid_public_key =
-                validator_public_keys::validator_public_keys_from_bytes(consensus_pubkey);
-        } else {
-            let valid_public_key =
-                ed25519::new_validated_public_key_from_bytes(consensus_pubkey);
-            assert!(
-                option::is_some(&valid_public_key),
-                error::invalid_argument(EINVALID_PUBLIC_KEY)
-            );
-        };
-
+        validate_consensus_public_key(consensus_pubkey);
         initialize_owner(account);
         move_to(
             account,
@@ -722,6 +710,36 @@ module supra_framework::stake {
                 validator_index: 0
             }
         );
+    }
+
+    // Checks the public key is valid to prevent rogue-key attacks.
+    //
+    // The deserializer for the new format currently doesn't offer a way for us to handle
+    // failure, so we expect the new format when the related feature flag has been active
+    // (the flag should only be activated after all validators have migrated to the new
+    // format) and fall back to the new format when deserialization fails before the flag
+    // has been activated.
+    fun validate_consensus_public_key(consensus_pubkey: vector<u8>) {
+        if (std::features::supra_validator_identity_v2_enabled()) {
+            // Expect the new format.
+            let _valid_public_key =
+                validator_public_keys::validator_public_keys_from_bytes(consensus_pubkey);
+        } else {
+            // Check the old format.
+            let maybe_valid_public_key =
+                ed25519::new_validated_public_key_from_bytes(consensus_pubkey);
+
+            if (option::is_none(&maybe_valid_public_key)) {
+                // Fall back to the new format. This enables validators to register their keys in
+                // the new format before the v2 feature flag is activated, which is safe because the
+                // new keys are a superset of the old and the consensus has logic for maintaining
+                // backwards compatibility.
+                let _valid_public_key =
+                    validator_public_keys::validator_public_keys_from_bytes(
+                        consensus_pubkey
+                    );
+            }
+        };
     }
 
     fun initialize_owner(owner: &signer) acquires AllowedValidators {
@@ -966,36 +984,8 @@ module supra_framework::stake {
         );
         let validator_info = borrow_global_mut<ValidatorConfig>(pool_address);
         let old_consensus_pubkey = validator_info.consensus_pubkey;
-        // Checks the public key is valid to prevent rogue-key attacks.
-        if (!genesis) {
-            if (std::features::supra_validator_identity_v2_enabled()) {
-                let _valid_public_key =
-                    validator_public_keys::validator_public_keys_from_bytes(
-                        new_consensus_pubkey
-                    );
-            } else {
-                let valid_public_key =
-                    ed25519::new_validated_public_key_from_bytes(new_consensus_pubkey);
-                assert!(
-                    option::is_some(&valid_public_key),
-                    error::invalid_argument(EINVALID_PUBLIC_KEY)
-                );
-            };
-        } else {
-            if (std::features::supra_validator_identity_v2_enabled()) {
-                let _valid_public_key =
-                    validator_public_keys::validator_public_keys_from_bytes(
-                        new_consensus_pubkey
-                    );
-            } else {
-                let valid_public_key =
-                    ed25519::new_validated_public_key_from_bytes(new_consensus_pubkey);
-                assert!(
-                    option::is_some(&valid_public_key),
-                    error::invalid_argument(EINVALID_PUBLIC_KEY)
-                );
-            };
-        };
+
+        validate_consensus_public_key(new_consensus_pubkey);
         validator_info.consensus_pubkey = new_consensus_pubkey;
 
         if (std::features::module_event_migration_enabled()) {
@@ -1704,7 +1694,7 @@ module supra_framework::stake {
     /// `pending_active` is iterated in reverse to match the order produced by `on_new_epoch`
     /// (which appends via `pop_back`).
     fun compute_next_validator_set_internal(
-        use_current_config_for_actives: bool,
+        use_current_config_for_actives: bool
     ): ValidatorSet acquires ValidatorSet, ValidatorPerformance, StakePool, ValidatorFees, ValidatorConfig {
         // Init.
         let cur_validator_set = borrow_global<ValidatorSet>(@supra_framework);
@@ -1751,14 +1741,15 @@ module supra_framework::stake {
             let cur_pending_active = coin::value(&stake_pool.pending_active);
             let cur_pending_inactive = coin::value(&stake_pool.pending_inactive);
 
-            let cur_reward = calculate_candidate_reward(
-                candidate,
-                candidate_in_current_validator_set,
-                cur_active,
-                validator_perf,
-                rewards_rate,
-                rewards_rate_denominator
-            );
+            let cur_reward =
+                calculate_candidate_reward(
+                    candidate,
+                    candidate_in_current_validator_set,
+                    cur_active,
+                    validator_perf,
+                    rewards_rate,
+                    rewards_rate_denominator
+                );
 
             let cur_fee = collect_candidate_fee(candidate.addr);
 
@@ -1779,7 +1770,8 @@ module supra_framework::stake {
 
             if (new_voting_power >= minimum_stake) {
                 let config =
-                    if (use_current_config_for_actives && candidate_in_current_validator_set) {
+                    if (use_current_config_for_actives
+                        && candidate_in_current_validator_set) {
                         // Use the current-epoch config snapshot so that any mid-epoch changes
                         // (consensus key, network addresses, etc.) only take effect after the
                         // epoch transition, not during DKG.
@@ -1824,17 +1816,19 @@ module supra_framework::stake {
         cur_active: u64,
         validator_perf: &ValidatorPerformance,
         rewards_rate: u64,
-        rewards_rate_denominator: u64,
+        rewards_rate_denominator: u64
     ): u64 {
         if (candidate_in_current_validator_set && cur_active != 0) {
             spec {
-                assert candidate.config.validator_index < len(validator_perf.validators);
+                assert candidate.config.validator_index
+                    < len(validator_perf.validators);
             };
             let cur_perf = vector::borrow(
                 &validator_perf.validators, candidate.config.validator_index
             );
             spec {
-                assume cur_perf.successful_proposals + cur_perf.failed_proposals <= MAX_U64;
+                assume cur_perf.successful_proposals + cur_perf.failed_proposals
+                    <= MAX_U64;
             };
             calculate_rewards_amount(
                 cur_active,
