@@ -48,6 +48,8 @@ const HAS_SENDER_ACTIVE_TASK_WITH_ID: &str =
     "0x1::automation_registry::has_sender_active_task_with_id";
 const GET_TASK_IDS: &str = "0x1::automation_registry::get_task_ids";
 
+const MAX_GAS_AMOUNT_REGISTRATION: u64 = 500_000_000;
+
 struct MultisigAccountData {
     multisig_address: AccountAddress,
     owners: Vec<AccountData>,
@@ -108,8 +110,8 @@ impl AutomationRegistrationTestContext {
 
     fn create_multisig_account_data(executor: &mut FakeExecutor) -> MultisigAccountData {
         // Prepare multisig_account for system task registration
-        let multisig_owner1 = executor.create_raw_account_data(1_000_000_000, 0);
-        let multisig_owner2 = executor.create_raw_account_data(1_000_000_000, 0);
+        let multisig_owner1 = executor.create_raw_account_data(1_000_000_000_000, 0);
+        let multisig_owner2 = executor.create_raw_account_data(1_000_000_000_000, 0);
         executor.add_account_data(&multisig_owner1);
         executor.add_account_data(&multisig_owner2);
         let multisig_address = create_multisig_account_address(
@@ -126,7 +128,7 @@ impl AutomationRegistrationTestContext {
         let account_create_txn = multisig_owner1
             .account()
             .transaction()
-            .max_gas_amount(1_000_000)
+            .max_gas_amount(5_000_000)
             .gas_unit_price(100)
             .payload(create_multisig_payload)
             .sequence_number(0)
@@ -136,7 +138,7 @@ impl AutomationRegistrationTestContext {
         let transfer_txn = multisig_owner1
             .account()
             .transaction()
-            .max_gas_amount(1000)
+            .max_gas_amount(5_000_000)
             .payload(aptos_stdlib::supra_account_transfer(
                 multisig_address,
                 10_000_000,
@@ -230,6 +232,7 @@ impl AutomationRegistrationTestContext {
             .payload(automation_txn)
             .sequence_number(seq_num)
             .gas_unit_price(1)
+            .max_gas_amount(MAX_GAS_AMOUNT_REGISTRATION)
             .sign()
     }
 
@@ -259,6 +262,7 @@ impl AutomationRegistrationTestContext {
             .payload(automation_txn)
             .sequence_number(seq_num)
             .gas_unit_price(1)
+            .max_gas_amount(MAX_GAS_AMOUNT_REGISTRATION)
             .sign()
     }
 
@@ -283,6 +287,7 @@ impl AutomationRegistrationTestContext {
             .payload(automation_txn)
             .sequence_number(seq_num)
             .gas_unit_price(1)
+            .max_gas_amount(MAX_GAS_AMOUNT_REGISTRATION)
             .sign()
     }
 
@@ -300,6 +305,7 @@ impl AutomationRegistrationTestContext {
             ))
             .sequence_number(seq_num)
             .gas_unit_price(1)
+            .max_gas_amount(MAX_GAS_AMOUNT_REGISTRATION)
             .sign()
     }
 

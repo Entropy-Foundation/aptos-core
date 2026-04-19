@@ -103,7 +103,7 @@ fn check_automated_transaction_successful_execution() {
     let payload =
         aptos_framework_sdk_builder::supra_account_transfer(dest_account.address().clone(), 100);
     let gas_price = 100;
-    let max_gas_amount = 100;
+    let max_gas_amount = 1000;
     let automation_fee_cap = 100_000;
 
     // Register automation task

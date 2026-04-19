@@ -10,21 +10,14 @@ use std::str::FromStr;
 use move_core_types::value::MoveValue;
 
 /// Evm Contract Names deployed by Supra at genesis or later to be part of Supra EVM main state.
-//  TODO: at runtime BlockMetadata, AutomationRegistry and maybe AutomationController is required
-//  The rest will not be utilized by node runtime. Should we keep for the sake of consistency between
-// persistent state and runtime state or we can
+/// Currently only system targeted contracts have dedicated enum variants, the rest will be stored
+/// as instance of [Self::Custom] variant.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash, PartialOrd, Ord)]
 pub enum EvmContractName {
-    Treasury = 0,
-    Erc20Treasury,
-    MultiSignatureWallet,
-    MultisigBeacon,
-    FoundationWallet,
-    Erc20Supra,
     BlockMetadata,
-    AutomationCore,
-    AutomationRegistry,
     AutomationController,
+    AutomationRegistry,
+    Custom(String),
 }
 
 impl FromStr for EvmContractName {
@@ -32,17 +25,10 @@ impl FromStr for EvmContractName {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "treasury" => Ok(EvmContractName::Treasury),
-            "erc20_treasury" => Ok(EvmContractName::Erc20Treasury),
-            "multi_signature_wallet" => Ok(EvmContractName::MultiSignatureWallet),
-            "multisig_beacon" => Ok(EvmContractName::MultisigBeacon),
-            "foundation_wallet" => Ok(EvmContractName::FoundationWallet),
-            "erc20_supra" => Ok(EvmContractName::Erc20Supra),
-            "block_metadata" => Ok(EvmContractName::BlockMetadata),
-            "automation_core" => Ok(EvmContractName::AutomationCore),
-            "automation_registry" => Ok(EvmContractName::AutomationRegistry),
-            "automation_controller" => Ok(EvmContractName::AutomationController),
-            _ => Err(anyhow::anyhow!("unknown evm contract name: {}", s)),
+            "BlockMetadata" => Ok(EvmContractName::BlockMetadata),
+            "AutomationCore" => Ok(EvmContractName::AutomationController),
+            "AutomationRegistry" => Ok(EvmContractName::AutomationRegistry),
+            n => Ok(EvmContractName::Custom(n.to_string())),
         }
     }
 }
@@ -50,16 +36,10 @@ impl FromStr for EvmContractName {
 impl Display for EvmContractName {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            EvmContractName::Treasury => write!(f, "treasury"),
-            EvmContractName::Erc20Treasury => write!(f, "erc20_treasury"),
-            EvmContractName::MultiSignatureWallet => write!(f, "multi_signature_wallet"),
-            EvmContractName::MultisigBeacon => write!(f, "multisig_beacon"),
-            EvmContractName::FoundationWallet => write!(f, "foundation_wallet"),
-            EvmContractName::Erc20Supra => write!(f, "erc20_supra"),
-            EvmContractName::BlockMetadata => write!(f, "block_metadata"),
-            EvmContractName::AutomationCore => write!(f, "automation_core"),
-            EvmContractName::AutomationRegistry => write!(f, "automation_registry"),
-            EvmContractName::AutomationController => write!(f, "automation_controller"),
+            EvmContractName::BlockMetadata => write!(f, "BlockMetadata"),
+            EvmContractName::AutomationController => write!(f, "AutomationCore"),
+            EvmContractName::AutomationRegistry => write!(f, "AutomationRegistry"),
+            EvmContractName::Custom(n) => write!(f, "{n}"),
         }
     }
 }
