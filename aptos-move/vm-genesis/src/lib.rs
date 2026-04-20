@@ -1326,6 +1326,7 @@ pub fn generate_test_genesis(
         b"test".to_vec(),
         None,
         None,
+        None,
     );
     (genesis, test_validators)
 }
@@ -1356,6 +1357,7 @@ pub fn generate_mainnet_genesis(
         &OnChainExecutionConfig::default_for_genesis(),
         &default_gas_schedule(),
         b"test".to_vec(),
+        None,
         None,
         None,
     );
