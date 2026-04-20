@@ -178,6 +178,7 @@ impl GenesisInfo {
             b"test".to_vec(),
             None,
             None,
+            None,
         )
     }
 
