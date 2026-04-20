@@ -131,13 +131,20 @@ impl OnChainConfig for OnChainEvmContractsDetails {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash, PartialOrd, Ord)]
 pub enum EvmScalarConfigKey {
     EvmGasNormalizationDenom,
+    EvmGasEstimateMargin,
+    EvmGasUsedRatio,
+    EvmGasUsedRatioDecimalPrecision,
 }
 
 impl EvmScalarConfigKey {
     /// The set of keys that MUST be present in the on-chain config.
     /// Deserialization hard-fails if any of these is missing.
     pub fn required_keys() -> &'static [EvmScalarConfigKey] {
-        &[EvmScalarConfigKey::EvmGasNormalizationDenom]
+        &[EvmScalarConfigKey::EvmGasNormalizationDenom, 
+          EvmScalarConfigKey::EvmGasEstimateMargin,
+          EvmScalarConfigKey::EvmGasUsedRatio,
+          EvmScalarConfigKey::EvmGasUsedRatioDecimalPrecision
+        ]
     }
 }
 
@@ -147,6 +154,9 @@ impl FromStr for EvmScalarConfigKey {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "evm_gas_normalization_denom" => Ok(EvmScalarConfigKey::EvmGasNormalizationDenom),
+            "evm_gas_estimate_margin" => Ok(EvmScalarConfigKey::EvmGasEstimateMargin),
+            "evm_gas_used_ratio" => Ok(EvmScalarConfigKey::EvmGasUsedRatio),
+            "evm_gas_used_ratio_decimal_precision" => Ok(EvmScalarConfigKey::EvmGasUsedRatioDecimalPrecision),
             _ => Err(anyhow::anyhow!("unknown evm scalar config key: {}", s)),
         }
     }
@@ -159,6 +169,15 @@ impl Display for EvmScalarConfigKey {
         match self {
             EvmScalarConfigKey::EvmGasNormalizationDenom => {
                 write!(f, "evm_gas_normalization_denom")
+            }
+            EvmScalarConfigKey::EvmGasEstimateMargin => {
+                write!(f, "evm_gas_estimate_margin")
+            }
+            EvmScalarConfigKey::EvmGasUsedRatio => {
+                write!(f, "evm_gas_used_ratio")
+            }
+            EvmScalarConfigKey::EvmGasUsedRatioDecimalPrecision => {
+                write!(f, "evm_gas_used_ratio_decimal_precision")
             }
         }
     }
@@ -190,6 +209,39 @@ impl OnChainEvmConfig {
             .get(&EvmScalarConfigKey::EvmGasNormalizationDenom)
             .copied()
             .ok_or_else(|| anyhow::anyhow!("evm_gas_normalization_denom not found in EvmScalarConfig"))
+    }
+
+    pub fn evm_gas_estimate_margin(&self) -> anyhow::Result<u64> {
+        self.config
+            .get(&EvmScalarConfigKey::EvmGasEstimateMargin)
+            .copied()
+            .and_then(|v| v.try_into().ok())
+            .ok_or_else(|| anyhow::anyhow!("evm_gas_estimate_margin not found in EvmScalarConfig"))
+    }
+
+    pub fn evm_gas_used_ratio(&self) -> anyhow::Result<f64> {
+        // Decimal is guaranteed to be non-zero due to validation in evm_config.move, so this division is safe.
+        let decimal = self.evm_gas_used_ratio_decimal_precision()?;
+        self.config
+            .get(&EvmScalarConfigKey::EvmGasUsedRatio)
+            .copied()
+            .and_then(|v| {
+                let ratio = v as f64 / decimal as f64;
+                if ratio > 0.0 {
+                    Some(ratio)
+                } else {
+                    None
+                }
+            })
+            .ok_or_else(|| anyhow::anyhow!("evm_gas_used_ratio not found in EvmScalarConfig"))
+    }
+
+    pub fn evm_gas_used_ratio_decimal_precision(&self) -> anyhow::Result<u64> {
+        self.config
+            .get(&EvmScalarConfigKey::EvmGasUsedRatioDecimalPrecision)
+            .copied()
+            .and_then(|v| v.try_into().ok())
+            .ok_or_else(|| anyhow::anyhow!("evm_gas_used_ratio_decimal_precision not found in EvmScalarConfig"))
     }
 
     pub fn to_move_values(self) -> (MoveValue, MoveValue) {
@@ -245,14 +297,28 @@ mod unit_tests {
 
     // -- Helpers ---------------------------------------------------------------
 
-    /// Returns a minimal `RawEvmScalarConfig` with `evm_gas_normalization_denom = denom`.
-    fn raw_evm_scalar_config_with_denom(denom: u128) -> RawEvmScalarConfig {
+    /// Returns a `RawEvmScalarConfig` with all four required keys populated.
+    /// Use this as the baseline for any test that needs a fully valid config.
+    fn raw_evm_scalar_config_all_keys(
+        denom: u128,
+        margin: u128,
+        gas_used_ratio: u128,
+        decimal_precision: u128,
+    ) -> RawEvmScalarConfig {
         RawEvmScalarConfig {
-            config: vec![(
-                "evm_gas_normalization_denom".to_string(),
-                denom,
-            )],
+            config: vec![
+                ("evm_gas_normalization_denom".to_string(), denom),
+                ("evm_gas_estimate_margin".to_string(), margin),
+                ("evm_gas_used_ratio".to_string(), gas_used_ratio),
+                ("evm_gas_used_ratio_decimal_precision".to_string(), decimal_precision),
+            ],
         }
+    }
+
+    /// Convenience wrapper with fixed margin/ratio/precision for tests that
+    /// only care about the denom value.
+    fn raw_evm_scalar_config_with_denom(denom: u128) -> RawEvmScalarConfig {
+        raw_evm_scalar_config_all_keys(denom, 500, 750, 1000)
     }
 
     // -- OnChainEvmConfig deserialization --------------------------------------
@@ -262,42 +328,125 @@ mod unit_tests {
         let bytes = bcs::to_bytes(&raw_evm_scalar_config_with_denom(100)).unwrap();
         let config = OnChainEvmConfig::deserialize_into_config(&bytes).unwrap();
         assert_eq!(config.evm_gas_normalization_denom().unwrap(), 100u128);
-        // Exactly one known key decoded - no phantom entries.
-        assert_eq!(config.config.len(), 1);
+        // All four required keys must be decoded - no phantom entries.
+        assert_eq!(config.config.len(), 4);
     }
 
     #[test]
     fn test_deserialize_evm_config_missing_required_key() {
-        // Empty config - required key is absent.
+        // Empty config - all required keys absent; the first one iterated
+        // (evm_gas_normalization_denom) must appear in the error.
         let raw = RawEvmScalarConfig { config: vec![] };
         let bytes = bcs::to_bytes(&raw).unwrap();
         let result = OnChainEvmConfig::deserialize_into_config(&bytes);
         assert!(result.is_err(), "expected Err when required key is missing");
-        // Error message must name the missing key so operators can act on it.
         assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("evm_gas_normalization_denom"),
+            result.unwrap_err().to_string().contains("evm_gas_normalization_denom"),
             "error should identify the missing key"
         );
+    }
+
+    #[test]
+    fn test_deserialize_evm_config_each_required_key_missing() {
+        // Every required key must be individually enforced: removing any single
+        // one must hard-fail with an error message that names that key.
+        let required = [
+            "evm_gas_normalization_denom",
+            "evm_gas_estimate_margin",
+            "evm_gas_used_ratio",
+            "evm_gas_used_ratio_decimal_precision",
+        ];
+        let full = raw_evm_scalar_config_all_keys(100, 500, 750, 1000);
+        for missing_key in &required {
+            let partial = RawEvmScalarConfig {
+                config: full
+                    .config
+                    .iter()
+                    .filter(|(k, _)| k != missing_key)
+                    .cloned()
+                    .collect(),
+            };
+            let bytes = bcs::to_bytes(&partial).unwrap();
+            let result = OnChainEvmConfig::deserialize_into_config(&bytes);
+            assert!(result.is_err(), "expected Err when '{}' is absent", missing_key);
+            assert!(
+                result.unwrap_err().to_string().contains(missing_key),
+                "error must name the missing key '{}'",
+                missing_key
+            );
+        }
     }
 
     #[test]
     fn test_deserialize_evm_config_unknown_key_skipped() {
         // Unknown keys must be silently dropped so an older node binary can still
         // read a config that was extended with new keys by a newer software version.
-        let raw = RawEvmScalarConfig {
-            config: vec![
-                ("evm_gas_normalization_denom".to_string(), 42u128),
-                ("completely_unknown_key".to_string(), 7u128),
-            ],
-        };
+        let mut raw = raw_evm_scalar_config_all_keys(42, 500, 750, 1000);
+        raw.config.push(("completely_unknown_key".to_string(), 7u128));
         let bytes = bcs::to_bytes(&raw).unwrap();
         let config = OnChainEvmConfig::deserialize_into_config(&bytes).unwrap();
         assert_eq!(config.evm_gas_normalization_denom().unwrap(), 42u128);
-        // Only the one known key should appear in the decoded map.
-        assert_eq!(config.config.len(), 1);
+        // Only the four known keys should appear; the unknown one is dropped.
+        assert_eq!(config.config.len(), 4);
+    }
+
+    // -- Accessor correctness --------------------------------------------------
+
+    #[test]
+    fn test_accessor_evm_gas_estimate_margin() {
+        let bytes = bcs::to_bytes(&raw_evm_scalar_config_all_keys(100, 1234, 750, 1000)).unwrap();
+        let config = OnChainEvmConfig::deserialize_into_config(&bytes).unwrap();
+        assert_eq!(config.evm_gas_estimate_margin().unwrap(), 1234u64);
+    }
+
+    #[test]
+    fn test_accessor_evm_gas_used_ratio_decimal_precision() {
+        let bytes = bcs::to_bytes(&raw_evm_scalar_config_all_keys(100, 500, 750, 2000)).unwrap();
+        let config = OnChainEvmConfig::deserialize_into_config(&bytes).unwrap();
+        assert_eq!(config.evm_gas_used_ratio_decimal_precision().unwrap(), 2000u64);
+    }
+
+    #[test]
+    fn test_accessor_evm_gas_used_ratio() {
+        // ratio=750, decimal_precision=1000 -> 750 / 1000 = 0.75
+        let bytes = bcs::to_bytes(&raw_evm_scalar_config_all_keys(100, 500, 750, 1000)).unwrap();
+        let config = OnChainEvmConfig::deserialize_into_config(&bytes).unwrap();
+        let ratio = config.evm_gas_used_ratio().unwrap();
+        assert!(
+            (ratio - 0.75f64).abs() < f64::EPSILON,
+            "expected 0.75, got {}",
+            ratio
+        );
+    }
+
+    // -- to_move_values --------------------------------------------------------
+
+    #[test]
+    fn test_to_move_values_structure() {
+        // to_move_values must produce two parallel MoveValue::Vector outputs:
+        // keys as vector<u8> (UTF-8 strings) and values as u128.
+        let config = OnChainEvmConfig {
+            config: [
+                (EvmScalarConfigKey::EvmGasNormalizationDenom, 42u128),
+                (EvmScalarConfigKey::EvmGasEstimateMargin, 500u128),
+                (EvmScalarConfigKey::EvmGasUsedRatio, 750u128),
+                (EvmScalarConfigKey::EvmGasUsedRatioDecimalPrecision, 1000u128),
+            ]
+            .into(),
+        };
+        let (keys_mv, values_mv) = config.to_move_values();
+        let MoveValue::Vector(keys) = keys_mv else {
+            panic!("expected MoveValue::Vector for keys")
+        };
+        let MoveValue::Vector(values) = values_mv else {
+            panic!("expected MoveValue::Vector for values")
+        };
+        assert_eq!(keys.len(), 4);
+        assert_eq!(values.len(), 4);
+        // Keys are encoded as vector<u8> (UTF-8 bytes).
+        assert!(matches!(keys[0], MoveValue::Vector(_)));
+        // Values are u128.
+        assert!(matches!(values[0], MoveValue::U128(_)));
     }
 
     // -- OnChainEvmContractsDetails round-trip ---------------------------------
@@ -313,18 +462,12 @@ mod unit_tests {
         let original = OnChainEvmContractsDetails {
             name_to_addresses: [(EvmContractName::BlockMetadata, evm_bytes)].into(),
         };
-
-        // Build the AccountAddress as to_move_values produces it on the wire.
         let mut padded = [0u8; AccountAddress::LENGTH];
         padded[AccountAddress::LENGTH - EVM_ADDRESS_LENGTH..].copy_from_slice(&evm_bytes);
-        let on_chain_addr = AccountAddress::from(padded);
-
-        // BCS-encode the on-chain representation (SimpleMap -> Vec<(K, V)>).
         let raw = EvmContractsDetails {
-            details: vec![("BlockMetadata".to_string(), on_chain_addr)],
+            details: vec![("BlockMetadata".to_string(), AccountAddress::from(padded))],
         };
         let bytes = bcs::to_bytes(&raw).unwrap();
-
         let recovered = OnChainEvmContractsDetails::deserialize_into_config(&bytes).unwrap();
         assert_eq!(recovered, original);
     }
@@ -339,7 +482,6 @@ mod unit_tests {
         let mut map = HashMap::new();
         map.insert(OnChainEvmConfig::CONFIG_ID, bytes);
         let provider = InMemoryOnChainConfig::new(map);
-
         let config = provider.get::<OnChainEvmConfig>().unwrap();
         assert_eq!(config.evm_gas_normalization_denom().unwrap(), 999u128);
     }
@@ -353,16 +495,13 @@ mod unit_tests {
         ];
         let mut padded = [0u8; AccountAddress::LENGTH];
         padded[AccountAddress::LENGTH - EVM_ADDRESS_LENGTH..].copy_from_slice(&evm_bytes);
-
         let raw = EvmContractsDetails {
             details: vec![("BlockMetadata".to_string(), AccountAddress::from(padded))],
         };
         let bytes = bcs::to_bytes(&raw).unwrap();
-
         let mut map = HashMap::new();
         map.insert(OnChainEvmContractsDetails::CONFIG_ID, bytes);
         let provider = InMemoryOnChainConfig::new(map);
-
         let recovered = provider.get::<OnChainEvmContractsDetails>().unwrap();
         assert_eq!(recovered.get(EvmContractName::BlockMetadata), Some(&evm_bytes));
     }

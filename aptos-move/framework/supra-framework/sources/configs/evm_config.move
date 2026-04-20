@@ -32,9 +32,21 @@ module supra_framework::evm_config {
     /// Resource already exist at address
     const ERESOURCE_ALREADY_EXISTS: u64 = 6;
 
+    /// gas used ratio cannot exceed decimal precision
+    const EGAS_USED_RATIO_CANNOT_EXCEED_DECIMAL_PRECISION: u64 = 7;
+
     /// Well-known config key for the EVM gas normalisation denominator.
     /// This u64 value is used to scale EVM gas units into Supra gas units.
     const CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM: vector<u8> = b"evm_gas_normalization_denom";
+
+    /// Supra EVM Gas Estimate Margin
+    const CONFIG_KEY_EVM_GAS_ESTIMATE_MARGIN: vector<u8> = b"evm_gas_estimate_margin";
+
+    /// Supra EVM Gas Used Ratio
+    const SUPRA_EVM_GAS_USED_RATIO : vector<u8> = b"evm_gas_used_ratio";
+
+    /// DECIMAL_PRECISION
+    const SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION: vector<u8> = b"evm_gas_used_ratio_decimal_precision";
 
     /// Evm and Move address length
     const EVM_ADDRESS_BYTE_LENGTH : u64 = 12;
@@ -201,15 +213,21 @@ module supra_framework::evm_config {
     }
 
     fun validate_scalar_config(evm_config: &EvmScalarConfig) {
-        let required_keys = vector[string::utf8(CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM)];
+        let required_keys = vector[string::utf8(CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM),
+                                   string::utf8(CONFIG_KEY_EVM_GAS_ESTIMATE_MARGIN),
+                                   string::utf8(SUPRA_EVM_GAS_USED_RATIO),
+                                   string::utf8(SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION)];
         // With u128 as the value type, the Move type system prevents type mismatches at
         // compile time. The only meaningful runtime check is key presence.
         vector::for_each_reverse(required_keys, |rk| {
-            assert!(
-                simple_map::contains_key<String, u128>(&evm_config.config, &rk),
+            assert!(simple_map::contains_key(&evm_config.config, &rk),
                 error::invalid_argument(EMISSING_KEY_OR_INCORRECT_VAL_TYPE)
             );
+            assert!(*simple_map::borrow(&evm_config.config, &rk) > 0u128, error::invalid_argument(EMISSING_KEY_OR_INCORRECT_VAL_TYPE));
         });
+        let gas_used_ratio = *simple_map::borrow(&evm_config.config, &string::utf8(SUPRA_EVM_GAS_USED_RATIO));
+        let gas_used_ratio_decimal_precision = *simple_map::borrow(&evm_config.config, &string::utf8(SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION));
+        assert!(gas_used_ratio <= gas_used_ratio_decimal_precision, error::invalid_argument(EGAS_USED_RATIO_CANNOT_EXCEED_DECIMAL_PRECISION));
     }
 
     fun is_valid_evm_address(addr: &address): bool {
@@ -379,8 +397,13 @@ module supra_framework::evm_config {
     /// key and a plain u128 value must pass validation.
     fun test_validate_config_success() {
         let config_key = std::string::utf8(CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM);
+        let estimate_margin_key = std::string::utf8(CONFIG_KEY_EVM_GAS_ESTIMATE_MARGIN);
+        let gas_used_ratio_key = std::string::utf8(SUPRA_EVM_GAS_USED_RATIO);
+        let decimal_precision_key = std::string::utf8(SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION);
+        
+
         let evm_config = EvmScalarConfig {
-            config: simple_map::new_from(vector[config_key], vector[100u128])
+            config: simple_map::new_from(vector[config_key, estimate_margin_key, gas_used_ratio_key, decimal_precision_key], vector[100u128, 1000u128, 500u128, 1000u128])
         };
         // Must complete without aborting.
         validate_scalar_config(&evm_config);
@@ -422,5 +445,26 @@ module supra_framework::evm_config {
         upsert_evm_contract_details_for_next_epoch(&supra_framework, keys, values);
     }
 
+    #[test(supra_framework = @supra_framework)]
+    /// Failure test: validate_scalar_config aborts when gas used ratio exceeds decimal precision.
+    ///
+    /// The config includes all required keys, but the value for SUPRA_EVM_GAS_USED_RATIO (500) exceeds the value for SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION (1000), which is not logically valid.  Validation must abort with
+    /// error::invalid_argument(EGAS_USED_RATIO_CANNOT_EXCEED_DECIMAL_PRECISION)
+    /// = (INVALID_ARGUMENT_CATEGORY=1 << 16) | EGAS_USED_RATIO_CANNOT_EXCEED_DECIMAL_PRECISION=7 = 0x10007.
+    #[expected_failure(abort_code = 0x10007, location = supra_framework::evm_config)]
+    fun test_validate_config_gas_used_ratio_exceeds_decimal_precision() {
+        let config_key = std::string::utf8(CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM);
+        let estimate_margin_key = std::string::utf8(CONFIG_KEY_EVM_GAS_ESTIMATE_MARGIN);
+        let gas_used_ratio_key = std::string::utf8(SUPRA_EVM_GAS_USED_RATIO);
+        let decimal_precision_key = std::string::utf8(SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION);
+        let evm_config = EvmScalarConfig {
+            config: simple_map::new_from(
+                vector[config_key, estimate_margin_key, gas_used_ratio_key, decimal_precision_key],
+                vector[100u128, 1000u128, 1500u128, 1000u128] // gas used ratio exceeds decimal precision -> must abort
+            )
+        };
+        validate_scalar_config(&evm_config);        
+
+}
 
 }

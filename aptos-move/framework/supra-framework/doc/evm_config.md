@@ -103,6 +103,16 @@ Requested key does not exist in the map
 
 
 
+<a id="0x1_evm_config_CONFIG_KEY_EVM_GAS_ESTIMATE_MARGIN"></a>
+
+Supra EVM Gas Estimate Margin
+
+
+<pre><code><b>const</b> <a href="evm_config.md#0x1_evm_config_CONFIG_KEY_EVM_GAS_ESTIMATE_MARGIN">CONFIG_KEY_EVM_GAS_ESTIMATE_MARGIN</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; = [101, 118, 109, 95, 103, 97, 115, 95, 101, 115, 116, 105, 109, 97, 116, 101, 95, 109, 97, 114, 103, 105, 110];
+</code></pre>
+
+
+
 <a id="0x1_evm_config_CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM"></a>
 
 Well-known config key for the EVM gas normalisation denominator.
@@ -179,6 +189,26 @@ Evm and Move address length
 
 
 <pre><code><b>const</b> <a href="evm_config.md#0x1_evm_config_MOVE_ADDRESS_BYTE_LENGTH">MOVE_ADDRESS_BYTE_LENGTH</a>: u64 = 32;
+</code></pre>
+
+
+
+<a id="0x1_evm_config_SUPRA_EVM_GAS_USED_RATIO"></a>
+
+Supra EVM Gas Used Ratio
+
+
+<pre><code><b>const</b> <a href="evm_config.md#0x1_evm_config_SUPRA_EVM_GAS_USED_RATIO">SUPRA_EVM_GAS_USED_RATIO</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; = [101, 118, 109, 95, 103, 97, 115, 95, 117, 115, 101, 100, 95, 114, 97, 116, 105, 111];
+</code></pre>
+
+
+
+<a id="0x1_evm_config_SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION"></a>
+
+DECIMAL_PRECISION
+
+
+<pre><code><b>const</b> <a href="evm_config.md#0x1_evm_config_SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION">SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; = [101, 118, 109, 95, 103, 97, 115, 95, 117, 115, 101, 100, 95, 114, 97, 116, 105, 111, 95, 100, 101, 99, 105, 109, 97, 108, 95, 112, 114, 101, 99, 105, 115, 105, 111, 110];
 </code></pre>
 
 
@@ -446,14 +476,17 @@ is not present in the map.
 
 
 <pre><code><b>fun</b> <a href="evm_config.md#0x1_evm_config_validate_scalar_config">validate_scalar_config</a>(<a href="evm_config.md#0x1_evm_config">evm_config</a>: &<a href="evm_config.md#0x1_evm_config_EvmScalarConfig">EvmScalarConfig</a>) {
-    <b>let</b> required_keys = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(<a href="evm_config.md#0x1_evm_config_CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM">CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM</a>)];
+    <b>let</b> required_keys = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(<a href="evm_config.md#0x1_evm_config_CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM">CONFIG_KEY_EVM_GAS_NORMALIZATION_DENOM</a>),
+                               <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(<a href="evm_config.md#0x1_evm_config_CONFIG_KEY_EVM_GAS_ESTIMATE_MARGIN">CONFIG_KEY_EVM_GAS_ESTIMATE_MARGIN</a>),
+                               <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(<a href="evm_config.md#0x1_evm_config_SUPRA_EVM_GAS_USED_RATIO">SUPRA_EVM_GAS_USED_RATIO</a>),
+                               <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_utf8">string::utf8</a>(<a href="evm_config.md#0x1_evm_config_SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION">SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION</a>)];
     // With u128 <b>as</b> the value type, the Move type system prevents type mismatches at
     // compile time. The only meaningful runtime check is key presence.
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each_reverse">vector::for_each_reverse</a>(required_keys, |rk| {
-        <b>assert</b>!(
-            <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>&lt;String, u128&gt;(&<a href="evm_config.md#0x1_evm_config">evm_config</a>.config, &rk),
+        <b>assert</b>!(<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>(&<a href="evm_config.md#0x1_evm_config">evm_config</a>.config, &rk),
             <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EMISSING_KEY_OR_INCORRECT_VAL_TYPE">EMISSING_KEY_OR_INCORRECT_VAL_TYPE</a>)
         );
+        <b>assert</b>!(*<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow">simple_map::borrow</a>(&<a href="evm_config.md#0x1_evm_config">evm_config</a>.config, &rk) &gt; 0u128, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EMISSING_KEY_OR_INCORRECT_VAL_TYPE">EMISSING_KEY_OR_INCORRECT_VAL_TYPE</a>));
     });
 }
 </code></pre>
