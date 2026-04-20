@@ -178,7 +178,7 @@ struct RawEvmScalarConfig {
 // -- OnChainEvmConfig ----------------------------------------------------------
 
 /// The decoded, type-safe representation of the on-chain `EvmScalarConfig` resource.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OnChainEvmConfig {
     pub config: BTreeMap<EvmScalarConfigKey, u128>,
 }
@@ -200,20 +200,6 @@ impl OnChainEvmConfig {
             )
         }).unzip();
         (MoveValue::Vector(keys), MoveValue::Vector(values))
-    }
-}
-
-// `OnChainConfig` requires `DeserializeOwned` as a supertrait, but
-// `OnChainEvmConfig` uses a fully custom `deserialize_into_config` path
-// (parsing via `RawEvmScalarConfig`) so the standard serde path is never used.
-// A manual impl that returns a clear error satisfies the bound without
-// silently producing wrong data.
-impl<'de> serde::Deserialize<'de> for OnChainEvmConfig {
-    fn deserialize<D: serde::Deserializer<'de>>(_deserializer: D) -> Result<Self, D::Error> {
-        Err(serde::de::Error::custom(
-            "OnChainEvmConfig cannot be deserialised directly via serde; \
-             use OnChainConfig::deserialize_into_config instead",
-        ))
     }
 }
 
