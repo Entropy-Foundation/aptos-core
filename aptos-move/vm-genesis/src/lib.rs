@@ -351,10 +351,8 @@ pub fn encode_genesis_change_set_for_testnet(
         initialize_evm_genesis_config(&mut session, &evm_genesis_config);
     }
 
-    if let Some(evm_contracts_details) = evm_contracts_details {
-        if let Some(evm_scalar_config) = evm_scalar_config {
-            initialize_evm_config(&mut session, evm_contracts_details, evm_scalar_config);
-        } 
+    if let (Some(evm_contracts_details), Some(evm_scalar_config)) = (evm_contracts_details, evm_scalar_config) {
+        initialize_evm_config(&mut session, evm_contracts_details, evm_scalar_config);
     }
 
     create_accounts(&mut session, accounts);
