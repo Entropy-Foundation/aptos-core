@@ -839,6 +839,22 @@ module std::features {
         is_enabled(SUPRA_TRANSACTIONS_INCLUSION_PROOFS)
     }
 
+    /// Whether smart contracts can register automation tasks via `register_without_validation`,
+    /// using the `get_txn_app_hash` native to obtain the registering transaction's hash.
+    /// Must only be enabled after all nodes have upgraded to the binary that implements
+    /// the `get_txn_app_hash_internal` native function.
+    ///
+    /// Lifetime: transient
+    const SUPRA_AUTOMATION_V2_1: u64 = 101;
+
+    public fun get_supra_automation_v2_1_feature(): u64 {
+        SUPRA_AUTOMATION_V2_1
+    }
+
+    public fun supra_automation_v2_1_enabled(): bool acquires Features {
+        is_enabled(SUPRA_AUTOMATION_V2_1)
+    }
+
     // ============================================================================================
     // Feature Flag Implementation
 

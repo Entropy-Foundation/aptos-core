@@ -116,6 +116,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `monitor_cycle_end`](#0x1_automation_registry_monitor_cycle_end)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
 -  [Function `register`](#0x1_automation_registry_register)
+-  [Function `register_without_validation`](#0x1_automation_registry_register_without_validation)
 -  [Function `register_system_task`](#0x1_automation_registry_register_system_task)
 -  [Function `process_tasks`](#0x1_automation_registry_process_tasks)
 -  [Function `on_cycle_transition`](#0x1_automation_registry_on_cycle_transition)
@@ -187,6 +188,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 <b>use</b> <a href="supra_coin.md#0x1_supra_coin">0x1::supra_coin</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="timestamp.md#0x1_timestamp">0x1::timestamp</a>;
+<b>use</b> <a href="transaction_context.md#0x1_transaction_context">0x1::transaction_context</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 <b>use</b> <a href="../../supra-stdlib/doc/vector_utils.md#0x1_vector_utils">0x1::vector_utils</a>;
 </code></pre>
@@ -5442,6 +5444,62 @@ Registers a new automation task entry.
         locked_deposit_fee: automation_fee_cap_for_epoch
     });
     <a href="event.md#0x1_event_emit">event::emit</a>(automation_task_metadata);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_register_without_validation"></a>
+
+## Function `register_without_validation`
+
+Registers a new automation task from a smart contract call.
+
+Unlike the <code>AutomationRegistrationPayload</code> transaction path (which calls the private
+<code>register</code> via the VM and performs full payload validation before execution), this
+function does NOT validate that <code>payload_tx</code> encodes a well-formed entry function with
+correct parameter types. If the payload is malformed, the task will fail silently at
+execution time and the caller will have paid registration and deposit fees for nothing.
+The caller is responsible for providing a valid BCS-encoded <code>EntryFunction</code> payload.
+
+The <code>txn_app_hash</code> (Keccak-256 hash of the outer signed transaction) is obtained
+automatically from the native context rather than being supplied by the caller.
+
+Requires both <code>supra_native_automation_enabled</code> and <code>supra_automation_v2_1_enabled</code>.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register_without_validation">register_without_validation</a>(owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, expiry_time: u64, max_gas_amount: u64, gas_price_cap: u64, automation_fee_cap_for_epoch: u64, aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register_without_validation">register_without_validation</a>(
+    owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    expiry_time: u64,
+    max_gas_amount: u64,
+    gas_price_cap: u64,
+    automation_fee_cap_for_epoch: u64,
+    aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_automation_v2_1_enabled">features::supra_automation_v2_1_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>);
+    <b>let</b> tx_hash = supra_framework::transaction_context::get_txn_app_hash();
+    <a href="automation_registry.md#0x1_automation_registry_register">register</a>(
+        owner_signer,
+        payload_tx,
+        expiry_time,
+        max_gas_amount,
+        gas_price_cap,
+        automation_fee_cap_for_epoch,
+        tx_hash,
+        aux_data,
+    )
 }
 </code></pre>
 

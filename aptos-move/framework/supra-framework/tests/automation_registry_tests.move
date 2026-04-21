@@ -4426,4 +4426,61 @@ module std::automation_registry_tests {
         assert!(automation_registry::is_authorized_account(multisig_address2), 4);
     }
 
+    // -------------------------------------------------------------------------
+    // Tests for register_without_validation (SUPRA_AUTOMATION_V2_1 feature)
+    // -------------------------------------------------------------------------
+
+    /// `register_without_validation` must abort with EDISABLED_AUTOMATION_FEATURE when
+    /// SUPRA_AUTOMATION_V2_1 is not enabled.  SUPRA_NATIVE_AUTOMATION and SUPRA_AUTOMATION_V2
+    /// are both enabled by `initialize_registry_test`, but V2_1 is deliberately omitted.
+    #[test(supra_framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = EDISABLED_AUTOMATION_FEATURE, location = automation_registry)]
+    fun test_register_without_validation_v2_1_feature_disabled(
+        supra_framework: &signer,
+        user: &signer,
+    ) {
+        initialize_registry_test(supra_framework, user);
+        // Expiry must be after the current time plus at least one cycle duration.
+        let expiry_time = EPOCH_INTERVAL_FOR_TEST_IN_SECS + 86400;
+        automation_registry::register_without_validation(
+            user,
+            PAYLOAD,
+            expiry_time,
+            10_000,
+            100,
+            1_000,
+            AUX_DATA,
+        );
+    }
+
+    /// When SUPRA_AUTOMATION_V2_1 is enabled, `register_without_validation` calls
+    /// `get_txn_app_hash()` which requires a real user transaction context.  In a Move unit
+    /// test that context does not exist, so the native function aborts with
+    /// error::invalid_state(ETRANSACTION_CONTEXT_NOT_AVAILABLE) = 196609.
+    #[test(supra_framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = 196609, location = supra_framework::transaction_context)]
+    fun test_register_without_validation_aborts_outside_txn_context(
+        supra_framework: &signer,
+        user: &signer,
+    ) {
+        initialize_registry_test(supra_framework, user);
+        // Enable V2_1 so the feature guard passes; the native should then abort because
+        // there is no real user transaction context in a unit test.
+        toggle_custom_feature_flags(
+            supra_framework,
+            vector[features::get_supra_automation_v2_1_feature()],
+            true,
+        );
+        let expiry_time = EPOCH_INTERVAL_FOR_TEST_IN_SECS + 86400;
+        automation_registry::register_without_validation(
+            user,
+            PAYLOAD,
+            expiry_time,
+            10_000,
+            100,
+            1_000,
+            AUX_DATA,
+        );
+    }
+
 }

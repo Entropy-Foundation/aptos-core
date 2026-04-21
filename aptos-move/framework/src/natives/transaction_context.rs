@@ -379,6 +379,45 @@ fn get_user_transaction_context_opt_from_context<'a>(
 }
 
 /***************************************************************************************************
+ * native fun get_txn_app_hash_internal
+ *
+ *   gas cost: base_cost
+ *
+ * Returns the Keccak-256 hash of the current signed transaction (txn_app_hash).
+ * Aborts if SUPRA_AUTOMATION_V2_1 is not enabled — this guards against the framework being
+ * upgraded ahead of the binary, which would otherwise leave a dangling native reference.
+ * Also aborts if called outside a user transaction context (e.g. system or view sessions).
+ *
+ **************************************************************************************************/
+fn native_get_txn_app_hash_internal(
+    context: &mut SafeNativeContext,
+    _ty_args: Vec<Type>,
+    _args: VecDeque<Value>,
+) -> SafeNativeResult<SmallVec<[Value; 1]>> {
+    // Guard against binary/framework version mismatch: if the node binary does not yet include
+    // this native but the framework already declares it, the feature flag will be off and this
+    // abort is the safe fallback rather than a missing-native panic.
+    if !context.get_feature_flags().is_supra_automation_v2_1_enabled() {
+        return Err(SafeNativeError::Abort {
+            abort_code: error::invalid_state(abort_codes::ETRANSACTION_CONTEXT_NOT_AVAILABLE),
+        });
+    }
+
+    context.charge(TRANSACTION_CONTEXT_GET_TXN_APP_HASH_BASE)?;
+
+    let user_transaction_context_opt = get_user_transaction_context_opt_from_context(context);
+    if let Some(txn_context) = user_transaction_context_opt {
+        Ok(smallvec![Value::vector_u8(
+            txn_context.txn_app_hash().to_vec()
+        )])
+    } else {
+        Err(SafeNativeError::Abort {
+            abort_code: error::invalid_state(abort_codes::ETRANSACTION_CONTEXT_NOT_AVAILABLE),
+        })
+    }
+}
+
+/***************************************************************************************************
  * module
  *
  **************************************************************************************************/
@@ -405,6 +444,10 @@ pub fn make_all(
         (
             "multisig_payload_internal",
             native_multisig_payload_internal,
+        ),
+        (
+            "get_txn_app_hash_internal",
+            native_get_txn_app_hash_internal,
         ),
     ];
 

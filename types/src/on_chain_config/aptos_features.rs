@@ -104,6 +104,10 @@ pub enum FeatureFlag {
     /// The default DKG configuration also requires `SUPRA_BCFT_CERTIFICATES` to be enabled first.
     SUPRA_DKG = 99,
     SUPRA_TRANSACTIONS_INCLUSION_PROOFS = 100,
+    /// Enables smart contracts to register automation tasks via `register_without_validation`,
+    /// exposing `txn_app_hash` through a new native function. Must be enabled only after all
+    /// nodes have the binary that implements the native.
+    SUPRA_AUTOMATION_V2_1 = 101,
 }
 
 //TODO: add dkg feature
@@ -338,6 +342,10 @@ impl Features {
         } else {
             file_format_common::VERSION_5
         }
+    }
+
+    pub fn is_supra_automation_v2_1_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2_1)
     }
 }
 

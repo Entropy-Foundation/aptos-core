@@ -177,6 +177,10 @@ impl TransactionMetadata {
                 PayloadTypeReferenceContext::AutomationRegistration
             },
         };
+        // Safe: txn_app_hash is always populated from HashValue::keccak_256_of or txn.hash(),
+        // both of which produce exactly 32 bytes.
+        let txn_app_hash: [u8; 32] = self.txn_app_hash.as_slice().try_into()
+            .expect("txn_app_hash is always a 32-byte Keccak-256 hash");
         UserTransactionContext::new(
             self.sender,
             self.secondary_signers.clone(),
@@ -185,6 +189,7 @@ impl TransactionMetadata {
             self.gas_unit_price.into(),
             self.chain_id.id(),
             payload_type_reference,
+            txn_app_hash,
         )
     }
 }

@@ -37,6 +37,8 @@
 -  [Function `args`](#0x1_transaction_context_args)
 -  [Function `multisig_payload`](#0x1_transaction_context_multisig_payload)
 -  [Function `multisig_payload_internal`](#0x1_transaction_context_multisig_payload_internal)
+-  [Function `get_txn_app_hash`](#0x1_transaction_context_get_txn_app_hash)
+-  [Function `get_txn_app_hash_internal`](#0x1_transaction_context_get_txn_app_hash_internal)
 -  [Function `multisig_address`](#0x1_transaction_context_multisig_address)
 -  [Function `inner_entry_function_payload`](#0x1_transaction_context_inner_entry_function_payload)
 -  [Specification](#@Specification_1)
@@ -907,6 +909,56 @@ This function aborts if called outside of the transaction prologue, execution, o
 
 
 <pre><code><b>native</b> <b>fun</b> <a href="transaction_context.md#0x1_transaction_context_multisig_payload_internal">multisig_payload_internal</a>(): Option&lt;<a href="transaction_context.md#0x1_transaction_context_MultisigPayload">MultisigPayload</a>&gt;;
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_transaction_context_get_txn_app_hash"></a>
+
+## Function `get_txn_app_hash`
+
+Returns the Keccak-256 hash of the current signed transaction (the <code>txn_app_hash</code>).
+This is distinct from <code><a href="transaction_context.md#0x1_transaction_context_get_transaction_hash">get_transaction_hash</a>()</code>, which returns the session UUID hash.
+Aborts if called outside a user transaction context or if SUPRA_AUTOMATION_V2_1 is not enabled.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="transaction_context.md#0x1_transaction_context_get_txn_app_hash">get_txn_app_hash</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="transaction_context.md#0x1_transaction_context_get_txn_app_hash">get_txn_app_hash</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_automation_v2_1_enabled">features::supra_automation_v2_1_enabled</a>(), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="transaction_context.md#0x1_transaction_context_ETRANSACTION_CONTEXT_NOT_AVAILABLE">ETRANSACTION_CONTEXT_NOT_AVAILABLE</a>));
+    <a href="transaction_context.md#0x1_transaction_context_get_txn_app_hash_internal">get_txn_app_hash_internal</a>()
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_transaction_context_get_txn_app_hash_internal"></a>
+
+## Function `get_txn_app_hash_internal`
+
+
+
+<pre><code><b>fun</b> <a href="transaction_context.md#0x1_transaction_context_get_txn_app_hash_internal">get_txn_app_hash_internal</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>native</b> <b>fun</b> <a href="transaction_context.md#0x1_transaction_context_get_txn_app_hash_internal">get_txn_app_hash_internal</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;;
 </code></pre>
 
 

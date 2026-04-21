@@ -1886,6 +1886,42 @@ module supra_framework::automation_registry {
         event::emit(automation_task_metadata);
     }
 
+    /// Registers a new automation task from a smart contract call.
+    ///
+    /// Unlike the `AutomationRegistrationPayload` transaction path (which calls the private
+    /// `register` via the VM and performs full payload validation before execution), this
+    /// function does NOT validate that `payload_tx` encodes a well-formed entry function with
+    /// correct parameter types. If the payload is malformed, the task will fail silently at
+    /// execution time and the caller will have paid registration and deposit fees for nothing.
+    /// The caller is responsible for providing a valid BCS-encoded `EntryFunction` payload.
+    ///
+    /// The `txn_app_hash` (Keccak-256 hash of the outer signed transaction) is obtained
+    /// automatically from the native context rather than being supplied by the caller.
+    ///
+    /// Requires both `supra_native_automation_enabled` and `supra_automation_v2_1_enabled`.
+    public fun register_without_validation(
+        owner_signer: &signer,
+        payload_tx: vector<u8>,
+        expiry_time: u64,
+        max_gas_amount: u64,
+        gas_price_cap: u64,
+        automation_fee_cap_for_epoch: u64,
+        aux_data: vector<vector<u8>>
+    ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2, AutomationRefundBookkeeping {
+        assert!(features::supra_automation_v2_1_enabled(), EDISABLED_AUTOMATION_FEATURE);
+        let tx_hash = supra_framework::transaction_context::get_txn_app_hash();
+        register(
+            owner_signer,
+            payload_tx,
+            expiry_time,
+            max_gas_amount,
+            gas_price_cap,
+            automation_fee_cap_for_epoch,
+            tx_hash,
+            aux_data,
+        )
+    }
+
     /// Registers a new system automation task entry.
     /// Note, system tasks are not charged registration and deposit fee.
     fun register_system_task(
