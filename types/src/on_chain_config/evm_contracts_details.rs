@@ -26,7 +26,7 @@ impl FromStr for EvmContractName {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "BlockMetadata" => Ok(EvmContractName::BlockMetadata),
-            "AutomationCore" => Ok(EvmContractName::AutomationController),
+            "AutomationController" => Ok(EvmContractName::AutomationController),
             "AutomationRegistry" => Ok(EvmContractName::AutomationRegistry),
             n => Ok(EvmContractName::Custom(n.to_string())),
         }
@@ -37,7 +37,7 @@ impl Display for EvmContractName {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             EvmContractName::BlockMetadata => write!(f, "BlockMetadata"),
-            EvmContractName::AutomationController => write!(f, "AutomationCore"),
+            EvmContractName::AutomationController => write!(f, "AutomationController"),
             EvmContractName::AutomationRegistry => write!(f, "AutomationRegistry"),
             EvmContractName::Custom(n) => write!(f, "{n}"),
         }
