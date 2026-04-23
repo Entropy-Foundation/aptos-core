@@ -1,2 +1,2 @@
-Copyright (c) Supra.
+Copyright © Supra.
 SPDX-License-Identifier: Apache-2.0

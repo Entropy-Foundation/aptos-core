@@ -738,6 +738,7 @@ impl AptosVM {
         traversal_context: &mut TraversalContext,
         senders: Vec<AccountAddress>,
         script: &Script,
+        is_approved_gov_script: bool,
     ) -> Result<(), VMStatus> {
         // Note: Feature gating is needed here because the traversal of the dependencies could
         //       result in shallow-loading of the modules and therefore subtle changes in
@@ -766,6 +767,12 @@ impl AptosVM {
             &func,
             self.features().is_enabled(FeatureFlag::STRUCT_CONSTRUCTORS),
         )?;
+
+        if is_approved_gov_script {
+            // If governance is honest then it will not attempt test-and-abort attacks to abuse
+            // randomness.
+            self.mark_unbiasable(session);
+        }
 
         session.execute_script(
             script.code(),
@@ -839,6 +846,7 @@ impl AptosVM {
         log_context: &AdapterLogSchema,
         new_published_modules_loaded: &mut bool,
         change_set_configs: &ChangeSetConfigs,
+        is_approved_gov_script: bool,
     ) -> Result<(VMStatus, VMOutput), VMStatus> {
         fail_point!("aptos_vm::execute_script_or_entry_function", |_| {
             Err(VMStatus::Error {
@@ -862,6 +870,7 @@ impl AptosVM {
                         traversal_context,
                         txn_data.senders(),
                         script,
+                        is_approved_gov_script,
                     )
                 })?;
             },
@@ -1844,6 +1853,12 @@ impl AptosVM {
             )?;
         }
 
+        if is_approved_gov_script {
+            // If governance is honest then it will not attempt test-and-abort attacks to abuse
+            // randomness.
+            self.mark_unbiasable(session);
+        }
+
         // The prologue MUST be run AFTER any validation. Otherwise you may run prologue and hit
         // SEQUENCE_NUMBER_TOO_NEW if there is more than one transaction from the same sender and
         // end up skipping validation.
@@ -1921,6 +1936,7 @@ impl AptosVM {
             )
         });
         unwrap_or_discard!(exec_result);
+
         let storage_gas_params = unwrap_or_discard!(get_or_vm_startup_failure(
             &self.storage_gas_params,
             log_context
@@ -1966,6 +1982,7 @@ impl AptosVM {
                     log_context,
                     &mut new_published_modules_loaded,
                     change_set_configs,
+                    is_approved_gov_script,
                 ),
             TransactionPayload::Multisig(payload) => self.execute_or_simulate_multisig_transaction(
                 resolver,
@@ -2166,6 +2183,10 @@ impl AptosVM {
                     &mut traversal_context,
                     senders,
                     script,
+                    // This function is currently only used for genesis, so this could be set to
+                    // true, but we don't access randomness during genesis at the moment so there
+                    // is no benefit in doing so.
+                    false,
                 )?;
                 Ok(tmp_session.finish(&change_set_configs)?)
             },
@@ -2306,6 +2327,24 @@ impl AptosVM {
         Ok((VMStatus::Executed, output))
     }
 
+    fn mark_unbiasable(&self, session: &mut SessionExt<'_, '_>) {
+        // During the first epoch in which the feature is activated, threshold keys have not yet
+        // been established (they are produced at the end of that epoch via DKG), so the randomness
+        // seed can be biased to some degree (although with great difficulty) by Byzantine proposers.
+        // However, the randomness usages within the metadata transaction itself (e.g. by the DKG
+        // during epoch change) remain unaffected by test-and-abort attacks, which the bias-ability
+        // check is intended to protect against. Similarly, governance is expected not to attempt to
+        // bias randomness results. This allows us to continue to manually force epoch changes via
+        // governance when necessary, which would otherwise be impossible due to 
+        // reconfiguration_with_dkg::try_start relying on access to randomness,
+        if self.features().is_enabled(FeatureFlag::SUPRA_DKG) {
+            session
+                .get_native_extensions()
+                .get_mut::<RandomnessContext>()
+                .mark_unbiasable();
+        }
+    }
+
     fn process_block_prologue_ext(
         &self,
         resolver: &impl AptosMoveResolver,
@@ -2364,14 +2403,8 @@ impl AptosVM {
 
         let storage = TraversalStorage::new();
 
-        // During the first epoch in which the feature is activated, threshold keys have not yet been established (they
-        // are produced at the end of that epoch via DKG), so randomness remains biasable for that epoch.
-        if self.features().is_enabled(FeatureFlag::SUPRA_DKG){
-            session
-                .get_native_extensions()
-                .get_mut::<RandomnessContext>()
-                .mark_unbiasable();
-        }
+        // The block metadata transaction seeds randomness so is immune to test-and-abort attacks.
+        self.mark_unbiasable(&mut session);
 
         session
             .execute_function_bypass_visibility(
