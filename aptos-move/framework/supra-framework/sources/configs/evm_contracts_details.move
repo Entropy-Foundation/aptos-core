@@ -38,7 +38,7 @@ module supra_framework::evm_contracts_details {
     }
 
     /// This can be called by on-chain governance to update on-chain evm contract details for the next epoch.
-    /// Keys and values will match in lenght and should not be empty, otherwise the call will fail.
+    /// Keys and values will match in length and should not be empty, otherwise the call will fail.
     /// Example usage:
     /// ```
     /// supra_framework::evm_contracts_details::upsert_for_next_epoch(&framework_signer, vector["contact1_name"], vector[contract1_address]);
@@ -66,11 +66,11 @@ module supra_framework::evm_contracts_details {
         system_addresses::assert_supra_framework(framework);
         if (config_buffer::does_exist<EvmContractsDetails>()) {
             let new_config = config_buffer::extract<EvmContractsDetails>();
-            if (!exists<EvmContractsDetails>(@supra_framework)) {
-                move_to(framework, new_config);
-            } else  {
+            if (exists<EvmContractsDetails>(@supra_framework)) {
                 let  old_config = borrow_global_mut<EvmContractsDetails>(@supra_framework);
                 *old_config = new_config;
+            } else  {
+                move_to(framework, new_config);
             };
             event::emit(new_config)
         }

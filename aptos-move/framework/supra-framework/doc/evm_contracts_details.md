@@ -116,7 +116,7 @@ Publishes the EvmContractInfo details.
 ## Function `upsert_for_next_epoch`
 
 This can be called by on-chain governance to update on-chain evm contract details for the next epoch.
-Keys and values will match in lenght and should not be empty, otherwise the call will fail.
+Keys and values will match in length and should not be empty, otherwise the call will fail.
 Example usage:
 ```
 supra_framework::evm_contracts_details::upsert_for_next_epoch(&framework_signer, vector["contact1_name"], vector[contract1_address]);
@@ -175,11 +175,11 @@ Otherwise, move the new config to supra_framework.
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(framework);
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="evm_contracts_details.md#0x1_evm_contracts_details_EvmContractsDetails">EvmContractsDetails</a>&gt;()) {
         <b>let</b> new_config = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="evm_contracts_details.md#0x1_evm_contracts_details_EvmContractsDetails">EvmContractsDetails</a>&gt;();
-        <b>if</b> (!<b>exists</b>&lt;<a href="evm_contracts_details.md#0x1_evm_contracts_details_EvmContractsDetails">EvmContractsDetails</a>&gt;(@supra_framework)) {
-            <b>move_to</b>(framework, new_config);
-        } <b>else</b>  {
+        <b>if</b> (<b>exists</b>&lt;<a href="evm_contracts_details.md#0x1_evm_contracts_details_EvmContractsDetails">EvmContractsDetails</a>&gt;(@supra_framework)) {
             <b>let</b>  old_config = <b>borrow_global_mut</b>&lt;<a href="evm_contracts_details.md#0x1_evm_contracts_details_EvmContractsDetails">EvmContractsDetails</a>&gt;(@supra_framework);
             *old_config = new_config;
+        } <b>else</b>  {
+            <b>move_to</b>(framework, new_config);
         };
         <a href="event.md#0x1_event_emit">event::emit</a>(new_config)
     }
