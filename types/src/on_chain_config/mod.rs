@@ -27,6 +27,7 @@ mod automation_registry;
 mod chain_id;
 mod commit_history;
 mod consensus_config;
+mod evm_config;
 mod evm_genesis_config;
 mod execution_config;
 mod gas_schedule;
@@ -38,7 +39,6 @@ mod timed_features;
 mod timestamp;
 mod transaction_fee;
 mod validator_set;
-mod evm_config;
 pub use self::{
     approved_execution_hashes::ApprovedExecutionHashes,
     aptos_features::*,
@@ -56,8 +56,12 @@ pub use self::{
         LeaderReputationType, OnChainConsensusConfig, ProposerAndVoterConfig, ProposerElectionType,
         ValidatorTxnConfig,
     },
+    evm_config::{
+        EvmContractName, EvmScalarConfigKey, OnChainEvmConfig, OnChainEvmContractsDetails,
+    },
     evm_genesis_config::{
-        GenesisEvmContract, GenesisEvmEOA, OnChainEvmGenesisConfig, EVM_GENESIS_EVENT_MOVE_TYPE_TAG,
+        ContractKind, GenesisEvmContract, GenesisEvmEOA, OnChainEvmGenesisConfig,
+        EVM_GENESIS_EVENT_MOVE_TYPE_TAG,
     },
     execution_config::{
         BlockGasLimitType, ExecutionConfigV1, ExecutionConfigV2, ExecutionConfigV4,
@@ -75,7 +79,6 @@ pub use self::{
     timestamp::CurrentTimeMicroseconds,
     transaction_fee::TransactionFeeBurnCap,
     validator_set::{ConsensusScheme, ValidatorSet},
-    evm_config::{EvmScalarConfigKey, EvmContractName, OnChainEvmConfig, OnChainEvmContractsDetails},
 };
 
 /// To register an on-chain config in Rust:
