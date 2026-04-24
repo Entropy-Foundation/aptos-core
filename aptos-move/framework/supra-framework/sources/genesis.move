@@ -5,7 +5,7 @@ module supra_framework::genesis {
     use std::string::String;
     use std::vector;
     use aptos_std::simple_map;
-    use supra_framework::evm_contracts_details;
+    use supra_framework::evm_config;
 
     use supra_framework::account;
     use supra_framework::aggregator_factory;
@@ -301,13 +301,15 @@ module supra_framework::genesis {
         evm_genesis_config::initialize(supra_framework, evm_genesis_config);
     }
 
-    /// Initialize the EVM genesis config.
-    fun initialize_evm_contracts_details(
+    /// Initialize the EVM config.
+    fun initialize_evm_config(
         supra_framework: &signer,
-        keys: vector<String>,
-        values: vector<address>
+        contract_names: vector<String>,
+        contract_addresses: vector<address>,
+        config_keys: vector<String>,
+        config_values: vector<u128>
     ) {
-        evm_contracts_details::initialize(supra_framework, keys, values);
+        evm_config::initialize(supra_framework, contract_names, contract_addresses, config_keys, config_values);
     }
 
     /// Initialize the leader ban config
