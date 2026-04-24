@@ -17,7 +17,6 @@ use std::str::FromStr;
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash, PartialOrd, Ord)]
 pub enum EvmContractName {
     BlockMetadata,
-    AutomationController,
     AutomationRegistry,
     Custom(String),
 }
@@ -28,7 +27,6 @@ impl FromStr for EvmContractName {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "BlockMetadata" => Ok(EvmContractName::BlockMetadata),
-            "AutomationCore" => Ok(EvmContractName::AutomationController),
             "AutomationRegistry" => Ok(EvmContractName::AutomationRegistry),
             n => Ok(EvmContractName::Custom(n.to_string())),
         }
@@ -39,7 +37,6 @@ impl Display for EvmContractName {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             EvmContractName::BlockMetadata => write!(f, "BlockMetadata"),
-            EvmContractName::AutomationController => write!(f, "AutomationCore"),
             EvmContractName::AutomationRegistry => write!(f, "AutomationRegistry"),
             EvmContractName::Custom(n) => write!(f, "{n}"),
         }
@@ -140,10 +137,11 @@ impl EvmScalarConfigKey {
     /// The set of keys that MUST be present in the on-chain config.
     /// Deserialization hard-fails if any of these is missing.
     pub fn required_keys() -> &'static [EvmScalarConfigKey] {
-        &[EvmScalarConfigKey::EvmGasNormalizationDenom, 
-          EvmScalarConfigKey::EvmGasEstimateMargin,
-          EvmScalarConfigKey::EvmGasUsedRatio,
-          EvmScalarConfigKey::EvmGasUsedRatioDecimalPrecision
+        &[
+            EvmScalarConfigKey::EvmGasNormalizationDenom,
+            EvmScalarConfigKey::EvmGasEstimateMargin,
+            EvmScalarConfigKey::EvmGasUsedRatio,
+            EvmScalarConfigKey::EvmGasUsedRatioDecimalPrecision,
         ]
     }
 }
@@ -156,7 +154,9 @@ impl FromStr for EvmScalarConfigKey {
             "evm_gas_normalization_denom" => Ok(EvmScalarConfigKey::EvmGasNormalizationDenom),
             "evm_gas_estimate_margin" => Ok(EvmScalarConfigKey::EvmGasEstimateMargin),
             "evm_gas_used_ratio" => Ok(EvmScalarConfigKey::EvmGasUsedRatio),
-            "evm_gas_used_ratio_decimal_precision" => Ok(EvmScalarConfigKey::EvmGasUsedRatioDecimalPrecision),
+            "evm_gas_used_ratio_decimal_precision" => {
+                Ok(EvmScalarConfigKey::EvmGasUsedRatioDecimalPrecision)
+            },
             _ => Err(anyhow::anyhow!("unknown evm scalar config key: {}", s)),
         }
     }
@@ -169,16 +169,16 @@ impl Display for EvmScalarConfigKey {
         match self {
             EvmScalarConfigKey::EvmGasNormalizationDenom => {
                 write!(f, "evm_gas_normalization_denom")
-            }
+            },
             EvmScalarConfigKey::EvmGasEstimateMargin => {
                 write!(f, "evm_gas_estimate_margin")
-            }
+            },
             EvmScalarConfigKey::EvmGasUsedRatio => {
                 write!(f, "evm_gas_used_ratio")
-            }
+            },
             EvmScalarConfigKey::EvmGasUsedRatioDecimalPrecision => {
                 write!(f, "evm_gas_used_ratio_decimal_precision")
-            }
+            },
         }
     }
 }
@@ -208,7 +208,9 @@ impl OnChainEvmConfig {
         self.config
             .get(&EvmScalarConfigKey::EvmGasNormalizationDenom)
             .copied()
-            .ok_or_else(|| anyhow::anyhow!("evm_gas_normalization_denom not found in EvmScalarConfig"))
+            .ok_or_else(|| {
+                anyhow::anyhow!("evm_gas_normalization_denom not found in EvmScalarConfig")
+            })
     }
 
     pub fn evm_gas_estimate_margin(&self) -> anyhow::Result<u64> {
@@ -241,16 +243,22 @@ impl OnChainEvmConfig {
             .get(&EvmScalarConfigKey::EvmGasUsedRatioDecimalPrecision)
             .copied()
             .and_then(|v| v.try_into().ok())
-            .ok_or_else(|| anyhow::anyhow!("evm_gas_used_ratio_decimal_precision not found in EvmScalarConfig"))
+            .ok_or_else(|| {
+                anyhow::anyhow!("evm_gas_used_ratio_decimal_precision not found in EvmScalarConfig")
+            })
     }
 
     pub fn to_move_values(self) -> (MoveValue, MoveValue) {
-        let (keys, values): (Vec<_>, Vec<_>) = self.config.into_iter().map(|(key, value)| {
-            (
-                MoveValue::vector_u8(key.to_string().into_bytes()),
-                MoveValue::U128(value),
-            )
-        }).unzip();
+        let (keys, values): (Vec<_>, Vec<_>) = self
+            .config
+            .into_iter()
+            .map(|(key, value)| {
+                (
+                    MoveValue::vector_u8(key.to_string().into_bytes()),
+                    MoveValue::U128(value),
+                )
+            })
+            .unzip();
         (MoveValue::Vector(keys), MoveValue::Vector(values))
     }
 }
@@ -280,7 +288,7 @@ impl OnChainConfig for OnChainEvmConfig {
             if !config.contains_key(required_key) {
                 return Err(anyhow::anyhow!(
                     "required EvmScalarConfig key '{}' is missing from on-chain state",
-                    required_key  // Display -> "evm_gas_normalization_denom"
+                    required_key // Display -> "evm_gas_normalization_denom"
                 ));
             }
         }
@@ -310,7 +318,10 @@ mod unit_tests {
                 ("evm_gas_normalization_denom".to_string(), denom),
                 ("evm_gas_estimate_margin".to_string(), margin),
                 ("evm_gas_used_ratio".to_string(), gas_used_ratio),
-                ("evm_gas_used_ratio_decimal_precision".to_string(), decimal_precision),
+                (
+                    "evm_gas_used_ratio_decimal_precision".to_string(),
+                    decimal_precision,
+                ),
             ],
         }
     }
@@ -341,7 +352,10 @@ mod unit_tests {
         let result = OnChainEvmConfig::deserialize_into_config(&bytes);
         assert!(result.is_err(), "expected Err when required key is missing");
         assert!(
-            result.unwrap_err().to_string().contains("evm_gas_normalization_denom"),
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("evm_gas_normalization_denom"),
             "error should identify the missing key"
         );
     }
@@ -368,7 +382,11 @@ mod unit_tests {
             };
             let bytes = bcs::to_bytes(&partial).unwrap();
             let result = OnChainEvmConfig::deserialize_into_config(&bytes);
-            assert!(result.is_err(), "expected Err when '{}' is absent", missing_key);
+            assert!(
+                result.is_err(),
+                "expected Err when '{}' is absent",
+                missing_key
+            );
             assert!(
                 result.unwrap_err().to_string().contains(missing_key),
                 "error must name the missing key '{}'",
@@ -382,7 +400,8 @@ mod unit_tests {
         // Unknown keys must be silently dropped so an older node binary can still
         // read a config that was extended with new keys by a newer software version.
         let mut raw = raw_evm_scalar_config_all_keys(42, 500, 750, 1000);
-        raw.config.push(("completely_unknown_key".to_string(), 7u128));
+        raw.config
+            .push(("completely_unknown_key".to_string(), 7u128));
         let bytes = bcs::to_bytes(&raw).unwrap();
         let config = OnChainEvmConfig::deserialize_into_config(&bytes).unwrap();
         assert_eq!(config.evm_gas_normalization_denom().unwrap(), 42u128);
@@ -403,7 +422,10 @@ mod unit_tests {
     fn test_accessor_evm_gas_used_ratio_decimal_precision() {
         let bytes = bcs::to_bytes(&raw_evm_scalar_config_all_keys(100, 500, 750, 2000)).unwrap();
         let config = OnChainEvmConfig::deserialize_into_config(&bytes).unwrap();
-        assert_eq!(config.evm_gas_used_ratio_decimal_precision().unwrap(), 2000u64);
+        assert_eq!(
+            config.evm_gas_used_ratio_decimal_precision().unwrap(),
+            2000u64
+        );
     }
 
     #[test]
@@ -430,7 +452,10 @@ mod unit_tests {
                 (EvmScalarConfigKey::EvmGasNormalizationDenom, 42u128),
                 (EvmScalarConfigKey::EvmGasEstimateMargin, 500u128),
                 (EvmScalarConfigKey::EvmGasUsedRatio, 750u128),
-                (EvmScalarConfigKey::EvmGasUsedRatioDecimalPrecision, 1000u128),
+                (
+                    EvmScalarConfigKey::EvmGasUsedRatioDecimalPrecision,
+                    1000u128,
+                ),
             ]
             .into(),
         };
@@ -503,6 +528,9 @@ mod unit_tests {
         map.insert(OnChainEvmContractsDetails::CONFIG_ID, bytes);
         let provider = InMemoryOnChainConfig::new(map);
         let recovered = provider.get::<OnChainEvmContractsDetails>().unwrap();
-        assert_eq!(recovered.get(EvmContractName::BlockMetadata), Some(&evm_bytes));
+        assert_eq!(
+            recovered.get(EvmContractName::BlockMetadata),
+            Some(&evm_bytes)
+        );
     }
 }
