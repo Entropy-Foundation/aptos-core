@@ -114,6 +114,8 @@ module std::automation_registry_tests {
     const EREGISTRY_SYSTEM_MAX_GAS_CAP_NON_ZERO: u64 = 46;
     /// The input address is not identified as multisig account.
     const EUNKNOWN_MULTISIG_ADDRESS: u64 = 47;
+    /// Supra automation v2.1 feature is not enabled.
+    const EDISABLED_AUTOMATION_V2_1_FEATURE: u64 = 49;
 
     /// Constants describing CYCLE state.
     /// State transition flow is:
@@ -4430,11 +4432,11 @@ module std::automation_registry_tests {
     // Tests for register_without_validation (SUPRA_AUTOMATION_V2_1 feature)
     // -------------------------------------------------------------------------
 
-    /// `register_without_validation` must abort with EDISABLED_AUTOMATION_FEATURE when
+    /// `register_without_validation` must abort with EDISABLED_AUTOMATION_V2_1_FEATURE when
     /// SUPRA_AUTOMATION_V2_1 is not enabled.  SUPRA_NATIVE_AUTOMATION and SUPRA_AUTOMATION_V2
     /// are both enabled by `initialize_registry_test`, but V2_1 is deliberately omitted.
     #[test(supra_framework = @supra_framework, user = @0x1cafe)]
-    #[expected_failure(abort_code = EDISABLED_AUTOMATION_FEATURE, location = automation_registry)]
+    #[expected_failure(abort_code = EDISABLED_AUTOMATION_V2_1_FEATURE, location = automation_registry)]
     fun test_register_without_validation_v2_1_feature_disabled(
         supra_framework: &signer,
         user: &signer,
