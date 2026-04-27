@@ -1050,7 +1050,10 @@ impl AptosVM {
     }
 
     /// Checks inner payload/entry function of automation registration transaction to be valid.
-    fn validate_automated_function(
+    ///
+    /// Exposed as `pub(crate)` so that `AptosVMViewer` can call it for pre-flight validation of
+    /// automation tasks that were registered without type-checking (e.g. `register_without_validation`).
+    pub(crate) fn validate_automated_function(
         &self,
         session: &mut SessionExt,
         gas_meter: &mut impl AptosGasMeter,

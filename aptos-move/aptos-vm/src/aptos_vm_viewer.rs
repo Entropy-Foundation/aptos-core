@@ -9,8 +9,9 @@ use crate::{
 };
 use aptos_types::{
     state_store::StateView,
-    transaction::{ViewFunction, ViewFunctionOutput},
+    transaction::{EntryFunction, ViewFunction, ViewFunctionOutput},
 };
+use move_core_types::account_address::AccountAddress;
 use aptos_vm_logging::log_schema::AdapterLogSchema;
 
 /// Move VM with only view function API.
@@ -83,5 +84,44 @@ impl<'t, SV: StateView> AptosVMViewer<'t, SV> {
             Ok(result) => ViewFunctionOutput::new(Ok(result), gas_used),
             Err(e) => ViewFunctionOutput::new(Err(e), gas_used),
         }
+    }
+
+    /// Validates that `entry_fn` exists on-chain and has argument types compatible with `senders`.
+    ///
+    /// This is the same check performed by the VM during automation task registration via the
+    /// `AutomationRegistrationPayload` path.  It is exposed here so that smr-moonshot can run
+    /// the check once at cycle load time for tasks that were registered without type-checking
+    /// (i.e. via `register_without_validation`).
+    ///
+    /// Returns `Ok(())` if the function is valid.
+    /// Returns `Err(String)` with a prefix-tagged reason on failure:
+    ///   - `"FUNC_NOT_FOUND: "` — module or function does not exist
+    ///   - `"ARG_TYPE: "` — function exists but argument types/count are incompatible
+    pub fn validate_entry_function(
+        &self,
+        entry_fn: &EntryFunction,
+        senders: Vec<AccountAddress>,
+    ) -> Result<(), String> {
+        let resolver = self.vm.as_move_resolver(self.state_view);
+        let mut session = self.vm.new_session(&resolver, Void, None);
+        let mut gas_meter = self
+            .create_gas_meter(u64::MAX)
+            .map_err(|e| format!("FUNC_NOT_FOUND: failed to create gas meter: {e}"))?;
+
+        self.vm
+            .validate_automated_function(&mut session, &mut gas_meter, senders, entry_fn)
+            .map_err(|vm_status| {
+                // Distinguish between "function not found" and "bad arguments" so callers can
+                // produce targeted diagnostic messages for the cancel event.
+                let msg = format!("{vm_status:?}");
+                if msg.contains("FUNCTION_RESOLUTION_FAILURE")
+                    || msg.contains("LINKER_ERROR")
+                    || msg.contains("LOOKUP_FAILED")
+                {
+                    format!("FUNC_NOT_FOUND: {msg}")
+                } else {
+                    format!("ARG_TYPE: {msg}")
+                }
+            })
     }
 }
