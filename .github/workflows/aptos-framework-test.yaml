@@ -30,6 +30,9 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
       - name: Setup SSH access
         run: |
           mkdir -p ~/.ssh
