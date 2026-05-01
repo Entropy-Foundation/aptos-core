@@ -643,7 +643,7 @@ fn initialize_evm_config(
     exec_function(
         session,
         GENESIS_MODULE_NAME,
-        "initialize_evm_contracts_details",
+        "initialize_evm_config",
         vec![],
         serialize_values(&vec![
             MoveValue::Signer(CORE_CODE_ADDRESS),
