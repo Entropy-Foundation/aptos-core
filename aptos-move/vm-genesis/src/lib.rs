@@ -633,11 +633,11 @@ fn initialize_evm_genesis_config(
 
 fn initialize_evm_config(
     session: &mut SessionExt,
-    evm_genesis_config: OnChainEvmContractsDetails,
+    evm_contracts_details: OnChainEvmContractsDetails,
     evm_scalar_config: OnChainEvmConfig,
 ) {
 
-    let (contract_names, contract_addresses) = evm_genesis_config.to_move_values();
+    let (contract_names, contract_addresses) = evm_contracts_details.to_move_values();
     let (config_keys, config_values) = evm_scalar_config.to_move_values();
 
     exec_function(

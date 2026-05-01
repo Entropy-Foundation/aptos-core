@@ -49,7 +49,7 @@ module supra_framework::evm_config {
     const SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION: vector<u8> = b"evm_gas_used_ratio_decimal_precision";
 
     /// Evm and Move address length
-    const EVM_ADDRESS_BYTE_LENGTH : u64 = 12;
+    const EVM_ADDRESS_BYTE_LENGTH : u64 = 20;
     const MOVE_ADDRESS_BYTE_LENGTH: u64 = 32;
 
     #[event]
@@ -325,11 +325,25 @@ module supra_framework::evm_config {
         //   ...
         //   index 31 : 0x00
         assert!(
+            is_valid_evm_address(
+                &@0x0000000000000000000000001000000000000000000000000000000000000001
+            ),
+            0
+        );
+
+        assert!(
             !is_valid_evm_address(
                 &@0x1000000000000000000000000000000000000000000000000000000000000000
             ),
             0
         );
+        assert!(
+            !is_valid_evm_address(
+                &@0x0000000000000000000000011000000000000000000000000000000000000001
+            ),
+            0
+        );
+
     }
 
     #[test(supra_framework = @supra_framework)]

@@ -189,7 +189,7 @@ Resource already exist at address
 Evm and Move address length
 
 
-<pre><code><b>const</b> <a href="evm_config.md#0x1_evm_config_EVM_ADDRESS_BYTE_LENGTH">EVM_ADDRESS_BYTE_LENGTH</a>: u64 = 12;
+<pre><code><b>const</b> <a href="evm_config.md#0x1_evm_config_EVM_ADDRESS_BYTE_LENGTH">EVM_ADDRESS_BYTE_LENGTH</a>: u64 = 20;
 </code></pre>
 
 

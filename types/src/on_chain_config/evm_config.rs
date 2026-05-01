@@ -495,6 +495,23 @@ mod unit_tests {
         let bytes = bcs::to_bytes(&raw).unwrap();
         let recovered = OnChainEvmContractsDetails::deserialize_into_config(&bytes).unwrap();
         assert_eq!(recovered, original);
+
+        let (_keys, addresses) = original.to_move_values();
+        match addresses {
+            MoveValue::Vector(addrs) => {
+                assert_eq!(addrs.len(), 1);
+                match &addrs[0] {
+                    MoveValue::Address(addr) => {
+                        let recovered_evm_bytes: RawEvmAddress = addr.into_bytes()[AccountAddress::LENGTH - EVM_ADDRESS_LENGTH..]
+                            .try_into()
+                            .expect("slice with correct length");
+                        assert_eq!(recovered_evm_bytes, evm_bytes);
+                    },
+                    _ => panic!("expected MoveValue::Address in values vector"),
+                }
+            }
+            _ => panic!("expected MoveValue::Vector"),
+        }
     }
 
     // -- Tier 2: InMemoryOnChainConfig provider --------------------------------
