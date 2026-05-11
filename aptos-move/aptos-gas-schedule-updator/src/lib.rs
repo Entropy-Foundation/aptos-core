@@ -65,6 +65,7 @@ fn generate_script(gas_schedule: &GasScheduleV2) -> Result<String> {
 
     emitln!(writer, "use supra_framework::supra_governance;");
     emitln!(writer, "use supra_framework::gas_schedule;");
+    emitln!(writer, "use std::vector;");
     emitln!(writer);
 
     emitln!(writer, "fun main(proposal_id: u64) {");
