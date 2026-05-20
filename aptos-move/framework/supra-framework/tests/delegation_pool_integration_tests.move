@@ -134,7 +134,11 @@ module supra_framework::delegation_pool_integration_tests {
         );
         validator_address = dp::get_owned_pool_address(validator_address);
 
-        stake::rotate_consensus_key(validator, validator_address, CONSENSUS_KEY_1);
+        stake::rotate_consensus_key(
+            validator,
+            validator_address,
+            stake::generate_unique_consensus_pubkey_bytes()
+        );
 
         if (amount > 0) {
             mint_and_add_stake(validator, amount);
@@ -1112,7 +1116,11 @@ module supra_framework::delegation_pool_integration_tests {
 
         // Initialize validator config.
         let (_sk_new, _, _) = generate_identity();
-        stake::rotate_consensus_key(validator, validator_address, CONSENSUS_KEY_1);
+        stake::rotate_consensus_key(
+            validator,
+            validator_address,
+            stake::generate_unique_consensus_pubkey_bytes()
+        );
 
         // Join the validator set with enough stake. This now wouldn't fail since the validator config already exists.
         stake::join_validator_set(validator, validator_address);
