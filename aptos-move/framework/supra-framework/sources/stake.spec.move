@@ -131,6 +131,9 @@ spec supra_framework::stake {
         network_addresses: vector<u8>,
         fullnode_addresses: vector<u8>,
     ){
+        // Partial: the function also aborts when `consensus_pubkey` or `network_addresses`
+        // collide with another validator in the next validator set.
+        pragma aborts_if_is_partial = true;
         //todo: fix this validation
         /*let is_public_key_validated = consensus_key::spec_cg_pk_valid(
             consensus_pubkey,
@@ -357,6 +360,9 @@ spec supra_framework::stake {
         new_network_addresses: vector<u8>,
         new_fullnode_addresses: vector<u8>,
     ) {
+        // Partial: the function also aborts when `new_network_addresses` collides
+        // with another validator in the next validator set.
+        pragma aborts_if_is_partial = true;
         let pre_stake_pool = global<StakePool>(pool_address);
         let post validator_info = global<ValidatorConfig>(pool_address);
         modifies global<ValidatorConfig>(pool_address);
@@ -402,6 +408,9 @@ spec supra_framework::stake {
         pool_address: address,
         new_consensus_pubkey: vector<u8>,
     ) {
+        // Partial: the function also aborts when `new_consensus_pubkey` collides
+        // with another validator in the next validator set.
+        pragma aborts_if_is_partial = true;
         let pre_stake_pool = global<StakePool>(pool_address);
         let post validator_info = global<ValidatorConfig>(pool_address);
         aborts_if reconfiguration_state::spec_is_in_progress();
@@ -973,3 +982,4 @@ spec supra_framework::stake {
         }
     }
 }
+
