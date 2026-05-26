@@ -108,6 +108,7 @@ use move_core_types::{
 use move_vm_runtime::{
     logging::expect_no_verification_errors,
     module_traversal::{TraversalContext, TraversalStorage},
+    LoadedFunction,
 };
 use move_vm_types::gas::{GasMeter, UnmeteredGasMeter};
 use num_cpus;
@@ -784,7 +785,12 @@ impl AptosVM {
         Ok(())
     }
 
-    pub(crate) fn validate_and_execute_entry_function(
+    // Loads the entry function from the module store and validates its arguments,
+    // returning the resolved function handle and the serialized validated args.
+    // Separated from execution so callers can apply different error handling to
+    // pre-execution failures (e.g. the automation path tags them distinctly from
+    // transient execution failures).
+    pub(crate) fn load_and_validate_entry_function(
         &self,
         resolver: &impl AptosMoveResolver,
         session: &mut SessionExt,
@@ -793,7 +799,7 @@ impl AptosVM {
         senders: Vec<AccountAddress>,
         entry_fn: &EntryFunction,
         _txn_data: &TransactionMetadata,
-    ) -> Result<(), VMStatus> {
+    ) -> Result<(LoadedFunction, Vec<Vec<u8>>), VMStatus> {
         // Note: Feature gating is needed here because the traversal of the dependencies could
         //       result in shallow-loading of the modules and therefore subtle changes in
         //       the error semantics.
@@ -830,6 +836,29 @@ impl AptosVM {
             entry_fn.args().to_vec(),
             &function,
             struct_constructors_enabled,
+        )?;
+
+        Ok((function, args))
+    }
+
+    pub(crate) fn validate_and_execute_entry_function(
+        &self,
+        resolver: &impl AptosMoveResolver,
+        session: &mut SessionExt,
+        gas_meter: &mut impl AptosGasMeter,
+        traversal_context: &mut TraversalContext,
+        senders: Vec<AccountAddress>,
+        entry_fn: &EntryFunction,
+        txn_data: &TransactionMetadata,
+    ) -> Result<(), VMStatus> {
+        let (function, args) = self.load_and_validate_entry_function(
+            resolver,
+            session,
+            gas_meter,
+            traversal_context,
+            senders,
+            entry_fn,
+            txn_data,
         )?;
         session.execute_entry_function(function, args, gas_meter, traversal_context)?;
         Ok(())
