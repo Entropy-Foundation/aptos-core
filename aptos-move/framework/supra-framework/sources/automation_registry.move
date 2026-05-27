@@ -125,9 +125,6 @@ module supra_framework::automation_registry {
     const EUNAUTHORIZED_SYSTEM_ACCOUNT: u64 = 41;
     /// Attempt to register a system task with unauthorized account.
     const ESYSTEM_AUTOMATION_TASK_NOT_FOUND: u64 = 42;
-    /// Supra automation v2.1 feature is not enabled. Distinct from EDISABLED_AUTOMATION_FEATURE
-    /// (which covers the base automation feature) so callers can tell the two conditions apart.
-    const EDISABLED_AUTOMATION_V2_1_FEATURE: u64 = 49;
     /// Type of the registered task does not match the expected one.
     const EREGISTERED_TASK_INVALID_TYPE: u64 = 43;
     /// Attempt to run an unsupported action for a task.
@@ -140,6 +137,9 @@ module supra_framework::automation_registry {
     const EUNKNOWN_MULTISIG_ADDRESS: u64 = 47;
     /// The refund fee for remaining cycle time is greater than total cycle fee for the task.
     const EINVALID_CYCLE_REFUND_FEE: u64 = 48;
+    /// Supra automation v2.1 feature is not enabled. Distinct from EDISABLED_AUTOMATION_FEATURE
+    /// (which covers the base automation feature) so callers can tell the two conditions apart.
+    const EDISABLED_AUTOMATION_V2_1_FEATURE: u64 = 49;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
