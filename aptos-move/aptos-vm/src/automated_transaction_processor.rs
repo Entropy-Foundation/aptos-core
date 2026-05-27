@@ -346,13 +346,26 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         TXN_GAS_USAGE.observe(u64::from(gas_usage) as f64);
 
         result.unwrap_or_else(|err| {
+            // True only [FeatureFlag::SUPRA_AUTOMATION_V2_1] is enabled: which enables task registration without validation
             // Pre-execution failure: the task's registered payload is permanently invalid
-            // (function removed or signature changed after registration). The entry function
-            // body never ran so no execution gas was consumed. Skip the failure epilogue
+            // (function signature is invalid, function is missing or arguments do not match expected ones).
+            // The entry function body never ran so no execution gas was consumed. Skip the failure epilogue
             // entirely — discarded_output produces FeeStatement::zero() and an empty
             // change set so no fees are charged and no state is committed.
-            if err.status_code() == StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD {
-                return (err, discarded_output(StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD));
+            //
+            // Note: Before [FeatureFlag::SUPRA_AUTOMATION_V2_1] during task registration inner payload is always verified
+            // and in case of failure task will never be actually registered.
+            // So potentially this error should never be registered for a task which is registered with validation flow.
+            // And if for some reason it is registered, then user will be charged with whatever gas was used so far.
+            if err.status_code() == StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD
+                && self
+                    .features()
+                    .is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2_1)
+            {
+                return (
+                    err,
+                    discarded_output(StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD),
+                );
             }
             self.on_transaction_execution_failure(
                 prologue_change_set,

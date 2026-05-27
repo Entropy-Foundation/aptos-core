@@ -185,6 +185,7 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_BCFT_CERTIFICATES,
             FeatureFlag::SUPRA_DKG,
             FeatureFlag::SUPRA_TRANSACTIONS_INCLUSION_PROOFS,
+            FeatureFlag::SUPRA_AUTOMATION_V2_1,
         ]
     }
 }
