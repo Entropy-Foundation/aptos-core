@@ -939,7 +939,7 @@ impl From<AutomationRegistryRecord> for Transaction {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Getters)]
 pub struct AutomationRegistryRecordBuilder {
     record_index: Option<u64>,
     action: Option<AutomationRegistryAction>,
