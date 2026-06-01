@@ -1063,7 +1063,7 @@ impl AptosVM {
         }
         let args = registration_params.serialized_args_with_sender_and_parent_hash(
             sender,
-            txn_metadata.txn_app_hash.clone(),
+            txn_metadata.txn_consensus_hash.clone(),
             self.features(),
         );
 

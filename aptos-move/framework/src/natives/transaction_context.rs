@@ -379,36 +379,26 @@ fn get_user_transaction_context_opt_from_context<'a>(
 }
 
 /***************************************************************************************************
- * native fun get_txn_app_hash_internal
+ * native fun get_transaction_consensus_hash_internal
  *
  *   gas cost: base_cost
  *
- * Returns the Keccak-256 hash of the current signed transaction (txn_app_hash).
- * Aborts if SUPRA_AUTOMATION_V2_1 is not enabled -- the feature flag must be on before any
- * Move caller can legitimately reach this native.
- * Also aborts if called outside a user transaction context (e.g. system or view sessions).
+ * Returns the Keccak-256 hash of the current signed transaction (transaction_consensus_hash).
+ * Aborts if called outside a user transaction context (e.g. system or view sessions).
  *
  **************************************************************************************************/
-fn native_get_txn_app_hash_internal(
+fn native_get_transaction_consensus_hash_internal(
     context: &mut SafeNativeContext,
     _ty_args: Vec<Type>,
     _args: VecDeque<Value>,
 ) -> SafeNativeResult<SmallVec<[Value; 1]>> {
-    // Feature-gate: this native is only callable when SUPRA_AUTOMATION_V2_1 is enabled.
-    // If the flag is off (e.g. the framework upgrade enabling v2.1 has not yet been applied),
-    // abort here as a defence-in-depth safety net rather than allowing the call through.
-    if !context.get_feature_flags().is_supra_automation_v2_1_enabled() {
-        return Err(SafeNativeError::Abort {
-            abort_code: error::invalid_state(abort_codes::ETRANSACTION_CONTEXT_NOT_AVAILABLE),
-        });
-    }
 
-    context.charge(TRANSACTION_CONTEXT_GET_TXN_APP_HASH_BASE)?;
+    context.charge(TRANSACTION_CONTEXT_GET_TXN_CONSENSUS_HASH_BASE)?;
 
     let user_transaction_context_opt = get_user_transaction_context_opt_from_context(context);
     if let Some(txn_context) = user_transaction_context_opt {
         Ok(smallvec![Value::vector_u8(
-            txn_context.txn_app_hash().to_vec()
+            txn_context.txn_consensus_hash().to_vec()
         )])
     } else {
         Err(SafeNativeError::Abort {
@@ -446,8 +436,8 @@ pub fn make_all(
             native_multisig_payload_internal,
         ),
         (
-            "get_txn_app_hash_internal",
-            native_get_txn_app_hash_internal,
+            "get_transaction_consensus_hash_internal",
+            native_get_transaction_consensus_hash_internal,
         ),
     ];
 

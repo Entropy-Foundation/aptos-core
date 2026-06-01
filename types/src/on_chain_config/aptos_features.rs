@@ -105,8 +105,6 @@ pub enum FeatureFlag {
     SUPRA_DKG = 99,
     SUPRA_TRANSACTIONS_INCLUSION_PROOFS = 100,
     /// Enables smart contracts to register automation tasks via `register_without_validation`,
-    /// exposing `txn_app_hash` through a new native function. Must be enabled only after all
-    /// nodes have the binary that implements the native.
     SUPRA_AUTOMATION_V2_1 = 101,
 }
 

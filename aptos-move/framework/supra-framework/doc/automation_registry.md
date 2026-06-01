@@ -5633,8 +5633,8 @@ correct parameter types. If the payload is malformed, the task will fail silentl
 execution time and the caller will have paid registration and deposit fees for nothing.
 The caller is responsible for providing a valid BCS-encoded <code>EntryFunction</code> payload.
 
-The <code>txn_app_hash</code> (Keccak-256 hash of the outer signed transaction) is obtained
-automatically from the native context rather than being supplied by the caller.
+The required consenus hash of the transaciton registering the task is obtained from native
+layer.
 
 Requires both <code>supra_native_automation_enabled</code> and <code>supra_automation_v2_1_enabled</code>.
 
@@ -5658,7 +5658,7 @@ Requires both <code>supra_native_automation_enabled</code> and <code>supra_autom
     aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_automation_v2_1_enabled">features::supra_automation_v2_1_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_V2_1_FEATURE">EDISABLED_AUTOMATION_V2_1_FEATURE</a>);
-    <b>let</b> tx_hash = supra_framework::transaction_context::get_txn_app_hash();
+    <b>let</b> tx_hash = supra_framework::transaction_context::get_transaction_consensus_hash();
     <a href="automation_registry.md#0x1_automation_registry_register">register</a>(
         owner_signer,
         payload_tx,

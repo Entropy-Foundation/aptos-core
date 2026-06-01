@@ -1,11 +1,11 @@
 // Copyright (c) Supra.
 // SPDX-License-Identifier: Apache-2.0
 
-//! E2E tests for the `register_without_validation` / `get_txn_app_hash` feature
+//! E2E tests for the `register_without_validation` / `get_transaction_consensus_hash` feature
 //! (SUPRA_AUTOMATION_V2_1).
 //!
 //! These tests exercise the full call chain:
-//!   signed transaction → VM → native `get_txn_app_hash_internal` → Move registry storage
+//!   signed transaction → VM → native `get_transaction_consensus_hash_internal` → Move registry storage
 //!
 //! and verify that the hash stored in the registry is the Keccak-256 of the BCS-serialised
 //! `SignedTransaction` that triggered the registration.
@@ -157,11 +157,11 @@ fn build_register_txn(
 /// BCS-serialised `SignedTransaction` that called `register_via_contract`.
 ///
 /// This is the primary correctness test for the entire feature:
-/// 1. `get_txn_app_hash_internal` (native) reads `txn_app_hash` from the
+/// 1. `get_transaction_consensus_hash_internal` (native) reads `txn_consensus_hash` from the
 ///    `UserTransactionContext` populated by `TransactionMetadata::new()`.
 /// 2. `register_without_validation` forwards this hash to the private `register()` call.
 /// 3. `register()` stores it in `AutomationTaskMetaData.tx_hash`.
-/// 4. We verify the stored value equals what we compute independently from the same bytes
+/// 4. We verify the stored value equals what we compute independently of the same bytes
 ///    before submission.
 #[test]
 fn test_register_without_validation_hash_matches_txn() {

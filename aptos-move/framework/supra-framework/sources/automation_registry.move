@@ -1975,8 +1975,8 @@ module supra_framework::automation_registry {
     /// execution time and the caller will have paid registration and deposit fees for nothing.
     /// The caller is responsible for providing a valid BCS-encoded `EntryFunction` payload.
     ///
-    /// The `txn_app_hash` (Keccak-256 hash of the outer signed transaction) is obtained
-    /// automatically from the native context rather than being supplied by the caller.
+    /// The required consenus hash of the transaciton registering the task is obtained from native
+    /// layer.
     ///
     /// Requires both `supra_native_automation_enabled` and `supra_automation_v2_1_enabled`.
     public fun register_without_validation(
@@ -1989,7 +1989,7 @@ module supra_framework::automation_registry {
         aux_data: vector<vector<u8>>
     ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2, AutomationRefundBookkeeping {
         assert!(features::supra_automation_v2_1_enabled(), EDISABLED_AUTOMATION_V2_1_FEATURE);
-        let tx_hash = supra_framework::transaction_context::get_txn_app_hash();
+        let tx_hash = supra_framework::transaction_context::get_transaction_consensus_hash();
         register(
             owner_signer,
             payload_tx,
