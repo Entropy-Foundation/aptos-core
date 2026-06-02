@@ -4485,4 +4485,61 @@ module std::automation_registry_tests {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Tests for register_system_task_without_validation (SUPRA_AUTOMATION_V2_1 feature)
+    // -------------------------------------------------------------------------
+
+    /// `register_system_task_without_validation` must abort with EDISABLED_AUTOMATION_V2_1_FEATURE
+    /// when SUPRA_AUTOMATION_V2_1 is not enabled.  `initialize_registry_test` enables
+    /// SUPRA_NATIVE_AUTOMATION and SUPRA_AUTOMATION_V2 but deliberately omits V2_1.
+    /// The V2_1 guard fires before any authorization or registry logic is reached, so
+    /// the caller does not need to be an authorized multisig account for this test.
+    #[test(supra_framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = EDISABLED_AUTOMATION_V2_1_FEATURE, location = automation_registry)]
+    fun test_register_system_task_without_validation_v2_1_feature_disabled(
+        supra_framework: &signer,
+        user: &signer,
+    ) {
+        initialize_registry_test(supra_framework, user);
+        // V2_1 is not enabled — the function must abort immediately.
+        let expiry_time = EPOCH_INTERVAL_FOR_TEST_IN_SECS + 86400;
+        automation_registry::register_system_task_without_validation(
+            user,
+            PAYLOAD,
+            expiry_time,
+            10_000,
+            SYS_AUX_DATA,
+        );
+    }
+
+    /// When SUPRA_AUTOMATION_V2_1 is enabled, `register_system_task_without_validation` calls
+    /// `transaction_context::get_transaction_consensus_hash()` to obtain the registering
+    /// transaction's consensus hash.  That native requires a real user transaction context which
+    /// does not exist in a Move unit test, so the call aborts with
+    /// error::invalid_state(ETRANSACTION_CONTEXT_NOT_AVAILABLE) = 196609.
+    /// The abort happens before authorization or registry checks, so no multisig setup is needed.
+    #[test(supra_framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = 196609, location = supra_framework::transaction_context)]
+    fun test_register_system_task_without_validation_aborts_outside_txn_context(
+        supra_framework: &signer,
+        user: &signer,
+    ) {
+        initialize_registry_test(supra_framework, user);
+        // Enable V2_1 so the feature guard passes; the native consensus-hash getter then
+        // aborts because there is no real transaction context available in unit tests.
+        toggle_custom_feature_flags(
+            supra_framework,
+            vector[features::get_supra_automation_v2_1_feature()],
+            true,
+        );
+        let expiry_time = EPOCH_INTERVAL_FOR_TEST_IN_SECS + 86400;
+        automation_registry::register_system_task_without_validation(
+            user,
+            PAYLOAD,
+            expiry_time,
+            10_000,
+            SYS_AUX_DATA,
+        );
+    }
+
 }

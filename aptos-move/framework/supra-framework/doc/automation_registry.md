@@ -121,6 +121,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `register`](#0x1_automation_registry_register)
 -  [Function `register_without_validation`](#0x1_automation_registry_register_without_validation)
 -  [Function `register_system_task`](#0x1_automation_registry_register_system_task)
+-  [Function `register_system_task_without_validation`](#0x1_automation_registry_register_system_task_without_validation)
 -  [Function `process_tasks`](#0x1_automation_registry_process_tasks)
 -  [Function `on_cycle_transition`](#0x1_automation_registry_on_cycle_transition)
 -  [Function `on_cycle_suspend`](#0x1_automation_registry_on_cycle_suspend)
@@ -5770,6 +5771,58 @@ Note, system tasks are not charged registration and deposit fee.
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.system_tasks_state.task_ids, task_index);
 
     <a href="event.md#0x1_event_emit">event::emit</a>(automation_task_metadata);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_register_system_task_without_validation"></a>
+
+## Function `register_system_task_without_validation`
+
+Registers a new system automation task from a smart contract call.
+
+Unlike the <code>AutomationRegistrationPayload</code> transaction path (which calls the private
+<code>register_system_task</code> via the VM and performs full payload validation before execution), this
+function does NOT validate that <code>payload_tx</code> encodes a well-formed entry function with
+correct parameter types. If the payload is malformed, the task will fail silently at
+execution time and the caller will have paid registration and deposit fees for nothing.
+The caller is responsible for providing a valid BCS-encoded <code>EntryFunction</code> payload.
+
+The required consenus hash of the transaciton registering the task is obtained from native
+layer.
+
+Requires both <code>supra_native_automation_enabled</code> and <code>supra_automation_v2_1_enabled</code>.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register_system_task_without_validation">register_system_task_without_validation</a>(owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, expiry_time: u64, max_gas_amount: u64, aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register_system_task_without_validation">register_system_task_without_validation</a>(
+    owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    expiry_time: u64,
+    max_gas_amount: u64,
+    aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a> {
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_automation_v2_1_enabled">features::supra_automation_v2_1_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_V2_1_FEATURE">EDISABLED_AUTOMATION_V2_1_FEATURE</a>);
+    <b>let</b> tx_hash = supra_framework::transaction_context::get_transaction_consensus_hash();
+    <a href="automation_registry.md#0x1_automation_registry_register_system_task">register_system_task</a>(
+        owner_signer,
+        payload_tx,
+        expiry_time,
+        max_gas_amount,
+        tx_hash,
+        aux_data,
+    )
 }
 </code></pre>
 

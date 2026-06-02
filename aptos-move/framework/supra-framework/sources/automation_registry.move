@@ -2083,6 +2083,38 @@ module supra_framework::automation_registry {
         event::emit(automation_task_metadata);
     }
 
+    /// Registers a new system automation task from a smart contract call.
+    ///
+    /// Unlike the `AutomationRegistrationPayload` transaction path (which calls the private
+    /// `register_system_task` via the VM and performs full payload validation before execution), this
+    /// function does NOT validate that `payload_tx` encodes a well-formed entry function with
+    /// correct parameter types. If the payload is malformed, the task will fail silently at
+    /// execution time and the caller will have paid registration and deposit fees for nothing.
+    /// The caller is responsible for providing a valid BCS-encoded `EntryFunction` payload.
+    ///
+    /// The required consenus hash of the transaciton registering the task is obtained from native
+    /// layer.
+    ///
+    /// Requires both `supra_native_automation_enabled` and `supra_automation_v2_1_enabled`.
+    public fun register_system_task_without_validation(
+        owner_signer: &signer,
+        payload_tx: vector<u8>,
+        expiry_time: u64,
+        max_gas_amount: u64,
+        aux_data: vector<vector<u8>>
+    ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
+        assert!(features::supra_automation_v2_1_enabled(), EDISABLED_AUTOMATION_V2_1_FEATURE);
+        let tx_hash = supra_framework::transaction_context::get_transaction_consensus_hash();
+        register_system_task(
+            owner_signer,
+            payload_tx,
+            expiry_time,
+            max_gas_amount,
+            tx_hash,
+            aux_data,
+        )
+    }
+
 
     /// Called by MoveVm on `AutomationBookkeepingAction::Process` action emitted by native layer ahead of cycle transition
     fun process_tasks(
