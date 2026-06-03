@@ -4,30 +4,37 @@
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::aptos_vm::{unwrap_or_discard, SerializedSigners};
-use crate::counters::TXN_GAS_USAGE;
-use crate::errors::discarded_output;
-use crate::gas::{check_gas, make_prod_gas_meter};
-use crate::move_vm_ext::session::user_transaction_sessions::epilogue::EpilogueSession;
-use crate::move_vm_ext::session::user_transaction_sessions::prologue::PrologueSession;
-use crate::move_vm_ext::session::user_transaction_sessions::user::UserSession;
-use crate::move_vm_ext::{AptosMoveResolver, SessionExt};
-use crate::transaction_metadata::TransactionMetadata;
-use crate::{transaction_validation, AptosVM};
+use crate::{
+    aptos_vm::{unwrap_or_discard, SerializedSigners},
+    counters::TXN_GAS_USAGE,
+    errors::discarded_output,
+    gas::{check_gas, make_prod_gas_meter},
+    move_vm_ext::{
+        session::user_transaction_sessions::{
+            epilogue::EpilogueSession, prologue::PrologueSession, user::UserSession,
+        },
+        AptosMoveResolver, SessionExt,
+    },
+    transaction_metadata::TransactionMetadata,
+    transaction_validation, AptosVM,
+};
 use aptos_gas_algebra::Gas;
 use aptos_gas_meter::{AptosGasMeter, GasAlgebra};
 use aptos_gas_schedule::VMGasParameters;
-use aptos_types::fee_statement::FeeStatement;
-use aptos_types::on_chain_config::FeatureFlag;
-use aptos_types::transaction::automated_transaction::AutomatedTransaction;
-use aptos_types::transaction::automation::AutomationTaskType;
-use aptos_types::transaction::{
-    EntryFunction, ExecutionStatus, TransactionPayload, TransactionStatus,
+use aptos_types::{
+    fee_statement::FeeStatement,
+    on_chain_config::FeatureFlag,
+    transaction::{
+        automated_transaction::AutomatedTransaction, automation::AutomationTaskType, EntryFunction,
+        ExecutionStatus, TransactionPayload, TransactionStatus,
+    },
 };
 use aptos_vm_logging::log_schema::AdapterLogSchema;
-use aptos_vm_types::output::VMOutput;
-use aptos_vm_types::storage::change_set_configs::ChangeSetConfigs;
-use aptos_vm_types::storage::StorageGasParameters;
+use aptos_vm_types::{
+    change_set::VMChangeSet,
+    output::VMOutput,
+    storage::{change_set_configs::ChangeSetConfigs, StorageGasParameters},
+};
 use fail::fail_point;
 use move_binary_format::errors::Location;
 use move_core_types::vm_status::{StatusCode, VMStatus};
@@ -251,6 +258,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             traversal_context,
         )
     }
+
     pub(crate) fn execute_transaction_impl<'a>(
         &self,
         resolver: &impl AptosMoveResolver,
@@ -511,12 +519,8 @@ impl<'m> AutomatedTransactionProcessor<'m> {
     /// This function is utilized to define fee-statement of VMOutput.
     fn get_fee_statement_for_output(&self, fee_statement: FeeStatement) -> FeeStatement {
         match self.task_type {
-            AutomationTaskType::User => {
-                fee_statement
-            }
-            AutomationTaskType::System => {
-                FeeStatement::zero()
-            }
+            AutomationTaskType::User => fee_statement,
+            AutomationTaskType::System => FeeStatement::zero(),
         }
     }
 }

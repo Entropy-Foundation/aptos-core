@@ -1,14 +1,18 @@
 // Copyright (c) Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-// // Copyright (c) 2024 Supra.
-// // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2024 Supra.
+// SPDX-License-Identifier: Apache-2.0
 
-use crate::gas::{make_prod_gas_meter, ProdGasMeter};
-use crate::AptosVM;
-use aptos_types::state_store::StateView;
-use aptos_types::transaction::{ViewFunction, ViewFunctionOutput};
-use aptos_vm_environment::environment::AptosEnvironment;
+use crate::{
+    gas::{make_prod_gas_meter, ProdGasMeter},
+    move_vm_ext::SessionId::Void,
+    AptosVM,
+};
+use aptos_types::{
+    state_store::StateView,
+    transaction::{ViewFunction, ViewFunctionOutput},
+};
 use aptos_vm_logging::log_schema::AdapterLogSchema;
 use aptos_vm_types::module_and_script_storage::AsAptosCodeStorage;
 use aptos_vm_types::resolver::NoopBlockSynchronizationKillSwitch;

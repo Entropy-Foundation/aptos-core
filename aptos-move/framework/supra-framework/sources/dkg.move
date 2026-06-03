@@ -1,3 +1,6 @@
+/// Deprecated. Replaced by supra_dkg. Retained because the module has already been deployed to
+/// production.
+///
 /// DKG on-chain states and helper functions.
 module supra_framework::dkg {
     use std::error;
@@ -19,13 +22,13 @@ module supra_framework::dkg {
         dealer_epoch: u64,
         randomness_config: RandomnessConfig,
         dealer_validator_set: vector<ValidatorConsensusInfo>,
-        target_validator_set: vector<ValidatorConsensusInfo>,
+        target_validator_set: vector<ValidatorConsensusInfo>
     }
 
     #[event]
     struct DKGStartEvent has drop, store {
         session_metadata: DKGSessionMetadata,
-        start_time_us: u64,
+        start_time_us: u64
     }
 
     /// The input and output of a DKG session.
@@ -33,13 +36,13 @@ module supra_framework::dkg {
     struct DKGSessionState has copy, store, drop {
         metadata: DKGSessionMetadata,
         start_time_us: u64,
-        transcript: vector<u8>,
+        transcript: vector<u8>
     }
 
     /// The completed and in-progress DKG sessions.
     struct DKGState has key {
         last_completed: Option<DKGSessionState>,
-        in_progress: Option<DKGSessionState>,
+        in_progress: Option<DKGSessionState>
     }
 
     /// Called in genesis to initialize on-chain states.
@@ -50,7 +53,7 @@ module supra_framework::dkg {
                 supra_framework,
                 DKGState {
                     last_completed: std::option::none(),
-                    in_progress: std::option::none(),
+                    in_progress: std::option::none()
                 }
             );
         }
@@ -62,26 +65,25 @@ module supra_framework::dkg {
         dealer_epoch: u64,
         randomness_config: RandomnessConfig,
         dealer_validator_set: vector<ValidatorConsensusInfo>,
-        target_validator_set: vector<ValidatorConsensusInfo>,
+        target_validator_set: vector<ValidatorConsensusInfo>
     ) acquires DKGState {
         let dkg_state = borrow_global_mut<DKGState>(@supra_framework);
         let new_session_metadata = DKGSessionMetadata {
             dealer_epoch,
             randomness_config,
             dealer_validator_set,
-            target_validator_set,
+            target_validator_set
         };
         let start_time_us = timestamp::now_microseconds();
-        dkg_state.in_progress = std::option::some(DKGSessionState {
-            metadata: new_session_metadata,
-            start_time_us,
-            transcript: vector[],
-        });
+        dkg_state.in_progress = std::option::some(
+            DKGSessionState {
+                metadata: new_session_metadata,
+                start_time_us,
+                transcript: vector[]
+            }
+        );
 
-        emit(DKGStartEvent {
-            start_time_us,
-            session_metadata: new_session_metadata,
-        });
+        emit(DKGStartEvent { start_time_us, session_metadata: new_session_metadata });
     }
 
     /// Put a transcript into the currently incomplete DKG session, then mark it completed.
@@ -89,7 +91,10 @@ module supra_framework::dkg {
     /// Abort if DKG is not in progress.
     public(friend) fun finish(transcript: vector<u8>) acquires DKGState {
         let dkg_state = borrow_global_mut<DKGState>(@supra_framework);
-        assert!(option::is_some(&dkg_state.in_progress), error::invalid_state(EDKG_NOT_IN_PROGRESS));
+        assert!(
+            option::is_some(&dkg_state.in_progress),
+            error::invalid_state(EDKG_NOT_IN_PROGRESS)
+        );
         let session = option::extract(&mut dkg_state.in_progress);
         session.transcript = transcript;
         dkg_state.last_completed = option::some(session);

@@ -6,6 +6,7 @@ use crate::vm_validator::TransactionValidation;
 use anyhow::Result;
 use aptos_types::{
     account_address::AccountAddress,
+    dkg::transactions::DKGTransactionData,
     state_store::StateView,
     transaction::{SignedTransaction, VMValidatorResult},
     vm_status::StatusCode,
@@ -35,6 +36,15 @@ impl VMValidator for MockVMValidator {
     fn validate_transaction(
         &self,
         _transaction: SignedTransaction,
+        _state_view: &impl StateView,
+        _module_storage: &impl ModuleStorage,
+    ) -> VMValidatorResult {
+        VMValidatorResult::new(None, 0)
+    }
+
+    fn validate_dkg_validator_transaction(
+        &self,
+        _transaction: DKGTransactionData,
         _state_view: &impl StateView,
         _module_storage: &impl ModuleStorage,
     ) -> VMValidatorResult {

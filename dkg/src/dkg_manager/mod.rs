@@ -13,7 +13,7 @@ use aptos_crypto::Uniform;
 use aptos_infallible::duration_since_epoch;
 use aptos_logger::{debug, error, info, warn};
 use aptos_types::{
-    dkg::{
+    aptos_dkg::{
         DKGSessionMetadata, DKGSessionState, DKGStartEvent, DKGTrait, DKGTranscript,
         DKGTranscriptMetadata, MayHaveRoundingSummary,
     },

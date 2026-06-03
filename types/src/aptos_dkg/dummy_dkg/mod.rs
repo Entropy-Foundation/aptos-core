@@ -1,7 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
+use crate::aptos_{
     dkg::{DKGSessionMetadata, DKGTrait},
     validator_verifier::ValidatorVerifier,
 };

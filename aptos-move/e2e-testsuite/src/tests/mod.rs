@@ -13,6 +13,8 @@
 //! Set env REGENERATE_GOLDENFILES to update the golden files when running tests..
 
 mod account_universe;
+mod automated_transactions;
+mod automation_registration;
 mod create_account;
 mod execution_strategies;
 mod genesis;
@@ -26,6 +28,4 @@ mod scripts;
 mod state_store;
 mod transaction_fuzzer;
 mod verify_txn;
-mod automation_registration;
-mod automated_transactions;
 mod vm_viewer;

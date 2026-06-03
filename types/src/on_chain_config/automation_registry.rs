@@ -1,12 +1,19 @@
+// Copyright (c) Aptos Foundation
+// SPDX-License-Identifier: Apache-2.0
+
 // Copyright (c) 2025 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::on_chain_config::OnChainConfig;
 use derive_getters::Getters;
 use derive_more::Constructor;
-use move_core_types::account_address::AccountAddress;
-use move_core_types::value::{serialize_values, MoveValue};
-use move_core_types::{ident_str, identifier::IdentStr, move_resource::MoveStructType};
+use move_core_types::{
+    account_address::AccountAddress,
+    ident_str,
+    identifier::IdentStr,
+    move_resource::MoveStructType,
+    value::{serialize_values, MoveValue},
+};
 use serde::{Deserialize, Serialize};
 
 const ONE_MONTH_IN_SECS: u64 = 2_626_560;

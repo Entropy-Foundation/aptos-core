@@ -26,12 +26,13 @@
 
 use crate::proof::definition::{LeafCount, MAX_ACCUMULATOR_LEAVES, MAX_ACCUMULATOR_PROOF_DEPTH};
 use anyhow::{ensure, Result};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[cfg(test)]
 mod position_test;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct Position(u64);
 // invariant Position.0 < u64::MAX - 1
 
@@ -54,8 +55,7 @@ impl Position {
 
     /// What position is the node within the level? i.e. how many nodes
     /// are to the left of this node at the same level
-    #[cfg(test)]
-    fn pos_counting_from_left(self) -> u64 {
+    pub fn pos_counting_from_left(self) -> u64 {
         self.0 >> (self.level() + 1)
     }
 

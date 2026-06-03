@@ -6,7 +6,7 @@ use crate::{
     errors::{convert_epilogue_error, convert_prologue_error, expect_only_successful_execution},
     move_vm_ext::{AptosMoveResolver, SessionExt},
     system_module_names::{
-        EMIT_FEE_STATEMENT, MULTISIG_ACCOUNT_MODULE, TRANSACTION_FEE_MODULE,
+        EMIT_FEE_STATEMENT, EMIT_GAS_ASSESSMENT, MULTISIG_ACCOUNT_MODULE, TRANSACTION_FEE_MODULE,
         VALIDATE_MULTISIG_TRANSACTION,
     },
     testing::{maybe_raise_injected_error, InjectedError},
@@ -15,10 +15,12 @@ use crate::{
 use aptos_gas_algebra::Gas;
 use aptos_types::{
     account_config::constants::CORE_CODE_ADDRESS,
+   
     fee_statement::FeeStatement,
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::Features,
-    transaction::{MultisigTransactionPayload, ReplayProtector, TransactionExecutableRef},
+   
+    transaction::{automation::AutomationTaskType, {MultisigTransactionPayload, ReplayProtector, TransactionExecutableRef}},
 };
 use aptos_vm_logging::log_schema::AdapterLogSchema;
 use fail::fail_point;
@@ -48,7 +50,8 @@ pub static APTOS_TRANSACTION_VALIDATION: Lazy<TransactionValidation> =
         script_prologue_name: Identifier::new("script_prologue").unwrap(),
         multi_agent_prologue_name: Identifier::new("multi_agent_script_prologue").unwrap(),
         automated_txn_prologue_name: Identifier::new("automated_transaction_prologue").unwrap(),
-        automated_txn_prologue_v2_name: Identifier::new("automated_transaction_prologue_v2").unwrap(),
+        automated_txn_prologue_v2_name: Identifier::new("automated_transaction_prologue_v2")
+            .unwrap(),
         user_epilogue_name: Identifier::new("epilogue").unwrap(),
         user_epilogue_gas_payer_name: Identifier::new("epilogue_gas_payer").unwrap(),
         automated_txn_epilogue_name: Identifier::new("automated_transaction_epilogue").unwrap(),

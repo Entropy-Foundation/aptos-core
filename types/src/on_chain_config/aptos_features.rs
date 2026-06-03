@@ -142,23 +142,31 @@ pub enum FeatureFlag {
     SUPRA_RLP_ENCODE = 94,
     SUPRA_DELEGATION_POOL_IDENTITY = 95,
     SUPRA_AUTOMATION_V2 = 96,
+    /// This flag should only be enabled after all Validators have updated their keys to the new format, including the BLS keys.
+    SUPRA_BLS_KEYS = 97,
+    SUPRA_BCFT_CERTIFICATES = 98,
+    /// `SUPRA_BLS_KEYS` must be enabled first, as the new validator identity format is a prerequisite for the DKG.
+    /// The default DKG configuration also requires `SUPRA_BCFT_CERTIFICATES` to be enabled first.
+    SUPRA_DKG = 99,
+    SUPRA_TRANSACTIONS_INCLUSION_PROOFS = 100,
 
 
-    DERIVABLE_ACCOUNT_ABSTRACTION = 97,
+    DERIVABLE_ACCOUNT_ABSTRACTION = 101,
     /// Whether function values are enabled.
-    ENABLE_FUNCTION_VALUES = 98,
-    NEW_ACCOUNTS_DEFAULT_TO_FA_STORE = 99,
-    DEFAULT_ACCOUNT_RESOURCE = 100,
-    JWK_CONSENSUS_PER_KEY_MODE = 101,
-    TRANSACTION_PAYLOAD_V2 = 102,
-    ORDERLESS_TRANSACTIONS = 103,
+    ENABLE_FUNCTION_VALUES = 102,
+    NEW_ACCOUNTS_DEFAULT_TO_FA_STORE = 103,
+    DEFAULT_ACCOUNT_RESOURCE = 104,
+    JWK_CONSENSUS_PER_KEY_MODE = 105,
+    TRANSACTION_PAYLOAD_V2 = 106,
+    ORDERLESS_TRANSACTIONS = 107,
     // TODO(lazy-loading): Add link to AIP and its number + brief description.
-    ENABLE_LAZY_LOADING = 104,
+    ENABLE_LAZY_LOADING = 108,
 
-    CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION = 105,
-    DISTRIBUTE_TRANSACTION_FEE = 106,
+    CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION = 109,
+    DISTRIBUTE_TRANSACTION_FEE = 110,
 }
 
+//TODO: add dkg feature
 impl FeatureFlag {
     pub fn default_features() -> Vec<Self> {
         vec![
@@ -263,6 +271,10 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_COUNT_FAILED_PROPOSALS,
             FeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY,
             FeatureFlag::SUPRA_AUTOMATION_V2,
+            FeatureFlag::SUPRA_BLS_KEYS,
+            FeatureFlag::SUPRA_BCFT_CERTIFICATES,
+            FeatureFlag::SUPRA_DKG,
+            FeatureFlag::SUPRA_TRANSACTIONS_INCLUSION_PROOFS,
         ]
     }
 }

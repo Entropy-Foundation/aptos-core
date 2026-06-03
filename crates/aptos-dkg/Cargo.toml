@@ -9,7 +9,7 @@ anyhow = { workspace = true }
 aptos-crypto = { workspace = true }
 aptos-crypto-derive = { workspace = true }
 aptos-runtimes = { workspace = true }
-bcs =  { workspace = true }
+bcs = { workspace = true }
 blst = { workspace = true }
 blstrs = { workspace = true }
 criterion = { workspace = true }

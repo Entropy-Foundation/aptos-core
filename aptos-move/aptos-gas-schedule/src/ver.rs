@@ -79,7 +79,7 @@
 ///       global operations.
 /// - V1
 ///   - TBA
-pub const LATEST_GAS_FEATURE_VERSION: u64 = gas_feature_versions::RELEASE_V1_16_SUPRA_V1_7_14;
+pub const LATEST_GAS_FEATURE_VERSION: u64 = gas_feature_versions::RELEASE_V1_16_SUPRA_V1_8_0;
 
 pub mod gas_feature_versions {
     pub const RELEASE_V1_8: u64 = 11;
@@ -95,20 +95,21 @@ pub mod gas_feature_versions {
     pub const RELEASE_V1_16_SUPRA_V1_5_1: u64 = 22;
     pub const RELEASE_V1_16_SUPRA_V1_6_0: u64 = 23;
     pub const RELEASE_V1_16_SUPRA_V1_7_14: u64 = 24;
-    pub const RELEASE_V1_18: u64 = 25;
-    pub const RELEASE_V1_19: u64 = 26;
-    pub const RELEASE_V1_20: u64 = 27;
-    pub const RELEASE_V1_21: u64 = 28;
-    pub const RELEASE_V1_22: u64 = 29;
-    pub const RELEASE_V1_23: u64 = 30;
-    pub const RELEASE_V1_24: u64 = 31;
-    pub const RELEASE_V1_26: u64 = 32;
-    pub const RELEASE_V1_27: u64 = 33;
-    pub const RELEASE_V1_28: u64 = 34;
-    pub const RELEASE_V1_29: u64 = 35;
-    pub const RELEASE_V1_30: u64 = 36;
-    pub const RELEASE_V1_31: u64 = 37;
-    pub const RELEASE_V1_32: u64 = 38;
-    pub const RELEASE_V1_33: u64 = 39;
-    pub const RELEASE_V1_34: u64 = 40;
+    pub const RELEASE_V1_16_SUPRA_V1_8_0: u64 = 25;
+    pub const RELEASE_V1_18: u64 = 26;
+    pub const RELEASE_V1_19: u64 = 27;
+    pub const RELEASE_V1_20: u64 = 28;
+    pub const RELEASE_V1_21: u64 = 29;
+    pub const RELEASE_V1_22: u64 = 30;
+    pub const RELEASE_V1_23: u64 = 31;
+    pub const RELEASE_V1_24: u64 = 32;
+    pub const RELEASE_V1_26: u64 = 33;
+    pub const RELEASE_V1_27: u64 = 34;
+    pub const RELEASE_V1_28: u64 = 35;
+    pub const RELEASE_V1_29: u64 = 36;
+    pub const RELEASE_V1_30: u64 = 37;
+    pub const RELEASE_V1_31: u64 = 38;
+    pub const RELEASE_V1_32: u64 = 39;
+    pub const RELEASE_V1_33: u64 = 40;
+    pub const RELEASE_V1_34: u64 = 41;
 }

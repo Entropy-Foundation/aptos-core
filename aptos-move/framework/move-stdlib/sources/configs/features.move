@@ -850,10 +850,65 @@ module std::features {
         is_enabled(SUPRA_AUTOMATION_V2)
     }
 
+    /// Whether the functionality related to the new validator identity representation is enabled.
+    /// This flag should only be enabled after all Validators have updated their keys to the new format, including the BLS keys.
+    ///
+    /// Lifetime: permanent
+    const SUPRA_BLS_KEYS: u64 = 97;
+
+    public fun get_supra_validator_identity_v2_feature(): u64 {
+        SUPRA_BLS_KEYS
+    }
+
+    public fun supra_validator_identity_v2_enabled(): bool acquires Features {
+        is_enabled(SUPRA_BLS_KEYS)
+    }
+
+    /// Whether BCFT certificate thresholds are enabled.
+    ///
+    /// Lifetime: permanent
+    const SUPRA_BCFT_CERTIFICATES: u64 = 98;
+
+    public fun get_supra_bcft_certificates_feature(): u64 {
+        SUPRA_BCFT_CERTIFICATES
+    }
+
+    public fun supra_bcft_certificates_enabled(): bool acquires Features {
+        is_enabled(SUPRA_BCFT_CERTIFICATES)
+    }
+
+    /// Whether the APIs related to the DKG feature are enabled. `SUPRA_BLS_KEYS` must be enabled first,
+    /// as the new validator identity format is a prerequisite for the DKG. The default DKG configuration
+    /// also requires `SUPRA_BCFT_CERTIFICATES` to be enabled first.
+    ///
+    /// Lifetime: transient
+    const SUPRA_DKG: u64 = 99;
+
+    public fun get_supra_dkg_feature(): u64 {
+        SUPRA_DKG
+    }
+
+    public fun supra_dkg_enabled(): bool acquires Features {
+        is_enabled(SUPRA_DKG)
+    }
+
+    /// Whether transactions inclusion proofs are enabled.
+    ///
+    /// Lifetime: permanent
+    const SUPRA_TRANSACTIONS_INCLUSION_PROOFS: u64 = 100;
+
+    public fun get_supra_transactions_inclusion_proofs_feature(): u64 {
+        SUPRA_TRANSACTIONS_INCLUSION_PROOFS
+    }
+
+    public fun supra_transactions_inclusion_proofs_enabled(): bool acquires Features {
+        is_enabled(SUPRA_TRANSACTIONS_INCLUSION_PROOFS)
+    }
+
     /// Whether the account abstraction is enabled.
     ///
     /// Lifetime: transient
-    const DERIVABLE_ACCOUNT_ABSTRACTION: u64 = 97;
+    const DERIVABLE_ACCOUNT_ABSTRACTION: u64 = 101;
 
     public fun is_derivable_account_abstraction_enabled(): bool acquires Features {
         is_enabled(DERIVABLE_ACCOUNT_ABSTRACTION)
@@ -868,11 +923,11 @@ module std::features {
     /// Lifetime: transient
     ///
     /// We do not expect use from Move, so for now only for documentation purposes here
-    const ENABLE_FUNCTION_VALUES: u64 = 98;
+    const ENABLE_FUNCTION_VALUES: u64 = 102;
 
     /// Whether new accounts default to the Fungible Asset store.
     /// Lifetime: transient
-    const NEW_ACCOUNTS_DEFAULT_TO_FA_STORE: u64 = 99;
+    const NEW_ACCOUNTS_DEFAULT_TO_FA_STORE: u64 = 103;
 
     public fun get_new_accounts_default_to_fa_store_feature(): u64 { NEW_ACCOUNTS_DEFAULT_TO_FA_STORE }
 
@@ -881,7 +936,7 @@ module std::features {
     }
 
     /// Lifetime: transient
-    const DEFAULT_ACCOUNT_RESOURCE: u64 = 100;
+    const DEFAULT_ACCOUNT_RESOURCE: u64 = 104;
 
     public fun get_default_account_resource_feature(): u64 { DEFAULT_ACCOUNT_RESOURCE }
 
@@ -896,7 +951,7 @@ module std::features {
     /// - while a key-level update is mostly represented by a new type `KeyLevelUpdate` locally,
     ///   For simplicity, it is represented by type `ProviderJWKs` (used to represent issuer-level update)
     ///   in JWK Consensus messages, in validator transactions, and in Move.
-    const JWK_CONSENSUS_PER_KEY_MODE: u64 = 101;
+    const JWK_CONSENSUS_PER_KEY_MODE: u64 = 105;
 
     public fun get_jwk_consensus_per_key_mode_feature(): u64 { JWK_CONSENSUS_PER_KEY_MODE }
 
@@ -906,7 +961,7 @@ module std::features {
 
     /// Whether orderless transactions are enabled.
     /// Lifetime: transient
-    const ORDERLESS_TRANSACTIONS: u64 = 103;
+    const ORDERLESS_TRANSACTIONS: u64 = 106;
 
     public fun get_orderless_transactions_feature(): u64 { ORDERLESS_TRANSACTIONS }
 
@@ -915,7 +970,7 @@ module std::features {
     }
 
     /// Whether to calculate the transaction fee for distribution.
-    const CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION: u64 = 105;
+    const CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION: u64 = 107;
 
     public fun get_calculate_transaction_fee_for_distribution_feature(): u64 { CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION }
 
@@ -924,7 +979,7 @@ module std::features {
     }
 
     /// Whether to distribute transaction fee to validators.
-    const DISTRIBUTE_TRANSACTION_FEE: u64 = 106;
+    const DISTRIBUTE_TRANSACTION_FEE: u64 = 108;
 
     public fun get_distribute_transaction_fee_feature(): u64 { DISTRIBUTE_TRANSACTION_FEE }
 

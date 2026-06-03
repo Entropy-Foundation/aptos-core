@@ -73,6 +73,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `get_registry_total_locked_balance`](#0x1_automation_registry_get_registry_total_locked_balance)
 -  [Function `get_active_task_ids`](#0x1_automation_registry_get_active_task_ids)
 -  [Function `get_task_details`](#0x1_automation_registry_get_task_details)
+-  [Function `deconstruct_task_metadata_v2`](#0x1_automation_registry_deconstruct_task_metadata_v2)
 -  [Function `deconstruct_task_metadata`](#0x1_automation_registry_deconstruct_task_metadata)
 -  [Function `get_task_owner`](#0x1_automation_registry_get_task_owner)
 -  [Function `get_task_details_bulk`](#0x1_automation_registry_get_task_details_bulk)
@@ -2668,6 +2669,16 @@ Invalid number of auxiliary data.
 
 
 
+<a id="0x1_automation_registry_EINVALID_CYCLE_REFUND_FEE"></a>
+
+The refund fee for remaining cycle time is greater than total cycle fee for the task.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EINVALID_CYCLE_REFUND_FEE">EINVALID_CYCLE_REFUND_FEE</a>: u64 = 48;
+</code></pre>
+
+
+
 <a id="0x1_automation_registry_EINVALID_EXPIRY_TIME"></a>
 
 Invalid expiry time: it cannot be earlier than the current time
@@ -3515,6 +3526,59 @@ Error will be returned if entry with specified task index does not exist.
     <b>let</b> registry_state = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>&gt;(@supra_framework);
     <b>assert</b>!(<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&registry_state.main.tasks, task_index), <a href="automation_registry.md#0x1_automation_registry_EAUTOMATION_TASK_NOT_FOUND">EAUTOMATION_TASK_NOT_FOUND</a>);
     <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&registry_state.main.tasks, task_index)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_deconstruct_task_metadata_v2"></a>
+
+## Function `deconstruct_task_metadata_v2`
+
+Retrieves specific metadata details of an automation task entry by its task index.
+
+1. <code>u64</code>                     - The task index.
+2. <code><b>address</b></code>                 - The owner of the task.
+3. <code><a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>              - The payload transaction (encoded).
+4. <code>u64</code>                     - The expiry time of the task (timestamp).
+5. <code><a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>              - The hash of the transaction.
+6. <code>u64</code>                     - The maximum gas amount allowed for the task.
+7. <code>u64</code>                     - The gas price cap for executing the task.
+8. <code>u64</code>                     - The automation fee cap for the current epoch.
+9. <code><a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;</code>      - Auxiliary data related to the task (can be multiple items).
+10. <code>u64</code>                    - The time at which the task was registered (timestamp).
+11. <code>u8</code>                     - The state of the task (e.g., active, cancelled, completed).
+12. <code>u64</code>                    - The locked fee reserved for the next epoch execution.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_deconstruct_task_metadata_v2">deconstruct_task_metadata_v2</a>(task_metadata: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>): (u64, <b>address</b>, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, u64, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, u64, u64, u64, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, u64, u8, u64)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_deconstruct_task_metadata_v2">deconstruct_task_metadata_v2</a>(
+    task_metadata: &<a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a>
+): (u64, <b>address</b>, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, u64, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, u64, u64, u64, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;, u64, u8, u64) {
+    (
+        task_metadata.task_index,
+        task_metadata.owner,
+        task_metadata.payload_tx,
+        task_metadata.expiry_time,
+        task_metadata.tx_hash,
+        task_metadata.max_gas_amount,
+        task_metadata.gas_price_cap,
+        task_metadata.automation_fee_cap_for_epoch,
+        task_metadata.aux_data,
+        task_metadata.registration_time,
+        task_metadata.state,
+        task_metadata.locked_fee_for_next_epoch
+    )
 }
 </code></pre>
 
@@ -4663,7 +4727,7 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
 
     <b>let</b> stopped_task_details = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
     <b>let</b> total_refund_fee = 0;
-    <b>let</b> epoch_locked_fees = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees;
+    <b>let</b> total_cycle_locked_fees = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees;
 
     // Calculate refundable fee for this remaining time task in current epoch
     <b>let</b> current_time = <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>();
@@ -4700,8 +4764,14 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
                 <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch = <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.gas_committed_for_next_epoch - task.max_gas_amount;
             };
 
-            <b>let</b> (epoch_fee_refund, deposit_refund) = <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
-                <b>let</b> task_fee = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(
+            <b>let</b> (cycle_locked_fee_for_task, cycle_fee_refund, deposit_refund) = <b>if</b> (task.state != <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
+                <b>let</b> task_fee_for_full_cycle =
+                    <a href="automation_registry.md#0x1_automation_registry_calculate_automation_fee_for_interval">calculate_automation_fee_for_interval</a>(
+                        cycle_info.duration_secs,
+                        task.max_gas_amount,
+                        automation_fee_per_sec,
+                        arc.registry_max_gas_cap);
+                <b>let</b> task_fee_for_residual_time = <a href="automation_registry.md#0x1_automation_registry_calculate_task_fee">calculate_task_fee</a>(
                     &arc,
                     &task,
                     residual_interval,
@@ -4709,27 +4779,28 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
                     automation_fee_per_sec
                 );
                 // Refund full deposit and the half of the remaining run-time fee when task is active or cancelled stage
-                (task_fee / <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>, task.locked_fee_for_next_epoch)
+                (task_fee_for_full_cycle, task_fee_for_residual_time / <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>, task.locked_fee_for_next_epoch)
             } <b>else</b> {
-                (0, (task.locked_fee_for_next_epoch / <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>))
+                (0, 0, (task.locked_fee_for_next_epoch / <a href="automation_registry.md#0x1_automation_registry_REFUND_FRACTION">REFUND_FRACTION</a>))
             };
             <b>let</b> result = <a href="automation_registry.md#0x1_automation_registry_safe_unlock_locked_deposit">safe_unlock_locked_deposit</a>(
                 refund_bookkeeping,
                 task.locked_fee_for_next_epoch,
                 task.task_index);
             <b>assert</b>!(result, <a href="automation_registry.md#0x1_automation_registry_EDEPOSIT_REFUND">EDEPOSIT_REFUND</a>);
-            <b>let</b> (result, remaining_epoch_locked_fees) = <a href="automation_registry.md#0x1_automation_registry_safe_unlock_locked_epoch_fee">safe_unlock_locked_epoch_fee</a>(
-                epoch_locked_fees,
-                epoch_fee_refund,
+            <b>assert</b>!(cycle_locked_fee_for_task &gt;= cycle_fee_refund, <a href="automation_registry.md#0x1_automation_registry_EINVALID_CYCLE_REFUND_FEE">EINVALID_CYCLE_REFUND_FEE</a>);
+            <b>let</b> (result, remaining_cycle_locked_fees) = <a href="automation_registry.md#0x1_automation_registry_safe_unlock_locked_epoch_fee">safe_unlock_locked_epoch_fee</a>(
+                total_cycle_locked_fees,
+                cycle_locked_fee_for_task,
                 task.task_index);
             <b>assert</b>!(result, <a href="automation_registry.md#0x1_automation_registry_EEPOCH_FEE_REFUND">EEPOCH_FEE_REFUND</a>);
-            epoch_locked_fees = remaining_epoch_locked_fees;
+            total_cycle_locked_fees = remaining_cycle_locked_fees;
 
-            total_refund_fee = total_refund_fee + (epoch_fee_refund + deposit_refund);
+            total_refund_fee = total_refund_fee + (cycle_fee_refund + deposit_refund);
 
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(
                 &<b>mut</b> stopped_task_details,
-                <a href="automation_registry.md#0x1_automation_registry_TaskStoppedV2">TaskStoppedV2</a> { task_index, deposit_refund, epoch_fee_refund, registration_hash: task.tx_hash }
+                <a href="automation_registry.md#0x1_automation_registry_TaskStoppedV2">TaskStoppedV2</a> { task_index, deposit_refund, epoch_fee_refund: cycle_fee_refund, registration_hash: task.tx_hash }
             );
         }
     });
@@ -4743,6 +4814,7 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
         <b>let</b> resource_account_balance = <a href="coin.md#0x1_coin_balance">coin::balance</a>&lt;SupraCoin&gt;(<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.registry_fee_address);
         <b>assert</b>!(resource_account_balance &gt;= total_refund_fee, <a href="automation_registry.md#0x1_automation_registry_EINSUFFICIENT_BALANCE_FOR_REFUND">EINSUFFICIENT_BALANCE_FOR_REFUND</a>);
         <a href="coin.md#0x1_coin_transfer">coin::transfer</a>&lt;SupraCoin&gt;(&resource_signer, owner, total_refund_fee);
+        <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.epoch_locked_fees = total_cycle_locked_fees;
 
         // Emit task stopped <a href="event.md#0x1_event">event</a>
         <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TasksStoppedV2">TasksStoppedV2</a> {
@@ -4888,6 +4960,7 @@ Committed gas-limit is updated by reducing it with the max-gas-amount of the can
     <b>assert</b>!(automation_task_metadata.state != <a href="automation_registry.md#0x1_automation_registry_CANCELLED">CANCELLED</a>, <a href="automation_registry.md#0x1_automation_registry_EALREADY_CANCELLED">EALREADY_CANCELLED</a>);
     <b>if</b> (automation_task_metadata.state == <a href="automation_registry.md#0x1_automation_registry_PENDING">PENDING</a>) {
         <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.main.tasks, task_index);
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_remove_value">vector::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.system_tasks_state.task_ids, &task_index);
     } <b>else</b> { // it is safe not <b>to</b> check the state <b>as</b> above, the cancelled tasks are already rejected.
         <b>let</b> automation_task_metadata_mut = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value_mut">enumerable_map::get_value_mut</a>(
             &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.main.tasks,
@@ -5654,6 +5727,7 @@ In case if end is identified the registry state is update to CYCLE_READY and cor
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_for_each">vector::for_each</a>(task_indexes, |task_index| {
         <b>if</b> (<a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.main.tasks, task_index)) {
             <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_remove_value">enumerable_map::remove_value</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.main.tasks, task_index);
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> removed_tasks, task_index);
             <a href="automation_registry.md#0x1_automation_registry_mark_task_processed">mark_task_processed</a>(transition_state, task_index);
             // Nothing <b>to</b> refund for <a href="automation_registry.md#0x1_automation_registry_GST">GST</a> tasks
             <b>if</b> (<a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(&task, <a href="automation_registry.md#0x1_automation_registry_UST">UST</a>)) {
@@ -5666,9 +5740,8 @@ In case if end is identified the registry state is update to CYCLE_READY and cor
                     &resource_signer,
                     epoch_locked_fees,
                     current_time,
-                    &<b>mut</b> removed_tasks
                 )
-            };
+            }
         }
     });
 
@@ -5902,7 +5975,7 @@ Removes system task from registry state.
 Refunds the deposit fee and any autoamtion fees of the task.
 
 
-<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_task_fees">refund_task_fees</a>(task: <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, refund_bookkeeping: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">automation_registry::AutomationRefundBookkeeping</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">automation_registry::ActiveAutomationRegistryConfigV2</a>, transition_state: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_TransitionState">automation_registry::TransitionState</a>, resource_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_locked_fees: u64, current_time: u64, removed_tasks: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;): u64
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_refund_task_fees">refund_task_fees</a>(task: <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">automation_registry::AutomationTaskMetaData</a>, <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistry">automation_registry::AutomationRegistry</a>, refund_bookkeeping: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">automation_registry::AutomationRefundBookkeeping</a>, arc: &<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">automation_registry::ActiveAutomationRegistryConfigV2</a>, transition_state: &<b>mut</b> <a href="automation_registry.md#0x1_automation_registry_TransitionState">automation_registry::TransitionState</a>, resource_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, epoch_locked_fees: u64, current_time: u64): u64
 </code></pre>
 
 
@@ -5920,7 +5993,6 @@ Refunds the deposit fee and any autoamtion fees of the task.
     resource_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     epoch_locked_fees: u64,
     current_time: u64,
-    removed_tasks: &<b>mut</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;
 
 ) : u64 {
     <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_is_of_type">is_of_type</a>(&task, <a href="automation_registry.md#0x1_automation_registry_UST">UST</a>), <a href="automation_registry.md#0x1_automation_registry_EREGISTERED_TASK_INVALID_TYPE">EREGISTERED_TASK_INVALID_TYPE</a>);
@@ -5950,7 +6022,6 @@ Refunds the deposit fee and any autoamtion fees of the task.
         task.owner,
         task.locked_fee_for_next_epoch,
         task.locked_fee_for_next_epoch);
-    <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(removed_tasks, task.task_index);
     epoch_locked_fees
 }
 </code></pre>

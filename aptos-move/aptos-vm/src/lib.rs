@@ -107,6 +107,9 @@ pub mod counters;
 pub mod data_cache;
 
 pub mod aptos_vm;
+pub mod aptos_vm_viewer;
+mod automated_transaction_processor;
+mod automation_registry_transaction_processor;
 pub mod block_executor;
 mod errors;
 pub mod gas;
@@ -123,18 +126,19 @@ pub mod transaction_metadata;
 mod transaction_validation;
 pub mod validator_txns;
 pub mod verifier;
-mod automated_transaction_processor;
-pub mod aptos_vm_viewer;
-mod automation_registry_transaction_processor;
 
 pub use crate::aptos_vm::{AptosSimulationVM, AptosVM};
-use crate::sharded_block_executor::{executor_client::ExecutorClient, ShardedBlockExecutor};
+use crate::{
+    move_vm_ext::AptosMoveResolver,
+    sharded_block_executor::{executor_client::ExecutorClient, ShardedBlockExecutor},
+};
 use aptos_block_executor::txn_provider::default::DefaultTxnProvider;
 use aptos_types::{
     block_executor::{
         config::BlockExecutorConfigFromOnchain, partitioner::PartitionedTransactions,
         transaction_slice_metadata::TransactionSliceMetadata,
     },
+    dkg::transactions::DKGTransactionData,
     state_store::{state_key::StateKey, StateView},
     transaction::{
         signature_verified_transaction::SignatureVerifiedTransaction, BlockOutput,
@@ -154,6 +158,13 @@ pub trait VMValidator {
         transaction: SignedTransaction,
         state_view: &impl StateView,
         module_storage: &impl ModuleStorage,
+    ) -> VMValidatorResult;
+
+    // TODO: pass state view and module storage here.
+    fn validate_dkg_validator_transaction(
+        &self,
+        dkg_transaction: DKGTransactionData,
+        resolver: &impl AptosMoveResolver,
     ) -> VMValidatorResult;
 }
 

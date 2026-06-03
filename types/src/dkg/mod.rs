@@ -3,13 +3,11 @@
 
 use self::real_dkg::RealDKG;
 use crate::{
-    dkg::real_dkg::{rounding::DKGRoundingProfile, Transcripts},
+    dkg::real_dkg::rounding::DKGRoundingProfile,
     on_chain_config::{OnChainConfig, OnChainRandomnessConfig, RandomnessConfigMoveStruct},
-    validator_verifier::{
-        ValidatorConsensusInfo, ValidatorConsensusInfoMoveStruct, ValidatorVerifier,
-    },
+    validator_verifier::{ValidatorConsensusInfo, ValidatorConsensusInfoMoveStruct},
 };
-use anyhow::{Context, Result};
+use anyhow::Result;
 use aptos_crypto::Uniform;
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
 use move_core_types::{
@@ -78,12 +76,6 @@ impl DKGTranscript {
             },
             transcript_bytes: vec![],
         }
-    }
-
-    pub(crate) fn verify(&self, verifier: &ValidatorVerifier) -> Result<()> {
-        let transcripts: Transcripts = bcs::from_bytes(&self.transcript_bytes)
-            .context("Transcripts deserialization failed")?;
-        RealDKG::verify_transcript_extra(&transcripts, verifier, true, None)
     }
 }
 
@@ -199,15 +191,7 @@ pub trait DKGTrait: Debug {
         sk: &Self::DealerPrivateKey,
     ) -> Self::Transcript;
 
-    /// NOTE: used in VM.
     fn verify_transcript(params: &Self::PublicParams, trx: &Self::Transcript) -> Result<()>;
-
-    fn verify_transcript_extra(
-        trx: &Self::Transcript,
-        verifier: &ValidatorVerifier,
-        checks_voting_power: bool,
-        ensures_single_dealer: Option<AccountAddress>,
-    ) -> Result<()>;
 
     fn aggregate_transcripts(
         params: &Self::PublicParams,

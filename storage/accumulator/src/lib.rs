@@ -160,6 +160,14 @@ where
         MerkleAccumulatorView::<R, H>::new(reader, num_leaves).get_proof(leaf_index)
     }
 
+    pub fn get_proof_by_position(
+        reader: &R,
+        num_leaves: LeafCount,
+        position: Position,
+    ) -> Result<AccumulatorProof<H>> {
+        MerkleAccumulatorView::<R, H>::new(reader, num_leaves).get_proof_by_position(position)
+    }
+
     /// Gets a proof that shows the full accumulator is consistent with a smaller accumulator.
     ///
     /// See [`aptos_types::proof::AccumulatorConsistencyProof`] for proof format.
@@ -364,6 +372,17 @@ where
             self.num_leaves
         );
         let siblings = self.get_siblings(leaf_index, |_p| true)?;
+        Ok(AccumulatorProof::new(siblings))
+    }
+
+    fn get_proof_by_position(&self, position: Position) -> Result<AccumulatorProof<H>> {
+        let root_pos = Position::root_from_leaf_count(self.num_leaves);
+        let siblings = self.get_hashes(
+            &position
+                .iter_ancestor_sibling()
+                .take(root_pos.level() as usize)
+                .collect::<Vec<_>>(),
+        )?;
         Ok(AccumulatorProof::new(siblings))
     }
 

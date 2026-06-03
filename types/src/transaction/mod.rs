@@ -64,27 +64,39 @@ use crate::transaction::automation::AutomationRegistryRecord;
 pub use self::block_epilogue::{BlockEndInfo, BlockEpiloguePayload, FeeDistribution};
 use crate::{
     block_metadata_ext::BlockMetadataExt,
+   
     contract_event::TransactionEvent,
+   
     executable::ModulePath,
     fee_statement::FeeStatement,
+    move_utils::MemberId,
+   
     function_info::FunctionInfo,
     keyless::FederatedKeylessPublicKey,
     on_chain_config::{FeatureFlag, Features},
     proof::accumulator::InMemoryEventAccumulator,
+    serde_helper::vec_bytes,
+    transaction::{
+        automated_transaction::AutomatedTransaction,
+        automation::{AutomationRegistryRecord, RegistrationParams},
+    },
     state_store::{state_key::StateKey, state_value::StateValue},
     validator_txn::ValidatorTransaction,
+   
     write_set::TransactionWrite,
 };
 pub use block_output::BlockOutput;
 pub use change_set::ChangeSet;
 pub use module::{Module, ModuleBundle};
 use crate::move_utils::MemberId;
-use move_core_types::identifier::{IdentStr, Identifier};
-use move_core_types::language_storage::{ModuleId, TypeTag};
 pub use move_core_types::transaction_argument::TransactionArgument;
 use move_core_types::{
+    identifier::{IdentStr, Identifier},
+    language_storage::{ModuleId, TypeTag},
+    {
     value::{MoveStruct, MoveValue},
     vm_status::AbortLocation,
+},
 };
 pub use multisig::{ExecutionError, Multisig, MultisigTransactionPayload};
 use once_cell::sync::OnceCell;
@@ -3024,7 +3036,7 @@ impl Transaction {
             Transaction::BlockMetadataExt(bmet) => bmet.type_name(),
             Transaction::AutomatedTransaction(_) => "automated_transaction",
             Transaction::AutomationRegistryTransaction(_) => "automation_registry_transaction",
-            Transaction::SystemAutomatedTransaction(_) => "system_automated_transaction"
+            Transaction::SystemAutomatedTransaction(_) => "system_automated_transaction",
         }
     }
 

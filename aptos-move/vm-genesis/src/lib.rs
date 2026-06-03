@@ -8,6 +8,7 @@ mod genesis_context;
 
 use crate::genesis_context::GenesisStateView;
 use aptos_crypto::{
+    bls12381,
     ed25519,
     ed25519::{Ed25519PrivateKey, Ed25519PublicKey},
     HashValue, PrivateKey, Uniform,
@@ -19,7 +20,7 @@ use aptos_gas_schedule::{
 use aptos_types::{
     account_address::{create_resource_address, create_seed_for_pbo_module},
     account_config::{
-        self, aptos_test_root_address, events::NewEpochEvent, CORE_CODE_ADDRESS,
+        self, CORE_CODE_ADDRESS, aptos_test_root_address, events::NewEpochEvent,
         EXPERIMENTAL_CODE_ADDRESS,
     },
     chain_id::ChainId,
@@ -35,13 +36,11 @@ use aptos_types::{
     },
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{
-        randomness_api_v0_config::{AllowCustomMaxGasFlag, RequiredGasDeposit},
-        AutomationRegistryConfig, FeatureFlag, Features, GasScheduleV2, OnChainConsensusConfig,
-        OnChainEvmGenesisConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig,
-        OnChainRandomnessConfig, RandomnessConfigMoveStruct, APTOS_MAX_KNOWN_VERSION,
+        APTOS_MAX_KNOWN_VERSION, AutomationRegistryConfig, BanRegistryParameters, BanRegistryParametersV0, FeatureFlag, Features, GasScheduleV2, OnChainConsensusConfig, OnChainEvmGenesisConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig, RandomnessConfigMoveStruct, randomness_api_v0_config::{AllowCustomMaxGasFlag, RequiredGasDeposit}
     },
     state_store::state_key::StateKey,
     transaction::{authenticator::AuthenticationKey, ChangeSet, Transaction, WriteSetPayload},
+    validator_public_keys::ValidatorPublicKeys,
     write_set::{TransactionWrite, WriteOp, WriteSet},
 };
 use aptos_vm::{
@@ -90,7 +89,7 @@ const VERSION_MODULE_NAME: &str = "version";
 const JWK_CONSENSUS_CONFIG_MODULE_NAME: &str = "jwk_consensus_config";
 const JWKS_MODULE_NAME: &str = "jwks";
 const CONFIG_BUFFER_MODULE_NAME: &str = "config_buffer";
-const DKG_MODULE_NAME: &str = "dkg";
+const DKG_MODULE_NAME: &str = "supra_dkg";
 const RANDOMNESS_API_V0_CONFIG_MODULE_NAME: &str = "randomness_api_v0_config";
 const RANDOMNESS_CONFIG_SEQNUM_MODULE_NAME: &str = "randomness_config_seqnum";
 const RANDOMNESS_CONFIG_MODULE_NAME: &str = "randomness_config";
@@ -129,6 +128,7 @@ pub struct GenesisConfiguration {
     pub randomness_config_override: Option<OnChainRandomnessConfig>,
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     pub automation_registry_config: Option<AutomationRegistryConfig>,
+    pub leader_ban_registry_config: Option<BanRegistryParameters>,
     pub initial_jwks: Vec<IssuerJWK>,
     pub keyless_groth16_vk: Option<Groth16VerificationKey>,
 }
@@ -389,6 +389,7 @@ pub fn encode_genesis_change_set_for_testnet(
         &mut traversal_context,
         genesis_config,
     );
+    initialize_leader_ban_config(&mut session, &module_storage, &mut traversal_context, genesis_config);
 
     if let Some(evm_genesis_config) = evm_genesis_config {
         initialize_evm_genesis_config(&mut session, &module_storage, &mut traversal_context, &evm_genesis_config);
@@ -711,6 +712,42 @@ fn initialize_supra_native_automation(
         traversal_context,
         GENESIS_MODULE_NAME,
         "initialize_supra_native_automation_v2",
+        vec![],
+        config.serialize_into_move_values_with_signer(CORE_CODE_ADDRESS),
+    );
+}
+
+fn initialize_leader_ban_config(
+    session: &mut SessionExt,
+    module_storage: &impl AptosModuleStorage,
+    traversal_context: &mut TraversalContext,
+    genesis_config: &GenesisConfiguration,
+) {
+    let Some(config) = &genesis_config.leader_ban_registry_config else {
+        return;
+    };
+    exec_function(
+        session,
+        module_storage: &impl AptosModuleStorage,
+        traversal_context: &mut TraversalContext,
+        GENESIS_MODULE_NAME,
+        "initialize_leader_ban_registry_config",
+        vec![],
+        config.serialize_into_move_values_with_signer(CORE_CODE_ADDRESS),
+    );
+}
+
+fn initialize_leader_ban_config(
+    session: &mut SessionExt,
+    genesis_config: &GenesisConfiguration,
+) {
+    let Some(config) = &genesis_config.leader_ban_registry_config else {
+        return;
+    };
+    exec_function(
+        session,
+        GENESIS_MODULE_NAME,
+        "initialize_leader_ban_registry_config",
         vec![],
         config.serialize_into_move_values_with_signer(CORE_CODE_ADDRESS),
     );
@@ -1628,7 +1665,35 @@ impl TestValidator {
         let auth_key = AuthenticationKey::ed25519(&key.public_key());
         let owner_address = auth_key.account_address();
         let consensus_key = ed25519::PrivateKey::generate(rng);
-        let consensus_pubkey = consensus_key.public_key().to_bytes().to_vec();
+        let network_pubkey_bytes = consensus_key.public_key().to_bytes().to_vec();
+        let bls_key = bls12381::PrivateKey::generate(rng);
+        let bls_pubkey_bytes = bls12381::PublicKey::from(&bls_key).to_bytes().to_vec();
+        let cg_pubkey_bytes = {
+            let mut cg_rng = crypto::bls12381::cl_utils::rng();
+            crypto::bls12381::cg_encryption::keygen(&mut cg_rng, &[])
+                .expect("CG keygen must succeed")
+                .1
+                .to_vec()
+        };
+        let supra_ed_key = ed25519::PrivateKey::generate(rng);
+        let supra_ed_pubkey_bytes = supra_ed_key.public_key().to_bytes().to_vec();
+        // When SUPRA_BLS_KEYS feature is enabled (default), the genesis validator key must be
+        // BCS-encoded ValidatorPublicKeys, not a plain ed25519 key.
+        let validator_public_keys = ValidatorPublicKeys::new(
+            network_pubkey_bytes,
+            bls_pubkey_bytes,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            cg_pubkey_bytes,
+            supra_ed_pubkey_bytes,
+        );
+        let consensus_pubkey =
+            bcs::to_bytes(&validator_public_keys).expect("ValidatorPublicKeys must serialize");
         let network_address = [0u8; 0].to_vec();
         let full_node_network_address = [0u8; 0].to_vec();
 
@@ -1695,6 +1760,7 @@ pub fn generate_test_genesis(
             randomness_config_override: None,
             jwk_consensus_config_override: None,
             automation_registry_config: Some(AutomationRegistryConfig::default()),
+            leader_ban_registry_config: Some(BanRegistryParameters::default()),
             initial_jwks: vec![],
             keyless_groth16_vk: None,
         },
@@ -1765,6 +1831,7 @@ fn mainnet_genesis_config() -> GenesisConfiguration {
         randomness_config_override: None,
         jwk_consensus_config_override: None,
         automation_registry_config: Some(AutomationRegistryConfig::default()),
+        leader_ban_registry_config: Some(BanRegistryParameters::default()),
         initial_jwks: vec![],
         keyless_groth16_vk: None,
     }

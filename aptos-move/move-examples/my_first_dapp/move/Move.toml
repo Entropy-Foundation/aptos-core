@@ -7,4 +7,4 @@ SupraFramework = {local = "../../../framework/supra-framework"}
 
 
 [addresses]
-todolist_addr='_'
+todolist_addr = '_'

@@ -22,5 +22,7 @@ smallvec = { workspace = true }
 move-cli = { workspace = true }
 move-package = { workspace = true }
 move-stdlib = { path = "../../move-stdlib", features = ["testing"] }
-move-unit-test = { workspace = true, features = ["table-extension"] }
+move-unit-test = { workspace = true, features = [
+  "table-extension",
+] }
 tempfile = { workspace = true }

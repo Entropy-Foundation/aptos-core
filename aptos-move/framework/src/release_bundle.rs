@@ -204,7 +204,11 @@ impl ReleasePackage {
         // The Sha2-256 digest here is the combined hash of all the hashes of the `.move` files and
         // the manifest file(Move.toml) in the source package.
         // Check [move_package::resolution::digest::compile_digest]
-        emitln!(writer, "// source package's SHA2-256 digest: {}", self.metadata.source_digest);
+        emitln!(
+            writer,
+            "// source package's SHA2-256 digest: {}",
+            self.metadata.source_digest
+        );
         emitln!(writer, "script {");
         writer.indent();
         emitln!(writer, "use std::vector;");

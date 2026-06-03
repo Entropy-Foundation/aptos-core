@@ -20,7 +20,7 @@ pub type AbstractValueSizePerArg = GasQuantity<UnitDiv<AbstractValueUnit, Arg>>;
 pub enum GasUnit {}
 
 /// Unit of the Aptos network's native coin.
-pub enum  SUPRA {}
+pub enum SUPRA {}
 
 /// Alternative unit of the Aptos network's native coin. 1 quant = 10^-8 Supra coins.
 pub enum Quant {}

@@ -5,18 +5,17 @@
 
 use aptos_crypto::HashValue;
 use aptos_gas_algebra::{FeePerGasUnit, Gas, NumBytes};
-use aptos_types::transaction::automated_transaction::AutomatedTransaction;
 use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
     transaction::{
+        automated_transaction::AutomatedTransaction,
         authenticator::AuthenticationProof, user_transaction_context::UserTransactionContext,
         EntryFunction, Multisig, MultisigTransactionPayload, ReplayProtector, SignedTransaction,
         TransactionExecutable, TransactionExecutableRef, TransactionExtraConfig,
         TransactionPayload, TransactionPayloadInner,
     },
 };
-use aptos_types::transaction::user_transaction_context::{PayloadTypeReference, PayloadTypeReferenceContext};
 
 pub type PayloadTypeReferenceMeta = PayloadTypeReference<EntryFunction, Multisig>;
 
@@ -80,9 +79,12 @@ pub struct TransactionMetadata {
 impl TransactionMetadata {
     pub fn new(txn: &SignedTransaction) -> Self {
         let payload_type_reference = match txn.payload() {
-            TransactionPayload::Script(_) |
-            TransactionPayload::ModuleBundle(_) => PayloadTypeReferenceMeta::Other,
-            TransactionPayload::EntryFunction(e) => PayloadTypeReferenceMeta::UserEntryFunction(e.clone()),
+            TransactionPayload::Script(_) | TransactionPayload::ModuleBundle(_) => {
+                PayloadTypeReferenceMeta::Other
+            },
+            TransactionPayload::EntryFunction(e) => {
+                PayloadTypeReferenceMeta::UserEntryFunction(e.clone())
+            },
             TransactionPayload::Multisig(m) => PayloadTypeReferenceMeta::Multisig(m.clone()),
             TransactionPayload::AutomationRegistration(_) => PayloadTypeReferenceMeta::AutomationRegistration,
             TransactionPayload::Payload(payload_inner) => convert_to_payload_type_reference_meta(payload_inner),
@@ -215,9 +217,15 @@ impl TransactionMetadata {
     pub fn as_user_transaction_context(&self) -> UserTransactionContext {
         let payload_type_reference = match &self.payload_type_reference {
             PayloadTypeReferenceMeta::Other => PayloadTypeReferenceContext::Other,
-            PayloadTypeReferenceMeta::UserEntryFunction(e) => PayloadTypeReferenceContext::UserEntryFunction(e.as_entry_function_payload()),
-            PayloadTypeReferenceMeta::Multisig(m) => PayloadTypeReferenceContext::Multisig(m.as_multisig_payload()),
-            PayloadTypeReferenceMeta::AutomationRegistration => PayloadTypeReferenceContext::AutomationRegistration,
+            PayloadTypeReferenceMeta::UserEntryFunction(e) => {
+                PayloadTypeReferenceContext::UserEntryFunction(e.as_entry_function_payload())
+            },
+            PayloadTypeReferenceMeta::Multisig(m) => {
+                PayloadTypeReferenceContext::Multisig(m.as_multisig_payload())
+            },
+            PayloadTypeReferenceMeta::AutomationRegistration => {
+                PayloadTypeReferenceContext::AutomationRegistration
+            },
         };
         UserTransactionContext::new(
             self.sender,
@@ -249,7 +257,9 @@ impl From<&AutomatedTransaction> for TransactionMetadata {
             script_hash: vec![],
             script_size: NumBytes::zero(),
             is_keyless: false,
-            payload_type_reference: PayloadTypeReferenceMeta::UserEntryFunction(txn.payload().clone().into_entry_function()),
+            payload_type_reference: PayloadTypeReferenceMeta::UserEntryFunction(
+                txn.payload().clone().into_entry_function(),
+            ),
             txn_app_hash: txn.hash().to_vec(),
         }
     }

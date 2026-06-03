@@ -135,6 +135,8 @@ module supra_framework::automation_registry {
     const EREGISTRY_SYSTEM_MAX_GAS_CAP_NON_ZERO: u64 = 46;
     /// The input address is not identified as multisig account.
     const EUNKNOWN_MULTISIG_ADDRESS: u64 = 47;
+    /// The refund fee for remaining cycle time is greater than total cycle fee for the task.
+    const EINVALID_CYCLE_REFUND_FEE: u64 = 48;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -820,6 +822,40 @@ module supra_framework::automation_registry {
 
     /// Retrieves specific metadata details of an automation task entry by its task index.
     ///
+    /// 1. `u64`                     - The task index.
+    /// 2. `address`                 - The owner of the task.
+    /// 3. `vector<u8>`              - The payload transaction (encoded).
+    /// 4. `u64`                     - The expiry time of the task (timestamp).
+    /// 5. `vector<u8>`              - The hash of the transaction.
+    /// 6. `u64`                     - The maximum gas amount allowed for the task.
+    /// 7. `u64`                     - The gas price cap for executing the task.
+    /// 8. `u64`                     - The automation fee cap for the current epoch.
+    /// 9. `vector<vector<u8>>`      - Auxiliary data related to the task (can be multiple items).
+    /// 10. `u64`                    - The time at which the task was registered (timestamp).
+    /// 11. `u8`                     - The state of the task (e.g., active, cancelled, completed).
+    /// 12. `u64`                    - The locked fee reserved for the next epoch execution.
+    // `deconstruct_task_metadata_v2` introduces task index in it's return list
+    public fun deconstruct_task_metadata_v2(
+        task_metadata: &AutomationTaskMetaData
+    ): (u64, address, vector<u8>, u64, vector<u8>, u64, u64, u64, vector<vector<u8>>, u64, u8, u64) {
+        (
+            task_metadata.task_index,
+            task_metadata.owner,
+            task_metadata.payload_tx,
+            task_metadata.expiry_time,
+            task_metadata.tx_hash,
+            task_metadata.max_gas_amount,
+            task_metadata.gas_price_cap,
+            task_metadata.automation_fee_cap_for_epoch,
+            task_metadata.aux_data,
+            task_metadata.registration_time,
+            task_metadata.state,
+            task_metadata.locked_fee_for_next_epoch
+        )
+    }
+
+    /// Retrieves specific metadata details of an automation task entry by its task index.
+    ///
     /// 1. `address`                 - The owner of the task.
     /// 2. `vector<u8>`              - The payload transaction (encoded).
     /// 3. `u64`                     - The expiry time of the task (timestamp).
@@ -1286,7 +1322,7 @@ module supra_framework::automation_registry {
 
         let stopped_task_details = vector[];
         let total_refund_fee = 0;
-        let epoch_locked_fees = automation_registry.epoch_locked_fees;
+        let total_cycle_locked_fees = automation_registry.epoch_locked_fees;
 
         // Calculate refundable fee for this remaining time task in current epoch
         let current_time = timestamp::now_seconds();
@@ -1323,8 +1359,14 @@ module supra_framework::automation_registry {
                     automation_registry.gas_committed_for_next_epoch = automation_registry.gas_committed_for_next_epoch - task.max_gas_amount;
                 };
 
-                let (epoch_fee_refund, deposit_refund) = if (task.state != PENDING) {
-                    let task_fee = calculate_task_fee(
+                let (cycle_locked_fee_for_task, cycle_fee_refund, deposit_refund) = if (task.state != PENDING) {
+                    let task_fee_for_full_cycle =
+                        calculate_automation_fee_for_interval(
+                            cycle_info.duration_secs,
+                            task.max_gas_amount,
+                            automation_fee_per_sec,
+                            arc.registry_max_gas_cap);
+                    let task_fee_for_residual_time = calculate_task_fee(
                         &arc,
                         &task,
                         residual_interval,
@@ -1332,27 +1374,28 @@ module supra_framework::automation_registry {
                         automation_fee_per_sec
                     );
                     // Refund full deposit and the half of the remaining run-time fee when task is active or cancelled stage
-                    (task_fee / REFUND_FRACTION, task.locked_fee_for_next_epoch)
+                    (task_fee_for_full_cycle, task_fee_for_residual_time / REFUND_FRACTION, task.locked_fee_for_next_epoch)
                 } else {
-                    (0, (task.locked_fee_for_next_epoch / REFUND_FRACTION))
+                    (0, 0, (task.locked_fee_for_next_epoch / REFUND_FRACTION))
                 };
                 let result = safe_unlock_locked_deposit(
                     refund_bookkeeping,
                     task.locked_fee_for_next_epoch,
                     task.task_index);
                 assert!(result, EDEPOSIT_REFUND);
-                let (result, remaining_epoch_locked_fees) = safe_unlock_locked_epoch_fee(
-                    epoch_locked_fees,
-                    epoch_fee_refund,
+                assert!(cycle_locked_fee_for_task >= cycle_fee_refund, EINVALID_CYCLE_REFUND_FEE);
+                let (result, remaining_cycle_locked_fees) = safe_unlock_locked_epoch_fee(
+                    total_cycle_locked_fees,
+                    cycle_locked_fee_for_task,
                     task.task_index);
                 assert!(result, EEPOCH_FEE_REFUND);
-                epoch_locked_fees = remaining_epoch_locked_fees;
+                total_cycle_locked_fees = remaining_cycle_locked_fees;
 
-                total_refund_fee = total_refund_fee + (epoch_fee_refund + deposit_refund);
+                total_refund_fee = total_refund_fee + (cycle_fee_refund + deposit_refund);
 
                 vector::push_back(
                     &mut stopped_task_details,
-                    TaskStoppedV2 { task_index, deposit_refund, epoch_fee_refund, registration_hash: task.tx_hash }
+                    TaskStoppedV2 { task_index, deposit_refund, epoch_fee_refund: cycle_fee_refund, registration_hash: task.tx_hash }
                 );
             }
         });
@@ -1366,6 +1409,7 @@ module supra_framework::automation_registry {
             let resource_account_balance = coin::balance<SupraCoin>(automation_registry.registry_fee_address);
             assert!(resource_account_balance >= total_refund_fee, EINSUFFICIENT_BALANCE_FOR_REFUND);
             coin::transfer<SupraCoin>(&resource_signer, owner, total_refund_fee);
+            automation_registry.epoch_locked_fees = total_cycle_locked_fees;
 
             // Emit task stopped event
             event::emit(TasksStoppedV2 {
@@ -1471,6 +1515,7 @@ module supra_framework::automation_registry {
         assert!(automation_task_metadata.state != CANCELLED, EALREADY_CANCELLED);
         if (automation_task_metadata.state == PENDING) {
             enumerable_map::remove_value(&mut automation_registry.main.tasks, task_index);
+            vector::remove_value(&mut automation_registry.system_tasks_state.task_ids, &task_index);
         } else { // it is safe not to check the state as above, the cancelled tasks are already rejected.
             let automation_task_metadata_mut = enumerable_map::get_value_mut(
                 &mut automation_registry.main.tasks,
@@ -2047,6 +2092,7 @@ module supra_framework::automation_registry {
         vector::for_each(task_indexes, |task_index| {
             if (enumerable_map::contains(&automation_registry.main.tasks, task_index)) {
                 let task = enumerable_map::remove_value(&mut automation_registry.main.tasks, task_index);
+                vector::push_back(&mut removed_tasks, task_index);
                 mark_task_processed(transition_state, task_index);
                 // Nothing to refund for GST tasks
                 if (is_of_type(&task, UST)) {
@@ -2059,9 +2105,8 @@ module supra_framework::automation_registry {
                         &resource_signer,
                         epoch_locked_fees,
                         current_time,
-                        &mut removed_tasks
                     )
-                };
+                }
             }
         });
 
@@ -2213,7 +2258,6 @@ module supra_framework::automation_registry {
         resource_signer: &signer,
         epoch_locked_fees: u64,
         current_time: u64,
-        removed_tasks: &mut vector<u64>
 
     ) : u64 {
         assert!(is_of_type(&task, UST), EREGISTERED_TASK_INVALID_TYPE);
@@ -2243,7 +2287,6 @@ module supra_framework::automation_registry {
             task.owner,
             task.locked_fee_for_next_epoch,
             task.locked_fee_for_next_epoch);
-        vector::push_back(removed_tasks, task.task_index);
         epoch_locked_fees
     }
 
@@ -3333,6 +3376,14 @@ module supra_framework::automation_registry {
     ) acquires AutomationRegistryV2 {
         let automation_registry = borrow_global_mut<AutomationRegistryV2>(@supra_framework);
         automation_registry.main.epoch_locked_fees = locked_fee;
+    }
+
+    #[test_only]
+    public(friend) fun check_locked_fee(
+        locked_fee: u64,
+    ) acquires AutomationRegistryV2 {
+        let automation_registry = borrow_global_mut<AutomationRegistryV2>(@supra_framework);
+        assert!(automation_registry.main.epoch_locked_fees == locked_fee, locked_fee);
     }
 
     #[test_only]

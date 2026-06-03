@@ -16,7 +16,9 @@ clap = { workspace = true, features = ["derive"] }
 either = { workspace = true }
 legacy-move-compiler = { workspace = true }
 move-asm = { workspace = true }
-move-binary-format = { workspace = true, features = ["testing"] }
+move-binary-format = { workspace = true, features = [
+  "testing",
+] }
 move-bytecode-source-map = { workspace = true }
 move-bytecode-verifier = { workspace = true }
 move-command-line-common = { workspace = true }

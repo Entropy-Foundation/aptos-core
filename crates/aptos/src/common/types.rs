@@ -26,6 +26,7 @@ use aptos_api_types::ViewFunction;
 use aptos_crypto::{
     ed25519::{Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signature},
     encoding_type::{EncodingError, EncodingType},
+    hash::HashValueParseError,
     x25519, PrivateKey, ValidCryptoMaterialStringExt,
 };
 use aptos_framework::chunked_publish::{
@@ -79,9 +80,8 @@ use std::{
     str::FromStr,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use thiserror::Error;
-use aptos_crypto::hash::HashValueParseError;
 use supra_aptos::ApiVersion;
+use thiserror::Error;
 
 pub const USER_AGENT: &str = concat!("aptos-cli/", env!("CARGO_PKG_VERSION"));
 pub const US_IN_SECS: u64 = 1_000_000;
@@ -2112,7 +2112,7 @@ impl TransactionOptions {
         // Fetch the chain states required for the simulation
         // TODO(Gas): get the following from the chain
         const DEFAULT_GAS_UNIT_PRICE: u64 = 100;
-        const DEFAULT_MAX_GAS: u64 = 2_000_000;
+        const DEFAULT_MAX_GAS: u64 = 2_000_000_000;
 
         let (sender_key, sender_address) = self.get_key_and_address()?;
         let gas_unit_price = self
@@ -2282,9 +2282,10 @@ impl MultisigAccountWithSequenceNumber {
 
 #[derive(Clone, Debug, Default, Parser)]
 pub struct TypeArgVec {
-    /// TypeTag arguments separated by spaces.
+    /// Type arguments for generic type parameters in Move functions, separated by spaces.
+    /// Commonly used to specify coin types, resource types, or other struct types.
     ///
-    /// Example: `u8 u16 u32 u64 u128 u256 bool address vector signer`
+    /// Example: `0x1::supra_coin::SupraCoin`
     #[clap(long, num_args = 0..)]
     pub(crate) type_args: Vec<MoveType>,
 }

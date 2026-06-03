@@ -9,7 +9,9 @@ use aptos_types::{
     jwks::patch::IssuerJWK,
     keyless::Groth16VerificationKey,
     network_address::{DnsName, NetworkAddress, Protocol},
-    on_chain_config::{OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig},
+    on_chain_config::{
+        AutomationRegistryConfig, BanRegistryParameters, OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig
+    },
     transaction::authenticator::AuthenticationKey,
 };
 use aptos_vm_genesis::{AccountBalance, EmployeePool, Validator, ValidatorWithCommissionRate};
@@ -23,7 +25,6 @@ use std::{
     path::Path,
     str::FromStr,
 };
-use aptos_types::on_chain_config::AutomationRegistryConfig;
 
 /// Template for setting up Github for Genesis
 ///
@@ -86,6 +87,8 @@ pub struct Layout {
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     /// An optional supra native automation config.
     pub automation_registry_config: Option<AutomationRegistryConfig>,
+    /// An optional supra leader ban config.
+    pub leader_ban_registry_config: Option<BanRegistryParameters>,
 
     /// JWKs to patch in genesis.
     #[serde(default)]
@@ -137,6 +140,7 @@ impl Default for Layout {
             on_chain_execution_config: OnChainExecutionConfig::default_for_genesis(),
             jwk_consensus_config_override: None,
             automation_registry_config: Some(AutomationRegistryConfig::default()),
+            leader_ban_registry_config: Some(BanRegistryParameters::default()),
             initial_jwks: vec![],
             keyless_groth16_vk_override: None,
         }

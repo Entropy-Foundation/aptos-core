@@ -142,8 +142,7 @@ fn check_automated_transaction_successful_execution() {
         panic!("Automated transaction should successfully build: {maybe_automated_txn:?}")
     };
 
-    let result = test_context
-        .execute_tagged_transaction(automated_txn.clone().into());
+    let result = test_context.execute_tagged_transaction(automated_txn.clone().into());
     AutomationRegistrationTestContext::check_discarded_output(
         result,
         StatusCode::NO_ACTIVE_AUTOMATED_TASK,
@@ -165,8 +164,7 @@ fn check_automated_transaction_successful_execution() {
     // Execute automated transaction one more time which should be success, as task is already become active after epoch change
     let sender_address = test_context.sender_account_address();
     let sender_seq_num = test_context.account_sequence_number(sender_address);
-    let output = test_context
-        .execute_and_apply_transaction(automated_txn.clone().into());
+    let output = test_context.execute_and_apply_transaction(automated_txn.clone().into());
     assert_eq!(
         output.status(),
         &TransactionStatus::Keep(ExecutionStatus::Success),
@@ -190,8 +188,7 @@ fn check_automated_transaction_successful_execution() {
     let BuilderResult::Success(automated_txn) = maybe_automated_txn else {
         panic!("Automated transaction should successfully build")
     };
-    let result = test_context
-        .execute_tagged_transaction(automated_txn.clone().into());
+    let result = test_context.execute_tagged_transaction(automated_txn.clone().into());
     AutomationRegistrationTestContext::check_discarded_output(
         result,
         StatusCode::NO_ACTIVE_AUTOMATED_TASK,

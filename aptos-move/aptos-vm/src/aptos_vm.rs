@@ -3,8 +3,8 @@
 // Parts of the project are originally copyright © Meta Platforms, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::automated_transaction_processor::AutomatedTransactionProcessor;
 use crate::{
+    automated_transaction_processor::AutomatedTransactionProcessor,
     block_executor::{AptosTransactionOutput, AptosVMBlockExecutorWrapper},
     counters::*,
     data_cache::{AsMoveResolver, StorageAdapter},
@@ -36,7 +36,10 @@ use aptos_block_executor::{
     txn_commit_hook::NoOpTransactionCommitHook,
     txn_provider::{default::DefaultTxnProvider, TxnProvider},
 };
-use aptos_crypto::HashValue;
+use aptos_crypto::{
+    bls12381::{PublicKey, Signature},
+    HashValue,
+};
 use aptos_framework::natives::code::PublishRequest;
 use aptos_gas_algebra::{Gas, GasQuantity, NumBytes, Quant};
 use aptos_gas_meter::{AptosGasMeter, GasAlgebra};
@@ -48,7 +51,6 @@ use aptos_gas_schedule::{
 use aptos_logger::{enabled, prelude::*, Level};
 #[cfg(any(test, feature = "testing"))]
 use aptos_types::state_store::StateViewId;
-use aptos_types::transaction::automation::{AutomationTaskType, RegistrationParams};
 use aptos_types::{
     account_config::{self, new_block_event_key, AccountResource},
     block_executor::{
@@ -62,18 +64,24 @@ use aptos_types::{
     block_metadata::BlockMetadata,
     block_metadata_ext::{BlockMetadataExt, BlockMetadataWithRandomness},
     chain_id::ChainId,
+    dkg::{
+        state::DKGState,
+        transactions::{DKGTransactionData, DKGTransactionType},
+    },
     contract_event::ContractEvent,
     fee_statement::FeeStatement,
     function_info::FunctionInfo,
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{
-        ApprovedExecutionHashes, ConfigStorage, FeatureFlag, Features, OnChainConfig,
-        TimedFeatureFlag, TimedFeatures,
+        new_epoch_event_key, ApprovedExecutionHashes, ConfigStorage, ConfigurationResource,
+        FeatureFlag, Features, OnChainConfig, TimedFeatureFlag, TimedFeatures,
     },
     randomness::Randomness,
     state_store::{state_key::StateKey, StateView, TStateView},
     transaction::{
-        authenticator::{AbstractionAuthData, AnySignature, AuthenticationProof},
+        authenticator::{AbstractionAuthData, AnySignature,
+        automation::{AutomationTaskType, RegistrationParams},
+        AuthenticationProof},
         block_epilogue::{BlockEpiloguePayload, FeeDistribution},
         signature_verified_transaction::SignatureVerifiedTransaction,
         BlockOutput, EntryFunction, ExecutionError, ExecutionStatus, ModuleBundle,
@@ -184,7 +192,10 @@ macro_rules! unwrap_or_discard {
     };
 }
 
-use crate::automation_registry_transaction_processor::AutomationRegistryTransactionProcessor;
+use crate::{
+    automation_registry_transaction_processor::AutomationRegistryTransactionProcessor,
+    gas::check_automation_task_gas,
+};
 pub(crate) use unwrap_or_discard;
 
 pub(crate) struct SerializedSigners {
@@ -819,6 +830,7 @@ impl AptosVM {
         gas_meter: &mut impl GasMeter,
         traversal_context: &mut TraversalContext<'a>,
         serialized_script: &'a Script,
+        is_approved_gov_script: bool,
     ) -> Result<(), VMStatus> {
         if !self
             .features()
@@ -869,6 +881,18 @@ impl AptosVM {
             &func,
             self.features().is_enabled(FeatureFlag::STRUCT_CONSTRUCTORS),
         )?;
+
+        if is_approved_gov_script {
+            // If governance is honest then it will not attempt test-and-abort attacks to abuse
+            // randomness.
+            self.mark_unbiasable(session);
+        }
+
+        if is_approved_gov_script {
+            // If governance is honest then it will not attempt test-and-abort attacks to abuse
+            // randomness.
+            self.mark_unbiasable(session);
+        }
 
         session.execute_loaded_function(func, args, gas_meter, traversal_context, code_storage)?;
         Ok(())
@@ -969,6 +993,7 @@ impl AptosVM {
         executable: TransactionExecutableRef<'a>, // TODO[Orderless]: Check what's the right lifetime to use here.
         log_context: &AdapterLogSchema,
         change_set_configs: &ChangeSetConfigs,
+        is_approved_gov_script: bool,
     ) -> Result<(VMStatus, VMOutput), VMStatus> {
         fail_point!("aptos_vm::execute_script_or_entry_function", |_| {
             Err(VMStatus::Error {
@@ -993,6 +1018,7 @@ impl AptosVM {
                         gas_meter,
                         traversal_context,
                         script,
+                        is_approved_gov_script,
                     )
                 })?;
             },
@@ -1111,10 +1137,11 @@ impl AptosVM {
                 module_id.name(),
             )])?;
         }
-
-
-        let args = registration_params
-            .serialized_args_with_sender_and_parent_hash(sender, txn_metadata.txn_app_hash.clone(), self.features());
+        let args = registration_params.serialized_args_with_sender_and_parent_hash(
+            sender,
+            txn_metadata.txn_app_hash.clone(),
+            self.features(),
+        );
 
         session.execute_function_bypass_visibility(
             registration_params.module_id(),
@@ -1934,6 +1961,12 @@ impl AptosVM {
             }
         }
 
+        if is_approved_gov_script {
+            // If governance is honest then it will not attempt test-and-abort attacks to abuse
+            // randomness.
+            self.mark_unbiasable(session);
+        }
+
         // The prologue MUST be run AFTER any validation. Otherwise you may run prologue and hit
         // SEQUENCE_NUMBER_TOO_NEW if there is more than one transaction from the same sender and
         // end up skipping validation.
@@ -2284,6 +2317,10 @@ impl AptosVM {
                     &mut UnmeteredGasMeter,
                     &mut traversal_context,
                     script,
+                    // This function is currently only used for genesis, so this could be set to
+                    // true, but we don't access randomness during genesis at the moment so there
+                    // is no benefit in doing so.
+                    false,
                 )?;
 
                 let change_set_configs =
@@ -2438,6 +2475,24 @@ impl AptosVM {
         Ok((VMStatus::Executed, output))
     }
 
+    fn mark_unbiasable(&self, session: &mut SessionExt<'_, '_>) {
+        // During the first epoch in which the feature is activated, threshold keys have not yet
+        // been established (they are produced at the end of that epoch via DKG), so the randomness
+        // seed can be biased to some degree (although with great difficulty) by Byzantine proposers.
+        // However, the randomness usages within the metadata transaction itself (e.g. by the DKG
+        // during epoch change) remain unaffected by test-and-abort attacks, which the bias-ability
+        // check is intended to protect against. Similarly, governance is expected not to attempt to
+        // bias randomness results. This allows us to continue to manually force epoch changes via
+        // governance when necessary, which would otherwise be impossible due to 
+        // reconfiguration_with_dkg::try_start relying on access to randomness,
+        if self.features().is_enabled(FeatureFlag::SUPRA_DKG) {
+            session
+                .get_native_extensions()
+                .get_mut::<RandomnessContext>()
+                .mark_unbiasable();
+        }
+    }
+
     fn process_block_prologue_ext(
         &self,
         resolver: &impl AptosMoveResolver,
@@ -2491,11 +2546,15 @@ impl AptosVM {
             randomness
                 .as_ref()
                 .map(Randomness::randomness_cloned)
+                .unwrap_or_default()
                 .as_move_value(),
         ];
 
         let traversal_storage = TraversalStorage::new();
         let mut traversal_context = TraversalContext::new(&traversal_storage);
+
+        // The block metadata transaction seeds randomness so is immune to test-and-abort attacks.
+        self.mark_unbiasable(&mut session);
 
         session
             .execute_function_bypass_visibility(
@@ -3010,10 +3069,7 @@ impl AptosVM {
     }
 
     fn check_multisig_task_registration_support(&self) -> Result<(), VMStatus> {
-        if !self
-            .features()
-            .is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2)
-        {
+        if !self.features().is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2) {
             return Err(VMStatus::Error {
                 status_code: StatusCode::FEATURE_UNDER_GATING,
                 sub_status: None,
@@ -3273,6 +3329,111 @@ impl VMValidator for AptosVM {
 
         result
     }
+
+    fn validate_dkg_validator_transaction(
+        &self,
+        dkg_transaction: DKGTransactionData,
+        resolver: &impl AptosMoveResolver,
+    ) -> VMValidatorResult {
+        if !self.features().is_enabled(FeatureFlag::SUPRA_DKG) {
+            return VMValidatorResult::error(StatusCode::FEATURE_UNDER_GATING);
+        }
+
+        let dkg_state = match OnChainConfig::fetch_config(resolver) {
+            Some(state) => state,
+            None => return VMValidatorResult::error(StatusCode::RESOURCE_DOES_NOT_EXIST),
+        };
+
+        let config_resource = match ConfigurationResource::fetch_config(resolver) {
+            Some(cfg) => cfg,
+            None => return VMValidatorResult::error(StatusCode::RESOURCE_DOES_NOT_EXIST),
+        };
+
+        let DKGState { in_progress, .. } = dkg_state;
+        let in_progress_session_state = match in_progress {
+            Some(session) => session,
+            None => return VMValidatorResult::error(StatusCode::DKG_SESSION_NOT_IN_PROGRESS),
+        };
+
+        // Check epoch number.
+        if *dkg_transaction.metadata().epoch() > config_resource.epoch() {
+            return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_FUTURE_EPOCH_NUM);
+        }
+        if *dkg_transaction.metadata().epoch() < config_resource.epoch() {
+            return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_PAST_EPOCH_NUM);
+        }
+
+        match dkg_transaction.metadata().transaction_type() {
+            DKGTransactionType::DKGMeta => {
+                // dkg meta should not be already set
+                if in_progress_session_state.dkg_meta_transcript.len() != 0 {
+                    return VMValidatorResult::error(StatusCode::DKG_META_ALREADY_SET);
+                }
+            },
+            DKGTransactionType::PublicKeyShares => {
+                // for public shares trasaction, dkg meta should be already set
+                // but it is possible due to network asynchrony, that public shares transaction is processed before dkg meta transaction
+                // in which case, dkg meta is not set yet
+                // so we cannot impose this condition
+            },
+        }
+
+        let dealer_committee = &in_progress_session_state.metadata.dealer_committee;
+        let randomness_seed = &in_progress_session_state.metadata.randomness_seed;
+
+        if dkg_transaction.data_bytes().is_empty()
+            || dkg_transaction
+                .metadata()
+                .bls_aggregate_signature()
+                .is_empty()
+            || dkg_transaction
+                .metadata()
+                .signer_indices_clan_committee()
+                .is_empty()
+        {
+            return VMValidatorResult::error(StatusCode::DKG_TRANSACTION_NOT_VALID);
+        }
+
+        // verify clan committee multi-signature on the transaction data
+        let signer_bls_pubkeys = match aptos_types::dkg::get_clan_nodes_bls_keys_from_indices(
+            dealer_committee,
+            &dkg_transaction.metadata().signer_indices_clan_committee(),
+            randomness_seed,
+        ) {
+            Ok(bls_keys) => bls_keys,
+            Err(_) => {
+                return VMValidatorResult::error(StatusCode::DKG_FAILED_TO_GET_CLAN_NODE_PUBKEYS);
+            },
+        };
+
+        let agg_sig = match Signature::try_from(
+            dkg_transaction
+                .metadata()
+                .bls_aggregate_signature()
+                .as_slice(),
+        ) {
+            Ok(sig) => sig,
+            Err(_) => {
+                return VMValidatorResult::error(StatusCode::DKG_FAILED_TO_DESER_AGG_SIG);
+            },
+        };
+
+        let agg_pk = match PublicKey::aggregate(signer_bls_pubkeys.iter().collect()) {
+            Ok(pk) => pk,
+            Err(_) => {
+                return VMValidatorResult::error(StatusCode::DKG_FAILED_TO_AGGREGATE_PUBLIC_KEYS);
+            },
+        };
+
+        if agg_sig
+            .verify_aggregate_arbitrary_msg(&[dkg_transaction.data_bytes().as_slice()], &[&agg_pk])
+            .is_err()
+        {
+            return VMValidatorResult::error(StatusCode::DKG_AGG_SIG_VERIFICATION_FAILED);
+        }
+
+        VMValidatorResult::new(None, 0)
+    }
 }
 
 // Ensure encapsulation of AptosVM APIs by using a wrapper.
@@ -3307,7 +3468,6 @@ impl AptosSimulationVM {
             .expect("Materializing aggregator V1 deltas should never fail");
         (vm_status, txn_output)
     }
-
 }
 
 fn create_account_if_does_not_exist(
