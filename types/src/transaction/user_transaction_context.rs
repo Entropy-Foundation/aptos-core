@@ -55,6 +55,10 @@ pub struct UserTransactionContext {
     gas_unit_price: u64,
     chain_id: u8,
     payload_type_reference: PayloadTypeReferenceContext,
+    /// Keccak-256 hash of the BCS-serialized `SignedTransaction` (or the automation task hash
+    /// for automated transactions). Fixed 32 bytes. Used by the `get_transaction_consensus_hash` native to
+    /// expose the registering transaction's identity to smart contracts registering automation tasks.
+    txn_consensus_hash: [u8; 32],
 }
 
 impl UserTransactionContext {
@@ -66,6 +70,7 @@ impl UserTransactionContext {
         gas_unit_price: u64,
         chain_id: u8,
         payload_type_reference: PayloadTypeReferenceContext,
+        txn_consensus_hash: [u8; 32],
     ) -> Self {
         Self {
             sender,
@@ -75,6 +80,7 @@ impl UserTransactionContext {
             gas_unit_price,
             chain_id,
             payload_type_reference,
+            txn_consensus_hash,
         }
     }
 
@@ -112,6 +118,10 @@ impl UserTransactionContext {
 
     pub fn is_automation_registration(&self) -> bool {
         self.payload_type_reference.is_automation_registration()
+    }
+
+    pub fn txn_consensus_hash(&self) -> &[u8; 32] {
+        &self.txn_consensus_hash
     }
 }
 

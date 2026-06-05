@@ -35,7 +35,10 @@ use aptos_vm_types::{
 use fail::fail_point;
 use move_binary_format::errors::Location;
 use move_core_types::vm_status::{StatusCode, VMStatus};
-use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
+use move_vm_runtime::{
+    module_traversal::{TraversalContext, TraversalStorage},
+    LoadedFunction,
+};
 use std::ops::Deref;
 
 pub struct AutomatedTransactionProcessor<'m> {
@@ -175,8 +178,15 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         );
 
         gas_meter.charge_intrinsic_gas_for_transaction(txn_data.transaction_size())?;
-        session.execute(|session| {
-            self.validate_and_execute_entry_function(
+
+        // Phase 1: load the function and validate arguments.
+        // Failures here mean the registered payload became permanently invalid after
+        // registration (e.g., module removed, function renamed, or signature changed
+        // by an upgrade). Tagged as INVALID_AUTOMATION_INNER_PAYLOAD so that
+        // execute_transaction_impl can distinguish pre-execution failures from transient
+        // execution failures and discard without charging any gas.
+        let (function, args) = session.execute(|session| {
+            self.load_and_validate_entry_function(
                 resolver,
                 session,
                 gas_meter,
@@ -185,6 +195,24 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 entry_function,
                 txn_data,
             )
+            .map_err(|e| {
+                VMStatus::error(
+                    StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD,
+                    Some(format!(
+                        "Automated task inner payload became invalid at execution time: {e:?}"
+                    )),
+                )
+            })
+        })?;
+
+        // Phase 2: execute the entry function body.
+        // Failures here (ABORTED, OUT_OF_GAS, etc.) are transient execution errors
+        // and flow through the normal failure-epilogue path with gas charged.
+        session.execute(|session| {
+            session
+                .execute_entry_function(function, args, gas_meter, traversal_context)
+                .map(|_| ())
+                .map_err(|e| e.into_vm_status())
         })?;
 
         session.execute(|session| {
@@ -318,6 +346,27 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         TXN_GAS_USAGE.observe(u64::from(gas_usage) as f64);
 
         result.unwrap_or_else(|err| {
+            // True only [FeatureFlag::SUPRA_AUTOMATION_V2_1] is enabled: which enables task registration without validation
+            // Pre-execution failure: the task's registered payload is permanently invalid
+            // (function signature is invalid, function is missing or arguments do not match expected ones).
+            // The entry function body never ran so no execution gas was consumed. Skip the failure epilogue
+            // entirely — discarded_output produces FeeStatement::zero() and an empty
+            // change set so no fees are charged and no state is committed.
+            //
+            // Note: Before [FeatureFlag::SUPRA_AUTOMATION_V2_1] during task registration inner payload is always verified
+            // and in case of failure task will never be actually registered.
+            // So potentially this error should never be registered for a task which is registered with validation flow.
+            // And if for some reason it is registered, then user will be charged with whatever gas was used so far.
+            if err.status_code() == StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD
+                && self
+                    .features()
+                    .is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2_1)
+            {
+                return (
+                    err,
+                    discarded_output(StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD),
+                );
+            }
             self.on_transaction_execution_failure(
                 prologue_change_set,
                 err,

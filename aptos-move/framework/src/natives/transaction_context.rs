@@ -379,6 +379,35 @@ fn get_user_transaction_context_opt_from_context<'a>(
 }
 
 /***************************************************************************************************
+ * native fun get_transaction_consensus_hash_internal
+ *
+ *   gas cost: base_cost
+ *
+ * Returns the Keccak-256 hash of the current signed transaction (transaction_consensus_hash).
+ * Aborts if called outside a user transaction context (e.g. system or view sessions).
+ *
+ **************************************************************************************************/
+fn native_get_transaction_consensus_hash_internal(
+    context: &mut SafeNativeContext,
+    _ty_args: Vec<Type>,
+    _args: VecDeque<Value>,
+) -> SafeNativeResult<SmallVec<[Value; 1]>> {
+
+    context.charge(TRANSACTION_CONTEXT_GET_TXN_CONSENSUS_HASH_BASE)?;
+
+    let user_transaction_context_opt = get_user_transaction_context_opt_from_context(context);
+    if let Some(txn_context) = user_transaction_context_opt {
+        Ok(smallvec![Value::vector_u8(
+            txn_context.txn_consensus_hash().to_vec()
+        )])
+    } else {
+        Err(SafeNativeError::Abort {
+            abort_code: error::invalid_state(abort_codes::ETRANSACTION_CONTEXT_NOT_AVAILABLE),
+        })
+    }
+}
+
+/***************************************************************************************************
  * module
  *
  **************************************************************************************************/
@@ -405,6 +434,10 @@ pub fn make_all(
         (
             "multisig_payload_internal",
             native_multisig_payload_internal,
+        ),
+        (
+            "get_transaction_consensus_hash_internal",
+            native_get_transaction_consensus_hash_internal,
         ),
     ];
 
