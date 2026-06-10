@@ -4442,6 +4442,11 @@ module std::automation_registry_tests {
         user: &signer,
     ) {
         initialize_registry_test(supra_framework, user);
+        toggle_custom_feature_flags(
+            supra_framework,
+            vector[features::get_supra_automation_v2_1_feature()],
+            false,
+        );
         // Expiry must be after the current time plus at least one cycle duration.
         let expiry_time = EPOCH_INTERVAL_FOR_TEST_IN_SECS + 86400;
         automation_registry::register_without_validation(
@@ -4501,7 +4506,12 @@ module std::automation_registry_tests {
         user: &signer,
     ) {
         initialize_registry_test(supra_framework, user);
-        // V2_1 is not enabled — the function must abort immediately.
+        toggle_custom_feature_flags(
+            supra_framework,
+            vector[features::get_supra_automation_v2_1_feature()],
+            false,
+        );
+        // V2_1 is not enabled, the function must abort immediately.
         let expiry_time = EPOCH_INTERVAL_FOR_TEST_IN_SECS + 86400;
         automation_registry::register_system_task_without_validation(
             user,
