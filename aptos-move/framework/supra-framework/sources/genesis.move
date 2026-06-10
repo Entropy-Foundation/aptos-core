@@ -1192,8 +1192,8 @@ module supra_framework::genesis {
                 voter_address: @0x121346,
                 stake_amount: 100 * ONE_SUPRA,
                 consensus_pubkey: _pk_2,
-                network_addresses: x"222222",
-                full_node_network_addresses: x"333333"
+                network_addresses: x"444444",
+                full_node_network_addresses: x"555555"
             },
             commission_percentage: 20,
             join_during_genesis: true

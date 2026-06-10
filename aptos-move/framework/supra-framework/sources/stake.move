@@ -91,6 +91,10 @@ module supra_framework::stake {
     const ERECONFIGURATION_IN_PROGRESS: u64 = 20;
     /// Invalid DKG public key shares.
     const EDKG_INVALID_PK_SHARES: u64 = 21;
+    /// Another validator in the next validator set already uses this consensus public key.
+    const EDUPLICATE_CONSENSUS_PUBKEY: u64 = 22;
+    /// Another validator in the next validator set already uses these network addresses.
+    const EDUPLICATE_NETWORK_ADDRESSES: u64 = 23;
 
     /// Validator status enum. We can switch to proper enum later once Move supports it.
     const VALIDATOR_STATUS_PENDING_ACTIVE: u64 = 1;
@@ -698,8 +702,15 @@ module supra_framework::stake {
         consensus_pubkey: vector<u8>,
         network_addresses: vector<u8>,
         fullnode_addresses: vector<u8>
-    ) acquires AllowedValidators {
+    ) acquires AllowedValidators, ValidatorSet, ValidatorConfig {
         validate_consensus_public_key(consensus_pubkey);
+        let account_addr = signer::address_of(account);
+        assert_consensus_pubkey_unique_in_next_validator_set(
+            account_addr, &consensus_pubkey
+        );
+        assert_network_addresses_unique_in_next_validator_set(
+            account_addr, &network_addresses
+        );
         initialize_owner(account);
         move_to(
             account,
@@ -739,6 +750,79 @@ module supra_framework::stake {
                         consensus_pubkey
                     );
             }
+        };
+    }
+
+    /// Aborts if any validator other than `self_addr` in the next validator set
+    /// (the union of `active_validators` and `pending_active`) already uses
+    /// `consensus_pubkey` as its latest on-chain consensus key.
+    fun assert_consensus_pubkey_unique_in_next_validator_set(
+        self_addr: address,
+        consensus_pubkey: &vector<u8>
+    ) acquires ValidatorSet, ValidatorConfig {
+        let validator_set = borrow_global<ValidatorSet>(@supra_framework);
+        assert_consensus_pubkey_unique_in_validator_list(
+            self_addr, consensus_pubkey, &validator_set.active_validators
+        );
+        assert_consensus_pubkey_unique_in_validator_list(
+            self_addr, consensus_pubkey, &validator_set.pending_active
+        );
+    }
+
+    fun assert_consensus_pubkey_unique_in_validator_list(
+        self_addr: address,
+        consensus_pubkey: &vector<u8>,
+        validators: &vector<ValidatorInfo>
+    ) acquires ValidatorConfig {
+        let len = vector::length(validators);
+        let i = 0;
+        while (i < len) {
+            let other = vector::borrow(validators, i);
+            if (other.addr != self_addr && exists<ValidatorConfig>(other.addr)) {
+                let other_config = borrow_global<ValidatorConfig>(other.addr);
+                assert!(
+                    other_config.consensus_pubkey != *consensus_pubkey,
+                    error::invalid_argument(EDUPLICATE_CONSENSUS_PUBKEY)
+                );
+            };
+            i = i + 1;
+        };
+    }
+
+    /// Aborts if any validator other than `self_addr` in the next validator set
+    /// already uses `network_addresses`. Empty `network_addresses` is treated
+    /// as "unset" and skips the check.
+    fun assert_network_addresses_unique_in_next_validator_set(
+        self_addr: address,
+        network_addresses: &vector<u8>
+    ) acquires ValidatorSet, ValidatorConfig {
+        if (vector::is_empty(network_addresses)) { return };
+        let validator_set = borrow_global<ValidatorSet>(@supra_framework);
+        assert_network_addresses_unique_in_validator_list(
+            self_addr, network_addresses, &validator_set.active_validators
+        );
+        assert_network_addresses_unique_in_validator_list(
+            self_addr, network_addresses, &validator_set.pending_active
+        );
+    }
+
+    fun assert_network_addresses_unique_in_validator_list(
+        self_addr: address,
+        network_addresses: &vector<u8>,
+        validators: &vector<ValidatorInfo>
+    ) acquires ValidatorConfig {
+        let len = vector::length(validators);
+        let i = 0;
+        while (i < len) {
+            let other = vector::borrow(validators, i);
+            if (other.addr != self_addr && exists<ValidatorConfig>(other.addr)) {
+                let other_config = borrow_global<ValidatorConfig>(other.addr);
+                assert!(
+                    other_config.network_addresses != *network_addresses,
+                    error::invalid_argument(EDUPLICATE_NETWORK_ADDRESSES)
+                );
+            };
+            i = i + 1;
         };
     }
 
@@ -968,7 +1052,7 @@ module supra_framework::stake {
         pool_address: address,
         new_consensus_pubkey: vector<u8>,
         genesis: bool
-    ) acquires StakePool, ValidatorConfig {
+    ) acquires StakePool, ValidatorConfig, ValidatorSet {
         assert_reconfig_not_in_progress();
         assert_stake_pool_exists(pool_address);
 
@@ -982,10 +1066,12 @@ module supra_framework::stake {
             exists<ValidatorConfig>(pool_address),
             error::not_found(EVALIDATOR_CONFIG)
         );
+        validate_consensus_public_key(new_consensus_pubkey);
+        assert_consensus_pubkey_unique_in_next_validator_set(
+            pool_address, &new_consensus_pubkey
+        );
         let validator_info = borrow_global_mut<ValidatorConfig>(pool_address);
         let old_consensus_pubkey = validator_info.consensus_pubkey;
-
-        validate_consensus_public_key(new_consensus_pubkey);
         validator_info.consensus_pubkey = new_consensus_pubkey;
 
         if (std::features::module_event_migration_enabled()) {
@@ -1104,7 +1190,7 @@ module supra_framework::stake {
     /// only for genesis
     public(friend) fun rotate_consensus_key_genesis(
         operator: &signer, pool_address: address, new_consensus_pubkey: vector<u8>
-    ) acquires StakePool, ValidatorConfig {
+    ) acquires StakePool, ValidatorConfig, ValidatorSet {
         rotate_consensus_key_internal(
             operator,
             pool_address,
@@ -1116,7 +1202,7 @@ module supra_framework::stake {
     /// Rotate the consensus key of the validator, it'll take effect in next epoch.
     public entry fun rotate_consensus_key(
         operator: &signer, pool_address: address, new_consensus_pubkey: vector<u8>
-    ) acquires StakePool, ValidatorConfig {
+    ) acquires StakePool, ValidatorConfig, ValidatorSet {
         rotate_consensus_key_internal(
             operator,
             pool_address,
@@ -1131,7 +1217,7 @@ module supra_framework::stake {
         pool_address: address,
         new_network_addresses: vector<u8>,
         new_fullnode_addresses: vector<u8>
-    ) acquires StakePool, ValidatorConfig {
+    ) acquires StakePool, ValidatorConfig, ValidatorSet {
         assert_reconfig_not_in_progress();
         assert_stake_pool_exists(pool_address);
         let stake_pool = borrow_global_mut<StakePool>(pool_address);
@@ -1142,6 +1228,9 @@ module supra_framework::stake {
         assert!(
             exists<ValidatorConfig>(pool_address),
             error::not_found(EVALIDATOR_CONFIG)
+        );
+        assert_network_addresses_unique_in_next_validator_set(
+            pool_address, &new_network_addresses
         );
         let validator_info = borrow_global_mut<ValidatorConfig>(pool_address);
         let old_network_addresses = validator_info.network_addresses;
@@ -2429,6 +2518,195 @@ module supra_framework::stake {
         validator_public_keys::ValidatorPublicKeys
     ) {
         validator_public_keys::generate_keys()
+    }
+
+    /// Returns the serialized bytes of a freshly generated, unique consensus public key.
+    /// Useful for test helpers that previously hardcoded a shared key but now must
+    /// satisfy the on-chain uniqueness requirement enforced by `rotate_consensus_key`.
+    #[test_only]
+    public fun generate_unique_consensus_pubkey_bytes(): vector<u8> {
+        let (_sk, pk) = generate_identity();
+        validator_public_keys::public_key_to_bytes(pk)
+    }
+
+    #[test_only]
+    fun register_test_validator_with_addresses(
+        public_key: &validator_public_keys::ValidatorPublicKeys,
+        validator: &signer,
+        network_addresses: vector<u8>,
+        fullnode_addresses: vector<u8>
+    ) acquires AllowedValidators, ValidatorConfig, ValidatorSet {
+        let validator_address = signer::address_of(validator);
+        if (!account::exists_at(validator_address)) {
+            account::create_account_for_test(validator_address);
+        };
+        let pk_bytes = validator_public_keys::public_key_to_bytes(*public_key);
+        initialize_validator(validator, pk_bytes, network_addresses, fullnode_addresses);
+    }
+
+    #[test(supra_framework = @supra_framework, validator_1 = @0x123, validator_2 = @0x234)]
+    #[expected_failure(abort_code = 0x10016, location = Self)]
+    public entry fun test_initialize_validator_rejects_duplicate_consensus_pubkey_active(
+        supra_framework: &signer, validator_1: &signer, validator_2: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+        initialize_for_test(supra_framework);
+        let (_sk, pk) = generate_identity();
+        // validator_1 joins and becomes active in the next epoch.
+        initialize_test_validator(&pk, validator_1, 100, true, true);
+        // validator_2 tries to register with the same consensus key - should abort.
+        initialize_test_validator(&pk, validator_2, 100, false, false);
+    }
+
+    #[test(supra_framework = @supra_framework, validator_1 = @0x123, validator_2 = @0x234)]
+    #[expected_failure(abort_code = 0x10016, location = Self)]
+    public entry fun test_initialize_validator_rejects_duplicate_consensus_pubkey_pending_active(
+        supra_framework: &signer, validator_1: &signer, validator_2: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+        initialize_for_test(supra_framework);
+        let (_sk, pk) = generate_identity();
+        // validator_1 joins pending_active but no epoch transition.
+        initialize_test_validator(&pk, validator_1, 100, true, false);
+        // validator_2 tries to register with the same key against pending_active - should abort.
+        initialize_test_validator(&pk, validator_2, 100, false, false);
+    }
+
+    #[test(supra_framework = @supra_framework, validator_1 = @0x123, validator_2 = @0x234)]
+    #[expected_failure(abort_code = 0x10017, location = Self)]
+    public entry fun test_initialize_validator_rejects_duplicate_network_addresses(
+        supra_framework: &signer, validator_1: &signer, validator_2: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorSet {
+        initialize_for_test(supra_framework);
+        let (_sk_1, pk_1) = generate_identity();
+        let (_sk_2, pk_2) = generate_identity();
+        let validator_1_address = signer::address_of(validator_1);
+        register_test_validator_with_addresses(&pk_1, validator_1, b"net-1", b"fn-1");
+        mint_and_add_stake(validator_1, 100);
+        join_validator_set(validator_1, validator_1_address);
+        // validator_2 tries to reuse the same network address - should abort.
+        register_test_validator_with_addresses(&pk_2, validator_2, b"net-1", b"fn-2");
+    }
+
+    #[test(supra_framework = @supra_framework, validator_1 = @0x123, validator_2 = @0x234)]
+    public entry fun test_initialize_validator_allows_unique_credentials(
+        supra_framework: &signer, validator_1: &signer, validator_2: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorSet {
+        initialize_for_test(supra_framework);
+        let (_sk_1, pk_1) = generate_identity();
+        let (_sk_2, pk_2) = generate_identity();
+        let validator_1_address = signer::address_of(validator_1);
+        register_test_validator_with_addresses(&pk_1, validator_1, b"net-1", b"fn-1");
+        mint_and_add_stake(validator_1, 100);
+        join_validator_set(validator_1, validator_1_address);
+        // Distinct key and address - should succeed.
+        register_test_validator_with_addresses(&pk_2, validator_2, b"net-2", b"fn-2");
+    }
+
+    #[test(supra_framework = @supra_framework, validator_1 = @0x123, validator_2 = @0x234)]
+    public entry fun test_initialize_validator_allows_two_empty_network_addresses(
+        supra_framework: &signer, validator_1: &signer, validator_2: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+        initialize_for_test(supra_framework);
+        let (_sk_1, pk_1) = generate_identity();
+        let (_sk_2, pk_2) = generate_identity();
+        // Both validators register with empty network_addresses via initialize_test_validator.
+        // The empty-skip rule lets this succeed; existing test helpers must keep working.
+        initialize_test_validator(&pk_1, validator_1, 100, true, false);
+        initialize_test_validator(&pk_2, validator_2, 100, false, false);
+    }
+
+    #[test(supra_framework = @supra_framework, validator_1 = @0x123, validator_2 = @0x234)]
+    #[expected_failure(abort_code = 0x10016, location = Self)]
+    public entry fun test_rotate_consensus_key_rejects_duplicate(
+        supra_framework: &signer, validator_1: &signer, validator_2: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+        initialize_for_test(supra_framework);
+        let (_sk_1, pk_1) = generate_identity();
+        let (_sk_2, pk_2) = generate_identity();
+        let pk_1_bytes = validator_public_keys::public_key_to_bytes(pk_1);
+        initialize_test_validator(&pk_1, validator_1, 100, true, true);
+        initialize_test_validator(&pk_2, validator_2, 100, true, true);
+        // validator_2 tries to rotate to validator_1's consensus key - should abort.
+        rotate_consensus_key(validator_2, signer::address_of(validator_2), pk_1_bytes);
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123)]
+    public entry fun test_rotate_consensus_key_allows_fresh_key(
+        supra_framework: &signer, validator: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+        initialize_for_test(supra_framework);
+        let (_sk, pk) = generate_identity();
+        initialize_test_validator(&pk, validator, 100, true, true);
+        let (_sk_new, pk_new) = generate_identity();
+        let pk_new_bytes = validator_public_keys::public_key_to_bytes(pk_new);
+        rotate_consensus_key(validator, signer::address_of(validator), pk_new_bytes);
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123)]
+    public entry fun test_rotate_consensus_key_allows_self_rotation(
+        supra_framework: &signer, validator: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+        initialize_for_test(supra_framework);
+        let (_sk, pk) = generate_identity();
+        let pk_bytes = validator_public_keys::public_key_to_bytes(pk);
+        initialize_test_validator(&pk, validator, 100, true, true);
+        // Rotating to the same key the validator already holds is a no-op and must not abort.
+        rotate_consensus_key(validator, signer::address_of(validator), pk_bytes);
+    }
+
+    #[test(supra_framework = @supra_framework, validator_1 = @0x123, validator_2 = @0x234)]
+    #[expected_failure(abort_code = 0x10017, location = Self)]
+    public entry fun test_update_network_addresses_rejects_duplicate(
+        supra_framework: &signer, validator_1: &signer, validator_2: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+        initialize_for_test(supra_framework);
+        let (_sk_1, pk_1) = generate_identity();
+        let (_sk_2, pk_2) = generate_identity();
+        let validator_1_address = signer::address_of(validator_1);
+        register_test_validator_with_addresses(&pk_1, validator_1, b"net-1", b"fn-1");
+        mint_and_add_stake(validator_1, 100);
+        join_validator_set(validator_1, validator_1_address);
+        // validator_2 registers with empty addresses then tries to claim validator_1's net address.
+        initialize_test_validator(&pk_2, validator_2, 100, true, true);
+        update_network_and_fullnode_addresses(
+            validator_2, signer::address_of(validator_2), b"net-1", b"fn-2"
+        );
+    }
+
+    #[test(supra_framework = @supra_framework, validator_1 = @0x123, validator_2 = @0x234)]
+    public entry fun test_update_network_addresses_allows_clear_to_empty(
+        supra_framework: &signer, validator_1: &signer, validator_2: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorSet {
+        initialize_for_test(supra_framework);
+        let (_sk_1, pk_1) = generate_identity();
+        let (_sk_2, pk_2) = generate_identity();
+        let validator_1_address = signer::address_of(validator_1);
+        let validator_2_address = signer::address_of(validator_2);
+        register_test_validator_with_addresses(&pk_1, validator_1, b"net-1", b"fn-1");
+        mint_and_add_stake(validator_1, 100);
+        join_validator_set(validator_1, validator_1_address);
+        register_test_validator_with_addresses(&pk_2, validator_2, b"net-2", b"fn-2");
+        mint_and_add_stake(validator_2, 100);
+        join_validator_set(validator_2, validator_2_address);
+        // Clearing to empty is always allowed (empty == "unset / non-functional").
+        update_network_and_fullnode_addresses(
+            validator_2, validator_2_address, vector::empty(), vector::empty()
+        );
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123)]
+    public entry fun test_update_network_addresses_allows_self(
+        supra_framework: &signer, validator: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorSet {
+        initialize_for_test(supra_framework);
+        let (_sk, pk) = generate_identity();
+        let validator_address = signer::address_of(validator);
+        register_test_validator_with_addresses(&pk, validator, b"net-self", b"fn-self");
+        mint_and_add_stake(validator, 100);
+        join_validator_set(validator, validator_address);
+        // Re-setting the same address on self must be a no-op, not an abort.
+        update_network_and_fullnode_addresses(
+            validator, validator_address, b"net-self", b"fn-self"
+        );
     }
 
     #[test(supra_framework = @supra_framework, validator = @0x123)]
