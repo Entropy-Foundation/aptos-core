@@ -2528,7 +2528,7 @@ impl AptosVM {
                 gas_meter,
                 &mut TraversalContext::new(&storage),
             )
-            .map_err(|err| anyhow!("Failed to execute function: {:?}", err))?
+            .map_err(|err| anyhow!("Failed to execute view function: {}", err))?
             .return_values
             .into_iter()
             .map(|(bytes, _ty)| bytes)
