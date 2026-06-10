@@ -1,6 +1,3 @@
-// Copyright (c) Aptos Foundation
-// SPDX-License-Identifier: Apache-2.0
-
 // Copyright (c) 2025 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -28,6 +25,9 @@ struct AutomationTransactionEntryRef {
     register_user_task_function: Identifier,
     register_system_task_function: Identifier,
     process_tasks_function: Identifier,
+    /// Function called to cancel an invalid task that cannot be executed (e.g. bad payload or
+    /// type mismatch). Corresponds to `automation_registry::cancel_invalid_task` in Move.
+    cancel_invalid_task_function: Identifier,
 }
 
 static AUTOMATION_REGISTRY_PRIVATE_ENTRY_REFS: Lazy<AutomationTransactionEntryRef> =
@@ -39,6 +39,7 @@ static AUTOMATION_REGISTRY_PRIVATE_ENTRY_REFS: Lazy<AutomationTransactionEntryRe
         register_user_task_function: Identifier::new("register").unwrap(),
         register_system_task_function: Identifier::new("register_system_task").unwrap(),
         process_tasks_function: Identifier::new("process_tasks").unwrap(),
+        cancel_invalid_task_function: Identifier::new("cancel_invalid_task").unwrap(),
     });
 
 /// Represents set of parameters required to register automation task.
@@ -725,7 +726,15 @@ impl AutomationTaskMetaData {
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "fuzzing"), derive(Arbitrary))]
 pub enum AutomationRegistryAction {
+    /// Execute a batch of automation tasks as part of a normal cycle transition.
     Process { task_indexes: Vec<u64> },
+    /// Cancel a single task whose payload is invalid (bad BCS encoding or type-check failure)
+    /// before it can be executed.  The diagnostic message is recorded in the on-chain
+    /// `TaskCancelledByRuntime` event so that off-chain indexers can surface the root cause.
+    CancelInvalidTask {
+        task_index: u64,
+        diagnostic_message: String,
+    },
 }
 
 impl AutomationRegistryAction {
@@ -739,22 +748,48 @@ impl AutomationRegistryAction {
         }
     }
 
-    pub fn as_move_value(&self) -> MoveValue {
-        let AutomationRegistryAction::Process { task_indexes } = self;
-        let value_indexes = task_indexes
-            .iter()
-            .map(|v| MoveValue::U64(*v))
-            .collect::<Vec<_>>();
-        MoveValue::Vector(value_indexes)
+    /// Creates a `CancelInvalidTask` action.
+    ///
+    /// `diagnostic_message` is stored verbatim in the on-chain event; callers should use
+    /// descriptive prefixes (e.g. `"BCS_DECODE: "`, `"TYPE_CHECK: "`) to aid indexers.
+    pub fn cancel_invalid_task(task_index: u64, diagnostic_message: String) -> Self {
+        AutomationRegistryAction::CancelInvalidTask {
+            task_index,
+            diagnostic_message,
+        }
     }
 
-    /// Returns a tuple of min and max task indexes included in the action.
+    /// Returns the MoveValue representation of the task-index list for a `Process` action.
+    ///
+    /// Returns `None` for `CancelInvalidTask` — that variant uses a different serialization
+    /// path in `AutomationRegistryRecord::serialize_args_with_sender()`.
+    pub fn as_move_value(&self) -> Option<MoveValue> {
+        match self {
+            AutomationRegistryAction::Process { task_indexes } => {
+                let value_indexes = task_indexes
+                    .iter()
+                    .map(|v| MoveValue::U64(*v))
+                    .collect::<Vec<_>>();
+                Some(MoveValue::Vector(value_indexes))
+            },
+            AutomationRegistryAction::CancelInvalidTask { .. } => None,
+        }
+    }
+
+    /// Returns the (min, max) task-index range covered by this action.
+    ///
+    /// For `CancelInvalidTask` the range is `(task_index, task_index)` because the action
+    /// targets exactly one task.
     pub fn task_range(&self) -> (u64, u64) {
-        let AutomationRegistryAction::Process { task_indexes } = self;
-        (
-            task_indexes.iter().min().copied().unwrap_or(u64::MAX),
-            task_indexes.iter().max().copied().unwrap_or(u64::MAX),
-        )
+        match self {
+            AutomationRegistryAction::Process { task_indexes } => (
+                task_indexes.iter().min().copied().unwrap_or(u64::MAX),
+                task_indexes.iter().max().copied().unwrap_or(u64::MAX),
+            ),
+            AutomationRegistryAction::CancelInvalidTask { task_index, .. } => {
+                (*task_index, *task_index)
+            },
+        }
     }
 
     /// Module id containing automation registry target function.
@@ -762,12 +797,19 @@ impl AutomationRegistryAction {
         &AUTOMATION_REGISTRY_PRIVATE_ENTRY_REFS.module_id
     }
 
-    /// Action function name accepting enclosed tasks.
+    /// Function name in `automation_registry` that handles this action.
     pub fn function(&self) -> &IdentStr {
-        &AUTOMATION_REGISTRY_PRIVATE_ENTRY_REFS.process_tasks_function
+        match self {
+            AutomationRegistryAction::Process { .. } => {
+                &AUTOMATION_REGISTRY_PRIVATE_ENTRY_REFS.process_tasks_function
+            },
+            AutomationRegistryAction::CancelInvalidTask { .. } => {
+                &AUTOMATION_REGISTRY_PRIVATE_ENTRY_REFS.cancel_invalid_task_function
+            },
+        }
     }
 
-    /// Type arguments required by action function.
+    /// Type arguments required by action function (none for all variants).
     pub fn ty_args(&self) -> Vec<TypeTag> {
         vec![]
     }
@@ -819,12 +861,38 @@ impl AutomationRegistryRecord {
     }
 
     pub fn serialize_args_with_sender(&self, sender: AccountAddress) -> Vec<Vec<u8>> {
-        let action_as_value = self.action.as_move_value();
-        serialize_values(&[
-            MoveValue::Address(sender),
-            MoveValue::U64(self.cycle_id),
-            action_as_value,
-        ])
+        match &self.action {
+            AutomationRegistryAction::Process { task_indexes } => {
+                // process_tasks(vm: signer, cycle_index: u64, task_indexes: vector<u64>)
+                let value_indexes = task_indexes
+                    .iter()
+                    .map(|v| MoveValue::U64(*v))
+                    .collect::<Vec<_>>();
+                serialize_values(&[
+                    MoveValue::Address(sender),
+                    MoveValue::U64(self.cycle_id),
+                    MoveValue::Vector(value_indexes),
+                ])
+            },
+            AutomationRegistryAction::CancelInvalidTask {
+                task_index,
+                diagnostic_message,
+            } => {
+                // cancel_invalid_task(vm: signer, task_index: u64, diagnostic_message: String)
+                // Move's String is BCS-encoded as vector<u8> (length-prefixed UTF-8 bytes).
+                serialize_values(&[
+                    MoveValue::Address(sender),
+                    MoveValue::U64(*task_index),
+                    MoveValue::Vector(
+                        diagnostic_message
+                            .as_bytes()
+                            .iter()
+                            .map(|b| MoveValue::U8(*b))
+                            .collect(),
+                    ),
+                ])
+            },
+        }
     }
 
     pub fn hash(&self) -> HashValue {
@@ -871,7 +939,7 @@ impl From<AutomationRegistryRecord> for Transaction {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Getters)]
 pub struct AutomationRegistryRecordBuilder {
     record_index: Option<u64>,
     action: Option<AutomationRegistryAction>,
@@ -916,8 +984,9 @@ impl AutomationRegistryRecordBuilder {
         self
     }
 
-    /// Splits the existing record builder into single task based actions if possible.
+    /// Splits the existing record builder into single-task based actions if possible.
     /// If no action is specified the same instance is returned.
+    /// `CancelInvalidTask` already targets a single task and is returned unchanged.
     pub fn split(mut self) -> Vec<Self> {
         match self.action.take() {
             None => vec![self],
@@ -931,25 +1000,36 @@ impl AutomationRegistryRecordBuilder {
                     block_height: self.block_height,
                 })
                 .collect::<Vec<_>>(),
+            // CancelInvalidTask is already a single-task action; nothing to split.
+            Some(cancel @ AutomationRegistryAction::CancelInvalidTask { .. }) => {
+                self.action = Some(cancel);
+                vec![self]
+            },
         }
     }
 
-    /// Consumes the builder and returns task indexes enclosed in the action if any specified
+    /// Consumes the builder and returns the task index(es) enclosed in the action.
+    ///
+    /// For `CancelInvalidTask` the single targeted task index is returned as a one-element vec.
     pub fn into_task_indexes(self) -> Vec<u64> {
-        let Some(action_data) = self.action else {
-            return vec![];
-        };
-        let AutomationRegistryAction::Process { task_indexes } = action_data;
-        task_indexes
+        match self.action {
+            None => vec![],
+            Some(AutomationRegistryAction::Process { task_indexes }) => task_indexes,
+            Some(AutomationRegistryAction::CancelInvalidTask { task_index, .. }) => {
+                vec![task_index]
+            },
+        }
     }
 
-    /// Returns potential number of the tasks to be processed in scope of the record.
+    /// Returns the number of tasks that will be processed in scope of the record.
+    ///
+    /// For `CancelInvalidTask` this is always 1.
     pub fn task_count(&self) -> usize {
-        let Some(action_data) = &self.action else {
-            return 0;
-        };
-        let AutomationRegistryAction::Process { task_indexes } = action_data;
-        task_indexes.len()
+        match &self.action {
+            None => 0,
+            Some(AutomationRegistryAction::Process { task_indexes }) => task_indexes.len(),
+            Some(AutomationRegistryAction::CancelInvalidTask { .. }) => 1,
+        }
     }
 
     /// Constructs [`AutomationRegistryRecord`]

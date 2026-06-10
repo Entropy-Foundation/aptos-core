@@ -31,6 +31,7 @@ This is the reference documentation of the Supra framework.
 -  [`0x1::dkg_committee`](dkg_committee.md#0x1_dkg_committee)
 -  [`0x1::dkg_config`](dkg_config.md#0x1_dkg_config)
 -  [`0x1::event`](event.md#0x1_event)
+-  [`0x1::evm_config`](evm_config.md#0x1_evm_config)
 -  [`0x1::evm_genesis_config`](evm_genesis_config.md#0x1_evm_genesis_config)
 -  [`0x1::execution_config`](execution_config.md#0x1_execution_config)
 -  [`0x1::function_info`](function_info.md#0x1_function_info)
