@@ -1,6 +1,7 @@
 // Copyright (c) Supra Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt::Display;
 use super::OnChainConfig;
 use crate::chain_id::ChainId;
 use anyhow::{anyhow, Result};
@@ -19,6 +20,17 @@ pub struct OnChainEvmGenesisConfig {
     pub eoas: Vec<GenesisEvmEOA>,
     /// The contract configurations for deployment at genesis.
     pub contracts: Vec<GenesisEvmContract>,
+}
+
+impl Display for OnChainEvmGenesisConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "OnChainEvmGenesisConfig {{\n\t chain_id: {},\n\t eoas: {:?}, \n\t contracts: [{}\n\t]\n}}",
+            self.chain_id, self.eoas, self.contracts.iter().map(|c| format!("\n\t\t{}", c)).collect::<Vec<_>>().join(", "),
+        )
+    }
+
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -53,6 +65,21 @@ pub struct GenesisEvmContract {
     pub kind: ContractKind,
     /// Precalculated address of the contract
     pub deploy_address: String,
+}
+
+impl Display for GenesisEvmContract {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "GenesisEvmContract {{ creator: {}, nonce: {}, amount: {}, bytecode: {} bytes, kind: {:?}, deploy_address: {} }}",
+            self.creator,
+            self.nonce,
+            self.amount,
+            hex::encode(&self.bytecode),
+            self.kind,
+            self.deploy_address
+        )
+    }
 }
 
 impl OnChainEvmGenesisConfig {

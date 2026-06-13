@@ -49,7 +49,20 @@ pub(crate) struct EvmContractsDetails {
 }
 
 pub const EVM_ADDRESS_LENGTH: usize = 20;
-type RawEvmAddress = [u8; EVM_ADDRESS_LENGTH];
+pub type RawEvmAddress = [u8; EVM_ADDRESS_LENGTH];
+
+/// Converts EVM(20bytes) Address to Move Address(32bytes) by left-padding it with 12 zero bytes.
+pub fn evm_to_move_address(evm_address: &RawEvmAddress) -> AccountAddress {
+    // A Move `address` is 32 bytes serialised by BCS in big-endian order
+    // (most-significant byte at index 0).  An EVM address is only 20 bytes,
+    // so we zero-pad the leading 12 bytes and place the EVM bytes at the
+    // tail (indices 12-31).  This matches the invariant enforced by
+    // `is_valid_evm_address` in evm_config.move, which asserts that
+    // indices 0-11 are all zero.
+    let mut padded = [0u8; AccountAddress::LENGTH];
+    padded[AccountAddress::LENGTH - EVM_ADDRESS_LENGTH..].copy_from_slice(evm_address);
+    AccountAddress::from(padded)
+}
 
 /// The Genesis configuration for EVM that can only be set once at genesis epoch.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -64,17 +77,9 @@ impl OnChainEvmContractsDetails {
             .name_to_addresses
             .into_iter()
             .map(|(key, value)| {
-                // A Move `address` is 32 bytes serialised by BCS in big-endian order
-                // (most-significant byte at index 0).  An EVM address is only 20 bytes,
-                // so we zero-pad the leading 12 bytes and place the EVM bytes at the
-                // tail (indices 12-31).  This matches the invariant enforced by
-                // `is_valid_evm_address` in evm_config.move, which asserts that
-                // indices 0-11 are all zero.
-                let mut padded = [0u8; AccountAddress::LENGTH];
-                padded[AccountAddress::LENGTH - EVM_ADDRESS_LENGTH..].copy_from_slice(&value);
                 (
                     MoveValue::vector_u8(key.to_string().into_bytes()),
-                    AccountAddress::from(padded),
+                    evm_to_move_address(&value)
                 )
             })
             .unzip();
