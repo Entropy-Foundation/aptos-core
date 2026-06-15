@@ -52,7 +52,7 @@ pub const EVM_ADDRESS_LENGTH: usize = 20;
 pub type RawEvmAddress = [u8; EVM_ADDRESS_LENGTH];
 
 /// Converts EVM(20bytes) Address to Move Address(32bytes) by left-padding it with 12 zero bytes.
-pub fn evm_to_move_address(evm_address: &RawEvmAddress) -> AccountAddress {
+pub fn evm_address_as_account_address(evm_address: &RawEvmAddress) -> AccountAddress {
     // A Move `address` is 32 bytes serialised by BCS in big-endian order
     // (most-significant byte at index 0).  An EVM address is only 20 bytes,
     // so we zero-pad the leading 12 bytes and place the EVM bytes at the
@@ -79,7 +79,7 @@ impl OnChainEvmContractsDetails {
             .map(|(key, value)| {
                 (
                     MoveValue::vector_u8(key.to_string().into_bytes()),
-                    evm_to_move_address(&value)
+                    evm_address_as_account_address(&value)
                 )
             })
             .unzip();

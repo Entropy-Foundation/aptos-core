@@ -57,7 +57,7 @@ pub use self::{
         ValidatorTxnConfig,
     },
     evm_config::{
-        EvmContractName, EvmScalarConfigKey, OnChainEvmConfig, OnChainEvmContractsDetails, evm_to_move_address
+        EvmContractName, EvmScalarConfigKey, OnChainEvmConfig, OnChainEvmContractsDetails, evm_address_as_account_address
     },
     evm_genesis_config::{
         ContractKind, GenesisEvmContract, GenesisEvmEOA, OnChainEvmGenesisConfig,
