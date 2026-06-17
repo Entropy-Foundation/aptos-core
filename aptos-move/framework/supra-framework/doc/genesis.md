@@ -68,7 +68,6 @@
 <b>use</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry">0x1::leader_ban_registry</a>;
 <b>use</b> <a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config">0x1::leader_ban_registry_config</a>;
 <b>use</b> <a href="multisig_account.md#0x1_multisig_account">0x1::multisig_account</a>;
-<b>use</b> <a href="nonce_validation.md#0x1_nonce_validation">0x1::nonce_validation</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
 <b>use</b> <a href="pbo_delegation_pool.md#0x1_pbo_delegation_pool">0x1::pbo_delegation_pool</a>;
 <b>use</b> <a href="reconfiguration.md#0x1_reconfiguration">0x1::reconfiguration</a>;
@@ -646,9 +645,6 @@ Genesis step 1: Initialize supra framework account and core modules on chain.
     <a href="reconfiguration.md#0x1_reconfiguration_initialize">reconfiguration::initialize</a>(&supra_framework_account);
     <a href="block.md#0x1_block_initialize">block::initialize</a>(&supra_framework_account, epoch_interval_microsecs);
     <a href="state_storage.md#0x1_state_storage_initialize">state_storage::initialize</a>(&supra_framework_account);
-    <a href="timestamp.md#0x1_timestamp_set_time_has_started">timestamp::set_time_has_started</a>(
-        &supra_framework_account, genesis_timestamp_in_microseconds
-    );
 }
 </code></pre>
 
@@ -938,9 +934,7 @@ If it exists, it just returns the signer.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_account">create_account</a>(
-    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, account_address: <b>address</b>, balance: u64
-): <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a> {
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_create_account">create_account</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, account_address: <b>address</b>, balance: u64): <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a> {
     <b>let</b> <a href="account.md#0x1_account">account</a> = <b>if</b> (<a href="account.md#0x1_account_exists_at">account::exists_at</a>(account_address)) {
         <a href="create_signer.md#0x1_create_signer">create_signer</a>(account_address)
     } <b>else</b> {
@@ -1693,93 +1687,6 @@ The last step of genesis.
     <a href="supra_coin.md#0x1_supra_coin_destroy_mint_cap">supra_coin::destroy_mint_cap</a>(supra_framework);
     <a href="stake.md#0x1_stake_on_new_epoch">stake::on_new_epoch</a>();
     <a href="chain_status.md#0x1_chain_status_set_genesis_end">chain_status::set_genesis_end</a>(supra_framework);
-}
-</code></pre>
-
-
-
-</details>
-
-<a id="0x1_genesis_initialize_for_verification"></a>
-
-## Function `initialize_for_verification`
-
-
-
-<pre><code>#[verify_only]
-<b>fun</b> <a href="genesis.md#0x1_genesis_initialize_for_verification">initialize_for_verification</a>(<a href="gas_schedule.md#0x1_gas_schedule">gas_schedule</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8, initial_version: u64, <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="execution_config.md#0x1_execution_config">execution_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="supra_config.md#0x1_supra_config">supra_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="evm_genesis_config.md#0x1_evm_genesis_config">evm_genesis_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, epoch_interval_microsecs: u64, minimum_stake: u64, maximum_stake: u64, recurring_lockup_duration_secs: u64, allow_validator_set_change: bool, rewards_rate: u64, rewards_rate_denominator: u64, voting_power_increase_limit: u64, supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, voting_duration_secs: u64, supra_min_voting_threshold: u64, voters: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_AccountMap">genesis::AccountMap</a>&gt;, employee_vesting_start: u64, employee_vesting_period_duration: u64, employees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_EmployeeAccountMap">genesis::EmployeeAccountMap</a>&gt;, validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_ValidatorConfigurationWithCommission">genesis::ValidatorConfigurationWithCommission</a>&gt;)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize_for_verification">initialize_for_verification</a>(
-    <a href="gas_schedule.md#0x1_gas_schedule">gas_schedule</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    <a href="chain_id.md#0x1_chain_id">chain_id</a>: u8,
-    initial_version: u64,
-    <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    <a href="execution_config.md#0x1_execution_config">execution_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    <a href="supra_config.md#0x1_supra_config">supra_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    <a href="evm_genesis_config.md#0x1_evm_genesis_config">evm_genesis_config</a>: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
-    epoch_interval_microsecs: u64,
-    minimum_stake: u64,
-    maximum_stake: u64,
-    recurring_lockup_duration_secs: u64,
-    allow_validator_set_change: bool,
-    rewards_rate: u64,
-    rewards_rate_denominator: u64,
-    voting_power_increase_limit: u64,
-    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    // min_voting_threshold: u128,
-    // required_proposer_stake: u64,
-    voting_duration_secs: u64,
-    supra_min_voting_threshold: u64,
-    voters: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
-    accounts: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_AccountMap">AccountMap</a>&gt;,
-    employee_vesting_start: u64,
-    employee_vesting_period_duration: u64,
-    employees: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_EmployeeAccountMap">EmployeeAccountMap</a>&gt;,
-    validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="genesis.md#0x1_genesis_ValidatorConfigurationWithCommission">ValidatorConfigurationWithCommission</a>&gt;
-) {
-    <a href="genesis.md#0x1_genesis_initialize">initialize</a>(
-        <a href="gas_schedule.md#0x1_gas_schedule">gas_schedule</a>,
-        <a href="chain_id.md#0x1_chain_id">chain_id</a>,
-        initial_version,
-        <a href="consensus_config.md#0x1_consensus_config">consensus_config</a>,
-        <a href="execution_config.md#0x1_execution_config">execution_config</a>,
-        <a href="supra_config.md#0x1_supra_config">supra_config</a>,
-        epoch_interval_microsecs,
-        minimum_stake,
-        maximum_stake,
-        recurring_lockup_duration_secs,
-        allow_validator_set_change,
-        rewards_rate,
-        rewards_rate_denominator,
-        voting_power_increase_limit,
-        0
-
-    );
-    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_change_feature_flags_for_verification">features::change_feature_flags_for_verification</a>(
-        supra_framework, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[1, 2, 11], <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]
-    );
-    <a href="genesis.md#0x1_genesis_initialize_supra_coin">initialize_supra_coin</a>(supra_framework);
-    <a href="supra_governance.md#0x1_supra_governance_initialize_for_verification">supra_governance::initialize_for_verification</a>(
-        supra_framework,
-        // min_voting_threshold,
-        // required_proposer_stake,
-        voting_duration_secs,
-        supra_min_voting_threshold,
-        voters
-    );
-    <a href="genesis.md#0x1_genesis_create_accounts">create_accounts</a>(supra_framework, accounts);
-    <a href="genesis.md#0x1_genesis_create_employee_validators">create_employee_validators</a>(
-        employee_vesting_start, employee_vesting_period_duration, employees
-    );
-    <a href="genesis.md#0x1_genesis_create_initialize_validators_with_commission">create_initialize_validators_with_commission</a>(supra_framework, <b>true</b>, validators);
-    <a href="genesis.md#0x1_genesis_set_genesis_end">set_genesis_end</a>(supra_framework);
 }
 </code></pre>
 

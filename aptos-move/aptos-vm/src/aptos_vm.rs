@@ -5,11 +5,12 @@
 
 use crate::{
     automated_transaction_processor::AutomatedTransactionProcessor,
+    automation_registry_transaction_processor::AutomationRegistryTransactionProcessor,
     block_executor::{AptosTransactionOutput, AptosVMBlockExecutorWrapper},
     counters::*,
     data_cache::{AsMoveResolver, StorageAdapter},
     errors::{discarded_output, expect_only_successful_execution},
-    gas::{check_gas, make_prod_gas_meter, ProdGasMeter},
+    gas::{check_automation_task_gas, check_gas, make_prod_gas_meter, ProdGasMeter},
     keyless_validation,
     move_vm_ext::{
         session::user_transaction_sessions::{
@@ -41,6 +42,7 @@ use aptos_crypto::{
     HashValue,
 };
 use aptos_framework::natives::code::PublishRequest;
+use aptos_framework::natives::randomness::RandomnessContext;
 use aptos_gas_algebra::{Gas, GasQuantity, NumBytes, Quant};
 use aptos_gas_meter::{AptosGasMeter, GasAlgebra};
 use aptos_gas_schedule::{
@@ -79,9 +81,8 @@ use aptos_types::{
     randomness::Randomness,
     state_store::{state_key::StateKey, StateView, TStateView},
     transaction::{
-        authenticator::{AbstractionAuthData, AnySignature,
+        authenticator::{AbstractionAuthData, AnySignature, AuthenticationProof},
         automation::{AutomationTaskType, RegistrationParams},
-        AuthenticationProof},
         block_epilogue::{BlockEpiloguePayload, FeeDistribution},
         signature_verified_transaction::SignatureVerifiedTransaction,
         BlockOutput, EntryFunction, ExecutionError, ExecutionStatus, ModuleBundle,
@@ -160,8 +161,6 @@ use std::{
     sync::Arc,
 };
 
-use crate::gas::check_automation_task_gas;
-
 static EXECUTION_CONCURRENCY_LEVEL: OnceCell<usize> = OnceCell::new();
 static NUM_EXECUTION_SHARD: OnceCell<usize> = OnceCell::new();
 static NUM_PROOF_READING_THREADS: OnceCell<usize> = OnceCell::new();
@@ -192,10 +191,6 @@ macro_rules! unwrap_or_discard {
     };
 }
 
-use crate::{
-    automation_registry_transaction_processor::AutomationRegistryTransactionProcessor,
-    gas::check_automation_task_gas,
-};
 pub(crate) use unwrap_or_discard;
 
 pub(crate) struct SerializedSigners {
@@ -2128,6 +2123,7 @@ impl AptosVM {
                 executable,
                 log_context,
                 change_set_configs,
+                is_approved_gov_script
             )
         };
         drop(payload_timer);
@@ -2475,7 +2471,7 @@ impl AptosVM {
         Ok((VMStatus::Executed, output))
     }
 
-    fn mark_unbiasable(&self, session: &mut SessionExt<'_, '_>) {
+    fn mark_unbiasable(&self, session: &mut SessionExt<'_, impl AptosMoveResolver>) {
         // During the first epoch in which the feature is activated, threshold keys have not yet
         // been established (they are produced at the end of that epoch via DKG), so the randomness
         // seed can be biased to some degree (although with great difficulty) by Byzantine proposers.
@@ -2487,8 +2483,6 @@ impl AptosVM {
         // reconfiguration_with_dkg::try_start relying on access to randomness,
         if self.features().is_enabled(FeatureFlag::SUPRA_DKG) {
             session
-                .get_native_extensions()
-                .get_mut::<RandomnessContext>()
                 .mark_unbiasable();
         }
     }

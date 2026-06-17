@@ -252,6 +252,7 @@ impl MoveHarness {
     /// Runs a signed transaction. On success, applies the write set.
     pub fn run_raw(&mut self, txn: SignedTransaction) -> TransactionOutput {
         let output = self.executor.execute_transaction(txn);
+        println!("{:?}", output);
         if matches!(output.status(), TransactionStatus::Keep(_)) {
             self.executor.apply_write_set(output.write_set());
             self.executor.append_events(output.events().to_vec());

@@ -36,7 +36,7 @@ use aptos_types::{
     },
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{
-        APTOS_MAX_KNOWN_VERSION, AutomationRegistryConfig, BanRegistryParameters, BanRegistryParametersV0, FeatureFlag, Features, GasScheduleV2, OnChainConsensusConfig, OnChainEvmGenesisConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig, RandomnessConfigMoveStruct, randomness_api_v0_config::{AllowCustomMaxGasFlag, RequiredGasDeposit}
+        APTOS_MAX_KNOWN_VERSION, AutomationRegistryConfig, BanRegistryParameters, FeatureFlag, Features, GasScheduleV2, OnChainConsensusConfig, OnChainEvmGenesisConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig, RandomnessConfigMoveStruct, randomness_api_v0_config::{AllowCustomMaxGasFlag, RequiredGasDeposit}
     },
     state_store::state_key::StateKey,
     transaction::{authenticator::AuthenticationKey, ChangeSet, Transaction, WriteSetPayload},
@@ -718,7 +718,7 @@ fn initialize_supra_native_automation(
 }
 
 fn initialize_leader_ban_config(
-    session: &mut SessionExt,
+    session: &mut SessionExt<impl AptosMoveResolver>,
     module_storage: &impl AptosModuleStorage,
     traversal_context: &mut TraversalContext,
     genesis_config: &GenesisConfiguration,
@@ -728,24 +728,8 @@ fn initialize_leader_ban_config(
     };
     exec_function(
         session,
-        module_storage: &impl AptosModuleStorage,
-        traversal_context: &mut TraversalContext,
-        GENESIS_MODULE_NAME,
-        "initialize_leader_ban_registry_config",
-        vec![],
-        config.serialize_into_move_values_with_signer(CORE_CODE_ADDRESS),
-    );
-}
-
-fn initialize_leader_ban_config(
-    session: &mut SessionExt,
-    genesis_config: &GenesisConfiguration,
-) {
-    let Some(config) = &genesis_config.leader_ban_registry_config else {
-        return;
-    };
-    exec_function(
-        session,
+        module_storage,
+        traversal_context,
         GENESIS_MODULE_NAME,
         "initialize_leader_ban_registry_config",
         vec![],

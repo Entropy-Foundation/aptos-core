@@ -206,7 +206,6 @@ module supra_framework::genesis {
         reconfiguration::initialize(&supra_framework_account);
         block::initialize(&supra_framework_account, epoch_interval_microsecs);
         state_storage::initialize(&supra_framework_account);
-        timestamp::set_time_has_started(&supra_framework_account, genesis_timestamp_in_microseconds);
     }
 
     /// Genesis step 2: Initialize Supra coin.
@@ -337,7 +336,7 @@ module supra_framework::genesis {
     /// This creates an funds an account if it doesn't exist.
     /// If it exists, it just returns the signer.
     fun create_account(supra_framework: &signer, account_address: address, balance: u64): signer {
-        if (account::exists_at(account_address)) {
+        let account = if (account::exists_at(account_address)) {
             create_signer(account_address)
         } else {
             account::create_account(account_address)

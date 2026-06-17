@@ -1,7 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{aptos_dkg::DKGTranscript, dkg::transactions::DKGTransactionData, jwks, validator_verifier::ValidatorVerifier};
+use crate::{dkg::DKGTranscript, dkg::transactions::DKGTransactionData, jwks, validator_verifier::ValidatorVerifier};
 use anyhow::Context;
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
 use serde::{Deserialize, Serialize};
@@ -53,6 +53,8 @@ impl ValidatorTransaction {
 
     pub fn verify(&self, verifier: &ValidatorVerifier) -> anyhow::Result<()> {
         match self {
+            // TODO: may be verify txn data here?
+            ValidatorTransaction::DKG(_) => Ok(()),
             ValidatorTransaction::DKGResult(dkg_result) => dkg_result
                 .verify(verifier)
                 .context("DKGResult verification failed"),

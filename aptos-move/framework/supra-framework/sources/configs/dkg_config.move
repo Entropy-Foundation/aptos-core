@@ -130,7 +130,7 @@ module supra_framework::dkg_config {
     public(friend) fun on_new_epoch(framework: &signer) acquires DkgConfig {
         system_addresses::assert_supra_framework(framework);
         if (config_buffer::does_exist<DkgConfig>()) {
-            let new_config = config_buffer::extract<DkgConfig>();
+            let new_config = config_buffer::extract_v2<DkgConfig>();
             if (exists<DkgConfig>(@supra_framework)) {
                 *borrow_global_mut<DkgConfig>(@supra_framework) = new_config;
             } else {

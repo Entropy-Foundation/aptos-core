@@ -929,7 +929,9 @@ Compute <code>(a + b) % m</code>, assuming <code>m &gt;= 1, 0 &lt;= a &lt; m, 0&
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="randomness.md#0x1_randomness_take_first">take_first</a>(x: u256, _y: u256 ): u256 { x }
+<pre><code><b>fun</b> <a href="randomness.md#0x1_randomness_take_first">take_first</a>(x: u256, _y: u256): u256 {
+    x
+}
 </code></pre>
 
 

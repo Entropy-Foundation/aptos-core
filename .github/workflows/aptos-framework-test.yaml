@@ -53,7 +53,7 @@ jobs:
         run: cargo test --release -p aptos-framework -- --skip prover
 
       - name: Run language e2e tests
-        run: RUST_MIN_STACK=104857600 cargo test run -p language-e2e-testsuite --no-fail-fast
+        run: RUST_MIN_STACK=104857600 cargo test -p language-e2e-testsuite --no-fail-fast
 
       - name: Run move e2e tests
-        run: RUST_MIN_STACK=104857600 cargo test run -p e2e-move-tests --no-fail-fast
+        run: RUST_MIN_STACK=104857600 cargo test -p e2e-move-tests --no-fail-fast

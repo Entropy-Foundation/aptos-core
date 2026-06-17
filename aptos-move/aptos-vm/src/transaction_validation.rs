@@ -38,9 +38,7 @@ use move_vm_runtime::{
 };
 use move_vm_types::gas::UnmeteredGasMeter;
 use once_cell::sync::Lazy;
-use aptos_types::transaction::automation::AutomationTaskType;
 use aptos_vm_types::module_and_script_storage::module_storage::AptosModuleStorage;
-use crate::system_module_names::EMIT_GAS_ASSESSMENT;
 
 pub static APTOS_TRANSACTION_VALIDATION: Lazy<TransactionValidation> =
     Lazy::new(|| TransactionValidation {

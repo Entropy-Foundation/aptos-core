@@ -17,7 +17,7 @@ use aptos_vm_logging::log_schema::AdapterLogSchema;
 use aptos_vm_types::module_and_script_storage::AsAptosCodeStorage;
 use aptos_vm_types::resolver::NoopBlockSynchronizationKillSwitch;
 use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
-use crate::move_vm_ext::SessionId::Void;
+use aptos_vm_environment::environment::AptosEnvironment;
 
 /// Move VM with only view function API.
 /// Convenient to use when more than one view function needs to be executed on the same state-view,

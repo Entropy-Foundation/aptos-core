@@ -6,6 +6,9 @@ use crate::{
     errors::expect_only_successful_execution,
     move_vm_ext::{AptosMoveResolver, SessionId},
     system_module_names::{FINISH_WITH_DKG_RESULT, RECONFIGURATION_WITH_DKG_MODULE, SET_DKG_META},
+    validator_txns::dkg::{
+        ExecutionFailure::{Expected, Unexpected},
+    },
     AptosVM, VMValidator,
 };
 use aptos_types::{
@@ -41,12 +44,12 @@ impl AptosVM {
         session_id: SessionId,
         dkg_transaction_data: DKGTransactionData,
     ) -> Result<(VMStatus, VMOutput), VMStatus> {
-        match self.process_dkg_result_inner(
+        match self.process_dkg_transaction_inner(
             resolver,
             module_storage,
             log_context,
             session_id,
-            dkg_transcript,
+            dkg_transaction_data,
         ) {
             Ok((vm_status, vm_output)) => Ok((vm_status, vm_output)),
             Err(ExecutionFailure::Expected(status)) => {

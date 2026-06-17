@@ -14,7 +14,6 @@ use crate::{
     ledger_info::LedgerInfo,
     proof::{TransactionInfoListWithProof, TransactionInfoWithProof},
     serde_helper::vec_bytes,
-    transaction::automation::RegistrationParams,
     transaction::authenticator::{
         AccountAuthenticator, AnyPublicKey, AnySignature, SingleKeyAuthenticator,
         TransactionAuthenticator,
@@ -59,23 +58,17 @@ pub mod use_case;
 pub mod user_transaction_context;
 pub mod webauthn;
 
-use crate::transaction::automated_transaction::AutomatedTransaction;
-use crate::transaction::automation::AutomationRegistryRecord;
 pub use self::block_epilogue::{BlockEndInfo, BlockEpiloguePayload, FeeDistribution};
 use crate::{
     block_metadata_ext::BlockMetadataExt,
-   
     contract_event::TransactionEvent,
-   
     executable::ModulePath,
     fee_statement::FeeStatement,
     move_utils::MemberId,
-   
     function_info::FunctionInfo,
     keyless::FederatedKeylessPublicKey,
     on_chain_config::{FeatureFlag, Features},
     proof::accumulator::InMemoryEventAccumulator,
-    serde_helper::vec_bytes,
     transaction::{
         automated_transaction::AutomatedTransaction,
         automation::{AutomationRegistryRecord, RegistrationParams},
@@ -88,7 +81,6 @@ use crate::{
 pub use block_output::BlockOutput;
 pub use change_set::ChangeSet;
 pub use module::{Module, ModuleBundle};
-use crate::move_utils::MemberId;
 pub use move_core_types::transaction_argument::TransactionArgument;
 use move_core_types::{
     identifier::{IdentStr, Identifier},

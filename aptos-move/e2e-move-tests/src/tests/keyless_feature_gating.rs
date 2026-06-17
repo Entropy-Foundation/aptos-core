@@ -493,7 +493,7 @@ fn run_jwk_and_config_script(h: &mut MoveHarness) -> Account {
             TransactionArgument::U64(config.max_exp_horizon_secs),
         ]))
         .sequence_number(h.sequence_number(core_resources.address()))
-        .max_gas_amount(1_000_000)
+        .max_gas_amount(1_500_000)
         .gas_unit_price(1)
         .sign();
 
@@ -604,7 +604,7 @@ fn run_upgrade_vk_script(h: &mut MoveHarness, core_resources: Account, vk: Groth
             TransactionArgument::U8Vector(vk.gamma_abc_g1[1].clone()),
         ]))
         .sequence_number(h.sequence_number(core_resources.address()))
-        .max_gas_amount(1_000_000)
+        .max_gas_amount(2_500_000)
         .gas_unit_price(1)
         .sign();
 

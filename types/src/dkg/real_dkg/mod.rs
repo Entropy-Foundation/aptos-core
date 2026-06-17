@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    aptos_dkg::{
+    dkg::{
         real_dkg::rounding::DKGRounding, DKGSessionMetadata, DKGTrait, MayHaveRoundingSummary,
         RoundingSummary,
     },

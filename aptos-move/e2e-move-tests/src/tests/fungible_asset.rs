@@ -7,17 +7,13 @@ use aptos_language_e2e_tests::{
     account::Account,
     executor::{ExecutorMode, FakeExecutor},
 };
-use aptos_cached_packages::aptos_stdlib;
-use aptos_language_e2e_tests::account::{Account, TransactionBuilder};
 use aptos_types::{
-    account_address::{self, AccountAddress},
-    account_config::AccountResource,
+    account_address::{self, AccountAddress},    
     on_chain_config::FeatureFlag,
 };
 use move_core_types::{
     identifier::Identifier,
     language_storage::{StructTag, TypeTag},
-    move_resource::MoveStructType,
 };
 use once_cell::sync::Lazy;
 use serde::Deserialize;

@@ -109,6 +109,7 @@ fuzzing = [
   "proptest-derive",
   "aptos-crypto/fuzzing",
   "move-core-types/fuzzing",
+  "arbitrary",
 ]
 rest_api_schema = ["utoipa", "arbitrary"]
 

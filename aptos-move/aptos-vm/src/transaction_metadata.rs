@@ -10,10 +10,13 @@ use aptos_types::{
     chain_id::ChainId,
     transaction::{
         automated_transaction::AutomatedTransaction,
-        authenticator::AuthenticationProof, user_transaction_context::UserTransactionContext,
-        EntryFunction, Multisig, MultisigTransactionPayload, ReplayProtector, SignedTransaction,
-        TransactionExecutable, TransactionExecutableRef, TransactionExtraConfig,
-        TransactionPayload, TransactionPayloadInner,
+        authenticator::AuthenticationProof,
+        user_transaction_context::{
+            UserTransactionContext, PayloadTypeReference, PayloadTypeReferenceContext
+        },
+        EntryFunction, Multisig, MultisigTransactionPayload, ReplayProtector, SignedTransaction, 
+        TransactionExecutable, TransactionExecutableRef, TransactionExtraConfig, TransactionPayload, 
+        TransactionPayloadInner,
     },
 };
 

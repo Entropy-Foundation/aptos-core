@@ -100,7 +100,7 @@ module supra_framework::leader_ban_registry_config {
     ) acquires BanRegistryParameters, BanRegistryParametersV0 {
         system_addresses::assert_supra_framework(framework);
         if (config_buffer::does_exist<BanRegistryParameters>()) {
-            let new_config = config_buffer::extract<BanRegistryParameters>();
+            let new_config = config_buffer::extract_v2<BanRegistryParameters>();
             if (exists<BanRegistryParameters>(@supra_framework)) {
                 *borrow_global_mut<BanRegistryParameters>(@supra_framework) = new_config;
             } else {

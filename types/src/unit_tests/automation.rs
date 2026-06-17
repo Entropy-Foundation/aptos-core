@@ -57,7 +57,9 @@ fn test_registration_params_serde() {
     assert_eq!(serialized.len(), 8);
     // Check the order fo serialized items
     // Address
-    let v_address = bcs::from_bytes::<AccountAddress>(&serialized[0]).unwrap();
+    // Finding: Cannot Deserialize Signer. 
+    // As it has prefixed of enum master signer, or permission signer
+    let v_address = bcs::from_bytes::<AccountAddress>(&serialized[0][1..]).unwrap();
     assert_eq!(address, v_address);
     // EntryFunction double serialized
     let v_entry_bytes = bcs::from_bytes::<Vec<u8>>(&serialized[1]).unwrap();
@@ -134,7 +136,9 @@ fn test_registration_params_v2_user_task_serde() {
     assert_eq!(serialized.len(), 8);
     // Check the order fo serialized items
     // Address
-    let v_address = bcs::from_bytes::<AccountAddress>(&serialized[0]).unwrap();
+    // Finding: Cannot Deserialize Signer. 
+    // As it has prefixed of enum master signer, or permission signer
+    let v_address = bcs::from_bytes::<AccountAddress>(&serialized[0][1..]).unwrap();
     assert_eq!(address, v_address);
     // EntryFunction double serialized
     let v_entry_bytes = bcs::from_bytes::<Vec<u8>>(&serialized[1]).unwrap();
@@ -232,7 +236,9 @@ fn test_registration_params_system_task_serde() {
     assert_eq!(serialized.len(), 6);
     // Check the order fo serialized items
     // Address
-    let v_address = bcs::from_bytes::<AccountAddress>(&serialized[0]).unwrap();
+    // Finding: Cannot Deserialize Signer. 
+    // As it has prefixed of enum master signer, or permission signer
+    let v_address = bcs::from_bytes::<AccountAddress>(&serialized[0][1..]).unwrap();
     assert_eq!(address, v_address);
     // EntryFunction double serialized
     let v_entry_bytes = bcs::from_bytes::<Vec<u8>>(&serialized[1]).unwrap();

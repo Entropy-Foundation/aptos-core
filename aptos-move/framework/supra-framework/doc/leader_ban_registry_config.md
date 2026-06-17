@@ -263,7 +263,7 @@ Only used in reconfigurations to apply the pending <code><a href="leader_ban_reg
 ) <b>acquires</b> <a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config_BanRegistryParameters">BanRegistryParameters</a>, <a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config_BanRegistryParametersV0">BanRegistryParametersV0</a> {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(framework);
     <b>if</b> (<a href="config_buffer.md#0x1_config_buffer_does_exist">config_buffer::does_exist</a>&lt;<a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config_BanRegistryParameters">BanRegistryParameters</a>&gt;()) {
-        <b>let</b> new_config = <a href="config_buffer.md#0x1_config_buffer_extract">config_buffer::extract</a>&lt;<a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config_BanRegistryParameters">BanRegistryParameters</a>&gt;();
+        <b>let</b> new_config = <a href="config_buffer.md#0x1_config_buffer_extract_v2">config_buffer::extract_v2</a>&lt;<a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config_BanRegistryParameters">BanRegistryParameters</a>&gt;();
         <b>if</b> (<b>exists</b>&lt;<a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config_BanRegistryParameters">BanRegistryParameters</a>&gt;(@supra_framework)) {
             *<b>borrow_global_mut</b>&lt;<a href="leader_ban_registry_config.md#0x1_leader_ban_registry_config_BanRegistryParameters">BanRegistryParameters</a>&gt;(@supra_framework) = new_config;
         } <b>else</b> {

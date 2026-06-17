@@ -1533,41 +1533,6 @@ Return a signer for making changes to 0x1 as part of on-chain governance proposa
 
 </details>
 
-<a id="0x1_supra_governance_initialize_for_verification"></a>
-
-## Function `initialize_for_verification`
-
-
-
-<pre><code>#[verify_only]
-<b>public</b> <b>fun</b> <a href="supra_governance.md#0x1_supra_governance_initialize_for_verification">initialize_for_verification</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, voting_duration_secs: u64, supra_min_voting_threshold: u64, voters: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;)
-</code></pre>
-
-
-
-<details>
-<summary>Implementation</summary>
-
-
-<pre><code><b>public</b> <b>fun</b> <a href="supra_governance.md#0x1_supra_governance_initialize_for_verification">initialize_for_verification</a>(
-    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    voting_duration_secs: u64,
-    supra_min_voting_threshold: u64,
-    voters: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;
-) {
-    <a href="supra_governance.md#0x1_supra_governance_initialize">initialize</a>(
-        supra_framework,
-        voting_duration_secs,
-        supra_min_voting_threshold,
-        voters
-    );
-}
-</code></pre>
-
-
-
-</details>
-
 <a id="@Specification_1"></a>
 
 ## Specification

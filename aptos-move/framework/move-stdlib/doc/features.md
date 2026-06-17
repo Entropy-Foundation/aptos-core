@@ -397,7 +397,7 @@ Lifetime: transient
 Whether to calculate the transaction fee for distribution.
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION">CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION</a>: u64 = 105;
+<pre><code><b>const</b> <a href="features.md#0x1_features_CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION">CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION</a>: u64 = 107;
 </code></pre>
 
 
@@ -509,7 +509,7 @@ Lifetime: transient
 Lifetime: transient
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_DEFAULT_ACCOUNT_RESOURCE">DEFAULT_ACCOUNT_RESOURCE</a>: u64 = 100;
+<pre><code><b>const</b> <a href="features.md#0x1_features_DEFAULT_ACCOUNT_RESOURCE">DEFAULT_ACCOUNT_RESOURCE</a>: u64 = 104;
 </code></pre>
 
 
@@ -565,7 +565,7 @@ Whether the account abstraction is enabled.
 Lifetime: transient
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_DERIVABLE_ACCOUNT_ABSTRACTION">DERIVABLE_ACCOUNT_ABSTRACTION</a>: u64 = 97;
+<pre><code><b>const</b> <a href="features.md#0x1_features_DERIVABLE_ACCOUNT_ABSTRACTION">DERIVABLE_ACCOUNT_ABSTRACTION</a>: u64 = 101;
 </code></pre>
 
 
@@ -587,7 +587,7 @@ Lifetime: transient
 Whether to distribute transaction fee to validators.
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_DISTRIBUTE_TRANSACTION_FEE">DISTRIBUTE_TRANSACTION_FEE</a>: u64 = 106;
+<pre><code><b>const</b> <a href="features.md#0x1_features_DISTRIBUTE_TRANSACTION_FEE">DISTRIBUTE_TRANSACTION_FEE</a>: u64 = 108;
 </code></pre>
 
 
@@ -649,7 +649,7 @@ Lifetime: transient
 We do not expect use from Move, so for now only for documentation purposes here
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_ENABLE_FUNCTION_VALUES">ENABLE_FUNCTION_VALUES</a>: u64 = 98;
+<pre><code><b>const</b> <a href="features.md#0x1_features_ENABLE_FUNCTION_VALUES">ENABLE_FUNCTION_VALUES</a>: u64 = 102;
 </code></pre>
 
 
@@ -695,7 +695,7 @@ For simplicity, it is represented by type <code>ProviderJWKs</code> (used to rep
 in JWK Consensus messages, in validator transactions, and in Move.
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_JWK_CONSENSUS_PER_KEY_MODE">JWK_CONSENSUS_PER_KEY_MODE</a>: u64 = 101;
+<pre><code><b>const</b> <a href="features.md#0x1_features_JWK_CONSENSUS_PER_KEY_MODE">JWK_CONSENSUS_PER_KEY_MODE</a>: u64 = 105;
 </code></pre>
 
 
@@ -828,7 +828,7 @@ Whether new accounts default to the Fungible Asset store.
 Lifetime: transient
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_NEW_ACCOUNTS_DEFAULT_TO_FA_STORE">NEW_ACCOUNTS_DEFAULT_TO_FA_STORE</a>: u64 = 99;
+<pre><code><b>const</b> <a href="features.md#0x1_features_NEW_ACCOUNTS_DEFAULT_TO_FA_STORE">NEW_ACCOUNTS_DEFAULT_TO_FA_STORE</a>: u64 = 103;
 </code></pre>
 
 
@@ -890,7 +890,7 @@ Whether orderless transactions are enabled.
 Lifetime: transient
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_ORDERLESS_TRANSACTIONS">ORDERLESS_TRANSACTIONS</a>: u64 = 103;
+<pre><code><b>const</b> <a href="features.md#0x1_features_ORDERLESS_TRANSACTIONS">ORDERLESS_TRANSACTIONS</a>: u64 = 106;
 </code></pre>
 
 

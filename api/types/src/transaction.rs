@@ -19,7 +19,7 @@ use aptos_crypto::{
 use aptos_types::{
     account_address::AccountAddress,
     aggregate_signature::AggregateSignature,
-    aptos_dkg::{DKGTranscript, DKGTranscriptMetadata},
+    dkg::{DKGTranscript, DKGTranscriptMetadata},
     block_metadata::BlockMetadata,
     block_metadata_ext::BlockMetadataExt,
     contract_event::{ContractEvent, EventWithVersion},
@@ -394,38 +394,6 @@ impl From<(TransactionInfo, WriteSetPayload, Vec<EventV1>)> for Transaction {
     }
 }
 
-impl From<(&BlockMetadata, TransactionInfo, Vec<EventV1>)> for Transaction {
-    fn from((txn, info, events): (&BlockMetadata, TransactionInfo, Vec<EventV1>)) -> Self {
-        Transaction::BlockMetadataTransaction(BlockMetadataTransaction {
-            info,
-            id: txn.id().into(),
-            epoch: txn.epoch().into(),
-            round: txn.round().into(),
-            events,
-            previous_block_votes_bitvec: txn.previous_block_votes_bitvec().clone(),
-            proposer: txn.proposer().into(),
-            failed_proposer_indices: txn.failed_proposer_indices().clone(),
-            timestamp: txn.timestamp_usecs().into(),
-        })
-    }
-}
-
-impl From<(&BlockMetadataExt, TransactionInfo, Vec<EventV1>)> for Transaction {
-    fn from((txn, info, events): (&BlockMetadataExt, TransactionInfo, Vec<EventV1>)) -> Self {
-        Transaction::BlockMetadataTransaction(BlockMetadataTransaction {
-            info,
-            id: txn.id().into(),
-            epoch: txn.epoch().into(),
-            round: txn.round().into(),
-            events,
-            previous_block_votes_bitvec: txn.previous_block_votes_bitvec().clone(),
-            proposer: txn.proposer().into(),
-            failed_proposer_indices: txn.failed_proposer_indices().clone(),
-            timestamp: txn.timestamp_usecs().into(),
-        })
-    }
-}
-
 impl From<(&SignedTransaction, TransactionPayload)> for UserTransactionRequest {
     fn from((txn, payload): (&SignedTransaction, TransactionPayload)) -> Self {
         Self {
@@ -764,7 +732,7 @@ impl BlockMetadataTransaction {
     pub fn from_internal(
         internal: BlockMetadata,
         info: TransactionInfo,
-        events: Vec<Event>,
+        events: Vec<EventV1>,
     ) -> Self {
         Self {
             info,
@@ -783,7 +751,7 @@ impl BlockMetadataTransaction {
     pub fn from_internal_ext(
         internal: BlockMetadataExt,
         info: TransactionInfo,
-        events: Vec<Event>,
+        events: Vec<EventV1>,
     ) -> Self {
         Self {
             info,

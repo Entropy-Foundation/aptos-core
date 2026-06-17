@@ -218,17 +218,6 @@ module supra_framework::stake {
         fee_amount: u64,
     }
 
-    /// Transaction fee that is collected in current epoch, indexed by validator_index.
-    struct PendingTransactionFee has key, store {
-        pending_fee_by_validator: BigOrderedMap<u64, Aggregator<u64>>,
-    }
-
-    #[event]
-    struct DistributeTransactionFee has drop, store {
-        pool_address: address,
-        fee_amount: u64,
-    }
-
     /// SupraCoin capabilities, set during genesis and stored in @CoreResource account.
     /// This allows the Stake module to mint rewards to stakers.
     struct SupraCoinCapabilities has key {
@@ -391,18 +380,6 @@ module supra_framework::stake {
         fees_table: Table<address, Coin<SupraCoin>>
     }
 
-    /// Initializes the resource storing information about collected transaction fees per validator.
-    /// Used by `transaction_fee.move` to initialize fee collection and distribution.
-    public(friend) fun initialize_validator_fees(
-        supra_framework: &signer
-    ) {
-        system_addresses::assert_supra_framework(supra_framework);
-        assert!(
-            permissioned_signer::check_permission_exists(s, StakeManagementPermission {}),
-            error::permission_denied(ENO_STAKE_PERMISSION),
-        );
-    }
-
     /// Permissions
     inline fun check_stake_permission(s: &signer) {
         assert!(
@@ -414,20 +391,6 @@ module supra_framework::stake {
     /// Grant permission to mutate staking on behalf of the master signer.
     public fun grant_permission(master: &signer, permissioned_signer: &signer) {
         permissioned_signer::authorize_unlimited(master, permissioned_signer, StakeManagementPermission {})
-    }
-
-    /// Stores the transaction fee collected to the specified validator address.
-    public(friend) fun add_transaction_fee(
-        validator_addr: address, fee: Coin<SupraCoin>
-    ) acquires ValidatorFees {
-        let fees_table =
-            &mut borrow_global_mut<ValidatorFees>(@supra_framework).fees_table;
-        if (table::contains(fees_table, validator_addr)) {
-            let collected_fee = table::borrow_mut(fees_table, validator_addr);
-            coin::merge(collected_fee, fee);
-        } else {
-            table::add(fees_table, validator_addr, fee);
-        }
     }
 
     #[view]
@@ -1228,7 +1191,7 @@ module supra_framework::stake {
     /// Each DkgCommitteeOutput contains a threshold_type and corresponding keys for all validators.
     public(friend) fun set_dkg_output_keys(
         committee_outputs: vector<dkg_committee::DkgCommitteeOutput>
-    ) acquires ValidatorConfig, ValidatorFees, ValidatorPerformance, ValidatorSet, StakePool {
+    ) acquires ValidatorConfig, ValidatorPerformance, ValidatorSet, StakePool {
         if (vector::is_empty(&committee_outputs)) { return };
 
         let next_validator_infos = next_validator_consensus_infos();
@@ -1311,7 +1274,7 @@ module supra_framework::stake {
                         new_consensus_pubkey
                     }
                 );
-            }
+            };
 
             i = i + 1;
         };
@@ -1934,7 +1897,7 @@ module supra_framework::stake {
     /// membership (active + pending_active) must reflect the next epoch, but node config
     /// should reflect current-epoch for the active validators to ensure that validators that update
     /// their configuration do not need to run two copies of themselves to participate in DKG.
-    public fun next_epoch_validator_consensus_infos_for_dkg(): vector<ValidatorConsensusInfo> acquires ValidatorSet, ValidatorPerformance, StakePool, ValidatorFees, ValidatorConfig {
+    public fun next_epoch_validator_consensus_infos_for_dkg(): vector<ValidatorConsensusInfo> acquires ValidatorSet, ValidatorPerformance, StakePool, ValidatorConfig {
         // Use the current-epoch config snapshot for active validators so mid-epoch config changes
         // do not take effect during DKG (use_current_config_for_actives=true).
         let new_validator_set = compute_next_validator_set_internal(true);
@@ -1951,7 +1914,7 @@ module supra_framework::stake {
     /// (which appends via `pop_back`).
     fun compute_next_validator_set_internal(
         use_current_config_for_actives: bool
-    ): ValidatorSet acquires ValidatorSet, ValidatorPerformance, StakePool, ValidatorFees, ValidatorConfig {
+    ): ValidatorSet acquires ValidatorSet, ValidatorPerformance, StakePool, ValidatorConfig {
         // Init.
         let cur_validator_set = borrow_global<ValidatorSet>(@supra_framework);
         let staking_config = staking_config::get();
@@ -2090,17 +2053,6 @@ module supra_framework::stake {
                 rewards_rate,
                 rewards_rate_denominator
             )
-        } else { 0 }
-    }
-
-    /// Returns the accumulated gas fees assigned to `candidate_addr`, or 0 if fee collection
-    /// is disabled or no fees have been recorded for this validator.
-    fun collect_candidate_fee(candidate_addr: address): u64 acquires ValidatorFees {
-        if (features::collect_and_distribute_gas_fees()) {
-            let fees_table = &borrow_global<ValidatorFees>(@supra_framework).fees_table;
-            if (table::contains(fees_table, candidate_addr)) {
-                coin::value(table::borrow(fees_table, candidate_addr))
-            } else { 0 }
         } else { 0 }
     }
 
@@ -2742,7 +2694,7 @@ module supra_framework::stake {
     #[expected_failure(abort_code = 0x10016, location = Self)]
     public entry fun test_initialize_validator_rejects_duplicate_consensus_pubkey_active(
         supra_framework: &signer, validator_1: &signer, validator_2: &signer
-    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, PendingTransactionFee {
         initialize_for_test(supra_framework);
         let (_sk, pk) = generate_identity();
         // validator_1 joins and becomes active in the next epoch.
@@ -2755,7 +2707,7 @@ module supra_framework::stake {
     #[expected_failure(abort_code = 0x10016, location = Self)]
     public entry fun test_initialize_validator_rejects_duplicate_consensus_pubkey_pending_active(
         supra_framework: &signer, validator_1: &signer, validator_2: &signer
-    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, PendingTransactionFee {
         initialize_for_test(supra_framework);
         let (_sk, pk) = generate_identity();
         // validator_1 joins pending_active but no epoch transition.
@@ -2798,7 +2750,7 @@ module supra_framework::stake {
     #[test(supra_framework = @supra_framework, validator_1 = @0x123, validator_2 = @0x234)]
     public entry fun test_initialize_validator_allows_two_empty_network_addresses(
         supra_framework: &signer, validator_1: &signer, validator_2: &signer
-    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, PendingTransactionFee {
         initialize_for_test(supra_framework);
         let (_sk_1, pk_1) = generate_identity();
         let (_sk_2, pk_2) = generate_identity();
@@ -2812,7 +2764,7 @@ module supra_framework::stake {
     #[expected_failure(abort_code = 0x10016, location = Self)]
     public entry fun test_rotate_consensus_key_rejects_duplicate(
         supra_framework: &signer, validator_1: &signer, validator_2: &signer
-    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, PendingTransactionFee {
         initialize_for_test(supra_framework);
         let (_sk_1, pk_1) = generate_identity();
         let (_sk_2, pk_2) = generate_identity();
@@ -2826,7 +2778,7 @@ module supra_framework::stake {
     #[test(supra_framework = @supra_framework, validator = @0x123)]
     public entry fun test_rotate_consensus_key_allows_fresh_key(
         supra_framework: &signer, validator: &signer
-    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, PendingTransactionFee {
         initialize_for_test(supra_framework);
         let (_sk, pk) = generate_identity();
         initialize_test_validator(&pk, validator, 100, true, true);
@@ -2838,7 +2790,7 @@ module supra_framework::stake {
     #[test(supra_framework = @supra_framework, validator = @0x123)]
     public entry fun test_rotate_consensus_key_allows_self_rotation(
         supra_framework: &signer, validator: &signer
-    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, PendingTransactionFee {
         initialize_for_test(supra_framework);
         let (_sk, pk) = generate_identity();
         let pk_bytes = validator_public_keys::public_key_to_bytes(pk);
@@ -2851,7 +2803,7 @@ module supra_framework::stake {
     #[expected_failure(abort_code = 0x10017, location = Self)]
     public entry fun test_update_network_addresses_rejects_duplicate(
         supra_framework: &signer, validator_1: &signer, validator_2: &signer
-    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, PendingTransactionFee {
         initialize_for_test(supra_framework);
         let (_sk_1, pk_1) = generate_identity();
         let (_sk_2, pk_2) = generate_identity();
@@ -4244,92 +4196,6 @@ module supra_framework::stake {
                 == VALIDATOR_STATUS_PENDING_INACTIVE,
             1
         );
-    }
-
-    #[test(vm = @0x0, supra_framework = @0x1, validator_0 = @0x123, validator_1 = @0x234)]
-    public entry fun test_transaction_fee(
-        vm: &signer,
-        supra_framework: &signer,
-        validator_0: &signer,
-        validator_1: &signer,
-    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, PendingTransactionFee, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet {
-        initialize_for_test(supra_framework);
-        initialize_pending_transaction_fee(supra_framework);
-        features::change_feature_flags_for_testing(supra_framework, vector[features::get_distribute_transaction_fee_feature()], vector[]);
-        let address_0 = signer::address_of(validator_0);
-        let address_1 = signer::address_of(validator_1);
-        let (_sk_0, pk_0) = generate_identity();
-        let (_sk_1, pk_1) = generate_identity();
-        initialize_test_validator(&pk_0, validator_0, 100, true, false);
-        initialize_test_validator(&pk_1, validator_1, 100, true, true);
-        assert!(vector::length(&borrow_global<ValidatorSet>(@supra_framework).active_validators) == 2, 0);
-
-        let validator_to_remove = signer::address_of(validator_0);
-        remove_validators(supra_framework, &vector[validator_to_remove]);
-        assert!(vector::length(&borrow_global<ValidatorSet>(@supra_framework).active_validators) == 1, 0);
-
-        // validator 0 is pending inactive, validator 1 is active, both should get fee.
-
-        {
-            let fee_table = &borrow_global<PendingTransactionFee>(@supra_framework).pending_fee_by_validator;
-            assert!(fee_table.contains(&0), 0);
-            assert!(fee_table.contains(&1), 0);
-        };
-
-        record_fee(vm, vector[], vector[]);
-        record_fee(vm, vector[get_validator_index(address_0)], vector[1]);
-        record_fee(vm, vector[get_validator_index(address_1)], vector[2]);
-        record_fee(vm, vector[get_validator_index(address_0), get_validator_index(address_1)], vector[10, 220]);
-
-        {
-            let fee_table = &borrow_global<PendingTransactionFee>(@supra_framework).pending_fee_by_validator;
-            assert!(fee_table.borrow(&get_validator_index(address_0)).read() == 11, 0);
-            assert!(fee_table.borrow(&get_validator_index(address_1)).read() == 222, 0);
-            end_epoch();
-
-            assert!(event::was_event_emitted(&DistributeTransactionFee { pool_address: address_0, fee_amount: 11 }), 0);
-            assert!(event::was_event_emitted(&DistributeTransactionFee { pool_address: address_1, fee_amount: 222 }), 0);
-        };
-
-        let fee_table = &borrow_global<PendingTransactionFee>(@supra_framework).pending_fee_by_validator;
-        // validator 1 is at index 0 now.
-        assert!(fee_table.contains(&0), 0);
-        assert!(!fee_table.contains(&1), 0);
-
-        assert!(event::emitted_events<DistributeTransactionFee>().length() == 2, 0);
-        // No more event is emitted at this epoch ending.
-        end_epoch();
-        assert!(event::emitted_events<DistributeTransactionFee>().length() == 2, 0);
-    }
-
-    #[test(vm = @0x0, supra_framework = @0x1, validator_0 = @0x123, validator_1 = @0x234)]
-    #[expected_failure(abort_code = 0x10002, location = 0x1::big_ordered_map)]
-    public entry fun test_transaction_fee_non_validator(
-        vm: &signer,
-        supra_framework: &signer,
-        validator_0: &signer,
-        validator_1: &signer,
-    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, PendingTransactionFee, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet {
-        initialize_for_test(supra_framework);
-        initialize_pending_transaction_fee(supra_framework);
-        features::change_feature_flags_for_testing(supra_framework, vector[features::get_distribute_transaction_fee_feature()], vector[]);
-        let (_sk_0, pk_0) = generate_identity();
-        let (_sk_1, pk_1) = generate_identity();
-        initialize_test_validator(&pk_0, validator_0, 100, true, false);
-        initialize_test_validator(&pk_1, validator_1, 100, true, true);
-        assert!(vector::length(&borrow_global<ValidatorSet>(@supra_framework).active_validators) == 2, 0);
-
-        let validator_to_remove = signer::address_of(validator_0);
-        remove_validators(supra_framework, &vector[validator_to_remove]);
-        assert!(vector::length(&borrow_global<ValidatorSet>(@supra_framework).active_validators) == 1, 0);
-
-        // validator 0 is pending inactive, validator 1 is active.
-
-        end_epoch();
-        assert!(event::emitted_events<DistributeTransactionFee>().length() == 0, 0);
-
-        // Validator index is out of bound, abort.
-        record_fee(vm, vector[1], vector[1]);
     }
 
     #[test(vm = @0x0, supra_framework = @0x1, validator_0 = @0x123, validator_1 = @0x234)]

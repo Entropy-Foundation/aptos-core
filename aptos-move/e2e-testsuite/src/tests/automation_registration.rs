@@ -10,10 +10,7 @@ use aptos_language_e2e_tests::{
     account::{Account, AccountData},
     executor::FakeExecutor,
 };
-use aptos_types::account_address::create_multisig_account_address;
 use aptos_types::state_store::StateView;
-use aptos_types::transaction::automation::Priority;
-use aptos_types::transaction::{ExecutionError, Multisig, MultisigTransactionPayload};
 use aptos_types::{
     account_address::create_multisig_account_address,
     contract_event::ContractEvent,
@@ -132,7 +129,10 @@ impl AutomationRegistrationTestContext {
         let account_create_txn = multisig_owner1
             .account()
             .transaction()
-            .max_gas_amount(1_000_000)
+            // The SUP#3 gas-schedule update raised storage fees ~1000x, so creating the
+            // multisig account (and its new state slots) now costs ~1.7M gas units at this
+            // gas unit price. Budget enough headroom for it.
+            .max_gas_amount(2_000_000)
             .gas_unit_price(100)
             .payload(create_multisig_payload)
             .sequence_number(0)
@@ -236,6 +236,7 @@ impl AutomationRegistrationTestContext {
             .payload(automation_txn)
             .sequence_number(seq_num)
             .gas_unit_price(1)
+            .max_gas_amount(55000000)
             .sign()
     }
 
@@ -264,6 +265,7 @@ impl AutomationRegistrationTestContext {
             .transaction()
             .payload(automation_txn)
             .sequence_number(seq_num)
+            .max_gas_amount(55000000)
             .gas_unit_price(1)
             .sign()
     }
@@ -306,6 +308,7 @@ impl AutomationRegistrationTestContext {
             ))
             .sequence_number(seq_num)
             .gas_unit_price(1)
+            .max_gas_amount(55000000)
             .sign()
     }
 
