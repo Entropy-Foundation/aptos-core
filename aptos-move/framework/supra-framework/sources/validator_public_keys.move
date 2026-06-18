@@ -132,6 +132,43 @@ module supra_framework::validator_public_keys {
         pk.supra_keys.ed25519_key
     }
 
+    /// Overwrites the four static keys of `target` (network_key, bls_multisig_key, class_group_key,
+    /// ed25519_key) with those from `source`, leaving the DKG-managed BLS threshold key fields of
+    /// `target` untouched. Used by `stake::rotate_consensus_key` so that an operator key rotation
+    /// only changes the static keys and cannot clobber the threshold keys written by the DKG via
+    /// `stake::set_dkg_output_keys`.
+    public fun replace_static_keys(target: &mut ValidatorPublicKeys, source: &ValidatorPublicKeys) {
+        target.network_key = source.network_key;
+        target.supra_keys.bls_multisig_key = source.supra_keys.bls_multisig_key;
+        target.supra_keys.class_group_key = source.supra_keys.class_group_key;
+        target.supra_keys.ed25519_key = source.supra_keys.ed25519_key;
+    }
+
+    #[test_only]
+    /// Returns the BLS threshold key for the given threshold type, used by tests to assert that
+    /// the DKG-managed threshold keys survive an operator key rotation.
+    public fun get_supra_bls_threshold_key_by_type(
+        pk: &ValidatorPublicKeys, threshold_type: u8
+    ): option::Option<bls12381::PublicKey> {
+        if (threshold_type == CERTIFICATE_THRESHOLD_TYPE_VALIDITY) {
+            pk.supra_keys.bls_threshold_validity_certificate_key
+        } else if (threshold_type == CERTIFICATE_THRESHOLD_TYPE_QUORUM) {
+            pk.supra_keys.bls_threshold_quorum_certificate_key
+        } else if (threshold_type == CERTIFICATE_THRESHOLD_TYPE_UNANIMOUS) {
+            pk.supra_keys.bls_threshold_unanimous_certificate_key
+        } else if (threshold_type == CERTIFICATE_THRESHOLD_TYPE_BCFT_VALIDITY) {
+            pk.supra_keys.bls_threshold_bcft_validity_certificate_key
+        } else if (threshold_type == CERTIFICATE_THRESHOLD_TYPE_BCFT_QUORUM) {
+            pk.supra_keys.bls_threshold_bcft_quorum_certificate_key
+        } else if (threshold_type == CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE) {
+            pk.supra_keys.bls_threshold_bcft_fallback_view_change_certificate_key
+        } else if (threshold_type == CERTIFICATE_THRESHOLD_TYPE_CLAN_MAJORITY) {
+            pk.supra_keys.bls_threshold_clan_majority_certificate_key
+        } else {
+            abort error::invalid_argument(EUNKNOWN_THRESHOLD_TYPE)
+        }
+    }
+
     public fun rotate_supra_bls_threshold_validity_key(pk: &mut ValidatorPublicKeys, new_bls_threshold_validity_key: bls12381::PublicKey) {
         pk.supra_keys.bls_threshold_validity_certificate_key = option::some(new_bls_threshold_validity_key);
     }
@@ -253,5 +290,30 @@ module supra_framework::validator_public_keys {
         let ed0 = get_supra_ed_key(&pk);
         let ed1 = get_supra_ed_key(&parsed);
         assert!(ed0 == ed1, 1004);
+    }
+
+    #[test]
+    fun test_replace_static_keys_preserves_threshold_keys() {
+        // `target` carries a DKG-style threshold key; `source` carries only static keys (its
+        // threshold fields are `none`, modelling an operator's rotation payload).
+        let (_sk_a, pk_a) = validator_public_keys::generate_keys();
+        let (_sk_b, pk_b) = validator_public_keys::generate_keys();
+
+        let (_t_sk, t_pop_pk) = bls12381::generate_keys();
+        let threshold_key = public_key_with_pop_to_normal(&t_pop_pk);
+        rotate_supra_bls_threshold_validity_key(&mut pk_a, threshold_key);
+
+        replace_static_keys(&mut pk_a, &pk_b);
+
+        // The four static keys now equal those of `source`.
+        assert!(get_network_key(&pk_a) == get_network_key(&pk_b), 2001);
+        assert!(get_supra_bls_multi_sig_pub_key(&pk_a) == get_supra_bls_multi_sig_pub_key(&pk_b), 2002);
+        assert!(get_supra_cg_key(&pk_a) == get_supra_cg_key(&pk_b), 2003);
+        assert!(get_supra_ed_key(&pk_a) == get_supra_ed_key(&pk_b), 2004);
+
+        // The DKG-managed threshold key was preserved (it was `none` in `source`).
+        let preserved = get_supra_bls_threshold_key_by_type(&pk_a, CERTIFICATE_THRESHOLD_TYPE_VALIDITY);
+        assert!(option::is_some(&preserved), 2005);
+        assert!(option::extract(&mut preserved) == threshold_key, 2006);
     }
 }

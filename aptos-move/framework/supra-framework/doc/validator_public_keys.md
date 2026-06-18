@@ -29,6 +29,7 @@
 -  [Function `get_supra_bls_multi_sig_pub_key`](#0x1_validator_public_keys_get_supra_bls_multi_sig_pub_key)
 -  [Function `get_supra_cg_key`](#0x1_validator_public_keys_get_supra_cg_key)
 -  [Function `get_supra_ed_key`](#0x1_validator_public_keys_get_supra_ed_key)
+-  [Function `replace_static_keys`](#0x1_validator_public_keys_replace_static_keys)
 -  [Function `rotate_supra_bls_threshold_validity_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_validity_key)
 -  [Function `rotate_supra_bls_threshold_quorum_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_quorum_key)
 -  [Function `rotate_supra_bls_threshold_unanimous_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_unanimous_key)
@@ -763,6 +764,38 @@ Error: Unknown certificate threshold type.
 
 <pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_get_supra_ed_key">get_supra_ed_key</a>(pk: &<a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">ValidatorPublicKeys</a>): <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519_ValidatedPublicKey">ed25519::ValidatedPublicKey</a>{
     pk.supra_keys.ed25519_key
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_replace_static_keys"></a>
+
+## Function `replace_static_keys`
+
+Overwrites the four static keys of <code>target</code> (network_key, bls_multisig_key, class_group_key,
+ed25519_key) with those from <code>source</code>, leaving the DKG-managed BLS threshold key fields of
+<code>target</code> untouched. Used by <code><a href="stake.md#0x1_stake_rotate_consensus_key">stake::rotate_consensus_key</a></code> so that an operator key rotation
+only changes the static keys and cannot clobber the threshold keys written by the DKG via
+<code><a href="stake.md#0x1_stake_set_dkg_output_keys">stake::set_dkg_output_keys</a></code>.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_replace_static_keys">replace_static_keys</a>(target: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">validator_public_keys::ValidatorPublicKeys</a>, source: &<a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">validator_public_keys::ValidatorPublicKeys</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_replace_static_keys">replace_static_keys</a>(target: &<b>mut</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">ValidatorPublicKeys</a>, source: &<a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">ValidatorPublicKeys</a>) {
+    target.network_key = source.network_key;
+    target.supra_keys.bls_multisig_key = source.supra_keys.bls_multisig_key;
+    target.supra_keys.class_group_key = source.supra_keys.class_group_key;
+    target.supra_keys.ed25519_key = source.supra_keys.ed25519_key;
 }
 </code></pre>
 

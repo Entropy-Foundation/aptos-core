@@ -1072,6 +1072,35 @@ module supra_framework::stake {
         );
         let validator_info = borrow_global_mut<ValidatorConfig>(pool_address);
         let old_consensus_pubkey = validator_info.consensus_pubkey;
+
+        // Preserve the DKG-managed BLS threshold keys: an operator rotation must only change the
+        // static keys. We load the current on-chain keys and copy in only the operator-supplied
+        // static keys, leaving the threshold keys (written by `set_dkg_output_keys`) intact.
+        //
+        // The merge is skipped (and the incoming blob stored verbatim, preserving the original
+        // behavior) when there is nothing to preserve or the stored blob cannot be parsed:
+        //  - before v2: the stored blob may be a legacy ed25519 key with no threshold keys;
+        //  - genesis: no DKG threshold keys exist yet;
+        //  - an empty stored key: a validator initialized via `initialize_stake_owner` sets its key
+        //    for the first time here, so there is no prior `ValidatorPublicKeys` to merge into
+        //    (parsing the empty blob would abort).
+        // Under v2 a non-empty stored blob is guaranteed to be a valid `ValidatorPublicKeys` (the
+        // feature is only enabled once all validators have migrated to the new format), and
+        // `validate_consensus_public_key` has already verified the incoming blob, so both
+        // deserializations are safe.
+        let new_consensus_pubkey =
+            if (!genesis
+                && std::features::supra_validator_identity_v2_enabled()
+                && !vector::is_empty(&old_consensus_pubkey)) {
+                let current_keys =
+                    validator_public_keys::validator_public_keys_from_bytes(old_consensus_pubkey);
+                let incoming_keys =
+                    validator_public_keys::validator_public_keys_from_bytes(new_consensus_pubkey);
+                validator_public_keys::replace_static_keys(&mut current_keys, &incoming_keys);
+                validator_public_keys::public_key_to_bytes(current_keys)
+            } else {
+                new_consensus_pubkey
+            };
         validator_info.consensus_pubkey = new_consensus_pubkey;
 
         if (std::features::module_event_migration_enabled()) {
@@ -2651,6 +2680,51 @@ module supra_framework::stake {
         initialize_test_validator(&pk, validator, 100, true, true);
         // Rotating to the same key the validator already holds is a no-op and must not abort.
         rotate_consensus_key(validator, signer::address_of(validator), pk_bytes);
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123)]
+    /// An operator rotation must preserve the DKG-managed BLS threshold keys (written by
+    /// `set_dkg_output_keys`) and only swap the static keys. This holds under the v2 identity format.
+    public entry fun test_rotate_consensus_key_preserves_threshold_keys(
+        supra_framework: &signer, validator: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+        initialize_for_test(supra_framework);
+        features::change_feature_flags_for_testing(
+            supra_framework,
+            vector[features::get_supra_validator_identity_v2_feature()],
+            vector[]
+        );
+
+        // Seed a DKG-style threshold key on the validator's initial keys. Reuse the multisig key as
+        // a stand-in `bls12381::PublicKey` so the test needs no extra crypto imports.
+        let (_sk, pk) = generate_identity();
+        let threshold_key = validator_public_keys::get_supra_bls_multi_sig_pub_key(&pk);
+        validator_public_keys::rotate_supra_bls_threshold_validity_key(&mut pk, threshold_key);
+        initialize_test_validator(&pk, validator, 100, true, true);
+
+        // Rotate to a fresh static identity whose threshold fields are empty (modelling an operator
+        // rotating from a node that has not yet received the latest DKG keys).
+        let (_sk_new, pk_new) = generate_identity();
+        let pk_new_bytes = validator_public_keys::public_key_to_bytes(pk_new);
+        rotate_consensus_key(validator, signer::address_of(validator), pk_new_bytes);
+
+        let (stored_bytes, _net, _fn) = get_validator_config(signer::address_of(validator));
+        let stored = validator_public_keys::validator_public_keys_from_bytes(stored_bytes);
+
+        // The DKG threshold key survived the operator rotation (0 = validity certificate type).
+        let preserved = validator_public_keys::get_supra_bls_threshold_key_by_type(&stored, 0);
+        assert!(option::is_some(&preserved), 3001);
+        assert!(option::extract(&mut preserved) == threshold_key, 3002);
+
+        // The static keys were actually rotated to `pk_new`'s.
+        assert!(
+            validator_public_keys::get_supra_ed_key(&stored) == validator_public_keys::get_supra_ed_key(&pk_new),
+            3003
+        );
+        assert!(
+            validator_public_keys::get_network_key(&stored) == validator_public_keys::get_network_key(&pk_new),
+            3004
+        );
     }
 
     #[test(supra_framework = @supra_framework, validator_1 = @0x123, validator_2 = @0x234)]
