@@ -95,6 +95,8 @@ module supra_framework::stake {
     const EDUPLICATE_CONSENSUS_PUBKEY: u64 = 22;
     /// Another validator in the next validator set already uses these network addresses.
     const EDUPLICATE_NETWORK_ADDRESSES: u64 = 23;
+    /// The submitted BLS multisig proof-of-possession does not verify against the multisig key.
+    const EINVALID_PROOF_OF_POSSESSION: u64 = 24;
 
     /// Validator status enum. We can switch to proper enum later once Move supports it.
     const VALIDATOR_STATUS_PENDING_ACTIVE: u64 = 1;
@@ -703,7 +705,43 @@ module supra_framework::stake {
         network_addresses: vector<u8>,
         fullnode_addresses: vector<u8>
     ) acquires AllowedValidators, ValidatorSet, ValidatorConfig {
-        validate_consensus_public_key(consensus_pubkey);
+        initialize_validator_internal(
+            account,
+            consensus_pubkey,
+            network_addresses,
+            fullnode_addresses,
+            false
+        );
+    }
+
+    /// Initialize a validator during genesis. Identical to `initialize_validator` except that the
+    /// consensus key blob is trusted genesis output and therefore carries no operator
+    /// proof-of-possession (mirrors `rotate_consensus_key` / `rotate_consensus_key_genesis`).
+    public(friend) fun initialize_validator_genesis(
+        account: &signer,
+        consensus_pubkey: vector<u8>,
+        network_addresses: vector<u8>,
+        fullnode_addresses: vector<u8>
+    ) acquires AllowedValidators, ValidatorSet, ValidatorConfig {
+        initialize_validator_internal(
+            account,
+            consensus_pubkey,
+            network_addresses,
+            fullnode_addresses,
+            true
+        );
+    }
+
+    fun initialize_validator_internal(
+        account: &signer,
+        consensus_pubkey: vector<u8>,
+        network_addresses: vector<u8>,
+        fullnode_addresses: vector<u8>,
+        genesis: bool
+    ) acquires AllowedValidators, ValidatorSet, ValidatorConfig {
+        // Verify the keys (and, for operator submissions, the appended BLS multisig PoP) and keep
+        // only the canonical key bytes (any appended PoP is stripped before storage).
+        let consensus_pubkey = validate_consensus_public_key(consensus_pubkey, genesis);
         let account_addr = signer::address_of(account);
         assert_consensus_pubkey_unique_in_next_validator_set(
             account_addr, &consensus_pubkey
@@ -723,48 +761,67 @@ module supra_framework::stake {
         );
     }
 
-    // Checks that the registered public keys are well-formed to prevent registration of invalid
-    // keys. Deserialization (`validator_public_keys_from_bytes`) only reconstructs the byte
-    // contents of each key and does not run the per-key validation natives, so we must re-validate
-    // each static key via `validator_public_keys::validate_static_keys` (on-curve / subgroup /
-    // valid-encoding checks). Proof-of-possession is not verified, so this does not by itself
-    // prevent rogue-key attacks. Only the static keys are validated; the DKG-managed BLS threshold
-    // shares are produced and validated by the protocol (see `set_dkg_output_keys`).
+    // Verifies a submitted consensus key blob and returns the canonical key bytes to store.
     //
-    // The deserializer for the new format currently doesn't offer a way for us to handle
-    // failure, so we expect the new format when the related feature flag has been active
-    // (the flag should only be activated after all validators have migrated to the new
-    // format) and fall back to the new format when deserialization fails before the flag
-    // has been activated.
-    fun validate_consensus_public_key(consensus_pubkey: vector<u8>) {
-        if (std::features::supra_validator_identity_v2_enabled()) {
-            // Expect the new format.
-            let valid_public_keys =
-                validator_public_keys::validator_public_keys_from_bytes(consensus_pubkey);
-            assert!(
-                validator_public_keys::validate_static_keys(&valid_public_keys),
-                error::invalid_argument(EINVALID_PUBLIC_KEY)
-            );
-        } else {
-            // Check the old format.
-            let maybe_valid_public_key =
+    // A legacy consensus key (a bare ed25519 public key) is only accepted before the v2 identity
+    // feature flag is activated; it has no aggregatable BLS key and so carries no proof-of-possession.
+    //
+    // Every other (new-format `ValidatorPublicKeys`) submission -- whether under v2 or via the
+    // pre-v2 early-migration path -- must carry an appended BLS12-381 proof-of-possession for the
+    // BLS multisig key (operator / non-genesis submissions only; genesis output is trusted and
+    // carries no PoP). The multisig key is the only operator-submitted key exposed to rogue-key
+    // attacks (the class-group key carries its own ZK PoP verified by its native, the ed25519 keys
+    // are non-aggregated, and the BLS threshold shares are DKG-produced). We split off and verify
+    // that PoP (see `validator_public_keys::split_consensus_key_and_pop`) and return the key bytes
+    // with the PoP stripped, so the stored key keeps its canonical format. PoP enforcement is tied
+    // to the key format, not the v2 flag, so a key registered during the pre-v2 migration window
+    // cannot skip it.
+    //
+    // Deserialization (`validator_public_keys_from_bytes`) only reconstructs each key's bytes
+    // without running the per-key validation natives, so we also re-validate every static key via
+    // `validate_static_keys` (on-curve / subgroup / valid-encoding checks).
+    fun validate_consensus_public_key(
+        consensus_pubkey: vector<u8>, genesis: bool
+    ): vector<u8> {
+        // Legacy format (only acceptable before v2): a bare ed25519 key with no aggregatable BLS
+        // key, hence no PoP. Accept and store it unchanged.
+        if (!std::features::supra_validator_identity_v2_enabled()) {
+            let maybe_legacy =
                 ed25519::new_validated_public_key_from_bytes(consensus_pubkey);
-
-            if (option::is_none(&maybe_valid_public_key)) {
-                // Fall back to the new format. This enables validators to register their keys in
-                // the new format before the v2 feature flag is activated, which is safe because the
-                // new keys are a superset of the old and the consensus has logic for maintaining
-                // backwards compatibility.
-                let valid_public_keys =
-                    validator_public_keys::validator_public_keys_from_bytes(
-                        consensus_pubkey
-                    );
-                assert!(
-                    validator_public_keys::validate_static_keys(&valid_public_keys),
-                    error::invalid_argument(EINVALID_PUBLIC_KEY)
-                );
-            }
+            if (option::is_some(&maybe_legacy)) {
+                return consensus_pubkey
+            };
         };
+
+        // New identity format (v2, or a pre-v2 early-migration submission). Operator (non-genesis)
+        // submissions carry an appended BLS multisig PoP; verify and strip it. Genesis is exempt.
+        let (keys_bytes, maybe_pop) =
+            if (genesis) {
+                (consensus_pubkey, option::none<vector<u8>>())
+            } else {
+                let (keys_bytes, pop) =
+                    validator_public_keys::split_consensus_key_and_pop(consensus_pubkey);
+                (keys_bytes, option::some(pop))
+            };
+
+        let valid_public_keys =
+            validator_public_keys::validator_public_keys_from_bytes(keys_bytes);
+
+        if (option::is_some(&maybe_pop)) {
+            assert!(
+                validator_public_keys::verify_bls_multisig_pop(
+                    &valid_public_keys, option::extract(&mut maybe_pop)
+                ),
+                error::invalid_argument(EINVALID_PROOF_OF_POSSESSION)
+            );
+        };
+
+        assert!(
+            validator_public_keys::validate_static_keys(&valid_public_keys),
+            error::invalid_argument(EINVALID_PUBLIC_KEY)
+        );
+
+        keys_bytes
     }
 
     /// Aborts if any validator other than `self_addr` in the next validator set
@@ -1078,7 +1135,10 @@ module supra_framework::stake {
             exists<ValidatorConfig>(pool_address),
             error::not_found(EVALIDATOR_CONFIG)
         );
-        validate_consensus_public_key(new_consensus_pubkey);
+        // Verify the keys (and, for operator submissions, the appended BLS multisig PoP) and keep
+        // only the canonical key bytes (any appended PoP is stripped before storage/merge).
+        let new_consensus_pubkey =
+            validate_consensus_public_key(new_consensus_pubkey, genesis);
         assert_consensus_pubkey_unique_in_next_validator_set(
             pool_address, &new_consensus_pubkey
         );
@@ -2388,7 +2448,8 @@ module supra_framework::stake {
         should_end_epoch: bool
     ) acquires SupraCoinCapabilities, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
         let pk_bytes = validator_public_keys::public_key_to_bytes(*pk);
-        rotate_consensus_key(operator, pool_address, pk_bytes);
+        // Test fixture: rotate through the genesis (PoP-exempt) path.
+        rotate_consensus_key_genesis(operator, pool_address, pk_bytes);
         join_validator_set(operator, pool_address);
         if (should_end_epoch) {
             end_epoch();
@@ -2474,7 +2535,9 @@ module supra_framework::stake {
         };
 
         let pk_bytes = validator_public_keys::public_key_to_bytes(*public_key);
-        initialize_validator(
+        // Test fixtures register through the genesis (PoP-exempt) path; see
+        // `register_test_validator_with_addresses`.
+        initialize_validator_genesis(
             validator,
             pk_bytes,
             vector::empty(),
@@ -2567,13 +2630,13 @@ module supra_framework::stake {
         validator_public_keys::generate_keys()
     }
 
-    /// Returns the serialized bytes of a freshly generated, unique consensus public key.
-    /// Useful for test helpers that previously hardcoded a shared key but now must
-    /// satisfy the on-chain uniqueness requirement enforced by `rotate_consensus_key`.
+    /// Returns the serialized bytes of a freshly generated, unique consensus public key with a
+    /// valid BLS multisig proof-of-possession appended, i.e. exactly what an operator submits to
+    /// `rotate_consensus_key` under the v2 identity format (which is enabled in the test VM).
     #[test_only]
     public fun generate_unique_consensus_pubkey_bytes(): vector<u8> {
-        let (_sk, pk) = generate_identity();
-        validator_public_keys::public_key_to_bytes(pk)
+        let (sk, pk) = generate_identity();
+        validator_public_keys::serialized_keys_with_pop_for_test(&sk, &pk)
     }
 
     #[test_only]
@@ -2588,7 +2651,10 @@ module supra_framework::stake {
             account::create_account_for_test(validator_address);
         };
         let pk_bytes = validator_public_keys::public_key_to_bytes(*public_key);
-        initialize_validator(
+        // Test fixtures register through the genesis (PoP-exempt) path: they are trusted setup and
+        // do not carry an operator proof-of-possession. PoP enforcement is covered by the dedicated
+        // `initialize_validator` / `rotate_consensus_key` tests.
+        initialize_validator_genesis(
             validator,
             pk_bytes,
             network_addresses,
@@ -2672,9 +2738,10 @@ module supra_framework::stake {
         supra_framework: &signer, validator_1: &signer, validator_2: &signer
     ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
         initialize_for_test(supra_framework);
-        let (_sk_1, pk_1) = generate_identity();
+        let (sk_1, pk_1) = generate_identity();
         let (_sk_2, pk_2) = generate_identity();
-        let pk_1_bytes = validator_public_keys::public_key_to_bytes(pk_1);
+        let pk_1_bytes =
+            validator_public_keys::serialized_keys_with_pop_for_test(&sk_1, &pk_1);
         initialize_test_validator(&pk_1, validator_1, 100, true, true);
         initialize_test_validator(&pk_2, validator_2, 100, true, true);
         // validator_2 tries to rotate to validator_1's consensus key - should abort.
@@ -2688,8 +2755,9 @@ module supra_framework::stake {
         initialize_for_test(supra_framework);
         let (_sk, pk) = generate_identity();
         initialize_test_validator(&pk, validator, 100, true, true);
-        let (_sk_new, pk_new) = generate_identity();
-        let pk_new_bytes = validator_public_keys::public_key_to_bytes(pk_new);
+        let (sk_new, pk_new) = generate_identity();
+        let pk_new_bytes =
+            validator_public_keys::serialized_keys_with_pop_for_test(&sk_new, &pk_new);
         rotate_consensus_key(validator, signer::address_of(validator), pk_new_bytes);
     }
 
@@ -2698,8 +2766,10 @@ module supra_framework::stake {
         supra_framework: &signer, validator: &signer
     ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
         initialize_for_test(supra_framework);
-        let (_sk, pk) = generate_identity();
-        let pk_bytes = validator_public_keys::public_key_to_bytes(pk);
+        let (sk, pk) = generate_identity();
+        let pk_bytes = validator_public_keys::serialized_keys_with_pop_for_test(
+            &sk, &pk
+        );
         initialize_test_validator(&pk, validator, 100, true, true);
         // Rotating to the same key the validator already holds is a no-op and must not abort.
         rotate_consensus_key(validator, signer::address_of(validator), pk_bytes);
@@ -2712,14 +2782,16 @@ module supra_framework::stake {
         supra_framework: &signer, validator: &signer
     ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
         initialize_for_test(supra_framework);
+        // v2 is enabled by default in the test VM; this makes the dependency explicit.
         features::change_feature_flags_for_testing(
             supra_framework,
             vector[features::get_supra_validator_identity_v2_feature()],
             vector[]
         );
 
-        // Seed a DKG-style threshold key on the validator's initial keys. Reuse the multisig key as
-        // a stand-in `bls12381::PublicKey` so the test needs no extra crypto imports.
+        // Seed a DKG-style threshold key on the validator's initial keys. The fixture registers via
+        // the genesis (PoP-exempt) helper, so the seeded keys are stored as-is. Reuse the multisig
+        // key as a stand-in `bls12381::PublicKey` so the test needs no extra crypto imports.
         let (_sk, pk) = generate_identity();
         let threshold_key = validator_public_keys::get_supra_bls_multi_sig_pub_key(&pk);
         validator_public_keys::rotate_supra_bls_threshold_validity_key(
@@ -2728,9 +2800,11 @@ module supra_framework::stake {
         initialize_test_validator(&pk, validator, 100, true, true);
 
         // Rotate to a fresh static identity whose threshold fields are empty (modelling an operator
-        // rotating from a node that has not yet received the latest DKG keys).
-        let (_sk_new, pk_new) = generate_identity();
-        let pk_new_bytes = validator_public_keys::public_key_to_bytes(pk_new);
+        // rotating from a node that has not yet received the latest DKG keys). The operator submits
+        // the keys with an appended BLS multisig proof-of-possession.
+        let (sk_new, pk_new) = generate_identity();
+        let pk_new_bytes =
+            validator_public_keys::serialized_keys_with_pop_for_test(&sk_new, &pk_new);
         rotate_consensus_key(validator, signer::address_of(validator), pk_new_bytes);
 
         let (stored_bytes, _net, _fn) =
@@ -2760,7 +2834,8 @@ module supra_framework::stake {
     #[test(supra_framework = @supra_framework, validator = @0x123)]
     #[expected_failure(abort_code = 0x1000b, location = Self)]
     /// Registration must reject a consensus public key blob that deserializes but carries a
-    /// malformed static key (here, an empty network key). Validated under the v2 identity format.
+    /// malformed static key (here, an empty network key), even when its appended BLS multisig PoP
+    /// is valid. Validated under the v2 identity format.
     public entry fun test_initialize_validator_rejects_invalid_consensus_pubkey(
         supra_framework: &signer, validator: &signer
     ) acquires AllowedValidators, ValidatorSet, ValidatorConfig {
@@ -2771,8 +2846,163 @@ module supra_framework::stake {
             vector[]
         );
         let invalid_pubkey =
-            validator_public_keys::serialized_keys_with_invalid_network_key_for_test();
+            validator_public_keys::serialized_keys_with_invalid_network_key_and_pop_for_test();
         initialize_validator(validator, invalid_pubkey, b"net", b"fn");
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123)]
+    #[expected_failure(abort_code = 0x10018, location = Self)]
+    /// Under v2, an operator key submission whose appended BLS multisig PoP does not verify must be
+    /// rejected with `EINVALID_PROOF_OF_POSSESSION` (24 = 0x18).
+    public entry fun test_initialize_validator_rejects_invalid_pop(
+        supra_framework: &signer, validator: &signer
+    ) acquires AllowedValidators, ValidatorSet, ValidatorConfig {
+        initialize_for_test(supra_framework);
+        features::change_feature_flags_for_testing(
+            supra_framework,
+            vector[features::get_supra_validator_identity_v2_feature()],
+            vector[]
+        );
+        // Well-formed keys, but the appended PoP is generated from a different (freshly generated)
+        // secret, so it does not match pk's multisig key.
+        let (_sk, pk) = generate_identity();
+        let (other_sk, _other_pk) = generate_identity();
+        let blob =
+            validator_public_keys::serialized_keys_with_pop_for_test(&other_sk, &pk);
+        initialize_validator(validator, blob, b"net", b"fn");
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123)]
+    /// Under v2, a correctly pop-appended operator submission succeeds and the stored key is the
+    /// canonical `ValidatorPublicKeys` with the PoP stripped (parses with no trailing bytes).
+    public entry fun test_rotate_consensus_key_accepts_valid_pop_and_strips_it(
+        supra_framework: &signer, validator: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+        initialize_for_test(supra_framework);
+        let (_sk, pk) = generate_identity();
+        initialize_test_validator(&pk, validator, 100, true, true);
+
+        features::change_feature_flags_for_testing(
+            supra_framework,
+            vector[features::get_supra_validator_identity_v2_feature()],
+            vector[]
+        );
+
+        let (sk_new, pk_new) = generate_identity();
+        let blob =
+            validator_public_keys::serialized_keys_with_pop_for_test(&sk_new, &pk_new);
+        rotate_consensus_key(validator, signer::address_of(validator), blob);
+
+        // The stored key is the canonical (PoP-stripped) ValidatorPublicKeys for pk_new.
+        let (stored_bytes, _net, _fn) =
+            get_validator_config(signer::address_of(validator));
+        let stored =
+            validator_public_keys::validator_public_keys_from_bytes(stored_bytes);
+        assert!(
+            validator_public_keys::get_supra_ed_key(&stored)
+                == validator_public_keys::get_supra_ed_key(&pk_new),
+            6001
+        );
+        assert!(
+            stored_bytes == validator_public_keys::public_key_to_bytes(pk_new),
+            6002
+        );
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123)]
+    /// Genesis registration is PoP-exempt: under v2, `initialize_validator_genesis` accepts a blob
+    /// with no appended PoP and stores it verbatim.
+    public entry fun test_initialize_validator_genesis_skips_pop(
+        supra_framework: &signer, validator: &signer
+    ) acquires AllowedValidators, ValidatorSet, ValidatorConfig {
+        initialize_for_test(supra_framework);
+        features::change_feature_flags_for_testing(
+            supra_framework,
+            vector[features::get_supra_validator_identity_v2_feature()],
+            vector[]
+        );
+        let (_sk, pk) = generate_identity();
+        let pk_bytes = validator_public_keys::public_key_to_bytes(pk);
+        let validator_address = signer::address_of(validator);
+        if (!account::exists_at(validator_address)) {
+            account::create_account_for_test(validator_address);
+        };
+        initialize_validator_genesis(validator, pk_bytes, b"net", b"fn");
+        let (stored_bytes, _net, _fn) = get_validator_config(validator_address);
+        assert!(stored_bytes == pk_bytes, 7001);
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123)]
+    /// Pre-v2 migration fallback: an operator new-format submission must still carry a valid BLS
+    /// multisig PoP, which the contract verifies and strips, storing the canonical key. PoP
+    /// enforcement is tied to the key format, not the v2 flag.
+    public entry fun test_rotate_consensus_key_fallback_verifies_pop(
+        supra_framework: &signer, validator: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+        initialize_for_test(supra_framework);
+        let (_sk, pk) = generate_identity();
+        initialize_test_validator(&pk, validator, 100, true, true);
+
+        // Disable v2 to exercise the pre-v2 migration fallback.
+        features::change_feature_flags_for_testing(
+            supra_framework,
+            vector[],
+            vector[features::get_supra_validator_identity_v2_feature()]
+        );
+
+        let (sk_new, pk_new) = generate_identity();
+        let blob =
+            validator_public_keys::serialized_keys_with_pop_for_test(&sk_new, &pk_new);
+        rotate_consensus_key(validator, signer::address_of(validator), blob);
+
+        let (stored_bytes, _net, _fn) =
+            get_validator_config(signer::address_of(validator));
+        assert!(stored_bytes == validator_public_keys::public_key_to_bytes(pk_new), 8001);
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123)]
+    #[expected_failure(abort_code = 0x10018, location = Self)]
+    /// Pre-v2 migration fallback: a new-format submission with a non-matching PoP is rejected with
+    /// `EINVALID_PROOF_OF_POSSESSION` (24 = 0x18), exactly as under v2.
+    public entry fun test_rotate_consensus_key_fallback_rejects_invalid_pop(
+        supra_framework: &signer, validator: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+        initialize_for_test(supra_framework);
+        let (_sk, pk) = generate_identity();
+        initialize_test_validator(&pk, validator, 100, true, true);
+        features::change_feature_flags_for_testing(
+            supra_framework,
+            vector[],
+            vector[features::get_supra_validator_identity_v2_feature()]
+        );
+        // PoP generated from a different secret, so it does not match pk_new's multisig key.
+        let (_sk_new, pk_new) = generate_identity();
+        let (other_sk, _other_pk) = generate_identity();
+        let blob =
+            validator_public_keys::serialized_keys_with_pop_for_test(&other_sk, &pk_new);
+        rotate_consensus_key(validator, signer::address_of(validator), blob);
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123)]
+    /// Pre-v2 migration fallback: a bare 32-byte ed25519 consensus key (legacy format) has no
+    /// aggregatable BLS key, so it is accepted without a PoP and stored unchanged.
+    public entry fun test_rotate_consensus_key_fallback_accepts_legacy_ed25519(
+        supra_framework: &signer, validator: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+        initialize_for_test(supra_framework);
+        let (_sk, pk) = generate_identity();
+        initialize_test_validator(&pk, validator, 100, true, true);
+        features::change_feature_flags_for_testing(
+            supra_framework,
+            vector[],
+            vector[features::get_supra_validator_identity_v2_feature()]
+        );
+        let (_legacy_sk, legacy_pk) = ed25519::generate_keys();
+        let legacy_bytes = ed25519::validated_public_key_to_bytes(&legacy_pk);
+        rotate_consensus_key(validator, signer::address_of(validator), legacy_bytes);
+        let (stored_bytes, _net, _fn) =
+            get_validator_config(signer::address_of(validator));
+        assert!(stored_bytes == legacy_bytes, 8101);
     }
 
     #[test(supra_framework = @supra_framework, validator_1 = @0x123, validator_2 = @0x234)]
@@ -3537,9 +3767,15 @@ module supra_framework::stake {
         assert!(validator_config_2.config.validator_index == 1, 5);
 
         // Validator 1 rotates consensus key. Validator 2 leaves. Validator 3 joins.
-        let (_sk_1b, pk_1b) = generate_identity();
+        let (sk_1b, pk_1b) = generate_identity();
+        // `pk_1b_bytes` is the canonical (PoP-stripped) form the contract stores; the submission
+        // carries the appended PoP.
         let pk_1b_bytes = validator_public_keys::public_key_to_bytes(pk_1b);
-        rotate_consensus_key(validator_1, validator_1_address, pk_1b_bytes);
+        rotate_consensus_key(
+            validator_1,
+            validator_1_address,
+            validator_public_keys::serialized_keys_with_pop_for_test(&sk_1b, &pk_1b)
+        );
         leave_validator_set(validator_2, validator_2_address);
         join_validator_set(validator_3, validator_3_address);
         // Validator 2 is not effectively removed until next epoch.
@@ -3643,9 +3879,15 @@ module supra_framework::stake {
         assert_validator_state(pool_address, 0, 0, 0, 0, 0);
 
         // Operator can separately rotate consensus key.
-        let (_sk_new, pk_new) = generate_identity();
+        let (sk_new, pk_new) = generate_identity();
+        // `pk_new_bytes` is the canonical (PoP-stripped) form the contract stores; the submission
+        // carries the appended PoP.
         let pk_new_bytes = validator_public_keys::public_key_to_bytes(pk_new);
-        rotate_consensus_key(validator, pool_address, pk_new_bytes);
+        rotate_consensus_key(
+            validator,
+            pool_address,
+            validator_public_keys::serialized_keys_with_pop_for_test(&sk_new, &pk_new)
+        );
         let validator_config = borrow_global<ValidatorConfig>(pool_address);
         assert!(validator_config.consensus_pubkey == pk_new_bytes, 2);
 
@@ -4089,8 +4331,9 @@ module supra_framework::stake {
 
         // Initialize validator config.
         let validator_address = signer::address_of(validator);
-        let (_sk_new, pk_new) = generate_identity();
-        let pk_new_bytes = validator_public_keys::public_key_to_bytes(pk_new);
+        let (sk_new, pk_new) = generate_identity();
+        let pk_new_bytes =
+            validator_public_keys::serialized_keys_with_pop_for_test(&sk_new, &pk_new);
         rotate_consensus_key(validator, validator_address, pk_new_bytes);
 
         // Join the validator set with enough stake. This now wouldn't fail since the validator config already exists.

@@ -34,6 +34,8 @@
 -  [Function `is_valid_ed25519_key`](#0x1_validator_public_keys_is_valid_ed25519_key)
 -  [Function `is_valid_bls12381_key`](#0x1_validator_public_keys_is_valid_bls12381_key)
 -  [Function `is_valid_cg_key`](#0x1_validator_public_keys_is_valid_cg_key)
+-  [Function `split_consensus_key_and_pop`](#0x1_validator_public_keys_split_consensus_key_and_pop)
+-  [Function `verify_bls_multisig_pop`](#0x1_validator_public_keys_verify_bls_multisig_pop)
 -  [Function `rotate_supra_bls_threshold_validity_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_validity_key)
 -  [Function `rotate_supra_bls_threshold_quorum_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_quorum_key)
 -  [Function `rotate_supra_bls_threshold_unanimous_key`](#0x1_validator_public_keys_rotate_supra_bls_threshold_unanimous_key)
@@ -53,6 +55,7 @@
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string">0x1::string</a>;
 <b>use</b> <a href="../../aptos-stdlib/doc/type_info.md#0x1_type_info">0x1::type_info</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 </code></pre>
 
 
@@ -222,6 +225,16 @@ The size of a serialized bls12381 G1 public key, in bytes.
 
 
 
+<a id="0x1_validator_public_keys_BLS12381_POP_NUM_BYTES"></a>
+
+The size of a serialized bls12381 proof-of-possession (a G2 signature), in bytes.
+
+
+<pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_BLS12381_POP_NUM_BYTES">BLS12381_POP_NUM_BYTES</a>: u64 = 96;
+</code></pre>
+
+
+
 <a id="0x1_validator_public_keys_CERTIFICATE_THRESHOLD_TYPE_BCFT_FALLBACK_VIEW_CHANGE"></a>
 
 The integer should match the Rust enum value representation in <code><a href="validator_public_keys.md#0x1_validator_public_keys_CertificateThresholdType">CertificateThresholdType</a></code>.
@@ -305,6 +318,16 @@ The size of a serialized ed25519 public key, in bytes.
 
 
 <pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_ED25519_PUBLIC_KEY_NUM_BYTES">ED25519_PUBLIC_KEY_NUM_BYTES</a>: u64 = 32;
+</code></pre>
+
+
+
+<a id="0x1_validator_public_keys_EINVALID_POP_LENGTH"></a>
+
+Error: A consensus key blob is too short to contain an appended BLS proof-of-possession.
+
+
+<pre><code><b>const</b> <a href="validator_public_keys.md#0x1_validator_public_keys_EINVALID_POP_LENGTH">EINVALID_POP_LENGTH</a>: u64 = 2;
 </code></pre>
 
 
@@ -962,6 +985,70 @@ at registration); only key well-formedness / subgroup membership is checked.
     <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(
         &<a href="../../supra-stdlib/doc/class_groups.md#0x1_class_groups_public_key_from_bytes">class_groups::public_key_from_bytes</a>(<a href="../../supra-stdlib/doc/class_groups.md#0x1_class_groups_public_key_to_bytes">class_groups::public_key_to_bytes</a>(pk))
     )
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_split_consensus_key_and_pop"></a>
+
+## Function `split_consensus_key_and_pop`
+
+Splits a submitted consensus key blob into its <code><a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">ValidatorPublicKeys</a></code> bytes (the prefix) and
+the appended BLS12-381 proof-of-possession (the trailing <code><a href="validator_public_keys.md#0x1_validator_public_keys_BLS12381_POP_NUM_BYTES">BLS12381_POP_NUM_BYTES</a></code> bytes).
+Operators submit the PoP appended to the key bytes so that the contract can verify it
+without a dedicated entry-function parameter (Move forbids changing public signatures).
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_split_consensus_key_and_pop">split_consensus_key_and_pop</a>(blob: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_split_consensus_key_and_pop">split_consensus_key_and_pop</a>(blob: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;) {
+    <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&blob);
+    <b>assert</b>!(len &gt;= <a href="validator_public_keys.md#0x1_validator_public_keys_BLS12381_POP_NUM_BYTES">BLS12381_POP_NUM_BYTES</a>, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="validator_public_keys.md#0x1_validator_public_keys_EINVALID_POP_LENGTH">EINVALID_POP_LENGTH</a>));
+    <b>let</b> pop = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_trim">vector::trim</a>(&<b>mut</b> blob, len - <a href="validator_public_keys.md#0x1_validator_public_keys_BLS12381_POP_NUM_BYTES">BLS12381_POP_NUM_BYTES</a>);
+    (blob, pop)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_validator_public_keys_verify_bls_multisig_pop"></a>
+
+## Function `verify_bls_multisig_pop`
+
+Returns true iff <code>pop_bytes</code> is a valid BLS12-381 proof-of-possession for the BLS multisig
+key in <code>pk</code>. The multisig key is the only aggregatable (hence rogue-key-attackable) key an
+operator submits, so it is the only one that requires a PoP; the class-group key carries its
+own ZK PoP (verified by its <code>validate_pubkey_internal</code> native), the ed25519 keys are
+non-aggregated, and the BLS threshold shares are produced by the DKG.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_verify_bls_multisig_pop">verify_bls_multisig_pop</a>(pk: &<a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">validator_public_keys::ValidatorPublicKeys</a>, pop_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="validator_public_keys.md#0x1_validator_public_keys_verify_bls_multisig_pop">verify_bls_multisig_pop</a>(
+    pk: &<a href="validator_public_keys.md#0x1_validator_public_keys_ValidatorPublicKeys">ValidatorPublicKeys</a>, pop_bytes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+): bool {
+    <b>let</b> pk_bytes = <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_to_bytes">bls12381::public_key_to_bytes</a>(&pk.supra_keys.bls_multisig_key);
+    <b>let</b> pop = <a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_proof_of_possession_from_bytes">bls12381::proof_of_possession_from_bytes</a>(pop_bytes);
+    <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&<a href="../../aptos-stdlib/doc/bls12381.md#0x1_bls12381_public_key_from_bytes_with_pop">bls12381::public_key_from_bytes_with_pop</a>(pk_bytes, &pop))
 }
 </code></pre>
 
