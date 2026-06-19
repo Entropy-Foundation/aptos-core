@@ -723,7 +723,13 @@ module supra_framework::stake {
         );
     }
 
-    // Checks the public key is valid to prevent rogue-key attacks.
+    // Checks that the registered public keys are well-formed to prevent registration of invalid
+    // keys. Deserialization (`validator_public_keys_from_bytes`) only reconstructs the byte
+    // contents of each key and does not run the per-key validation natives, so we must re-validate
+    // each static key via `validator_public_keys::validate_static_keys` (on-curve / subgroup /
+    // valid-encoding checks). Proof-of-possession is not verified, so this does not by itself
+    // prevent rogue-key attacks. Only the static keys are validated; the DKG-managed BLS threshold
+    // shares are produced and validated by the protocol (see `set_dkg_output_keys`).
     //
     // The deserializer for the new format currently doesn't offer a way for us to handle
     // failure, so we expect the new format when the related feature flag has been active
@@ -733,8 +739,12 @@ module supra_framework::stake {
     fun validate_consensus_public_key(consensus_pubkey: vector<u8>) {
         if (std::features::supra_validator_identity_v2_enabled()) {
             // Expect the new format.
-            let _valid_public_key =
+            let valid_public_keys =
                 validator_public_keys::validator_public_keys_from_bytes(consensus_pubkey);
+            assert!(
+                validator_public_keys::validate_static_keys(&valid_public_keys),
+                error::invalid_argument(EINVALID_PUBLIC_KEY)
+            );
         } else {
             // Check the old format.
             let maybe_valid_public_key =
@@ -745,10 +755,14 @@ module supra_framework::stake {
                 // the new format before the v2 feature flag is activated, which is safe because the
                 // new keys are a superset of the old and the consensus has logic for maintaining
                 // backwards compatibility.
-                let _valid_public_key =
+                let valid_public_keys =
                     validator_public_keys::validator_public_keys_from_bytes(
                         consensus_pubkey
                     );
+                assert!(
+                    validator_public_keys::validate_static_keys(&valid_public_keys),
+                    error::invalid_argument(EINVALID_PUBLIC_KEY)
+                );
             }
         };
     }
@@ -757,8 +771,7 @@ module supra_framework::stake {
     /// (the union of `active_validators` and `pending_active`) already uses
     /// `consensus_pubkey` as its latest on-chain consensus key.
     fun assert_consensus_pubkey_unique_in_next_validator_set(
-        self_addr: address,
-        consensus_pubkey: &vector<u8>
+        self_addr: address, consensus_pubkey: &vector<u8>
     ) acquires ValidatorSet, ValidatorConfig {
         let validator_set = borrow_global<ValidatorSet>(@supra_framework);
         assert_consensus_pubkey_unique_in_validator_list(
@@ -793,8 +806,7 @@ module supra_framework::stake {
     /// already uses `network_addresses`. Empty `network_addresses` is treated
     /// as "unset" and skips the check.
     fun assert_network_addresses_unique_in_next_validator_set(
-        self_addr: address,
-        network_addresses: &vector<u8>
+        self_addr: address, network_addresses: &vector<u8>
     ) acquires ValidatorSet, ValidatorConfig {
         if (vector::is_empty(network_addresses)) { return };
         let validator_set = borrow_global<ValidatorSet>(@supra_framework);
@@ -1093,10 +1105,16 @@ module supra_framework::stake {
                 && std::features::supra_validator_identity_v2_enabled()
                 && !vector::is_empty(&old_consensus_pubkey)) {
                 let current_keys =
-                    validator_public_keys::validator_public_keys_from_bytes(old_consensus_pubkey);
+                    validator_public_keys::validator_public_keys_from_bytes(
+                        old_consensus_pubkey
+                    );
                 let incoming_keys =
-                    validator_public_keys::validator_public_keys_from_bytes(new_consensus_pubkey);
-                validator_public_keys::replace_static_keys(&mut current_keys, &incoming_keys);
+                    validator_public_keys::validator_public_keys_from_bytes(
+                        new_consensus_pubkey
+                    );
+                validator_public_keys::replace_static_keys(
+                    &mut current_keys, &incoming_keys
+                );
                 validator_public_keys::public_key_to_bytes(current_keys)
             } else {
                 new_consensus_pubkey
@@ -2570,7 +2588,12 @@ module supra_framework::stake {
             account::create_account_for_test(validator_address);
         };
         let pk_bytes = validator_public_keys::public_key_to_bytes(*public_key);
-        initialize_validator(validator, pk_bytes, network_addresses, fullnode_addresses);
+        initialize_validator(
+            validator,
+            pk_bytes,
+            network_addresses,
+            fullnode_addresses
+        );
     }
 
     #[test(supra_framework = @supra_framework, validator_1 = @0x123, validator_2 = @0x234)]
@@ -2699,7 +2722,9 @@ module supra_framework::stake {
         // a stand-in `bls12381::PublicKey` so the test needs no extra crypto imports.
         let (_sk, pk) = generate_identity();
         let threshold_key = validator_public_keys::get_supra_bls_multi_sig_pub_key(&pk);
-        validator_public_keys::rotate_supra_bls_threshold_validity_key(&mut pk, threshold_key);
+        validator_public_keys::rotate_supra_bls_threshold_validity_key(
+            &mut pk, threshold_key
+        );
         initialize_test_validator(&pk, validator, 100, true, true);
 
         // Rotate to a fresh static identity whose threshold fields are empty (modelling an operator
@@ -2708,23 +2733,46 @@ module supra_framework::stake {
         let pk_new_bytes = validator_public_keys::public_key_to_bytes(pk_new);
         rotate_consensus_key(validator, signer::address_of(validator), pk_new_bytes);
 
-        let (stored_bytes, _net, _fn) = get_validator_config(signer::address_of(validator));
-        let stored = validator_public_keys::validator_public_keys_from_bytes(stored_bytes);
+        let (stored_bytes, _net, _fn) =
+            get_validator_config(signer::address_of(validator));
+        let stored =
+            validator_public_keys::validator_public_keys_from_bytes(stored_bytes);
 
         // The DKG threshold key survived the operator rotation (0 = validity certificate type).
-        let preserved = validator_public_keys::get_supra_bls_threshold_key_by_type(&stored, 0);
+        let preserved =
+            validator_public_keys::get_supra_bls_threshold_key_by_type(&stored, 0);
         assert!(option::is_some(&preserved), 3001);
         assert!(option::extract(&mut preserved) == threshold_key, 3002);
 
         // The static keys were actually rotated to `pk_new`'s.
         assert!(
-            validator_public_keys::get_supra_ed_key(&stored) == validator_public_keys::get_supra_ed_key(&pk_new),
+            validator_public_keys::get_supra_ed_key(&stored)
+                == validator_public_keys::get_supra_ed_key(&pk_new),
             3003
         );
         assert!(
-            validator_public_keys::get_network_key(&stored) == validator_public_keys::get_network_key(&pk_new),
+            validator_public_keys::get_network_key(&stored)
+                == validator_public_keys::get_network_key(&pk_new),
             3004
         );
+    }
+
+    #[test(supra_framework = @supra_framework, validator = @0x123)]
+    #[expected_failure(abort_code = 0x1000b, location = Self)]
+    /// Registration must reject a consensus public key blob that deserializes but carries a
+    /// malformed static key (here, an empty network key). Validated under the v2 identity format.
+    public entry fun test_initialize_validator_rejects_invalid_consensus_pubkey(
+        supra_framework: &signer, validator: &signer
+    ) acquires AllowedValidators, ValidatorSet, ValidatorConfig {
+        initialize_for_test(supra_framework);
+        features::change_feature_flags_for_testing(
+            supra_framework,
+            vector[features::get_supra_validator_identity_v2_feature()],
+            vector[]
+        );
+        let invalid_pubkey =
+            validator_public_keys::serialized_keys_with_invalid_network_key_for_test();
+        initialize_validator(validator, invalid_pubkey, b"net", b"fn");
     }
 
     #[test(supra_framework = @supra_framework, validator_1 = @0x123, validator_2 = @0x234)]
@@ -2742,7 +2790,10 @@ module supra_framework::stake {
         // validator_2 registers with empty addresses then tries to claim validator_1's net address.
         initialize_test_validator(&pk_2, validator_2, 100, true, true);
         update_network_and_fullnode_addresses(
-            validator_2, signer::address_of(validator_2), b"net-1", b"fn-2"
+            validator_2,
+            signer::address_of(validator_2),
+            b"net-1",
+            b"fn-2"
         );
     }
 
@@ -2763,7 +2814,10 @@ module supra_framework::stake {
         join_validator_set(validator_2, validator_2_address);
         // Clearing to empty is always allowed (empty == "unset / non-functional").
         update_network_and_fullnode_addresses(
-            validator_2, validator_2_address, vector::empty(), vector::empty()
+            validator_2,
+            validator_2_address,
+            vector::empty(),
+            vector::empty()
         );
     }
 
@@ -2779,7 +2833,10 @@ module supra_framework::stake {
         join_validator_set(validator, validator_address);
         // Re-setting the same address on self must be a no-op, not an abort.
         update_network_and_fullnode_addresses(
-            validator, validator_address, b"net-self", b"fn-self"
+            validator,
+            validator_address,
+            b"net-self",
+            b"fn-self"
         );
     }
 
