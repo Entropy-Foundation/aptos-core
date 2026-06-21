@@ -902,7 +902,7 @@ impl TryFrom<&ValidatorInfo> for ValidatorInfoSummary {
     fn try_from(info: &ValidatorInfo) -> Result<Self, Self::Error> {
         let config = info.config();
         let config = ValidatorConfig {
-            consensus_public_key: config.consensus_public_key().to_bytes().to_vec(),
+            consensus_public_key: config.legacy_consensus_public_key_do_not_use().to_bytes().to_vec(),
             validator_network_addresses: config.validator_network_addresses.clone(),
             fullnode_network_addresses: config.fullnode_network_addresses.clone(),
             validator_index: config.validator_index,
@@ -921,7 +921,7 @@ impl From<&ValidatorInfoSummary> for ValidatorInfo {
         ValidatorInfo::new(
             summary.account_address,
             summary.consensus_voting_power,
-            aptos_types::validator_config::ValidatorConfig::new(
+            aptos_types::validator_config::ValidatorConfig::legacy_new_do_not_use(
                 PublicKey::from_encoded_string(&config.consensus_public_key).unwrap(),
                 bcs::to_bytes(&config.validator_network_addresses).unwrap(),
                 bcs::to_bytes(&config.fullnode_network_addresses).unwrap(),

@@ -252,7 +252,7 @@ mod tests {
         let validator = ValidatorInfo::new(
             peer_id,
             0,
-            ValidatorConfig::new(
+            ValidatorConfig::legacy_new_do_not_use(
                 consensus_pubkey,
                 validator_encoded_addresses,
                 fullnode_encoded_addresses,
