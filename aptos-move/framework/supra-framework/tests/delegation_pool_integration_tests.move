@@ -14,6 +14,7 @@ module supra_framework::delegation_pool_integration_tests {
     use supra_framework::reconfiguration;
     use supra_framework::pbo_delegation_pool as dp;
     use supra_framework::timestamp;
+    use supra_framework::validator_public_keys;
 
     #[test_only]
     const EPOCH_DURATION: u64 = 60;
@@ -35,9 +36,6 @@ module supra_framework::delegation_pool_integration_tests {
 
     #[test_only]
     const MODULE_EVENT: u64 = 26;
-
-    #[test_only]
-    const CONSENSUS_KEY_1: vector<u8> = x"20ed28c35dc60a6c9629a7eb0a8dfa815c85c6cf2cedc9e43314cc26f02d741dc430b40c7239278dae17d68d06950d51ce61c2c16c032ceea62c9715611be7f577f48525ad610432bb5d13fa5826fc07c6650000000000000080090192000000000000007bb0b330cbdcec145d2671ef2532bb7a856a5155c66d7ad89ef2cb65e854fc08a5d43cd159a7abc77adfee05e764ec9abdfc133db8e8621398dcbe53db1069de56405f02a1347d5399502fe849b44cfa673ad95bdbf33b417f3f8e4fa854b87b4a60eff6426b277d6036ffc0cfcdd25c971d53c2b612ed1df66f33eff839c0064ac16d7e04650d13984b08b2f9e7bb240fe3ff920000000000000014a973f3c74f41cecc3c596a125835264d72803ba1ef9c9270fa2228e8f8442889f20ddfffc60bc073758c3fd13a29219ad4532c512d2a97c3a8421dedfa41e4d8d9ffaa3581049a65a64f57ea533ab831c88527bb3d7ce46b6eebd6fef6d3303cf7716455381c74da2bcbfc3e02de2e5fadb014ed4f7ecf6b62a4ce6c0db90b91f084512a18be5cb8892b1615a7bb7ef35d0192000000000000008c49908494889c8d07e0b6f0cb6871aaf7e97506476d0a63530ce06b58928225a4292dff8ffaccd4f217fd65c2afbac848ac5d5957d15aa83fb8d2f261d85ddf4f16feee49d07f274dd421f84862bd73634925c41d2b470066d751732cc4f9630e886df15e63f962959c8f765b48434b6124fe051c2a02ba91bd94a7d8fc3cf7240ffba508ff73d8bb95a8ba661fa59ed9c9b8030000000000000192000000000000007bb0b330cbdcec145d2671ef2532bb7a856a5155c66d7ad89ef2cb65e854fc08a5d43cd159a7abc77adfee05e764ec9abdfc133db8e8621398dcbe53db1069de56405f02a1347d5399502fe849b44cfa673ad95bdbf33b417f3f8e4fa854b87b4a60eff6426b277d6036ffc0cfcdd25c971d53c2b612ed1df66f33eff839c0064ac16d7e04650d13984b08b2f9e7bb240fe3ff920000000000000014a973f3c74f41cecc3c596a125835264d72803ba1ef9c9270fa2228e8f8442889f20ddfffc60bc073758c3fd13a29219ad4532c512d2a97c3a8421dedfa41e4d8d9ffaa3581049a65a64f57ea533ab831c88527bb3d7ce46b6eebd6fef6d3303cf7716455381c74da2bcbfc3e02de2e5fadb014ed4f7ecf6b62a4ce6c0db90b91f084512a18be5cb8892b1615a7bb7ef35d0192000000000000008c49908494889c8d07e0b6f0cb6871aaf7e97506476d0a63530ce06b58928225a4292dff8ffaccd4f217fd65c2afbac848ac5d5957d15aa83fb8d2f261d85ddf4f16feee49d07f274dd421f84862bd73634925c41d2b470066d751732cc4f9630e886df15e63f962959c8f765b48434b6124fe051c2a02ba91bd94a7d8fc3cf7240ffba508ff73d8bb95a8ba661fa59ed9c9b8030000000000000120000000000000000da685763a376d42546959f3e2d96ff46256cd3e539dd458b800c9d0daf4d981019c00000000000000a529edcfd13d9f5014b4e2fab134f833d266876a0a0fbcf3577ef87ced2656924e235d4a6f48169d0c6b1fd4d77b27f36b0eda1e78fb1691894e077333e7f278444a3e6de72685de03564bcf61466567e34c79279fcdccc42c2354e4c0a836e785f909656badb5950ebcf77a1ef9a3680818abe674760bc09888a446b96d9765779222970aaeb804abaa939c4225c474c2bc925be1d24648c6298d69208e695ae5888320393ef041be5f42d0f2eaac6036daffb8373eb80ad275fcc2b9";
 
     #[test_only]
     public fun initialize_for_test(supra_framework: &signer) {
@@ -810,8 +808,11 @@ module supra_framework::delegation_pool_integration_tests {
         stake::assert_validator_state(validator_2_address, 100 * ONE_SUPRA, 0, 0, 0, 1);
 
         // Validator 1 rotates consensus key. Validator 2 leaves. Validator 3 joins.
-        let (_sk_1b, _, _) = generate_identity();
-        stake::rotate_consensus_key(validator_1, validator_1_address, CONSENSUS_KEY_1);
+        stake::rotate_consensus_key(
+            validator_1,
+            validator_1_address,
+            stake::generate_unique_consensus_pubkey_bytes()
+        );
         stake::leave_validator_set(validator_2, validator_2_address);
         stake::join_validator_set(validator_3, validator_3_address);
         // Validator 2 is not effectively removed until next epoch.
@@ -878,11 +879,14 @@ module supra_framework::delegation_pool_integration_tests {
         assert!(coin::balance<SupraCoin>(signer::address_of(validator)) == 101 * ONE_SUPRA, 1);
         stake::assert_validator_state(pool_address, 0, 0, 0, 0, 0);
 
-        // Operator can separately rotate consensus key.
-        let (_sk_new, _, _) = generate_identity();
-        stake::rotate_consensus_key(validator, pool_address, CONSENSUS_KEY_1);
+        // Operator can separately rotate consensus key. The submission carries an appended BLS
+        // multisig PoP, which the contract verifies and strips before storing the canonical key.
+        let new_consensus_key = stake::generate_unique_consensus_pubkey_bytes();
+        stake::rotate_consensus_key(validator, pool_address, new_consensus_key);
         let (consensus_pubkey, _, _) = stake::get_validator_config(pool_address);
-        assert!(consensus_pubkey == CONSENSUS_KEY_1, 2);
+        let (expected_stored, _pop) =
+            validator_public_keys::split_consensus_key_and_pop(new_consensus_key);
+        assert!(consensus_pubkey == expected_stored, 2);
 
         // Operator can update network and fullnode addresses.
         stake::update_network_and_fullnode_addresses(validator, pool_address, b"1", b"2");
