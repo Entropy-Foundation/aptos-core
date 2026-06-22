@@ -476,7 +476,7 @@ impl From<&ValidatorSet> for ValidatorVerifier {
                     info.config().validator_index,
                     ValidatorConsensusInfo::new(
                         info.account_address,
-                        info.consensus_public_key().clone(),
+                        info.legacy_consensus_public_key_do_not_use().clone(),
                         info.consensus_voting_power(),
                     ),
                 )

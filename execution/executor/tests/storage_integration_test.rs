@@ -97,11 +97,11 @@ fn test_reconfiguration() {
             .payload()
             .next()
             .unwrap()
-            .consensus_public_key(),
-        &ValidatorConfig::fetch_move_resource(&db_state_view, &validator_account)
+            .legacy_consensus_public_key_do_not_use(),
+        ValidatorConfig::fetch_move_resource(&db_state_view, &validator_account)
             .unwrap()
             .unwrap()
-            .consensus_public_key
+            .legacy_consensus_public_key_do_not_use()
     );
 
     // txn1 = give the validator some money so they can send a tx
