@@ -254,7 +254,7 @@ fn test_transaction_context_max_gas_amount() {
     let account = setup(&mut harness);
 
     let max_gas_amount = call_get_max_gas_amount_from_native_txn_context(&mut harness, &account);
-    assert_eq!(max_gas_amount, 2000000);
+    assert_eq!(max_gas_amount, 100000000);
 }
 
 #[test]
@@ -343,7 +343,7 @@ fn test_transaction_context_secondary_signers() {
     let mut harness = new_move_harness();
 
     let alice = setup(&mut harness);
-    let bob = harness.new_account_with_balance_and_sequence_number(1000000, 0);
+    let bob = harness.new_account_with_balance_and_sequence_number(100_000_000_000, 0);
 
     let fun: MemberId = str::parse(
         "0x1::transaction_context_test::store_secondary_signers_from_native_txn_context_multi",
@@ -366,7 +366,7 @@ fn test_transaction_context_secondary_signers() {
         .payload(payload)
         .sequence_number(harness.sequence_number(alice.address()))
         .max_gas_amount(1_000_000)
-        .gas_unit_price(1)
+        .gas_unit_price(100_000)
         .sign_multi_agent();
 
     let output = harness.run_raw(transaction);

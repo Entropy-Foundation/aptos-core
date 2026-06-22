@@ -93,7 +93,7 @@ fn test_refunds() {
     assert_result(&mut h, &user_acc, "destroy_collection", vec![], 0, false);
 }
 
-const LEEWAY: u64 = 2000;
+const LEEWAY: u64 = 2000000; // need to 1000x as per gas price
 
 fn read_slot_fee_from_gas_schedule(h: &MoveHarness) -> u64 {
     let slot_fee = h

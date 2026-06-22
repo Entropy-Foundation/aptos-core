@@ -97,7 +97,7 @@ impl AutomationRegistrationTestContext {
         root.rotate_key(private_key, public_key);
 
         // Prepare automation registration transaction sender
-        let txn_sender = executor.create_raw_account_data(100_000_000_000, 0);
+        let txn_sender = executor.create_raw_account_data(200_000_000_000, 0);
         executor.add_account_data(&txn_sender);
 
         let multisig_account_data = Self::create_multisig_account_data(&mut executor);
@@ -111,8 +111,8 @@ impl AutomationRegistrationTestContext {
 
     fn create_multisig_account_data(executor: &mut FakeExecutor) -> MultisigAccountData {
         // Prepare multisig_account for system task registration
-        let multisig_owner1 = executor.create_raw_account_data(1_000_000_000, 0);
-        let multisig_owner2 = executor.create_raw_account_data(1_000_000_000, 0);
+        let multisig_owner1 = executor.create_raw_account_data(100_000_000_000, 0);
+        let multisig_owner2 = executor.create_raw_account_data(100_000_000_000, 0);
         executor.add_account_data(&multisig_owner1);
         executor.add_account_data(&multisig_owner2);
         let multisig_address = create_multisig_account_address(
@@ -132,8 +132,8 @@ impl AutomationRegistrationTestContext {
             // The SUP#3 gas-schedule update raised storage fees ~1000x, so creating the
             // multisig account (and its new state slots) now costs ~1.7M gas units at this
             // gas unit price. Budget enough headroom for it.
-            .max_gas_amount(2_000_000)
-            .gas_unit_price(100)
+            .max_gas_amount(1_000_000)
+            .gas_unit_price(100_000)
             .payload(create_multisig_payload)
             .sequence_number(0)
             .sign();
@@ -142,6 +142,7 @@ impl AutomationRegistrationTestContext {
         let transfer_txn = multisig_owner1
             .account()
             .transaction()
+            .gas_unit_price(100_000)
             .max_gas_amount(1000)
             .payload(aptos_stdlib::supra_account_transfer(
                 multisig_address,
@@ -235,8 +236,7 @@ impl AutomationRegistrationTestContext {
             .transaction()
             .payload(automation_txn)
             .sequence_number(seq_num)
-            .gas_unit_price(1)
-            .max_gas_amount(55000000)
+            .gas_unit_price(100_000)
             .sign()
     }
 
@@ -265,8 +265,7 @@ impl AutomationRegistrationTestContext {
             .transaction()
             .payload(automation_txn)
             .sequence_number(seq_num)
-            .max_gas_amount(55000000)
-            .gas_unit_price(1)
+            .gas_unit_price(100_000)
             .sign()
     }
 
@@ -727,7 +726,7 @@ fn check_task_retrieval_performance() {
             inner_entry_function.clone(),
             expiration_time,
             25,
-            100,
+            100_000,
             automation_fee_cap,
         );
         let output = test_context.execute_and_apply(automation_txn);

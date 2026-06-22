@@ -56,7 +56,7 @@ use std::{
 // Code representing successful transaction, used for run_block_in_parts_and_check
 pub const SUCCESS: u64 = 0;
 
-const DEFAULT_GAS_UNIT_PRICE: u64 = 100;
+const DEFAULT_GAS_UNIT_PRICE: u64 = 100000;
 
 static CACHED_BUILT_PACKAGES: Lazy<Mutex<HashMap<PathBuf, Arc<anyhow::Result<BuiltPackage>>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
@@ -252,7 +252,6 @@ impl MoveHarness {
     /// Runs a signed transaction. On success, applies the write set.
     pub fn run_raw(&mut self, txn: SignedTransaction) -> TransactionOutput {
         let output = self.executor.execute_transaction(txn);
-        println!("{:?}", output);
         if matches!(output.status(), TransactionStatus::Keep(_)) {
             self.executor.apply_write_set(output.write_set());
             self.executor.append_events(output.events().to_vec());
