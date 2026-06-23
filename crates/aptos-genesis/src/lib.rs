@@ -85,7 +85,7 @@ pub struct GenesisInfo {
     pub randomness_config_override: Option<OnChainRandomnessConfig>,
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     pub automation_registry_config: Option<AutomationRegistryConfig>,
-    pub leader_ban_registry_config: Option<BanRegistryParameters>
+    pub leader_ban_registry_config: Option<BanRegistryParameters>,
     pub initial_jwks: Vec<IssuerJWK>,
     pub keyless_groth16_vk: Option<Groth16VerificationKey>,
 }

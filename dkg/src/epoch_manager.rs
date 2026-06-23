@@ -22,7 +22,7 @@ use aptos_reliable_broadcast::ReliableBroadcast;
 use aptos_safety_rules::{safety_rules_manager::storage, PersistentSafetyStorage};
 use aptos_types::{
     account_address::AccountAddress,
-    aptos_dkg::{DKGStartEvent, DKGState, DefaultDKG},
+    dkg::{DKGStartEvent, DKGState, DefaultDKG},
     epoch_state::EpochState,
     on_chain_config::{
         OnChainConfigPayload, OnChainConfigProvider, OnChainConsensusConfig,

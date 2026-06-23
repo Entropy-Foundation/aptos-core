@@ -19,7 +19,6 @@ use aptos_types::{
     transaction::Transaction,
     waypoint::Waypoint,
 };
-use aptos_types::on_chain_config::AutomationRegistryConfig;
 use aptos_vm::aptos_vm::AptosVMBlockExecutor;
 use aptos_vm_genesis::{AccountBalance, EmployeePool, ValidatorWithCommissionRate};
 

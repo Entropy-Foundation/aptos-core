@@ -17,7 +17,6 @@ pub mod supra_specific;
 pub mod test;
 pub mod update;
 pub mod workspace;
-pub mod supra_specific;
 
 use crate::common::{
     types::{CliCommand, CliResult, CliTypedResult},
