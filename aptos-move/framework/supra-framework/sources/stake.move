@@ -824,6 +824,30 @@ module supra_framework::stake {
         keys_bytes
     }
 
+    /// Returns true iff the v2 validator-identity format is enforced and `consensus_pubkey` is still a
+    /// legacy (pre-v2) bare ed25519 key. Mirrors the detection in `validate_consensus_public_key`: a
+    /// bare ed25519 key parses via `new_validated_public_key_from_bytes`, while a v2 BCS blob does not.
+    /// Such a key cannot be deserialized into the v2 `ValidatorPublicKeys` format that DKG and
+    /// consensus require, so the validator is dropped from the active set (same effect as falling below
+    /// the minimum stake) until it rotates.
+    fun is_unrotated_legacy_key(consensus_pubkey: &vector<u8>): bool {
+        features::supra_validator_identity_v2_enabled()
+            && option::is_some(
+                &ed25519::new_validated_public_key_from_bytes(*consensus_pubkey)
+            )
+    }
+
+    /// Active-set membership test applied identically when previewing the next validator set
+    /// (`compute_next_validator_set_internal`) and when committing it (`on_new_epoch`): a validator is
+    /// retained iff it meets the minimum stake AND (under the v2 identity format) still carries a valid
+    /// v2 consensus key. Centralizing this keeps the DKG receiver committee / `set_dkg_output_keys`
+    /// (which read the preview) consistent with the committed set / consensus committee.
+    fun is_eligible_active_validator(
+        voting_power: u64, minimum_stake: u64, consensus_pubkey: &vector<u8>
+    ): bool {
+        voting_power >= minimum_stake && !is_unrotated_legacy_key(consensus_pubkey)
+    }
+
     /// Aborts if any validator other than `self_addr` in the next validator set
     /// (the union of `active_validators` and `pending_active`) already uses
     /// `consensus_pubkey` as its latest on-chain consensus key.
@@ -1775,8 +1799,11 @@ module supra_framework::stake {
             let new_validator_info =
                 generate_validator_info(pool_address, stake_pool, *validator_config);
 
-            // A validator needs at least the min stake required to join the validator set.
-            if (new_validator_info.voting_power >= minimum_stake) {
+            if (is_eligible_active_validator(
+                new_validator_info.voting_power,
+                minimum_stake,
+                &validator_config.consensus_pubkey
+            )) {
                 spec {
                     assume total_voting_power + new_validator_info.voting_power
                         <= MAX_U128;
@@ -1911,6 +1938,7 @@ module supra_framework::stake {
             assume num_cur_actives + num_cur_pending_actives <= MAX_U64;
         };
         let num_candidates = num_cur_actives + num_cur_pending_actives;
+
         while ({
             spec {
                 invariant candidate_idx <= num_candidates;
@@ -1964,17 +1992,23 @@ module supra_framework::stake {
                         cur_pending_inactive
                     } + cur_pending_active + cur_reward + cur_fee;
 
-            if (new_voting_power >= minimum_stake) {
-                let config =
-                    if (use_current_config_for_actives
-                        && candidate_in_current_validator_set) {
-                        // Use the current-epoch config snapshot so that any mid-epoch changes
-                        // (consensus key, network addresses, etc.) only take effect after the
-                        // epoch transition, not during DKG.
-                        candidate.config
-                    } else {
-                        *borrow_global<ValidatorConfig>(candidate.addr)
-                    };
+            let config =
+                if (use_current_config_for_actives
+                    && candidate_in_current_validator_set) {
+                    // Use the current-epoch config snapshot so that any mid-epoch changes
+                    // (consensus key, network addresses, etc.) only take effect after the
+                    // epoch transition, not during DKG.
+                    candidate.config
+                } else {
+                    *borrow_global<ValidatorConfig>(candidate.addr)
+                };
+
+            // Shared with `on_new_epoch`, so this preview (which feeds the DKG receiver committee and
+            // `set_dkg_output_keys`) stays consistent with the committed set. validator_index stays
+            // contiguous because it is only advanced for included validators.
+            if (is_eligible_active_validator(
+                new_voting_power, minimum_stake, &config.consensus_pubkey
+            )) {
                 config.validator_index = num_new_actives;
                 let new_validator_info = ValidatorInfo {
                     addr: candidate.addr,
@@ -1990,6 +2024,7 @@ module supra_framework::stake {
                 vector::push_back(&mut new_active_validators, new_validator_info);
                 num_new_actives = num_new_actives + 1;
             };
+
             candidate_idx = candidate_idx + 1;
         };
 
@@ -2870,6 +2905,70 @@ module supra_framework::stake {
         let blob =
             validator_public_keys::serialized_keys_with_pop_for_test(&other_sk, &pk);
         initialize_validator(validator, blob, b"net", b"fn");
+    }
+
+    #[
+        test(
+            supra_framework = @supra_framework,
+            validator_keep = @0x123,
+            validator_eject = @0x234
+        )
+    ]
+    /// Once the v2 identity format is enforced, a validator that never rotated to a v2 consensus key
+    /// (still a legacy bare ed25519 key) is ejected from the active set at the next epoch transition,
+    /// while a rotated (v2) validator is retained with a contiguous validator_index. This is the
+    /// invariant that lets DKG / `set_dkg_output_keys` assume every active validator has a valid v2
+    /// key, and what prevents the DKG-committee resolution failure on unrotated validators.
+    public entry fun test_on_new_epoch_ejects_unrotated_legacy_validator(
+        supra_framework: &signer, validator_keep: &signer, validator_eject: &signer
+    ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
+        initialize_for_test(supra_framework);
+        // Model the pre-upgrade state: disable the v2 identity format so a legacy (bare ed25519)
+        // consensus key can still be registered (the test VM enables v2 by default).
+        features::change_feature_flags_for_testing(
+            supra_framework,
+            vector[],
+            vector[features::get_supra_validator_identity_v2_feature()]
+        );
+        let keep_addr = signer::address_of(validator_keep);
+        let eject_addr = signer::address_of(validator_eject);
+
+        // `validator_keep` registers with a v2 consensus key and joins the active set.
+        let (_keep_sk, keep_pk) = generate_identity();
+        initialize_test_validator(&keep_pk, validator_keep, 100, true, false);
+
+        // `validator_eject` registers with a legacy (bare ed25519) consensus key while v2 is still
+        // disabled, then joins. This models a validator that never rotated across the upgrade.
+        let (_eject_sk, eject_vpk) = ed25519::generate_keys();
+        let legacy_key_bytes = ed25519::validated_public_key_to_bytes(&eject_vpk);
+        account::create_account_for_test(eject_addr);
+        initialize_validator_genesis(
+            validator_eject,
+            legacy_key_bytes,
+            vector::empty(),
+            vector::empty()
+        );
+        mint_and_add_stake(validator_eject, 100);
+        join_validator_set(validator_eject, eject_addr);
+
+        // Both validators activate while v2 is disabled.
+        end_epoch();
+        assert!(get_validator_state(keep_addr) == VALIDATOR_STATUS_ACTIVE, 0);
+        assert!(get_validator_state(eject_addr) == VALIDATOR_STATUS_ACTIVE, 1);
+
+        // Enforce the v2 identity format.
+        features::change_feature_flags_for_testing(
+            supra_framework,
+            vector[features::get_supra_validator_identity_v2_feature()],
+            vector[]
+        );
+
+        // The next epoch transition ejects the unrotated (legacy-key) validator and keeps the v2 one.
+        end_epoch();
+        assert!(get_validator_state(keep_addr) == VALIDATOR_STATUS_ACTIVE, 2);
+        assert!(get_validator_state(eject_addr) == VALIDATOR_STATUS_INACTIVE, 3);
+        // The surviving validator keeps a contiguous validator_index.
+        assert!(borrow_global<ValidatorConfig>(keep_addr).validator_index == 0, 4);
     }
 
     #[test(supra_framework = @supra_framework, validator = @0x123)]

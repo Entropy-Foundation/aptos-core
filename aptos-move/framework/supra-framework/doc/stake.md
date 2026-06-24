@@ -88,6 +88,8 @@ or if their stake drops below the min required, they would get removed at the en
 -  [Function `initialize_validator_genesis`](#0x1_stake_initialize_validator_genesis)
 -  [Function `initialize_validator_internal`](#0x1_stake_initialize_validator_internal)
 -  [Function `validate_consensus_public_key`](#0x1_stake_validate_consensus_public_key)
+-  [Function `is_unrotated_legacy_key`](#0x1_stake_is_unrotated_legacy_key)
+-  [Function `is_eligible_active_validator`](#0x1_stake_is_eligible_active_validator)
 -  [Function `assert_consensus_pubkey_unique_in_next_validator_set`](#0x1_stake_assert_consensus_pubkey_unique_in_next_validator_set)
 -  [Function `assert_consensus_pubkey_unique_in_validator_list`](#0x1_stake_assert_consensus_pubkey_unique_in_validator_list)
 -  [Function `assert_network_addresses_unique_in_next_validator_set`](#0x1_stake_assert_network_addresses_unique_in_next_validator_set)
@@ -2887,6 +2889,70 @@ proof-of-possession (mirrors <code>rotate_consensus_key</code> / <code>rotate_co
 
 </details>
 
+<a id="0x1_stake_is_unrotated_legacy_key"></a>
+
+## Function `is_unrotated_legacy_key`
+
+Returns true iff the v2 validator-identity format is enforced and <code>consensus_pubkey</code> is still a
+legacy (pre-v2) bare ed25519 key. Mirrors the detection in <code>validate_consensus_public_key</code>: a
+bare ed25519 key parses via <code>new_validated_public_key_from_bytes</code>, while a v2 BCS blob does not.
+Such a key cannot be deserialized into the v2 <code>ValidatorPublicKeys</code> format that DKG and
+consensus require, so the validator is dropped from the active set (same effect as falling below
+the minimum stake) until it rotates.
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_is_unrotated_legacy_key">is_unrotated_legacy_key</a>(consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_is_unrotated_legacy_key">is_unrotated_legacy_key</a>(consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): bool {
+    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_validator_identity_v2_enabled">features::supra_validator_identity_v2_enabled</a>()
+        && <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(
+            &<a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519_new_validated_public_key_from_bytes">ed25519::new_validated_public_key_from_bytes</a>(*consensus_pubkey)
+        )
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_stake_is_eligible_active_validator"></a>
+
+## Function `is_eligible_active_validator`
+
+Active-set membership test applied identically when previewing the next validator set
+(<code>compute_next_validator_set_internal</code>) and when committing it (<code>on_new_epoch</code>): a validator is
+retained iff it meets the minimum stake AND (under the v2 identity format) still carries a valid
+v2 consensus key. Centralizing this keeps the DKG receiver committee / <code>set_dkg_output_keys</code>
+(which read the preview) consistent with the committed set / consensus committee.
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_is_eligible_active_validator">is_eligible_active_validator</a>(voting_power: u64, minimum_stake: u64, consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_is_eligible_active_validator">is_eligible_active_validator</a>(
+    voting_power: u64, minimum_stake: u64, consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+): bool {
+    voting_power &gt;= minimum_stake && !<a href="stake.md#0x1_stake_is_unrotated_legacy_key">is_unrotated_legacy_key</a>(consensus_pubkey)
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_stake_assert_consensus_pubkey_unique_in_next_validator_set"></a>
 
 ## Function `assert_consensus_pubkey_unique_in_next_validator_set`
@@ -4646,8 +4712,11 @@ power.
         <b>let</b> new_validator_info =
             <a href="stake.md#0x1_stake_generate_validator_info">generate_validator_info</a>(pool_address, stake_pool, *validator_config);
 
-        // A validator needs at least the <b>min</b> <a href="stake.md#0x1_stake">stake</a> required <b>to</b> join the validator set.
-        <b>if</b> (new_validator_info.voting_power &gt;= minimum_stake) {
+        <b>if</b> (<a href="stake.md#0x1_stake_is_eligible_active_validator">is_eligible_active_validator</a>(
+            new_validator_info.voting_power,
+            minimum_stake,
+            &validator_config.consensus_pubkey
+        )) {
             <b>spec</b> {
                 <b>assume</b> total_voting_power + new_validator_info.voting_power
                     &lt;= MAX_U128;
@@ -4862,6 +4931,7 @@ New joiners (<code>pending_active</code>) always read from <code><a href="stake.
         <b>assume</b> num_cur_actives + num_cur_pending_actives &lt;= <a href="stake.md#0x1_stake_MAX_U64">MAX_U64</a>;
     };
     <b>let</b> num_candidates = num_cur_actives + num_cur_pending_actives;
+
     <b>while</b> ({
         <b>spec</b> {
             <b>invariant</b> candidate_idx &lt;= num_candidates;
@@ -4915,17 +4985,23 @@ New joiners (<code>pending_active</code>) always read from <code><a href="stake.
                     cur_pending_inactive
                 } + cur_pending_active + cur_reward + cur_fee;
 
-        <b>if</b> (new_voting_power &gt;= minimum_stake) {
-            <b>let</b> config =
-                <b>if</b> (use_current_config_for_actives
-                    && candidate_in_current_validator_set) {
-                    // Use the current-epoch config snapshot so that <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> mid-epoch changes
-                    // (consensus key, network addresses, etc.) only take effect after the
-                    // epoch transition, not during DKG.
-                    candidate.config
-                } <b>else</b> {
-                    *<b>borrow_global</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(candidate.addr)
-                };
+        <b>let</b> config =
+            <b>if</b> (use_current_config_for_actives
+                && candidate_in_current_validator_set) {
+                // Use the current-epoch config snapshot so that <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> mid-epoch changes
+                // (consensus key, network addresses, etc.) only take effect after the
+                // epoch transition, not during DKG.
+                candidate.config
+            } <b>else</b> {
+                *<b>borrow_global</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(candidate.addr)
+            };
+
+        // Shared <b>with</b> `on_new_epoch`, so this preview (which feeds the DKG receiver committee and
+        // `set_dkg_output_keys`) stays consistent <b>with</b> the committed set. validator_index stays
+        // contiguous because it is only advanced for included validators.
+        <b>if</b> (<a href="stake.md#0x1_stake_is_eligible_active_validator">is_eligible_active_validator</a>(
+            new_voting_power, minimum_stake, &config.consensus_pubkey
+        )) {
             config.validator_index = num_new_actives;
             <b>let</b> new_validator_info = <a href="stake.md#0x1_stake_ValidatorInfo">ValidatorInfo</a> {
                 addr: candidate.addr,
@@ -4941,6 +5017,7 @@ New joiners (<code>pending_active</code>) always read from <code><a href="stake.
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> new_active_validators, new_validator_info);
             num_new_actives = num_new_actives + 1;
         };
+
         candidate_idx = candidate_idx + 1;
     };
 
