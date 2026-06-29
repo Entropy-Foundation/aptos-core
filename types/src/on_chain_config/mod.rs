@@ -60,7 +60,7 @@ pub use self::{
         EvmContractName, EvmScalarConfigKey, OnChainEvmConfig, OnChainEvmContractsDetails, evm_address_as_account_address
     },
     evm_genesis_config::{
-        ContractKind, GenesisEvmContract, GenesisEvmEOA, OnChainEvmGenesisConfig,
+        TransactionKind, GenesisEvmTransaction, GenesisEvmEOA, OnChainEvmGenesisConfig,
         EVM_GENESIS_EVENT_MOVE_TYPE_TAG
     },
     execution_config::{
