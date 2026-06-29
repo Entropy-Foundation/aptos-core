@@ -76,6 +76,7 @@ use std::{
     collections::BTreeSet,
     hash::{Hash, Hasher},
 };
+use aptos_types::on_chain_config::{OnChainEvmContractsDetails, OnChainEvmConfig};
 use std::collections::BTreeMap;
 
 // The seed is arbitrarily picked to produce a consistent key. XXX make this more formal?
@@ -272,6 +273,8 @@ pub fn encode_genesis_transaction_for_testnet(
     gas_schedule: &GasScheduleV2,
     supra_config_bytes: Vec<u8>,
     evm_genesis_config: Option<OnChainEvmGenesisConfig>,
+    evm_contracts_details: Option<OnChainEvmContractsDetails>,
+    evm_scalar_config: Option<OnChainEvmConfig>
 ) -> Transaction {
     Transaction::GenesisTransaction(WriteSetPayload::Direct(
         encode_genesis_change_set_for_testnet(
@@ -292,6 +295,8 @@ pub fn encode_genesis_transaction_for_testnet(
             gas_schedule,
             supra_config_bytes,
             evm_genesis_config,
+            evm_contracts_details,
+            evm_scalar_config
         ),
     ))
 }
@@ -314,6 +319,9 @@ pub fn encode_genesis_change_set_for_testnet(
     gas_schedule: &GasScheduleV2,
     supra_config_bytes: Vec<u8>,
     evm_genesis_config: Option<OnChainEvmGenesisConfig>,
+    evm_contracts_details: Option<OnChainEvmContractsDetails>,
+    evm_scalar_config: Option<OnChainEvmConfig>
+
 ) -> ChangeSet {
     validate_genesis_config(genesis_config);
     // Create a Move VM session so we can invoke on-chain genesis initializations.
@@ -393,6 +401,10 @@ pub fn encode_genesis_change_set_for_testnet(
 
     if let Some(evm_genesis_config) = evm_genesis_config {
         initialize_evm_genesis_config(&mut session, &module_storage, &mut traversal_context, &evm_genesis_config);
+    }
+
+    if let (Some(evm_contracts_details), Some(evm_scalar_config)) = (evm_contracts_details, evm_scalar_config) {
+        initialize_evm_config(&mut session, &module_storage, &mut traversal_context, evm_contracts_details, evm_scalar_config);
     }
 
     create_accounts(&mut session, &module_storage, &mut traversal_context, accounts);
@@ -756,6 +768,34 @@ fn initialize_evm_genesis_config(
         serialize_values(&vec![
             MoveValue::Signer(CORE_CODE_ADDRESS),
             MoveValue::vector_u8(evm_genesis_config_bytes),
+        ]),
+    );
+}
+
+fn initialize_evm_config(
+    session: &mut SessionExt<impl AptosMoveResolver>,
+    module_storage: &impl AptosModuleStorage,
+    traversal_context: &mut TraversalContext,
+    evm_contracts_details: OnChainEvmContractsDetails,
+    evm_scalar_config: OnChainEvmConfig,
+) {
+
+    let (contract_names, contract_addresses) = evm_contracts_details.to_move_values();
+    let (config_keys, config_values) = evm_scalar_config.to_move_values();
+
+    exec_function(
+        session,
+        module_storage,
+        traversal_context,
+        GENESIS_MODULE_NAME,
+        "initialize_evm_config",
+        vec![],
+        serialize_values(&vec![
+            MoveValue::Signer(CORE_CODE_ADDRESS),
+            contract_names,
+            contract_addresses,
+            config_keys,
+            config_values
         ]),
     );
 }
@@ -1753,6 +1793,8 @@ pub fn generate_test_genesis(
         &default_gas_schedule(),
         b"test".to_vec(),
         None,
+        None,
+        None,
     );
     (genesis, test_validators)
 }
@@ -1783,6 +1825,8 @@ pub fn generate_mainnet_genesis(
         &OnChainExecutionConfig::default_for_genesis(),
         &default_gas_schedule(),
         b"test".to_vec(),
+        None,
+        None,
         None,
     );
     (genesis, test_validators)

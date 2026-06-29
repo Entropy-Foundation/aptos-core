@@ -1,6 +1,3 @@
-// Copyright (c) Aptos Foundation
-// SPDX-License-Identifier: Apache-2.0
-
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -50,6 +47,8 @@ const AUTOMATION_CYCLE_INFO: &str = "0x1::automation_registry::get_cycle_info";
 const HAS_SENDER_ACTIVE_TASK_WITH_ID: &str =
     "0x1::automation_registry::has_sender_active_task_with_id";
 const GET_TASK_IDS: &str = "0x1::automation_registry::get_task_ids";
+
+const MAX_GAS_AMOUNT_REGISTRATION: u64 = 500_000_000;
 
 struct MultisigAccountData {
     multisig_address: AccountAddress,
@@ -111,8 +110,8 @@ impl AutomationRegistrationTestContext {
 
     fn create_multisig_account_data(executor: &mut FakeExecutor) -> MultisigAccountData {
         // Prepare multisig_account for system task registration
-        let multisig_owner1 = executor.create_raw_account_data(100_000_000_000, 0);
-        let multisig_owner2 = executor.create_raw_account_data(100_000_000_000, 0);
+        let multisig_owner1 = executor.create_raw_account_data(1_000_000_000_000, 0);
+        let multisig_owner2 = executor.create_raw_account_data(1_000_000_000_000, 0);
         executor.add_account_data(&multisig_owner1);
         executor.add_account_data(&multisig_owner2);
         let multisig_address = create_multisig_account_address(
@@ -236,7 +235,8 @@ impl AutomationRegistrationTestContext {
             .transaction()
             .payload(automation_txn)
             .sequence_number(seq_num)
-            .gas_unit_price(100_000)
+            .gas_unit_price(1)
+            .max_gas_amount(MAX_GAS_AMOUNT_REGISTRATION)
             .sign()
     }
 
@@ -265,7 +265,8 @@ impl AutomationRegistrationTestContext {
             .transaction()
             .payload(automation_txn)
             .sequence_number(seq_num)
-            .gas_unit_price(100_000)
+            .gas_unit_price(1)
+            .max_gas_amount(MAX_GAS_AMOUNT_REGISTRATION)
             .sign()
     }
 
@@ -290,6 +291,7 @@ impl AutomationRegistrationTestContext {
             .payload(automation_txn)
             .sequence_number(seq_num)
             .gas_unit_price(1)
+            .max_gas_amount(MAX_GAS_AMOUNT_REGISTRATION)
             .sign()
     }
 
@@ -307,7 +309,7 @@ impl AutomationRegistrationTestContext {
             ))
             .sequence_number(seq_num)
             .gas_unit_price(1)
-            .max_gas_amount(55000000)
+            .max_gas_amount(MAX_GAS_AMOUNT_REGISTRATION)
             .sign()
     }
 
@@ -500,6 +502,80 @@ impl AutomationRegistrationTestContext {
         assert!(!result.is_empty());
         bcs::from_bytes::<Vec<u64>>(&result[0])
             .expect("Successful deserialization of AutomationCycleInfo")
+    }
+
+    /// Registers an automation task by directly invoking the private Move `register`
+    /// function through the test executor, bypassing both:
+    ///
+    /// 1. **Visibility**: `register` is a `fun` (package-private in Move). The
+    ///    underlying `execute_function_bypass_visibility` call ignores this, so
+    ///    no access-control error is raised.
+    ///
+    /// 2. **Native-layer payload validation**: In the normal `AutomationRegistration`
+    ///    transaction flow the VM validates that `payload_bytes` is a well-formed,
+    ///    BCS-encoded `EntryFunction` with correct argument types *before* any Move
+    ///    code runs. The `exec` path skips this check entirely, so arbitrary bytes
+    ///    (including those that encode a call to a non-existent function) are stored
+    ///    directly in the registry.
+    ///
+    /// This simulates what happens in production when a smart-contract registers a
+    /// task via `automation_registry::register_without_validation` (the
+    /// `SUPRA_AUTOMATION_V2_1` path), which also skips payload validation and relies
+    /// on the runtime to catch and discard permanently invalid tasks at execution
+    /// time.
+    ///
+    /// # Prerequisites
+    /// * `SUPRA_NATIVE_AUTOMATION` must be enabled and the automation cycle must be
+    ///   in `CYCLE_STARTED` state before calling this method (the Move `register`
+    ///   function asserts this).
+    /// * `tx_hash` must be exactly 32 bytes (`TXN_HASH_LENGTH = 32` in the Move
+    ///   contract).
+    /// * `aux_data` must have exactly 2 elements matching the format validated by
+    ///   `check_and_validate_aux_data`:
+    ///   - index 0: a single byte encoding the task type (`[1u8]` for UST/User)
+    ///   - index 1: BCS-serialised priority `u64`, or empty (`[]`) to let the
+    ///     registry assign the task index as the default priority.
+    /// * The `owner_address` account must have enough SupraCoin balance to cover
+    ///   the flat registration fee plus the epoch-deposit (`automation_fee_cap`).
+    pub(crate) fn register_task_bypassing_native_validation(
+        &mut self,
+        owner_address: AccountAddress,
+        payload_bytes: Vec<u8>,
+        expiry_time: u64,
+        max_gas_amount: u64,
+        gas_price_cap: u64,
+        automation_fee_cap: u64,
+        tx_hash: Vec<u8>,
+        aux_data: Vec<Vec<u8>>,
+    ) {
+        // Call the private `register` Move function via execute_function_bypass_visibility.
+        // The signer argument is passed as a BCS-serialised MoveValue::Signer so the Move VM
+        // constructs a valid signer capability for `owner_address` without requiring a
+        // real signed transaction.
+        //
+        // Crucially, none of the native-layer checks (BCS-decode payload, validate
+        // EntryFunction shape) execute here — only the Move code inside `register` runs.
+        // This means `payload_bytes` is stored verbatim, even if it encodes a call to a
+        // non-existent module/function.
+        self.executor.exec("automation_registry", "register", vec![], vec![
+            MoveValue::Signer(owner_address)
+                .simple_serialize()
+                .expect("Signer serialization must not fail"),
+            bcs::to_bytes(&payload_bytes)
+                .expect("payload bytes must be BCS-serialisable"),
+            bcs::to_bytes(&expiry_time)
+                .expect("expiry_time must be BCS-serialisable"),
+            bcs::to_bytes(&max_gas_amount)
+                .expect("max_gas_amount must be BCS-serialisable"),
+            bcs::to_bytes(&gas_price_cap)
+                .expect("gas_price_cap must be BCS-serialisable"),
+            bcs::to_bytes(&automation_fee_cap)
+                .expect("automation_fee_cap must be BCS-serialisable"),
+            bcs::to_bytes(&tx_hash)
+                .expect("tx_hash must be BCS-serialisable"),
+            bcs::to_bytes(&aux_data)
+                .expect("aux_data must be BCS-serialisable"),
+        ]);
     }
 }
 

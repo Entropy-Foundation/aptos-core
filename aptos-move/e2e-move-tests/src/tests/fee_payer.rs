@@ -363,7 +363,7 @@ fn test_account_not_exist_with_fee_payer_without_create_account() {
         .fee_payer(bob.clone())
         .payload(payload)
         .sequence_number(0)
-        .max_gas_amount(1_000)
+        .max_gas_amount(1_500)
         .gas_unit_price(100_000)
         .sign_fee_payer();
 

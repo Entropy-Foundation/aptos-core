@@ -76,6 +76,7 @@ pub fn rotate_consensus_key(
     account: &Account,
     pool_address: AccountAddress,
 ) -> TransactionStatus {
+    // TODO:(DP) need to fix this rotation with updated keys
     let consensus_key = ed25519::PrivateKey::generate_for_testing();
     let consensus_pubkey = consensus_key.public_key().to_bytes().to_vec();
     harness.run_transaction_payload(

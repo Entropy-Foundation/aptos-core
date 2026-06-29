@@ -260,7 +260,7 @@ fn test_prologue_speculation() {
 
     let sink_txn = harness.create_transaction_payload(
         &independent_account,
-        supra_account_batch_transfer(vec![AccountAddress::random(); 50], vec![10_000_000_000; 50]),
+        supra_account_batch_transfer(vec![AccountAddress::random(); 50], vec![10_000; 50]),
     );
 
     let account = harness.new_account_at(AccountAddress::ONE);
@@ -272,7 +272,7 @@ fn test_prologue_speculation() {
         &account,
         supra_account_batch_transfer(
             vec![*dst_1.address(), *dst_2.address(), *dst_3.address()],
-            vec![10_000_000_000, 10_000_000_000, 10_000_000_000],
+            vec![10_000_100_000_000, 10_000_100_000_000, 10_000_100_000_000],
         ),
     );
 

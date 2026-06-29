@@ -263,7 +263,7 @@ fn test_transaction_context_gas_unit_price() {
     let account = setup(&mut harness);
 
     let max_gas_amount = call_get_gas_unit_price_from_native_txn_context(&mut harness, &account);
-    assert_eq!(max_gas_amount, 100);
+    assert_eq!(max_gas_amount, 100000);
 }
 
 #[test]

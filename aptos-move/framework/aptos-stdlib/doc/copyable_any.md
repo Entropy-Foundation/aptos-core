@@ -8,8 +8,10 @@
 -  [Struct `Any`](#0x1_copyable_any_Any)
 -  [Constants](#@Constants_0)
 -  [Function `pack`](#0x1_copyable_any_pack)
+-  [Function `new`](#0x1_copyable_any_new)
 -  [Function `unpack`](#0x1_copyable_any_unpack)
 -  [Function `type_name`](#0x1_copyable_any_type_name)
+-  [Function `is_empty`](#0x1_copyable_any_is_empty)
 -  [Specification](#@Specification_1)
     -  [Function `pack`](#@Specification_1_pack)
     -  [Function `unpack`](#@Specification_1_unpack)
@@ -21,6 +23,7 @@
 <b>use</b> <a href="from_bcs.md#0x1_from_bcs">0x1::from_bcs</a>;
 <b>use</b> <a href="../../move-stdlib/doc/string.md#0x1_string">0x1::string</a>;
 <b>use</b> <a href="type_info.md#0x1_type_info">0x1::type_info</a>;
+<b>use</b> <a href="../../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 </code></pre>
 
 
@@ -103,6 +106,39 @@ also required from <code>T</code>.
 
 </details>
 
+<a id="0x1_copyable_any_new"></a>
+
+## Function `new`
+
+Construct an <code><a href="copyable_any.md#0x1_copyable_any_Any">Any</a></code> directly from a pre-known type-name string and
+already-BCS-encoded data bytes.  Use this only when the type name is
+obtained from a trusted source (e.g. <code><a href="type_info.md#0x1_type_info_type_name">type_info::type_name</a>&lt;T&gt;()</code> or a
+constant produced by the same) and the data bytes are the BCS encoding
+of a value of that type.  Prefer <code><a href="copyable_any.md#0x1_copyable_any_pack">pack</a>&lt;T&gt;</code> whenever the concrete type
+is statically known at the call site, as it is safer and self-validating.
+
+This constructor exists primarily for genesis and governance scripts that
+receive pre-serialised values from the Rust layer.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="copyable_any.md#0x1_copyable_any_new">new</a>(type_name: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, data: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="copyable_any.md#0x1_copyable_any_Any">copyable_any::Any</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="copyable_any.md#0x1_copyable_any_new">new</a>(type_name: String, data: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="copyable_any.md#0x1_copyable_any_Any">Any</a> {
+    <a href="copyable_any.md#0x1_copyable_any_Any">Any</a> { type_name, data }
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_copyable_any_unpack"></a>
 
 ## Function `unpack`
@@ -147,6 +183,33 @@ Returns the type name of this Any
 
 <pre><code><b>public</b> <b>fun</b> <a href="copyable_any.md#0x1_copyable_any_type_name">type_name</a>(self: &<a href="copyable_any.md#0x1_copyable_any_Any">Any</a>): &String {
     &self.type_name
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_copyable_any_is_empty"></a>
+
+## Function `is_empty`
+
+Returns true if the BCS-encoded data payload is empty.
+An Any value with an empty data vector cannot be decoded and should
+be treated as invalid by callers.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="copyable_any.md#0x1_copyable_any_is_empty">is_empty</a>(x: &<a href="copyable_any.md#0x1_copyable_any_Any">copyable_any::Any</a>): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="copyable_any.md#0x1_copyable_any_is_empty">is_empty</a>(x: &<a href="copyable_any.md#0x1_copyable_any_Any">Any</a>): bool {
+    std::vector::is_empty(&x.data)
 }
 </code></pre>
 

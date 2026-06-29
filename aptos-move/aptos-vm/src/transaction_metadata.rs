@@ -76,7 +76,7 @@ pub struct TransactionMetadata {
     pub script_size: NumBytes,
     pub is_keyless: bool,
     pub payload_type_reference: PayloadTypeReferenceMeta,
-    pub txn_app_hash: Vec<u8>,
+    pub txn_consensus_hash: Vec<u8>,
 }
 
 impl TransactionMetadata {
@@ -131,7 +131,7 @@ impl TransactionMetadata {
                 .map(|res| !res.is_empty())
                 .unwrap_or(false),
             payload_type_reference,
-            txn_app_hash: HashValue::keccak_256_of(
+            txn_consensus_hash: HashValue::keccak_256_of(
                 &bcs::to_bytes(&txn).expect("Unable to serialize SignedTransaction"),
             )
             .to_vec(),
@@ -230,6 +230,10 @@ impl TransactionMetadata {
                 PayloadTypeReferenceContext::AutomationRegistration
             },
         };
+        // Safe: txn_consensus_hash is always populated from HashValue::keccak_256_of or txn.hash(),
+        // both of which produce exactly 32 bytes.
+        let txn_consensus_hash: [u8; 32] = self.txn_consensus_hash.as_slice().try_into()
+            .expect("txn_consensus_hash is always a 32-byte Keccak-256 hash");
         UserTransactionContext::new(
             self.sender,
             self.secondary_signers.clone(),
@@ -238,6 +242,7 @@ impl TransactionMetadata {
             self.gas_unit_price.into(),
             self.chain_id.id(),
             payload_type_reference,
+            txn_consensus_hash,
         )
     }
 }
@@ -263,7 +268,7 @@ impl From<&AutomatedTransaction> for TransactionMetadata {
             payload_type_reference: PayloadTypeReferenceMeta::UserEntryFunction(
                 txn.payload().clone().into_entry_function(),
             ),
-            txn_app_hash: txn.hash().to_vec(),
+            txn_consensus_hash: txn.hash().to_vec(),
         }
     }
 }

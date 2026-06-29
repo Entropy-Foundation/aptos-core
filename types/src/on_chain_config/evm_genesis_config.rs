@@ -1,9 +1,7 @@
-// Copyright (c) Aptos Foundation
-// SPDX-License-Identifier: Apache-2.0
-
 // Copyright (c) Supra Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt::Display;
 use super::OnChainConfig;
 use crate::chain_id::ChainId;
 use anyhow::{anyhow, Result};
@@ -24,12 +22,32 @@ pub struct OnChainEvmGenesisConfig {
     pub contracts: Vec<GenesisEvmContract>,
 }
 
+impl Display for OnChainEvmGenesisConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "OnChainEvmGenesisConfig {{\n\t chain_id: {},\n\t eoas: {:?}, \n\t contracts: [{}\n\t]\n}}",
+            self.chain_id, self.eoas, self.contracts.iter().map(|c| format!("\n\t\t{}", c)).collect::<Vec<_>>().join(", "),
+        )
+    }
+
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct GenesisEvmEOA {
     /// The address of the EOA to be funded
     pub address: String,
     /// The amount of native token to fund the EOA with.
     pub amount: u128,
+}
+
+/// The Creator address and nonce determines the contract' deployment address.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub enum ContractKind {
+    /// Default contract creation API
+    Create,
+    /// EVM address that creates a contract.
+    Call(String),
 }
 
 /// The Creator address and nonce determines the contract' deployment address.
@@ -43,6 +61,25 @@ pub struct GenesisEvmContract {
     pub amount: u128,
     /// The bytecode of the contract to deploy.
     pub bytecode: Vec<u8>,
+    /// Type of the contract
+    pub kind: ContractKind,
+    /// Precalculated address of the contract
+    pub deploy_address: String,
+}
+
+impl Display for GenesisEvmContract {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "GenesisEvmContract {{ creator: {}, nonce: {}, amount: {}, bytecode: {} bytes, kind: {:?}, deploy_address: {} }}",
+            self.creator,
+            self.nonce,
+            self.amount,
+            hex::encode(&self.bytecode),
+            self.kind,
+            self.deploy_address
+        )
+    }
 }
 
 impl OnChainEvmGenesisConfig {

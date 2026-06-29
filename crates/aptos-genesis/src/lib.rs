@@ -185,6 +185,8 @@ impl GenesisInfo {
             &self.gas_schedule,
             b"test".to_vec(),
             None,
+            None,
+            None,
         )
     }
 

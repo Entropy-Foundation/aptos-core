@@ -167,6 +167,8 @@ return true.
 -  [Function `supra_dkg_enabled`](#0x1_features_supra_dkg_enabled)
 -  [Function `get_supra_transactions_inclusion_proofs_feature`](#0x1_features_get_supra_transactions_inclusion_proofs_feature)
 -  [Function `supra_transactions_inclusion_proofs_enabled`](#0x1_features_supra_transactions_inclusion_proofs_enabled)
+-  [Function `get_supra_automation_v2_1_feature`](#0x1_features_get_supra_automation_v2_1_feature)
+-  [Function `supra_automation_v2_1_enabled`](#0x1_features_supra_automation_v2_1_enabled)
 -  [Function `is_derivable_account_abstraction_enabled`](#0x1_features_is_derivable_account_abstraction_enabled)
 -  [Function `is_domain_account_abstraction_enabled`](#0x1_features_is_domain_account_abstraction_enabled)
 -  [Function `get_new_accounts_default_to_fa_store_feature`](#0x1_features_get_new_accounts_default_to_fa_store_feature)
@@ -397,7 +399,7 @@ Lifetime: transient
 Whether to calculate the transaction fee for distribution.
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION">CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION</a>: u64 = 107;
+<pre><code><b>const</b> <a href="features.md#0x1_features_CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION">CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION</a>: u64 = 108;
 </code></pre>
 
 
@@ -509,7 +511,7 @@ Lifetime: transient
 Lifetime: transient
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_DEFAULT_ACCOUNT_RESOURCE">DEFAULT_ACCOUNT_RESOURCE</a>: u64 = 104;
+<pre><code><b>const</b> <a href="features.md#0x1_features_DEFAULT_ACCOUNT_RESOURCE">DEFAULT_ACCOUNT_RESOURCE</a>: u64 = 105;
 </code></pre>
 
 
@@ -565,7 +567,7 @@ Whether the account abstraction is enabled.
 Lifetime: transient
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_DERIVABLE_ACCOUNT_ABSTRACTION">DERIVABLE_ACCOUNT_ABSTRACTION</a>: u64 = 101;
+<pre><code><b>const</b> <a href="features.md#0x1_features_DERIVABLE_ACCOUNT_ABSTRACTION">DERIVABLE_ACCOUNT_ABSTRACTION</a>: u64 = 102;
 </code></pre>
 
 
@@ -587,7 +589,7 @@ Lifetime: transient
 Whether to distribute transaction fee to validators.
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_DISTRIBUTE_TRANSACTION_FEE">DISTRIBUTE_TRANSACTION_FEE</a>: u64 = 108;
+<pre><code><b>const</b> <a href="features.md#0x1_features_DISTRIBUTE_TRANSACTION_FEE">DISTRIBUTE_TRANSACTION_FEE</a>: u64 = 109;
 </code></pre>
 
 
@@ -649,7 +651,7 @@ Lifetime: transient
 We do not expect use from Move, so for now only for documentation purposes here
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_ENABLE_FUNCTION_VALUES">ENABLE_FUNCTION_VALUES</a>: u64 = 102;
+<pre><code><b>const</b> <a href="features.md#0x1_features_ENABLE_FUNCTION_VALUES">ENABLE_FUNCTION_VALUES</a>: u64 = 103;
 </code></pre>
 
 
@@ -695,7 +697,7 @@ For simplicity, it is represented by type <code>ProviderJWKs</code> (used to rep
 in JWK Consensus messages, in validator transactions, and in Move.
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_JWK_CONSENSUS_PER_KEY_MODE">JWK_CONSENSUS_PER_KEY_MODE</a>: u64 = 105;
+<pre><code><b>const</b> <a href="features.md#0x1_features_JWK_CONSENSUS_PER_KEY_MODE">JWK_CONSENSUS_PER_KEY_MODE</a>: u64 = 106;
 </code></pre>
 
 
@@ -828,7 +830,7 @@ Whether new accounts default to the Fungible Asset store.
 Lifetime: transient
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_NEW_ACCOUNTS_DEFAULT_TO_FA_STORE">NEW_ACCOUNTS_DEFAULT_TO_FA_STORE</a>: u64 = 103;
+<pre><code><b>const</b> <a href="features.md#0x1_features_NEW_ACCOUNTS_DEFAULT_TO_FA_STORE">NEW_ACCOUNTS_DEFAULT_TO_FA_STORE</a>: u64 = 104;
 </code></pre>
 
 
@@ -890,7 +892,7 @@ Whether orderless transactions are enabled.
 Lifetime: transient
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_ORDERLESS_TRANSACTIONS">ORDERLESS_TRANSACTIONS</a>: u64 = 106;
+<pre><code><b>const</b> <a href="features.md#0x1_features_ORDERLESS_TRANSACTIONS">ORDERLESS_TRANSACTIONS</a>: u64 = 107;
 </code></pre>
 
 
@@ -1097,6 +1099,21 @@ Lifetime: transient
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_AUTOMATION_V2">SUPRA_AUTOMATION_V2</a>: u64 = 96;
+</code></pre>
+
+
+
+<a id="0x1_features_SUPRA_AUTOMATION_V2_1"></a>
+
+Whether smart contracts can register automation tasks via <code>register_without_validation</code>,
+using the <code>get_txn_app_hash</code> native to obtain the registering transaction's hash.
+Must only be enabled after all nodes have upgraded to the binary that implements
+the <code>get_txn_app_hash_internal</code> native function.
+
+Lifetime: transient
+
+
+<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_AUTOMATION_V2_1">SUPRA_AUTOMATION_V2_1</a>: u64 = 101;
 </code></pre>
 
 
@@ -4512,6 +4529,54 @@ Deprecated feature
 
 <pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_transactions_inclusion_proofs_enabled">supra_transactions_inclusion_proofs_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
     <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_TRANSACTIONS_INCLUSION_PROOFS">SUPRA_TRANSACTIONS_INCLUSION_PROOFS</a>)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_get_supra_automation_v2_1_feature"></a>
+
+## Function `get_supra_automation_v2_1_feature`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_automation_v2_1_feature">get_supra_automation_v2_1_feature</a>(): u64
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_get_supra_automation_v2_1_feature">get_supra_automation_v2_1_feature</a>(): u64 {
+    <a href="features.md#0x1_features_SUPRA_AUTOMATION_V2_1">SUPRA_AUTOMATION_V2_1</a>
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_features_supra_automation_v2_1_enabled"></a>
+
+## Function `supra_automation_v2_1_enabled`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_automation_v2_1_enabled">supra_automation_v2_1_enabled</a>(): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="features.md#0x1_features_supra_automation_v2_1_enabled">supra_automation_v2_1_enabled</a>(): bool <b>acquires</b> <a href="features.md#0x1_features_Features">Features</a> {
+    <a href="features.md#0x1_features_is_enabled">is_enabled</a>(<a href="features.md#0x1_features_SUPRA_AUTOMATION_V2_1">SUPRA_AUTOMATION_V2_1</a>)
 }
 </code></pre>
 

@@ -905,10 +905,26 @@ module std::features {
         is_enabled(SUPRA_TRANSACTIONS_INCLUSION_PROOFS)
     }
 
+    /// Whether smart contracts can register automation tasks via `register_without_validation`,
+    /// using the `get_txn_app_hash` native to obtain the registering transaction's hash.
+    /// Must only be enabled after all nodes have upgraded to the binary that implements
+    /// the `get_txn_app_hash_internal` native function.
+    ///
+    /// Lifetime: transient
+    const SUPRA_AUTOMATION_V2_1: u64 = 101;
+
+    public fun get_supra_automation_v2_1_feature(): u64 {
+        SUPRA_AUTOMATION_V2_1
+    }
+
+    public fun supra_automation_v2_1_enabled(): bool acquires Features {
+        is_enabled(SUPRA_AUTOMATION_V2_1)
+    }
+
     /// Whether the account abstraction is enabled.
     ///
     /// Lifetime: transient
-    const DERIVABLE_ACCOUNT_ABSTRACTION: u64 = 101;
+    const DERIVABLE_ACCOUNT_ABSTRACTION: u64 = 102;
 
     public fun is_derivable_account_abstraction_enabled(): bool acquires Features {
         is_enabled(DERIVABLE_ACCOUNT_ABSTRACTION)
@@ -923,11 +939,11 @@ module std::features {
     /// Lifetime: transient
     ///
     /// We do not expect use from Move, so for now only for documentation purposes here
-    const ENABLE_FUNCTION_VALUES: u64 = 102;
+    const ENABLE_FUNCTION_VALUES: u64 = 103;
 
     /// Whether new accounts default to the Fungible Asset store.
     /// Lifetime: transient
-    const NEW_ACCOUNTS_DEFAULT_TO_FA_STORE: u64 = 103;
+    const NEW_ACCOUNTS_DEFAULT_TO_FA_STORE: u64 = 104;
 
     public fun get_new_accounts_default_to_fa_store_feature(): u64 { NEW_ACCOUNTS_DEFAULT_TO_FA_STORE }
 
@@ -936,7 +952,7 @@ module std::features {
     }
 
     /// Lifetime: transient
-    const DEFAULT_ACCOUNT_RESOURCE: u64 = 104;
+    const DEFAULT_ACCOUNT_RESOURCE: u64 = 105;
 
     public fun get_default_account_resource_feature(): u64 { DEFAULT_ACCOUNT_RESOURCE }
 
@@ -951,7 +967,7 @@ module std::features {
     /// - while a key-level update is mostly represented by a new type `KeyLevelUpdate` locally,
     ///   For simplicity, it is represented by type `ProviderJWKs` (used to represent issuer-level update)
     ///   in JWK Consensus messages, in validator transactions, and in Move.
-    const JWK_CONSENSUS_PER_KEY_MODE: u64 = 105;
+    const JWK_CONSENSUS_PER_KEY_MODE: u64 = 106;
 
     public fun get_jwk_consensus_per_key_mode_feature(): u64 { JWK_CONSENSUS_PER_KEY_MODE }
 
@@ -961,7 +977,7 @@ module std::features {
 
     /// Whether orderless transactions are enabled.
     /// Lifetime: transient
-    const ORDERLESS_TRANSACTIONS: u64 = 106;
+    const ORDERLESS_TRANSACTIONS: u64 = 107;
 
     public fun get_orderless_transactions_feature(): u64 { ORDERLESS_TRANSACTIONS }
 
@@ -970,7 +986,7 @@ module std::features {
     }
 
     /// Whether to calculate the transaction fee for distribution.
-    const CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION: u64 = 107;
+    const CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION: u64 = 108;
 
     public fun get_calculate_transaction_fee_for_distribution_feature(): u64 { CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION }
 
@@ -979,7 +995,7 @@ module std::features {
     }
 
     /// Whether to distribute transaction fee to validators.
-    const DISTRIBUTE_TRANSACTION_FEE: u64 = 108;
+    const DISTRIBUTE_TRANSACTION_FEE: u64 = 109;
 
     public fun get_distribute_transaction_fee_feature(): u64 { DISTRIBUTE_TRANSACTION_FEE }
 

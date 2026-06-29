@@ -149,21 +149,23 @@ pub enum FeatureFlag {
     /// The default DKG configuration also requires `SUPRA_BCFT_CERTIFICATES` to be enabled first.
     SUPRA_DKG = 99,
     SUPRA_TRANSACTIONS_INCLUSION_PROOFS = 100,
+    /// Enables smart contracts to register automation tasks via `register_without_validation`,
+    SUPRA_AUTOMATION_V2_1 = 101,
 
 
-    DERIVABLE_ACCOUNT_ABSTRACTION = 101,
+    DERIVABLE_ACCOUNT_ABSTRACTION = 102,
     /// Whether function values are enabled.
-    ENABLE_FUNCTION_VALUES = 102,
-    NEW_ACCOUNTS_DEFAULT_TO_FA_STORE = 103,
-    DEFAULT_ACCOUNT_RESOURCE = 104,
-    JWK_CONSENSUS_PER_KEY_MODE = 105,
-    TRANSACTION_PAYLOAD_V2 = 106,
-    ORDERLESS_TRANSACTIONS = 107,
+    ENABLE_FUNCTION_VALUES = 103,
+    NEW_ACCOUNTS_DEFAULT_TO_FA_STORE = 104,
+    DEFAULT_ACCOUNT_RESOURCE = 105,
+    JWK_CONSENSUS_PER_KEY_MODE = 106,
+    TRANSACTION_PAYLOAD_V2 = 107,
+    ORDERLESS_TRANSACTIONS = 108,
     // TODO(lazy-loading): Add link to AIP and its number + brief description.
-    ENABLE_LAZY_LOADING = 108,
+    ENABLE_LAZY_LOADING = 109,
 
-    CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION = 109,
-    DISTRIBUTE_TRANSACTION_FEE = 110,
+    CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION = 110,
+    DISTRIBUTE_TRANSACTION_FEE = 111,
 }
 
 //TODO: add dkg feature
@@ -275,6 +277,7 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_BCFT_CERTIFICATES,
             FeatureFlag::SUPRA_DKG,
             FeatureFlag::SUPRA_TRANSACTIONS_INCLUSION_PROOFS,
+            FeatureFlag::SUPRA_AUTOMATION_V2_1,
         ]
     }
 }
@@ -477,6 +480,10 @@ impl Features {
         } else {
             file_format_common::VERSION_5
         }
+    }
+
+    pub fn is_supra_automation_v2_1_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2_1)
     }
 }
 

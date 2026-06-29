@@ -1,8 +1,6 @@
 // Copyright (c) 2025 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
-// Copyright (c) 2025 Supra.
-// SPDX-License-Identifier: Apache-2.0
 use aptos_native_interface::{SafeNativeBuilder, SafeNativeContext, SafeNativeResult};
 use move_vm_runtime::native_functions::NativeFunction;
 use move_vm_types::{loaded_data::runtime_types::Type, values::Value};
