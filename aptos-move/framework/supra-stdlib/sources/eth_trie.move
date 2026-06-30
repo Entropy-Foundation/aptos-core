@@ -6,6 +6,9 @@ module supra_std::eth_trie {
     /// SUPRA_ETH_TRIE feature APIs are disabled.
     const EETH_TRIE_FEATURE_DISABLED: u64 = 1;
 
+    /// The trie root hash must be exactly 32 bytes (a keccak256 / H256 hash).
+    const ETH_TRIE_ROOT_HASH_LENGTH: u64 = 32;
+
     /// Public wrapper function that calls the native and returns a bool.
     /// Returns true if the inclusion proof is valid i.e. the value exists in the tree
     /// Also returns the value corresponding to the key
@@ -37,6 +40,11 @@ module supra_std::eth_trie {
         proof: vector<vector<u8>>
     ): (bool, vector<u8>) {
         assert!(features::supra_eth_trie_enabled(), EETH_TRIE_FEATURE_DISABLED);
+        // A wrong-length root cannot match any trie node, so reject it as an invalid proof
+        // before reaching the native (which also guards against this).
+        if (vector::length(&root) != ETH_TRIE_ROOT_HASH_LENGTH) {
+            return (false, vector::empty<u8>())
+        };
         native_verify_proof_eth_trie(root, key, proof)
     }
 
@@ -216,6 +224,20 @@ module supra_std::eth_trie {
         assert!(!flag_inclusion, 1);
         let flag_exclusion = verify_eth_trie_exclusion_proof(root, key, proof);
         assert!(!flag_exclusion, 1);
+    }
+
+    #[test(supra_framework = @supra_framework)]
+    public fun test_proof_wrong_length_root(supra_framework: signer) {
+        prepare_env(&supra_framework);
+        // A root that is not 32 bytes long must not panic; it is treated as an invalid proof.
+        let root: vector<u8> = vector[0x8a, 0xad, 0x78];
+        let key: vector<u8> = b"doe";
+        let proof: vector<vector<u8>> = vector::empty();
+
+        let (flag_inclusion, _value) = verify_eth_trie_inclusion_proof(root, key, proof);
+        assert!(!flag_inclusion, 1);
+        let flag_exclusion = verify_eth_trie_exclusion_proof(root, key, proof);
+        assert!(!flag_exclusion, 2);
     }
 
     #[test(supra_framework = @supra_framework)]

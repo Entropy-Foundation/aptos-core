@@ -24,6 +24,11 @@ use std::{collections::VecDeque, sync::Arc};
 /// The minimum length (in bytes) for an encoded node to be stored by hash.
 const HASHED_LENGTH: usize = 32;
 
+/// Result returned when a proof cannot be verified: `(false, empty vector)`.
+fn invalid_proof_result() -> SmallVec<[Value; 1]> {
+    smallvec![Value::bool(false), Value::vector_u8(vec![])]
+}
+
 /// Native function for verifying an Ethereum Merkle Patricia Trie proof.
 ///
 /// # Arguments
@@ -56,17 +61,26 @@ pub fn native_verify_proof_eth_trie(
                 * NumBytes::new(total_proof_bytes),
     )?;
 
-    // Convert the root (a Vec<u8>) into a H256 hash.
+    // Convert the root (a Vec<u8>) into a H256 hash. A H256 is exactly 32 bytes, and
+    // `H256::from_slice` panics on any other length, so reject a malformed root up front and
+    // treat it as an invalid proof rather than crashing the native.
+    if root.len() != H256::len_bytes() {
+        return Ok(invalid_proof_result());
+    }
     let root_hash = H256::from_slice(&root);
 
     // Build a temporary in–memory DB from the proof nodes.
     let memdb = MemoryDB::new(true);
     let db = Arc::new(memdb);
     for node_encoded in proof.iter() {
-        let hash: H256 = keccak(&node_encoded).as_fixed_bytes().into();
+        let hash: H256 = keccak(node_encoded).as_fixed_bytes().into();
         // Insert the node if it is the root or if its encoded length is at least HASHED_LENGTH.
         if root_hash.eq(&hash) || node_encoded.len() >= HASHED_LENGTH {
-            db.insert(hash.as_bytes(), node_encoded.clone()).unwrap();
+            // `MemoryDB::insert` is currently infallible, but avoid an unwrap: on any error,
+            // the DB is incomplete so the proof cannot be verified.
+            if db.insert(hash.as_bytes(), node_encoded.clone()).is_err() {
+                return Ok(invalid_proof_result());
+            }
         }
     }
 
@@ -77,7 +91,7 @@ pub fn native_verify_proof_eth_trie(
     let value_opt = match trie.get(key.as_slice()) {
         Ok(value_opt) => value_opt,
         Err(_) => {
-            return Ok(smallvec![Value::bool(false), Value::vector_u8(vec![])]);
+            return Ok(invalid_proof_result());
         },
     };
 
