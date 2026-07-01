@@ -65,43 +65,22 @@ module supra_framework::evm_config {
         config: SimpleMap<String, u128>
     }
 
-    /// Publishes both the EVM contract address map and the scalar config map.
-    /// `contract_keys`/`contract_values` must be the same length and every address
-    /// must be a valid 20-byte EVM address (upper 12 bytes of the 32-byte Move
-    /// address must be zero).  `config_keys`/`config_values` must be the same
+    /// Publishes evm scalar config map.
+    /// `config_keys`/`config_values` must be the same
     /// length and must include all required keys (e.g. evm_gas_normalization_denom).
-    public(friend) fun initialize(
+    public(friend) fun initialize_scalar_config(
         supra_framework: &signer,
-        contract_keys: vector<String>,
-        contract_values: vector<address>,
         config_keys: vector<String>,
         config_values: vector<u128>
     ) {
         system_addresses::assert_supra_framework(supra_framework);
-        assert!(!vector::is_empty(&contract_keys), error::invalid_argument(EEMPTY_DATA));
         assert!(!vector::is_empty(&config_keys), error::invalid_argument(EEMPTY_DATA));
         let supra_framework_addr = signer::address_of(supra_framework);
-        assert!(!exists<EvmContractsDetails>(supra_framework_addr),error::invalid_state(ERESOURCE_ALREADY_EXISTS));
         assert!(!exists<EvmScalarConfig>(supra_framework_addr),error::invalid_state(ERESOURCE_ALREADY_EXISTS));
-        assert!(
-            vector::length(&contract_keys) == vector::length(&contract_values),
-            error::invalid_argument(EKEYS_VALUES_MISMATCH)
-        );
         assert!(
             vector::length(&config_keys) == vector::length(&config_values),
             error::invalid_argument(EKEYS_VALUES_MISMATCH)
         );
-        
-        // Check that no contract value is invalid EVM address
-        let all_valid_evm_address = vector::all(&contract_values,
-        |v|{ is_valid_evm_address(v) });
-        assert!(all_valid_evm_address, error::invalid_argument(EINVALID_EVM_ADDRESS));
-
-        let contract_details = EvmContractsDetails {
-            details: simple_map::new_from(contract_keys, contract_values)
-        };
-        move_to(supra_framework, contract_details);
-        event::emit(contract_details);
 
         let evm_config = EvmScalarConfig {
             config: simple_map::new_from(config_keys, config_values)
@@ -110,6 +89,37 @@ module supra_framework::evm_config {
         move_to(supra_framework, evm_config);
         event::emit(evm_config);
     }
+
+    /// Publishes EVM contract address map.
+    /// `contract_keys`/`contract_values` must be the same length and every address
+    /// must be a valid 20-byte EVM address (upper 12 bytes of the 32-byte Move
+    /// address must be zero).
+    public(friend) fun initialize_contracts_details(
+        supra_framework: &signer,
+        contract_keys: vector<String>,
+        contract_values: vector<address>,
+    ) {
+        system_addresses::assert_supra_framework(supra_framework);
+        assert!(!vector::is_empty(&contract_keys), error::invalid_argument(EEMPTY_DATA));
+        let supra_framework_addr = signer::address_of(supra_framework);
+        assert!(!exists<EvmContractsDetails>(supra_framework_addr),error::invalid_state(ERESOURCE_ALREADY_EXISTS));
+        assert!(
+            vector::length(&contract_keys) == vector::length(&contract_values),
+            error::invalid_argument(EKEYS_VALUES_MISMATCH)
+        );
+
+        // Check that no contract value is invalid EVM address
+        let all_valid_evm_address = vector::all(&contract_values,
+            |v|{ is_valid_evm_address(v) });
+        assert!(all_valid_evm_address, error::invalid_argument(EINVALID_EVM_ADDRESS));
+
+        let contract_details = EvmContractsDetails {
+            details: simple_map::new_from(contract_keys, contract_values)
+        };
+        move_to(supra_framework, contract_details);
+        event::emit(contract_details);
+    }
+
 
     /// This can be called by on-chain governance to update on-chain evm contract
     /// details for the next epoch.
@@ -165,7 +175,7 @@ module supra_framework::evm_config {
             error::invalid_argument(EKEYS_VALUES_MISMATCH)
         );
         if (!exists<EvmScalarConfig>(@supra_framework)) {
-            let evm_config = 
+            let evm_config =
                 EvmScalarConfig { config: simple_map::new_from(keys, values) };
             // Config did not exist earlier, so validate the config for
             // presence of required keys and value type match
@@ -414,7 +424,7 @@ module supra_framework::evm_config {
         let estimate_margin_key = std::string::utf8(CONFIG_KEY_EVM_GAS_ESTIMATE_MARGIN);
         let gas_used_ratio_key = std::string::utf8(SUPRA_EVM_GAS_USED_RATIO);
         let decimal_precision_key = std::string::utf8(SUPRA_EVM_GAS_USED_RATIO_DECIMAL_PRECISION);
-        
+
 
         let evm_config = EvmScalarConfig {
             config: simple_map::new_from(vector[config_key, estimate_margin_key, gas_used_ratio_key, decimal_precision_key], vector[100u128, 1000u128, 500u128, 1000u128])
@@ -477,7 +487,7 @@ module supra_framework::evm_config {
                 vector[100u128, 1000u128, 1500u128, 1000u128] // gas used ratio exceeds decimal precision -> must abort
             )
         };
-        validate_scalar_config(&evm_config);        
+        validate_scalar_config(&evm_config);
 
 }
 

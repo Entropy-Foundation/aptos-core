@@ -301,15 +301,22 @@ module supra_framework::genesis {
         evm_genesis_config::initialize(supra_framework, evm_genesis_config);
     }
 
-    /// Initialize the EVM config.
-    fun initialize_evm_config(
+    /// Initialize the EVM scalar config map.
+    fun initialize_evm_scalar_config(
         supra_framework: &signer,
-        contract_names: vector<String>,
-        contract_addresses: vector<address>,
         config_keys: vector<String>,
         config_values: vector<u128>
     ) {
-        evm_config::initialize(supra_framework, contract_names, contract_addresses, config_keys, config_values);
+        evm_config::initialize_scalar_config(supra_framework, config_keys, config_values);
+    }
+
+    /// Initialize the EVM contracts address map.
+    fun initialize_evm_contracts_details(
+        supra_framework: &signer,
+        contract_names: vector<String>,
+        contract_addresses: vector<address>,
+    ) {
+        evm_config::initialize_contracts_details(supra_framework, contract_names, contract_addresses);
     }
 
     /// Initialize the leader ban config

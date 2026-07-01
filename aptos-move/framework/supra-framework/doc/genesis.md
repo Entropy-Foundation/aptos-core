@@ -19,7 +19,8 @@
 -  [Function `initialize_supra_native_automation_v2`](#0x1_genesis_initialize_supra_native_automation_v2)
 -  [Function `initialize_core_resources_and_supra_coin`](#0x1_genesis_initialize_core_resources_and_supra_coin)
 -  [Function `initialize_evm_genesis_config`](#0x1_genesis_initialize_evm_genesis_config)
--  [Function `initialize_evm_config`](#0x1_genesis_initialize_evm_config)
+-  [Function `initialize_evm_scalar_config`](#0x1_genesis_initialize_evm_scalar_config)
+-  [Function `initialize_evm_contracts_details`](#0x1_genesis_initialize_evm_contracts_details)
 -  [Function `initialize_leader_ban_registry_config`](#0x1_genesis_initialize_leader_ban_registry_config)
 -  [Function `create_accounts`](#0x1_genesis_create_accounts)
 -  [Function `create_account`](#0x1_genesis_create_account)
@@ -849,14 +850,14 @@ Initialize the EVM genesis config.
 
 </details>
 
-<a id="0x1_genesis_initialize_evm_config"></a>
+<a id="0x1_genesis_initialize_evm_scalar_config"></a>
 
-## Function `initialize_evm_config`
+## Function `initialize_evm_scalar_config`
 
-Initialize the EVM config.
+Initialize the EVM scalar config map.
 
 
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize_evm_config">initialize_evm_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, contract_names: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, contract_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, config_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, config_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u128&gt;)
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize_evm_scalar_config">initialize_evm_scalar_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, config_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, config_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u128&gt;)
 </code></pre>
 
 
@@ -865,14 +866,41 @@ Initialize the EVM config.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize_evm_config">initialize_evm_config</a>(
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize_evm_scalar_config">initialize_evm_scalar_config</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    contract_names: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
-    contract_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
     config_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
     config_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u128&gt;
 ) {
-    <a href="evm_config.md#0x1_evm_config_initialize">evm_config::initialize</a>(supra_framework, contract_names, contract_addresses, config_keys, config_values);
+    <a href="evm_config.md#0x1_evm_config_initialize_scalar_config">evm_config::initialize_scalar_config</a>(supra_framework, config_keys, config_values);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_genesis_initialize_evm_contracts_details"></a>
+
+## Function `initialize_evm_contracts_details`
+
+Initialize the EVM contracts address map.
+
+
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize_evm_contracts_details">initialize_evm_contracts_details</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, contract_names: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, contract_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="genesis.md#0x1_genesis_initialize_evm_contracts_details">initialize_evm_contracts_details</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    contract_names: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
+    contract_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
+) {
+    <a href="evm_config.md#0x1_evm_config_initialize_contracts_details">evm_config::initialize_contracts_details</a>(supra_framework, contract_names, contract_addresses);
 }
 </code></pre>
 

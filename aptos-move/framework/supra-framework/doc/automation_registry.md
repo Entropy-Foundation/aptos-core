@@ -4939,8 +4939,8 @@ May only be called by the VM (enforced via <code><a href="system_addresses.md#0x
 This is the runtime-side remedy for tasks registered through
 <code>register_without_validation</code>: because that path skips BCS/entry-function checks,
 a malformed payload may reach the scheduler and fail repeatedly. The runtime calls
-this function to remove the task immediately, refund the owner in full (same policy
-as a voluntary <code>stop_tasks</code> call), and emit a diagnostic event so the owner can see
+this function to remove the task immediately, refund the owner applying the same policy
+as a voluntary <code>stop_tasks</code> call, and emit a diagnostic event so the owner can see
 why the task was cancelled.
 
 Two events are emitted:
