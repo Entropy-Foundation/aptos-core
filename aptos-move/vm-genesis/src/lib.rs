@@ -31,7 +31,7 @@ use aptos_types::{
     },
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{
-        APTOS_MAX_KNOWN_VERSION, AutomationRegistryConfig, BanRegistryParameters, BanRegistryParametersV0, FeatureFlag, Features, GasScheduleV2, OnChainConsensusConfig, OnChainEvmGenesisConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig, RandomnessConfigMoveStruct, randomness_api_v0_config::{AllowCustomMaxGasFlag, RequiredGasDeposit}
+        APTOS_MAX_KNOWN_VERSION, AutomationRegistryConfig, BanRegistryParameters, FeatureFlag, Features, GasScheduleV2, OnChainConsensusConfig, OnChainEvmGenesisConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig, RandomnessConfigMoveStruct, randomness_api_v0_config::{AllowCustomMaxGasFlag, RequiredGasDeposit}
     },
     transaction::{authenticator::AuthenticationKey, ChangeSet, Transaction, WriteSetPayload},
     validator_public_keys::ValidatorPublicKeys,
@@ -351,8 +351,12 @@ pub fn encode_genesis_change_set_for_testnet(
         initialize_evm_genesis_config(&mut session, &evm_genesis_config);
     }
 
-    if let (Some(evm_contracts_details), Some(evm_scalar_config)) = (evm_contracts_details, evm_scalar_config) {
-        initialize_evm_config(&mut session, evm_contracts_details, evm_scalar_config);
+    if let Some(evm_contracts_details) = evm_contracts_details {
+        initialize_evm_contracts_details(&mut session, evm_contracts_details);
+    }
+
+    if let Some(evm_scalar_config) = evm_scalar_config {
+        initialize_evm_scalar_config(&mut session, evm_scalar_config);
     }
 
     create_accounts(&mut session, accounts);
@@ -631,26 +635,42 @@ fn initialize_evm_genesis_config(
     );
 }
 
-fn initialize_evm_config(
+fn initialize_evm_scalar_config(
     session: &mut SessionExt,
-    evm_contracts_details: OnChainEvmContractsDetails,
     evm_scalar_config: OnChainEvmConfig,
 ) {
 
-    let (contract_names, contract_addresses) = evm_contracts_details.to_move_values();
     let (config_keys, config_values) = evm_scalar_config.to_move_values();
 
     exec_function(
         session,
         GENESIS_MODULE_NAME,
-        "initialize_evm_config",
+        "initialize_evm_scalar_config",
+        vec![],
+        serialize_values(&vec![
+            MoveValue::Signer(CORE_CODE_ADDRESS),
+            config_keys,
+            config_values
+        ]),
+    );
+}
+
+fn initialize_evm_contracts_details(
+    session: &mut SessionExt,
+    evm_contracts_details: OnChainEvmContractsDetails,
+) {
+
+    let (contract_names, contract_addresses) = evm_contracts_details.to_move_values();
+
+    exec_function(
+        session,
+        GENESIS_MODULE_NAME,
+        "initialize_evm_contracts_details",
         vec![],
         serialize_values(&vec![
             MoveValue::Signer(CORE_CODE_ADDRESS),
             contract_names,
             contract_addresses,
-            config_keys,
-            config_values
         ]),
     );
 }

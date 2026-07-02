@@ -1453,8 +1453,8 @@ module supra_framework::automation_registry {
     /// This is the runtime-side remedy for tasks registered through
     /// `register_without_validation`: because that path skips BCS/entry-function checks,
     /// a malformed payload may reach the scheduler and fail repeatedly. The runtime calls
-    /// this function to remove the task immediately, refund the owner in full (same policy
-    /// as a voluntary `stop_tasks` call), and emit a diagnostic event so the owner can see
+    /// this function to remove the task immediately, refund the owner applying the same policy
+    /// as a voluntary `stop_tasks` call, and emit a diagnostic event so the owner can see
     /// why the task was cancelled.
     ///
     /// Two events are emitted:

@@ -44,7 +44,7 @@ fn run_on_large_stack<F: FnOnce() + Send + 'static>(f: F) {
 
 /// Raw abort code emitted by `automation_registry` when a required feature is disabled.
 /// This is NOT wrapped with error::invalid_state — it is the plain u64 constant 15.
-const EDISABLED_AUTOMATION_FEATURE: u64 = 15;
+const EDISABLED_AUTOMATION_V2_1_FEATURE: u64 = 49;
 
 // -----------------------------------------------------------------------
 // Helpers
@@ -279,6 +279,6 @@ fn test_register_without_validation_feature_disabled_aborts() {
                 bcs::to_bytes(&user_aux_data()).unwrap(),
             ],
         );
-        assert_abort!(status, EDISABLED_AUTOMATION_FEATURE);
+        assert_abort!(status, EDISABLED_AUTOMATION_V2_1_FEATURE);
     });
 }
