@@ -9,6 +9,7 @@ use crate::{
     gas_schedule::NativeGasParameters,
     ver::gas_feature_versions::{
         RELEASE_V1_12, RELEASE_V1_13, RELEASE_V1_16_SUPRA_V1_6_0, RELEASE_V1_16_SUPRA_V1_7_14,
+        RELEASE_V1_16_SUPRA_V1_9_0,
     },
 };
 use aptos_gas_algebra::{
@@ -294,6 +295,8 @@ crate::gas_schedule::macros::define_gas_parameters!(
         [transaction_context_entry_function_payload_per_byte_in_str: InternalGasPerByte, {RELEASE_V1_12.. => "transaction_context.entry_function_payload.per_abstract_memory_unit"}, 18],
         [transaction_context_multisig_payload_base: InternalGas, {RELEASE_V1_12.. => "transaction_context.multisig_payload.base"}, 735],
         [transaction_context_multisig_payload_per_byte_in_str: InternalGasPerByte, {RELEASE_V1_12.. => "transaction_context.multisig_payload.per_abstract_memory_unit"}, 18],
+        // Cost matches other fixed-size hash-return natives (get_txn_hash, sender, fee_payer, etc.)
+        [transaction_context_get_txn_consensus_hash_base: InternalGas, {RELEASE_V1_16_SUPRA_V1_9_0 .. => "transaction_context.get_transaction_consensus_hash.base"}, 735],
 
         [code_request_publish_base: InternalGas, "code.request_publish.base", 1838],
         [code_request_publish_per_byte: InternalGasPerByte, "code.request_publish.per_byte", 7],

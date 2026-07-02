@@ -2040,6 +2040,13 @@ impl ArgWithType {
         match self._ty {
             FunctionArgType::Address => self.bcs_value_to_json::<AccountAddress>(),
             FunctionArgType::Bool => self.bcs_value_to_json::<bool>(),
+            // The Supra RPC view endpoint expects a `vector<u8>` argument as a hex string, not a JSON array of bytes.
+            FunctionArgType::Hex if self._vector_depth == 0 => {
+                let bytes = bcs::from_bytes::<Vec<u8>>(&self.arg)
+                    .map_err(|err| CliError::UnexpectedError(err.to_string()))?;
+                serde_json::to_value(HexEncodedBytes(bytes).to_string())
+                    .map_err(|err| CliError::UnexpectedError(err.to_string()))
+            },
             FunctionArgType::Hex => self.bcs_value_to_json::<Vec<u8>>(),
             FunctionArgType::String => self.bcs_value_to_json::<String>(),
             FunctionArgType::U8 => self.bcs_value_to_json::<u8>(),

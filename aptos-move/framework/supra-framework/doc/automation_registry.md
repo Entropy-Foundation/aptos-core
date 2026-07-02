@@ -42,6 +42,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Struct `TaskCancelledInsufficentBalanceV2`](#0x1_automation_registry_TaskCancelledInsufficentBalanceV2)
 -  [Struct `TaskCancelledCapacitySurpassed`](#0x1_automation_registry_TaskCancelledCapacitySurpassed)
 -  [Struct `TaskCancelledCapacitySurpassedV2`](#0x1_automation_registry_TaskCancelledCapacitySurpassedV2)
+-  [Struct `TaskCancelledByRuntime`](#0x1_automation_registry_TaskCancelledByRuntime)
 -  [Struct `RemovedTasks`](#0x1_automation_registry_RemovedTasks)
 -  [Struct `ActiveTasks`](#0x1_automation_registry_ActiveTasks)
 -  [Struct `ErrorTaskDoesNotExist`](#0x1_automation_registry_ErrorTaskDoesNotExist)
@@ -107,7 +108,9 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `grant_authorization`](#0x1_automation_registry_grant_authorization)
 -  [Function `revoke_authorization`](#0x1_automation_registry_revoke_authorization)
 -  [Function `cancel_task`](#0x1_automation_registry_cancel_task)
+-  [Function `stop_tasks_internal`](#0x1_automation_registry_stop_tasks_internal)
 -  [Function `stop_tasks`](#0x1_automation_registry_stop_tasks)
+-  [Function `cancel_invalid_task`](#0x1_automation_registry_cancel_invalid_task)
 -  [Function `stop_system_tasks`](#0x1_automation_registry_stop_system_tasks)
 -  [Function `cancel_system_task`](#0x1_automation_registry_cancel_system_task)
 -  [Function `initialize_refund_bookkeeping_resource`](#0x1_automation_registry_initialize_refund_bookkeeping_resource)
@@ -116,7 +119,9 @@ This contract is part of the Supra Framework and is designed to manage automated
 -  [Function `monitor_cycle_end`](#0x1_automation_registry_monitor_cycle_end)
 -  [Function `on_new_epoch`](#0x1_automation_registry_on_new_epoch)
 -  [Function `register`](#0x1_automation_registry_register)
+-  [Function `register_without_validation`](#0x1_automation_registry_register_without_validation)
 -  [Function `register_system_task`](#0x1_automation_registry_register_system_task)
+-  [Function `register_system_task_without_validation`](#0x1_automation_registry_register_system_task_without_validation)
 -  [Function `process_tasks`](#0x1_automation_registry_process_tasks)
 -  [Function `on_cycle_transition`](#0x1_automation_registry_on_cycle_transition)
 -  [Function `on_cycle_suspend`](#0x1_automation_registry_on_cycle_suspend)
@@ -187,6 +192,7 @@ This contract is part of the Supra Framework and is designed to manage automated
 <b>use</b> <a href="supra_coin.md#0x1_supra_coin">0x1::supra_coin</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="timestamp.md#0x1_timestamp">0x1::timestamp</a>;
+<b>use</b> <a href="transaction_context.md#0x1_transaction_context">0x1::transaction_context</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 <b>use</b> <a href="../../supra-stdlib/doc/vector_utils.md#0x1_vector_utils">0x1::vector_utils</a>;
 </code></pre>
@@ -1815,6 +1821,57 @@ Event emitted when an automation task is cancelled due to automation fee capacit
 
 </details>
 
+<a id="0x1_automation_registry_TaskCancelledByRuntime"></a>
+
+## Struct `TaskCancelledByRuntime`
+
+Emitted when the VM/runtime cancels a task that was registered without payload
+validation and was later found to be invalid. The <code>diagnostic_message</code> is a
+human-readable explanation provided by the runtime (e.g. BCS decode error, unknown
+entry function). Consumers should use this event -- rather than <code><a href="automation_registry.md#0x1_automation_registry_TasksStoppedV2">TasksStoppedV2</a></code> alone --
+to distinguish runtime-driven cancellations from voluntary owner-initiated stops.
+
+
+<pre><code>#[<a href="event.md#0x1_event">event</a>]
+<b>struct</b> <a href="automation_registry.md#0x1_automation_registry_TaskCancelledByRuntime">TaskCancelledByRuntime</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>task_index: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>owner: <b>address</b></code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>registration_hash: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>diagnostic_message: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a></code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
 <a id="0x1_automation_registry_RemovedTasks"></a>
 
 ## Struct `RemovedTasks`
@@ -2555,6 +2612,17 @@ Supra native automation feature is not initialized or enabled
 
 
 <pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>: u64 = 15;
+</code></pre>
+
+
+
+<a id="0x1_automation_registry_EDISABLED_AUTOMATION_V2_1_FEATURE"></a>
+
+Supra automation v2.1 feature is not enabled. Distinct from EDISABLED_AUTOMATION_FEATURE
+(which covers the base automation feature) so callers can tell the two conditions apart.
+
+
+<pre><code><b>const</b> <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_V2_1_FEATURE">EDISABLED_AUTOMATION_V2_1_FEATURE</a>: u64 = 49;
 </code></pre>
 
 
@@ -4685,18 +4753,19 @@ Committed gas-limit is updated by reducing it with the max-gas-amount of the can
 
 </details>
 
-<a id="0x1_automation_registry_stop_tasks"></a>
+<a id="0x1_automation_registry_stop_tasks_internal"></a>
 
-## Function `stop_tasks`
+## Function `stop_tasks_internal`
 
-Immediately stops automation tasks for the specified <code>task_indexes</code>.
-Only tasks that exist and are owned by the sender can be stopped.
-If any of the specified tasks are not owned by the sender, the transaction will abort.
-When a task is stopped, the committed gas for the next epoch is reduced
-by the max gas amount of the stopped task. Half of the remaining task fee is refunded.
+Core logic for immediately stopping a set of user automation tasks owned by <code>owner</code>.
+
+Extracted from the public entry <code>stop_tasks</code> so the same refund-and-removal path can be
+reused by the VM-only <code>cancel_invalid_task</code> without requiring a signer from the owner.
+Callers are responsible for ensuring <code>owner</code> is the legitimate task owner before calling;
+the per-task ownership assert inside this function provides a defence-in-depth check.
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_stop_tasks">stop_tasks</a>(owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_stop_tasks_internal">stop_tasks_internal</a>(owner: <b>address</b>, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
 </code></pre>
 
 
@@ -4705,8 +4774,8 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_stop_tasks">stop_tasks</a>(
-    owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_stop_tasks_internal">stop_tasks_internal</a>(
+    owner: <b>address</b>,
     task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;
 ) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_native_automation_enabled">features::supra_native_automation_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_FEATURE">EDISABLED_AUTOMATION_FEATURE</a>);
@@ -4715,7 +4784,6 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
     // Ensure that task indexes are provided
     <b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&task_indexes), <a href="automation_registry.md#0x1_automation_registry_EEMPTY_TASK_INDEXES">EEMPTY_TASK_INDEXES</a>);
 
-    <b>let</b> owner = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer);
     <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = &<b>mut</b> <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>&gt;(@supra_framework).main;
     <b>let</b> arc = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>&gt;(@supra_framework).main_config;
     <b>let</b> refund_bookkeeping = <b>borrow_global_mut</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a>&gt;(@supra_framework);
@@ -4822,6 +4890,110 @@ by the max gas amount of the stopped task. Half of the remaining task fee is ref
             owner
         });
     };
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_stop_tasks"></a>
+
+## Function `stop_tasks`
+
+Immediately stops automation tasks for the specified <code>task_indexes</code>.
+Only tasks that exist and are owned by the sender can be stopped.
+If any of the specified tasks are not owned by the sender, the transaction will abort.
+When a task is stopped, the committed gas for the next epoch is reduced
+by the max gas amount of the stopped task. Half of the remaining task fee is refunded.
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_stop_tasks">stop_tasks</a>(owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_stop_tasks">stop_tasks</a>(
+    owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    task_indexes: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u64&gt;
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
+    <a href="automation_registry.md#0x1_automation_registry_stop_tasks_internal">stop_tasks_internal</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(owner_signer), task_indexes)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_cancel_invalid_task"></a>
+
+## Function `cancel_invalid_task`
+
+Cancels a single automation task that the runtime has determined to be invalid.
+May only be called by the VM (enforced via <code><a href="system_addresses.md#0x1_system_addresses_assert_vm">system_addresses::assert_vm</a></code>).
+
+This is the runtime-side remedy for tasks registered through
+<code>register_without_validation</code>: because that path skips BCS/entry-function checks,
+a malformed payload may reach the scheduler and fail repeatedly. The runtime calls
+this function to remove the task immediately, refund the owner applying the same policy
+as a voluntary <code>stop_tasks</code> call, and emit a diagnostic event so the owner can see
+why the task was cancelled.
+
+Two events are emitted:
+- <code><a href="automation_registry.md#0x1_automation_registry_TasksStoppedV2">TasksStoppedV2</a></code>          (fee refund amounts, via <code>stop_tasks_internal</code>)
+- <code><a href="automation_registry.md#0x1_automation_registry_TaskCancelledByRuntime">TaskCancelledByRuntime</a></code>  (task identity + human-readable diagnostic message)
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_cancel_invalid_task">cancel_invalid_task</a>(vm: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, task_index: u64, diagnostic_message: <a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="automation_registry.md#0x1_automation_registry_cancel_invalid_task">cancel_invalid_task</a>(
+    vm: <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    task_index: u64,
+    diagnostic_message: std::string::String,
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
+    // Guard: only the VM may trigger runtime cancellation.
+    <a href="system_addresses.md#0x1_system_addresses_assert_vm">system_addresses::assert_vm</a>(&vm);
+
+    // Read owner <b>address</b> and registration <a href="../../aptos-stdlib/../move-stdlib/doc/hash.md#0x1_hash">hash</a> before the mutable borrow inside
+    // stop_tasks_internal. <a href="automation_registry.md#0x1_automation_registry_AutomationTaskMetaData">AutomationTaskMetaData</a> <b>has</b> `<b>copy</b>` ability, so
+    // <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a> returns an owned <b>copy</b> -- no live reference survives
+    // this <a href="block.md#0x1_block">block</a>, allowing the subsequent mutable borrow <b>to</b> proceed without conflict.
+    <b>let</b> owner;
+    <b>let</b> registration_hash;
+    {
+        <b>let</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a> = <b>borrow_global</b>&lt;<a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>&gt;(@supra_framework);
+        <b>assert</b>!(
+            <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_contains">enumerable_map::contains</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.main.tasks, task_index),
+            <a href="automation_registry.md#0x1_automation_registry_EAUTOMATION_TASK_NOT_FOUND">EAUTOMATION_TASK_NOT_FOUND</a>
+        );
+        <b>let</b> task = <a href="../../supra-stdlib/doc/enumerable_map.md#0x1_enumerable_map_get_value">enumerable_map::get_value</a>(&<a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.main.tasks, task_index);
+        owner = task.owner;
+        registration_hash = task.tx_hash;
+    };
+
+    // Perform the full refund and removal -- same path <b>as</b> a voluntary stop_tasks call.
+    // Also <b>emits</b> <a href="automation_registry.md#0x1_automation_registry_TasksStoppedV2">TasksStoppedV2</a> <b>with</b> the per-task fee detail.
+    <a href="automation_registry.md#0x1_automation_registry_stop_tasks_internal">stop_tasks_internal</a>(owner, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[task_index]);
+
+    // Emit the runtime-specific <a href="event.md#0x1_event">event</a> so indexers/explorers can surface the diagnostic
+    // message <b>to</b> the owner rather than showing only an unexplained stop.
+    <a href="event.md#0x1_event_emit">event::emit</a>(<a href="automation_registry.md#0x1_automation_registry_TaskCancelledByRuntime">TaskCancelledByRuntime</a> {
+        task_index,
+        owner,
+        registration_hash,
+        diagnostic_message,
+    });
 }
 </code></pre>
 
@@ -5449,6 +5621,62 @@ Registers a new automation task entry.
 
 </details>
 
+<a id="0x1_automation_registry_register_without_validation"></a>
+
+## Function `register_without_validation`
+
+Registers a new automation task from a smart contract call.
+
+Unlike the <code>AutomationRegistrationPayload</code> transaction path (which calls the private
+<code>register</code> via the VM and performs full payload validation before execution), this
+function does NOT validate that <code>payload_tx</code> encodes a well-formed entry function with
+correct parameter types. If the payload is malformed, the task will fail silently at
+execution time and the caller will have paid registration and deposit fees for nothing.
+The caller is responsible for providing a valid BCS-encoded <code>EntryFunction</code> payload.
+
+The required consenus hash of the transaciton registering the task is obtained from native
+layer.
+
+Requires both <code>supra_native_automation_enabled</code> and <code>supra_automation_v2_1_enabled</code>.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register_without_validation">register_without_validation</a>(owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, expiry_time: u64, max_gas_amount: u64, gas_price_cap: u64, automation_fee_cap_for_epoch: u64, aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register_without_validation">register_without_validation</a>(
+    owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    expiry_time: u64,
+    max_gas_amount: u64,
+    gas_price_cap: u64,
+    automation_fee_cap_for_epoch: u64,
+    aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationRefundBookkeeping">AutomationRefundBookkeeping</a> {
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_automation_v2_1_enabled">features::supra_automation_v2_1_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_V2_1_FEATURE">EDISABLED_AUTOMATION_V2_1_FEATURE</a>);
+    <b>let</b> tx_hash = supra_framework::transaction_context::get_transaction_consensus_hash();
+    <a href="automation_registry.md#0x1_automation_registry_register">register</a>(
+        owner_signer,
+        payload_tx,
+        expiry_time,
+        max_gas_amount,
+        gas_price_cap,
+        automation_fee_cap_for_epoch,
+        tx_hash,
+        aux_data,
+    )
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_automation_registry_register_system_task"></a>
 
 ## Function `register_system_task`
@@ -5543,6 +5771,58 @@ Note, system tasks are not charged registration and deposit fee.
     <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> <a href="automation_registry.md#0x1_automation_registry">automation_registry</a>.system_tasks_state.task_ids, task_index);
 
     <a href="event.md#0x1_event_emit">event::emit</a>(automation_task_metadata);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_automation_registry_register_system_task_without_validation"></a>
+
+## Function `register_system_task_without_validation`
+
+Registers a new system automation task from a smart contract call.
+
+Unlike the <code>AutomationRegistrationPayload</code> transaction path (which calls the private
+<code>register_system_task</code> via the VM and performs full payload validation before execution), this
+function does NOT validate that <code>payload_tx</code> encodes a well-formed entry function with
+correct parameter types. If the payload is malformed, the task will fail silently at
+execution time and the caller will have paid registration and deposit fees for nothing.
+The caller is responsible for providing a valid BCS-encoded <code>EntryFunction</code> payload.
+
+The required consenus hash of the transaciton registering the task is obtained from native
+layer.
+
+Requires both <code>supra_native_automation_enabled</code> and <code>supra_automation_v2_1_enabled</code>.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register_system_task_without_validation">register_system_task_without_validation</a>(owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, expiry_time: u64, max_gas_amount: u64, aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="automation_registry.md#0x1_automation_registry_register_system_task_without_validation">register_system_task_without_validation</a>(
+    owner_signer: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    payload_tx: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    expiry_time: u64,
+    max_gas_amount: u64,
+    aux_data: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
+) <b>acquires</b> <a href="automation_registry.md#0x1_automation_registry_AutomationRegistryV2">AutomationRegistryV2</a>, <a href="automation_registry.md#0x1_automation_registry_AutomationCycleDetails">AutomationCycleDetails</a>, <a href="automation_registry.md#0x1_automation_registry_ActiveAutomationRegistryConfigV2">ActiveAutomationRegistryConfigV2</a> {
+    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_automation_v2_1_enabled">features::supra_automation_v2_1_enabled</a>(), <a href="automation_registry.md#0x1_automation_registry_EDISABLED_AUTOMATION_V2_1_FEATURE">EDISABLED_AUTOMATION_V2_1_FEATURE</a>);
+    <b>let</b> tx_hash = supra_framework::transaction_context::get_transaction_consensus_hash();
+    <a href="automation_registry.md#0x1_automation_registry_register_system_task">register_system_task</a>(
+        owner_signer,
+        payload_tx,
+        expiry_time,
+        max_gas_amount,
+        tx_hash,
+        aux_data,
+    )
 }
 </code></pre>
 

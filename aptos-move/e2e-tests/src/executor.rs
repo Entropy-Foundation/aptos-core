@@ -502,8 +502,9 @@ impl FakeExecutor {
     /// Executes the transaction as a singleton block and applies the resulting write set to the
     /// data store. Panics if execution fails
     pub fn execute_and_apply_transaction(&mut self, transaction: Transaction) -> TransactionOutput {
-        let mut outputs = self.execute_transaction_block(vec![transaction]).unwrap();
+        let mut outputs = self.execute_transaction_block(vec![transaction.clone()]).unwrap();
         assert_eq!(outputs.len(), 1, "transaction outputs size mismatch");
+        println!("transaction execution output: {:#?} : {:#?}", outputs, transaction);
         let output = outputs.pop().unwrap();
         match output.status() {
             TransactionStatus::Keep(status) => {
@@ -522,8 +523,8 @@ impl FakeExecutor {
                 assert_eq!(
                     status,
                     &ExecutionStatus::Success,
-                    "transaction failed with {:?}",
-                    status
+                    "transaction failed with {:?}, {:?}",
+                    status,  transaction
                 );
                 output
             },

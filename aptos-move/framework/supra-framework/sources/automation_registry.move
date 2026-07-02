@@ -137,6 +137,9 @@ module supra_framework::automation_registry {
     const EUNKNOWN_MULTISIG_ADDRESS: u64 = 47;
     /// The refund fee for remaining cycle time is greater than total cycle fee for the task.
     const EINVALID_CYCLE_REFUND_FEE: u64 = 48;
+    /// Supra automation v2.1 feature is not enabled. Distinct from EDISABLED_AUTOMATION_FEATURE
+    /// (which covers the base automation feature) so callers can tell the two conditions apart.
+    const EDISABLED_AUTOMATION_V2_1_FEATURE: u64 = 49;
 
     /// The length of the transaction hash.
     const TXN_HASH_LENGTH: u64 = 32;
@@ -637,6 +640,19 @@ module supra_framework::automation_registry {
         fee: u64,
         automation_fee_cap: u64,
         registration_hash: vector<u8>
+    }
+
+    #[event]
+    /// Emitted when the VM/runtime cancels a task that was registered without payload
+    /// validation and was later found to be invalid. The `diagnostic_message` is a
+    /// human-readable explanation provided by the runtime (e.g. BCS decode error, unknown
+    /// entry function). Consumers should use this event -- rather than `TasksStoppedV2` alone --
+    /// to distinguish runtime-driven cancellations from voluntary owner-initiated stops.
+    struct TaskCancelledByRuntime has drop, store {
+        task_index: u64,
+        owner: address,
+        registration_hash: vector<u8>,
+        diagnostic_message: std::string::String,
     }
 
     #[event]
@@ -1295,13 +1311,14 @@ module supra_framework::automation_registry {
         event::emit(TaskCancelledV2 { task_index: automation_task_metadata.task_index, owner, registration_hash: automation_task_metadata.tx_hash });
     }
 
-    /// Immediately stops automation tasks for the specified `task_indexes`.
-    /// Only tasks that exist and are owned by the sender can be stopped.
-    /// If any of the specified tasks are not owned by the sender, the transaction will abort.
-    /// When a task is stopped, the committed gas for the next epoch is reduced
-    /// by the max gas amount of the stopped task. Half of the remaining task fee is refunded.
-    public entry fun stop_tasks(
-        owner_signer: &signer,
+    /// Core logic for immediately stopping a set of user automation tasks owned by `owner`.
+    ///
+    /// Extracted from the public entry `stop_tasks` so the same refund-and-removal path can be
+    /// reused by the VM-only `cancel_invalid_task` without requiring a signer from the owner.
+    /// Callers are responsible for ensuring `owner` is the legitimate task owner before calling;
+    /// the per-task ownership assert inside this function provides a defence-in-depth check.
+    fun stop_tasks_internal(
+        owner: address,
         task_indexes: vector<u64>
     ) acquires AutomationRegistryV2, ActiveAutomationRegistryConfigV2, AutomationCycleDetails, AutomationRefundBookkeeping {
         assert!(features::supra_native_automation_enabled(), EDISABLED_AUTOMATION_FEATURE);
@@ -1310,7 +1327,6 @@ module supra_framework::automation_registry {
         // Ensure that task indexes are provided
         assert!(!vector::is_empty(&task_indexes), EEMPTY_TASK_INDEXES);
 
-        let owner = signer::address_of(owner_signer);
         let automation_registry = &mut borrow_global_mut<AutomationRegistryV2>(@supra_framework).main;
         let arc = borrow_global<ActiveAutomationRegistryConfigV2>(@supra_framework).main_config;
         let refund_bookkeeping = borrow_global_mut<AutomationRefundBookkeeping>(@supra_framework);
@@ -1417,6 +1433,70 @@ module supra_framework::automation_registry {
                 owner
             });
         };
+    }
+
+    /// Immediately stops automation tasks for the specified `task_indexes`.
+    /// Only tasks that exist and are owned by the sender can be stopped.
+    /// If any of the specified tasks are not owned by the sender, the transaction will abort.
+    /// When a task is stopped, the committed gas for the next epoch is reduced
+    /// by the max gas amount of the stopped task. Half of the remaining task fee is refunded.
+    public entry fun stop_tasks(
+        owner_signer: &signer,
+        task_indexes: vector<u64>
+    ) acquires AutomationRegistryV2, ActiveAutomationRegistryConfigV2, AutomationCycleDetails, AutomationRefundBookkeeping {
+        stop_tasks_internal(signer::address_of(owner_signer), task_indexes)
+    }
+
+    /// Cancels a single automation task that the runtime has determined to be invalid.
+    /// May only be called by the VM (enforced via `system_addresses::assert_vm`).
+    ///
+    /// This is the runtime-side remedy for tasks registered through
+    /// `register_without_validation`: because that path skips BCS/entry-function checks,
+    /// a malformed payload may reach the scheduler and fail repeatedly. The runtime calls
+    /// this function to remove the task immediately, refund the owner applying the same policy
+    /// as a voluntary `stop_tasks` call, and emit a diagnostic event so the owner can see
+    /// why the task was cancelled.
+    ///
+    /// Two events are emitted:
+    ///   - `TasksStoppedV2`          (fee refund amounts, via `stop_tasks_internal`)
+    ///   - `TaskCancelledByRuntime`  (task identity + human-readable diagnostic message)
+    fun cancel_invalid_task(
+        vm: signer,
+        task_index: u64,
+        diagnostic_message: std::string::String,
+    ) acquires AutomationRegistryV2, ActiveAutomationRegistryConfigV2, AutomationCycleDetails, AutomationRefundBookkeeping {
+        // Guard: only the VM may trigger runtime cancellation.
+        system_addresses::assert_vm(&vm);
+
+        // Read owner address and registration hash before the mutable borrow inside
+        // stop_tasks_internal. AutomationTaskMetaData has `copy` ability, so
+        // enumerable_map::get_value returns an owned copy -- no live reference survives
+        // this block, allowing the subsequent mutable borrow to proceed without conflict.
+        let owner;
+        let registration_hash;
+        {
+            let automation_registry = borrow_global<AutomationRegistryV2>(@supra_framework);
+            assert!(
+                enumerable_map::contains(&automation_registry.main.tasks, task_index),
+                EAUTOMATION_TASK_NOT_FOUND
+            );
+            let task = enumerable_map::get_value(&automation_registry.main.tasks, task_index);
+            owner = task.owner;
+            registration_hash = task.tx_hash;
+        };
+
+        // Perform the full refund and removal -- same path as a voluntary stop_tasks call.
+        // Also emits TasksStoppedV2 with the per-task fee detail.
+        stop_tasks_internal(owner, vector[task_index]);
+
+        // Emit the runtime-specific event so indexers/explorers can surface the diagnostic
+        // message to the owner rather than showing only an unexplained stop.
+        event::emit(TaskCancelledByRuntime {
+            task_index,
+            owner,
+            registration_hash,
+            diagnostic_message,
+        });
     }
 
     /// Immediately stops system automation tasks for the specified `task_indexes`.
@@ -1886,6 +1966,42 @@ module supra_framework::automation_registry {
         event::emit(automation_task_metadata);
     }
 
+    /// Registers a new automation task from a smart contract call.
+    ///
+    /// Unlike the `AutomationRegistrationPayload` transaction path (which calls the private
+    /// `register` via the VM and performs full payload validation before execution), this
+    /// function does NOT validate that `payload_tx` encodes a well-formed entry function with
+    /// correct parameter types. If the payload is malformed, the task will fail silently at
+    /// execution time and the caller will have paid registration and deposit fees for nothing.
+    /// The caller is responsible for providing a valid BCS-encoded `EntryFunction` payload.
+    ///
+    /// The required consenus hash of the transaciton registering the task is obtained from native
+    /// layer.
+    ///
+    /// Requires both `supra_native_automation_enabled` and `supra_automation_v2_1_enabled`.
+    public fun register_without_validation(
+        owner_signer: &signer,
+        payload_tx: vector<u8>,
+        expiry_time: u64,
+        max_gas_amount: u64,
+        gas_price_cap: u64,
+        automation_fee_cap_for_epoch: u64,
+        aux_data: vector<vector<u8>>
+    ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2, AutomationRefundBookkeeping {
+        assert!(features::supra_automation_v2_1_enabled(), EDISABLED_AUTOMATION_V2_1_FEATURE);
+        let tx_hash = supra_framework::transaction_context::get_transaction_consensus_hash();
+        register(
+            owner_signer,
+            payload_tx,
+            expiry_time,
+            max_gas_amount,
+            gas_price_cap,
+            automation_fee_cap_for_epoch,
+            tx_hash,
+            aux_data,
+        )
+    }
+
     /// Registers a new system automation task entry.
     /// Note, system tasks are not charged registration and deposit fee.
     fun register_system_task(
@@ -1965,6 +2081,38 @@ module supra_framework::automation_registry {
         vector::push_back(&mut automation_registry.system_tasks_state.task_ids, task_index);
 
         event::emit(automation_task_metadata);
+    }
+
+    /// Registers a new system automation task from a smart contract call.
+    ///
+    /// Unlike the `AutomationRegistrationPayload` transaction path (which calls the private
+    /// `register_system_task` via the VM and performs full payload validation before execution), this
+    /// function does NOT validate that `payload_tx` encodes a well-formed entry function with
+    /// correct parameter types. If the payload is malformed, the task will fail silently at
+    /// execution time and the caller will have paid registration and deposit fees for nothing.
+    /// The caller is responsible for providing a valid BCS-encoded `EntryFunction` payload.
+    ///
+    /// The required consenus hash of the transaciton registering the task is obtained from native
+    /// layer.
+    ///
+    /// Requires both `supra_native_automation_enabled` and `supra_automation_v2_1_enabled`.
+    public fun register_system_task_without_validation(
+        owner_signer: &signer,
+        payload_tx: vector<u8>,
+        expiry_time: u64,
+        max_gas_amount: u64,
+        aux_data: vector<vector<u8>>
+    ) acquires AutomationRegistryV2, AutomationCycleDetails, ActiveAutomationRegistryConfigV2 {
+        assert!(features::supra_automation_v2_1_enabled(), EDISABLED_AUTOMATION_V2_1_FEATURE);
+        let tx_hash = supra_framework::transaction_context::get_transaction_consensus_hash();
+        register_system_task(
+            owner_signer,
+            payload_tx,
+            expiry_time,
+            max_gas_amount,
+            tx_hash,
+            aux_data,
+        )
     }
 
 

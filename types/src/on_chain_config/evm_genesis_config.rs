@@ -1,9 +1,7 @@
-// Copyright (c) Aptos Foundation
-// SPDX-License-Identifier: Apache-2.0
-
 // Copyright (c) Supra Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt::Display;
 use super::OnChainConfig;
 use crate::chain_id::ChainId;
 use anyhow::{anyhow, Result};
@@ -21,7 +19,18 @@ pub struct OnChainEvmGenesisConfig {
     /// The EOA configurations for pre-funding at genesis.
     pub eoas: Vec<GenesisEvmEOA>,
     /// The contract configurations for deployment at genesis.
-    pub contracts: Vec<GenesisEvmContract>,
+    pub contracts: Vec<GenesisEvmTransaction>,
+}
+
+impl Display for OnChainEvmGenesisConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "OnChainEvmGenesisConfig {{\n\t chain_id: {},\n\t eoas: {:?}, \n\t contracts: [{}\n\t]\n}}",
+            self.chain_id, self.eoas, self.contracts.iter().map(|c| format!("\n\t\t{}", c)).collect::<Vec<_>>().join(", "),
+        )
+    }
+
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -34,7 +43,16 @@ pub struct GenesisEvmEOA {
 
 /// The Creator address and nonce determines the contract' deployment address.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct GenesisEvmContract {
+pub enum TransactionKind {
+    /// Default contract creation API
+    Create,
+    /// Call target address.
+    Call(String),
+}
+
+/// The Creator address and nonce determines the contract' deployment address.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub struct GenesisEvmTransaction {
     /// The creator address of the contract.
     pub creator: String,
     /// The nonce of the creator.
@@ -43,6 +61,25 @@ pub struct GenesisEvmContract {
     pub amount: u128,
     /// The bytecode of the contract to deploy.
     pub bytecode: Vec<u8>,
+    /// Type of the contract
+    pub kind: TransactionKind,
+    /// Precalculated address of the contract, if transaction kind is Create/Create2
+    pub deploy_address: Option<String>,
+}
+
+impl Display for GenesisEvmTransaction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "GenesisEvmTransaction {{ creator: {}, nonce: {}, amount: {}, bytecode: {} bytes, kind: {:?}, deploy_address: {:?} }}",
+            self.creator,
+            self.nonce,
+            self.amount,
+            hex::encode(&self.bytecode),
+            self.kind,
+            self.deploy_address
+        )
+    }
 }
 
 impl OnChainEvmGenesisConfig {
@@ -50,7 +87,7 @@ impl OnChainEvmGenesisConfig {
     pub fn new(
         chain_id: ChainId,
         eoas: Vec<GenesisEvmEOA>,
-        contracts: Vec<GenesisEvmContract>,
+        contracts: Vec<GenesisEvmTransaction>,
     ) -> Self {
         let chain_id = Self::derive_evm_chain_id_from_move_chain_id(chain_id);
 

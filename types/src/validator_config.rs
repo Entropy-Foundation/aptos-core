@@ -35,6 +35,8 @@ impl MoveResource for ValidatorOperatorConfigResource {}
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[cfg_attr(any(test, feature = "fuzzing"), derive(Arbitrary))]
 pub struct ValidatorConfig {
+    /// This is a BCS serialized `ValidatorPublicKeys` (see the smr-moonshot type).
+    /// We haven't renamed the field because it is exposed to users.
     consensus_public_key: Vec<u8>,
     /// This is an bcs serialized `Vec<NetworkAddress>`
     pub validator_network_addresses: Vec<u8>,
@@ -44,7 +46,9 @@ pub struct ValidatorConfig {
 }
 
 impl ValidatorConfig {
-    pub fn new(
+    /// Deprecated function kept to avoid making changes to aptos-core. Must not be used in smr-moonshot.
+    /// TODO: Remove when unused aptos-core code is removed.
+    pub fn legacy_new_do_not_use(
         consensus_public_key: ed25519::PublicKey,
         validator_network_addresses: Vec<u8>,
         fullnode_network_addresses: Vec<u8>,
@@ -58,11 +62,13 @@ impl ValidatorConfig {
         }
     }
 
-    pub fn consensus_key_raw(&self) -> Vec<u8> {
-        self.consensus_public_key.clone()
+    pub fn public_keys(&self) -> &Vec<u8> {
+        &self.consensus_public_key
     }
 
-    pub fn consensus_public_key(&self) -> Ed25519PublicKey {
+    /// Deprecated function kept to avoid making changes to aptos-core. Must not be used in smr-moonshot.
+    /// TODO: Remove when unused aptos-core code is removed.
+    pub fn legacy_consensus_public_key_do_not_use(&self) -> Ed25519PublicKey {
         let keys = bcs::from_bytes::<ValidatorPublicKeys>(&self.consensus_public_key);
         if let Ok(keys) = keys {
             let ed_key = Ed25519PublicKey::try_from(keys.supra_keys().ed25519_key().as_slice())

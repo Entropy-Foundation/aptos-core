@@ -1,6 +1,3 @@
-// Copyright (c) Aptos Foundation
-// SPDX-License-Identifier: Apache-2.0
-
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -12,8 +9,9 @@ use crate::{
 };
 use aptos_types::{
     state_store::StateView,
-    transaction::{ViewFunction, ViewFunctionOutput},
+    transaction::{EntryFunction, ViewFunction, ViewFunctionOutput},
 };
+use move_core_types::account_address::AccountAddress;
 use aptos_vm_logging::log_schema::AdapterLogSchema;
 
 /// Move VM with only view function API.

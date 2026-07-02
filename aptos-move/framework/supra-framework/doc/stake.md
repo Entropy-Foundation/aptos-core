@@ -85,7 +85,11 @@ or if their stake drops below the min required, they would get removed at the en
 -  [Function `remove_validators`](#0x1_stake_remove_validators)
 -  [Function `initialize_stake_owner`](#0x1_stake_initialize_stake_owner)
 -  [Function `initialize_validator`](#0x1_stake_initialize_validator)
+-  [Function `initialize_validator_genesis`](#0x1_stake_initialize_validator_genesis)
+-  [Function `initialize_validator_internal`](#0x1_stake_initialize_validator_internal)
 -  [Function `validate_consensus_public_key`](#0x1_stake_validate_consensus_public_key)
+-  [Function `is_unrotated_legacy_key`](#0x1_stake_is_unrotated_legacy_key)
+-  [Function `is_eligible_active_validator`](#0x1_stake_is_eligible_active_validator)
 -  [Function `assert_consensus_pubkey_unique_in_next_validator_set`](#0x1_stake_assert_consensus_pubkey_unique_in_next_validator_set)
 -  [Function `assert_consensus_pubkey_unique_in_validator_list`](#0x1_stake_assert_consensus_pubkey_unique_in_validator_list)
 -  [Function `assert_network_addresses_unique_in_next_validator_set`](#0x1_stake_assert_network_addresses_unique_in_next_validator_set)
@@ -1733,6 +1737,16 @@ Cannot update stake pool's lockup to earlier than current lockup.
 
 
 
+<a id="0x1_stake_EINVALID_PROOF_OF_POSSESSION"></a>
+
+The submitted BLS multisig proof-of-possession does not verify against the multisig key.
+
+
+<pre><code><b>const</b> <a href="stake.md#0x1_stake_EINVALID_PROOF_OF_POSSESSION">EINVALID_PROOF_OF_POSSESSION</a>: u64 = 24;
+</code></pre>
+
+
+
 <a id="0x1_stake_EINVALID_PUBLIC_KEY"></a>
 
 Invalid consensus public key
@@ -2711,6 +2725,83 @@ Initialize the validator account and give ownership to the signing account.
     fullnode_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 ) <b>acquires</b> <a href="stake.md#0x1_stake_AllowedValidators">AllowedValidators</a>, <a href="stake.md#0x1_stake_ValidatorSet">ValidatorSet</a>, <a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a> {
     <a href="stake.md#0x1_stake_validate_consensus_public_key">validate_consensus_public_key</a>(consensus_pubkey);
+    <a href="stake.md#0x1_stake_initialize_validator_internal">initialize_validator_internal</a>(
+        <a href="account.md#0x1_account">account</a>,
+        consensus_pubkey,
+        network_addresses,
+        fullnode_addresses,
+        <b>false</b>
+    );
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_stake_initialize_validator_genesis"></a>
+
+## Function `initialize_validator_genesis`
+
+Initialize a validator during genesis. Identical to <code>initialize_validator</code> except that the
+consensus key blob is trusted genesis output and therefore carries no operator
+proof-of-possession (mirrors <code>rotate_consensus_key</code> / <code>rotate_consensus_key_genesis</code>).
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="stake.md#0x1_stake_initialize_validator_genesis">initialize_validator_genesis</a>(<a href="account.md#0x1_account">account</a>: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, consensus_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, network_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, fullnode_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="stake.md#0x1_stake_initialize_validator_genesis">initialize_validator_genesis</a>(
+    <a href="account.md#0x1_account">account</a>: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    consensus_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    network_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    fullnode_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+) <b>acquires</b> <a href="stake.md#0x1_stake_AllowedValidators">AllowedValidators</a>, <a href="stake.md#0x1_stake_ValidatorSet">ValidatorSet</a>, <a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a> {
+    <a href="stake.md#0x1_stake_initialize_validator_internal">initialize_validator_internal</a>(
+        <a href="account.md#0x1_account">account</a>,
+        consensus_pubkey,
+        network_addresses,
+        fullnode_addresses,
+        <b>true</b>
+    );
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_stake_initialize_validator_internal"></a>
+
+## Function `initialize_validator_internal`
+
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_initialize_validator_internal">initialize_validator_internal</a>(<a href="account.md#0x1_account">account</a>: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, consensus_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, network_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, fullnode_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="genesis.md#0x1_genesis">genesis</a>: bool)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_initialize_validator_internal">initialize_validator_internal</a>(
+    <a href="account.md#0x1_account">account</a>: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    consensus_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    network_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    fullnode_addresses: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    <a href="genesis.md#0x1_genesis">genesis</a>: bool
+) <b>acquires</b> <a href="stake.md#0x1_stake_AllowedValidators">AllowedValidators</a>, <a href="stake.md#0x1_stake_ValidatorSet">ValidatorSet</a>, <a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a> {
+    // Verify the keys (and, for operator submissions, the appended BLS multisig PoP) and keep
+    // only the canonical key bytes (<a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> appended PoP is stripped before storage).
+    <b>let</b> consensus_pubkey = <a href="stake.md#0x1_stake_validate_consensus_public_key">validate_consensus_public_key</a>(consensus_pubkey, <a href="genesis.md#0x1_genesis">genesis</a>);
     <b>let</b> account_addr = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(<a href="account.md#0x1_account">account</a>);
     <a href="stake.md#0x1_stake_assert_consensus_pubkey_unique_in_next_validator_set">assert_consensus_pubkey_unique_in_next_validator_set</a>(
         account_addr, &consensus_pubkey
@@ -2741,7 +2832,7 @@ Initialize the validator account and give ownership to the signing account.
 
 
 
-<pre><code><b>fun</b> <a href="stake.md#0x1_stake_validate_consensus_public_key">validate_consensus_public_key</a>(consensus_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_validate_consensus_public_key">validate_consensus_public_key</a>(consensus_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="genesis.md#0x1_genesis">genesis</a>: bool): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
 </code></pre>
 
 
@@ -2750,26 +2841,262 @@ Initialize the validator account and give ownership to the signing account.
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="stake.md#0x1_stake_validate_consensus_public_key">validate_consensus_public_key</a>(consensus_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;) {
-    <b>if</b> (std::features::supra_validator_identity_v2_enabled()) {
-        // Expect the new format.
-        <b>let</b> _valid_public_key =
-            <a href="validator_public_keys.md#0x1_validator_public_keys_validator_public_keys_from_bytes">validator_public_keys::validator_public_keys_from_bytes</a>(consensus_pubkey);
-    } <b>else</b> {
-        // Check the <b>old</b> format.
-        <b>let</b> maybe_valid_public_key =
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_validate_consensus_public_key">validate_consensus_public_key</a>(
+    consensus_pubkey: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, <a href="genesis.md#0x1_genesis">genesis</a>: bool
+): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; {
+    // Legacy format (only acceptable before v2): a bare <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519">ed25519</a> key <b>with</b> no aggregatable BLS
+    // key, hence no PoP. Accept and store it unchanged.
+    <b>if</b> (!std::features::supra_validator_identity_v2_enabled()) {
+        <b>let</b> maybe_legacy =
             <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519_new_validated_public_key_from_bytes">ed25519::new_validated_public_key_from_bytes</a>(consensus_pubkey);
+        <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&maybe_legacy)) {
+            <b>return</b> consensus_pubkey
+        };
+    };
 
-        <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_none">option::is_none</a>(&maybe_valid_public_key)) {
-            // Fall back <b>to</b> the new format. This enables validators <b>to</b> register their keys in
-            // the new format before the v2 feature flag is activated, which is safe because the
-            // new keys are a superset of the <b>old</b> and the consensus <b>has</b> logic for maintaining
-            // backwards compatibility.
-            <b>let</b> _valid_public_key =
-                <a href="validator_public_keys.md#0x1_validator_public_keys_validator_public_keys_from_bytes">validator_public_keys::validator_public_keys_from_bytes</a>(
-                    consensus_pubkey
-                );
-        }
+    // New identity format (v2, or a pre-v2 early-migration submission). Operator (non-<a href="genesis.md#0x1_genesis">genesis</a>)
+    // submissions carry an appended BLS multisig PoP; verify and strip it. Genesis is exempt.
+    <b>let</b> (keys_bytes, maybe_pop) =
+        <b>if</b> (<a href="genesis.md#0x1_genesis">genesis</a>) {
+            (consensus_pubkey, <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;())
+        } <b>else</b> {
+            <b>let</b> (keys_bytes, pop) =
+                <a href="validator_public_keys.md#0x1_validator_public_keys_split_consensus_key_and_pop">validator_public_keys::split_consensus_key_and_pop</a>(consensus_pubkey);
+            (keys_bytes, <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(pop))
+        };
+
+    <b>let</b> valid_public_keys =
+        <a href="validator_public_keys.md#0x1_validator_public_keys_validator_public_keys_from_bytes">validator_public_keys::validator_public_keys_from_bytes</a>(keys_bytes);
+
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&maybe_pop)) {
+        <b>assert</b>!(
+            <a href="validator_public_keys.md#0x1_validator_public_keys_verify_bls_multisig_pop">validator_public_keys::verify_bls_multisig_pop</a>(
+                &valid_public_keys, <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> maybe_pop)
+            ),
+            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="stake.md#0x1_stake_EINVALID_PROOF_OF_POSSESSION">EINVALID_PROOF_OF_POSSESSION</a>)
+        );
+    };
+
+    <b>assert</b>!(
+        <a href="validator_public_keys.md#0x1_validator_public_keys_validate_static_keys">validator_public_keys::validate_static_keys</a>(&valid_public_keys),
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="stake.md#0x1_stake_EINVALID_PUBLIC_KEY">EINVALID_PUBLIC_KEY</a>)
+    );
+
+    keys_bytes
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_stake_is_unrotated_legacy_key"></a>
+
+## Function `is_unrotated_legacy_key`
+
+Returns true iff the v2 validator-identity format is enforced and <code>consensus_pubkey</code> is still a
+legacy (pre-v2) bare ed25519 key. Mirrors the detection in <code>validate_consensus_public_key</code>: a
+bare ed25519 key parses via <code>new_validated_public_key_from_bytes</code>, while a v2 BCS blob does not.
+Such a key cannot be deserialized into the v2 <code>ValidatorPublicKeys</code> format that DKG and
+consensus require, so the validator is dropped from the active set (same effect as falling below
+the minimum stake) until it rotates.
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_is_unrotated_legacy_key">is_unrotated_legacy_key</a>(consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_is_unrotated_legacy_key">is_unrotated_legacy_key</a>(consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): bool {
+    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_validator_identity_v2_enabled">features::supra_validator_identity_v2_enabled</a>()
+        && <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(
+            &<a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519_new_validated_public_key_from_bytes">ed25519::new_validated_public_key_from_bytes</a>(*consensus_pubkey)
+        )
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_stake_is_eligible_active_validator"></a>
+
+## Function `is_eligible_active_validator`
+
+Active-set membership test applied identically when previewing the next validator set
+(<code>compute_next_validator_set_internal</code>) and when committing it (<code>on_new_epoch</code>): a validator is
+retained iff it meets the minimum stake AND (under the v2 identity format) still carries a valid
+v2 consensus key. Centralizing this keeps the DKG receiver committee / <code>set_dkg_output_keys</code>
+(which read the preview) consistent with the committed set / consensus committee.
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_is_eligible_active_validator">is_eligible_active_validator</a>(voting_power: u64, minimum_stake: u64, consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_is_eligible_active_validator">is_eligible_active_validator</a>(
+    voting_power: u64, minimum_stake: u64, consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+): bool {
+    voting_power &gt;= minimum_stake && !<a href="stake.md#0x1_stake_is_unrotated_legacy_key">is_unrotated_legacy_key</a>(consensus_pubkey)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_stake_assert_consensus_pubkey_unique_in_next_validator_set"></a>
+
+## Function `assert_consensus_pubkey_unique_in_next_validator_set`
+
+Aborts if any validator other than <code>self_addr</code> in the next validator set
+(the union of <code>active_validators</code> and <code>pending_active</code>) already uses
+<code>consensus_pubkey</code> as its latest on-chain consensus key.
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_assert_consensus_pubkey_unique_in_next_validator_set">assert_consensus_pubkey_unique_in_next_validator_set</a>(self_addr: <b>address</b>, consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_assert_consensus_pubkey_unique_in_next_validator_set">assert_consensus_pubkey_unique_in_next_validator_set</a>(
+    self_addr: <b>address</b>, consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+) <b>acquires</b> <a href="stake.md#0x1_stake_ValidatorSet">ValidatorSet</a>, <a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a> {
+    <b>let</b> validator_set = <b>borrow_global</b>&lt;<a href="stake.md#0x1_stake_ValidatorSet">ValidatorSet</a>&gt;(@supra_framework);
+    <a href="stake.md#0x1_stake_assert_consensus_pubkey_unique_in_validator_list">assert_consensus_pubkey_unique_in_validator_list</a>(
+        self_addr, consensus_pubkey, &validator_set.active_validators
+    );
+    <a href="stake.md#0x1_stake_assert_consensus_pubkey_unique_in_validator_list">assert_consensus_pubkey_unique_in_validator_list</a>(
+        self_addr, consensus_pubkey, &validator_set.pending_active
+    );
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_stake_assert_consensus_pubkey_unique_in_validator_list"></a>
+
+## Function `assert_consensus_pubkey_unique_in_validator_list`
+
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_assert_consensus_pubkey_unique_in_validator_list">assert_consensus_pubkey_unique_in_validator_list</a>(self_addr: <b>address</b>, consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, validators: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="stake.md#0x1_stake_ValidatorInfo">stake::ValidatorInfo</a>&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_assert_consensus_pubkey_unique_in_validator_list">assert_consensus_pubkey_unique_in_validator_list</a>(
+    self_addr: <b>address</b>,
+    consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    validators: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="stake.md#0x1_stake_ValidatorInfo">ValidatorInfo</a>&gt;
+) <b>acquires</b> <a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a> {
+    <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(validators);
+    <b>let</b> i = 0;
+    <b>while</b> (i &lt; len) {
+        <b>let</b> other = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(validators, i);
+        <b>if</b> (other.addr != self_addr && <b>exists</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(other.addr)) {
+            <b>let</b> other_config = <b>borrow_global</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(other.addr);
+            <b>assert</b>!(
+                other_config.consensus_pubkey != *consensus_pubkey,
+                <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="stake.md#0x1_stake_EDUPLICATE_CONSENSUS_PUBKEY">EDUPLICATE_CONSENSUS_PUBKEY</a>)
+            );
+        };
+        i = i + 1;
+    };
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_stake_assert_network_addresses_unique_in_next_validator_set"></a>
+
+## Function `assert_network_addresses_unique_in_next_validator_set`
+
+Aborts if any validator other than <code>self_addr</code> in the next validator set
+already uses <code>network_addresses</code>. Empty <code>network_addresses</code> is treated
+as "unset" and skips the check.
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_assert_network_addresses_unique_in_next_validator_set">assert_network_addresses_unique_in_next_validator_set</a>(self_addr: <b>address</b>, network_addresses: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_assert_network_addresses_unique_in_next_validator_set">assert_network_addresses_unique_in_next_validator_set</a>(
+    self_addr: <b>address</b>, network_addresses: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+) <b>acquires</b> <a href="stake.md#0x1_stake_ValidatorSet">ValidatorSet</a>, <a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a> {
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(network_addresses)) { <b>return</b> };
+    <b>let</b> validator_set = <b>borrow_global</b>&lt;<a href="stake.md#0x1_stake_ValidatorSet">ValidatorSet</a>&gt;(@supra_framework);
+    <a href="stake.md#0x1_stake_assert_network_addresses_unique_in_validator_list">assert_network_addresses_unique_in_validator_list</a>(
+        self_addr, network_addresses, &validator_set.active_validators
+    );
+    <a href="stake.md#0x1_stake_assert_network_addresses_unique_in_validator_list">assert_network_addresses_unique_in_validator_list</a>(
+        self_addr, network_addresses, &validator_set.pending_active
+    );
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_stake_assert_network_addresses_unique_in_validator_list"></a>
+
+## Function `assert_network_addresses_unique_in_validator_list`
+
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_assert_network_addresses_unique_in_validator_list">assert_network_addresses_unique_in_validator_list</a>(self_addr: <b>address</b>, network_addresses: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;, validators: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="stake.md#0x1_stake_ValidatorInfo">stake::ValidatorInfo</a>&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_assert_network_addresses_unique_in_validator_list">assert_network_addresses_unique_in_validator_list</a>(
+    self_addr: <b>address</b>,
+    network_addresses: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
+    validators: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="stake.md#0x1_stake_ValidatorInfo">ValidatorInfo</a>&gt;
+) <b>acquires</b> <a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a> {
+    <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(validators);
+    <b>let</b> i = 0;
+    <b>while</b> (i &lt; len) {
+        <b>let</b> other = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(validators, i);
+        <b>if</b> (other.addr != self_addr && <b>exists</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(other.addr)) {
+            <b>let</b> other_config = <b>borrow_global</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(other.addr);
+            <b>assert</b>!(
+                other_config.network_addresses != *network_addresses,
+                <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="stake.md#0x1_stake_EDUPLICATE_NETWORK_ADDRESSES">EDUPLICATE_NETWORK_ADDRESSES</a>)
+            );
+        };
+        i = i + 1;
     };
 }
 </code></pre>
@@ -3427,11 +3754,50 @@ Move <code>amount</code> of coins from pending_inactive to active.
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="stake.md#0x1_stake_EVALIDATOR_CONFIG">EVALIDATOR_CONFIG</a>)
     );
     <a href="stake.md#0x1_stake_validate_consensus_public_key">validate_consensus_public_key</a>(new_consensus_pubkey);
+    // Verify the keys (and, for operator submissions, the appended BLS multisig PoP) and keep
+    // only the canonical key bytes (<a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> appended PoP is stripped before storage/merge).
+    <b>let</b> new_consensus_pubkey =
+        <a href="stake.md#0x1_stake_validate_consensus_public_key">validate_consensus_public_key</a>(new_consensus_pubkey, <a href="genesis.md#0x1_genesis">genesis</a>);
     <a href="stake.md#0x1_stake_assert_consensus_pubkey_unique_in_next_validator_set">assert_consensus_pubkey_unique_in_next_validator_set</a>(
         pool_address, &new_consensus_pubkey
     );
     <b>let</b> validator_info = <b>borrow_global_mut</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(pool_address);
     <b>let</b> old_consensus_pubkey = validator_info.consensus_pubkey;
+
+    // Preserve the DKG-managed BLS threshold keys: an operator rotation must only change the
+    // static keys. We load the current on-chain keys and <b>copy</b> in only the operator-supplied
+    // static keys, leaving the threshold keys (written by `set_dkg_output_keys`) intact.
+    //
+    // The merge is skipped (and the incoming blob stored verbatim, preserving the original
+    // behavior) when there is nothing <b>to</b> preserve or the stored blob cannot be parsed:
+    //  - before v2: the stored blob may be a legacy <a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519">ed25519</a> key <b>with</b> no threshold keys;
+    //  - <a href="genesis.md#0x1_genesis">genesis</a>: no DKG threshold keys exist yet;
+    //  - an empty stored key: a validator initialized via `initialize_stake_owner` sets its key
+    //    for the first time here, so there is no prior `ValidatorPublicKeys` <b>to</b> merge into
+    //    (parsing the empty blob would <b>abort</b>).
+    // Under v2 a non-empty stored blob is guaranteed <b>to</b> be a valid `ValidatorPublicKeys` (the
+    // feature is only enabled once all validators have migrated <b>to</b> the new format), and
+    // `validate_consensus_public_key` <b>has</b> already verified the incoming blob, so both
+    // deserializations are safe.
+    <b>let</b> new_consensus_pubkey =
+        <b>if</b> (!<a href="genesis.md#0x1_genesis">genesis</a>
+            && std::features::supra_validator_identity_v2_enabled()
+            && !<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&old_consensus_pubkey)) {
+            <b>let</b> current_keys =
+                <a href="validator_public_keys.md#0x1_validator_public_keys_validator_public_keys_from_bytes">validator_public_keys::validator_public_keys_from_bytes</a>(
+                    old_consensus_pubkey
+                );
+            <b>let</b> incoming_keys =
+                <a href="validator_public_keys.md#0x1_validator_public_keys_validator_public_keys_from_bytes">validator_public_keys::validator_public_keys_from_bytes</a>(
+                    new_consensus_pubkey
+                );
+            <a href="validator_public_keys.md#0x1_validator_public_keys_replace_static_keys">validator_public_keys::replace_static_keys</a>(
+                &<b>mut</b> current_keys, &incoming_keys
+            );
+            <a href="validator_public_keys.md#0x1_validator_public_keys_public_key_to_bytes">validator_public_keys::public_key_to_bytes</a>(current_keys)
+        } <b>else</b> {
+            new_consensus_pubkey
+        };
     validator_info.consensus_pubkey = new_consensus_pubkey;
 
     <b>if</b> (std::features::module_event_migration_enabled()) {
@@ -4348,8 +4714,11 @@ power.
         <b>let</b> new_validator_info =
             <a href="stake.md#0x1_stake_generate_validator_info">generate_validator_info</a>(pool_address, stake_pool, *validator_config);
 
-        // A validator needs at least the <b>min</b> <a href="stake.md#0x1_stake">stake</a> required <b>to</b> join the validator set.
-        <b>if</b> (new_validator_info.voting_power &gt;= minimum_stake) {
+        <b>if</b> (<a href="stake.md#0x1_stake_is_eligible_active_validator">is_eligible_active_validator</a>(
+            new_validator_info.voting_power,
+            minimum_stake,
+            &validator_config.consensus_pubkey
+        )) {
             <b>spec</b> {
                 <b>assume</b> total_voting_power + new_validator_info.voting_power
                     &lt;= MAX_U128;
@@ -4564,6 +4933,7 @@ New joiners (<code>pending_active</code>) always read from <code><a href="stake.
         <b>assume</b> num_cur_actives + num_cur_pending_actives &lt;= <a href="stake.md#0x1_stake_MAX_U64">MAX_U64</a>;
     };
     <b>let</b> num_candidates = num_cur_actives + num_cur_pending_actives;
+
     <b>while</b> ({
         <b>spec</b> {
             <b>invariant</b> candidate_idx &lt;= num_candidates;
@@ -4617,17 +4987,23 @@ New joiners (<code>pending_active</code>) always read from <code><a href="stake.
                     cur_pending_inactive
                 } + cur_pending_active + cur_reward + cur_fee;
 
-        <b>if</b> (new_voting_power &gt;= minimum_stake) {
-            <b>let</b> config =
-                <b>if</b> (use_current_config_for_actives
-                    && candidate_in_current_validator_set) {
-                    // Use the current-epoch config snapshot so that <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> mid-epoch changes
-                    // (consensus key, network addresses, etc.) only take effect after the
-                    // epoch transition, not during DKG.
-                    candidate.config
-                } <b>else</b> {
-                    *<b>borrow_global</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(candidate.addr)
-                };
+        <b>let</b> config =
+            <b>if</b> (use_current_config_for_actives
+                && candidate_in_current_validator_set) {
+                // Use the current-epoch config snapshot so that <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> mid-epoch changes
+                // (consensus key, network addresses, etc.) only take effect after the
+                // epoch transition, not during DKG.
+                candidate.config
+            } <b>else</b> {
+                *<b>borrow_global</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(candidate.addr)
+            };
+
+        // Shared <b>with</b> `on_new_epoch`, so this preview (which feeds the DKG receiver committee and
+        // `set_dkg_output_keys`) stays consistent <b>with</b> the committed set. validator_index stays
+        // contiguous because it is only advanced for included validators.
+        <b>if</b> (<a href="stake.md#0x1_stake_is_eligible_active_validator">is_eligible_active_validator</a>(
+            new_voting_power, minimum_stake, &config.consensus_pubkey
+        )) {
             config.validator_index = num_new_actives;
             <b>let</b> new_validator_info = <a href="stake.md#0x1_stake_ValidatorInfo">ValidatorInfo</a> {
                 addr: candidate.addr,
@@ -4643,6 +5019,7 @@ New joiners (<code>pending_active</code>) always read from <code><a href="stake.
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> new_active_validators, new_validator_info);
             num_new_actives = num_new_actives + 1;
         };
+
         candidate_idx = candidate_idx + 1;
     };
 

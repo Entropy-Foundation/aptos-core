@@ -1,6 +1,3 @@
-// Copyright (c) Aptos Foundation
-// SPDX-License-Identifier: Apache-2.0
-
 // Copyright (c) 2025 Supra.
 // SPDX-License-Identifier: Apache-2.0
 use aptos_native_interface::{SafeNativeBuilder, SafeNativeContext, SafeNativeResult};
