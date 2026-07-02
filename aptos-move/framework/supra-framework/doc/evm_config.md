@@ -8,7 +8,8 @@
 -  [Resource `EvmContractsDetails`](#0x1_evm_config_EvmContractsDetails)
 -  [Resource `EvmScalarConfig`](#0x1_evm_config_EvmScalarConfig)
 -  [Constants](#@Constants_0)
--  [Function `initialize`](#0x1_evm_config_initialize)
+-  [Function `initialize_scalar_config`](#0x1_evm_config_initialize_scalar_config)
+-  [Function `initialize_contracts_details`](#0x1_evm_config_initialize_contracts_details)
 -  [Function `upsert_evm_contract_details_for_next_epoch`](#0x1_evm_config_upsert_evm_contract_details_for_next_epoch)
 -  [Function `upsert_config_for_next_epoch`](#0x1_evm_config_upsert_config_for_next_epoch)
 -  [Function `get_contract_value`](#0x1_evm_config_get_contract_value)
@@ -223,18 +224,16 @@ DECIMAL_PRECISION
 
 
 
-<a id="0x1_evm_config_initialize"></a>
+<a id="0x1_evm_config_initialize_scalar_config"></a>
 
-## Function `initialize`
+## Function `initialize_scalar_config`
 
-Publishes both the EVM contract address map and the scalar config map.
-<code>contract_keys</code>/<code>contract_values</code> must be the same length and every address
-must be a valid 20-byte EVM address (upper 12 bytes of the 32-byte Move
-address must be zero).  <code>config_keys</code>/<code>config_values</code> must be the same
+Publishes evm scalar config map.
+<code>config_keys</code>/<code>config_values</code> must be the same
 length and must include all required keys (e.g. evm_gas_normalization_denom).
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="evm_config.md#0x1_evm_config_initialize">initialize</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, contract_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, contract_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, config_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, config_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u128&gt;)
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="evm_config.md#0x1_evm_config_initialize_scalar_config">initialize_scalar_config</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, config_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, config_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u128&gt;)
 </code></pre>
 
 
@@ -243,38 +242,19 @@ length and must include all required keys (e.g. evm_gas_normalization_denom).
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="evm_config.md#0x1_evm_config_initialize">initialize</a>(
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="evm_config.md#0x1_evm_config_initialize_scalar_config">initialize_scalar_config</a>(
     supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    contract_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
-    contract_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
     config_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
     config_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u128&gt;
 ) {
     <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
-    <b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&contract_keys), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EEMPTY_DATA">EEMPTY_DATA</a>));
     <b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&config_keys), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EEMPTY_DATA">EEMPTY_DATA</a>));
     <b>let</b> supra_framework_addr = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(supra_framework);
-    <b>assert</b>!(!<b>exists</b>&lt;<a href="evm_config.md#0x1_evm_config_EvmContractsDetails">EvmContractsDetails</a>&gt;(supra_framework_addr),<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="evm_config.md#0x1_evm_config_ERESOURCE_ALREADY_EXISTS">ERESOURCE_ALREADY_EXISTS</a>));
     <b>assert</b>!(!<b>exists</b>&lt;<a href="evm_config.md#0x1_evm_config_EvmScalarConfig">EvmScalarConfig</a>&gt;(supra_framework_addr),<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="evm_config.md#0x1_evm_config_ERESOURCE_ALREADY_EXISTS">ERESOURCE_ALREADY_EXISTS</a>));
-    <b>assert</b>!(
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&contract_keys) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&contract_values),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EKEYS_VALUES_MISMATCH">EKEYS_VALUES_MISMATCH</a>)
-    );
     <b>assert</b>!(
         <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&config_keys) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&config_values),
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EKEYS_VALUES_MISMATCH">EKEYS_VALUES_MISMATCH</a>)
     );
-
-    // Check that no contract value is invalid EVM <b>address</b>
-    <b>let</b> all_valid_evm_address = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_all">vector::all</a>(&contract_values,
-    |v|{ <a href="evm_config.md#0x1_evm_config_is_valid_evm_address">is_valid_evm_address</a>(v) });
-    <b>assert</b>!(all_valid_evm_address, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EINVALID_EVM_ADDRESS">EINVALID_EVM_ADDRESS</a>));
-
-    <b>let</b> contract_details = <a href="evm_config.md#0x1_evm_config_EvmContractsDetails">EvmContractsDetails</a> {
-        details: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_new_from">simple_map::new_from</a>(contract_keys, contract_values)
-    };
-    <b>move_to</b>(supra_framework, contract_details);
-    <a href="event.md#0x1_event_emit">event::emit</a>(contract_details);
 
     <b>let</b> <a href="evm_config.md#0x1_evm_config">evm_config</a> = <a href="evm_config.md#0x1_evm_config_EvmScalarConfig">EvmScalarConfig</a> {
         config: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_new_from">simple_map::new_from</a>(config_keys, config_values)
@@ -282,6 +262,56 @@ length and must include all required keys (e.g. evm_gas_normalization_denom).
     <a href="evm_config.md#0x1_evm_config_validate_scalar_config">validate_scalar_config</a>(&<a href="evm_config.md#0x1_evm_config">evm_config</a>);
     <b>move_to</b>(supra_framework, <a href="evm_config.md#0x1_evm_config">evm_config</a>);
     <a href="event.md#0x1_event_emit">event::emit</a>(<a href="evm_config.md#0x1_evm_config">evm_config</a>);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_evm_config_initialize_contracts_details"></a>
+
+## Function `initialize_contracts_details`
+
+Publishes EVM contract address map.
+<code>contract_keys</code>/<code>contract_values</code> must be the same length and every address
+must be a valid 20-byte EVM address (upper 12 bytes of the 32-byte Move
+address must be zero).
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="evm_config.md#0x1_evm_config_initialize_contracts_details">initialize_contracts_details</a>(supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, contract_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/string.md#0x1_string_String">string::String</a>&gt;, contract_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="evm_config.md#0x1_evm_config_initialize_contracts_details">initialize_contracts_details</a>(
+    supra_framework: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
+    contract_keys: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;String&gt;,
+    contract_values: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;,
+) {
+    <a href="system_addresses.md#0x1_system_addresses_assert_supra_framework">system_addresses::assert_supra_framework</a>(supra_framework);
+    <b>assert</b>!(!<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&contract_keys), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EEMPTY_DATA">EEMPTY_DATA</a>));
+    <b>let</b> supra_framework_addr = <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(supra_framework);
+    <b>assert</b>!(!<b>exists</b>&lt;<a href="evm_config.md#0x1_evm_config_EvmContractsDetails">EvmContractsDetails</a>&gt;(supra_framework_addr),<a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="evm_config.md#0x1_evm_config_ERESOURCE_ALREADY_EXISTS">ERESOURCE_ALREADY_EXISTS</a>));
+    <b>assert</b>!(
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&contract_keys) == <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&contract_values),
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EKEYS_VALUES_MISMATCH">EKEYS_VALUES_MISMATCH</a>)
+    );
+
+    // Check that no contract value is invalid EVM <b>address</b>
+    <b>let</b> all_valid_evm_address = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_all">vector::all</a>(&contract_values,
+        |v|{ <a href="evm_config.md#0x1_evm_config_is_valid_evm_address">is_valid_evm_address</a>(v) });
+    <b>assert</b>!(all_valid_evm_address, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="evm_config.md#0x1_evm_config_EINVALID_EVM_ADDRESS">EINVALID_EVM_ADDRESS</a>));
+
+    <b>let</b> contract_details = <a href="evm_config.md#0x1_evm_config_EvmContractsDetails">EvmContractsDetails</a> {
+        details: <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_new_from">simple_map::new_from</a>(contract_keys, contract_values)
+    };
+    <b>move_to</b>(supra_framework, contract_details);
+    <a href="event.md#0x1_event_emit">event::emit</a>(contract_details);
 }
 </code></pre>
 
