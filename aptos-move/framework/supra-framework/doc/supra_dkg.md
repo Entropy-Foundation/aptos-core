@@ -23,6 +23,10 @@ DKG on-chain states and helper functions.
 -  [Function `incomplete_session`](#0x1_supra_dkg_incomplete_session)
 -  [Function `last_completed_session`](#0x1_supra_dkg_last_completed_session)
 -  [Function `session_dealer_epoch`](#0x1_supra_dkg_session_dealer_epoch)
+-  [Function `last_completed_receivers_addresses`](#0x1_supra_dkg_last_completed_receivers_addresses)
+-  [Function `receiver_committee_addresses`](#0x1_supra_dkg_receiver_committee_addresses)
+-  [Function `intersect_addresses`](#0x1_supra_dkg_intersect_addresses)
+-  [Function `last_completed_threshold_pubkeys`](#0x1_supra_dkg_last_completed_threshold_pubkeys)
 -  [Specification](#@Specification_1)
     -  [Function `initialize`](#@Specification_1_initialize)
     -  [Function `start`](#@Specification_1_start)
@@ -706,6 +710,215 @@ Return the dealer epoch of a <code><a href="supra_dkg.md#0x1_supra_dkg_DKGSessio
 
 <pre><code><b>public</b> <b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_session_dealer_epoch">session_dealer_epoch</a>(session: &<a href="supra_dkg.md#0x1_supra_dkg_DKGSessionState">DKGSessionState</a>): u64 {
     session.metadata.dealer_epoch
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_supra_dkg_last_completed_receivers_addresses"></a>
+
+## Function `last_completed_receivers_addresses`
+
+Return the set of validator addresses that received shares in the last
+completed DKG, computed as the *intersection* of member addresses across
+every receiver committee in that session.
+
+Intent: identify the validators that locally hold prior reshare data on
+disk. Used by <code><a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_try_start">reconfiguration_with_dkg::try_start</a></code> to constrain the
+dealer set for resharing DKGs to only those validators.
+
+Why intersection: a resharing dealer must hold prior shares for every
+receiver committee that is being reshared in the new DKG. Today the
+framework constructs a *single* dealer committee per DKG that deals for
+all receiver committees, so the dealer set must satisfy every reshared
+committee's prior-data requirement simultaneously.
+
+Assumption: in current default configs, all receiver committees share
+the same membership, so the intersection equals any one of them. The
+explicit intersection guarantees correctness if configs ever diverge.
+If the framework is later extended to support multiple dealer committees
+per DKG (one per receiver), this helper must be revisited.
+
+Returns <code>None</code> when no DKG has completed yet. Callers should treat that
+case as an invariant violation when resharing is enabled, because
+<code><a href="dkg_config.md#0x1_dkg_config_set_for_next_epoch">dkg_config::set_for_next_epoch</a></code> rejects <code>is_resharing=<b>true</b></code> at proposal
+time when no completed session exists (<code>ERESHARING_WITHOUT_PRIOR_SESSION</code>).
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_last_completed_receivers_addresses">last_completed_receivers_addresses</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_last_completed_receivers_addresses">last_completed_receivers_addresses</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_Option">option::Option</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;&gt;
+    <b>acquires</b> <a href="supra_dkg.md#0x1_supra_dkg_DKGState">DKGState</a>
+{
+    <b>if</b> (!<b>exists</b>&lt;<a href="supra_dkg.md#0x1_supra_dkg_DKGState">DKGState</a>&gt;(@supra_framework)) {
+        <b>return</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+    };
+    <b>let</b> state = <b>borrow_global</b>&lt;<a href="supra_dkg.md#0x1_supra_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_none">option::is_none</a>(&state.last_completed)) {
+        <b>return</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+    };
+    <b>let</b> session = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_borrow">option::borrow</a>(&state.last_completed);
+    <b>let</b> target_committees = &session.metadata.target_committees;
+    <b>let</b> n = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(target_committees);
+    <b>if</b> (n == 0) {
+        <b>return</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>()
+    };
+
+    // Seed the intersection <b>with</b> the first receiver committee's addresses,
+    // then narrow it against each subsequent receiver committee.
+    <b>let</b> result = <a href="supra_dkg.md#0x1_supra_dkg_receiver_committee_addresses">receiver_committee_addresses</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(target_committees, 0));
+    <b>let</b> i = 1;
+    <b>while</b> (i &lt; n) {
+        <b>let</b> next_addrs =
+            <a href="supra_dkg.md#0x1_supra_dkg_receiver_committee_addresses">receiver_committee_addresses</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(target_committees, i));
+        result = <a href="supra_dkg.md#0x1_supra_dkg_intersect_addresses">intersect_addresses</a>(&result, &next_addrs);
+        i = i + 1;
+    };
+    <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(result)
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_supra_dkg_receiver_committee_addresses"></a>
+
+## Function `receiver_committee_addresses`
+
+Extract the ordered list of member addresses from a <code>ReceiverCommittee</code>.
+Order does not matter for the intersection caller; we just need the set.
+
+
+<pre><code><b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_receiver_committee_addresses">receiver_committee_addresses</a>(rc: &<a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">dkg_committee::ReceiverCommittee</a>): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_receiver_committee_addresses">receiver_committee_addresses</a>(rc: &ReceiverCommittee): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; {
+    <b>let</b> nodes = get_committee(get_receiver_dkg_committee(rc));
+    <b>let</b> addrs = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+    <b>let</b> i = 0;
+    <b>let</b> n = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&nodes);
+    <b>while</b> (i &lt; n) {
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> addrs, get_addr(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&nodes, i)));
+        i = i + 1;
+    };
+    addrs
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_supra_dkg_intersect_addresses"></a>
+
+## Function `intersect_addresses`
+
+Compute the intersection of two address vectors. O(|a| * |b|); acceptable
+for validator-set-sized inputs (tens to low hundreds).
+
+
+<pre><code><b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_intersect_addresses">intersect_addresses</a>(a: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, b: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_intersect_addresses">intersect_addresses</a>(a: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;, b: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt; {
+    <b>let</b> result = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+    <b>let</b> i = 0;
+    <b>let</b> n = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(a);
+    <b>while</b> (i &lt; n) {
+        <b>let</b> addr = *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(a, i);
+        <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(b, &addr)) {
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> result, addr);
+        };
+        i = i + 1;
+    };
+    result
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_supra_dkg_last_completed_threshold_pubkeys"></a>
+
+## Function `last_completed_threshold_pubkeys`
+
+Return the threshold public key (the polynomial constant term, evals[0])
+for each receiver committee from the last completed DKG session, paired
+with its threshold_type tag. Empty vector if no DKG has completed yet.
+Used by integration tests to verify that resharing preserves the
+threshold key across epochs.
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_last_completed_threshold_pubkeys">last_completed_threshold_pubkeys</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="supra_dkg.md#0x1_supra_dkg_last_completed_threshold_pubkeys">last_completed_threshold_pubkeys</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt; <b>acquires</b> <a href="supra_dkg.md#0x1_supra_dkg_DKGState">DKGState</a> {
+    <b>if</b> (!<b>exists</b>&lt;<a href="supra_dkg.md#0x1_supra_dkg_DKGState">DKGState</a>&gt;(@supra_framework)) {
+        <b>return</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]
+    };
+    <b>let</b> state = <b>borrow_global</b>&lt;<a href="supra_dkg.md#0x1_supra_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_none">option::is_none</a>(&state.last_completed)) {
+        <b>return</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]
+    };
+    <b>let</b> session = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_borrow">option::borrow</a>(&state.last_completed);
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&session.target_committees_public_key_shares) == 0) {
+        <b>return</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]
+    };
+
+    <b>let</b> serialized = <a href="../../aptos-stdlib/doc/any.md#0x1_any_new">any::new</a>(
+        <a href="../../aptos-stdlib/doc/type_info.md#0x1_type_info_type_name">type_info::type_name</a>&lt;<a href="supra_dkg.md#0x1_supra_dkg_OnChainAggregateCommitmentAllCommittees">OnChainAggregateCommitmentAllCommittees</a>&gt;(),
+        session.target_committees_public_key_shares
+    );
+    <b>let</b> unpacked = <a href="../../aptos-stdlib/doc/any.md#0x1_any_unpack">any::unpack</a>&lt;<a href="supra_dkg.md#0x1_supra_dkg_OnChainAggregateCommitmentAllCommittees">OnChainAggregateCommitmentAllCommittees</a>&gt;(serialized);
+
+    <b>let</b> pubkeys = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+    <b>let</b> i = 0;
+    <b>let</b> n = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&unpacked.commitments);
+    <b>while</b> (i &lt; n) {
+        <b>let</b> c = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&unpacked.commitments, i);
+        // Prefix the threshold_type tag so callers can correlate entries
+        // across epochs even <b>if</b> committee order ever changes.
+        <b>let</b> entry = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[c.threshold_type];
+        <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&c.bls12381_commitment_evals) &gt; 0) {
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_append">vector::append</a>(
+                &<b>mut</b> entry,
+                *<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&c.bls12381_commitment_evals, 0)
+            );
+        };
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> pubkeys, entry);
+        i = i + 1;
+    };
+    pubkeys
 }
 </code></pre>
 

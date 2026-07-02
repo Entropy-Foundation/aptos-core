@@ -1,9 +1,12 @@
 /// Reconfiguration with DKG helper functions.
 module supra_framework::reconfiguration_with_dkg {
     use std::dkg_committee::{
+        get_is_resharing,
+        new_dkg_committee,
         new_dkg_committee_from_validator_consensus_info,
-        new_receiver_committee
+        new_receiver_committee,
     };
+    use std::error;
     use std::features;
     use std::option;
     use std::vector;
@@ -26,10 +29,17 @@ module supra_framework::reconfiguration_with_dkg {
     use supra_framework::stake;
     use supra_framework::supra_config;
     use supra_framework::system_addresses;
+    use supra_framework::validator_consensus_info::{Self, ValidatorConsensusInfo};
     use supra_framework::evm_genesis_config;
 
     friend supra_framework::block;
     friend supra_framework::supra_governance;
+
+    /// Error: resharing was enabled but no prior DKG session exists. This should
+    /// be unreachable because `dkg_config::set_for_next_epoch` rejects such
+    /// configs at proposal time (`ERESHARING_WITHOUT_PRIOR_SESSION`); this abort
+    /// guards against state corruption only.
+    const ENO_PRIOR_DKG_FOR_RESHARING: u64 = 1;
 
     /// Trigger a reconfiguration with DKG.
     /// Do nothing if one is already in progress.
@@ -68,16 +78,84 @@ module supra_framework::reconfiguration_with_dkg {
             i = i + 1;
         };
 
+        // Choose the dealer committee.
+        //
+        // Default (no resharing): the dealer set is the current validator set
+        // as snapshotted at the start of this epoch via
+        // `stake::cur_validator_consensus_infos()`. That snapshot is immune to
+        // mid-epoch config changes (see `stake.move:1765-1775`).
+        //
+        // Resharing path: a dealer for a reshare must hold prior secret material
+        // on disk, that is only true of validators who received shares in the
+        // last completed DKG. We therefore restrict the dealer set to those
+        // prior receivers, looked up via `supra_dkg::last_completed_receivers_addresses()`.
+        //
+        // Leavers: `leave_validator_set` blocks during reconfig and only
+        // finalizes at `on_new_epoch`, so any prior receiver that initiated a
+        // leave is still in `pending_inactive` for the duration of this DKG and
+        // still appears in `cur_validator_consensus_infos()`. 
+        let any_resharing = false;
+        let j = 0;
+        let m = vector::length(&receiver_committees);
+        while (j < m) {
+            if (get_is_resharing(vector::borrow(&receiver_committees, j))) {
+                any_resharing = true;
+                break
+            };
+            j = j + 1;
+        };
+
+        let dealer_threshold = dkg_config::get_dealer_committee_threshold_type(&config);
+        let dealer_committee = if (any_resharing) {
+            let prior_opt = supra_dkg::last_completed_receivers_addresses();
+            // Unreachable in practice: `dkg_config::set_for_next_epoch` rejects
+            // `is_resharing=true` when no last_completed_session exists.
+            assert!(
+                option::is_some(&prior_opt),
+                error::invalid_state(ENO_PRIOR_DKG_FOR_RESHARING)
+            );
+            let prior_addrs = option::extract(&mut prior_opt);
+            let cur_infos = stake::cur_validator_consensus_infos();
+            let filtered = filter_consensus_infos_by_addresses(&cur_infos, &prior_addrs);
+            new_dkg_committee_from_validator_consensus_info(filtered, dealer_threshold)
+        } else {
+            new_dkg_committee_from_validator_consensus_info(
+                stake::cur_validator_consensus_infos(),
+                dealer_threshold
+            )
+        };
+
         // DKG for configured receiver committees
         supra_dkg::start(
             cur_epoch,
             randomness_seed,
-            new_dkg_committee_from_validator_consensus_info(
-                stake::cur_validator_consensus_infos(),
-                dkg_config::get_dealer_committee_threshold_type(&config)
-            ),
+            dealer_committee,
             receiver_committees
         );
+    }
+
+    /// Filter a vector of `ValidatorConsensusInfo` to entries whose address
+    /// appears in `addrs`. Order of the input is preserved in the output, which
+    /// matters for `DkgCommittee` because committee indexing follows insertion
+    /// order (see `dkg_committee.rs::new`).
+    ///
+    /// O(|infos| * |addrs|); both bounded by the validator-set size.
+    fun filter_consensus_infos_by_addresses(
+        infos: &vector<ValidatorConsensusInfo>,
+        addrs: &vector<address>
+    ): vector<ValidatorConsensusInfo> {
+        let result = vector[];
+        let i = 0;
+        let n = vector::length(infos);
+        while (i < n) {
+            let info = vector::borrow(infos, i);
+            let addr = validator_consensus_info::get_addr(info);
+            if (vector::contains(addrs, &addr)) {
+                vector::push_back(&mut result, *info);
+            };
+            i = i + 1;
+        };
+        result
     }
 
     fun set_dkg_meta(dkg_meta: vector<u8>) {
