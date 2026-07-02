@@ -18,6 +18,8 @@
 -  [Function `new_dkg_committee`](#0x1_dkg_committee_new_dkg_committee)
 -  [Function `new_dkg_committee_from_validator_consensus_info`](#0x1_dkg_committee_new_dkg_committee_from_validator_consensus_info)
 -  [Function `new_receiver_committee`](#0x1_dkg_committee_new_receiver_committee)
+-  [Function `get_is_resharing`](#0x1_dkg_committee_get_is_resharing)
+-  [Function `get_receiver_dkg_committee`](#0x1_dkg_committee_get_receiver_dkg_committee)
 -  [Function `new_dkg_committee_output`](#0x1_dkg_committee_new_dkg_committee_output)
 -  [Function `get_dkg_committee_output_threshold_type`](#0x1_dkg_committee_get_dkg_committee_output_threshold_type)
 -  [Function `get_dkg_committee_output_keys`](#0x1_dkg_committee_get_dkg_committee_output_keys)
@@ -409,6 +411,61 @@ Input for DKG key output - contains threshold type and keys for one committee
     committee: <a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">DkgCommittee</a>
 ): <a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">ReceiverCommittee</a> {
     <a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">ReceiverCommittee</a> { is_resharing, dkg_threshold_type, committee }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_committee_get_is_resharing"></a>
+
+## Function `get_is_resharing`
+
+Whether this receiver committee is participating in a resharing DKG.
+Added so callers outside this module (notably reconfiguration_with_dkg
+and supra_dkg) can branch on resharing status
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_get_is_resharing">get_is_resharing</a>(rc: &<a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">dkg_committee::ReceiverCommittee</a>): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_get_is_resharing">get_is_resharing</a>(rc: &<a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">ReceiverCommittee</a>): bool {
+    rc.is_resharing
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_dkg_committee_get_receiver_dkg_committee"></a>
+
+## Function `get_receiver_dkg_committee`
+
+Borrow the embedded <code><a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">DkgCommittee</a></code> from a <code><a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">ReceiverCommittee</a></code>.
+Used by supra_dkg to traverse the last completed session's receiver
+committees and extract member addresses for dealer-set computation
+in resharing DKGs.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_get_receiver_dkg_committee">get_receiver_dkg_committee</a>(rc: &<a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">dkg_committee::ReceiverCommittee</a>): &<a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">dkg_committee::DkgCommittee</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="dkg_committee.md#0x1_dkg_committee_get_receiver_dkg_committee">get_receiver_dkg_committee</a>(rc: &<a href="dkg_committee.md#0x1_dkg_committee_ReceiverCommittee">ReceiverCommittee</a>): &<a href="dkg_committee.md#0x1_dkg_committee_DkgCommittee">DkgCommittee</a> {
+    &rc.committee
 }
 </code></pre>
 

@@ -94,6 +94,21 @@ module std::dkg_committee {
         ReceiverCommittee { is_resharing, dkg_threshold_type, committee }
     }
 
+    /// Whether this receiver committee is participating in a resharing DKG.
+    /// Added so callers outside this module (notably reconfiguration_with_dkg
+    /// and supra_dkg) can branch on resharing status
+    public fun get_is_resharing(rc: &ReceiverCommittee): bool {
+        rc.is_resharing
+    }
+
+    /// Borrow the embedded `DkgCommittee` from a `ReceiverCommittee`.
+    /// Used by supra_dkg to traverse the last completed session's receiver
+    /// committees and extract member addresses for dealer-set computation
+    /// in resharing DKGs.
+    public fun get_receiver_dkg_committee(rc: &ReceiverCommittee): &DkgCommittee {
+        &rc.committee
+    }
+
     /// Input for DKG key output - contains threshold type and keys for one committee
     struct DkgCommitteeOutput has copy, drop {
         /// The threshold type (0=validity, 1=quorum, 2=unanimous, etc.)

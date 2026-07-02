@@ -3,9 +3,11 @@
 /// This config can be updated via governance and takes effect at the next epoch.
 module supra_framework::dkg_config {
     use std::error;
+    use std::option;
     use std::vector;
     use supra_framework::config_buffer;
     use supra_framework::features;
+    use supra_framework::supra_dkg;
     use supra_framework::system_addresses;
     use supra_framework::validator_public_keys::{
         CertificateThresholdType,
@@ -25,6 +27,13 @@ module supra_framework::dkg_config {
     const EEMPTY_RECEIVER_COMMITTEES: u64 = 1;
     /// Error: Cannot enable resharing for a threshold type that doesn't exist in current config.
     const ERESHARING_FOR_NONEXISTENT_THRESHOLD_TYPE: u64 = 2;
+    /// Error: Cannot enable resharing when no DKG session has ever completed.
+    /// Resharing pulls prior secret material from validators' disks, which only
+    /// exists once a DKG has produced shares. Without a prior session, the
+    /// dealer committee for the next DKG cannot be constrained to validators
+    /// holding prior data, so reject the config at proposal time rather than
+    /// aborting deeper inside `reconfiguration_with_dkg::try_start`.
+    const ERESHARING_WITHOUT_PRIOR_SESSION: u64 = 3;
 
     /// Configuration for a single receiver committee in DKG.
     struct ReceiverCommitteeConfig has copy, drop, store {
@@ -90,20 +99,39 @@ module supra_framework::dkg_config {
             error::invalid_argument(EEMPTY_RECEIVER_COMMITTEES)
         );
 
-        // Validate: if resharing is enabled for a dkg threshold type, it must exist in current config
+        // Validate: if resharing is enabled for any receiver committee, both:
+        //   (a) the dkg threshold type must already exist in the current config,
+        //       so that prior shares of that type exist to be reshared. This is
+        //       a per-committee check.
+        //   (b) a DKG session must have completed at least once, so that
+        //       validators have prior secret material on disk and the dealer
+        //       committee can be constrained to those validators in
+        //       `reconfiguration_with_dkg::try_start`. This is a per-proposal
+        //       check, asserted once below the loop.
         let current_config = current();
+        let any_resharing = false;
         let i = 0;
         let len = vector::length(&new_config.receiver_committees);
         while (i < len) {
             let new_rc = vector::borrow(&new_config.receiver_committees, i);
             if (new_rc.is_resharing) {
-                // Check if this threshold type exists in current config
+                any_resharing = true;
+                // (a) Per-committee: threshold type must exist in current config.
                 assert!(
                     has_key_threshold_type(&current_config, new_rc.dkg_threshold_type),
                     error::invalid_argument(ERESHARING_FOR_NONEXISTENT_THRESHOLD_TYPE)
                 );
             };
             i = i + 1;
+        };
+        // (b) Per-proposal: at least one prior DKG must have completed.
+        //     Only relevant if any receiver actually enables resharing, so this
+        //     is guarded by `any_resharing` and only reads `DKGState` in that case.
+        if (any_resharing) {
+            assert!(
+                option::is_some(&supra_dkg::last_completed_session()),
+                error::invalid_state(ERESHARING_WITHOUT_PRIOR_SESSION)
+            );
         };
 
         config_buffer::upsert(new_config);
@@ -258,6 +286,13 @@ module supra_framework::dkg_config {
     fun test_set_for_next_epoch(framework: signer) acquires DkgConfig {
         account::create_account_for_test(@0x1);
         initialize_for_testing(&framework);
+        // Resharing requires a prior completed session per
+        // ERESHARING_WITHOUT_PRIOR_SESSION; install a fake one for the test.
+        supra_dkg::setup_fake_last_completed_session_for_test(
+            &framework,
+            quorum_certificate_type(),
+            vector[quorum_certificate_type()],
+        );
 
         // Create new config with resharing enabled
         let new_config =
@@ -347,6 +382,13 @@ module supra_framework::dkg_config {
     ) acquires DkgConfig {
         account::create_account_for_test(@0x1);
         initialize_for_testing(&framework);
+        // Resharing requires a prior completed session per
+        // ERESHARING_WITHOUT_PRIOR_SESSION; install a fake one for the test.
+        supra_dkg::setup_fake_last_completed_session_for_test(
+            &framework,
+            quorum_certificate_type(),
+            vector[quorum_certificate_type()],
+        );
 
         // Enable resharing for types that DO exist in current config (validity and quorum)
         let good_config =
@@ -374,6 +416,35 @@ module supra_framework::dkg_config {
         let receivers = get_receiver_committee_configs(&config);
         assert!(get_is_resharing(vector::borrow(&receivers, 0)), 1);
         assert!(get_is_resharing(vector::borrow(&receivers, 1)), 2);
+    }
+
+    #[test(framework = @0x1)]
+    #[expected_failure(abort_code = 196611, location = Self)]
+    // ERESHARING_WITHOUT_PRIOR_SESSION (3) wrapped by error::invalid_state (0x3xxxx).
+    // Encoded: (0x3 << 16) | 3 = 196611.
+    fun test_set_for_next_epoch_resharing_without_prior_session_fails(
+        framework: signer
+    ) acquires DkgConfig {
+        account::create_account_for_test(@0x1);
+        initialize_for_testing(&framework);
+        // Deliberately skip setup_fake_last_completed_session_for_test so that
+        // supra_dkg::last_completed_session() returns None.
+
+        // Build a resharing config that passes ERESHARING_FOR_NONEXISTENT_THRESHOLD_TYPE
+        // (the threshold types exist in the default config) so we exercise the
+        // new ERESHARING_WITHOUT_PRIOR_SESSION check, not the older one.
+        let resharing_config =
+            new(
+                quorum_certificate_type(),
+                vector[
+                    new_receiver_committee_config(
+                        true,
+                        quorum_certificate_type(),
+                        bcft_quorum_certificate_type()
+                    )
+                ]
+            );
+        set_for_next_epoch(&framework, resharing_config);
     }
 
     #[test(framework = @0x1)]

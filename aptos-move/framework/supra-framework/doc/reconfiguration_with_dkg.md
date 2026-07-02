@@ -6,20 +6,23 @@
 Reconfiguration with DKG helper functions.
 
 
+-  [Constants](#@Constants_0)
 -  [Function `try_start`](#0x1_reconfiguration_with_dkg_try_start)
+-  [Function `filter_consensus_infos_by_addresses`](#0x1_reconfiguration_with_dkg_filter_consensus_infos_by_addresses)
 -  [Function `set_dkg_meta`](#0x1_reconfiguration_with_dkg_set_dkg_meta)
 -  [Function `finish`](#0x1_reconfiguration_with_dkg_finish)
 -  [Function `finish_with_dkg_result`](#0x1_reconfiguration_with_dkg_finish_with_dkg_result)
--  [Specification](#@Specification_0)
-    -  [Function `try_start`](#@Specification_0_try_start)
-    -  [Function `finish`](#@Specification_0_finish)
-    -  [Function `finish_with_dkg_result`](#@Specification_0_finish_with_dkg_result)
+-  [Specification](#@Specification_1)
+    -  [Function `try_start`](#@Specification_1_try_start)
+    -  [Function `finish`](#@Specification_1_finish)
+    -  [Function `finish_with_dkg_result`](#@Specification_1_finish_with_dkg_result)
 
 
 <pre><code><b>use</b> <a href="automation_registry.md#0x1_automation_registry">0x1::automation_registry</a>;
 <b>use</b> <a href="consensus_config.md#0x1_consensus_config">0x1::consensus_config</a>;
 <b>use</b> <a href="dkg_committee.md#0x1_dkg_committee">0x1::dkg_committee</a>;
 <b>use</b> <a href="dkg_config.md#0x1_dkg_config">0x1::dkg_config</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
 <b>use</b> <a href="evm_config.md#0x1_evm_config">0x1::evm_config</a>;
 <b>use</b> <a href="evm_genesis_config.md#0x1_evm_genesis_config">0x1::evm_genesis_config</a>;
 <b>use</b> <a href="execution_config.md#0x1_execution_config">0x1::execution_config</a>;
@@ -42,7 +45,26 @@ Reconfiguration with DKG helper functions.
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="validator_consensus_info.md#0x1_validator_consensus_info">0x1::validator_consensus_info</a>;
 <b>use</b> <a href="validator_public_keys.md#0x1_validator_public_keys">0x1::validator_public_keys</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 <b>use</b> <a href="version.md#0x1_version">0x1::version</a>;
+</code></pre>
+
+
+
+<a id="@Constants_0"></a>
+
+## Constants
+
+
+<a id="0x1_reconfiguration_with_dkg_ENO_PRIOR_DKG_FOR_RESHARING"></a>
+
+Error: resharing was enabled but no prior DKG session exists. This should
+be unreachable because <code><a href="dkg_config.md#0x1_dkg_config_set_for_next_epoch">dkg_config::set_for_next_epoch</a></code> rejects such
+configs at proposal time (<code>ERESHARING_WITHOUT_PRIOR_SESSION</code>); this abort
+guards against state corruption only.
+
+
+<pre><code><b>const</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_ENO_PRIOR_DKG_FOR_RESHARING">ENO_PRIOR_DKG_FOR_RESHARING</a>: u64 = 1;
 </code></pre>
 
 
@@ -99,16 +121,104 @@ Do nothing if one is already in progress.
         i = i + 1;
     };
 
+    // Choose the dealer committee.
+    //
+    // Default (no resharing): the dealer set is the current validator set
+    // <b>as</b> snapshotted at the start of this epoch via
+    // `<a href="stake.md#0x1_stake_cur_validator_consensus_infos">stake::cur_validator_consensus_infos</a>()`. That snapshot is immune <b>to</b>
+    // mid-epoch config changes (see `<a href="stake.md#0x1_stake">stake</a>.<b>move</b>:1765-1775`).
+    //
+    // Resharing path: a dealer for a reshare must hold prior secret material
+    // on disk, that is only <b>true</b> of validators who received shares in the
+    // last completed DKG. We therefore restrict the dealer set <b>to</b> those
+    // prior receivers, looked up via `<a href="supra_dkg.md#0x1_supra_dkg_last_completed_receivers_addresses">supra_dkg::last_completed_receivers_addresses</a>()`.
+    //
+    // Leavers: `leave_validator_set` blocks during reconfig and only
+    // finalizes at `on_new_epoch`, so <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> prior receiver that initiated a
+    // leave is still in `pending_inactive` for the duration of this DKG and
+    // still appears in `cur_validator_consensus_infos()`.
+    <b>let</b> any_resharing = <b>false</b>;
+    <b>let</b> j = 0;
+    <b>let</b> m = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&receiver_committees);
+    <b>while</b> (j &lt; m) {
+        <b>if</b> (get_is_resharing(<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&receiver_committees, j))) {
+            any_resharing = <b>true</b>;
+            <b>break</b>
+        };
+        j = j + 1;
+    };
+
+    <b>let</b> dealer_threshold = <a href="dkg_config.md#0x1_dkg_config_get_dealer_committee_threshold_type">dkg_config::get_dealer_committee_threshold_type</a>(&config);
+    <b>let</b> dealer_committee = <b>if</b> (any_resharing) {
+        <b>let</b> prior_opt = <a href="supra_dkg.md#0x1_supra_dkg_last_completed_receivers_addresses">supra_dkg::last_completed_receivers_addresses</a>();
+        // Unreachable in practice: `<a href="dkg_config.md#0x1_dkg_config_set_for_next_epoch">dkg_config::set_for_next_epoch</a>` rejects
+        // `is_resharing=<b>true</b>` when no last_completed_session <b>exists</b>.
+        <b>assert</b>!(
+            <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&prior_opt),
+            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_ENO_PRIOR_DKG_FOR_RESHARING">ENO_PRIOR_DKG_FOR_RESHARING</a>)
+        );
+        <b>let</b> prior_addrs = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> prior_opt);
+        <b>let</b> cur_infos = <a href="stake.md#0x1_stake_cur_validator_consensus_infos">stake::cur_validator_consensus_infos</a>();
+        <b>let</b> filtered = <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_filter_consensus_infos_by_addresses">filter_consensus_infos_by_addresses</a>(&cur_infos, &prior_addrs);
+        new_dkg_committee_from_validator_consensus_info(filtered, dealer_threshold)
+    } <b>else</b> {
+        new_dkg_committee_from_validator_consensus_info(
+            <a href="stake.md#0x1_stake_cur_validator_consensus_infos">stake::cur_validator_consensus_infos</a>(),
+            dealer_threshold
+        )
+    };
+
     // DKG for configured receiver committees
     <a href="supra_dkg.md#0x1_supra_dkg_start">supra_dkg::start</a>(
         cur_epoch,
         randomness_seed,
-        new_dkg_committee_from_validator_consensus_info(
-            <a href="stake.md#0x1_stake_cur_validator_consensus_infos">stake::cur_validator_consensus_infos</a>(),
-            <a href="dkg_config.md#0x1_dkg_config_get_dealer_committee_threshold_type">dkg_config::get_dealer_committee_threshold_type</a>(&config)
-        ),
+        dealer_committee,
         receiver_committees
     );
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_reconfiguration_with_dkg_filter_consensus_infos_by_addresses"></a>
+
+## Function `filter_consensus_infos_by_addresses`
+
+Filter a vector of <code>ValidatorConsensusInfo</code> to entries whose address
+appears in <code>addrs</code>. Order of the input is preserved in the output, which
+matters for <code>DkgCommittee</code> because committee indexing follows insertion
+order (see <code><a href="dkg_committee.md#0x1_dkg_committee">dkg_committee</a>.rs::new</code>).
+
+O(|infos| * |addrs|); both bounded by the validator-set size.
+
+
+<pre><code><b>fun</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_filter_consensus_infos_by_addresses">filter_consensus_infos_by_addresses</a>(infos: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;, addrs: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="validator_consensus_info.md#0x1_validator_consensus_info_ValidatorConsensusInfo">validator_consensus_info::ValidatorConsensusInfo</a>&gt;
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_filter_consensus_infos_by_addresses">filter_consensus_infos_by_addresses</a>(
+    infos: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;ValidatorConsensusInfo&gt;,
+    addrs: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<b>address</b>&gt;
+): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;ValidatorConsensusInfo&gt; {
+    <b>let</b> result = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
+    <b>let</b> i = 0;
+    <b>let</b> n = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(infos);
+    <b>while</b> (i &lt; n) {
+        <b>let</b> info = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(infos, i);
+        <b>let</b> addr = <a href="validator_consensus_info.md#0x1_validator_consensus_info_get_addr">validator_consensus_info::get_addr</a>(info);
+        <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(addrs, &addr)) {
+            <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> result, *info);
+        };
+        i = i + 1;
+    };
+    result
 }
 </code></pre>
 
@@ -214,7 +324,7 @@ Abort if no DKG is in progress.
 
 </details>
 
-<a id="@Specification_0"></a>
+<a id="@Specification_1"></a>
 
 ## Specification
 
@@ -225,7 +335,7 @@ Abort if no DKG is in progress.
 
 
 
-<a id="@Specification_0_try_start"></a>
+<a id="@Specification_1_try_start"></a>
 
 ### Function `try_start`
 
@@ -249,7 +359,7 @@ Abort if no DKG is in progress.
 
 
 
-<a id="@Specification_0_finish"></a>
+<a id="@Specification_1_finish"></a>
 
 ### Function `finish`
 
@@ -298,7 +408,7 @@ Abort if no DKG is in progress.
 
 
 
-<a id="@Specification_0_finish_with_dkg_result"></a>
+<a id="@Specification_1_finish_with_dkg_result"></a>
 
 ### Function `finish_with_dkg_result`
 

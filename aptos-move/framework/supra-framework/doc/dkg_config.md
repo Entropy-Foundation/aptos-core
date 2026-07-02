@@ -27,6 +27,8 @@ This config can be updated via governance and takes effect at the next epoch.
 
 <pre><code><b>use</b> <a href="config_buffer.md#0x1_config_buffer">0x1::config_buffer</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
+<b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option">0x1::option</a>;
+<b>use</b> <a href="supra_dkg.md#0x1_supra_dkg">0x1::supra_dkg</a>;
 <b>use</b> <a href="system_addresses.md#0x1_system_addresses">0x1::system_addresses</a>;
 <b>use</b> <a href="validator_public_keys.md#0x1_validator_public_keys">0x1::validator_public_keys</a>;
 </code></pre>
@@ -134,6 +136,21 @@ Error: Cannot enable resharing for a threshold type that doesn't exist in curren
 
 
 
+<a id="0x1_dkg_config_ERESHARING_WITHOUT_PRIOR_SESSION"></a>
+
+Error: Cannot enable resharing when no DKG session has ever completed.
+Resharing pulls prior secret material from validators' disks, which only
+exists once a DKG has produced shares. Without a prior session, the
+dealer committee for the next DKG cannot be constrained to validators
+holding prior data, so reject the config at proposal time rather than
+aborting deeper inside <code><a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_try_start">reconfiguration_with_dkg::try_start</a></code>.
+
+
+<pre><code><b>const</b> <a href="dkg_config.md#0x1_dkg_config_ERESHARING_WITHOUT_PRIOR_SESSION">ERESHARING_WITHOUT_PRIOR_SESSION</a>: u64 = 3;
+</code></pre>
+
+
+
 <a id="0x1_dkg_config_initialize"></a>
 
 ## Function `initialize`
@@ -202,20 +219,39 @@ supra_governance::reconfigure(&framework_signer);
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="dkg_config.md#0x1_dkg_config_EEMPTY_RECEIVER_COMMITTEES">EEMPTY_RECEIVER_COMMITTEES</a>)
     );
 
-    // Validate: <b>if</b> resharing is enabled for a <a href="dkg.md#0x1_dkg">dkg</a> threshold type, it must exist in current config
+    // Validate: <b>if</b> resharing is enabled for <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> receiver committee, both:
+    //   (a) the <a href="dkg.md#0x1_dkg">dkg</a> threshold type must already exist in the current config,
+    //       so that prior shares of that type exist <b>to</b> be reshared. This is
+    //       a per-committee check.
+    //   (b) a DKG session must have completed at least once, so that
+    //       validators have prior secret material on disk and the dealer
+    //       committee can be constrained <b>to</b> those validators in
+    //       `<a href="reconfiguration_with_dkg.md#0x1_reconfiguration_with_dkg_try_start">reconfiguration_with_dkg::try_start</a>`. This is a per-proposal
+    //       check, asserted once below the <b>loop</b>.
     <b>let</b> current_config = <a href="dkg_config.md#0x1_dkg_config_current">current</a>();
+    <b>let</b> any_resharing = <b>false</b>;
     <b>let</b> i = 0;
     <b>let</b> len = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&new_config.receiver_committees);
     <b>while</b> (i &lt; len) {
         <b>let</b> new_rc = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_borrow">vector::borrow</a>(&new_config.receiver_committees, i);
         <b>if</b> (new_rc.is_resharing) {
-            // Check <b>if</b> this threshold type <b>exists</b> in current config
+            any_resharing = <b>true</b>;
+            // (a) Per-committee: threshold type must exist in current config.
             <b>assert</b>!(
                 <a href="dkg_config.md#0x1_dkg_config_has_key_threshold_type">has_key_threshold_type</a>(&current_config, new_rc.dkg_threshold_type),
                 <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="dkg_config.md#0x1_dkg_config_ERESHARING_FOR_NONEXISTENT_THRESHOLD_TYPE">ERESHARING_FOR_NONEXISTENT_THRESHOLD_TYPE</a>)
             );
         };
         i = i + 1;
+    };
+    // (b) Per-proposal: at least one prior DKG must have completed.
+    //     Only relevant <b>if</b> <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> receiver actually enables resharing, so this
+    //     is guarded by `any_resharing` and only reads `DKGState` in that case.
+    <b>if</b> (any_resharing) {
+        <b>assert</b>!(
+            <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&<a href="supra_dkg.md#0x1_supra_dkg_last_completed_session">supra_dkg::last_completed_session</a>()),
+            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="dkg_config.md#0x1_dkg_config_ERESHARING_WITHOUT_PRIOR_SESSION">ERESHARING_WITHOUT_PRIOR_SESSION</a>)
+        );
     };
 
     <a href="config_buffer.md#0x1_config_buffer_upsert">config_buffer::upsert</a>(new_config);
