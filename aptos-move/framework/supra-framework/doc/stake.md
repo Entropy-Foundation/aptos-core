@@ -3627,7 +3627,8 @@ Move <code>amount</code> of coins from pending_inactive to active.
     <b>let</b> new_consensus_pubkey =
         <b>if</b> (!<a href="genesis.md#0x1_genesis">genesis</a>
             && std::features::supra_validator_identity_v2_enabled()
-            && !<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&old_consensus_pubkey)) {
+            && !<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_is_empty">vector::is_empty</a>(&old_consensus_pubkey)
+            && !<a href="stake.md#0x1_stake_is_unrotated_legacy_key">is_unrotated_legacy_key</a>(&old_consensus_pubkey)) {
             <b>let</b> current_keys =
                 <a href="validator_public_keys.md#0x1_validator_public_keys_validator_public_keys_from_bytes">validator_public_keys::validator_public_keys_from_bytes</a>(
                     old_consensus_pubkey

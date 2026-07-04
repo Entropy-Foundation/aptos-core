@@ -1180,14 +1180,15 @@ module supra_framework::stake {
         //  - an empty stored key: a validator initialized via `initialize_stake_owner` sets its key
         //    for the first time here, so there is no prior `ValidatorPublicKeys` to merge into
         //    (parsing the empty blob would abort).
-        // Under v2 a non-empty stored blob is guaranteed to be a valid `ValidatorPublicKeys` (the
-        // feature is only enabled once all validators have migrated to the new format), and
-        // `validate_consensus_public_key` has already verified the incoming blob, so both
-        // deserializations are safe.
+        // Under v2 a non-empty stored blob may be either an unmigrated legacy key (in which case
+        // the validator is not a member of the active validator set---see on_new_epoch) or a valid
+        // `ValidatorPublicKeys`. `validate_consensus_public_key` ensures that the incoming blob
+        // is a `ValidatorPublicKeys`.
         let new_consensus_pubkey =
             if (!genesis
                 && std::features::supra_validator_identity_v2_enabled()
-                && !vector::is_empty(&old_consensus_pubkey)) {
+                && !vector::is_empty(&old_consensus_pubkey)
+                && !is_unrotated_legacy_key(&old_consensus_pubkey)) {
                 let current_keys =
                     validator_public_keys::validator_public_keys_from_bytes(
                         old_consensus_pubkey
@@ -2914,12 +2915,16 @@ module supra_framework::stake {
             validator_eject = @0x234
         )
     ]
-    /// Once the v2 identity format is enforced, a validator that never rotated to a v2 consensus key
-    /// (still a legacy bare ed25519 key) is ejected from the active set at the next epoch transition,
-    /// while a rotated (v2) validator is retained with a contiguous validator_index. This is the
-    /// invariant that lets DKG / `set_dkg_output_keys` assume every active validator has a valid v2
-    /// key, and what prevents the DKG-committee resolution failure on unrotated validators.
-    public entry fun test_on_new_epoch_ejects_unrotated_legacy_validator(
+    /// Full recovery lifecycle for a validator that never rotated to a v2 consensus key before the
+    /// v2 identity format was enforced. Once v2 is enforced, such a validator (still a legacy bare
+    /// ed25519 key) is ejected from the active set at the next epoch transition, while a rotated
+    /// (v2) validator is retained with a contiguous validator_index -- the invariant that lets DKG /
+    /// `set_dkg_output_keys` assume every active validator has a valid v2 key, and what prevents the
+    /// DKG-committee resolution failure on unrotated validators. The ejected validator can then
+    /// migrate: `rotate_consensus_key` accepts a v2 key over the stored legacy key (rather than
+    /// aborting while trying to merge DKG threshold keys into it), after which the validator can
+    /// rejoin the active set.
+    public entry fun test_legacy_validator_ejected_then_migrates_and_rejoins(
         supra_framework: &signer, validator_keep: &signer, validator_eject: &signer
     ) acquires AllowedValidators, SupraCoinCapabilities, OwnerCapability, StakePool, ValidatorConfig, ValidatorPerformance, ValidatorSet, ValidatorFees {
         initialize_for_test(supra_framework);
@@ -2969,6 +2974,32 @@ module supra_framework::stake {
         assert!(get_validator_state(eject_addr) == VALIDATOR_STATUS_INACTIVE, 3);
         // The surviving validator keeps a contiguous validator_index.
         assert!(borrow_global<ValidatorConfig>(keep_addr).validator_index == 0, 4);
+
+        // Migrate: the ejected validator rotates its stored legacy ed25519 key to a v2 consensus
+        // key. Before the fix this aborted -- `rotate_consensus_key_internal` tried to parse the
+        // stored legacy key as a `ValidatorPublicKeys` blob to merge DKG threshold keys into it. The
+        // `is_unrotated_legacy_key` guard skips that merge and stores the incoming v2 blob verbatim.
+        // The submission carries an appended BLS multisig PoP, exactly as an operator would submit.
+        rotate_consensus_key(
+            validator_eject, eject_addr, generate_unique_consensus_pubkey_bytes()
+        );
+
+        // The stored key is now a valid v2 key: no longer an unrotated legacy key, and it
+        // deserializes as a canonical `ValidatorPublicKeys` (this call aborts if it does not).
+        let (migrated_bytes, _net, _fn) = get_validator_config(eject_addr);
+        assert!(!is_unrotated_legacy_key(&migrated_bytes), 5);
+        validator_public_keys::validator_public_keys_from_bytes(migrated_bytes);
+
+        // Rejoin: the ejected validator is INACTIVE but still holds its stake, so it can re-join.
+        // Eligibility is re-checked at the next epoch, where the migrated v2 key now passes.
+        join_validator_set(validator_eject, eject_addr);
+        end_epoch();
+        assert!(get_validator_state(eject_addr) == VALIDATOR_STATUS_ACTIVE, 6);
+        assert!(get_validator_state(keep_addr) == VALIDATOR_STATUS_ACTIVE, 7);
+        // Both validators occupy contiguous indices in the reconstituted active set: the retained
+        // validator keeps index 0 and the rejoining one is appended at index 1.
+        assert!(borrow_global<ValidatorConfig>(keep_addr).validator_index == 0, 8);
+        assert!(borrow_global<ValidatorConfig>(eject_addr).validator_index == 1, 9);
     }
 
     #[test(supra_framework = @supra_framework, validator = @0x123)]
