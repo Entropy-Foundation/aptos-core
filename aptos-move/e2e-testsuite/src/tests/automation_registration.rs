@@ -946,6 +946,106 @@ fn check_automation_registry_actions_on_cycle_transition() {
     assert!(!task_ids.contains(&1));
 }
 
+/// Regression test for `AutomationRegistryTransactionProcessor::get_transaction_error_output`
+/// (aptos-move/aptos-vm/src/automation_registry_transaction_processor.rs).
+///
+/// A `Process` registry action can list the same task index twice. Inside
+/// `automation_registry::on_cycle_transition` -> `drop_or_charge_tasks`, the duplicate is
+/// processed sequentially within the *same* Move VM session: the first occurrence
+/// successfully charges the automation fee for the task (withdrawing coins from the owner's
+/// account and mutating the task/transition-state bookkeeping), while the second occurrence
+/// aborts with `EINCONSISTENT_TRANSITION_STATE` because `mark_task_processed` observes that
+/// the transition state's cursor has already advanced past the number of tasks expected for
+/// this cycle.
+///
+/// Prior to the fix, the processor called `session.finish(..)` on this error path, which
+/// would bake the first (successful) iteration's writes into the transaction's change set
+/// even though the overall transaction is reported as failed. The fix now always returns an
+/// empty change set when the automation registry action errors out, so none of that partial
+/// work should be observable in the output.
+#[test]
+fn check_no_partial_state_leak_on_registry_action_abort() {
+    const EINCONSISTENT_TRANSITION_STATE: u64 = 35;
+
+    let mut test_context = AutomationRegistrationTestContext::new();
+    test_context.set_supra_native_automation(true);
+
+    // Prepare inner-entry-function to be automated.
+    let dest_account = test_context.new_account_data(0, 0);
+    let inner_entry_function =
+        aptos_framework_sdk_builder::supra_coin_mint(dest_account.address().clone(), 100)
+            .into_entry_function();
+
+    let automation_fee_cap = 100_000;
+    // Long-lived enough to remain active across the two cycle transitions below.
+    let expiration_time = test_context.chain_time_now() + 10_000;
+    let automation_txn = test_context.create_automation_txn(
+        0,
+        inner_entry_function,
+        expiration_time,
+        100,
+        100,
+        automation_fee_cap,
+    );
+
+    let sender_address = test_context.sender_account_address();
+    test_context.execute_and_apply(automation_txn);
+
+    // First cycle transition: activate task 0 via a normal (single-index) Process action.
+    test_context.advance_chain_time_in_secs(1200);
+    let cycle_info = test_context.get_cycle_info();
+    assert_eq!(cycle_info.state, AutomationCycleState::FINISHED);
+    let registry_action =
+        test_context.create_automation_registry_transaction(0, cycle_info.index + 1, 1, vec![0]);
+    test_context
+        .execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(registry_action));
+    let cycle_info = test_context.get_cycle_info();
+    assert_eq!(cycle_info.state, AutomationCycleState::STARTED);
+    assert!(test_context.has_sender_active_task_with_id(sender_address, 0));
+
+    // Move to the next cycle-transition window.
+    test_context.advance_chain_time_in_secs(1200);
+    let cycle_info = test_context.get_cycle_info();
+    assert_eq!(cycle_info.state, AutomationCycleState::FINISHED);
+
+    let sender_balance_before = test_context.account_balance(sender_address);
+
+    // Single AutomationRegistryTransaction (i.e. a single Move VM session) listing task 0
+    // twice, to trigger the partial-mutation-then-abort scenario described above.
+    let registry_action = test_context.create_automation_registry_transaction(
+        0,
+        cycle_info.index + 1,
+        2,
+        vec![0, 0],
+    );
+    let output = test_context
+        .execute_tagged_transaction(Transaction::AutomationRegistryTransaction(registry_action));
+
+    let status = output.status().status().expect("Expected execution status");
+    match status {
+        ExecutionStatus::MoveAbort { code, .. } => {
+            assert_eq!(code, EINCONSISTENT_TRANSITION_STATE, "{status:?}");
+        },
+        other => panic!("Expected MoveAbort, got {other:?}"),
+    }
+
+    // The critical assertion: even though the first occurrence of task 0 was successfully
+    // processed (fee withdrawal, bookkeeping updates) before the second occurrence aborted,
+    // none of that partial work should be present in the transaction's output.
+    assert!(output.write_set().is_empty(), "{output:?}");
+    assert!(output.events().is_empty(), "{output:?}");
+
+    // Sanity check: since the failed output was never applied, on-chain state (and the
+    // sender's balance) must remain exactly as it was before this attempt.
+    assert!(test_context.has_sender_active_task_with_id(sender_address, 0));
+    assert_eq!(
+        test_context.account_balance(sender_address),
+        sender_balance_before
+    );
+    let cycle_info_after = test_context.get_cycle_info();
+    assert_eq!(cycle_info_after.state, AutomationCycleState::FINISHED);
+}
+
 #[test]
 fn check_automation_registry_actions_on_cycle_suspension() {
     // Feature flag is not enabled yet.

@@ -15,11 +15,11 @@ use aptos_types::{
     on_chain_config::FeatureFlag,
     transaction::{
         automation::{AutomationRegistryAction, AutomationRegistryRecord},
-        ExecutionStatus,
-        TransactionStatus,
+        ExecutionStatus, TransactionStatus,
     },
 };
 use aptos_vm_logging::log_schema::AdapterLogSchema;
+use aptos_vm_types::change_set::VMChangeSet;
 use aptos_vm_types::{output::VMOutput, storage::change_set_configs::ChangeSetConfigs};
 use move_binary_format::errors::VMError;
 use move_core_types::vm_status::{StatusCode, VMStatus};
@@ -127,30 +127,24 @@ impl<'m> AutomationRegistryTransactionProcessor<'m> {
                 )?;
                 Ok((VMStatus::Executed, output))
             },
-            Err(vm_err) => self.get_transaction_error_output(
-                session,
-                &get_or_vm_startup_failure(&self.storage_gas_params, log_context)?
-                    .change_set_configs,
-                FeeStatement::zero(),
-                vm_err,
-            ),
+            Err(vm_err) => self.get_transaction_error_output(vm_err),
         }
     }
 
     fn get_transaction_error_output(
         &self,
-        session: SessionExt,
-        change_set_configs: &ChangeSetConfigs,
-        fee_statement: FeeStatement,
         vm_err: VMError,
     ) -> Result<(VMStatus, VMOutput), VMStatus> {
         let vm_status = VMStatus::from(vm_err);
         let (txn_status, aux_data) =
             TransactionStatus::from_vm_status(vm_status.clone(), false, self.features());
 
-        let change_set = session.finish(change_set_configs)?;
-
-        let output = VMOutput::new(change_set, fee_statement, txn_status, aux_data);
+        let output = VMOutput::new(
+            VMChangeSet::empty(),
+            FeeStatement::zero(),
+            txn_status,
+            aux_data,
+        );
         Ok((vm_status, output))
     }
 }
