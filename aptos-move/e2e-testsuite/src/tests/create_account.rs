@@ -6,10 +6,13 @@ use aptos_language_e2e_tests::{
     account::Account, common_transactions::create_account_txn, current_function_name,
     executor::FakeExecutor,
 };
-use aptos_types::transaction::{ExecutionStatus, TransactionStatus};
-use aptos_types::{account_config::CoinStoreResource, SupraCoinType};
+use aptos_types::{
+    account_config::CoinStoreResource,
+    transaction::{ExecutionStatus, TransactionStatus},
+    SupraCoinType,
+};
 
-// FIX(DP): as default features to FA transfer and default account is disabled 
+// FIX(DP): as default features to FA transfer and default account is disabled
 // we need to change this test accordingly
 #[test]
 fn create_account() {

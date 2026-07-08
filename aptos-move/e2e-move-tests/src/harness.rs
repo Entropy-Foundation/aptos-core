@@ -40,7 +40,8 @@ use claims::assert_ok;
 use move_core_types::{
     language_storage::{StructTag, TypeTag},
     move_resource::MoveStructType,
-    value::MoveValue,vm_status::VMStatus
+    value::MoveValue,
+    vm_status::VMStatus,
 };
 use move_package::package_hooks::register_package_hooks;
 use once_cell::sync::Lazy;

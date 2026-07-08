@@ -8,8 +8,8 @@ use crate::common::utils::read_from_file;
 use crate::{
     common::{
         types::{
-            CliError, CliTypedResult, MovePackageOptions, PoolAddressArgs, ProfileOptions, PromptOptions, RestOptions,
-            TransactionOptions, TransactionSummary,
+            CliError, CliTypedResult, MovePackageOptions, PoolAddressArgs, ProfileOptions,
+            PromptOptions, RestOptions, TransactionOptions, TransactionSummary,
         },
         utils::prompt_yes_with_override,
     },
@@ -1119,7 +1119,7 @@ impl CliCommand<()> for GenerateUpgradeProposal {
             output,
             testnet,
             next_execution_hash,
-            proposal_type
+            proposal_type,
         } = self;
         let package_path = move_options.get_package_path()?;
         let options = included_artifacts.build_options(&move_options)?;

@@ -152,7 +152,6 @@ pub enum FeatureFlag {
     /// Enables smart contracts to register automation tasks via `register_without_validation`,
     SUPRA_AUTOMATION_V2_1 = 101,
 
-
     DERIVABLE_ACCOUNT_ABSTRACTION = 102,
     /// Whether function values are enabled.
     ENABLE_FUNCTION_VALUES = 103,
@@ -179,7 +178,7 @@ impl FeatureFlag {
             // Feature flag V6 is used to enable metadata v1 format and needs to stay on, even
             // if we enable a higher version.
             FeatureFlag::VM_BINARY_FORMAT_V6,
-            FeatureFlag::VM_BINARY_FORMAT_V7, // new 
+            FeatureFlag::VM_BINARY_FORMAT_V7, // new
             FeatureFlag::MULTI_ED25519_PK_VALIDATE_V2_NATIVES,
             FeatureFlag::BLAKE2B_256_NATIVE,
             FeatureFlag::RESOURCE_GROUPS,
@@ -236,7 +235,7 @@ impl FeatureFlag {
             FeatureFlag::DISPATCHABLE_FUNGIBLE_ASSET,
             FeatureFlag::_DEPRECATED_REMOVE_DETAILED_ERROR_FROM_HASH,
             // FeatureFlag::NEW_ACCOUNTS_DEFAULT_TO_FA_APT_STORE, // new
-            // FeatureFlag::OPERATIONS_DEFAULT_TO_FA_APT_STORE, // new 
+            // FeatureFlag::OPERATIONS_DEFAULT_TO_FA_APT_STORE, // new
             FeatureFlag::CONCURRENT_FUNGIBLE_ASSETS,
             FeatureFlag::AGGREGATOR_V2_IS_AT_LEAST_API,
             FeatureFlag::CONCURRENT_FUNGIBLE_BALANCE,

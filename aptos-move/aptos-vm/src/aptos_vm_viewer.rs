@@ -10,12 +10,13 @@ use aptos_types::{
     state_store::StateView,
     transaction::{EntryFunction, ViewFunction, ViewFunctionOutput},
 };
-use move_core_types::account_address::AccountAddress;
-use aptos_vm_logging::log_schema::AdapterLogSchema;
-use aptos_vm_types::module_and_script_storage::AsAptosCodeStorage;
-use aptos_vm_types::resolver::NoopBlockSynchronizationKillSwitch;
-use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
 use aptos_vm_environment::environment::AptosEnvironment;
+use aptos_vm_logging::log_schema::AdapterLogSchema;
+use aptos_vm_types::{
+    module_and_script_storage::AsAptosCodeStorage, resolver::NoopBlockSynchronizationKillSwitch,
+};
+use move_core_types::account_address::AccountAddress;
+use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
 
 /// Move VM with only view function API.
 /// Convenient to use when more than one view function needs to be executed on the same state-view,
@@ -39,10 +40,20 @@ impl<'t, SV: StateView> AptosVMViewer<'t, SV> {
         }
     }
 
-    fn create_gas_meter(&self, max_gas_amount: u64) -> anyhow::Result<ProdGasMeter<NoopBlockSynchronizationKillSwitch>> {
-        let vm_gas_params = self.vm.gas_params(&self.log_context).map_err(|err| anyhow::Error::msg(err.to_string()))?.vm.clone();
-        let storage_gas_params =
-        self.vm.storage_gas_params(&self.log_context).map_err(|err| anyhow::Error::msg(err.to_string()))?;
+    fn create_gas_meter(
+        &self,
+        max_gas_amount: u64,
+    ) -> anyhow::Result<ProdGasMeter<NoopBlockSynchronizationKillSwitch>> {
+        let vm_gas_params = self
+            .vm
+            .gas_params(&self.log_context)
+            .map_err(|err| anyhow::Error::msg(err.to_string()))?
+            .vm
+            .clone();
+        let storage_gas_params = self
+            .vm
+            .storage_gas_params(&self.log_context)
+            .map_err(|err| anyhow::Error::msg(err.to_string()))?;
 
         let gas_meter = make_prod_gas_meter(
             self.vm.gas_feature_version(),
@@ -70,7 +81,9 @@ impl<'t, SV: StateView> AptosVMViewer<'t, SV> {
 
         let traversal_storage = TraversalStorage::new();
         let mut traversal_context = TraversalContext::new(&traversal_storage);
-        let module_storage = self.state_view.as_aptos_code_storage(self.vm.environment_ref());
+        let module_storage = self
+            .state_view
+            .as_aptos_code_storage(self.vm.environment_ref());
         let execution_result = AptosVM::execute_view_function_in_vm(
             &mut session,
             &self.vm,
@@ -80,12 +93,18 @@ impl<'t, SV: StateView> AptosVMViewer<'t, SV> {
             arguments,
             &mut gas_meter,
             &mut traversal_context,
-            &module_storage
+            &module_storage,
         );
         let gas_used = AptosVM::gas_used(max_gas_amount.into(), &gas_meter);
         match execution_result {
             Ok(result) => ViewFunctionOutput::new(Ok(result), gas_used),
-            Err(e) => self.vm.view_function_output_from_error(e, gas_used, &module_storage, &traversal_context, &self.log_context),
+            Err(e) => self.vm.view_function_output_from_error(
+                e,
+                gas_used,
+                &module_storage,
+                &traversal_context,
+                &self.log_context,
+            ),
         }
     }
 }

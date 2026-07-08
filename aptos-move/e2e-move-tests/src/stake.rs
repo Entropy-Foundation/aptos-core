@@ -4,14 +4,13 @@
 use crate::harness::MoveHarness;
 use aptos_cached_packages::aptos_stdlib;
 use aptos_crypto::{
-    ed25519, bls12381, SigningKey, PrivateKey, Uniform, 
-    bls12381::ProofOfPossession
+    bls12381, bls12381::ProofOfPossession, ed25519, PrivateKey, SigningKey, Uniform,
 };
 use aptos_language_e2e_tests::account::Account;
 use aptos_types::{
     account_address::AccountAddress, account_config::CORE_CODE_ADDRESS,
     on_chain_config::ValidatorSet, stake_pool::StakePool, transaction::TransactionStatus,
-    validator_config::ValidatorConfig, validator_public_keys::ValidatorPublicKeys
+    validator_config::ValidatorConfig, validator_public_keys::ValidatorPublicKeys,
 };
 use move_core_types::parser::parse_struct_tag;
 
@@ -20,7 +19,7 @@ pub fn generate_consensus_pub_key() -> Vec<u8> {
     let mut rng = rand::thread_rng();
     let network_key = ed25519::PrivateKey::generate_for_testing();
     let network_pubkey_bytes = network_key.public_key().to_bytes().to_vec();
-    
+
     let bls_key = bls12381::PrivateKey::generate(&mut rng);
     let bls_pub_key = bls12381::PublicKey::from(&bls_key);
     let bls_pubkey_bytes = bls_pub_key.to_bytes().to_vec();

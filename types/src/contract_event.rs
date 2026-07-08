@@ -7,12 +7,14 @@ use crate::{
         DepositEvent, NewBlockEvent, NewEpochEvent, WithdrawEvent, NEW_EPOCH_EVENT_MOVE_TYPE_TAG,
         NEW_EPOCH_EVENT_V2_MOVE_TYPE_TAG,
     },
-    dkg::events::{DKGFinishEvent, DKGMetaSetEvent, DKGStartEvent as SupraDKGStartEvent},
-    dkg::DKGStartEvent,
+    dkg::{
+        events::{DKGFinishEvent, DKGMetaSetEvent, DKGStartEvent as SupraDKGStartEvent},
+        DKGStartEvent,
+    },
     event::EventKey,
     jwks::ObservedJWKsUpdated,
-    transaction::Version,
     on_chain_config::new_epoch_event_key,
+    transaction::Version,
 };
 use anyhow::{bail, Error, Result};
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};

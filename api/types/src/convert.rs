@@ -6,10 +6,10 @@
 use crate::{
     transaction::{
         AutomationRegistrationParams, AutomationRegistrationParamsV1,
-        AutomationRegistrationParamsV2, BlockMetadataTransaction, BlockEpilogueTransaction, DecodedTableData, DeleteModule,
-        DeleteResource, DeleteTableItem, DeletedTableData, MultisigPayload,
-        MultisigTransactionPayload, StateCheckpointTransaction, UserTransactionRequestInner,
-        WriteModule, WriteResource, WriteTableItem,
+        AutomationRegistrationParamsV2, BlockEpilogueTransaction, BlockMetadataTransaction,
+        DecodedTableData, DeleteModule, DeleteResource, DeleteTableItem, DeletedTableData,
+        MultisigPayload, MultisigTransactionPayload, StateCheckpointTransaction,
+        UserTransactionRequestInner, WriteModule, WriteResource, WriteTableItem,
     },
     view::{ViewFunction, ViewRequest},
     Address, Bytecode, DirectWriteSet, EntryFunctionId, EntryFunctionPayload, EventV1, EventV2,
@@ -144,10 +144,7 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
         bytes: &[u8],
     ) -> Result<Vec<MoveResource>> {
         let resources_with_tag: Vec<(StructTag, Vec<u8>)> = bcs::from_bytes::<ResourceGroup>(bytes)
-            .map(|map| {
-                map.into_iter()
-                    .collect::<Vec<_>>()
-            })?;
+            .map(|map| map.into_iter().collect::<Vec<_>>())?;
 
         resources_with_tag
             .iter()
@@ -927,7 +924,9 @@ impl<'a, S: StateView> MoveConverter<'a, S> {
                                 entry_func_payload,
                             )?),
                             MultisigTransactionPayload::AutomationRegistrationPayload(params) => {
-                                Executable::AutomationRegistration(self.try_into_automation_registration_parameters(params)?)
+                                Executable::AutomationRegistration(
+                                    self.try_into_automation_registration_parameters(params)?,
+                                )
                             },
                         }
                     } else {

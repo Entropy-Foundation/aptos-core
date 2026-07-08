@@ -56,7 +56,7 @@ use aptos_types::{
     },
     vm_status::VMStatus,
     write_set::{WriteOp, WriteSet, WriteSetMut},
-    SupraCoinType, CoinType,
+    CoinType, SupraCoinType,
 };
 use aptos_validator_interface::{DebuggerStateView, RestDebuggerInterface};
 use aptos_vm::{
@@ -715,9 +715,14 @@ impl FakeExecutor {
     /// Executes the transaction as a singleton block and applies the resulting write set to the
     /// data store. Panics if execution fails
     pub fn execute_and_apply_transaction(&mut self, transaction: Transaction) -> TransactionOutput {
-        let mut outputs = self.execute_transaction_block(vec![transaction.clone()]).unwrap();
+        let mut outputs = self
+            .execute_transaction_block(vec![transaction.clone()])
+            .unwrap();
         assert_eq!(outputs.len(), 1, "transaction outputs size mismatch");
-        println!("transaction execution output: {:#?} : {:#?}", outputs, transaction);
+        println!(
+            "transaction execution output: {:#?} : {:#?}",
+            outputs, transaction
+        );
         let output = outputs.pop().unwrap();
         match output.status() {
             TransactionStatus::Keep(status) => {
@@ -737,7 +742,8 @@ impl FakeExecutor {
                     status,
                     &ExecutionStatus::Success,
                     "transaction failed with {:?}, {:?}",
-                    status,  transaction
+                    status,
+                    transaction
                 );
                 output
             },
@@ -1330,7 +1336,12 @@ impl FakeExecutor {
                 .as_ref()
                 .unwrap()
                 .change_set_configs;
-            finish_session_assert_no_modules(session, &module_storage, change_set_configs, &resolver)
+            finish_session_assert_no_modules(
+                session,
+                &module_storage,
+                change_set_configs,
+                &resolver,
+            )
         };
         self.state_store.apply_write_set(&write_set).unwrap();
 

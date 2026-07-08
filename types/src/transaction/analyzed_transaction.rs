@@ -10,7 +10,7 @@ use crate::{
         signature_verified_transaction::SignatureVerifiedTransaction, EntryFunction, Transaction,
         TransactionExecutableRef,
     },
-    SupraCoinType, CoinType,
+    CoinType, SupraCoinType,
 };
 use aptos_crypto::HashValue;
 pub use move_core_types::abi::{

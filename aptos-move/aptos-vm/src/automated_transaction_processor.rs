@@ -8,7 +8,8 @@ use crate::{
     gas::{check_gas, make_prod_gas_meter},
     move_vm_ext::{
         session::user_transaction_sessions::{
-            epilogue::EpilogueSession, prologue::PrologueSession, user::UserSession,
+            epilogue::EpilogueSession, prologue::PrologueSession,
+            session_change_sets::SystemSessionChangeSet, user::UserSession,
         },
         AptosMoveResolver, SessionExt,
     },
@@ -29,7 +30,11 @@ use aptos_types::{
 use aptos_vm_logging::log_schema::AdapterLogSchema;
 use aptos_vm_types::{
     change_set::VMChangeSet,
+    module_and_script_storage::{
+        code_storage::AptosCodeStorage, module_storage::AptosModuleStorage,
+    },
     output::VMOutput,
+    resolver::BlockSynchronizationKillSwitch,
     storage::{change_set_configs::ChangeSetConfigs, StorageGasParameters},
 };
 use fail::fail_point;
@@ -37,14 +42,9 @@ use move_binary_format::errors::Location;
 use move_core_types::vm_status::{StatusCode, VMStatus};
 use move_vm_runtime::{
     module_traversal::{TraversalContext, TraversalStorage},
-    LoadedFunction,
+    LoadedFunction, ModuleStorage,
 };
 use std::ops::Deref;
-use aptos_vm_types::module_and_script_storage::code_storage::AptosCodeStorage;
-use aptos_vm_types::module_and_script_storage::module_storage::AptosModuleStorage;
-use aptos_vm_types::resolver::BlockSynchronizationKillSwitch;
-use move_vm_runtime::ModuleStorage;
-use crate::move_vm_ext::session::user_transaction_sessions::session_change_sets::SystemSessionChangeSet;
 
 pub struct AutomatedTransactionProcessor<'m> {
     aptos_vm: &'m AptosVM,
@@ -89,10 +89,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             false,
             log_context,
         )?;
-        if self
-            .features()
-            .is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2)
-        {
+        if self.features().is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2) {
             transaction_validation::run_automated_transaction_prologue_v2(
                 session,
                 module_storage,
@@ -225,8 +222,6 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 .map(|_| ())
                 .map_err(|e| e.into_vm_status())
         })?;
-        
-
 
         let user_session_change_set = self.resolve_pending_code_publish_and_finish_user_session(
             session,
@@ -272,7 +267,6 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         change_set_configs: &ChangeSetConfigs,
         traversal_context: &mut TraversalContext,
     ) -> (VMStatus, VMOutput) {
-
         self.failed_transaction_cleanup(
             prologue_change_set,
             err,
@@ -299,8 +293,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         let mut traversal_context = TraversalContext::new(&traversal_storage);
 
         // Revalidate the transaction.
-        let mut prologue_session =
-            PrologueSession::new(self.aptos_vm, &txn_data, resolver);
+        let mut prologue_session = PrologueSession::new(self.aptos_vm, &txn_data, resolver);
 
         let exec_result = prologue_session.execute(|session| {
             self.validate_automated_transaction(
@@ -316,13 +309,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         let storage_gas_params = unwrap_or_discard!(self.storage_gas_params(log_context));
         let change_set_configs = &storage_gas_params.change_set_configs;
         let (prologue_change_set, user_session) = unwrap_or_discard!(prologue_session
-            .into_user_session(
-                self,
-                &txn_data,
-                resolver,
-                change_set_configs,
-                code_storage,
-            ));
+            .into_user_session(self, &txn_data, resolver, change_set_configs, code_storage,));
         let TransactionPayload::EntryFunction(automated_entry_function) = txn.payload() else {
             return (
                 VMStatus::error(StatusCode::INVALID_AUTOMATED_PAYLOAD, None),
@@ -416,8 +403,14 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             balance,
             code_storage,
         );
-        let (status, output) =
-            self.execute_transaction_impl(resolver, code_storage, txn, txn_metadata, &mut gas_meter, log_context);
+        let (status, output) = self.execute_transaction_impl(
+            resolver,
+            code_storage,
+            txn,
+            txn_metadata,
+            &mut gas_meter,
+            log_context,
+        );
 
         Ok((status, output, gas_meter))
     }
@@ -479,10 +472,8 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             }
         }
 
-        let txn_status = TransactionStatus::from_vm_status(
-            error_vm_status.clone(),
-            self.features(),
-        );
+        let txn_status =
+            TransactionStatus::from_vm_status(error_vm_status.clone(), self.features());
 
         match txn_status {
             TransactionStatus::Keep(status) => {
@@ -492,17 +483,19 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 // gas). Even if the previous failure occurred while running the epilogue, it
                 // should not fail now. If it somehow fails here, there is no choice but to
                 // discard the transaction.
-                let txn_output = self.finish_aborted_transaction(
-                    prologue_change_set,
-                    gas_meter,
-                    txn_data,
-                    resolver,
-                    module_storage,
-                    status,
-                    log_context,
-                    change_set_configs,
-                    traversal_context,
-                ).unwrap_or_else(|status| discarded_output(status.status_code()));
+                let txn_output = self
+                    .finish_aborted_transaction(
+                        prologue_change_set,
+                        gas_meter,
+                        txn_data,
+                        resolver,
+                        module_storage,
+                        status,
+                        log_context,
+                        change_set_configs,
+                        traversal_context,
+                    )
+                    .unwrap_or_else(|status| discarded_output(status.status_code()));
                 (error_vm_status, txn_output)
             },
             TransactionStatus::Discard(status_code) => {
@@ -539,7 +532,8 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             module_storage,
             traversal_context,
             log_context,
-            status);
+            status,
+        );
 
         let fee_statement =
             AptosVM::fee_statement_from_gas_meter(txn_data, gas_meter, ZERO_STORAGE_REFUND);
@@ -556,8 +550,12 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 traversal_context,
             )
         })?;
-        epilogue_session
-            .finish(self.get_fee_statement_for_output(fee_statement), status, change_set_configs, module_storage)
+        epilogue_session.finish(
+            self.get_fee_statement_for_output(fee_statement),
+            status,
+            change_set_configs,
+            module_storage,
+        )
     }
 
     /// The actual charged fee statement for executed automated transaction.

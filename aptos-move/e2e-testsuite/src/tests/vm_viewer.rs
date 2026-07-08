@@ -79,7 +79,10 @@ fn test_vm_viewer() {
     let viewer_ifc_time = Instant::now();
     let time = Instant::now();
     let vm_viewer = AptosVMViewer::new(test_executor.state_store());
-    debug!("AptosVMViewer creation time: {}", time.elapsed().as_secs_f64());
+    debug!(
+        "AptosVMViewer creation time: {}",
+        time.elapsed().as_secs_f64()
+    );
     let actual_results = accounts
         .iter()
         .map(|account| {

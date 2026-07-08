@@ -8,9 +8,9 @@ use aptos_crypto::HashValue;
 use aptos_scratchpad::SparseMerkleTree;
 use aptos_types::{
     account_config::{NEW_EPOCH_EVENT_MOVE_TYPE_TAG, NEW_EPOCH_EVENT_V2_MOVE_TYPE_TAG},
-    dkg::DKG_START_EVENT_MOVE_TYPE_TAG,
     block_executor::{config::BlockExecutorConfigFromOnchain, partitioner::ExecutableBlock},
     contract_event::ContractEvent,
+    dkg::DKG_START_EVENT_MOVE_TYPE_TAG,
     jwks::OBSERVED_JWK_UPDATED_MOVE_TYPE_TAG,
     ledger_info::LedgerInfoWithSignatures,
     state_store::state_key::StateKey,

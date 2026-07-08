@@ -19,7 +19,7 @@ use aptos_types::{
         authenticator::{AuthenticationKey, TransactionAuthenticator},
         EntryFunction, Script, SignedTransaction,
     },
-    utility_coin::{SupraCoinType, CoinType},
+    utility_coin::{CoinType, SupraCoinType},
 };
 use move_core_types::{
     identifier::Identifier,

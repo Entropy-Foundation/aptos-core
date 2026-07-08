@@ -148,7 +148,6 @@ impl AutomatedTransaction {
         self.expiration_timestamp_secs().checked_sub(base_timestamp)
     }
 
-
     pub fn replay_protector(&self) -> ReplayProtector {
         self.raw_txn.replay_protector()
     }

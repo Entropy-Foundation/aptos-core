@@ -12,9 +12,7 @@ use aptos_gas_schedule::{
 use aptos_logger::{enabled, Level};
 use aptos_memory_usage_tracker::MemoryTrackedGasMeter;
 use aptos_types::{
-    on_chain_config::{
-        FeatureFlag, Features,
-    },
+    on_chain_config::{FeatureFlag, Features},
     transaction::{automation::RegistrationParams, RawTransaction, TransactionPayload},
 };
 use aptos_vm_logging::{log_schema::AdapterLogSchema, speculative_log, speculative_warn};
@@ -81,7 +79,13 @@ pub(crate) fn check_gas(
         script_size: txn_metadata.script_size,
         is_keyless: txn_metadata.is_keyless(),
     };
-    check_gas_for_parameters(gas_params, gas_feature_version, txn_gas_metadata, is_approved_gov_script, log_context)?;
+    check_gas_for_parameters(
+        gas_params,
+        gas_feature_version,
+        txn_gas_metadata,
+        is_approved_gov_script,
+        log_context,
+    )?;
     let txn_gas_params = &gas_params.vm.txn;
     // If this is for a potentially new account, ensure there's enough gas to cover storage, execution, and IO costs.
     // TODO: This isn't the cleaning code, thus we localize it just here and will remove it
@@ -309,8 +313,7 @@ pub(crate) fn check_gas_for_parameters(
             log_context,
             format!(
                 "[VM] Gas unit error; max {}, submitted {}",
-                txn_gas_params.max_price_per_gas_unit,
-                txn_gas_metadata.gas_unit_price
+                txn_gas_params.max_price_per_gas_unit, txn_gas_metadata.gas_unit_price
             ),
         );
         return Err(VMStatus::error(

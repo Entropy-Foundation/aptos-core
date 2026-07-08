@@ -1,7 +1,6 @@
 // Copyright (c) Supra Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt::Display;
 use super::OnChainConfig;
 use crate::chain_id::ChainId;
 use anyhow::{anyhow, Result};
@@ -10,6 +9,7 @@ use move_core_types::{
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 
 /// The Genesis configuration for EVM that can only be set once at genesis epoch.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -30,7 +30,6 @@ impl Display for OnChainEvmGenesisConfig {
             self.chain_id, self.eoas, self.contracts.iter().map(|c| format!("\n\t\t{}", c)).collect::<Vec<_>>().join(", "),
         )
     }
-
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]

@@ -392,7 +392,6 @@ fn native_get_transaction_consensus_hash_internal(
     _ty_args: Vec<Type>,
     _args: VecDeque<Value>,
 ) -> SafeNativeResult<SmallVec<[Value; 1]>> {
-
     context.charge(TRANSACTION_CONTEXT_GET_TXN_CONSENSUS_HASH_BASE)?;
 
     let user_transaction_context_opt = get_user_transaction_context_opt_from_context(context);

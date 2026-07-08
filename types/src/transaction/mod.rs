@@ -64,18 +64,17 @@ use crate::{
     contract_event::TransactionEvent,
     executable::ModulePath,
     fee_statement::FeeStatement,
-    move_utils::MemberId,
     function_info::FunctionInfo,
     keyless::FederatedKeylessPublicKey,
+    move_utils::MemberId,
     on_chain_config::{FeatureFlag, Features},
     proof::accumulator::InMemoryEventAccumulator,
+    state_store::{state_key::StateKey, state_value::StateValue},
     transaction::{
         automated_transaction::AutomatedTransaction,
         automation::{AutomationRegistryRecord, RegistrationParams},
     },
-    state_store::{state_key::StateKey, state_value::StateValue},
     validator_txn::ValidatorTransaction,
-   
     write_set::TransactionWrite,
 };
 pub use block_output::BlockOutput;
@@ -85,10 +84,8 @@ pub use move_core_types::transaction_argument::TransactionArgument;
 use move_core_types::{
     identifier::{IdentStr, Identifier},
     language_storage::{ModuleId, TypeTag},
-    {
     value::{MoveStruct, MoveValue},
     vm_status::AbortLocation,
-},
 };
 pub use multisig::{ExecutionError, Multisig, MultisigTransactionPayload};
 use once_cell::sync::OnceCell;
@@ -765,7 +762,9 @@ impl TransactionExecutable {
                 TransactionExecutableRef::EntryFunction(entry_function)
             },
             TransactionExecutable::Script(script) => TransactionExecutableRef::Script(script),
-            TransactionExecutable::AutomationRegistration(params) => TransactionExecutableRef::AutomationRegistration(params),
+            TransactionExecutable::AutomationRegistration(params) => {
+                TransactionExecutableRef::AutomationRegistration(params)
+            },
             TransactionExecutable::Empty => TransactionExecutableRef::Empty,
         }
     }
@@ -798,7 +797,7 @@ impl TransactionExecutableRef<'_> {
 
     pub fn as_automation_registration_params(&self) -> Option<&RegistrationParams> {
         let Self::AutomationRegistration(params) = self else {
-            return None
+            return None;
         };
         Some(params)
     }
@@ -865,7 +864,9 @@ impl TransactionPayload {
             TransactionPayload::Payload(TransactionPayloadInner::V1 { executable, .. }) => {
                 Ok(executable.clone())
             },
-            TransactionPayload::AutomationRegistration(params) => Ok(TransactionExecutable::AutomationRegistration(params.clone())),
+            TransactionPayload::AutomationRegistration(params) => Ok(
+                TransactionExecutable::AutomationRegistration(params.clone()),
+            ),
             TransactionPayload::ModuleBundle(_) => {
                 Err(format_err!("ModuleBundle variant is deprecated"))
             },
@@ -882,7 +883,9 @@ impl TransactionPayload {
             TransactionPayload::Payload(TransactionPayloadInner::V1 { executable, .. }) => {
                 Ok(executable.as_ref())
             },
-            TransactionPayload::AutomationRegistration(params) => Ok(TransactionExecutableRef::AutomationRegistration(params)),
+            TransactionPayload::AutomationRegistration(params) => {
+                Ok(TransactionExecutableRef::AutomationRegistration(params))
+            },
             TransactionPayload::ModuleBundle(_) => {
                 Err(format_err!("ModuleBundle variant is deprecated"))
             },
@@ -921,7 +924,9 @@ impl TransactionPayload {
             )
             .into(),
             Ok(TransactionExecutableRef::Script(_)) => "script".into(),
-            Ok(TransactionExecutableRef::AutomationRegistration(_)) => "automation_registration".into(),
+            Ok(TransactionExecutableRef::AutomationRegistration(_)) => {
+                "automation_registration".into()
+            },
             Ok(TransactionExecutableRef::Empty) => "empty".into(),
             Err(_) => "deprecated_payload".into(),
         }
@@ -934,9 +939,9 @@ impl TransactionPayload {
         use_orderless_transactions: bool,
     ) -> Self {
         if use_txn_payload_v2_format {
-            let executable = self
-                .executable()
-                .expect("ModuleBundle variant is deprecated | AutomationRegistration not supported yet.");
+            let executable = self.executable().expect(
+                "ModuleBundle variant is deprecated | AutomationRegistration not supported yet.",
+            );
             let mut extra_config = self.extra_config();
             if use_orderless_transactions {
                 extra_config = match extra_config {

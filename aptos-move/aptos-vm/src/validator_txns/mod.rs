@@ -27,7 +27,13 @@ impl AptosVM {
                     return Err(VMStatus::error(StatusCode::FEATURE_UNDER_GATING, None));
                 }
 
-                self.process_dkg_transaction(resolver, module_storage, log_context, session_id, dkg_node)
+                self.process_dkg_transaction(
+                    resolver,
+                    module_storage,
+                    log_context,
+                    session_id,
+                    dkg_node,
+                )
             },
             ValidatorTransaction::ObservedJWKUpdate(jwk_update) => self.process_jwk_update(
                 resolver,

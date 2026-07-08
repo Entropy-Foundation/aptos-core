@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 mod access_path_test;
-mod automation_registry;
 mod account;
 mod aggregator;
 mod aggregator_v2;
@@ -12,6 +11,7 @@ mod aggregator_v2_function_values;
 mod aggregator_v2_runtime_checks;
 mod any;
 mod attributes;
+mod automation_registry;
 mod bcs;
 mod chain_id;
 mod code_publishing;

@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{assert_success, tests::common, BlockSplit, MoveHarness, SUCCESS};
-use aptos_cached_packages::aptos_stdlib::{supra_account_batch_transfer, aptos_coin_transfer};
+use aptos_cached_packages::aptos_stdlib::{aptos_coin_transfer, supra_account_batch_transfer};
 use aptos_language_e2e_tests::{
     account::Account,
     executor::{ExecutorMode, FakeExecutor},
 };
 use aptos_types::{
-    account_address::{self, AccountAddress},    
+    account_address::{self, AccountAddress},
     on_chain_config::FeatureFlag,
 };
 use move_core_types::{

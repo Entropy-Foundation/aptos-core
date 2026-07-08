@@ -17,9 +17,7 @@ use aptos_types::{
     },
 };
 use move_core_types::{
-    account_address::AccountAddress,
-    identifier::Identifier,
-    language_storage::ModuleId,
+    account_address::AccountAddress, identifier::Identifier, language_storage::ModuleId,
     vm_status::StatusCode,
 };
 
@@ -71,12 +69,11 @@ fn make_nonexistent_entry_function() -> EntryFunction {
             // 0x0 never has user modules deployed; "phantom_automation_mod" is
             // deliberately absent from the genesis framework.
             AccountAddress::ZERO,
-            Identifier::new("phantom_automation_mod")
-                .expect("identifier must be valid"),
+            Identifier::new("phantom_automation_mod").expect("identifier must be valid"),
         ),
         Identifier::new("phantom_fn").expect("identifier must be valid"),
-        vec![],  // no type arguments
-        vec![],  // no runtime arguments (function signature is irrelevant — it doesn't exist)
+        vec![], // no type arguments
+        vec![], // no runtime arguments (function signature is irrelevant — it doesn't exist)
     )
 }
 
@@ -257,9 +254,9 @@ fn check_automated_transaction_successful_execution() {
         0,
         inner_entry_function.clone(),
         expiration_time,
-        TASK_GAS_PRICE_CAP,   // gas_price_cap = 100
-        TASK_MAX_GAS_AMOUNT,  // max_gas_amount = 1 000
-        AUTOMATION_FEE_CAP,   // automation_fee_cap_for_epoch = 100 000
+        TASK_GAS_PRICE_CAP,  // gas_price_cap = 100
+        TASK_MAX_GAS_AMOUNT, // max_gas_amount = 1 000
+        AUTOMATION_FEE_CAP,  // automation_fee_cap_for_epoch = 100 000
     );
 
     let output = test_context.execute_and_apply(automation_txn);
@@ -358,16 +355,14 @@ fn check_valid_payload_task_registered_without_validation_executes_successfully(
     test_context.set_supra_native_automation(true);
 
     let dest_account = test_context.new_account_data(0, 0);
-    let inner_fn = aptos_framework_sdk_builder::supra_account_transfer(
-        dest_account.address().clone(),
-        100,
-    )
-    .into_entry_function();
+    let inner_fn =
+        aptos_framework_sdk_builder::supra_account_transfer(dest_account.address().clone(), 100)
+            .into_entry_function();
 
     // BCS-encode the valid EntryFunction — this is what the registry stores as
     // `payload_tx` in both the validated and the non-validated registration paths.
-    let valid_payload_bytes = bcs::to_bytes(&inner_fn)
-        .expect("EntryFunction must BCS-serialize successfully");
+    let valid_payload_bytes =
+        bcs::to_bytes(&inner_fn).expect("EntryFunction must BCS-serialize successfully");
 
     let expiry_time = test_context.chain_time_now() + 8_000;
     let sender_address = test_context.sender_account_address();
@@ -396,15 +391,14 @@ fn check_valid_payload_task_registered_without_validation_executes_successfully(
 
     let automated_txn = build_automated_txn(
         &mut test_context,
-        0,          // task_index
-        inner_fn,   // the same valid entry function
-        1,          // gas_unit_price (≤ TASK_GAS_PRICE_CAP)
+        0,        // task_index
+        inner_fn, // the same valid entry function
+        1,        // gas_unit_price (≤ TASK_GAS_PRICE_CAP)
         expiry_time,
     );
 
     // The entry function exists and its arguments match — execution must succeed.
-    let output =
-        test_context.execute_and_apply_transaction(automated_txn.into());
+    let output = test_context.execute_and_apply_transaction(automated_txn.into());
     assert_eq!(
         output.status(),
         &TransactionStatus::Keep(ExecutionStatus::Success),
@@ -414,8 +408,7 @@ fn check_valid_payload_task_registered_without_validation_executes_successfully(
     // Verify the transfer actually happened.
     let dest_balance = test_context.account_balance(*dest_account.address());
     assert_eq!(
-        dest_balance,
-        100,
+        dest_balance, 100,
         "100 tokens should have been transferred to dest_account"
     );
 }
@@ -485,19 +478,12 @@ fn check_invalid_inner_payload_is_discarded_when_v2_1_enabled() {
     // Build the automated transaction carrying the non-existent entry function.
     // The builder itself succeeds because it only BCS-decodes the stored bytes
     // (which are valid) — it does not query the VM for module existence.
-    let automated_txn = build_automated_txn(
-        &mut test_context,
-        0,
-        nonexistent_fn,
-        1,
-        expiry_time,
-    );
+    let automated_txn = build_automated_txn(&mut test_context, 0, nonexistent_fn, 1, expiry_time);
 
     // Execute without applying state changes.  We use execute_tagged_transaction
     // because the output is DISCARDED (no write set to apply) and
     // execute_and_apply_transaction panics on discarded outputs.
-    let output = test_context
-        .execute_tagged_transaction(automated_txn.into());
+    let output = test_context.execute_tagged_transaction(automated_txn.into());
 
     // With SUPRA_AUTOMATION_V2_1 enabled the processor's special path triggers:
     // the output is discarded and no failure epilogue runs.
@@ -517,8 +503,7 @@ fn check_invalid_inner_payload_is_discarded_when_v2_1_enabled() {
     // no write set.  (execute_tagged_transaction does not apply state.)
     let balance_after_exec = test_context.account_balance(sender_address);
     assert_eq!(
-        balance_before_exec,
-        balance_after_exec,
+        balance_before_exec, balance_after_exec,
         "balance must not change when the automated transaction is discarded"
     );
 }
@@ -557,8 +542,8 @@ fn check_invalid_inner_payload_charges_fee_when_v2_1_disabled() {
     test_context.set_feature_flag(FeatureFlag::SUPRA_AUTOMATION_V2_1, false);
 
     let nonexistent_fn = make_nonexistent_entry_function();
-    let invalid_payload_bytes = bcs::to_bytes(&nonexistent_fn)
-        .expect("EntryFunction must BCS-serialize successfully");
+    let invalid_payload_bytes =
+        bcs::to_bytes(&nonexistent_fn).expect("EntryFunction must BCS-serialize successfully");
 
     let expiry_time = test_context.chain_time_now() + 8_000;
     let sender_address = test_context.sender_account_address();
@@ -588,19 +573,12 @@ fn check_invalid_inner_payload_charges_fee_when_v2_1_disabled() {
 
     let balance_before_exec = test_context.account_balance(sender_address);
 
-    let automated_txn = build_automated_txn(
-        &mut test_context,
-        0,
-        nonexistent_fn,
-        1,
-        expiry_time,
-    );
+    let automated_txn = build_automated_txn(&mut test_context, 0, nonexistent_fn, 1, expiry_time);
 
     // Execute via execute_tagged_transaction so we can inspect the output before
     // deciding whether to apply it.  The output is Keep(MiscellaneousError),
     // so the write set contains gas-deduction entries.
-    let output = test_context
-        .execute_tagged_transaction(automated_txn.into());
+    let output = test_context.execute_tagged_transaction(automated_txn.into());
 
     // Without V2_1 the special discard path is bypassed; the failure epilogue
     // runs and the output is Keep(MiscellaneousError).
@@ -728,9 +706,7 @@ fn check_transient_execution_failure_charges_fee_regardless_of_v2_1() {
         TransactionStatus::Keep(ExecutionStatus::MoveAbort { .. }) => {
             // Expected: the execution body aborted at runtime.
         },
-        other => panic!(
-            "expected Keep(MoveAbort) for runtime abort, got: {other:?}"
-        ),
+        other => panic!("expected Keep(MoveAbort) for runtime abort, got: {other:?}"),
     }
 
     // Gas must have been charged by the failure epilogue.
@@ -753,8 +729,7 @@ fn check_transient_execution_failure_charges_fee_regardless_of_v2_1() {
     // was rolled back as part of the abort.
     let dest_balance = test_context.account_balance(*dest_account.address());
     assert_eq!(
-        dest_balance,
-        0,
+        dest_balance, 0,
         "destination must not receive tokens when the transfer aborts"
     );
 }

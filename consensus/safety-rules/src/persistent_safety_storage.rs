@@ -96,9 +96,7 @@ impl PersistentSafetyStorage {
         Ok(self.internal_store.get(OWNER_ACCOUNT).map(|v| v.value)?)
     }
 
-    pub fn default_consensus_sk(
-        &self,
-    ) -> Result<ed25519::PrivateKey, aptos_secure_storage::Error> {
+    pub fn default_consensus_sk(&self) -> Result<ed25519::PrivateKey, aptos_secure_storage::Error> {
         self.internal_store
             .get::<ed25519::PrivateKey>(CONSENSUS_KEY)
             .map(|v| v.value)

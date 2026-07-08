@@ -4,12 +4,11 @@
 use crate::{errors::FilterError, traits::Filterable, utils::standardize_address};
 use anyhow::{anyhow, Error};
 use aptos_protos::transaction::v1::{
-    multisig_transaction_payload, transaction::TxnData, transaction_payload, EntryFunctionId,
-    EntryFunctionPayload, Transaction, TransactionPayload,
+    multisig_transaction_payload, multisig_transaction_payload::Payload, transaction::TxnData,
+    transaction_payload, EntryFunctionId, EntryFunctionPayload, Transaction, TransactionPayload,
 };
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
-use aptos_protos::transaction::v1::multisig_transaction_payload::Payload;
 
 /// We use this for UserTransactions.
 /// We support UserPayload and MultisigPayload
@@ -287,7 +286,7 @@ fn get_entry_function_payload_from_transaction_payload(
                     multisig_transaction_payload::Payload::EntryFunctionPayload(ef_payload) => {
                         Some(ef_payload)
                     },
-                    Payload::AutomationPayload(_) => None
+                    Payload::AutomationPayload(_) => None,
                 }),
             _ => None,
         }

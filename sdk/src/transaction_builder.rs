@@ -241,7 +241,7 @@ impl TransactionFactory {
                 signatures_required,
                 vec![],
                 vec![],
-                timeout_duration
+                timeout_duration,
             ),
         )
     }
@@ -258,7 +258,7 @@ impl TransactionFactory {
                 signatures_required,
                 vec![],
                 vec![],
-                timeout_duration
+                timeout_duration,
             ),
         )
     }

@@ -268,7 +268,7 @@ fn verify_simple_payment() {
 
     // FIX(DP): as Default Account feature is not enabled the validation will fail
     // which says the account does not exists.
-    
+
     // Create a new transaction from a bogus account that doesn't exist
     // let bogus_account = executor.create_raw_account_data(100_000, 10);
     // let txn = bogus_account

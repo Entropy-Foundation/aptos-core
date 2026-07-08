@@ -24,12 +24,13 @@ use crate::{
     proof::TransactionInfoListWithProof,
     state_store::state_key::StateKey,
     transaction::{
-        automated_transaction::AutomatedTransaction, block_epilogue::BlockEndInfo, ChangeSet, EntryFunction, ExecutionStatus,
-        IndexedTransactionSummary, Module, Multisig, MultisigTransactionPayload, RawTransaction,
-        ReplayProtector, Script, SignatureCheckedTransaction, SignedTransaction, Transaction,
-        TransactionArgument, TransactionAuxiliaryData, TransactionExecutable,
-        TransactionExtraConfig, TransactionInfo, TransactionListWithProof, TransactionPayload,
-        TransactionPayloadInner, TransactionStatus, TransactionToCommit, Version, WriteSetPayload,
+        automated_transaction::AutomatedTransaction, block_epilogue::BlockEndInfo, ChangeSet,
+        EntryFunction, ExecutionStatus, IndexedTransactionSummary, Module, Multisig,
+        MultisigTransactionPayload, RawTransaction, ReplayProtector, Script,
+        SignatureCheckedTransaction, SignedTransaction, Transaction, TransactionArgument,
+        TransactionAuxiliaryData, TransactionExecutable, TransactionExtraConfig, TransactionInfo,
+        TransactionListWithProof, TransactionPayload, TransactionPayloadInner, TransactionStatus,
+        TransactionToCommit, Version, WriteSetPayload,
     },
     validator_info::ValidatorInfo,
     validator_signer::ValidatorSigner,
@@ -49,6 +50,7 @@ use aptos_crypto::{
 use move_core_types::{
     identifier::Identifier,
     language_storage::{ModuleId, TypeTag},
+    vm_status::StatusCode,
 };
 use proptest::{
     collection::{vec, SizeRange},
@@ -63,7 +65,6 @@ use std::{
     iter::Iterator,
     sync::Arc,
 };
-use move_core_types::vm_status::StatusCode;
 
 impl Arbitrary for IndexedTransactionSummary {
     type Parameters = ();
@@ -540,7 +541,7 @@ impl Arbitrary for TransactionExecutable {
             any::<Script>().prop_map(TransactionExecutable::Script),
             any::<EntryFunction>().prop_map(TransactionExecutable::EntryFunction),
         ]
-            .boxed()
+        .boxed()
     }
 }
 
@@ -557,7 +558,8 @@ impl Arbitrary for TransactionExtraConfig {
                 },
             )
             .boxed()
-    }}
+    }
+}
 
 prop_compose! {
     fn arb_transaction_status()(vm_status in any::<VMStatus>()

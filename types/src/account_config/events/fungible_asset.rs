@@ -4,11 +4,11 @@
 use crate::move_utils::move_event_v2::MoveEventV2Type;
 use derive_getters::Getters;
 use move_core_types::{
-    account_address::AccountAddress, ident_str, identifier::IdentStr, move_resource::MoveStructType,
-    language_storage::TypeTag,
+    account_address::AccountAddress, ident_str, identifier::IdentStr, language_storage::TypeTag,
+    move_resource::MoveStructType,
 };
-use serde::{Deserialize, Serialize};
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 
 /// Struct that represents a Withdraw event.
 #[derive(Debug, Serialize, Deserialize, Getters)]

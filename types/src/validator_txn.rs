@@ -1,7 +1,11 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{dkg::DKGTranscript, dkg::transactions::DKGTransactionData, jwks, validator_verifier::ValidatorVerifier};
+use crate::{
+    dkg::{transactions::DKGTransactionData, DKGTranscript},
+    jwks,
+    validator_verifier::ValidatorVerifier,
+};
 use anyhow::Context;
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
 use serde::{Deserialize, Serialize};

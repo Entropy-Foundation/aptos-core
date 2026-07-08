@@ -344,10 +344,13 @@ fn test_account_not_exist_with_fee_payer_without_create_account() {
     // Note: (DP)
     // Both this feature needs to be enabled as default account feature is disabled.
     // If we turn on default account feature then it is fine if sponsored feature is disabled.
-    let mut h = MoveHarness::new_with_features(vec![
-        FeatureFlag::GAS_PAYER_ENABLED, 
-        FeatureFlag::SPONSORED_AUTOMATIC_ACCOUNT_V1_CREATION
-    ], vec![]);
+    let mut h = MoveHarness::new_with_features(
+        vec![
+            FeatureFlag::GAS_PAYER_ENABLED,
+            FeatureFlag::SPONSORED_AUTOMATIC_ACCOUNT_V1_CREATION,
+        ],
+        vec![],
+    );
 
     let alice = Account::new();
     let bob = h.new_account_at(AccountAddress::from_hex_literal("0xb0b").unwrap());

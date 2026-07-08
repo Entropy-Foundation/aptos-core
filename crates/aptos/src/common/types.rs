@@ -1110,7 +1110,7 @@ pub struct RestOptions {
     /// environment variable.
     #[clap(long, env)]
     pub node_api_key: Option<String>,
-     #[clap(long, default_value_t = ApiVersion::V3)]
+    #[clap(long, default_value_t = ApiVersion::V3)]
     pub(crate) api_version: ApiVersion,
 }
 
@@ -1120,7 +1120,7 @@ impl Default for RestOptions {
             rpc_url: None,
             connection_timeout_secs: DEFAULT_EXPIRATION_SECS,
             node_api_key: None,
-            api_version: Default::default()
+            api_version: Default::default(),
         }
     }
 }

@@ -27,9 +27,9 @@ use aptos_types::{
     jwks::patch::IssuerJWK,
     keyless::Groth16VerificationKey,
     on_chain_config::{
-        AutomationRegistryConfig, Features, GasScheduleV2, OnChainConsensusConfig,
-        OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig,
-        BanRegistryParameters,
+        AutomationRegistryConfig, BanRegistryParameters, Features, GasScheduleV2,
+        OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig,
+        OnChainRandomnessConfig,
     },
     transaction::Transaction,
     waypoint::Waypoint,

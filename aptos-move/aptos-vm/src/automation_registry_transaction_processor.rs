@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    aptos_vm::{get_system_transaction_output},
+    aptos_vm::get_system_transaction_output,
     counters::SYSTEM_TRANSACTIONS_EXECUTED,
     errors::discarded_output,
     gas::make_prod_gas_meter,
@@ -15,21 +15,23 @@ use aptos_types::{
     on_chain_config::FeatureFlag,
     transaction::{
         automation::{AutomationRegistryAction, AutomationRegistryRecord},
-        ExecutionStatus,
-        TransactionStatus,
+        ExecutionStatus, TransactionStatus,
     },
 };
 use aptos_vm_logging::log_schema::AdapterLogSchema;
-use aptos_vm_types::module_and_script_storage::code_storage::AptosCodeStorage;
-use aptos_vm_types::module_write_set::ModuleWriteSet;
-use aptos_vm_types::output::VMOutput;
-use aptos_vm_types::resolver::BlockSynchronizationKillSwitch;
-use aptos_vm_types::storage::change_set_configs::ChangeSetConfigs;
+use aptos_vm_types::{
+    module_and_script_storage::{
+        code_storage::AptosCodeStorage, module_storage::AptosModuleStorage,
+    },
+    module_write_set::ModuleWriteSet,
+    output::VMOutput,
+    resolver::BlockSynchronizationKillSwitch,
+    storage::change_set_configs::ChangeSetConfigs,
+};
 use move_binary_format::errors::VMError;
 use move_core_types::vm_status::{StatusCode, VMStatus};
 use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
 use std::ops::Deref;
-use aptos_vm_types::module_and_script_storage::module_storage::AptosModuleStorage;
 
 pub struct AutomationRegistryTransactionProcessor<'m> {
     aptos_vm: &'m AptosVM,
@@ -91,7 +93,7 @@ impl<'m> AutomationRegistryTransactionProcessor<'m> {
             ));
         }
         let gas_params = self.gas_params(log_context)?.vm.clone();
-        
+
         let max_gas_amount = gas_params.txn.maximum_number_of_gas_units;
         let mut gas_meter = make_prod_gas_meter(
             self.gas_feature_version(),

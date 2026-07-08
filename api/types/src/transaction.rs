@@ -19,11 +19,10 @@ use aptos_crypto::{
 use aptos_types::{
     account_address::AccountAddress,
     aggregate_signature::AggregateSignature,
-    dkg::{DKGTranscript, DKGTranscriptMetadata},
     block_metadata::BlockMetadata,
     block_metadata_ext::BlockMetadataExt,
     contract_event::{ContractEvent, EventWithVersion},
-    dkg::transactions::DKGTransactionData,
+    dkg::{transactions::DKGTransactionData, DKGTranscript, DKGTranscriptMetadata},
     function_info::FunctionInfo,
     jwks::{jwk::JWK, ProviderJWKs, QuorumCertifiedUpdate},
     keyless,
@@ -1133,6 +1132,7 @@ impl From<(&ContractEvent, serde_json::Value)> for EventV2 {
 
 impl TryFrom<EventV1> for EventV2 {
     type Error = AnyhowError;
+
     fn try_from(event_v1: EventV1) -> Result<Self, Self::Error> {
         let EventV1 {
             guid,

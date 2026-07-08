@@ -4,20 +4,19 @@
 use self::real_dkg::RealDKG;
 use crate::{
     dkg::{
-        real_dkg::{
-            rounding::DKGRoundingProfile,
-            Transcripts
-        },
-        dkg_committee::DkgCommittee
+        dkg_committee::DkgCommittee,
+        real_dkg::{rounding::DKGRoundingProfile, Transcripts},
     },
     on_chain_config::{OnChainConfig, OnChainRandomnessConfig, RandomnessConfigMoveStruct},
-    validator_verifier::{ValidatorConsensusInfo, ValidatorConsensusInfoMoveStruct, ValidatorVerifier},
-    validator_public_keys::ValidatorPublicKeys
+    validator_public_keys::ValidatorPublicKeys,
+    validator_verifier::{
+        ValidatorConsensusInfo, ValidatorConsensusInfoMoveStruct, ValidatorVerifier,
+    },
 };
 use anyhow::{anyhow, Context, Result};
-use aptos_crypto::Uniform;
-use aptos_crypto::bls12381::PublicKey;
+use aptos_crypto::{bls12381::PublicKey, Uniform};
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
+use crypto::utils::get_clan_node_indices;
 use move_core_types::{
     account_address::AccountAddress, ident_str, identifier::IdentStr, language_storage::TypeTag,
     move_resource::MoveStructType,
@@ -30,7 +29,6 @@ use std::{
     fmt::{Debug, Formatter},
     time::Duration,
 };
-use crypto::utils::get_clan_node_indices;
 
 pub mod dummy_dkg;
 pub mod real_dkg;

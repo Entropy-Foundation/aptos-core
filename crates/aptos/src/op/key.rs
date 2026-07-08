@@ -15,7 +15,9 @@ use crate::{
     CliCommand, CliResult,
 };
 use aptos_config::config::{Peer, PeerRole};
-use aptos_crypto::{bls12381, ed25519, encoding_type::EncodingType, x25519, PrivateKey, ValidCryptoMaterial};
+use aptos_crypto::{
+    bls12381, ed25519, encoding_type::EncodingType, x25519, PrivateKey, ValidCryptoMaterial,
+};
 use aptos_genesis::config::HostAndPort;
 use aptos_types::account_address::{
     create_multisig_account_address, from_identity_public_key, AccountAddress,
@@ -344,7 +346,10 @@ impl CliCommand<HashMap<&'static str, PathBuf>> for ExtractPublicKey {
                     .save_params
                     .encoding_options
                     .encoding
-                    .decode_key::<ed25519::Ed25519PrivateKey>("ed25519 private key", private_key_bytes)?;
+                    .decode_key::<ed25519::Ed25519PrivateKey>(
+                        "ed25519 private key",
+                        private_key_bytes,
+                    )?;
                 vec![self.save_params.save_material(
                     &key.public_key(),
                     "ed25519 public key",

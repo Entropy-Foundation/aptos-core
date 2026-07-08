@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::on_chain_config::OnChainConfig;
-use move_core_types::account_address::AccountAddress;
-use move_core_types::value::MoveValue;
+use move_core_types::{account_address::AccountAddress, value::MoveValue};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use std::fmt::{Display, Formatter};
-use std::str::FromStr;
+use std::{
+    collections::BTreeMap,
+    fmt::{Display, Formatter},
+    str::FromStr,
+};
 
 // -- EvmContractName -----------------------------------------------------------
 
@@ -79,7 +80,7 @@ impl OnChainEvmContractsDetails {
             .map(|(key, value)| {
                 (
                     MoveValue::vector_u8(key.to_string().into_bytes()),
-                    evm_address_as_account_address(&value)
+                    evm_address_as_account_address(&value),
                 )
             })
             .unzip();
@@ -486,8 +487,8 @@ mod unit_tests {
         // 20-byte EVM address placed in the lower 20 bytes of a 32-byte Move
         // address (upper 12 zeroed), matching the to_move_values encoding.
         let evm_bytes: RawEvmAddress = [
-            0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd,
-            0xee, 0xff, 0x00, 0x11, 0x22, 0x33,
+            0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD,
+            0xEE, 0xFF, 0x00, 0x11, 0x22, 0x33,
         ];
         let original = OnChainEvmContractsDetails {
             name_to_addresses: [(EvmContractName::BlockMetadata, evm_bytes)].into(),
@@ -507,14 +508,15 @@ mod unit_tests {
                 assert_eq!(addrs.len(), 1);
                 match &addrs[0] {
                     MoveValue::Address(addr) => {
-                        let recovered_evm_bytes: RawEvmAddress = addr.into_bytes()[AccountAddress::LENGTH - EVM_ADDRESS_LENGTH..]
+                        let recovered_evm_bytes: RawEvmAddress = addr.into_bytes()
+                            [AccountAddress::LENGTH - EVM_ADDRESS_LENGTH..]
                             .try_into()
                             .expect("slice with correct length");
                         assert_eq!(recovered_evm_bytes, evm_bytes);
                     },
                     _ => panic!("expected MoveValue::Address in values vector"),
                 }
-            }
+            },
             _ => panic!("expected MoveValue::Vector"),
         }
     }

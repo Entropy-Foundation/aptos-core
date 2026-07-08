@@ -10,7 +10,8 @@ use aptos_types::{
     keyless::Groth16VerificationKey,
     network_address::{DnsName, NetworkAddress, Protocol},
     on_chain_config::{
-        AutomationRegistryConfig, BanRegistryParameters, OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig
+        AutomationRegistryConfig, BanRegistryParameters, OnChainConsensusConfig,
+        OnChainExecutionConfig, OnChainJWKConsensusConfig,
     },
     transaction::authenticator::AuthenticationKey,
 };

@@ -5,8 +5,10 @@ use crate::transaction_metadata::TransactionMetadata;
 use aptos_crypto::{hash::CryptoHash, HashValue};
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
 use aptos_types::{
-    block_metadata::BlockMetadata, block_metadata_ext::BlockMetadataExt,
-    transaction::automation::AutomationRegistryRecord, transaction::ReplayProtector, validator_txn::ValidatorTransaction,
+    block_metadata::BlockMetadata,
+    block_metadata_ext::BlockMetadataExt,
+    transaction::{automation::AutomationRegistryRecord, ReplayProtector},
+    validator_txn::ValidatorTransaction,
 };
 use move_core_types::account_address::AccountAddress;
 use serde::{Deserialize, Serialize};

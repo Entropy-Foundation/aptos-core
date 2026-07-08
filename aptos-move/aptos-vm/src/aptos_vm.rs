@@ -41,8 +41,7 @@ use aptos_crypto::{
     bls12381::{PublicKey, Signature},
     HashValue,
 };
-use aptos_framework::natives::code::PublishRequest;
-use aptos_framework::natives::randomness::RandomnessContext;
+use aptos_framework::natives::{code::PublishRequest, randomness::RandomnessContext};
 use aptos_gas_algebra::{Gas, GasQuantity, NumBytes, Quant};
 use aptos_gas_meter::{AptosGasMeter, GasAlgebra};
 use aptos_gas_schedule::{
@@ -66,11 +65,11 @@ use aptos_types::{
     block_metadata::BlockMetadata,
     block_metadata_ext::{BlockMetadataExt, BlockMetadataWithRandomness},
     chain_id::ChainId,
+    contract_event::ContractEvent,
     dkg::{
         state::DKGState,
         transactions::{DKGTransactionData, DKGTransactionType},
     },
-    contract_event::ContractEvent,
     fee_statement::FeeStatement,
     function_info::FunctionInfo,
     move_utils::as_move_value::AsMoveValue,
@@ -149,8 +148,7 @@ use move_vm_runtime::{
     check_type_tag_dependencies_and_charge_gas,
     logging::expect_no_verification_errors,
     module_traversal::{TraversalContext, TraversalStorage},
-    LoadedFunction,
-    ModuleStorage, RuntimeEnvironment, WithRuntimeEnvironment,
+    LoadedFunction, ModuleStorage, RuntimeEnvironment, WithRuntimeEnvironment,
 };
 use move_vm_types::gas::{GasMeter, UnmeteredGasMeter};
 use num_cpus;
@@ -1055,7 +1053,7 @@ impl AptosVM {
                         entry_fn,
                     )
                 })?;
-            }
+            },
             TransactionExecutableRef::AutomationRegistration(registration_params) => {
                 session.execute(|session| {
                     self.validate_and_execute_automation_registration(
@@ -1118,22 +1116,22 @@ impl AptosVM {
         sender: AccountAddress,
         registration_params: &RegistrationParams,
     ) -> Result<(), VMStatus> {
-            self.validate_automated_function(
-                session,
-                code_storage,
-                serialized_signers,
-                registration_params.automated_function(),
-            )?;
+        self.validate_automated_function(
+            session,
+            code_storage,
+            serialized_signers,
+            registration_params.automated_function(),
+        )?;
 
-            self.execute_automation_registration(
-                session,
-                code_storage,
-                gas_meter,
-                traversal_context,
-                sender,
-                registration_params,
-                txn_data,
-            )?;
+        self.execute_automation_registration(
+            session,
+            code_storage,
+            gas_meter,
+            traversal_context,
+            sender,
+            registration_params,
+            txn_data,
+        )?;
         Ok(())
     }
 
@@ -1172,7 +1170,7 @@ impl AptosVM {
             args,
             gas_meter,
             traversal_context,
-            module_storage
+            module_storage,
         )?;
         Ok(())
     }
@@ -1273,7 +1271,6 @@ impl AptosVM {
         ))
     }
 
-
     // Execute a multisig transaction:
     // 1. Obtain the payload of the transaction to execute. This could have been stored on chain
     // when the multisig transaction was created.
@@ -1341,10 +1338,10 @@ impl AptosVM {
                 );
                 return Ok((s, discarded_output(StatusCode::FEATURE_UNDER_GATING)));
             },
-            TransactionExecutableRef::AutomationRegistration(registration_params) => {
-            bcs::to_bytes(&MultisigTransactionPayload::AutomationRegistration(registration_params.clone()))
-            .map_err(|_| invariant_violation_error())?
-            }
+            TransactionExecutableRef::AutomationRegistration(registration_params) => bcs::to_bytes(
+                &MultisigTransactionPayload::AutomationRegistration(registration_params.clone()),
+            )
+            .map_err(|_| invariant_violation_error())?,
         };
         // Failures here will be propagated back.
         let payload_bytes: Vec<Vec<u8>> = session
@@ -1478,10 +1475,10 @@ impl AptosVM {
         payload: &MultisigTransactionPayload,
         change_set_configs: &ChangeSetConfigs,
     ) -> Result<UserSessionChangeSet, VMStatus> {
-
-        let multisig_serialized_signer = SerializedSigners::new(vec![serialized_signer(&multisig_address)], None);
+        let multisig_serialized_signer =
+            SerializedSigners::new(vec![serialized_signer(&multisig_address)], None);
         match payload {
-            MultisigTransactionPayload::EntryFunction(entry_function) =>{
+            MultisigTransactionPayload::EntryFunction(entry_function) => {
                 session.execute(|session| {
                     self.validate_and_execute_entry_function(
                         module_storage,
@@ -2118,7 +2115,6 @@ impl AptosVM {
         let payload_timer =
             VM_TIMER.timer_with_label("AptosVM::execute_user_transaction_impl [payload]");
 
-
         // `validate_signed_transaction` function already discards the transactions with `TransactionPayloadInner` type payload if the
         // corresponding feature flag (`TransactionPayloadV2`) is disabled. Therefore, we don't need to check the feature flag here again.
         let executable = match txn.executable_ref() {
@@ -2141,7 +2137,7 @@ impl AptosVM {
                 log_context,
                 change_set_configs,
             )
-        }  else {
+        } else {
             self.execute_script_or_entry_function(
                 resolver,
                 code_storage,
@@ -2153,7 +2149,7 @@ impl AptosVM {
                 executable,
                 log_context,
                 change_set_configs,
-                is_approved_gov_script
+                is_approved_gov_script,
             )
         };
         drop(payload_timer);
@@ -2509,11 +2505,10 @@ impl AptosVM {
         // during epoch change) remain unaffected by test-and-abort attacks, which the bias-ability
         // check is intended to protect against. Similarly, governance is expected not to attempt to
         // bias randomness results. This allows us to continue to manually force epoch changes via
-        // governance when necessary, which would otherwise be impossible due to 
+        // governance when necessary, which would otherwise be impossible due to
         // reconfiguration_with_dkg::try_start relying on access to randomness,
         if self.features().is_enabled(FeatureFlag::SUPRA_DKG) {
-            session
-                .mark_unbiasable();
+            session.mark_unbiasable();
         }
     }
 
@@ -2744,18 +2739,23 @@ impl AptosVM {
         let gas_used = Self::gas_used(max_gas_amount.into(), &gas_meter);
         match execution_result {
             Ok(result) => ViewFunctionOutput::new(Ok(result), gas_used),
-            Err(e) => {
-                vm.view_function_output_from_error(e, gas_used, &module_storage, &traversal_context, &log_context)
-            },
+            Err(e) => vm.view_function_output_from_error(
+                e,
+                gas_used,
+                &module_storage,
+                &traversal_context,
+                &log_context,
+            ),
         }
     }
 
-    pub(crate) fn view_function_output_from_error(&self,
-                                  e: VMError,
-                                  gas_used: u64,
-                                  module_storage: &impl AptosModuleStorage,
-                                  traversal_context: &TraversalContext,
-                                  log_context: &AdapterLogSchema,
+    pub(crate) fn view_function_output_from_error(
+        &self,
+        e: VMError,
+        gas_used: u64,
+        module_storage: &impl AptosModuleStorage,
+        traversal_context: &TraversalContext,
+        log_context: &AdapterLogSchema,
     ) -> ViewFunctionOutput {
         let vm_status = e.clone().into_vm_status();
         match vm_status {
@@ -2772,8 +2772,7 @@ impl AptosVM {
                 );
             },
         }
-        let txn_status =
-            TransactionStatus::from_vm_status(vm_status.clone(), self.features());
+        let txn_status = TransactionStatus::from_vm_status(vm_status.clone(), self.features());
         let execution_status = match txn_status {
             TransactionStatus::Keep(status) => status,
             _ => ExecutionStatus::MiscellaneousError(Some(vm_status.status_code())),
@@ -2789,7 +2788,6 @@ impl AptosVM {
             Some(vm_status.status_code()),
             gas_used,
         )
-
     }
 
     pub(crate) fn gas_used(max_gas_amount: Gas, gas_meter: &impl AptosGasMeter) -> u64 {
@@ -2886,7 +2884,6 @@ impl AptosVM {
             traversal_context,
             self.is_simulation,
         )?;
-
 
         if let Some(task_registration_params) = executable.as_automation_registration_params() {
             check_automation_task_gas(
@@ -3069,14 +3066,14 @@ impl AptosVM {
                 )?;
                 (vm_status, output)
             },
-            Transaction::AutomatedTransaction(txn) => AutomatedTransactionProcessor::new(
-                self, AutomationTaskType::User,
-            )
-            .execute_transaction(resolver, code_storage, txn, log_context),
-            Transaction::SystemAutomatedTransaction(txn) => AutomatedTransactionProcessor::new(
-                self, AutomationTaskType::System,
-            )
-            .execute_transaction(resolver, code_storage, txn, log_context),
+            Transaction::AutomatedTransaction(txn) => {
+                AutomatedTransactionProcessor::new(self, AutomationTaskType::User)
+                    .execute_transaction(resolver, code_storage, txn, log_context)
+            },
+            Transaction::SystemAutomatedTransaction(txn) => {
+                AutomatedTransactionProcessor::new(self, AutomationTaskType::System)
+                    .execute_transaction(resolver, code_storage, txn, log_context)
+            },
             Transaction::AutomationRegistryTransaction(txn) => {
                 AutomationRegistryTransactionProcessor::new(self).execute_transaction(
                     resolver,

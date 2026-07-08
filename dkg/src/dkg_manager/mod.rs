@@ -14,8 +14,7 @@ use aptos_infallible::duration_since_epoch;
 use aptos_logger::{debug, error, info, warn};
 use aptos_types::{
     dkg::{
-        DKGSessionMetadata, DKGSessionState,
-        DKGStartEvent, DKGTrait, DKGTranscript,
+        DKGSessionMetadata, DKGSessionState, DKGStartEvent, DKGTrait, DKGTranscript,
         DKGTranscriptMetadata, MayHaveRoundingSummary,
     },
     epoch_state::EpochState,
