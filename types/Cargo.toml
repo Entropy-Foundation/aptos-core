@@ -2,6 +2,7 @@
 name = "aptos-types"
 description = "Aptos core types"
 version = "0.0.3"
+build = "build.rs"
 
 # Workspace inherited keys
 authors = { workspace = true }
