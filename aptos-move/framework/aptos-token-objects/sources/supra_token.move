@@ -6,7 +6,7 @@
 /// * Creator-based freezing of tokens
 /// * Standard object-based transfer and events
 /// * Metadata property type
-module aptos_token_objects::aptos_token {
+module aptos_token_objects::supra_token {
     use std::error;
     use std::option::{Self, Option};
     use std::string::String;
