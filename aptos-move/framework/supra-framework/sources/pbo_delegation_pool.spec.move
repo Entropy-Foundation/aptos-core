@@ -93,4 +93,108 @@ spec supra_framework::pbo_delegation_pool {
         // TODO: verification disabled until this module is specified.
         pragma verify = false;
     }
+
+    spec initialize_delegation_pool {
+        pragma verify = true;
+        include stake::ResourceRequirement;
+        /// [high-level-req-1]
+        let owner_address = signer::address_of(owner);
+        let seed = spec_create_resource_account_seed(delegation_pool_creation_seed);
+        let resource_address = account::spec_create_resource_address(owner_address, seed);
+        ensures exists<DelegationPoolOwnership>(TRACE(owner_address));
+        // ensures exists<DelegationPool>(resource_address);
+        // ensures exists<stake::StakePool>(TRACE(resource_address));
+        /// [high-level-req-2]
+        let signer_address = global<DelegationPool>(resource_address).stake_pool_signer_cap.account;
+        let pool_address_in_owner = global<DelegationPoolOwnership>(TRACE(owner_address)).pool_address;
+        // ensures TRACE(signer_address) == TRACE(pool_address_in_owner);
+    }
+
+    spec get_used_voting_power {
+        pragma verify = true;
+        pragma opaque;
+        let votes = governance_records.votes;
+        let key = VotingRecordKey {
+            voter,
+            proposal_id,
+        };
+        ensures smart_table::spec_contains(votes, key) ==> result == smart_table::spec_get(votes, key)
+            && (!smart_table::spec_contains(votes, key)) ==> result == 0;
+    }
+
+    spec create_resource_account_seed {
+        pragma verify = true;
+        pragma opaque;
+        ensures result == spec_create_resource_account_seed(delegation_pool_creation_seed);
+    }
+
+    spec fun spec_create_resource_account_seed(
+        delegation_pool_creation_seed: vector<u8>,
+    ): vector<u8> {
+        let seed = concat(MODULE_SALT, delegation_pool_creation_seed);
+        seed
+    }
+
+    spec enable_partial_governance_voting {
+        let delegation_pool = borrow_global<DelegationPool>(pool_address);
+    }
+
+    spec amount_to_shares_to_redeem {
+        pragma verify = true;
+        pragma opaque;
+        let num_shares = pool_u64::spec_shares(shares_pool, shareholder);
+        let total_coins = shares_pool.total_coins;
+        let balance = pool_u64::spec_shares_to_amount_with_total_coins(shares_pool, num_shares, total_coins);
+        let amount_to_share = pool_u64::spec_amount_to_shares_with_total_coins(shares_pool, coins_amount, total_coins);
+        /// ensures result is pool_u64::shares(shares_pool, shareholder) if coins_amount >= pool_u64::balance(shares_pool, shareholder)
+        /// else pool_u64::amount_to_shares(shares_pool, coins_amount)
+        ensures coins_amount >= balance ==> result == num_shares
+            && coins_amount < balance ==> result == amount_to_share;
+    }
+
+    spec coins_to_redeem_to_ensure_min_stake {
+        pragma verify = true;
+        // let src_balance = pool_u64::balance(src_shares_pool, shareholder);
+        // let redeemed_coins = pool_u64::shares_to_amount(
+        //     src_shares_pool,
+        //     amount_to_shares_to_redeem(src_shares_pool, shareholder, amount)
+        // );
+        // ensures src_balance - redeemed_coins < MIN_COINS_ON_SHARES_POOL ==> result == src_balance;
+    }
+
+    spec pending_inactive_shares_pool_mut {
+        pragma verify = true;
+        pragma opaque;
+        /// ensure the result is equal to the pending_inactive_shares_pool of the pool in the current lockup cycle
+        ensures result == table::spec_get(pool.inactive_shares, pool.observed_lockup_cycle);
+    }
+
+    spec pending_inactive_shares_pool {
+        pragma verify = true;
+        pragma opaque;
+        /// ensure the result is equal to the pending_inactive_shares_pool of the pool in the current lockup cycle
+        ensures result == table::spec_get(pool.inactive_shares, pool.observed_lockup_cycle);
+    }
+
+    spec olc_with_index {
+        pragma verify = true;
+        pragma opaque;
+        /// ensure the result is equal to the observed lockup cycle with the given index
+        ensures result == ObservedLockupCycle{index};
+    }
+
+    spec coins_to_transfer_to_ensure_min_stake {
+
+    }
+
+    spec update_governanace_records_for_redeem_pending_inactive_shares {
+
+    }
+
+    spec buy_in_active_shares {
+        pragma verify = true;
+        let new_shares = pool_u64::amount_to_shares(pool.active_shares, coins_amount);
+
+        ensures new_shares == 0 ==> result == 0;
+    }
 }
