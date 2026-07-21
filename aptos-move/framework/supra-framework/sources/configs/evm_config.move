@@ -266,8 +266,7 @@ module supra_framework::evm_config {
     public(friend) fun on_new_epoch(framework: &signer) acquires EvmScalarConfig, EvmContractsDetails {
         system_addresses::assert_supra_framework(framework);
         if (config_buffer::does_exist<EvmContractsDetails>()) {
-            //TODO: change to extract_v2 when extract_v2 is merged and available
-            let new_config = config_buffer::extract<EvmContractsDetails>();
+            let new_config = config_buffer::extract_v2<EvmContractsDetails>();
             if (!exists<EvmContractsDetails>(@supra_framework)) {
                 move_to(framework, new_config);
             } else {
@@ -278,7 +277,7 @@ module supra_framework::evm_config {
         };
         if (config_buffer::does_exist<EvmScalarConfig>()) {
             // change to extract_v2 when it is available
-            let new_config = config_buffer::extract<EvmScalarConfig>();
+            let new_config = config_buffer::extract_v2<EvmScalarConfig>();
             if (!exists<EvmScalarConfig>(@supra_framework)) {
                 move_to(framework, new_config);
             } else {

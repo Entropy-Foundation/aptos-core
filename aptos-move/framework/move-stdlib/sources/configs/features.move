@@ -977,7 +977,7 @@ module std::features {
 
     /// Whether orderless transactions are enabled.
     /// Lifetime: transient
-    const ORDERLESS_TRANSACTIONS: u64 = 107;
+    const ORDERLESS_TRANSACTIONS: u64 = 108;
 
     public fun get_orderless_transactions_feature(): u64 { ORDERLESS_TRANSACTIONS }
 
@@ -986,7 +986,7 @@ module std::features {
     }
 
     /// Whether to calculate the transaction fee for distribution.
-    const CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION: u64 = 108;
+    const CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION: u64 = 110;
 
     public fun get_calculate_transaction_fee_for_distribution_feature(): u64 { CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION }
 
@@ -995,7 +995,7 @@ module std::features {
     }
 
     /// Whether to distribute transaction fee to validators.
-    const DISTRIBUTE_TRANSACTION_FEE: u64 = 109;
+    const DISTRIBUTE_TRANSACTION_FEE: u64 = 111;
 
     public fun get_distribute_transaction_fee_feature(): u64 { DISTRIBUTE_TRANSACTION_FEE }
 
