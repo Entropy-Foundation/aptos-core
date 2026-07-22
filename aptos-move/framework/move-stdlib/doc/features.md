@@ -399,7 +399,7 @@ Lifetime: transient
 Whether to calculate the transaction fee for distribution.
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION">CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION</a>: u64 = 108;
+<pre><code><b>const</b> <a href="features.md#0x1_features_CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION">CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION</a>: u64 = 110;
 </code></pre>
 
 
@@ -589,7 +589,7 @@ Lifetime: transient
 Whether to distribute transaction fee to validators.
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_DISTRIBUTE_TRANSACTION_FEE">DISTRIBUTE_TRANSACTION_FEE</a>: u64 = 109;
+<pre><code><b>const</b> <a href="features.md#0x1_features_DISTRIBUTE_TRANSACTION_FEE">DISTRIBUTE_TRANSACTION_FEE</a>: u64 = 111;
 </code></pre>
 
 
@@ -892,7 +892,7 @@ Whether orderless transactions are enabled.
 Lifetime: transient
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_ORDERLESS_TRANSACTIONS">ORDERLESS_TRANSACTIONS</a>: u64 = 107;
+<pre><code><b>const</b> <a href="features.md#0x1_features_ORDERLESS_TRANSACTIONS">ORDERLESS_TRANSACTIONS</a>: u64 = 108;
 </code></pre>
 
 
@@ -1143,46 +1143,6 @@ Lifetime: permanent
 
 
 
-<a id="0x1_features_SUPRA_AUTOMATION_V2_1"></a>
-
-Whether smart contracts can register automation tasks via <code>register_without_validation</code>,
-using the <code>get_txn_app_hash</code> native to obtain the registering transaction's hash.
-Must only be enabled after all nodes have upgraded to the binary that implements
-the <code>get_txn_app_hash_internal</code> native function.
-
-Lifetime: transient
-
-
-<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_AUTOMATION_V2_1">SUPRA_AUTOMATION_V2_1</a>: u64 = 101;
-</code></pre>
-
-
-
-<a id="0x1_features_SUPRA_BCFT_CERTIFICATES"></a>
-
-Whether BCFT certificate thresholds are enabled.
-
-Lifetime: permanent
-
-
-<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_BCFT_CERTIFICATES">SUPRA_BCFT_CERTIFICATES</a>: u64 = 98;
-</code></pre>
-
-
-
-<a id="0x1_features_SUPRA_BLS_KEYS"></a>
-
-Whether the functionality related to the new validator identity representation is enabled.
-This flag should only be enabled after all Validators have updated their keys to the new format, including the BLS keys.
-
-Lifetime: permanent
-
-
-<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_BLS_KEYS">SUPRA_BLS_KEYS</a>: u64 = 97;
-</code></pre>
-
-
-
 <a id="0x1_features_SUPRA_COUNT_FAILED_PROPOSALS"></a>
 
 Whether the automation task sync on block basis is enabled.
@@ -1201,20 +1161,6 @@ Lifetime: permanent
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_DELEGATION_POOL_IDENTITY">SUPRA_DELEGATION_POOL_IDENTITY</a>: u64 = 95;
-</code></pre>
-
-
-
-<a id="0x1_features_SUPRA_DKG"></a>
-
-Whether the APIs related to the DKG feature are enabled. <code><a href="features.md#0x1_features_SUPRA_BLS_KEYS">SUPRA_BLS_KEYS</a></code> must be enabled first,
-as the new validator identity format is a prerequisite for the DKG. The default DKG configuration
-also requires <code><a href="features.md#0x1_features_SUPRA_BCFT_CERTIFICATES">SUPRA_BCFT_CERTIFICATES</a></code> to be enabled first.
-
-Lifetime: transient
-
-
-<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_DKG">SUPRA_DKG</a>: u64 = 99;
 </code></pre>
 
 
@@ -1266,18 +1212,6 @@ Lifetime: transient
 
 
 <pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_RLP_ENCODE">SUPRA_RLP_ENCODE</a>: u64 = 94;
-</code></pre>
-
-
-
-<a id="0x1_features_SUPRA_TRANSACTIONS_INCLUSION_PROOFS"></a>
-
-Whether transactions inclusion proofs are enabled.
-
-Lifetime: permanent
-
-
-<pre><code><b>const</b> <a href="features.md#0x1_features_SUPRA_TRANSACTIONS_INCLUSION_PROOFS">SUPRA_TRANSACTIONS_INCLUSION_PROOFS</a>: u64 = 100;
 </code></pre>
 
 

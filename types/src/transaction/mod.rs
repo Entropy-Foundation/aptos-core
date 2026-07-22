@@ -71,7 +71,6 @@ use crate::{
     move_utils::MemberId,
     on_chain_config::{FeatureFlag, Features},
     proof::accumulator::InMemoryEventAccumulator,
-    serde_helper::vec_bytes,
     state_store::{state_key::StateKey, state_value::StateValue},
     transaction::{
         automated_transaction::AutomatedTransaction,

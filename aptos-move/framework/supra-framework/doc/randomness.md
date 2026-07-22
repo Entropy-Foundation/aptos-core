@@ -223,10 +223,6 @@ Must be called in tests to initialize the <code><a href="randomness.md#0x1_rando
             framework,
             <a href="randomness.md#0x1_randomness_PerBlockRandomness">PerBlockRandomness</a> { epoch: 0, round: 0, seed: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>() }
         );
-        <b>move_to</b>(
-            framework,
-            <a href="randomness.md#0x1_randomness_PerBlockRandomness">PerBlockRandomness</a> { epoch: 0, round: 0, seed: <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_none">option::none</a>() }
-        );
     }
 }
 </code></pre>
@@ -251,12 +247,6 @@ Invoked in block prologues to update the block-level randomness seed.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="randomness.md#0x1_randomness_on_new_block">on_new_block</a>(
-    vm: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
-    epoch: u64,
-    round: u64,
-    seed_for_new_block: Option&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
-) <b>acquires</b> <a href="randomness.md#0x1_randomness_PerBlockRandomness">PerBlockRandomness</a> {
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="randomness.md#0x1_randomness_on_new_block">on_new_block</a>(
     vm: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>,
     epoch: u64,
@@ -845,7 +835,6 @@ If n is 0, returns the empty vector.
     <b>let</b> values = <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[];
 
     <b>if</b> (n == 0) {
-    <b>if</b> (n == 0) {
         <b>return</b> <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]
     };
 
@@ -909,15 +898,6 @@ Compute <code>(a + b) % m</code>, assuming <code>m &gt;= 1, 0 &lt;= a &lt; m, 0&
     <b>let</b> a_clone = a;
     <b>let</b> neg_b = m - b;
     <b>let</b> a_less = a &lt; neg_b;
-    <a href="randomness.md#0x1_randomness_take_first">take_first</a>(
-        <b>if</b> (a_less) { a + b }
-        <b>else</b> {
-            a_clone - neg_b
-        },
-        <b>if</b> (!a_less) {
-            a_clone - neg_b
-        } <b>else</b> { a + b }
-    )
     <a href="randomness.md#0x1_randomness_take_first">take_first</a>(
         <b>if</b> (a_less) { a + b }
         <b>else</b> {

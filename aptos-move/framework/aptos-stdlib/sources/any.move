@@ -61,13 +61,6 @@ module aptos_std::any {
         std::vector::is_empty(&x.data)
     }
 
-    /// Returns true if the BCS-encoded data payload is empty.
-    /// An Any value with an empty data vector cannot be decoded and should
-    /// be treated as invalid by callers.
-    public fun is_empty(x: &Any): bool {
-        std::vector::is_empty(&x.data)
-    }
-
     #[test_only]
     struct S has store, drop { x: u64 }
 

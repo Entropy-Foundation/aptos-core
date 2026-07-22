@@ -29,7 +29,6 @@ use aptos_types::{
 };
 use aptos_vm_logging::log_schema::AdapterLogSchema;
 use aptos_vm_types::{
-    change_set::VMChangeSet,
     module_and_script_storage::{
         code_storage::AptosCodeStorage, module_storage::AptosModuleStorage,
     },
@@ -42,7 +41,7 @@ use move_binary_format::errors::Location;
 use move_core_types::vm_status::{StatusCode, VMStatus};
 use move_vm_runtime::{
     module_traversal::{TraversalContext, TraversalStorage},
-    LoadedFunction, ModuleStorage,
+    ModuleStorage,
 };
 use std::ops::Deref;
 

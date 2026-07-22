@@ -61,7 +61,7 @@ pub use self::{
         OnChainEvmContractsDetails,
     },
     evm_genesis_config::{
-        ContractKind, GenesisEvmContract, TransactionKind, GenesisEvmTransaction, GenesisEvmEOA, OnChainEvmGenesisConfig,
+        TransactionKind, GenesisEvmTransaction, GenesisEvmEOA, OnChainEvmGenesisConfig,
         EVM_GENESIS_EVENT_MOVE_TYPE_TAG
     },    
     execution_config::{

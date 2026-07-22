@@ -60,6 +60,11 @@ thiserror = { workspace = true }
 tiny-keccak = { workspace = true }
 typenum = { workspace = true }
 x25519-dalek = { workspace = true }
+utoipa = { features = [
+  "non_strict_integers",
+  "preserve_order",
+  "uuid",
+], optional = true, workspace = true }
 
 [dev-dependencies]
 arbitrary = { workspace = true, features = ["derive"] }

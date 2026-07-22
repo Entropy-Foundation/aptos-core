@@ -35,7 +35,7 @@ use aptos_types::{
     },
     transaction::{
         automation::RegistrationParams,
-        BlockEndInfo, BlockEpiloguePayload, EntryFunction, ExecutionStatus, Multisig,
+        BlockEndInfo, EntryFunction, ExecutionStatus, Multisig,
         RawTransaction, Script, SignedTransaction,
         Transaction::{AutomationRegistryTransaction, SystemAutomatedTransaction},
         TransactionAuxiliaryData,

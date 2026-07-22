@@ -41,7 +41,7 @@ use aptos_crypto::{
     bls12381::{PublicKey, Signature},
     HashValue,
 };
-use aptos_framework::natives::{code::PublishRequest, randomness::RandomnessContext};
+use aptos_framework::natives::{code::PublishRequest};
 use aptos_gas_algebra::{Gas, GasQuantity, NumBytes, Quant};
 use aptos_gas_meter::{AptosGasMeter, GasAlgebra};
 use aptos_gas_schedule::{
@@ -74,7 +74,7 @@ use aptos_types::{
     function_info::FunctionInfo,
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{
-        new_epoch_event_key, ApprovedExecutionHashes, ConfigStorage, ConfigurationResource,
+        ApprovedExecutionHashes, ConfigStorage, ConfigurationResource,
         FeatureFlag, Features, OnChainConfig, TimedFeatureFlag, TimedFeatures,
     },
     randomness::Randomness,

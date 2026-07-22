@@ -12,7 +12,7 @@ use crate::{
     SafetyRules, TSafetyRules,
 };
 use aptos_config::config::{InitialSafetyRulesConfig, SafetyRulesConfig, SafetyRulesService};
-use aptos_crypto::ed25519::{PrivateKey, PublicKey};
+use aptos_crypto::ed25519::{PublicKey};
 use aptos_global_constants::CONSENSUS_KEY;
 use aptos_infallible::RwLock;
 use aptos_logger::{info, warn};

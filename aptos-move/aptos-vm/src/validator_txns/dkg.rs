@@ -6,16 +6,15 @@ use crate::{
     errors::expect_only_successful_execution,
     move_vm_ext::{AptosMoveResolver, SessionId},
     system_module_names::{FINISH_WITH_DKG_RESULT, RECONFIGURATION_WITH_DKG_MODULE, SET_DKG_META},
-    validator_txns::dkg::ExecutionFailure::{Expected, Unexpected},
+    validator_txns::dkg::ExecutionFailure::{Unexpected},
     AptosVM, VMValidator,
 };
 use aptos_types::{
     dkg::{
         transactions::{DKGTransactionData, DKGTransactionType},
-        DKGState, DKGTrait, DKGTranscript, DefaultDKG,
     },
     move_utils::as_move_value::AsMoveValue,
-    transaction::{ExecutionStatus, TransactionStatus},
+    transaction::{TransactionStatus},
     vm_status::DiscardedVMStatus,
 };
 use aptos_vm_logging::log_schema::AdapterLogSchema;

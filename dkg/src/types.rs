@@ -4,7 +4,7 @@
 use aptos_crypto_derive::CryptoHasher;
 use aptos_enum_conversion_derive::EnumConversion;
 use aptos_reliable_broadcast::RBMessage;
-pub use aptos_types::aptos_dkg::DKGTranscript;
+pub use aptos_types::dkg::DKGTranscript;
 use serde::{Deserialize, Serialize};
 
 /// Once DKG starts, a validator should send this message to peers in order to collect DKG transcripts from peers.

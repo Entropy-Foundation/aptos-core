@@ -8,7 +8,7 @@ use aptos_infallible::{duration_since_epoch, Mutex};
 use aptos_logger::info;
 use aptos_reliable_broadcast::BroadcastStatus;
 use aptos_types::{
-    aptos_dkg::{DKGTrait, DKGTranscript},
+    dkg::{DKGTrait, DKGTranscript},
     epoch_state::EpochState,
     validator_verifier::VerifyError,
 };

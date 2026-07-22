@@ -13,7 +13,7 @@ use aptos_logger::{enabled, Level};
 use aptos_memory_usage_tracker::MemoryTrackedGasMeter;
 use aptos_types::{
     on_chain_config::{
-        ConfigStorage, FeatureFlag, Features, GasSchedule, GasScheduleV2, OnChainConfig,
+        FeatureFlag, Features
     },
     transaction::{automation::RegistrationParams, RawTransaction, TransactionPayload},
 };
@@ -23,7 +23,7 @@ use aptos_vm_types::{
     storage::{space_pricing::DiskSpacePricing, StorageGasParameters},
 };
 use move_core_types::{
-    gas_algebra::{NumArgs, NumBytes},
+    gas_algebra::{NumBytes},
     vm_status::{StatusCode, VMStatus},
 };
 use move_vm_runtime::ModuleStorage;
