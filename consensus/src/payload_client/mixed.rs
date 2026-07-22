@@ -38,15 +38,15 @@ impl MixedPayloadClient {
     /// When enabled in smoke tests, generate 2 random validator transactions, 1 valid, 1 invalid.
     fn extra_test_only_vtxns(&self) -> Vec<ValidatorTransaction> {
         fail_point!("mixed_payload_client::extra_test_only_vtxns", |_| {
-            use aptos_types::dkg::{DKGTranscript, DKGTranscriptMetadata};
+            use aptos_types::dkg::{DKGTransactionData, DKGTransactionMetadata};
             use move_core_types::account_address::AccountAddress;
 
-            vec![ValidatorTransaction::DKGResult(DKGTranscript {
-                metadata: DKGTranscriptMetadata {
+            vec![ValidatorTransaction::DKG(DKGTransactionData {
+                metadata: DKGTransactionMetadata {
                     epoch: 999,
                     author: AccountAddress::ZERO,
                 },
-                transcript_bytes: vec![],
+                data_bytes: vec![],
             })]
         });
         vec![]

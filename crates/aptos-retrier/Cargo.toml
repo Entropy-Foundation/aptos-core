@@ -15,4 +15,3 @@ rust-version = { workspace = true }
 [dependencies]
 aptos-logger = { workspace = true }
 tokio = { workspace = true }
-

@@ -32,7 +32,7 @@ aptos-cached-packages = { workspace = true }
 aptos-crypto = { workspace = true }
 aptos-db = { workspace = true }
 aptos-executor-test-helpers = { workspace = true }
-aptos-gas-schedule = { workspace = true, features = ["testing"] } 
+aptos-gas-schedule = { workspace = true, features = ["testing"] }
 aptos-temppath = { workspace = true }
 aptos-types = { workspace = true, features = ["testing"] }
 aptos-vm-genesis = { workspace = true }

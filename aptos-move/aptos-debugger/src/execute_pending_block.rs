@@ -70,13 +70,13 @@ impl Command {
         //         "Getting block {:?} from {consensus_db_path:?}.",
         //         self.block_id
         //     );
-            // let cmd = aptos_consensus::util::db_tool::Command {
-            //     db_dir: consensus_db_path,
-            //     block_id: self.block_id,
-            // };
-            // cmd.dump_pending_txns()?
+        // let cmd = aptos_consensus::util::db_tool::Command {
+        //     db_dir: consensus_db_path,
+        //     block_id: self.block_id,
+        // };
+        // cmd.dump_pending_txns()?
         // }
-         else {
+        else {
             unreachable!("Must provide one target.");
         };
 

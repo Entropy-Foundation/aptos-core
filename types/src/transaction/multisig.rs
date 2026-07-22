@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{TransactionExecutable, TransactionExecutableRef};
-use crate::transaction::{user_transaction_context::MultisigPayload, EntryFunction};
+use crate::transaction::{
+    automation::RegistrationParams, user_transaction_context::MultisigPayload, EntryFunction,
+};
 use move_core_types::{account_address::AccountAddress, vm_status::VMStatus};
 use serde::{Deserialize, Serialize};
-use crate::transaction::automation::RegistrationParams;
 
 /// A multisig transaction that allows an owner of a multisig account to execute a pre-approved
 /// transaction as the multisig account.
@@ -22,34 +23,27 @@ pub struct Multisig {
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum MultisigTransactionPayload {
     EntryFunction(EntryFunction),
-    AutomationRegistration(RegistrationParams)
+    AutomationRegistration(RegistrationParams),
 }
 
 impl Multisig {
     pub fn as_multisig_payload(&self) -> MultisigPayload {
         match &self.transaction_payload {
-            None => {
-                MultisigPayload {
-                    multisig_address: self.multisig_address,
-                    entry_function_payload: None,
-                    is_automation_registration: None,
-                }
-            }
-            Some(MultisigTransactionPayload::AutomationRegistration(_)) => {
-                MultisigPayload {
-                    multisig_address: self.multisig_address,
-                    entry_function_payload: None,
-                    is_automation_registration: Some(true),
-                }
-            }
-            Some(MultisigTransactionPayload::EntryFunction(entry)) => {
-                MultisigPayload {
-                    multisig_address: self.multisig_address,
-                    entry_function_payload:
-                            Some(entry.as_entry_function_payload()),
-                    is_automation_registration: Some(false),
-                }
-            }
+            None => MultisigPayload {
+                multisig_address: self.multisig_address,
+                entry_function_payload: None,
+                is_automation_registration: None,
+            },
+            Some(MultisigTransactionPayload::AutomationRegistration(_)) => MultisigPayload {
+                multisig_address: self.multisig_address,
+                entry_function_payload: None,
+                is_automation_registration: Some(true),
+            },
+            Some(MultisigTransactionPayload::EntryFunction(entry)) => MultisigPayload {
+                multisig_address: self.multisig_address,
+                entry_function_payload: Some(entry.as_entry_function_payload()),
+                is_automation_registration: Some(false),
+            },
         }
     }
 

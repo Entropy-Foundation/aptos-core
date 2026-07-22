@@ -31,6 +31,7 @@ base64 = { workspace = true }
 bcs = { workspace = true }
 bytes = { workspace = true }
 derive-getters = { workspace = true }
+crypto = { workspace = true }
 chrono = { workspace = true }
 chrono-tz = { workspace = true }
 dashmap = { workspace = true }
@@ -73,6 +74,11 @@ strum = { workspace = true }
 strum_macros = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+utoipa = { features = [
+  "non_strict_integers",
+  "preserve_order",
+  "uuid",
+], optional = true, workspace = true }
 
 [dev-dependencies]
 ahash = { workspace = true }
@@ -98,7 +104,14 @@ url = { workspace = true }
 [features]
 default = []
 testing = ["aptos-crypto/fuzzing"]
-fuzzing = ["proptest", "proptest-derive", "aptos-crypto/fuzzing", "move-core-types/fuzzing", "arbitrary"]
+fuzzing = [
+  "proptest",
+  "proptest-derive",
+  "aptos-crypto/fuzzing",
+  "move-core-types/fuzzing",
+  "arbitrary",
+]
+rest_api_schema = ["utoipa", "arbitrary"]
 
 [[bench]]
 name = "keyless"

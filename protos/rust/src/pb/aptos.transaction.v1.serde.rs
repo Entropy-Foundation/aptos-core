@@ -224,8 +224,8 @@ impl<'de> serde::Deserialize<'de> for AccountSignature {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<AccountSignature, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut r#type__ = None;
                 let mut signature__ = None;
@@ -242,28 +242,28 @@ impl<'de> serde::Deserialize<'de> for AccountSignature {
                                 return Err(serde::de::Error::duplicate_field("ed25519"));
                             }
                             signature__ = map.next_value::<::std::option::Option<_>>()?.map(account_signature::Signature::Ed25519)
-;
+                            ;
                         }
                         GeneratedField::MultiEd25519 => {
                             if signature__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("multiEd25519"));
                             }
                             signature__ = map.next_value::<::std::option::Option<_>>()?.map(account_signature::Signature::MultiEd25519)
-;
+                            ;
                         }
                         GeneratedField::SingleKeySignature => {
                             if signature__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("singleKeySignature"));
                             }
                             signature__ = map.next_value::<::std::option::Option<_>>()?.map(account_signature::Signature::SingleKeySignature)
-;
+                            ;
                         }
                         GeneratedField::MultiKeySignature => {
                             if signature__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("multiKeySignature"));
                             }
                             signature__ = map.next_value::<::std::option::Option<_>>()?.map(account_signature::Signature::MultiKeySignature)
-;
+                            ;
                         }
                         GeneratedField::Abstraction => {
                             if signature__.is_some() {
@@ -449,8 +449,8 @@ impl<'de> serde::Deserialize<'de> for AnyPublicKey {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<AnyPublicKey, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut r#type__ = None;
                 let mut public_key__ = None;
@@ -678,8 +678,8 @@ impl<'de> serde::Deserialize<'de> for AnySignature {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<AnySignature, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut r#type__ = None;
                 let mut signature__ = None;
@@ -705,28 +705,28 @@ impl<'de> serde::Deserialize<'de> for AnySignature {
                                 return Err(serde::de::Error::duplicate_field("ed25519"));
                             }
                             signature_variant__ = map.next_value::<::std::option::Option<_>>()?.map(any_signature::SignatureVariant::Ed25519)
-;
+                            ;
                         }
                         GeneratedField::Secp256k1Ecdsa => {
                             if signature_variant__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("secp256k1Ecdsa"));
                             }
                             signature_variant__ = map.next_value::<::std::option::Option<_>>()?.map(any_signature::SignatureVariant::Secp256k1Ecdsa)
-;
+                            ;
                         }
                         GeneratedField::Webauthn => {
                             if signature_variant__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("webauthn"));
                             }
                             signature_variant__ = map.next_value::<::std::option::Option<_>>()?.map(any_signature::SignatureVariant::Webauthn)
-;
+                            ;
                         }
                         GeneratedField::Keyless => {
                             if signature_variant__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("keyless"));
                             }
                             signature_variant__ = map.next_value::<::std::option::Option<_>>()?.map(any_signature::SignatureVariant::Keyless)
-;
+                            ;
                         }
                     }
                 }
@@ -949,8 +949,8 @@ impl<'de> serde::Deserialize<'de> for AutomatedTaskMeta {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<AutomatedTaskMeta, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut sender__ = None;
                 let mut index__ = None;
@@ -1105,8 +1105,8 @@ impl<'de> serde::Deserialize<'de> for AutomatedTransaction {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<AutomatedTransaction, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut meta__ = None;
                 let mut events__ = None;
@@ -1255,8 +1255,8 @@ impl<'de> serde::Deserialize<'de> for AutomationPayload {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<AutomationPayload, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut automated_function__ = None;
                 let mut expiration_timestamp_secs__ = None;
@@ -1839,8 +1839,8 @@ impl<'de> serde::Deserialize<'de> for Block {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<Block, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut timestamp__ = None;
                 let mut height__ = None;
@@ -1989,8 +1989,8 @@ impl<'de> serde::Deserialize<'de> for BlockEndInfo {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<BlockEndInfo, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut block_gas_limit_reached__ = None;
                 let mut block_output_limit_reached__ = None;
@@ -2109,8 +2109,8 @@ impl<'de> serde::Deserialize<'de> for BlockEpilogueTransaction {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<BlockEpilogueTransaction, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut block_end_info__ = None;
                 while let Some(k) = map.next_key()? {
@@ -2247,8 +2247,8 @@ impl<'de> serde::Deserialize<'de> for BlockMetadataTransaction {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<BlockMetadataTransaction, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut id__ = None;
                 let mut round__ = None;
@@ -2404,8 +2404,8 @@ impl<'de> serde::Deserialize<'de> for DeleteModule {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<DeleteModule, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut address__ = None;
                 let mut state_key_hash__ = None;
@@ -2542,8 +2542,8 @@ impl<'de> serde::Deserialize<'de> for DeleteResource {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<DeleteResource, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut address__ = None;
                 let mut state_key_hash__ = None;
@@ -2669,8 +2669,8 @@ impl<'de> serde::Deserialize<'de> for DeleteTableData {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<DeleteTableData, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut key__ = None;
                 let mut key_type__ = None;
@@ -2796,8 +2796,8 @@ impl<'de> serde::Deserialize<'de> for DeleteTableItem {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<DeleteTableItem, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut state_key_hash__ = None;
                 let mut handle__ = None;
@@ -2923,8 +2923,8 @@ impl<'de> serde::Deserialize<'de> for DirectWriteSet {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<DirectWriteSet, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut write_set_change__ = None;
                 let mut events__ = None;
@@ -3022,8 +3022,8 @@ impl<'de> serde::Deserialize<'de> for Ed25519 {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<Ed25519, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut signature__ = None;
                 while let Some(k) = map.next_key()? {
@@ -3125,8 +3125,8 @@ impl<'de> serde::Deserialize<'de> for Ed25519Signature {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<Ed25519Signature, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut public_key__ = None;
                 let mut signature__ = None;
@@ -3237,8 +3237,8 @@ impl<'de> serde::Deserialize<'de> for EntryFunctionId {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<EntryFunctionId, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut module__ = None;
                 let mut name__ = None;
@@ -3365,8 +3365,8 @@ impl<'de> serde::Deserialize<'de> for EntryFunctionPayload {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<EntryFunctionPayload, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut function__ = None;
                 let mut type_arguments__ = None;
@@ -3518,8 +3518,8 @@ impl<'de> serde::Deserialize<'de> for Event {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<Event, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut key__ = None;
                 let mut sequence_number__ = None;
@@ -3654,8 +3654,8 @@ impl<'de> serde::Deserialize<'de> for EventKey {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<EventKey, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut creation_number__ = None;
                 let mut account_address__ = None;
@@ -3766,8 +3766,8 @@ impl<'de> serde::Deserialize<'de> for EventSizeInfo {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<EventSizeInfo, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut type_tag_bytes__ = None;
                 let mut total_bytes__ = None;
@@ -4021,8 +4021,8 @@ impl<'de> serde::Deserialize<'de> for FeePayerSignature {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<FeePayerSignature, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut sender__ = None;
                 let mut secondary_signer_addresses__ = None;
@@ -4153,8 +4153,8 @@ impl<'de> serde::Deserialize<'de> for GenesisTransaction {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<GenesisTransaction, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut payload__ = None;
                 let mut events__ = None;
@@ -4261,8 +4261,8 @@ impl<'de> serde::Deserialize<'de> for IndexedSignature {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<IndexedSignature, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut index__ = None;
                 let mut signature__ = None;
@@ -4362,8 +4362,8 @@ impl<'de> serde::Deserialize<'de> for Keyless {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<Keyless, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut signature__ = None;
                 while let Some(k) = map.next_key()? {
@@ -4586,8 +4586,8 @@ impl<'de> serde::Deserialize<'de> for MoveFunction {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MoveFunction, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
                 let mut visibility__ = None;
@@ -4743,7 +4743,7 @@ impl serde::Serialize for MoveFunctionGenericTypeParam {
             let v = self.constraints.iter().cloned().map(|v| {
                 MoveAbility::from_i32(v)
                     .ok_or_else(|| serde::ser::Error::custom(format!("Invalid variant {}", v)))
-                }).collect::<Result<Vec<_>, _>>()?;
+            }).collect::<Result<Vec<_>, _>>()?;
             struct_ser.serialize_field("constraints", &v)?;
         }
         struct_ser.end()
@@ -4800,8 +4800,8 @@ impl<'de> serde::Deserialize<'de> for MoveFunctionGenericTypeParam {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MoveFunctionGenericTypeParam, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut constraints__ = None;
                 while let Some(k) = map.next_key()? {
@@ -4928,8 +4928,8 @@ impl<'de> serde::Deserialize<'de> for MoveModule {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MoveModule, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut address__ = None;
                 let mut name__ = None;
@@ -5060,8 +5060,8 @@ impl<'de> serde::Deserialize<'de> for MoveModuleBytecode {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MoveModuleBytecode, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut bytecode__ = None;
                 let mut abi__ = None;
@@ -5170,8 +5170,8 @@ impl<'de> serde::Deserialize<'de> for MoveModuleId {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MoveModuleId, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut address__ = None;
                 let mut name__ = None;
@@ -5278,8 +5278,8 @@ impl<'de> serde::Deserialize<'de> for MoveScriptBytecode {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MoveScriptBytecode, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut bytecode__ = None;
                 let mut abi__ = None;
@@ -5350,7 +5350,7 @@ impl serde::Serialize for MoveStruct {
             let v = self.abilities.iter().cloned().map(|v| {
                 MoveAbility::from_i32(v)
                     .ok_or_else(|| serde::ser::Error::custom(format!("Invalid variant {}", v)))
-                }).collect::<Result<Vec<_>, _>>()?;
+            }).collect::<Result<Vec<_>, _>>()?;
             struct_ser.serialize_field("abilities", &v)?;
         }
         if !self.generic_type_params.is_empty() {
@@ -5431,8 +5431,8 @@ impl<'de> serde::Deserialize<'de> for MoveStruct {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MoveStruct, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
                 let mut is_native__ = None;
@@ -5571,8 +5571,8 @@ impl<'de> serde::Deserialize<'de> for MoveStructField {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MoveStructField, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
                 let mut r#type__ = None;
@@ -5620,7 +5620,7 @@ impl serde::Serialize for MoveStructGenericTypeParam {
             let v = self.constraints.iter().cloned().map(|v| {
                 MoveAbility::from_i32(v)
                     .ok_or_else(|| serde::ser::Error::custom(format!("Invalid variant {}", v)))
-                }).collect::<Result<Vec<_>, _>>()?;
+            }).collect::<Result<Vec<_>, _>>()?;
             struct_ser.serialize_field("constraints", &v)?;
         }
         if self.is_phantom {
@@ -5684,8 +5684,8 @@ impl<'de> serde::Deserialize<'de> for MoveStructGenericTypeParam {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MoveStructGenericTypeParam, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut constraints__ = None;
                 let mut is_phantom__ = None;
@@ -5811,8 +5811,8 @@ impl<'de> serde::Deserialize<'de> for MoveStructTag {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MoveStructTag, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut address__ = None;
                 let mut module__ = None;
@@ -5966,8 +5966,8 @@ impl<'de> serde::Deserialize<'de> for MoveType {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MoveType, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut r#type__ = None;
                 let mut content__ = None;
@@ -5984,14 +5984,14 @@ impl<'de> serde::Deserialize<'de> for MoveType {
                                 return Err(serde::de::Error::duplicate_field("vector"));
                             }
                             content__ = map.next_value::<::std::option::Option<_>>()?.map(move_type::Content::Vector)
-;
+                            ;
                         }
                         GeneratedField::Struct => {
                             if content__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("struct"));
                             }
                             content__ = map.next_value::<::std::option::Option<_>>()?.map(move_type::Content::Struct)
-;
+                            ;
                         }
                         GeneratedField::GenericTypeParamIndex => {
                             if content__.is_some() {
@@ -6004,7 +6004,7 @@ impl<'de> serde::Deserialize<'de> for MoveType {
                                 return Err(serde::de::Error::duplicate_field("reference"));
                             }
                             content__ = map.next_value::<::std::option::Option<_>>()?.map(move_type::Content::Reference)
-;
+                            ;
                         }
                         GeneratedField::Unparsable => {
                             if content__.is_some() {
@@ -6101,8 +6101,8 @@ impl<'de> serde::Deserialize<'de> for move_type::ReferenceType {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<move_type::ReferenceType, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut mutable__ = None;
                 let mut to__ = None;
@@ -6332,8 +6332,8 @@ impl<'de> serde::Deserialize<'de> for MultiAgentSignature {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MultiAgentSignature, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut sender__ = None;
                 let mut secondary_signer_addresses__ = None;
@@ -6468,8 +6468,8 @@ impl<'de> serde::Deserialize<'de> for MultiEd25519Signature {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MultiEd25519Signature, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut public_keys__ = None;
                 let mut signatures__ = None;
@@ -6614,8 +6614,8 @@ impl<'de> serde::Deserialize<'de> for MultiKeySignature {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MultiKeySignature, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut public_keys__ = None;
                 let mut signatures__ = None;
@@ -6734,8 +6734,8 @@ impl<'de> serde::Deserialize<'de> for MultisigPayload {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MultisigPayload, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut multisig_address__ = None;
                 let mut transaction_payload__ = None;
@@ -6856,8 +6856,8 @@ impl<'de> serde::Deserialize<'de> for MultisigTransactionPayload {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<MultisigTransactionPayload, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut r#type__ = None;
                 let mut payload__ = None;
@@ -6874,7 +6874,7 @@ impl<'de> serde::Deserialize<'de> for MultisigTransactionPayload {
                                 return Err(serde::de::Error::duplicate_field("entryFunctionPayload"));
                             }
                             payload__ = map.next_value::<::std::option::Option<_>>()?.map(multisig_transaction_payload::Payload::EntryFunctionPayload)
-;
+                            ;
                         }
                         GeneratedField::AutomationPayload => {
                             if payload__.is_some() {
@@ -7058,8 +7058,8 @@ impl<'de> serde::Deserialize<'de> for ScriptPayload {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<ScriptPayload, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut code__ = None;
                 let mut type_arguments__ = None;
@@ -7175,8 +7175,8 @@ impl<'de> serde::Deserialize<'de> for ScriptWriteSet {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<ScriptWriteSet, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut execute_as__ = None;
                 let mut script__ = None;
@@ -7274,8 +7274,8 @@ impl<'de> serde::Deserialize<'de> for Secp256k1Ecdsa {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<Secp256k1Ecdsa, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut signature__ = None;
                 while let Some(k) = map.next_key()? {
@@ -7410,8 +7410,8 @@ impl<'de> serde::Deserialize<'de> for Signature {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<Signature, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut r#type__ = None;
                 let mut signature__ = None;
@@ -7428,35 +7428,35 @@ impl<'de> serde::Deserialize<'de> for Signature {
                                 return Err(serde::de::Error::duplicate_field("ed25519"));
                             }
                             signature__ = map.next_value::<::std::option::Option<_>>()?.map(signature::Signature::Ed25519)
-;
+                            ;
                         }
                         GeneratedField::MultiEd25519 => {
                             if signature__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("multiEd25519"));
                             }
                             signature__ = map.next_value::<::std::option::Option<_>>()?.map(signature::Signature::MultiEd25519)
-;
+                            ;
                         }
                         GeneratedField::MultiAgent => {
                             if signature__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("multiAgent"));
                             }
                             signature__ = map.next_value::<::std::option::Option<_>>()?.map(signature::Signature::MultiAgent)
-;
+                            ;
                         }
                         GeneratedField::FeePayer => {
                             if signature__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("feePayer"));
                             }
                             signature__ = map.next_value::<::std::option::Option<_>>()?.map(signature::Signature::FeePayer)
-;
+                            ;
                         }
                         GeneratedField::SingleSender => {
                             if signature__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("singleSender"));
                             }
                             signature__ = map.next_value::<::std::option::Option<_>>()?.map(signature::Signature::SingleSender)
-;
+                            ;
                         }
                     }
                 }
@@ -7633,8 +7633,8 @@ impl<'de> serde::Deserialize<'de> for SingleKeySignature {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<SingleKeySignature, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut public_key__ = None;
                 let mut signature__ = None;
@@ -7732,8 +7732,8 @@ impl<'de> serde::Deserialize<'de> for SingleSender {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<SingleSender, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut sender__ = None;
                 while let Some(k) = map.next_key()? {
@@ -7797,7 +7797,7 @@ impl<'de> serde::Deserialize<'de> for StateCheckpointTransaction {
                     where
                         E: serde::de::Error,
                     {
-                            Err(serde::de::Error::unknown_field(value, FIELDS))
+                        Err(serde::de::Error::unknown_field(value, FIELDS))
                     }
                 }
                 deserializer.deserialize_identifier(GeneratedVisitor)
@@ -7812,8 +7812,8 @@ impl<'de> serde::Deserialize<'de> for StateCheckpointTransaction {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<StateCheckpointTransaction, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 while map.next_key::<GeneratedField>()?.is_some() {
                     let _ = map.next_value::<serde::de::IgnoredAny>()?;
@@ -8004,8 +8004,8 @@ impl<'de> serde::Deserialize<'de> for Transaction {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<Transaction, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut timestamp__ = None;
                 let mut version__ = None;
@@ -8070,49 +8070,49 @@ impl<'de> serde::Deserialize<'de> for Transaction {
                                 return Err(serde::de::Error::duplicate_field("blockMetadata"));
                             }
                             txn_data__ = map.next_value::<::std::option::Option<_>>()?.map(transaction::TxnData::BlockMetadata)
-;
+                            ;
                         }
                         GeneratedField::Genesis => {
                             if txn_data__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("genesis"));
                             }
                             txn_data__ = map.next_value::<::std::option::Option<_>>()?.map(transaction::TxnData::Genesis)
-;
+                            ;
                         }
                         GeneratedField::StateCheckpoint => {
                             if txn_data__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("stateCheckpoint"));
                             }
                             txn_data__ = map.next_value::<::std::option::Option<_>>()?.map(transaction::TxnData::StateCheckpoint)
-;
+                            ;
                         }
                         GeneratedField::User => {
                             if txn_data__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("user"));
                             }
                             txn_data__ = map.next_value::<::std::option::Option<_>>()?.map(transaction::TxnData::User)
-;
+                            ;
                         }
                         GeneratedField::Validator => {
                             if txn_data__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("validator"));
                             }
                             txn_data__ = map.next_value::<::std::option::Option<_>>()?.map(transaction::TxnData::Validator)
-;
+                            ;
                         }
                         GeneratedField::BlockEpilogue => {
                             if txn_data__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("blockEpilogue"));
                             }
                             txn_data__ = map.next_value::<::std::option::Option<_>>()?.map(transaction::TxnData::BlockEpilogue)
-;
+                            ;
                         }
                         GeneratedField::Automated => {
                             if txn_data__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("automated"));
                             }
                             txn_data__ = map.next_value::<::std::option::Option<_>>()?.map(transaction::TxnData::Automated)
-;
+                            ;
                         }
                     }
                 }
@@ -8369,8 +8369,8 @@ impl<'de> serde::Deserialize<'de> for TransactionInfo {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<TransactionInfo, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut hash__ = None;
                 let mut state_change_hash__ = None;
@@ -8601,8 +8601,8 @@ impl<'de> serde::Deserialize<'de> for TransactionPayload {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<TransactionPayload, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut r#type__ = None;
                 let mut payload__ = None;
@@ -8620,35 +8620,35 @@ impl<'de> serde::Deserialize<'de> for TransactionPayload {
                                 return Err(serde::de::Error::duplicate_field("entryFunctionPayload"));
                             }
                             payload__ = map.next_value::<::std::option::Option<_>>()?.map(transaction_payload::Payload::EntryFunctionPayload)
-;
+                            ;
                         }
                         GeneratedField::ScriptPayload => {
                             if payload__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("scriptPayload"));
                             }
                             payload__ = map.next_value::<::std::option::Option<_>>()?.map(transaction_payload::Payload::ScriptPayload)
-;
+                            ;
                         }
                         GeneratedField::WriteSetPayload => {
                             if payload__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("writeSetPayload"));
                             }
                             payload__ = map.next_value::<::std::option::Option<_>>()?.map(transaction_payload::Payload::WriteSetPayload)
-;
+                            ;
                         }
                         GeneratedField::MultisigPayload => {
                             if payload__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("multisigPayload"));
                             }
                             payload__ = map.next_value::<::std::option::Option<_>>()?.map(transaction_payload::Payload::MultisigPayload)
-;
+                            ;
                         }
                         GeneratedField::AutomationPayload => {
                             if payload__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("automationPayload"));
                             }
                             payload__ = map.next_value::<::std::option::Option<_>>()?.map(transaction_payload::Payload::AutomationPayload)
-;
+                            ;
                         }
                         GeneratedField::AutomationPayloads => {
                             if payload__.is_some() {
@@ -8854,8 +8854,8 @@ impl<'de> serde::Deserialize<'de> for TransactionSizeInfo {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<TransactionSizeInfo, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut transaction_bytes__ = None;
                 let mut event_size_info__ = None;
@@ -8972,8 +8972,8 @@ impl<'de> serde::Deserialize<'de> for UserTransaction {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<UserTransaction, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut request__ = None;
                 let mut events__ = None;
@@ -9129,8 +9129,8 @@ impl<'de> serde::Deserialize<'de> for UserTransactionRequest {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<UserTransactionRequest, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut sender__ = None;
                 let mut sequence_number__ = None;
@@ -9231,6 +9231,9 @@ impl serde::Serialize for ValidatorTransaction {
                 validator_transaction::ValidatorTransactionType::DkgUpdate(v) => {
                     struct_ser.serialize_field("dkgUpdate", v)?;
                 }
+                validator_transaction::ValidatorTransactionType::Dkg(v) => {
+                    struct_ser.serialize_field("dkg", v)?;
+                }
             }
         }
         struct_ser.end()
@@ -9295,8 +9298,8 @@ impl<'de> serde::Deserialize<'de> for ValidatorTransaction {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<ValidatorTransaction, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut events__ = None;
                 let mut validator_transaction_type__ = None;
@@ -9313,14 +9316,14 @@ impl<'de> serde::Deserialize<'de> for ValidatorTransaction {
                                 return Err(serde::de::Error::duplicate_field("observedJwkUpdate"));
                             }
                             validator_transaction_type__ = map.next_value::<::std::option::Option<_>>()?.map(validator_transaction::ValidatorTransactionType::ObservedJwkUpdate)
-;
+                            ;
                         }
                         GeneratedField::DkgUpdate => {
                             if validator_transaction_type__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("dkgUpdate"));
                             }
                             validator_transaction_type__ = map.next_value::<::std::option::Option<_>>()?.map(validator_transaction::ValidatorTransactionType::DkgUpdate)
-;
+                            ;
                         }
                     }
                 }
@@ -9403,8 +9406,8 @@ impl<'de> serde::Deserialize<'de> for validator_transaction::DkgUpdate {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<validator_transaction::DkgUpdate, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut dkg_transcript__ = None;
                 while let Some(k) = map.next_key()? {
@@ -9512,8 +9515,8 @@ impl<'de> serde::Deserialize<'de> for validator_transaction::dkg_update::DkgTran
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<validator_transaction::dkg_update::DkgTranscript, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut epoch__ = None;
                 let mut author__ = None;
@@ -9552,6 +9555,288 @@ impl<'de> serde::Deserialize<'de> for validator_transaction::dkg_update::DkgTran
             }
         }
         deserializer.deserialize_struct("aptos.transaction.v1.ValidatorTransaction.DkgUpdate.DkgTranscript", FIELDS, GeneratedVisitor)
+    }
+}
+impl serde::Serialize for validator_transaction::DkgTransactionData {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if self.dkg_data.is_some() {
+            len += 1;
+        }
+        let mut struct_ser = serializer.serialize_struct("aptos.transaction.v1.ValidatorTransaction.DkgTransactionData", len)?;
+        if let Some(v) = self.dkg_data.as_ref() {
+            struct_ser.serialize_field("dkgData", v)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for validator_transaction::DkgTransactionData {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "dkg_data",
+            "dkgData",
+        ];
+
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            DkgData,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(deserializer: D) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+
+                impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+                    type Value = GeneratedField;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", &FIELDS)
+                    }
+
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(self, value: &str) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "dkgData" | "dkg_data" => Ok(GeneratedField::DkgData),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = validator_transaction::DkgTransactionData;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("struct aptos.transaction.v1.ValidatorTransaction.DkgTransactionData")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> std::result::Result<validator_transaction::DkgTransactionData, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut dkg_data__ = None;
+                while let Some(k) = map.next_key()? {
+                    match k {
+                        GeneratedField::DkgData => {
+                            if dkg_data__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("dkgData"));
+                            }
+                            dkg_data__ = map.next_value()?;
+                        }
+                    }
+                }
+                Ok(validator_transaction::DkgTransactionData {
+                    dkg_data: dkg_data__,
+                })
+            }
+        }
+        deserializer.deserialize_struct("aptos.transaction.v1.ValidatorTransaction.DkgTransactionData", FIELDS, GeneratedVisitor)
+    }
+}
+impl serde::Serialize for validator_transaction::dkg_data::DkgTransactionData {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if self.epoch != 0 {
+            len += 1;
+        }
+        if !self.author.is_empty() {
+            len += 1;
+        }
+        if !self.bls_aggregate_signature.is_empty() {
+            len += 1;
+        }
+        if !self.signer_indices_clan_committee.is_empty() {
+            len += 1;
+        }
+        if self.transaction_type != 0 {
+            len += 1;
+        }
+        if !self.payload.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer.serialize_struct("aptos.transaction.v1.ValidatorTransaction.DkgTransactionData.DkgTransactionData", len)?;
+        if self.epoch != 0 {
+            struct_ser.serialize_field("epoch", ToString::to_string(&self.epoch).as_str())?;
+        }
+        if !self.author.is_empty() {
+            struct_ser.serialize_field("author", &self.author)?;
+        }
+        if !self.bls_aggregate_signature.is_empty() {
+            struct_ser.serialize_field("blsAggregateSignature", pbjson::private::base64::encode(&self.bls_aggregate_signature).as_str())?;
+        }
+        if !self.signer_indices_clan_committee.is_empty() {
+            struct_ser.serialize_field("signerIndicesClanCommittee", &self.signer_indices_clan_committee.iter().map(ToString::to_string).collect::<Vec<_>>())?;
+        }
+        if self.transaction_type != 0 {
+            struct_ser.serialize_field("transactionType", ToString::to_string(&self.transaction_type).as_str())?;
+        }
+        if !self.payload.is_empty() {
+            struct_ser.serialize_field("payload", pbjson::private::base64::encode(&self.payload).as_str())?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for validator_transaction::dkg_data::DkgTransactionData {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "epoch",
+            "author",
+            "bls_aggregate_signature",
+            "blsAggregateSignature",
+            "signer_indices_clan_committee",
+            "signerIndicesClanCommittee",
+            "transaction_type",
+            "transactionType",
+            "payload",
+        ];
+
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Epoch,
+            Author,
+            BlsAggregateSignature,
+            SignerIndicesClanCommittee,
+            TransactionType,
+            Payload,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(deserializer: D) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+
+                impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+                    type Value = GeneratedField;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", &FIELDS)
+                    }
+
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(self, value: &str) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "epoch" => Ok(GeneratedField::Epoch),
+                            "author" => Ok(GeneratedField::Author),
+                            "blsAggregateSignature" | "bls_aggregate_signature" => Ok(GeneratedField::BlsAggregateSignature),
+                            "signerIndicesClanCommittee" | "signer_indices_clan_committee" => Ok(GeneratedField::SignerIndicesClanCommittee),
+                            "transactionType" | "transaction_type" => Ok(GeneratedField::TransactionType),
+                            "payload" => Ok(GeneratedField::Payload),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = validator_transaction::dkg_data::DkgTransactionData;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("struct aptos.transaction.v1.ValidatorTransaction.DkgTransactionData.DkgTransactionData")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> std::result::Result<validator_transaction::dkg_data::DkgTransactionData, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut epoch__ = None;
+                let mut author__ = None;
+                let mut bls_aggregate_signature__ = None;
+                let mut signer_indices_clan_committee__ = None;
+                let mut transaction_type__ = None;
+                let mut payload__ = None;
+                while let Some(k) = map.next_key()? {
+                    match k {
+                        GeneratedField::Epoch => {
+                            if epoch__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("epoch"));
+                            }
+                            epoch__ =
+                                Some(map.next_value::<::pbjson::private::NumberDeserialize<_>>()?.0)
+                            ;
+                        }
+                        GeneratedField::Author => {
+                            if author__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("author"));
+                            }
+                            author__ = Some(map.next_value()?);
+                        }
+                        GeneratedField::BlsAggregateSignature => {
+                            if bls_aggregate_signature__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("blsAggregateSignature"));
+                            }
+                            bls_aggregate_signature__ =
+                                Some(map.next_value::<::pbjson::private::BytesDeserialize<_>>()?.0)
+                            ;
+                        }
+                        GeneratedField::SignerIndicesClanCommittee => {
+                            if signer_indices_clan_committee__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("signerIndicesClanCommittee"));
+                            }
+                            signer_indices_clan_committee__ =
+                                Some(map.next_value::<Vec<::pbjson::private::NumberDeserialize<_>>>()?
+                                    .into_iter().map(|x| x.0).collect())
+                            ;
+                        }
+                        GeneratedField::TransactionType => {
+                            if transaction_type__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("transactionType"));
+                            }
+                            transaction_type__ =
+                                Some(map.next_value::<::pbjson::private::NumberDeserialize<_>>()?.0)
+                            ;
+                        }
+                        GeneratedField::Payload => {
+                            if payload__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("payload"));
+                            }
+                            payload__ =
+                                Some(map.next_value::<::pbjson::private::BytesDeserialize<_>>()?.0)
+                            ;
+                        }
+                    }
+                }
+                Ok(validator_transaction::dkg_data::DkgTransactionData {
+                    epoch: epoch__.unwrap_or_default(),
+                    author: author__.unwrap_or_default(),
+                    bls_aggregate_signature: bls_aggregate_signature__.unwrap_or_default(),
+                    signer_indices_clan_committee: signer_indices_clan_committee__.unwrap_or_default(),
+                    transaction_type: transaction_type__.unwrap_or_default(),
+                    payload: payload__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer.deserialize_struct("aptos.transaction.v1.ValidatorTransaction.DkgTransactionData.DkgTransactionData", FIELDS, GeneratedVisitor)
     }
 }
 impl serde::Serialize for validator_transaction::ObservedJwkUpdate {
@@ -9624,8 +9909,8 @@ impl<'de> serde::Deserialize<'de> for validator_transaction::ObservedJwkUpdate {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<validator_transaction::ObservedJwkUpdate, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut quorum_certified_update__ = None;
                 while let Some(k) = map.next_key()? {
@@ -9725,8 +10010,8 @@ impl<'de> serde::Deserialize<'de> for validator_transaction::observed_jwk_update
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<validator_transaction::observed_jwk_update::ExportedAggregateSignature, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut signer_indices__ = None;
                 let mut sig__ = None;
@@ -9847,8 +10132,8 @@ impl<'de> serde::Deserialize<'de> for validator_transaction::observed_jwk_update
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<validator_transaction::observed_jwk_update::ExportedProviderJwKs, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut issuer__ = None;
                 let mut version__ = None;
@@ -9967,8 +10252,8 @@ impl<'de> serde::Deserialize<'de> for validator_transaction::observed_jwk_update
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<validator_transaction::observed_jwk_update::exported_provider_jw_ks::Jwk, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut jwk_type__ = None;
                 while let Some(k) = map.next_key()? {
@@ -9978,14 +10263,14 @@ impl<'de> serde::Deserialize<'de> for validator_transaction::observed_jwk_update
                                 return Err(serde::de::Error::duplicate_field("unsupportedJwk"));
                             }
                             jwk_type__ = map.next_value::<::std::option::Option<_>>()?.map(validator_transaction::observed_jwk_update::exported_provider_jw_ks::jwk::JwkType::UnsupportedJwk)
-;
+                            ;
                         }
                         GeneratedField::Rsa => {
                             if jwk_type__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("rsa"));
                             }
                             jwk_type__ = map.next_value::<::std::option::Option<_>>()?.map(validator_transaction::observed_jwk_update::exported_provider_jw_ks::jwk::JwkType::Rsa)
-;
+                            ;
                         }
                     }
                 }
@@ -10102,8 +10387,8 @@ impl<'de> serde::Deserialize<'de> for validator_transaction::observed_jwk_update
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<validator_transaction::observed_jwk_update::exported_provider_jw_ks::jwk::Rsa, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut kid__ = None;
                 let mut kty__ = None;
@@ -10234,8 +10519,8 @@ impl<'de> serde::Deserialize<'de> for validator_transaction::observed_jwk_update
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<validator_transaction::observed_jwk_update::exported_provider_jw_ks::jwk::UnsupportedJwk, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut id__ = None;
                 let mut payload__ = None;
@@ -10347,8 +10632,8 @@ impl<'de> serde::Deserialize<'de> for validator_transaction::observed_jwk_update
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<validator_transaction::observed_jwk_update::QuorumCertifiedUpdate, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut update__ = None;
                 let mut multi_sig__ = None;
@@ -10446,8 +10731,8 @@ impl<'de> serde::Deserialize<'de> for WebAuthn {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<WebAuthn, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut signature__ = None;
                 while let Some(k) = map.next_key()? {
@@ -10558,8 +10843,8 @@ impl<'de> serde::Deserialize<'de> for WriteModule {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<WriteModule, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut address__ = None;
                 let mut state_key_hash__ = None;
@@ -10678,8 +10963,8 @@ impl<'de> serde::Deserialize<'de> for WriteOpSizeInfo {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<WriteOpSizeInfo, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut key_bytes__ = None;
                 let mut value_bytes__ = None;
@@ -10819,8 +11104,8 @@ impl<'de> serde::Deserialize<'de> for WriteResource {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<WriteResource, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut address__ = None;
                 let mut state_key_hash__ = None;
@@ -10968,8 +11253,8 @@ impl<'de> serde::Deserialize<'de> for WriteSet {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<WriteSet, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut write_set_type__ = None;
                 let mut write_set__ = None;
@@ -10986,14 +11271,14 @@ impl<'de> serde::Deserialize<'de> for WriteSet {
                                 return Err(serde::de::Error::duplicate_field("scriptWriteSet"));
                             }
                             write_set__ = map.next_value::<::std::option::Option<_>>()?.map(write_set::WriteSet::ScriptWriteSet)
-;
+                            ;
                         }
                         GeneratedField::DirectWriteSet => {
                             if write_set__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("directWriteSet"));
                             }
                             write_set__ = map.next_value::<::std::option::Option<_>>()?.map(write_set::WriteSet::DirectWriteSet)
-;
+                            ;
                         }
                     }
                 }
@@ -11202,8 +11487,8 @@ impl<'de> serde::Deserialize<'de> for WriteSetChange {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<WriteSetChange, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut r#type__ = None;
                 let mut change__ = None;
@@ -11220,42 +11505,42 @@ impl<'de> serde::Deserialize<'de> for WriteSetChange {
                                 return Err(serde::de::Error::duplicate_field("deleteModule"));
                             }
                             change__ = map.next_value::<::std::option::Option<_>>()?.map(write_set_change::Change::DeleteModule)
-;
+                            ;
                         }
                         GeneratedField::DeleteResource => {
                             if change__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("deleteResource"));
                             }
                             change__ = map.next_value::<::std::option::Option<_>>()?.map(write_set_change::Change::DeleteResource)
-;
+                            ;
                         }
                         GeneratedField::DeleteTableItem => {
                             if change__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("deleteTableItem"));
                             }
                             change__ = map.next_value::<::std::option::Option<_>>()?.map(write_set_change::Change::DeleteTableItem)
-;
+                            ;
                         }
                         GeneratedField::WriteModule => {
                             if change__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("writeModule"));
                             }
                             change__ = map.next_value::<::std::option::Option<_>>()?.map(write_set_change::Change::WriteModule)
-;
+                            ;
                         }
                         GeneratedField::WriteResource => {
                             if change__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("writeResource"));
                             }
                             change__ = map.next_value::<::std::option::Option<_>>()?.map(write_set_change::Change::WriteResource)
-;
+                            ;
                         }
                         GeneratedField::WriteTableItem => {
                             if change__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("writeTableItem"));
                             }
                             change__ = map.next_value::<::std::option::Option<_>>()?.map(write_set_change::Change::WriteTableItem)
-;
+                            ;
                         }
                     }
                 }
@@ -11426,8 +11711,8 @@ impl<'de> serde::Deserialize<'de> for WriteSetPayload {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<WriteSetPayload, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut write_set__ = None;
                 while let Some(k) = map.next_key()? {
@@ -11546,8 +11831,8 @@ impl<'de> serde::Deserialize<'de> for WriteTableData {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<WriteTableData, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut key__ = None;
                 let mut key_type__ = None;
@@ -11689,8 +11974,8 @@ impl<'de> serde::Deserialize<'de> for WriteTableItem {
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<WriteTableItem, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 let mut state_key_hash__ = None;
                 let mut handle__ = None;

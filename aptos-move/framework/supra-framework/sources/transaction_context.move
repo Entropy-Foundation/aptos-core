@@ -170,6 +170,15 @@ module supra_framework::transaction_context {
     }
     native fun multisig_payload_internal(): Option<MultisigPayload>;
 
+    /// Returns the Keccak-256 hash of the current signed transaction (the `transaction consensus hash`).
+    /// This is distinct from `get_transaction_hash()`, which returns the session UUID hash.
+    /// Aborts if called outside a user transaction context.
+    public fun get_transaction_consensus_hash(): vector<u8> {
+        assert!(features::transaction_context_extension_enabled(), error::invalid_state(ETRANSACTION_CONTEXT_EXTENSION_NOT_ENABLED));
+        get_transaction_consensus_hash_internal()
+    }
+    native fun get_transaction_consensus_hash_internal(): vector<u8>;
+
     /// Returns the multisig account address of the multisig payload.
     public fun multisig_address(payload: &MultisigPayload): address {
         assert!(features::transaction_context_extension_enabled(), error::invalid_state(ETRANSACTION_CONTEXT_EXTENSION_NOT_ENABLED));
@@ -275,5 +284,15 @@ module supra_framework::transaction_context {
     fun test_call_multisig_payload() {
         // expected to fail with the error code of `invalid_state(E_TRANSACTION_CONTEXT_NOT_AVAILABLE)`
         let _multisig = multisig_payload();
+    }
+
+    /// SUPRA_AUTOMATION_V2_1 is not in the default feature set, so calling `get_transaction_consensus_hash()`
+    /// aborts at the Move-level assert with error::invalid_state(ETRANSACTION_CONTEXT_NOT_AVAILABLE).
+    /// Even if the feature were enabled in a test environment, the native would also abort with
+    /// the same code because there is no real user transaction context in a unit test.
+    #[test]
+    #[expected_failure(abort_code=196609, location = Self)]
+    fun test_call_get_transaction_consensus_hash() {
+        let _hash = get_transaction_consensus_hash();
     }
 }

@@ -2,7 +2,8 @@ spec supra_framework::dkg {
 
     spec module {
         use supra_framework::chain_status;
-        invariant [suspendable] chain_status::is_operating() ==> exists<DKGState>(@supra_framework);
+        invariant [suspendable] chain_status::is_operating() ==>
+            exists<DKGState>(@supra_framework);
     }
 
     spec initialize(supra_framework: &signer) {
@@ -15,7 +16,7 @@ spec supra_framework::dkg {
         dealer_epoch: u64,
         randomness_config: RandomnessConfig,
         dealer_validator_set: vector<ValidatorConsensusInfo>,
-        target_validator_set: vector<ValidatorConsensusInfo>,
+        target_validator_set: vector<ValidatorConsensusInfo>
     ) {
         aborts_if !exists<DKGState>(@supra_framework);
         aborts_if !exists<timestamp::CurrentTimeMicroseconds>(@supra_framework);
@@ -31,9 +32,7 @@ spec supra_framework::dkg {
     spec fun has_incomplete_session(): bool {
         if (exists<DKGState>(@supra_framework)) {
             option::spec_is_some(global<DKGState>(@supra_framework).in_progress)
-        } else {
-            false
-        }
+        } else { false }
     }
 
     spec try_clear_incomplete_session(fx: &signer) {

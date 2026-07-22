@@ -17,7 +17,7 @@ anyhow = { workspace = true }
 aptos-abstract-gas-usage = { workspace = true }
 aptos-bitvec = { workspace = true }
 aptos-block-executor = { workspace = true }
-aptos-cached-packages ={ workspace = true }
+aptos-cached-packages = { workspace = true }
 aptos-crypto = { workspace = true, features = ["fuzzing"] }
 aptos-framework = { workspace = true }
 aptos-gas-algebra = { workspace = true }

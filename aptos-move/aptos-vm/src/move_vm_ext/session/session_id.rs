@@ -5,12 +5,13 @@ use crate::transaction_metadata::TransactionMetadata;
 use aptos_crypto::{hash::CryptoHash, HashValue};
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
 use aptos_types::{
-    block_metadata::BlockMetadata, block_metadata_ext::BlockMetadataExt,
-    transaction::ReplayProtector, validator_txn::ValidatorTransaction,
+    block_metadata::BlockMetadata,
+    block_metadata_ext::BlockMetadataExt,
+    transaction::{automation::AutomationRegistryRecord, ReplayProtector},
+    validator_txn::ValidatorTransaction,
 };
 use move_core_types::account_address::AccountAddress;
 use serde::{Deserialize, Serialize};
-use aptos_types::transaction::automation::AutomationRegistryRecord;
 
 #[derive(BCSCryptoHash, Clone, CryptoHasher, Deserialize, Serialize)]
 pub enum SessionId {
@@ -138,9 +139,7 @@ impl SessionId {
     }
 
     pub fn automation_registry_action(record: &AutomationRegistryRecord) -> Self {
-        Self::AutomationRegistryTxn {
-            id: record.hash()
-        }
+        Self::AutomationRegistryTxn { id: record.hash() }
     }
 
     pub fn run_on_abort(txn_metadata: &TransactionMetadata) -> Self {

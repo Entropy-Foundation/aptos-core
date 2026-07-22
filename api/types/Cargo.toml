@@ -35,6 +35,7 @@ poem-openapi = { workspace = true }
 poem-openapi-derive = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sha3 = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = ["async-trait", "poem", "poem-openapi-derive"]

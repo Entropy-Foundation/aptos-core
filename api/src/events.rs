@@ -169,7 +169,7 @@ impl EventsApi {
                 page.limit(&latest_ledger_info)?,
                 ledger_version,
             )
-            .context(format!("Failed to find events by key {}", event_key))
+            .context(format!("Failed to find events by key {event_key}"))
             .map_err(|err| {
                 BasicErrorWith404::internal_with_code(
                     err,

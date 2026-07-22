@@ -1,7 +1,7 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{supra_framework_path, components::ProposalMetadata, ExecutionMode, ReleaseConfig};
+use crate::{components::ProposalMetadata, supra_framework_path, ExecutionMode, ReleaseConfig};
 use anyhow::Result;
 use aptos::{
     common::types::CliCommand,
@@ -374,7 +374,7 @@ impl NetworkConfig {
             self.endpoint.as_str(),
             // Use the max gas unit for now. The simulate API sometimes cannot get the right gas estimate for proposals.
             "--max-gas",
-            "2000000",
+            "2000000000",
         ];
 
         if let Some(api_key) = node_api_key.as_ref() {

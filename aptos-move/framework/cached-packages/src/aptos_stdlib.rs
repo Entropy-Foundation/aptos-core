@@ -12,7 +12,7 @@ use aptos_package_builder::PackageBuilder;
 use aptos_types::{
     account_address::AccountAddress,
     transaction::{EntryFunction, TransactionPayload},
-    SupraCoinType, CoinType,
+    CoinType, SupraCoinType,
 };
 use move_core_types::{ident_str, language_storage::ModuleId};
 

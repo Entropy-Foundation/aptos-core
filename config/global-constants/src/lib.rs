@@ -23,13 +23,15 @@ pub const GENESIS_WAYPOINT: &str = "genesis-waypoint";
 
 #[cfg(any(test, feature = "testing"))]
 pub const GAS_UNIT_PRICE: u64 = 0;
+
+/// Increased from 100 to 100_000 in accordance with the outcome of https://vote.supra.com/proposal/3.
 #[cfg(not(any(test, feature = "testing")))]
-pub const GAS_UNIT_PRICE: u64 = 100;
+pub const GAS_UNIT_PRICE: u64 = 100_000;
 
 #[cfg(any(test, feature = "testing"))]
-pub const MAX_GAS_AMOUNT: u64 = 100_000_000;
+pub const MAX_GAS_AMOUNT: u64 = 100_000_000_000;
 #[cfg(not(any(test, feature = "testing")))]
-pub const MAX_GAS_AMOUNT: u64 = 2_000_000;
+pub const MAX_GAS_AMOUNT: u64 = 2_000_000_000;
 
 pub const GAS_HEADROOM_NUMERATOR: u64 = 3;
 pub const GAS_HEADROOM_DENOMINATOR: u64 = 2;

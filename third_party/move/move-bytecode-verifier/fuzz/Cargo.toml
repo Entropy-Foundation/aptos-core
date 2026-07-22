@@ -12,7 +12,9 @@ cargo-fuzz = true
 [dependencies]
 arbitrary = { workspace = true }
 libfuzzer-sys = { workspace = true }
-move-binary-format = { workspace = true, features = ["fuzzing"] }
+move-binary-format = { workspace = true, features = [
+  "fuzzing",
+] }
 move-bytecode-verifier = { workspace = true }
 move-core-types = { workspace = true, features = ["fuzzing"] }
 

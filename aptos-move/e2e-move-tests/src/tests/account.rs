@@ -1,10 +1,9 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::MoveHarness;
+use crate::{assert_success, MoveHarness};
 use aptos_cached_packages::aptos_stdlib::supra_account_transfer;
 use aptos_language_e2e_tests::account::Account;
-use crate::assert_success;
 
 #[test]
 #[should_panic] // as we disabled the default account feature

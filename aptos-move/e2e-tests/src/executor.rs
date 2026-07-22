@@ -56,7 +56,7 @@ use aptos_types::{
     },
     vm_status::VMStatus,
     write_set::{WriteOp, WriteSet, WriteSetMut},
-    SupraCoinType, CoinType,
+    CoinType, SupraCoinType,
 };
 use aptos_validator_interface::{DebuggerStateView, RestDebuggerInterface};
 use aptos_vm::{
@@ -715,8 +715,14 @@ impl FakeExecutor {
     /// Executes the transaction as a singleton block and applies the resulting write set to the
     /// data store. Panics if execution fails
     pub fn execute_and_apply_transaction(&mut self, transaction: Transaction) -> TransactionOutput {
-        let mut outputs = self.execute_transaction_block(vec![transaction]).unwrap();
+        let mut outputs = self
+            .execute_transaction_block(vec![transaction.clone()])
+            .unwrap();
         assert_eq!(outputs.len(), 1, "transaction outputs size mismatch");
+        println!(
+            "transaction execution output: {:#?} : {:#?}",
+            outputs, transaction
+        );
         let output = outputs.pop().unwrap();
         match output.status() {
             TransactionStatus::Keep(status) => {
@@ -735,8 +741,9 @@ impl FakeExecutor {
                 assert_eq!(
                     status,
                     &ExecutionStatus::Success,
-                    "transaction failed with {:?}",
-                    status
+                    "transaction failed with {:?}, {:?}",
+                    status,
+                    transaction
                 );
                 output
             },
@@ -1329,7 +1336,12 @@ impl FakeExecutor {
                 .as_ref()
                 .unwrap()
                 .change_set_configs;
-            finish_session_assert_no_modules(session, &module_storage, change_set_configs)
+            finish_session_assert_no_modules(
+                session,
+                &module_storage,
+                change_set_configs,
+                &resolver,
+            )
         };
         self.state_store.apply_write_set(&write_set).unwrap();
 
@@ -1383,6 +1395,7 @@ impl FakeExecutor {
                 session,
                 &module_storage,
                 &ChangeSetConfigs::unlimited_at_gas_feature_version(env.gas_feature_version()),
+                &resolver,
             )
         };
         self.state_store.apply_write_set(&write_set).unwrap();
@@ -1420,6 +1433,7 @@ impl FakeExecutor {
             session,
             &module_storage,
             &ChangeSetConfigs::unlimited_at_gas_feature_version(env.gas_feature_version()),
+            &resolver,
         ))
     }
 
@@ -1466,11 +1480,18 @@ fn finish_session_assert_no_modules(
     session: SessionExt<impl AptosMoveResolver>,
     module_storage: &impl AptosModuleStorage,
     change_set_configs: &ChangeSetConfigs,
+    resolver: &impl AptosMoveResolver,
 ) -> (WriteSet, Vec<ContractEvent>) {
-    let change_set = session
+    let mut change_set = session
         .finish(change_set_configs, module_storage)
         .expect("Failed to finish the session");
-
+    // Aggregator V1 deltas must be materialized before converting to a storage ChangeSet,
+    // mirroring what the block executor does via legacy_sequential_materialize_agg_v1.
+    // This is needed when coin operations go through the FA migration path (fungible_asset_to_coin
+    // calls mint_internal which increments the optional_aggregator supply as a delta).
+    change_set
+        .try_materialize_aggregator_v1_delta_set(resolver)
+        .expect("Failed to materialize aggregator V1 deltas");
     change_set
         .try_combine_into_storage_change_set(ModuleWriteSet::empty())
         .expect("Failed to convert to storage ChangeSet")

@@ -9,4 +9,3 @@ event = "_"
 
 [dependencies]
 SupraFramework = { local = "../../framework/supra-framework" }
-

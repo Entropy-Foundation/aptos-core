@@ -6,7 +6,7 @@ use crate::{
     errors::{convert_epilogue_error, convert_prologue_error, expect_only_successful_execution},
     move_vm_ext::{AptosMoveResolver, SessionExt},
     system_module_names::{
-        EMIT_FEE_STATEMENT, MULTISIG_ACCOUNT_MODULE, TRANSACTION_FEE_MODULE,
+        EMIT_FEE_STATEMENT, EMIT_GAS_ASSESSMENT, MULTISIG_ACCOUNT_MODULE, TRANSACTION_FEE_MODULE,
         VALIDATE_MULTISIG_TRANSACTION,
     },
     testing::{maybe_raise_injected_error, InjectedError},
@@ -18,9 +18,13 @@ use aptos_types::{
     fee_statement::FeeStatement,
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::Features,
-    transaction::{MultisigTransactionPayload, ReplayProtector, TransactionExecutableRef},
+    transaction::{
+        automation::AutomationTaskType, MultisigTransactionPayload, ReplayProtector,
+        TransactionExecutableRef,
+    },
 };
 use aptos_vm_logging::log_schema::AdapterLogSchema;
+use aptos_vm_types::module_and_script_storage::module_storage::AptosModuleStorage;
 use fail::fail_point;
 use move_binary_format::errors::VMResult;
 use move_core_types::{
@@ -36,9 +40,6 @@ use move_vm_runtime::{
 };
 use move_vm_types::gas::UnmeteredGasMeter;
 use once_cell::sync::Lazy;
-use aptos_types::transaction::automation::AutomationTaskType;
-use aptos_vm_types::module_and_script_storage::module_storage::AptosModuleStorage;
-use crate::system_module_names::EMIT_GAS_ASSESSMENT;
 
 pub static APTOS_TRANSACTION_VALIDATION: Lazy<TransactionValidation> =
     Lazy::new(|| TransactionValidation {
@@ -48,7 +49,8 @@ pub static APTOS_TRANSACTION_VALIDATION: Lazy<TransactionValidation> =
         script_prologue_name: Identifier::new("script_prologue").unwrap(),
         multi_agent_prologue_name: Identifier::new("multi_agent_script_prologue").unwrap(),
         automated_txn_prologue_name: Identifier::new("automated_transaction_prologue").unwrap(),
-        automated_txn_prologue_v2_name: Identifier::new("automated_transaction_prologue_v2").unwrap(),
+        automated_txn_prologue_v2_name: Identifier::new("automated_transaction_prologue_v2")
+            .unwrap(),
         user_epilogue_name: Identifier::new("epilogue").unwrap(),
         user_epilogue_gas_payer_name: Identifier::new("epilogue_gas_payer").unwrap(),
         automated_txn_epilogue_name: Identifier::new("automated_transaction_epilogue").unwrap(),
@@ -435,12 +437,10 @@ pub(crate) fn run_multisig_prologue(
                 Some("Script payload not supported for multisig transactions".to_string()),
             ));
         },
-        TransactionExecutableRef::AutomationRegistration(params) => {
-            bcs::to_bytes(
-                &MultisigTransactionPayload::AutomationRegistration(params.clone()),
-            )
-                .map_err(|_| unreachable_error.clone())?
-        }
+        TransactionExecutableRef::AutomationRegistration(params) => bcs::to_bytes(
+            &MultisigTransactionPayload::AutomationRegistration(params.clone()),
+        )
+        .map_err(|_| unreachable_error.clone())?,
     };
 
     session
@@ -475,9 +475,7 @@ pub(crate) fn run_automated_transaction_prologue(
     traversal_context: &mut TraversalContext,
 ) -> Result<(), VMStatus> {
     let txn_task_id = match txn_data.replay_protector {
-        ReplayProtector::SequenceNumber(seq_num) => {
-            seq_num
-        },
+        ReplayProtector::SequenceNumber(seq_num) => seq_num,
         ReplayProtector::Nonce(_) => {
             unreachable!("AutomatedTransaction cannot have nonce")
         },
@@ -521,9 +519,7 @@ pub(crate) fn run_automated_transaction_prologue_v2(
     traversal_context: &mut TraversalContext,
 ) -> Result<(), VMStatus> {
     let txn_task_id = match txn_data.replay_protector {
-        ReplayProtector::SequenceNumber(seq_num) => {
-            seq_num
-        },
+        ReplayProtector::SequenceNumber(seq_num) => seq_num,
         ReplayProtector::Nonce(_) => {
             unreachable!("AutomatedTransaction cannot have nonce")
         },
@@ -741,7 +737,7 @@ fn run_automated_txn_epilogue(
                 serialize_values(&args),
                 &mut UnmeteredGasMeter,
                 traversal_context,
-                module_storage
+                module_storage,
             )
             .map(|_return_vals| ())
             .map_err(expect_no_verification_errors)?;
@@ -752,10 +748,10 @@ fn run_automated_txn_epilogue(
         match task_type {
             AutomationTaskType::User => {
                 emit_fee_statement(session, module_storage, fee_statement, traversal_context)?;
-            }
+            },
             AutomationTaskType::System => {
                 emit_as_gas_assessment(session, module_storage, fee_statement, traversal_context)?;
-            }
+            },
         }
     }
 
@@ -796,7 +792,7 @@ fn emit_as_gas_assessment(
             vec![bcs::to_bytes(&fee_statement).expect("Failed to serialize fee statement")],
             &mut UnmeteredGasMeter,
             traversal_context,
-            module_storage
+            module_storage,
         )
         .map(|_return_vals| ())
 }
@@ -907,7 +903,7 @@ pub(crate) fn run_failure_epilogue(
 /// stored in the `TRANSACTION_VALIDATION_MODULE` on chain.
 pub(crate) fn run_automated_txn_failure_epilogue(
     session: &mut SessionExt<impl AptosMoveResolver>,
-    module_storage: & impl AptosModuleStorage,
+    module_storage: &impl AptosModuleStorage,
     gas_remaining: Gas,
     fee_statement: FeeStatement,
     features: &Features,
@@ -924,7 +920,7 @@ pub(crate) fn run_automated_txn_failure_epilogue(
         txn_data,
         task_type,
         features,
-        traversal_context
+        traversal_context,
     )
     .or_else(|err| {
         expect_only_successful_execution(

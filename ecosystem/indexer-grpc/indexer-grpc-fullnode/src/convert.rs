@@ -2,22 +2,24 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use aptos_api_types::transaction::{AutomationRegistrationParams, AutomationTaskType};
 use aptos_api_types::{
-    transaction::ValidatorTransaction as ApiValidatorTransactionEnum, AccountSignature,
-    DeleteModule, DeleteResource, Ed25519Signature, EntryFunctionId, EntryFunctionPayload, Event,
-    GenesisPayload, MoveAbility, MoveFunction, MoveFunctionGenericTypeParam,
-    MoveFunctionVisibility, MoveModule, MoveModuleBytecode, MoveModuleId, MoveScriptBytecode,
-    MoveStruct, MoveStructField, MoveStructTag, MoveType, MultiEd25519Signature, MultiKeySignature,
-    MultisigPayload, MultisigTransactionPayload, PublicKey, ScriptPayload, Signature,
-    SingleKeySignature, Transaction, TransactionInfo, TransactionPayload, TransactionSignature,
-    WriteSet, WriteSetChange,
+    transaction::{
+        AutomationRegistrationParams, AutomationTaskType,
+        ValidatorTransaction as ApiValidatorTransactionEnum,
+    },
+    AccountSignature, DeleteModule, DeleteResource, Ed25519Signature, EntryFunctionId,
+    EntryFunctionPayload, EventV1, GenesisPayload, MoveAbility, MoveFunction,
+    MoveFunctionGenericTypeParam, MoveFunctionVisibility, MoveModule, MoveModuleBytecode,
+    MoveModuleId, MoveScriptBytecode, MoveStruct, MoveStructField, MoveStructTag, MoveType,
+    MultiEd25519Signature, MultiKeySignature, MultisigPayload, MultisigTransactionPayload,
+    PublicKey, ScriptPayload, Signature, SingleKeySignature, Transaction, TransactionInfo,
+    TransactionPayload, TransactionSignature, WriteSet, WriteSetChange,
 };
 use aptos_bitvec::BitVec;
 use aptos_logger::warn;
 use aptos_protos::{
     transaction::v1::{
-        self as transaction, any_signature,
+        self as transaction, any_signature, automation_payload_extensions,
         validator_transaction::{
             self,
             observed_jwk_update::exported_provider_jw_ks::{
@@ -25,7 +27,8 @@ use aptos_protos::{
                 Jwk as ProtoJwk,
             },
         },
-        Ed25519, Keyless, Secp256k1Ecdsa, TransactionSizeInfo, WebAuthn,
+        AutomationPayloadExtensions, Ed25519, Keyless, Secp256k1Ecdsa, TransactionSizeInfo,
+        WebAuthn,
     },
     util::timestamp,
 };
@@ -33,8 +36,6 @@ use aptos_types::jwks::jwk::JWK;
 use hex;
 use move_core_types::ability::Ability;
 use std::time::Duration;
-use aptos_protos::transaction::v1::automation_payload_extensions;
-use aptos_protos::transaction::v1::AutomationPayloadExtensions;
 
 pub fn convert_move_module_id(move_module_id: &MoveModuleId) -> transaction::MoveModuleId {
     transaction::MoveModuleId {
@@ -234,7 +235,7 @@ pub fn convert_transaction_payload(
 }
 
 #[inline]
-pub fn convert_events(events: &[Event]) -> Vec<transaction::Event> {
+pub fn convert_events(events: &[EventV1]) -> Vec<transaction::Event> {
     events.iter().map(convert_event).collect()
 }
 
@@ -547,7 +548,7 @@ pub fn convert_multisig_payload(
                         ),
                     ),
                 }
-            }
+            },
         });
     transaction::MultisigPayload {
         multisig_address: multisig_payload.multisig_address.to_string(),
@@ -555,11 +556,12 @@ pub fn convert_multisig_payload(
     }
 }
 
-pub fn convert_automation_task_type(automation_task_type: &AutomationTaskType) -> transaction::AutomationTaskType {
+pub fn convert_automation_task_type(
+    automation_task_type: &AutomationTaskType,
+) -> transaction::AutomationTaskType {
     match automation_task_type {
         AutomationTaskType::User => transaction::AutomationTaskType::User,
-        AutomationTaskType::System => transaction::AutomationTaskType::System
-
+        AutomationTaskType::System => transaction::AutomationTaskType::System,
     }
 }
 
@@ -569,7 +571,9 @@ pub fn convert_automation_payload(
     match auto_payload {
         AutomationRegistrationParams::V1(params_v1) => {
             let v1 = transaction::AutomationPayload {
-                automated_function: Some(convert_entry_function_payload(&params_v1.automated_function)),
+                automated_function: Some(convert_entry_function_payload(
+                    &params_v1.automated_function,
+                )),
                 expiration_timestamp_secs: params_v1.expiration_timestamp_secs,
                 max_gas_amount: params_v1.max_gas_amount,
                 gas_price_cap: params_v1.gas_price_cap,
@@ -577,12 +581,14 @@ pub fn convert_automation_payload(
                 aux_data: params_v1.aux_data.clone(),
             };
             AutomationPayloadExtensions {
-                variant: Some(automation_payload_extensions::Variant::V1(v1))
+                variant: Some(automation_payload_extensions::Variant::V1(v1)),
             }
-        }
+        },
         AutomationRegistrationParams::V2(params_v2) => {
             let v2 = transaction::AutomationPayloadV2 {
-                automated_function: Some(convert_entry_function_payload(&params_v2.automated_function)),
+                automated_function: Some(convert_entry_function_payload(
+                    &params_v2.automated_function,
+                )),
                 expiration_timestamp_secs: params_v2.expiration_timestamp_secs,
                 max_gas_amount: params_v2.max_gas_amount,
                 gas_price_cap: params_v2.gas_price_cap,
@@ -592,14 +598,13 @@ pub fn convert_automation_payload(
                 priority: params_v2.task_priority.clone(),
             };
             AutomationPayloadExtensions {
-                variant: Some(automation_payload_extensions::Variant::V2(v2))
+                variant: Some(automation_payload_extensions::Variant::V2(v2)),
             }
-
-        }
+        },
     }
 }
 
-pub fn convert_event(event: &Event) -> transaction::Event {
+pub fn convert_event(event: &EventV1) -> transaction::Event {
     let event_key: aptos_types::event::EventKey = event.guid.into();
     transaction::Event {
         key: Some(transaction::EventKey {
@@ -984,7 +989,10 @@ pub fn convert_transaction(
                     max_gas_amount: at.meta.max_gas_amount.0,
                     gas_unit_price: at.meta.gas_unit_price.0,
                     expiration_timestamp_secs,
-                    payload: Some(convert_transaction_payload(&at.meta.payload,Some(at.meta.index.0))),
+                    payload: Some(convert_transaction_payload(
+                        &at.meta.payload,
+                        Some(at.meta.index.0),
+                    )),
                     registration_hash: at.meta.registration_hash.0.to_vec(),
                 }),
                 events: convert_events(&at.events),
@@ -1023,19 +1031,35 @@ fn convert_validator_transaction(
 ) -> transaction::transaction::TxnData {
     transaction::transaction::TxnData::Validator(transaction::ValidatorTransaction {
         validator_transaction_type: match api_validator_txn {
-            ApiValidatorTransactionEnum::DkgResult(dgk_result) => {
+            ApiValidatorTransactionEnum::Dkg(dkg_transaction) => {
                 Some(
-                    validator_transaction::ValidatorTransactionType::DkgUpdate(
-                        validator_transaction::DkgUpdate {
-                            dkg_transcript: Some(validator_transaction::dkg_update::DkgTranscript {
-                                author: dgk_result.dkg_transcript.author.to_string(),
-                                epoch: dgk_result.dkg_transcript.epoch.0,
-                                payload: dgk_result.dkg_transcript.payload.0.clone(),
+                    validator_transaction::ValidatorTransactionType::Dkg(
+                        validator_transaction::DkgTransactionData {
+                            dkg_data: Some(validator_transaction::dkg_data::DkgTransactionData{
+                                epoch: dkg_transaction.dkg_transaction_data.epoch.0,
+                                author: dkg_transaction.dkg_transaction_data.author.to_string(),
+                                bls_aggregate_signature: dkg_transaction.dkg_transaction_data.bls_aggregate_signature.clone(),
+                                signer_indices_clan_committee: dkg_transaction.dkg_transaction_data.signer_indices_clan_committee.clone(),
+                                transaction_type: dkg_transaction.dkg_transaction_data.transaction_type as u32,
+                                payload: dkg_transaction.dkg_transaction_data.payload.0.clone(),
                             }),
                         },
                     )
                 )
-            },
+            }
+            ApiValidatorTransactionEnum::DkgResult(dkg_result) => {
+                Some(
+                    validator_transaction::ValidatorTransactionType::DkgUpdate(
+                        validator_transaction::DkgUpdate {
+                            dkg_transcript: Some(validator_transaction::dkg_update::DkgTranscript {
+                                author: dkg_result.dkg_transcript.author.to_string(),
+                                epoch: dkg_result.dkg_transcript.epoch.0,
+                                payload: dkg_result.dkg_transcript.payload.0.clone(),
+                            }),
+                        },
+                    )
+                )
+            }
             ApiValidatorTransactionEnum::ObservedJwkUpdate(observed_jwk_update) => {
                 Some(
                     validator_transaction::ValidatorTransactionType::ObservedJwkUpdate(

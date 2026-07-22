@@ -32,7 +32,9 @@ triomphe = { workspace = true }
 [dev-dependencies]
 claims = { workspace = true }
 mockall = { workspace = true }
-move-binary-format = { workspace = true, features = ["fuzzing"] }
+move-binary-format = { workspace = true, features = [
+  "fuzzing",
+] }
 proptest = { workspace = true }
 rand = { workspace = true }
 

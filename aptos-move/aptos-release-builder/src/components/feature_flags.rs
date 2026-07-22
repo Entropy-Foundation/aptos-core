@@ -158,6 +158,10 @@ pub enum FeatureFlag {
     SupraRLPEncode,
     SupraDelegationPoolIdentity,
     SupraAutomationV2,
+    SupraBlsKeys,
+    SupraBcftCertificates,
+    SUPRA_DKG,
+    SupraTransactionInclusionProofs,
 }
 
 fn generate_features_blob(writer: &CodeWriter, data: &[u64]) {
@@ -404,7 +408,7 @@ impl From<FeatureFlag> for AptosFeatureFlag {
                 AptosFeatureFlag::CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION
             },
             FeatureFlag::DistributeTransactionFee => AptosFeatureFlag::DISTRIBUTE_TRANSACTION_FEE,
-                FeatureFlag::SupraNativeAutomation => AptosFeatureFlag::SUPRA_NATIVE_AUTOMATION,
+            FeatureFlag::SupraNativeAutomation => AptosFeatureFlag::SUPRA_NATIVE_AUTOMATION,
             FeatureFlag::SupraEthTrie => AptosFeatureFlag::SUPRA_ETH_TRIE,
             FeatureFlag::SupraAutomationPayloadGasCheck => {
                 AptosFeatureFlag::SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK
@@ -419,6 +423,12 @@ impl From<FeatureFlag> for AptosFeatureFlag {
                 AptosFeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY
             },
             FeatureFlag::SupraAutomationV2 => AptosFeatureFlag::SUPRA_AUTOMATION_V2,
+            FeatureFlag::SupraBlsKeys => AptosFeatureFlag::SUPRA_BLS_KEYS,
+            FeatureFlag::SupraBcftCertificates => AptosFeatureFlag::SUPRA_BCFT_CERTIFICATES,
+            FeatureFlag::SUPRA_DKG => AptosFeatureFlag::SUPRA_DKG,
+            FeatureFlag::SupraTransactionInclusionProofs => {
+                AptosFeatureFlag::SUPRA_TRANSACTIONS_INCLUSION_PROOFS
+            },
         }
     }
 }
@@ -592,7 +602,7 @@ impl From<AptosFeatureFlag> for FeatureFlag {
                 FeatureFlag::CalculateTransactionFeeForDistribution
             },
             AptosFeatureFlag::DISTRIBUTE_TRANSACTION_FEE => FeatureFlag::DistributeTransactionFee,
-                AptosFeatureFlag::SUPRA_NATIVE_AUTOMATION => FeatureFlag::SupraNativeAutomation,
+            AptosFeatureFlag::SUPRA_NATIVE_AUTOMATION => FeatureFlag::SupraNativeAutomation,
             AptosFeatureFlag::SUPRA_ETH_TRIE => FeatureFlag::SupraEthTrie,
             AptosFeatureFlag::SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK => {
                 FeatureFlag::SupraAutomationPayloadGasCheck
@@ -607,6 +617,12 @@ impl From<AptosFeatureFlag> for FeatureFlag {
                 FeatureFlag::SupraDelegationPoolIdentity
             },
             AptosFeatureFlag::SUPRA_AUTOMATION_V2 => FeatureFlag::SupraAutomationV2,
+            AptosFeatureFlag::SUPRA_BLS_KEYS => FeatureFlag::SupraBlsKeys,
+            AptosFeatureFlag::SUPRA_BCFT_CERTIFICATES => FeatureFlag::SupraBcftCertificates,
+            AptosFeatureFlag::SUPRA_DKG => FeatureFlag::SUPRA_DKG,
+            AptosFeatureFlag::SUPRA_TRANSACTIONS_INCLUSION_PROOFS => {
+                FeatureFlag::SupraTransactionInclusionProofs
+            },
         }
     }
 }

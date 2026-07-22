@@ -1,12 +1,19 @@
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::chain_id::ChainId;
-use crate::move_utils::MemberId;
-use crate::on_chain_config::{FeatureFlag, Features};
-use crate::transaction::automated_transaction::{AutomatedTransactionBuilder, BuilderResult};
-use crate::transaction::automation::{AutomationRegistryAction, AutomationRegistryRecordBuilder, AutomationTaskMetaData, AutomationTaskState, AutomationTaskType, RegistrationParams};
-use crate::transaction::{EntryFunction, TransactionPayload};
+use crate::{
+    chain_id::ChainId,
+    move_utils::MemberId,
+    on_chain_config::{FeatureFlag, Features},
+    transaction::{
+        automated_transaction::{AutomatedTransactionBuilder, BuilderResult},
+        automation::{
+            AutomationRegistryAction, AutomationRegistryRecordBuilder, AutomationTaskMetaData,
+            AutomationTaskState, AutomationTaskType, RegistrationParams,
+        },
+        EntryFunction, TransactionPayload,
+    },
+};
 use aptos_crypto::HashValue;
 use move_core_types::account_address::AccountAddress;
 use std::str::FromStr;
@@ -23,7 +30,9 @@ fn test_registration_params_serde() {
     let automation_fee_cap_for_epoch = 50_000_000;
     let aux_data = vec![vec![1u8, 1, 2, 3]];
     // Includes task type prepended to the user specified one.
-    let expected_aux_data = vec![vec![AutomationTaskType::User as u8], vec![], vec![1u8, 1, 2, 3]];
+    let expected_aux_data = vec![vec![AutomationTaskType::User as u8], vec![], vec![
+        1u8, 1, 2, 3,
+    ]];
     let entry_function = EntryFunction::new(module_id, member_id, vec![], vec![]);
     let registration_params = RegistrationParams::new_user_automation_task_v1(
         entry_function.clone(),
@@ -45,7 +54,9 @@ fn test_registration_params_serde() {
     assert_eq!(serialized.len(), 8);
     // Check the order fo serialized items
     // Address
-    let v_address = bcs::from_bytes::<AccountAddress>(&serialized[0]).unwrap();
+    // Finding: Cannot Deserialize Signer.
+    // As it has prefixed of enum master signer, or permission signer
+    let v_address = bcs::from_bytes::<AccountAddress>(&serialized[0][1..]).unwrap();
     assert_eq!(address, v_address);
     // EntryFunction double serialized
     let v_entry_bytes = bcs::from_bytes::<Vec<u8>>(&serialized[1]).unwrap();
@@ -122,7 +133,9 @@ fn test_registration_params_v2_user_task_serde() {
     assert_eq!(serialized.len(), 8);
     // Check the order fo serialized items
     // Address
-    let v_address = bcs::from_bytes::<AccountAddress>(&serialized[0]).unwrap();
+    // Finding: Cannot Deserialize Signer.
+    // As it has prefixed of enum master signer, or permission signer
+    let v_address = bcs::from_bytes::<AccountAddress>(&serialized[0][1..]).unwrap();
     assert_eq!(address, v_address);
     // EntryFunction double serialized
     let v_entry_bytes = bcs::from_bytes::<Vec<u8>>(&serialized[1]).unwrap();
@@ -157,7 +170,9 @@ fn test_registration_params_v2_user_task_serde() {
         aux_data.clone(),
         None,
     );
-    let expected_aux_data = vec![vec![AutomationTaskType::User as u8], vec![], vec![1u8, 1, 2, 3]];
+    let expected_aux_data = vec![vec![AutomationTaskType::User as u8], vec![], vec![
+        1u8, 1, 2, 3,
+    ]];
     let serialized = registration_params.serialized_args_with_sender_and_parent_hash(
         address,
         parent_hash.to_vec(),
@@ -218,7 +233,9 @@ fn test_registration_params_system_task_serde() {
     assert_eq!(serialized.len(), 6);
     // Check the order fo serialized items
     // Address
-    let v_address = bcs::from_bytes::<AccountAddress>(&serialized[0]).unwrap();
+    // Finding: Cannot Deserialize Signer.
+    // As it has prefixed of enum master signer, or permission signer
+    let v_address = bcs::from_bytes::<AccountAddress>(&serialized[0][1..]).unwrap();
     assert_eq!(address, v_address);
     // EntryFunction double serialized
     let v_entry_bytes = bcs::from_bytes::<Vec<u8>>(&serialized[1]).unwrap();
@@ -245,7 +262,9 @@ fn test_registration_params_system_task_serde() {
         aux_data.clone(),
         None,
     );
-    let expected_aux_data = vec![vec![AutomationTaskType::System as u8], vec![], vec![1u8, 1, 2, 3]];
+    let expected_aux_data = vec![vec![AutomationTaskType::System as u8], vec![], vec![
+        1u8, 1, 2, 3,
+    ]];
     let serialized = registration_params.serialized_args_with_sender_and_parent_hash(
         address,
         parent_hash.to_vec(),
@@ -317,7 +336,10 @@ fn automation_task_metadata_type_priority_expansion() {
 
     // Aux data with type info, and valid priority results with specified priority and type
     let task_meta_with_valid_type_priority = AutomationTaskMetaData {
-        aux_data: vec![vec![AutomationTaskType::System as u8], bcs::to_bytes(&42u64).unwrap()],
+        aux_data: vec![
+            vec![AutomationTaskType::System as u8],
+            bcs::to_bytes(&42u64).unwrap(),
+        ],
         task_type: Default::default(),
         priority: Default::default(),
         ..task_meta.clone()
@@ -458,7 +480,10 @@ fn automated_txn_builder_from_task_meta() {
 
     // Check builder construction when type is specified and priority is valid data.
     let task_meta_with_valid_type_and_priority = AutomationTaskMetaData {
-        aux_data: vec![vec![AutomationTaskType::System as u8], bcs::to_bytes(&45u64).unwrap()],
+        aux_data: vec![
+            vec![AutomationTaskType::System as u8],
+            bcs::to_bytes(&45u64).unwrap(),
+        ],
         ..task_meta_valid.clone()
     };
     let builder =

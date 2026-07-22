@@ -631,13 +631,32 @@ pub enum StatusCode {
     // Gas unit price capacity submitted for the automation-task is above the maximum
     // gas price set in the VM.
     AUTOMATION_TASK_GAS_PRICE_CAP_ABOVE_MAX_BOUND = 50,
-    // Reserved error code for future use
-    RESERVED_VALIDATION_ERROR_10 = 51,
-    RESERVED_VALIDATION_ERROR_11 = 52,
-    RESERVED_VALIDATION_ERROR_12 = 53,
-    RESERVED_VALIDATION_ERROR_13 = 54,
-    RESERVED_VALIDATION_ERROR_14 = 55,
-    RESERVED_VALIDATION_ERROR_15 = 56,
+    // DKG session is currently not in progress
+    DKG_SESSION_NOT_IN_PROGRESS = 51,
+    // DKG transaction has a future epoch number
+    DKG_TRANSACTION_FUTURE_EPOCH_NUM = 52,
+    // DKG transaction has a past epoch number
+    DKG_TRANSACTION_PAST_EPOCH_NUM = 53,
+    // DKG meta has already set so DKGMeta transaction should fail
+    DKG_META_ALREADY_SET = 54,
+    // DKG transaction data is invalid
+    DKG_TRANSACTION_NOT_VALID = 55,
+    // The sender of the dkg transaction is not a family node
+    DKG_TRANSACTION_SENDER_NOT_FAMILY_NODE = 56,
+    // Failed to get the public keys for the signer clan nodes
+    DKG_FAILED_TO_GET_CLAN_NODE_PUBKEYS = 57,
+    // Failed to deserialize the aggregated signature
+    DKG_FAILED_TO_DESER_AGG_SIG = 58,
+    // Failed to aggregate the public keys for the signer clan nodes
+    DKG_FAILED_TO_AGGREGATE_PUBLIC_KEYS = 59,
+    // Failed to verify the clan committee aggregated signature
+    DKG_AGG_SIG_VERIFICATION_FAILED = 60,    // Reserved error code for future use
+    RESERVED_VALIDATION_ERROR_10 = 61,
+    RESERVED_VALIDATION_ERROR_11 = 62,
+    RESERVED_VALIDATION_ERROR_12 = 63,
+    RESERVED_VALIDATION_ERROR_13 = 64,
+    RESERVED_VALIDATION_ERROR_14 = 65,
+    RESERVED_VALIDATION_ERROR_15 = 66,
 
 
     // When a code module/script is published it is verified. These are the

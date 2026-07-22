@@ -46,11 +46,11 @@ aptos-types = { workspace = true }
 aptos-vm = { workspace = true }
 bcs = { workspace = true }
 diesel = { workspace = true, features = [
-    "chrono",
-    "postgres",
-    "r2d2",
-    "numeric",
-    "serde_json",
+  "chrono",
+  "postgres",
+  "r2d2",
+  "numeric",
+  "serde_json",
 ] }
 digest = { workspace = true }
 ethers = { workspace = true }

@@ -99,7 +99,7 @@ fn test_script_with_object_parameter() {
         .script(script.clone())
         .sequence_number(13)
         .max_gas_amount(1_000_000)
-        .gas_unit_price(1)
+        .gas_unit_price(100_000)
         .sign();
 
     let status = h.run(txn);
@@ -111,7 +111,7 @@ fn test_script_with_object_parameter() {
         .script(script.clone())
         .sequence_number(14)
         .max_gas_amount(1_000_000)
-        .gas_unit_price(1)
+        .gas_unit_price(100_000)
         .sign();
 
     let status = h.run(txn);

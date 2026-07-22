@@ -60,7 +60,7 @@ impl ValidatorInfo {
         validator_index: u64,
     ) -> Self {
         let addr = NetworkAddress::mock();
-        let config = ValidatorConfig::new(
+        let config = ValidatorConfig::legacy_new_do_not_use(
             consensus_public_key,
             bcs::to_bytes(&vec![addr.clone()]).unwrap(),
             bcs::to_bytes(&vec![addr]).unwrap(),
@@ -80,9 +80,10 @@ impl ValidatorInfo {
         &self.account_address
     }
 
-    /// Returns the key for validating signed messages from this validator
-    pub fn consensus_public_key(&self) -> &ed25519::PublicKey {
-        &self.config.consensus_public_key
+    /// Deprecated function kept to avoid making changes to aptos-core. Must not be used in smr-moonshot.
+    /// TODO: Remove when unused aptos-core code is removed.
+    pub fn legacy_consensus_public_key_do_not_use(&self) -> ed25519::PublicKey {
+        self.config.legacy_consensus_public_key_do_not_use()
     }
 
     /// Returns the voting power for this validator

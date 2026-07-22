@@ -6,7 +6,7 @@ version = "0.0.0"
 [addresses]
 stablecoin = "_"
 master_minter = "_"
-minter = "_"
+minter = "_" 
 pauser = "_"
 denylister = "_"
 

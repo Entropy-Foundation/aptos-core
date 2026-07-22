@@ -38,6 +38,7 @@ to synchronize configuration changes for the validators.
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error">0x1::error</a>;
 <b>use</b> <a href="event.md#0x1_event">0x1::event</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features">0x1::features</a>;
+<b>use</b> <a href="leader_ban_registry.md#0x1_leader_ban_registry">0x1::leader_ban_registry</a>;
 <b>use</b> <a href="reconfiguration_state.md#0x1_reconfiguration_state">0x1::reconfiguration_state</a>;
 <b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">0x1::signer</a>;
 <b>use</b> <a href="stake.md#0x1_stake">0x1::stake</a>;
@@ -400,6 +401,7 @@ Signal validators to start using new configuration. Must be called from friend c
 
     // Call <a href="stake.md#0x1_stake">stake</a> <b>to</b> compute the new validator set and distribute rewards and transaction fees.
     <a href="stake.md#0x1_stake_on_new_epoch">stake::on_new_epoch</a>();
+    <a href="leader_ban_registry.md#0x1_leader_ban_registry_on_new_epoch">leader_ban_registry::on_new_epoch</a>();
     <a href="storage_gas.md#0x1_storage_gas_on_reconfig">storage_gas::on_reconfig</a>();
 
     <b>assert</b>!(current_time &gt; config_ref.last_reconfiguration_time, <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="reconfiguration.md#0x1_reconfiguration_EINVALID_BLOCK_TIME">EINVALID_BLOCK_TIME</a>));

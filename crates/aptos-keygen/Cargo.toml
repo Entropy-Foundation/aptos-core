@@ -16,4 +16,3 @@ rust-version = { workspace = true }
 aptos-crypto = { workspace = true }
 aptos-types = { workspace = true }
 rand = { workspace = true }
-

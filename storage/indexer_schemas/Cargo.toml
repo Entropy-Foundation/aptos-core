@@ -34,4 +34,9 @@ rand = { workspace = true }
 
 [features]
 default = []
-fuzzing = ["proptest", "proptest-derive", "aptos-types/fuzzing", "aptos-schemadb/fuzzing"]
+fuzzing = [
+  "proptest",
+  "proptest-derive",
+  "aptos-types/fuzzing",
+  "aptos-schemadb/fuzzing",
+]

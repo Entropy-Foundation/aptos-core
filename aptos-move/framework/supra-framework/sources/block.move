@@ -8,6 +8,7 @@ module supra_framework::block {
     use supra_framework::randomness;
 
     use supra_framework::account;
+    use supra_framework::automation_registry;
     use supra_framework::event::{Self, EventHandle};
     use supra_framework::reconfiguration;
     use supra_framework::reconfiguration_with_dkg;
@@ -15,7 +16,7 @@ module supra_framework::block {
     use supra_framework::state_storage;
     use supra_framework::system_addresses;
     use supra_framework::timestamp;
-    use supra_framework::automation_registry;
+    use supra_framework::leader_ban_registry;
 
     friend supra_framework::genesis;
 
@@ -29,14 +30,14 @@ module supra_framework::block {
         epoch_interval: u64,
         /// Handle where events with the time of new blocks are emitted
         new_block_events: EventHandle<NewBlockEvent>,
-        update_epoch_interval_events: EventHandle<UpdateEpochIntervalEvent>,
+        update_epoch_interval_events: EventHandle<UpdateEpochIntervalEvent>
     }
 
     /// Store new block events as a move resource, internally using a circular buffer.
     struct CommitHistory has key {
         max_capacity: u32,
         next_idx: u32,
-        table: TableWithLength<u32, NewBlockEvent>,
+        table: TableWithLength<u32, NewBlockEvent>
     }
 
     /// Should be in-sync with NewBlockEvent rust struct in new_block.rs
@@ -49,13 +50,13 @@ module supra_framework::block {
         proposer: address,
         failed_proposer_indices: vector<u64>,
         /// On-chain time during the block at the given height
-        time_microseconds: u64,
+        time_microseconds: u64
     }
 
     /// Event emitted when a proposal is created.
     struct UpdateEpochIntervalEvent has drop, store {
         old_epoch_interval: u64,
-        new_epoch_interval: u64,
+        new_epoch_interval: u64
     }
 
     #[event]
@@ -69,14 +70,14 @@ module supra_framework::block {
         proposer: address,
         failed_proposer_indices: vector<u64>,
         /// On-chain time during the block at the given height
-        time_microseconds: u64,
+        time_microseconds: u64
     }
 
     #[event]
     /// Event emitted when a proposal is created.
     struct UpdateEpochInterval has drop, store {
         old_epoch_interval: u64,
-        new_epoch_interval: u64,
+        new_epoch_interval: u64
     }
 
     /// The number of new block events does not equal the current block height.
@@ -89,23 +90,34 @@ module supra_framework::block {
     const EZERO_MAX_CAPACITY: u64 = 3;
 
     /// This can only be called during Genesis.
-    public(friend) fun initialize(supra_framework: &signer, epoch_interval_microsecs: u64) {
+    public(friend) fun initialize(
+        supra_framework: &signer, epoch_interval_microsecs: u64
+    ) {
         system_addresses::assert_supra_framework(supra_framework);
-        assert!(epoch_interval_microsecs != 0, error::invalid_argument(EZERO_EPOCH_INTERVAL));
+        assert!(
+            epoch_interval_microsecs != 0,
+            error::invalid_argument(EZERO_EPOCH_INTERVAL)
+        );
 
-        move_to<CommitHistory>(supra_framework, CommitHistory {
-            max_capacity: 2000,
-            next_idx: 0,
-            table: table_with_length::new(),
-        });
+        move_to<CommitHistory>(
+            supra_framework,
+            CommitHistory {
+                max_capacity: 2000,
+                next_idx: 0,
+                table: table_with_length::new()
+            }
+        );
 
         move_to<BlockResource>(
             supra_framework,
             BlockResource {
                 height: 0,
                 epoch_interval: epoch_interval_microsecs,
-                new_block_events: account::new_event_handle<NewBlockEvent>(supra_framework),
-                update_epoch_interval_events: account::new_event_handle<UpdateEpochIntervalEvent>(supra_framework),
+                new_block_events: account::new_event_handle<NewBlockEvent>(
+                    supra_framework
+                ),
+                update_epoch_interval_events: account::new_event_handle<
+                    UpdateEpochIntervalEvent>(supra_framework)
             }
         );
     }
@@ -113,18 +125,16 @@ module supra_framework::block {
     /// Initialize the commit history resource if it's not in genesis.
     public fun initialize_commit_history(fx: &signer, max_capacity: u32) {
         assert!(max_capacity != 0, error::invalid_argument(EZERO_MAX_CAPACITY));
-        move_to<CommitHistory>(fx, CommitHistory {
-            max_capacity,
-            next_idx: 0,
-            table: table_with_length::new(),
-        });
+        move_to<CommitHistory>(
+            fx,
+            CommitHistory { max_capacity, next_idx: 0, table: table_with_length::new() }
+        );
     }
 
     /// Update the epoch interval.
     /// Can only be called as part of the Supra governance proposal process established by the SupraGovernance module.
     public fun update_epoch_interval_microsecs(
-        supra_framework: &signer,
-        new_epoch_interval: u64,
+        supra_framework: &signer, new_epoch_interval: u64
     ) acquires BlockResource {
         system_addresses::assert_supra_framework(supra_framework);
         assert!(new_epoch_interval != 0, error::invalid_argument(EZERO_EPOCH_INTERVAL));
@@ -134,13 +144,11 @@ module supra_framework::block {
         block_resource.epoch_interval = new_epoch_interval;
 
         if (std::features::module_event_migration_enabled()) {
-            event::emit(
-                UpdateEpochInterval { old_epoch_interval, new_epoch_interval },
-            );
+            event::emit(UpdateEpochInterval { old_epoch_interval, new_epoch_interval });
         } else {
             event::emit_event<UpdateEpochIntervalEvent>(
                 &mut block_resource.update_epoch_interval_events,
-                UpdateEpochIntervalEvent { old_epoch_interval, new_epoch_interval },
+                UpdateEpochIntervalEvent { old_epoch_interval, new_epoch_interval }
             );
         };
     }
@@ -150,7 +158,6 @@ module supra_framework::block {
     public fun get_epoch_interval_secs(): u64 acquires BlockResource {
         borrow_global<BlockResource>(@supra_framework).epoch_interval / 1000000
     }
-
 
     fun block_prologue_common(
         vm: &signer,
@@ -168,7 +175,7 @@ module supra_framework::block {
         // Blocks can only be produced by a valid proposer or by the VM itself for Nil blocks (no user txs).
         assert!(
             proposer == @vm_reserved || stake::is_current_epoch_validator(proposer),
-            error::permission_denied(EINVALID_PROPOSER),
+            error::permission_denied(EINVALID_PROPOSER)
         );
 
         let proposer_index = option::none();
@@ -187,7 +194,7 @@ module supra_framework::block {
             previous_block_votes_bitvec,
             proposer,
             failed_proposer_indices,
-            time_microseconds: timestamp,
+            time_microseconds: timestamp
         };
         emit_new_block_event(vm, &mut block_metadata_ref.new_block_events, new_block_event);
 
@@ -195,6 +202,13 @@ module supra_framework::block {
         // transition is the last block in the previous epoch.
         stake::update_performance_statistics(proposer_index, failed_proposer_indices);
         state_storage::on_new_block(reconfiguration::current_epoch());
+
+        leader_ban_registry::update_ban_registry(
+            epoch,
+            round,
+            proposer_index,
+            failed_proposer_indices
+        );
 
         automation_registry::monitor_cycle_end();
 
@@ -213,16 +227,17 @@ module supra_framework::block {
         previous_block_votes_bitvec: vector<u8>,
         timestamp: u64
     ) acquires BlockResource, CommitHistory {
-        let epoch_interval = block_prologue_common(
-            &vm,
-            hash,
-            epoch,
-            round,
-            proposer,
-            failed_proposer_indices,
-            previous_block_votes_bitvec,
-            timestamp
-        );
+        let epoch_interval =
+            block_prologue_common(
+                &vm,
+                hash,
+                epoch,
+                round,
+                proposer,
+                failed_proposer_indices,
+                previous_block_votes_bitvec,
+                timestamp
+            );
         randomness::on_new_block(&vm, epoch, round, option::none());
         if (timestamp - reconfiguration::last_reconfiguration_time() >= epoch_interval) {
             reconfiguration::reconfigure();
@@ -239,18 +254,26 @@ module supra_framework::block {
         failed_proposer_indices: vector<u64>,
         previous_block_votes_bitvec: vector<u8>,
         timestamp: u64,
-        randomness_seed: Option<vector<u8>>,
+        randomness_seed_vec: vector<u8>
     ) acquires BlockResource, CommitHistory {
-        let epoch_interval = block_prologue_common(
-            &vm,
-            hash,
-            epoch,
-            round,
-            proposer,
-            failed_proposer_indices,
-            previous_block_votes_bitvec,
-            timestamp
-        );
+        let randomness_seed =
+            if (vector::length(&randomness_seed_vec) == 0) {
+                option::none()
+            } else {
+                option::some(randomness_seed_vec)
+            };
+
+        let epoch_interval =
+            block_prologue_common(
+                &vm,
+                hash,
+                epoch,
+                round,
+                proposer,
+                failed_proposer_indices,
+                previous_block_votes_bitvec,
+                timestamp
+            );
         randomness::on_new_block(&vm, epoch, round, randomness_seed);
 
         if (timestamp - reconfiguration::last_reconfiguration_time() >= epoch_interval) {
@@ -284,16 +307,20 @@ module supra_framework::block {
             if (table_with_length::contains(&commit_history_ref.table, idx)) {
                 table_with_length::remove(&mut commit_history_ref.table, idx);
             };
-            table_with_length::add(&mut commit_history_ref.table, idx, copy new_block_event);
+            table_with_length::add(
+                &mut commit_history_ref.table, idx, copy new_block_event
+            );
             spec {
                 assume idx + 1 <= MAX_U32;
             };
             commit_history_ref.next_idx = (idx + 1) % commit_history_ref.max_capacity;
         };
-        timestamp::update_global_time(vm, new_block_event.proposer, new_block_event.time_microseconds);
+        timestamp::update_global_time(
+            vm, new_block_event.proposer, new_block_event.time_microseconds
+        );
         assert!(
             event::counter(event_handle) == new_block_event.height,
-            error::invalid_argument(ENUM_NEW_BLOCK_EVENTS_DOES_NOT_MATCH_BLOCK_HEIGHT),
+            error::invalid_argument(ENUM_NEW_BLOCK_EVENTS_DOES_NOT_MATCH_BLOCK_HEIGHT)
         );
         event::emit_event<NewBlockEvent>(event_handle, new_block_event);
     }
@@ -314,7 +341,7 @@ module supra_framework::block {
                 previous_block_votes_bitvec: vector::empty(),
                 proposer: @vm_reserved,
                 failed_proposer_indices: vector::empty(),
-                time_microseconds: timestamp::now_microseconds(),
+                time_microseconds: timestamp::now_microseconds()
             },
         );
     }
@@ -322,8 +349,7 @@ module supra_framework::block {
     ///  Emit a `NewBlockEvent` event. This function will be invoked by write set script directly to generate the
     ///  new block event for WriteSetPayload.
     public fun emit_writeset_block_event(
-        vm_signer: &signer,
-        fake_block_hash: address
+        vm_signer: &signer, fake_block_hash: address
     ) acquires BlockResource, CommitHistory {
         system_addresses::assert_vm(vm_signer);
         let block_metadata_ref = borrow_global_mut<BlockResource>(@supra_framework);
@@ -340,13 +366,15 @@ module supra_framework::block {
                 previous_block_votes_bitvec: vector::empty(),
                 proposer: @vm_reserved,
                 failed_proposer_indices: vector::empty(),
-                time_microseconds: timestamp::now_microseconds(),
+                time_microseconds: timestamp::now_microseconds()
             },
         );
     }
 
     #[test_only]
-    public fun initialize_for_test(account: &signer, epoch_interval_microsecs: u64) {
+    public fun initialize_for_test(
+        account: &signer, epoch_interval_microsecs: u64
+    ) {
         initialize(account, epoch_interval_microsecs);
     }
 
@@ -362,8 +390,7 @@ module supra_framework::block {
     #[test(supra_framework = @supra_framework, account = @0x123)]
     #[expected_failure(abort_code = 0x50003, location = supra_framework::system_addresses)]
     public entry fun test_update_epoch_interval_unauthorized_should_fail(
-        supra_framework: signer,
-        account: signer,
+        supra_framework: signer, account: signer
     ) acquires BlockResource {
         account::create_account_for_test(@supra_framework);
         initialize(&supra_framework, 1);

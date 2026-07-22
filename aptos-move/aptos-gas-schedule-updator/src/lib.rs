@@ -14,7 +14,6 @@ use aptos_gas_schedule::{
 use aptos_package_builder::PackageBuilder;
 use aptos_types::on_chain_config::GasScheduleV2;
 use clap::Parser;
-use move_core_types::account_address::AccountAddress;
 use move_model::{code_writer::CodeWriter, emit, emitln, model::Loc};
 use std::path::{Path, PathBuf};
 
@@ -66,6 +65,7 @@ fn generate_script(gas_schedule: &GasScheduleV2) -> Result<String> {
 
     emitln!(writer, "use supra_framework::supra_governance;");
     emitln!(writer, "use supra_framework::gas_schedule;");
+    emitln!(writer, "use std::vector;");
     emitln!(writer);
 
     emitln!(writer, "fun main(proposal_id: u64) {");
@@ -73,8 +73,11 @@ fn generate_script(gas_schedule: &GasScheduleV2) -> Result<String> {
 
     emitln!(
         writer,
-        "let framework_signer = supra_governance::supra_resolve(proposal_id, @{});\n",
-        AccountAddress::ONE,
+        "let framework_signer = supra_governance::resolve_supra_multi_step_proposal(
+        proposal_id,
+        @supra_framework,
+        vector::empty<u8>()
+    );\n"
     );
 
     emit!(writer, "let gas_schedule_blob: vector<u8> = ");

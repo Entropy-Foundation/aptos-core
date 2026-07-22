@@ -1936,8 +1936,7 @@ impl<P: OnChainConfigProvider> EpochManager<P> {
 
     fn load_consensus_key(&self, vv: &ValidatorVerifier) -> anyhow::Result<PrivateKey> {
         match vv.get_public_key(&self.author) {
-            Some(pk) =>
-                self
+            Some(pk) => self
                 .key_storage
                 .consensus_sk_by_pk(pk)
                 .map_err(|e| anyhow!("could not find sk by pk: {:?}", e)),

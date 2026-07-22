@@ -493,8 +493,8 @@ fn run_jwk_and_config_script(h: &mut MoveHarness) -> Account {
             TransactionArgument::U64(config.max_exp_horizon_secs),
         ]))
         .sequence_number(h.sequence_number(core_resources.address()))
-        .max_gas_amount(1_000_000)
-        .gas_unit_price(1)
+        .max_gas_amount(15_000_000)
+        .gas_unit_price(100_000)
         .sign();
 
     // NOTE: We cannot write the Configuration and Groth16Verification key via MoveHarness::set_resource
@@ -573,7 +573,7 @@ fn federated_keyless_install_jwk(
         ))
         .sequence_number(h.sequence_number(jwk_owner_account.address()))
         .max_gas_amount(1_000_000)
-        .gas_unit_price(1)
+        .gas_unit_price(100_000)
         .sign();
 
     // NOTE: We cannot write the Configuration and Groth16Verification key via MoveHarness::set_resource
@@ -604,8 +604,8 @@ fn run_upgrade_vk_script(h: &mut MoveHarness, core_resources: Account, vk: Groth
             TransactionArgument::U8Vector(vk.gamma_abc_g1[1].clone()),
         ]))
         .sequence_number(h.sequence_number(core_resources.address()))
-        .max_gas_amount(1_000_000)
-        .gas_unit_price(1)
+        .max_gas_amount(2_500_000)
+        .gas_unit_price(100_000)
         .sign();
 
     // NOTE: We cannot write the Groth16Verification key via MoveHarness::set_resource

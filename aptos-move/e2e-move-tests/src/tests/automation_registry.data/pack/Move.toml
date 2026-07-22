@@ -1,0 +1,11 @@
+[package]
+name = "automation_registry_test"
+version = "0.0.0"
+
+[addresses]
+# A fixed address for the test contract simulating a third-party DeFi protocol.
+automation_test = "0xDEADBEEF"
+
+[dependencies]
+SupraFramework = { local = "../../../../../framework/supra-framework" }
+AptosStdlib = { local = "../../../../../framework/aptos-stdlib" }

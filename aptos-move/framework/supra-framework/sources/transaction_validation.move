@@ -373,8 +373,6 @@ module supra_framework::transaction_validation {
             timestamp::now_seconds() < txn_expiration_time,
             error::invalid_argument(PROLOGUE_ETRANSACTION_EXPIRED),
         );
-        // TODO check whether is makes sense to do authenthicator key check as it was done in scope of common
-        // prologue. It might not be necessary as automated transactions are system created.
 
         // Task is not gas-less/GST,
         // gas-less automated transactions are not charged so no need to check eligability to pay the gas-fee.
@@ -392,9 +390,10 @@ module supra_framework::transaction_validation {
                     error::invalid_argument(PROLOGUE_ECANT_PAY_GAS_DEPOSIT)
                 );
             };
-            assert!(automation_registry::has_sender_active_task_with_id(signer::address_of(&sender), task_index),
-                error::invalid_state(PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK))
-        }
+        };
+        
+        assert!(automation_registry::has_sender_active_task_with_id_and_type(address_of(&sender), task_index, task_type),
+            error::invalid_state(PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK))
     }
 
 

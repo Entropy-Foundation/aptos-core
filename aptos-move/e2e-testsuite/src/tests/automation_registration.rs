@@ -7,38 +7,34 @@ use aptos_language_e2e_tests::{
     account::{Account, AccountData},
     executor::FakeExecutor,
 };
-use aptos_types::account_address::create_multisig_account_address;
-use aptos_types::state_store::StateView;
-use aptos_types::transaction::automation::Priority;
-use aptos_types::transaction::{ExecutionError, Multisig, MultisigTransactionPayload};
 use aptos_types::{
+    account_address::create_multisig_account_address,
+    contract_event::ContractEvent,
     on_chain_config::{
         AutomationCycleDetails, AutomationCycleInfo, AutomationCycleState, FeatureFlag,
         OnChainConfig,
     },
+    state_store::StateView,
     transaction::{
         automation::{
-            AutomationRegistryAction, AutomationRegistryRecord, AutomationTaskMetaData,
+            AutomationRegistryAction, AutomationRegistryRecord, AutomationTaskMetaData, Priority,
             RegistrationParams,
         },
-        EntryFunction, ExecutionStatus, SignedTransaction, Transaction, TransactionOutput,
-        TransactionPayload, TransactionStatus,
+        EntryFunction, ExecutionError, ExecutionStatus, Multisig, MultisigTransactionPayload,
+        SignedTransaction, Transaction, TransactionOutput, TransactionPayload, TransactionStatus,
     },
 };
 use aptos_vm::aptos_vm_viewer::AptosVMViewer;
 use move_core_types::{
     account_address::AccountAddress,
     value::{serialize_values, MoveValue},
-    vm_status::StatusCode,
+    vm_status::{StatusCode, StatusCode::FEATURE_UNDER_GATING},
 };
+use serde::{Deserialize, Serialize};
 use std::{
     ops::{Deref, DerefMut},
     time::Instant,
 };
-
-use serde::{Serialize, Deserialize};
-use aptos_types::contract_event::ContractEvent;
-use move_core_types::vm_status::StatusCode::FEATURE_UNDER_GATING;
 
 const TIMESTAMP_NOW_SECONDS: &str = "0x1::timestamp::now_seconds";
 const ACCOUNT_BALANCE: &str = "0x1::coin::balance";
@@ -51,6 +47,8 @@ const AUTOMATION_CYCLE_INFO: &str = "0x1::automation_registry::get_cycle_info";
 const HAS_SENDER_ACTIVE_TASK_WITH_ID: &str =
     "0x1::automation_registry::has_sender_active_task_with_id";
 const GET_TASK_IDS: &str = "0x1::automation_registry::get_task_ids";
+
+const MAX_GAS_AMOUNT_REGISTRATION: u64 = 500_000_000;
 
 struct MultisigAccountData {
     multisig_address: AccountAddress,
@@ -98,7 +96,7 @@ impl AutomationRegistrationTestContext {
         root.rotate_key(private_key, public_key);
 
         // Prepare automation registration transaction sender
-        let txn_sender = executor.create_raw_account_data(100_000_000_000, 0);
+        let txn_sender = executor.create_raw_account_data(200_000_000_000, 0);
         executor.add_account_data(&txn_sender);
 
         let multisig_account_data = Self::create_multisig_account_data(&mut executor);
@@ -112,8 +110,8 @@ impl AutomationRegistrationTestContext {
 
     fn create_multisig_account_data(executor: &mut FakeExecutor) -> MultisigAccountData {
         // Prepare multisig_account for system task registration
-        let multisig_owner1 = executor.create_raw_account_data(1_000_000_000, 0);
-        let multisig_owner2 = executor.create_raw_account_data(1_000_000_000, 0);
+        let multisig_owner1 = executor.create_raw_account_data(1_000_000_000_000, 0);
+        let multisig_owner2 = executor.create_raw_account_data(1_000_000_000_000, 0);
         executor.add_account_data(&multisig_owner1);
         executor.add_account_data(&multisig_owner2);
         let multisig_address = create_multisig_account_address(
@@ -130,8 +128,11 @@ impl AutomationRegistrationTestContext {
         let account_create_txn = multisig_owner1
             .account()
             .transaction()
+            // The SUP#3 gas-schedule update raised storage fees ~1000x, so creating the
+            // multisig account (and its new state slots) now costs ~1.7M gas units at this
+            // gas unit price. Budget enough headroom for it.
             .max_gas_amount(1_000_000)
-            .gas_unit_price(100)
+            .gas_unit_price(100_000)
             .payload(create_multisig_payload)
             .sequence_number(0)
             .sign();
@@ -140,6 +141,7 @@ impl AutomationRegistrationTestContext {
         let transfer_txn = multisig_owner1
             .account()
             .transaction()
+            .gas_unit_price(100_000)
             .max_gas_amount(1000)
             .payload(aptos_stdlib::supra_account_transfer(
                 multisig_address,
@@ -166,16 +168,12 @@ impl AutomationRegistrationTestContext {
         } else {
             (vec![], flag_value)
         };
-        self.executor.exec(
-            "features",
-            "change_feature_flags_internal",
-            vec![],
-            vec![
+        self.executor
+            .exec("features", "change_feature_flags_internal", vec![], vec![
                 MoveValue::Signer(acc).simple_serialize().unwrap(),
                 bcs::to_bytes(&enabled).unwrap(),
                 bcs::to_bytes(&disabled).unwrap(),
-            ],
-        );
+            ]);
     }
 
     pub(crate) fn toggle_feature_with_registry_reconfig(
@@ -238,6 +236,7 @@ impl AutomationRegistrationTestContext {
             .payload(automation_txn)
             .sequence_number(seq_num)
             .gas_unit_price(1)
+            .max_gas_amount(MAX_GAS_AMOUNT_REGISTRATION)
             .sign()
     }
 
@@ -267,6 +266,7 @@ impl AutomationRegistrationTestContext {
             .payload(automation_txn)
             .sequence_number(seq_num)
             .gas_unit_price(1)
+            .max_gas_amount(MAX_GAS_AMOUNT_REGISTRATION)
             .sign()
     }
 
@@ -291,6 +291,7 @@ impl AutomationRegistrationTestContext {
             .payload(automation_txn)
             .sequence_number(seq_num)
             .gas_unit_price(1)
+            .max_gas_amount(MAX_GAS_AMOUNT_REGISTRATION)
             .sign()
     }
 
@@ -308,6 +309,7 @@ impl AutomationRegistrationTestContext {
             ))
             .sequence_number(seq_num)
             .gas_unit_price(1)
+            .max_gas_amount(MAX_GAS_AMOUNT_REGISTRATION)
             .sign()
     }
 
@@ -395,11 +397,10 @@ impl AutomationRegistrationTestContext {
     }
 
     pub(crate) fn account_sequence_number(&mut self, account_address: AccountAddress) -> u64 {
-        let view_output = self.execute_view_function(
-            str::parse(ACCOUNT_SEQ_NUM).unwrap(),
-            vec![],
-            vec![account_address.to_vec()],
-        );
+        let view_output =
+            self.execute_view_function(str::parse(ACCOUNT_SEQ_NUM).unwrap(), vec![], vec![
+                account_address.to_vec(),
+            ]);
         let result = view_output.values.expect("Valid result");
         assert_eq!(result.len(), 1);
         bcs::from_bytes::<u64>(&result[0]).unwrap()
@@ -417,13 +418,12 @@ impl AutomationRegistrationTestContext {
     }
 
     pub(crate) fn get_task_details(&mut self, index: u64) -> AutomationTaskMetaData {
-        let view_output = self.execute_view_function(
-            str::parse(AUTOMATION_TASK_DETAILS).unwrap(),
-            vec![],
-            vec![MoveValue::U64(index)
-                .simple_serialize()
-                .expect("Successful serialization")],
-        );
+        let view_output =
+            self.execute_view_function(str::parse(AUTOMATION_TASK_DETAILS).unwrap(), vec![], vec![
+                MoveValue::U64(index)
+                    .simple_serialize()
+                    .expect("Successful serialization"),
+            ]);
         let result = view_output.values.expect("Valid result");
         assert!(!result.is_empty());
         bcs::from_bytes::<AutomationTaskMetaData>(&result[0])
@@ -435,13 +435,11 @@ impl AutomationRegistrationTestContext {
         vm_viewer: &AptosVMViewer<impl StateView>,
     ) -> AutomationTaskMetaData {
         let view_output = vm_viewer.execute_view_function(
-            to_view_function(
-                str::parse(AUTOMATION_TASK_DETAILS).unwrap(),
-                vec![],
-                vec![MoveValue::U64(index)
+            to_view_function(str::parse(AUTOMATION_TASK_DETAILS).unwrap(), vec![], vec![
+                MoveValue::U64(index)
                     .simple_serialize()
-                    .expect("Successful serialization")],
-            ),
+                    .expect("Successful serialization"),
+            ]),
             50_000,
         );
         let result = view_output.values.expect("Valid result");
@@ -504,6 +502,75 @@ impl AutomationRegistrationTestContext {
         assert!(!result.is_empty());
         bcs::from_bytes::<Vec<u64>>(&result[0])
             .expect("Successful deserialization of AutomationCycleInfo")
+    }
+
+    /// Registers an automation task by directly invoking the private Move `register`
+    /// function through the test executor, bypassing both:
+    ///
+    /// 1. **Visibility**: `register` is a `fun` (package-private in Move). The
+    ///    underlying `execute_function_bypass_visibility` call ignores this, so
+    ///    no access-control error is raised.
+    ///
+    /// 2. **Native-layer payload validation**: In the normal `AutomationRegistration`
+    ///    transaction flow the VM validates that `payload_bytes` is a well-formed,
+    ///    BCS-encoded `EntryFunction` with correct argument types *before* any Move
+    ///    code runs. The `exec` path skips this check entirely, so arbitrary bytes
+    ///    (including those that encode a call to a non-existent function) are stored
+    ///    directly in the registry.
+    ///
+    /// This simulates what happens in production when a smart-contract registers a
+    /// task via `automation_registry::register_without_validation` (the
+    /// `SUPRA_AUTOMATION_V2_1` path), which also skips payload validation and relies
+    /// on the runtime to catch and discard permanently invalid tasks at execution
+    /// time.
+    ///
+    /// # Prerequisites
+    /// * `SUPRA_NATIVE_AUTOMATION` must be enabled and the automation cycle must be
+    ///   in `CYCLE_STARTED` state before calling this method (the Move `register`
+    ///   function asserts this).
+    /// * `tx_hash` must be exactly 32 bytes (`TXN_HASH_LENGTH = 32` in the Move
+    ///   contract).
+    /// * `aux_data` must have exactly 2 elements matching the format validated by
+    ///   `check_and_validate_aux_data`:
+    ///   - index 0: a single byte encoding the task type (`[1u8]` for UST/User)
+    ///   - index 1: BCS-serialised priority `u64`, or empty (`[]`) to let the
+    ///     registry assign the task index as the default priority.
+    /// * The `owner_address` account must have enough SupraCoin balance to cover
+    ///   the flat registration fee plus the epoch-deposit (`automation_fee_cap`).
+    pub(crate) fn register_task_bypassing_native_validation(
+        &mut self,
+        owner_address: AccountAddress,
+        payload_bytes: Vec<u8>,
+        expiry_time: u64,
+        max_gas_amount: u64,
+        gas_price_cap: u64,
+        automation_fee_cap: u64,
+        tx_hash: Vec<u8>,
+        aux_data: Vec<Vec<u8>>,
+    ) {
+        // Call the private `register` Move function via execute_function_bypass_visibility.
+        // The signer argument is passed as a BCS-serialised MoveValue::Signer so the Move VM
+        // constructs a valid signer capability for `owner_address` without requiring a
+        // real signed transaction.
+        //
+        // Crucially, none of the native-layer checks (BCS-decode payload, validate
+        // EntryFunction shape) execute here — only the Move code inside `register` runs.
+        // This means `payload_bytes` is stored verbatim, even if it encodes a call to a
+        // non-existent module/function.
+        self.executor
+            .exec("automation_registry", "register", vec![], vec![
+                MoveValue::Signer(owner_address)
+                    .simple_serialize()
+                    .expect("Signer serialization must not fail"),
+                bcs::to_bytes(&payload_bytes).expect("payload bytes must be BCS-serialisable"),
+                bcs::to_bytes(&expiry_time).expect("expiry_time must be BCS-serialisable"),
+                bcs::to_bytes(&max_gas_amount).expect("max_gas_amount must be BCS-serialisable"),
+                bcs::to_bytes(&gas_price_cap).expect("gas_price_cap must be BCS-serialisable"),
+                bcs::to_bytes(&automation_fee_cap)
+                    .expect("automation_fee_cap must be BCS-serialisable"),
+                bcs::to_bytes(&tx_hash).expect("tx_hash must be BCS-serialisable"),
+                bcs::to_bytes(&aux_data).expect("aux_data must be BCS-serialisable"),
+            ]);
     }
 }
 
@@ -730,7 +797,7 @@ fn check_task_retrieval_performance() {
             inner_entry_function.clone(),
             expiration_time,
             25,
-            100,
+            100_000,
             automation_fee_cap,
         );
         let output = test_context.execute_and_apply(automation_txn);
@@ -807,14 +874,11 @@ fn check_automation_registry_actions_on_cycle_transition() {
     let result = test_context
         .execute_tagged_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     let status = result.status().status().expect("Expected execution status");
-    assert!(matches!(
-        status,
-        ExecutionStatus::MoveAbort {
-            location: _,
-            code: _,
-            info: _
-        }
-    ));
+    assert!(matches!(status, ExecutionStatus::MoveAbort {
+        location: _,
+        code: _,
+        info: _
+    }));
 
     test_context.advance_chain_time_in_secs(600);
 
@@ -848,14 +912,11 @@ fn check_automation_registry_actions_on_cycle_transition() {
     );
     let status = result.status().status().expect("Expected execution status");
 
-    assert!(matches!(
-        status,
-        ExecutionStatus::MoveAbort {
-            location: _,
-            code: _,
-            info: _
-        }
-    ));
+    assert!(matches!(status, ExecutionStatus::MoveAbort {
+        location: _,
+        code: _,
+        info: _
+    }));
 
     test_context.execute_and_apply_transaction(Transaction::AutomationRegistryTransaction(
         registry_action_for_task0,
@@ -946,14 +1007,11 @@ fn check_automation_registry_actions_on_cycle_suspension() {
         .execute_tagged_transaction(Transaction::AutomationRegistryTransaction(registry_action));
     let status = result.status().status().expect("Expected execution status");
 
-    assert!(matches!(
-        status,
-        ExecutionStatus::MoveAbort {
-            location: _,
-            code: _,
-            info: _
-        }
-    ));
+    assert!(matches!(status, ExecutionStatus::MoveAbort {
+        location: _,
+        code: _,
+        info: _
+    }));
 }
 
 #[test]
@@ -972,7 +1030,6 @@ fn check_automation_registry_actions_when_automation_cycle_disabled() {
     ));
 }
 
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct TransactionExecutionFailed {
     multisig_address: AccountAddress,
@@ -984,11 +1041,12 @@ struct TransactionExecutionFailed {
 }
 
 fn find_transaction_error(events: &[ContractEvent]) -> Vec<TransactionExecutionFailed> {
-    events.iter().filter(|e| e.is_v2())
+    events
+        .iter()
+        .filter(|e| e.is_v2())
         .map(|e| bcs::from_bytes::<TransactionExecutionFailed>(e.event_data()))
         .filter_map(|d| d.ok())
         .collect()
-
 }
 
 #[test]
@@ -1017,7 +1075,9 @@ fn check_system_automation_task_registration() {
     let failed_event = find_transaction_error(output.events());
     assert_eq!(failed_event.len(), 1);
     let expected_execution_error = ExecutionError {
-        abort_location: "0000000000000000000000000000000000000000000000000000000000000001::automation_registry".to_string(),
+        abort_location:
+            "0000000000000000000000000000000000000000000000000000000000000001::automation_registry"
+                .to_string(),
         error_type: "MoveAbort".to_string(),
         error_code: 41,
     };
@@ -1046,7 +1106,6 @@ fn check_system_automation_task_registration() {
         error_code: FEATURE_UNDER_GATING as u64,
     };
     assert_eq!(expected_execution_error, failed_event[0].execution_error);
-
 
     // Try without multisig payload specified
     let proposal_txn =

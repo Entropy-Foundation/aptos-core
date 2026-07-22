@@ -14,7 +14,6 @@ use crate::{
     ledger_info::LedgerInfo,
     proof::{TransactionInfoListWithProof, TransactionInfoWithProof},
     serde_helper::vec_bytes,
-    transaction::automation::RegistrationParams,
     transaction::authenticator::{
         AccountAuthenticator, AnyPublicKey, AnySignature, SingleKeyAuthenticator,
         TransactionAuthenticator,
@@ -59,8 +58,6 @@ pub mod use_case;
 pub mod user_transaction_context;
 pub mod webauthn;
 
-use crate::transaction::automated_transaction::AutomatedTransaction;
-use crate::transaction::automation::AutomationRegistryRecord;
 pub use self::block_epilogue::{BlockEndInfo, BlockEpiloguePayload, FeeDistribution};
 use crate::{
     block_metadata_ext::BlockMetadataExt,
@@ -69,20 +66,24 @@ use crate::{
     fee_statement::FeeStatement,
     function_info::FunctionInfo,
     keyless::FederatedKeylessPublicKey,
+    move_utils::MemberId,
     on_chain_config::{FeatureFlag, Features},
     proof::accumulator::InMemoryEventAccumulator,
     state_store::{state_key::StateKey, state_value::StateValue},
+    transaction::{
+        automated_transaction::AutomatedTransaction,
+        automation::{AutomationRegistryRecord, RegistrationParams},
+    },
     validator_txn::ValidatorTransaction,
     write_set::TransactionWrite,
 };
 pub use block_output::BlockOutput;
 pub use change_set::ChangeSet;
 pub use module::{Module, ModuleBundle};
-use crate::move_utils::MemberId;
-use move_core_types::identifier::{IdentStr, Identifier};
-use move_core_types::language_storage::{ModuleId, TypeTag};
 pub use move_core_types::transaction_argument::TransactionArgument;
 use move_core_types::{
+    identifier::{IdentStr, Identifier},
+    language_storage::{ModuleId, TypeTag},
     value::{MoveStruct, MoveValue},
     vm_status::AbortLocation,
 };
@@ -761,7 +762,9 @@ impl TransactionExecutable {
                 TransactionExecutableRef::EntryFunction(entry_function)
             },
             TransactionExecutable::Script(script) => TransactionExecutableRef::Script(script),
-            TransactionExecutable::AutomationRegistration(params) => TransactionExecutableRef::AutomationRegistration(params),
+            TransactionExecutable::AutomationRegistration(params) => {
+                TransactionExecutableRef::AutomationRegistration(params)
+            },
             TransactionExecutable::Empty => TransactionExecutableRef::Empty,
         }
     }
@@ -794,7 +797,7 @@ impl TransactionExecutableRef<'_> {
 
     pub fn as_automation_registration_params(&self) -> Option<&RegistrationParams> {
         let Self::AutomationRegistration(params) = self else {
-            return None
+            return None;
         };
         Some(params)
     }
@@ -861,7 +864,9 @@ impl TransactionPayload {
             TransactionPayload::Payload(TransactionPayloadInner::V1 { executable, .. }) => {
                 Ok(executable.clone())
             },
-            TransactionPayload::AutomationRegistration(params) => Ok(TransactionExecutable::AutomationRegistration(params.clone())),
+            TransactionPayload::AutomationRegistration(params) => Ok(
+                TransactionExecutable::AutomationRegistration(params.clone()),
+            ),
             TransactionPayload::ModuleBundle(_) => {
                 Err(format_err!("ModuleBundle variant is deprecated"))
             },
@@ -878,7 +883,9 @@ impl TransactionPayload {
             TransactionPayload::Payload(TransactionPayloadInner::V1 { executable, .. }) => {
                 Ok(executable.as_ref())
             },
-            TransactionPayload::AutomationRegistration(params) => Ok(TransactionExecutableRef::AutomationRegistration(params)),
+            TransactionPayload::AutomationRegistration(params) => {
+                Ok(TransactionExecutableRef::AutomationRegistration(params))
+            },
             TransactionPayload::ModuleBundle(_) => {
                 Err(format_err!("ModuleBundle variant is deprecated"))
             },
@@ -917,7 +924,9 @@ impl TransactionPayload {
             )
             .into(),
             Ok(TransactionExecutableRef::Script(_)) => "script".into(),
-            Ok(TransactionExecutableRef::AutomationRegistration(_)) => "automation_registration".into(),
+            Ok(TransactionExecutableRef::AutomationRegistration(_)) => {
+                "automation_registration".into()
+            },
             Ok(TransactionExecutableRef::Empty) => "empty".into(),
             Err(_) => "deprecated_payload".into(),
         }
@@ -930,9 +939,9 @@ impl TransactionPayload {
         use_orderless_transactions: bool,
     ) -> Self {
         if use_txn_payload_v2_format {
-            let executable = self
-                .executable()
-                .expect("ModuleBundle variant is deprecated | AutomationRegistration not supported yet.");
+            let executable = self.executable().expect(
+                "ModuleBundle variant is deprecated | AutomationRegistration not supported yet.",
+            );
             let mut extra_config = self.extra_config();
             if use_orderless_transactions {
                 extra_config = match extra_config {
@@ -3024,7 +3033,7 @@ impl Transaction {
             Transaction::BlockMetadataExt(bmet) => bmet.type_name(),
             Transaction::AutomatedTransaction(_) => "automated_transaction",
             Transaction::AutomationRegistryTransaction(_) => "automation_registry_transaction",
-            Transaction::SystemAutomatedTransaction(_) => "system_automated_transaction"
+            Transaction::SystemAutomatedTransaction(_) => "system_automated_transaction",
         }
     }
 

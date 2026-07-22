@@ -1,18 +1,15 @@
-// Copyright (c) Aptos Foundation
-// SPDX-License-Identifier: Apache-2.0
-
 // Copyright (c) Supra Foundation
 // SPDX-License-Identifier: Apache-2.0
-
-use once_cell::sync::Lazy;
 
 use super::OnChainConfig;
 use crate::chain_id::ChainId;
 use anyhow::{anyhow, Result};
-use serde::{Deserialize, Serialize};
 use move_core_types::{
     ident_str, identifier::IdentStr, language_storage::TypeTag, move_resource::MoveStructType,
 };
+use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 
 /// The Genesis configuration for EVM that can only be set once at genesis epoch.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -25,12 +22,31 @@ pub struct OnChainEvmGenesisConfig {
     pub contracts: Vec<GenesisEvmContract>,
 }
 
+impl Display for OnChainEvmGenesisConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "OnChainEvmGenesisConfig {{\n\t chain_id: {},\n\t eoas: {:?}, \n\t contracts: [{}\n\t]\n}}",
+            self.chain_id, self.eoas, self.contracts.iter().map(|c| format!("\n\t\t{}", c)).collect::<Vec<_>>().join(", "),
+        )
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct GenesisEvmEOA {
     /// The address of the EOA to be funded
     pub address: String,
     /// The amount of native token to fund the EOA with.
     pub amount: u128,
+}
+
+/// The Creator address and nonce determines the contract' deployment address.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub enum ContractKind {
+    /// Default contract creation API
+    Create,
+    /// EVM address that creates a contract.
+    Call(String),
 }
 
 /// The Creator address and nonce determines the contract' deployment address.
@@ -44,11 +60,34 @@ pub struct GenesisEvmContract {
     pub amount: u128,
     /// The bytecode of the contract to deploy.
     pub bytecode: Vec<u8>,
+    /// Type of the contract
+    pub kind: ContractKind,
+    /// Precalculated address of the contract
+    pub deploy_address: String,
+}
+
+impl Display for GenesisEvmContract {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "GenesisEvmContract {{ creator: {}, nonce: {}, amount: {}, bytecode: {} bytes, kind: {:?}, deploy_address: {} }}",
+            self.creator,
+            self.nonce,
+            self.amount,
+            hex::encode(&self.bytecode),
+            self.kind,
+            self.deploy_address
+        )
+    }
 }
 
 impl OnChainEvmGenesisConfig {
     /// Create a new OnChainEvmGenesisConfig with the given parameters.
-    pub fn new(chain_id: ChainId, eoas: Vec<GenesisEvmEOA>, contracts: Vec<GenesisEvmContract>) -> Self {
+    pub fn new(
+        chain_id: ChainId,
+        eoas: Vec<GenesisEvmEOA>,
+        contracts: Vec<GenesisEvmContract>,
+    ) -> Self {
         let chain_id = Self::derive_evm_chain_id_from_move_chain_id(chain_id);
 
         Self {
@@ -89,13 +128,10 @@ impl OnChainConfig for OnChainEvmGenesisConfig {
     }
 }
 
-
-
 /// Move event type `0x1::evm_genesis_config::EvmGenesisEvent` in rust.
 /// See its doc in Move for more details.
 #[derive(Serialize, Deserialize)]
-pub struct EvmGenesisEvent {
-}
+pub struct EvmGenesisEvent {}
 
 impl MoveStructType for EvmGenesisEvent {
     const MODULE_NAME: &'static IdentStr = ident_str!("evm_genesis_config");

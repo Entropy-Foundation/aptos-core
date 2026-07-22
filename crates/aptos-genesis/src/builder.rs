@@ -30,8 +30,9 @@ use aptos_types::{
     jwks::patch::IssuerJWK,
     keyless::Groth16VerificationKey,
     on_chain_config::{
-        Features, GasScheduleV2, OnChainConsensusConfig, OnChainExecutionConfig,
-        OnChainJWKConsensusConfig, OnChainRandomnessConfig,
+        AutomationRegistryConfig, BanRegistryParameters, Features, GasScheduleV2,
+        OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig,
+        OnChainRandomnessConfig,
     },
     transaction::Transaction,
     waypoint::Waypoint,
@@ -47,7 +48,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use aptos_types::on_chain_config::AutomationRegistryConfig;
 
 const VALIDATOR_IDENTITY: &str = "validator-identity.yaml";
 const VFN_IDENTITY: &str = "vfn-identity.yaml";
@@ -444,6 +444,7 @@ pub struct GenesisConfiguration {
     pub randomness_config_override: Option<OnChainRandomnessConfig>,
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     pub automation_registry_config: Option<AutomationRegistryConfig>,
+    pub leader_ban_registry_config: Option<BanRegistryParameters>,
     pub initial_jwks: Vec<IssuerJWK>,
     pub keyless_groth16_vk: Option<Groth16VerificationKey>,
 }
@@ -670,6 +671,7 @@ impl Builder {
             randomness_config_override: None,
             jwk_consensus_config_override: None,
             automation_registry_config: Some(AutomationRegistryConfig::default()),
+            leader_ban_registry_config: Some(BanRegistryParameters::default()),
             initial_jwks: vec![],
             keyless_groth16_vk: None,
         };

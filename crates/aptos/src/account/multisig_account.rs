@@ -16,10 +16,11 @@ use aptos_rest_client::{
     aptos_api_types::{HexEncodedBytes, WriteResource, WriteSetChange},
     Transaction,
 };
-use aptos_types::transaction::automation::RegistrationParams;
 use aptos_types::{
     account_address::AccountAddress,
-    transaction::{Multisig, MultisigTransactionPayload, TransactionPayload},
+    transaction::{
+        automation::RegistrationParams, Multisig, MultisigTransactionPayload, TransactionPayload,
+    },
 };
 use async_trait::async_trait;
 use bcs::to_bytes;
@@ -170,7 +171,7 @@ impl TryFrom<MultisigPayloadVariants> for MultisigTransactionPayload {
         match value {
             MultisigPayloadVariants::EntryFunction(e) => e.try_into(),
             MultisigPayloadVariants::GaslessAutomationTask(r) => r.try_into(),
-            MultisigPayloadVariants::AutomationTask(r) => r.try_into()
+            MultisigPayloadVariants::AutomationTask(r) => r.try_into(),
         }
     }
 }
@@ -234,7 +235,7 @@ impl TryFrom<AutomationTaskRegistrationArguments> for MultisigTransactionPayload
     type Error = CliError;
 
     fn try_from(
-        value: AutomationTaskRegistrationArguments
+        value: AutomationTaskRegistrationArguments,
     ) -> Result<MultisigTransactionPayload, Self::Error> {
         let automation_function = value.automation_function.try_into()?;
         let registration_params = RegistrationParams::new_user_automation_task_v2(
@@ -251,7 +252,6 @@ impl TryFrom<AutomationTaskRegistrationArguments> for MultisigTransactionPayload
         Ok(multisig_payload)
     }
 }
-
 
 /// Propose a new multisig transaction.
 ///
@@ -270,7 +270,6 @@ pub struct CreateTransaction {
     #[clap(long)]
     pub(crate) store_hash_only: bool,
 }
-
 
 #[async_trait]
 impl CliCommand<TransactionSummary> for CreateTransaction {
@@ -324,8 +323,6 @@ impl SupraCommand for CreateTransaction {
         })
     }
 }
-
-
 
 /// Verify entry function matches on-chain transaction proposal.
 #[derive(Debug, Parser)]

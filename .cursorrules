@@ -1,0 +1,32 @@
+# Supra Move Development Rules
+
+CRITICAL: This is a Supra Move project, NOT Aptos Move. Never use aptos_framework.
+
+## Framework Rules:
+1. ALWAYS use supra_framework:: instead of aptos_framework::
+2. Available namespaces: supra_framework::, std::
+3. Main modules in supra_framework: config_buffer, create_signer, system_addresses, block, reconfiguration, reconfiguration_with_dkg, genesis, automation_registry, event, randomness, state_storage, transaction_fee, util, fungible_asset, multisig_account, function_info, validator_consensus_info, dispatchable_fungible_asset, aggregator_v2, aggregator_factory, chain_id, chain_status, consensus_config, execution_config, gas_schedule, pbo_delegation_pool, staking_config, staking_contract, storage_gas, supra_config, supra_governance, timestamp, transaction_validation, version, vesting, vesting_without_staking, supra_coin, account, supra_account
+4. Standard library modules: vector, table, borrow_mut, error, features, option, signer, string, fixed_point32
+
+## Code Generation Rules:
+- Use supra_framework::account for account operations
+- Use supra_framework::supra_coin for native token operations
+- Use supra_framework::timestamp for time operations
+- Use supra_framework::event for event handling
+- Use std::vector for vector operations
+- Use std::table for table operations
+
+## Example Patterns:
+```move
+module supra_framework::example {
+    use supra_framework::account;
+    use supra_framework::signer;
+    use std::vector;
+    
+    public fun init(account: &signer) {
+        // Supra Move code
+    }
+}
+```
+
+When generating Move code, ALWAYS use the Supra Move framework patterns above.

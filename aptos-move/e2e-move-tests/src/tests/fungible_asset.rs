@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{assert_success, tests::common, BlockSplit, MoveHarness, SUCCESS};
-use aptos_cached_packages::aptos_stdlib::{supra_account_batch_transfer, aptos_coin_transfer};
+use aptos_cached_packages::aptos_stdlib::{aptos_coin_transfer, supra_account_batch_transfer};
 use aptos_language_e2e_tests::{
     account::Account,
     executor::{ExecutorMode, FakeExecutor},
@@ -18,10 +18,6 @@ use move_core_types::{
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::str::FromStr;
-use aptos_cached_packages::aptos_stdlib;
-use aptos_language_e2e_tests::account::TransactionBuilder;
-use aptos_types::account_config::AccountResource;
-use move_core_types::move_resource::MoveStructType;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 struct FungibleStore {
@@ -264,7 +260,7 @@ fn test_prologue_speculation() {
 
     let sink_txn = harness.create_transaction_payload(
         &independent_account,
-        supra_account_batch_transfer(vec![AccountAddress::random(); 50], vec![10_000_000_000; 50]),
+        supra_account_batch_transfer(vec![AccountAddress::random(); 50], vec![10_000; 50]),
     );
 
     let account = harness.new_account_at(AccountAddress::ONE);
@@ -276,7 +272,7 @@ fn test_prologue_speculation() {
         &account,
         supra_account_batch_transfer(
             vec![*dst_1.address(), *dst_2.address(), *dst_3.address()],
-            vec![10_000_000_000, 10_000_000_000, 10_000_000_000],
+            vec![10_000_100_000_000, 10_000_100_000_000, 10_000_100_000_000],
         ),
     );
 

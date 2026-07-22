@@ -142,23 +142,32 @@ pub enum FeatureFlag {
     SUPRA_RLP_ENCODE = 94,
     SUPRA_DELEGATION_POOL_IDENTITY = 95,
     SUPRA_AUTOMATION_V2 = 96,
+    /// This flag should only be enabled after all Validators have updated their keys to the new format, including the BLS keys.
+    SUPRA_BLS_KEYS = 97,
+    SUPRA_BCFT_CERTIFICATES = 98,
+    /// `SUPRA_BLS_KEYS` must be enabled first, as the new validator identity format is a prerequisite for the DKG.
+    /// The default DKG configuration also requires `SUPRA_BCFT_CERTIFICATES` to be enabled first.
+    SUPRA_DKG = 99,
+    SUPRA_TRANSACTIONS_INCLUSION_PROOFS = 100,
+    /// Enables smart contracts to register automation tasks via `register_without_validation`,
+    SUPRA_AUTOMATION_V2_1 = 101,
 
-
-    DERIVABLE_ACCOUNT_ABSTRACTION = 97,
+    DERIVABLE_ACCOUNT_ABSTRACTION = 102,
     /// Whether function values are enabled.
-    ENABLE_FUNCTION_VALUES = 98,
-    NEW_ACCOUNTS_DEFAULT_TO_FA_STORE = 99,
-    DEFAULT_ACCOUNT_RESOURCE = 100,
-    JWK_CONSENSUS_PER_KEY_MODE = 101,
-    TRANSACTION_PAYLOAD_V2 = 102,
-    ORDERLESS_TRANSACTIONS = 103,
+    ENABLE_FUNCTION_VALUES = 103,
+    NEW_ACCOUNTS_DEFAULT_TO_FA_STORE = 104,
+    DEFAULT_ACCOUNT_RESOURCE = 105,
+    JWK_CONSENSUS_PER_KEY_MODE = 106,
+    TRANSACTION_PAYLOAD_V2 = 107,
+    ORDERLESS_TRANSACTIONS = 108,
     // TODO(lazy-loading): Add link to AIP and its number + brief description.
-    ENABLE_LAZY_LOADING = 104,
+    ENABLE_LAZY_LOADING = 109,
 
-    CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION = 105,
-    DISTRIBUTE_TRANSACTION_FEE = 106,
+    CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION = 110,
+    DISTRIBUTE_TRANSACTION_FEE = 111,
 }
 
+//TODO: add dkg feature
 impl FeatureFlag {
     pub fn default_features() -> Vec<Self> {
         vec![
@@ -169,7 +178,7 @@ impl FeatureFlag {
             // Feature flag V6 is used to enable metadata v1 format and needs to stay on, even
             // if we enable a higher version.
             FeatureFlag::VM_BINARY_FORMAT_V6,
-            FeatureFlag::VM_BINARY_FORMAT_V7, // new 
+            FeatureFlag::VM_BINARY_FORMAT_V7, // new
             FeatureFlag::MULTI_ED25519_PK_VALIDATE_V2_NATIVES,
             FeatureFlag::BLAKE2B_256_NATIVE,
             FeatureFlag::RESOURCE_GROUPS,
@@ -226,7 +235,7 @@ impl FeatureFlag {
             FeatureFlag::DISPATCHABLE_FUNGIBLE_ASSET,
             FeatureFlag::_DEPRECATED_REMOVE_DETAILED_ERROR_FROM_HASH,
             // FeatureFlag::NEW_ACCOUNTS_DEFAULT_TO_FA_APT_STORE, // new
-            // FeatureFlag::OPERATIONS_DEFAULT_TO_FA_APT_STORE, // new 
+            // FeatureFlag::OPERATIONS_DEFAULT_TO_FA_APT_STORE, // new
             FeatureFlag::CONCURRENT_FUNGIBLE_ASSETS,
             FeatureFlag::AGGREGATOR_V2_IS_AT_LEAST_API,
             FeatureFlag::CONCURRENT_FUNGIBLE_BALANCE,
@@ -263,6 +272,11 @@ impl FeatureFlag {
             FeatureFlag::SUPRA_COUNT_FAILED_PROPOSALS,
             FeatureFlag::SUPRA_DELEGATION_POOL_IDENTITY,
             FeatureFlag::SUPRA_AUTOMATION_V2,
+            FeatureFlag::SUPRA_BLS_KEYS,
+            FeatureFlag::SUPRA_BCFT_CERTIFICATES,
+            FeatureFlag::SUPRA_DKG,
+            FeatureFlag::SUPRA_TRANSACTIONS_INCLUSION_PROOFS,
+            FeatureFlag::SUPRA_AUTOMATION_V2_1,
         ]
     }
 }
@@ -465,6 +479,10 @@ impl Features {
         } else {
             file_format_common::VERSION_5
         }
+    }
+
+    pub fn is_supra_automation_v2_1_enabled(&self) -> bool {
+        self.is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2_1)
     }
 }
 

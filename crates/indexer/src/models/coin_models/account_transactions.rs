@@ -12,7 +12,7 @@ use crate::{
     schema::account_transactions,
     util::standardize_address,
 };
-use aptos_api_types::{DeleteResource, Event, Transaction, WriteResource, WriteSetChange};
+use aptos_api_types::{DeleteResource, EventV1, Transaction, WriteResource, WriteSetChange};
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -87,7 +87,7 @@ impl AccountTransaction {
 
     /// Base case, record event account address. We don't really have to worry about
     /// objects here because it'll be taken care of in the resource section
-    fn from_event(event: &Event, txn_version: i64) -> HashMap<AccountTransactionPK, Self> {
+    fn from_event(event: &EventV1, txn_version: i64) -> HashMap<AccountTransactionPK, Self> {
         let account_address = standardize_address(&event.guid.account_address.to_string());
         HashMap::from([((account_address.clone(), txn_version), Self {
             transaction_version: txn_version,

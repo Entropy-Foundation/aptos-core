@@ -6,7 +6,9 @@ use aptos_crypto::{ed25519, Uniform};
 use aptos_infallible::duration_since_epoch;
 use aptos_reliable_broadcast::BroadcastStatus;
 use aptos_types::{
-    dkg::{real_dkg::RealDKG, DKGSessionMetadata, DKGTrait, DKGTranscript, DKGTranscriptMetadata},
+    aptos_dkg::{
+        real_dkg::RealDKG, DKGSessionMetadata, DKGTrait, DKGTranscript, DKGTranscriptMetadata,
+    },
     epoch_state::EpochState,
     on_chain_config::OnChainRandomnessConfig,
     validator_verifier::{

@@ -262,6 +262,7 @@ pub fn fetch_mainnet_genesis_info(git_options: GitOptions) -> CliTypedResult<Mai
             initial_jwks: vec![],
             keyless_groth16_vk: None,
             automation_registry_config: layout.automation_registry_config.clone(),
+            leader_ban_registry_config: layout.leader_ban_registry_config.clone(),
         },
     )?)
 }
@@ -310,6 +311,7 @@ pub fn fetch_genesis_info(git_options: GitOptions) -> CliTypedResult<GenesisInfo
             initial_jwks: layout.initial_jwks.clone(),
             keyless_groth16_vk: layout.keyless_groth16_vk_override.clone(),
             automation_registry_config: layout.automation_registry_config.clone(),
+            leader_ban_registry_config: layout.leader_ban_registry_config.clone(),
         },
     )?)
 }

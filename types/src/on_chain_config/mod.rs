@@ -8,7 +8,7 @@ use crate::{
     event::{EventHandle, EventKey},
     state_store::{state_key::StateKey, StateView},
 };
-use anyhow::{format_err, Result};
+use anyhow::{format_err, Context, Result};
 use bytes::Bytes;
 use move_core_types::{
     account_address::AccountAddress,
@@ -27,17 +27,18 @@ mod automation_registry;
 mod chain_id;
 mod commit_history;
 mod consensus_config;
+mod evm_config;
 mod evm_genesis_config;
 mod execution_config;
 mod gas_schedule;
 mod jwk_consensus_config;
+mod leader_ban_registry;
 pub mod randomness_api_v0_config;
 mod randomness_config;
 mod timed_features;
 mod timestamp;
 mod transaction_fee;
 mod validator_set;
-
 pub use self::{
     approved_execution_hashes::ApprovedExecutionHashes,
     aptos_features::*,
@@ -46,13 +47,22 @@ pub use self::{
     },
     automation_registry::{
         AutomationCycleDetails, AutomationCycleEvent, AutomationCycleInfo, AutomationCycleState,
-        AutomationRegistryConfig, AutomationRegistryConfigV1, AutomationRegistryConfigV2, AutomationCycleTransitionState
+        AutomationCycleTransitionState, AutomationRegistryConfig, AutomationRegistryConfigV1,
+        AutomationRegistryConfigV2,
     },
     commit_history::CommitHistoryResource,
     consensus_config::{
         AnchorElectionMode, ConsensusAlgorithmConfig, ConsensusConfigV1, DagConsensusConfigV1,
         LeaderReputationType, OnChainConsensusConfig, ProposerAndVoterConfig, ProposerElectionType,
         ValidatorTxnConfig, DEFAULT_ENABLED_WINDOW_SIZE, DEFAULT_WINDOW_SIZE,
+    },
+    evm_config::{
+        evm_address_as_account_address, EvmContractName, EvmScalarConfigKey, OnChainEvmConfig,
+        OnChainEvmContractsDetails,
+    },
+    evm_genesis_config::{
+        ContractKind, GenesisEvmContract, GenesisEvmEOA, OnChainEvmGenesisConfig,
+        EVM_GENESIS_EVENT_MOVE_TYPE_TAG,
     },
     execution_config::{
         BlockGasLimitType, ExecutionConfigV1, ExecutionConfigV2, ExecutionConfigV4,
@@ -62,6 +72,7 @@ pub use self::{
     jwk_consensus_config::{
         ConfigV1 as JWKConsensusConfigV1, OIDCProvider, OnChainJWKConsensusConfig,
     },
+    leader_ban_registry::{BanRegistryParameters, BanRegistryParametersV0},
     randomness_config::{
         OnChainRandomnessConfig, RandomnessConfigMoveStruct, RandomnessConfigSeqNum,
     },
@@ -69,7 +80,6 @@ pub use self::{
     timestamp::CurrentTimeMicroseconds,
     transaction_fee::TransactionFeeBurnCap,
     validator_set::{ConsensusScheme, ValidatorSet},
-    evm_genesis_config::{OnChainEvmGenesisConfig, GenesisEvmContract, GenesisEvmEOA, EVM_GENESIS_EVENT_MOVE_TYPE_TAG},
 };
 
 /// To register an on-chain config in Rust:

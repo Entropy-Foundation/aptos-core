@@ -3,15 +3,20 @@
 
 use self::real_dkg::RealDKG;
 use crate::{
-    dkg::real_dkg::{rounding::DKGRoundingProfile, Transcripts},
+    dkg::{
+        dkg_committee::DkgCommittee,
+        real_dkg::{rounding::DKGRoundingProfile, Transcripts},
+    },
     on_chain_config::{OnChainConfig, OnChainRandomnessConfig, RandomnessConfigMoveStruct},
+    validator_public_keys::ValidatorPublicKeys,
     validator_verifier::{
         ValidatorConsensusInfo, ValidatorConsensusInfoMoveStruct, ValidatorVerifier,
     },
 };
-use anyhow::{Context, Result};
-use aptos_crypto::Uniform;
+use anyhow::{anyhow, Context, Result};
+use aptos_crypto::{bls12381::PublicKey, Uniform};
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
+use crypto::utils::get_clan_node_indices;
 use move_core_types::{
     account_address::AccountAddress, ident_str, identifier::IdentStr, language_storage::TypeTag,
     move_resource::MoveStructType,
@@ -24,6 +29,16 @@ use std::{
     fmt::{Debug, Formatter},
     time::Duration,
 };
+
+pub mod dummy_dkg;
+pub mod real_dkg;
+
+pub type DefaultDKG = RealDKG;
+
+pub mod dkg_committee;
+pub mod events;
+pub mod state;
+pub mod transactions;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, CryptoHasher, BCSCryptoHash)]
 pub struct DKGTranscriptMetadata {
@@ -174,7 +189,6 @@ pub trait MayHaveRoundingSummary {
     fn rounding_summary(&self) -> Option<&RoundingSummary>;
 }
 
-/// NOTE: this is a subset of the full scheme. Some data items/algorithms are not used in DKG and are omitted.
 pub trait DKGTrait: Debug {
     type DealerPrivateKey;
     type PublicParams: Clone + Debug + Send + Sync + MayHaveRoundingSummary;
@@ -229,7 +243,48 @@ pub trait DKGTrait: Debug {
     fn get_dealers(transcript: &Self::Transcript) -> BTreeSet<u64>;
 }
 
-pub mod dummy_dkg;
-pub mod real_dkg;
+/// The threshold required to ensure the presence of honest majority in clan where
+/// N = 2f+1 with f byzantine nodes
+fn clan_threshold(total: u64) -> u64 {
+    total / 2 + 1
+}
 
-pub type DefaultDKG = RealDKG;
+pub fn get_clan_nodes_bls_keys_from_indices(
+    dealer_committee: &DkgCommittee,
+    signers: &Vec<u32>,
+    random_seed: &Vec<u8>,
+) -> Result<Vec<PublicKey>> {
+    let committee = dealer_committee.committee();
+    let dealer_clan_committee_indices =
+        get_clan_node_indices(committee.len() as u32, random_seed.clone());
+
+    let mut clan_committee_bls_keys = Vec::new();
+    if let Some(clan_committee_indices) = dealer_clan_committee_indices {
+        let clan_threshold = clan_threshold(clan_committee_indices.len() as u64);
+
+        if signers.len() as u64 != clan_threshold {
+            return Err(anyhow!("dkg::number of signers must match clan_threshold"));
+        }
+
+        for signer in signers {
+            let clan_node_index = clan_committee_indices
+                .get(*signer as usize)
+                .ok_or(anyhow!("dkg::node Invalid signer index: {signer}"))?;
+            let clan_node_key = committee
+                .get(*clan_node_index)
+                .ok_or(anyhow!("dkg::node Invalid clan node index: {signer}"))?
+                .dkg_pubkey();
+            let clan_node_pk = ValidatorPublicKeys::try_from(clan_node_key).map_err(|e| {
+                anyhow!("dkg::node validator public key deserialization failed: {e}")
+            })?;
+            let clan_node_bls_pubkey_bytes = clan_node_pk.supra_keys().bls_multisig_key();
+            let clan_node_bls_pubkey =
+                PublicKey::try_from(clan_node_bls_pubkey_bytes.as_slice())
+                    .map_err(|e| anyhow!("dkg::node bls public key deserialization failed: {e}"))?;
+            clan_committee_bls_keys.push(clan_node_bls_pubkey);
+        }
+        Ok(clan_committee_bls_keys)
+    } else {
+        Err(anyhow!("dkg::cannot derive clan committee"))
+    }
+}

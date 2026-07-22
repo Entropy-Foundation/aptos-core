@@ -23,6 +23,19 @@ module aptos_std::copyable_any {
         }
     }
 
+    /// Construct an `Any` directly from a pre-known type-name string and
+    /// already-BCS-encoded data bytes.  Use this only when the type name is
+    /// obtained from a trusted source (e.g. `type_info::type_name<T>()` or a
+    /// constant produced by the same) and the data bytes are the BCS encoding
+    /// of a value of that type.  Prefer `pack<T>` whenever the concrete type
+    /// is statically known at the call site, as it is safer and self-validating.
+    ///
+    /// This constructor exists primarily for genesis and governance scripts that
+    /// receive pre-serialised values from the Rust layer.
+    public fun new(type_name: String, data: vector<u8>): Any {
+        Any { type_name, data }
+    }
+
     /// Unpack a value from the `Any` representation. This aborts if the value has not the expected type `T`.
     public fun unpack<T>(self: Any): T {
         assert!(type_info::type_name<T>() == self.type_name, error::invalid_argument(ETYPE_MISMATCH));
@@ -32,6 +45,13 @@ module aptos_std::copyable_any {
     /// Returns the type name of this Any
     public fun type_name(self: &Any): &String {
         &self.type_name
+    }
+
+    /// Returns true if the BCS-encoded data payload is empty.
+    /// An Any value with an empty data vector cannot be decoded and should
+    /// be treated as invalid by callers.
+    public fun is_empty(x: &Any): bool {
+        std::vector::is_empty(&x.data)
     }
 
     #[test_only]

@@ -1,43 +1,50 @@
-// Copyright (c) Aptos Foundation
-// SPDX-License-Identifier: Apache-2.0
-
 // Copyright (c) 2024 Supra.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::aptos_vm::{unwrap_or_discard, SerializedSigners};
-use crate::counters::TXN_GAS_USAGE;
-use crate::errors::discarded_output;
-use crate::gas::{check_gas, make_prod_gas_meter};
-use crate::move_vm_ext::session::user_transaction_sessions::epilogue::EpilogueSession;
-use crate::move_vm_ext::session::user_transaction_sessions::prologue::PrologueSession;
-use crate::move_vm_ext::session::user_transaction_sessions::user::UserSession;
-use crate::move_vm_ext::{AptosMoveResolver, SessionExt};
-use crate::transaction_metadata::TransactionMetadata;
-use crate::{transaction_validation, AptosVM};
+use crate::{
+    aptos_vm::{unwrap_or_discard, SerializedSigners},
+    counters::TXN_GAS_USAGE,
+    errors::discarded_output,
+    gas::{check_gas, make_prod_gas_meter},
+    move_vm_ext::{
+        session::user_transaction_sessions::{
+            epilogue::EpilogueSession, prologue::PrologueSession,
+            session_change_sets::SystemSessionChangeSet, user::UserSession,
+        },
+        AptosMoveResolver, SessionExt,
+    },
+    transaction_metadata::TransactionMetadata,
+    transaction_validation, AptosVM,
+};
 use aptos_gas_algebra::Gas;
 use aptos_gas_meter::{AptosGasMeter, GasAlgebra};
 use aptos_gas_schedule::VMGasParameters;
-use aptos_types::fee_statement::FeeStatement;
-use aptos_types::on_chain_config::FeatureFlag;
-use aptos_types::transaction::automated_transaction::AutomatedTransaction;
-use aptos_types::transaction::automation::AutomationTaskType;
-use aptos_types::transaction::{
-    EntryFunction, ExecutionStatus, TransactionPayload, TransactionStatus,
+use aptos_types::{
+    fee_statement::FeeStatement,
+    on_chain_config::FeatureFlag,
+    transaction::{
+        automated_transaction::AutomatedTransaction, automation::AutomationTaskType, EntryFunction,
+        ExecutionStatus, TransactionPayload, TransactionStatus,
+    },
 };
 use aptos_vm_logging::log_schema::AdapterLogSchema;
-use aptos_vm_types::output::VMOutput;
-use aptos_vm_types::storage::change_set_configs::ChangeSetConfigs;
-use aptos_vm_types::storage::StorageGasParameters;
+use aptos_vm_types::{
+    change_set::VMChangeSet,
+    module_and_script_storage::{
+        code_storage::AptosCodeStorage, module_storage::AptosModuleStorage,
+    },
+    output::VMOutput,
+    resolver::BlockSynchronizationKillSwitch,
+    storage::{change_set_configs::ChangeSetConfigs, StorageGasParameters},
+};
 use fail::fail_point;
 use move_binary_format::errors::Location;
 use move_core_types::vm_status::{StatusCode, VMStatus};
-use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
+use move_vm_runtime::{
+    module_traversal::{TraversalContext, TraversalStorage},
+    LoadedFunction, ModuleStorage,
+};
 use std::ops::Deref;
-use aptos_vm_types::module_and_script_storage::code_storage::AptosCodeStorage;
-use aptos_vm_types::module_and_script_storage::module_storage::AptosModuleStorage;
-use aptos_vm_types::resolver::BlockSynchronizationKillSwitch;
-use move_vm_runtime::ModuleStorage;
-use crate::move_vm_ext::session::user_transaction_sessions::session_change_sets::SystemSessionChangeSet;
 
 pub struct AutomatedTransactionProcessor<'m> {
     aptos_vm: &'m AptosVM,
@@ -82,10 +89,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             false,
             log_context,
         )?;
-        if self
-            .features()
-            .is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2)
-        {
+        if self.features().is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2) {
             transaction_validation::run_automated_transaction_prologue_v2(
                 session,
                 module_storage,
@@ -183,8 +187,15 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         );
 
         gas_meter.charge_intrinsic_gas_for_transaction(txn_data.transaction_size())?;
-        session.execute(|session| {
-            self.validate_and_execute_entry_function(
+
+        // Phase 1: load the function and validate arguments.
+        // Failures here mean the registered payload became permanently invalid after
+        // registration (e.g., module removed, function renamed, or signature changed
+        // by an upgrade). Tagged as INVALID_AUTOMATION_INNER_PAYLOAD so that
+        // execute_transaction_impl can distinguish pre-execution failures from transient
+        // execution failures and discard without charging any gas.
+        let (function, args) = session.execute(|session| {
+            self.load_and_validate_entry_function(
                 code_storage,
                 session,
                 serialized_signers,
@@ -192,6 +203,24 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 traversal_context,
                 entry_function,
             )
+            .map_err(|e| {
+                VMStatus::error(
+                    StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD,
+                    Some(format!(
+                        "Automated task inner payload became invalid at execution time: {e:?}"
+                    )),
+                )
+            })
+        })?;
+
+        // Phase 2: execute the entry function body.
+        // Failures here (ABORTED, OUT_OF_GAS, etc.) are transient execution errors
+        // and flow through the normal failure-epilogue path with gas charged.
+        session.execute(|session| {
+            session
+                .execute_loaded_function(function, args, gas_meter, traversal_context, code_storage)
+                .map(|_| ())
+                .map_err(|e| e.into_vm_status())
         })?;
 
         let user_session_change_set = self.resolve_pending_code_publish_and_finish_user_session(
@@ -238,7 +267,6 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         change_set_configs: &ChangeSetConfigs,
         traversal_context: &mut TraversalContext,
     ) -> (VMStatus, VMOutput) {
-
         self.failed_transaction_cleanup(
             prologue_change_set,
             err,
@@ -251,6 +279,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             traversal_context,
         )
     }
+
     pub(crate) fn execute_transaction_impl<'a>(
         &self,
         resolver: &impl AptosMoveResolver,
@@ -264,8 +293,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         let mut traversal_context = TraversalContext::new(&traversal_storage);
 
         // Revalidate the transaction.
-        let mut prologue_session =
-            PrologueSession::new(self.aptos_vm, &txn_data, resolver);
+        let mut prologue_session = PrologueSession::new(self.aptos_vm, &txn_data, resolver);
 
         let exec_result = prologue_session.execute(|session| {
             self.validate_automated_transaction(
@@ -281,13 +309,7 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         let storage_gas_params = unwrap_or_discard!(self.storage_gas_params(log_context));
         let change_set_configs = &storage_gas_params.change_set_configs;
         let (prologue_change_set, user_session) = unwrap_or_discard!(prologue_session
-            .into_user_session(
-                self,
-                &txn_data,
-                resolver,
-                change_set_configs,
-                code_storage,
-            ));
+            .into_user_session(self, &txn_data, resolver, change_set_configs, code_storage,));
         let TransactionPayload::EntryFunction(automated_entry_function) = txn.payload() else {
             return (
                 VMStatus::error(StatusCode::INVALID_AUTOMATED_PAYLOAD, None),
@@ -320,6 +342,27 @@ impl<'m> AutomatedTransactionProcessor<'m> {
         TXN_GAS_USAGE.observe(u64::from(gas_usage) as f64);
 
         result.unwrap_or_else(|err| {
+            // True only [FeatureFlag::SUPRA_AUTOMATION_V2_1] is enabled: which enables task registration without validation
+            // Pre-execution failure: the task's registered payload is permanently invalid
+            // (function signature is invalid, function is missing or arguments do not match expected ones).
+            // The entry function body never ran so no execution gas was consumed. Skip the failure epilogue
+            // entirely — discarded_output produces FeeStatement::zero() and an empty
+            // change set so no fees are charged and no state is committed.
+            //
+            // Note: Before [FeatureFlag::SUPRA_AUTOMATION_V2_1] during task registration inner payload is always verified
+            // and in case of failure task will never be actually registered.
+            // So potentially this error should never be registered for a task which is registered with validation flow.
+            // And if for some reason it is registered, then user will be charged with whatever gas was used so far.
+            if err.status_code() == StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD
+                && self
+                    .features()
+                    .is_enabled(FeatureFlag::SUPRA_AUTOMATION_V2_1)
+            {
+                return (
+                    err,
+                    discarded_output(StatusCode::INVALID_AUTOMATION_INNER_PAYLOAD),
+                );
+            }
             self.on_transaction_execution_failure(
                 prologue_change_set,
                 err,
@@ -360,8 +403,14 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             balance,
             code_storage,
         );
-        let (status, output) =
-            self.execute_transaction_impl(resolver, code_storage, txn, txn_metadata, &mut gas_meter, log_context);
+        let (status, output) = self.execute_transaction_impl(
+            resolver,
+            code_storage,
+            txn,
+            txn_metadata,
+            &mut gas_meter,
+            log_context,
+        );
 
         Ok((status, output, gas_meter))
     }
@@ -423,10 +472,8 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             }
         }
 
-        let txn_status = TransactionStatus::from_vm_status(
-            error_vm_status.clone(),
-            self.features(),
-        );
+        let txn_status =
+            TransactionStatus::from_vm_status(error_vm_status.clone(), self.features());
 
         match txn_status {
             TransactionStatus::Keep(status) => {
@@ -436,17 +483,19 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 // gas). Even if the previous failure occurred while running the epilogue, it
                 // should not fail now. If it somehow fails here, there is no choice but to
                 // discard the transaction.
-                let txn_output = self.finish_aborted_transaction(
-                    prologue_change_set,
-                    gas_meter,
-                    txn_data,
-                    resolver,
-                    module_storage,
-                    status,
-                    log_context,
-                    change_set_configs,
-                    traversal_context,
-                ).unwrap_or_else(|status| discarded_output(status.status_code()));
+                let txn_output = self
+                    .finish_aborted_transaction(
+                        prologue_change_set,
+                        gas_meter,
+                        txn_data,
+                        resolver,
+                        module_storage,
+                        status,
+                        log_context,
+                        change_set_configs,
+                        traversal_context,
+                    )
+                    .unwrap_or_else(|status| discarded_output(status.status_code()));
                 (error_vm_status, txn_output)
             },
             TransactionStatus::Discard(status_code) => {
@@ -483,7 +532,8 @@ impl<'m> AutomatedTransactionProcessor<'m> {
             module_storage,
             traversal_context,
             log_context,
-            status);
+            status,
+        );
 
         let fee_statement =
             AptosVM::fee_statement_from_gas_meter(txn_data, gas_meter, ZERO_STORAGE_REFUND);
@@ -500,8 +550,12 @@ impl<'m> AutomatedTransactionProcessor<'m> {
                 traversal_context,
             )
         })?;
-        epilogue_session
-            .finish(self.get_fee_statement_for_output(fee_statement), status, change_set_configs, module_storage)
+        epilogue_session.finish(
+            self.get_fee_statement_for_output(fee_statement),
+            status,
+            change_set_configs,
+            module_storage,
+        )
     }
 
     /// The actual charged fee statement for executed automated transaction.
@@ -511,12 +565,8 @@ impl<'m> AutomatedTransactionProcessor<'m> {
     /// This function is utilized to define fee-statement of VMOutput.
     fn get_fee_statement_for_output(&self, fee_statement: FeeStatement) -> FeeStatement {
         match self.task_type {
-            AutomationTaskType::User => {
-                fee_statement
-            }
-            AutomationTaskType::System => {
-                FeeStatement::zero()
-            }
+            AutomationTaskType::User => fee_statement,
+            AutomationTaskType::System => FeeStatement::zero(),
         }
     }
 }

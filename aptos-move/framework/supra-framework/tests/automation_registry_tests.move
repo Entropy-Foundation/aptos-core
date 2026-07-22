@@ -12,7 +12,7 @@ module std::automation_registry_tests {
     use supra_framework::multisig_account;
     use supra_framework::automation_registry::{
         check_task_priority, check_cycle_state_and_duration, check_next_task_index_to_be_processed,
-        calculate_automation_fee_multiplier_for_committed_occupancy, AutomationRegistryConfigV2,
+        calculate_automation_fee_multiplier_for_committed_occupancy, AutomationRegistryConfigV2, check_locked_fee,
     };
     use supra_framework::coin;
     use supra_framework::config_buffer;
@@ -114,6 +114,8 @@ module std::automation_registry_tests {
     const EREGISTRY_SYSTEM_MAX_GAS_CAP_NON_ZERO: u64 = 46;
     /// The input address is not identified as multisig account.
     const EUNKNOWN_MULTISIG_ADDRESS: u64 = 47;
+    /// Supra automation v2.1 feature is not enabled.
+    const EDISABLED_AUTOMATION_V2_1_FEATURE: u64 = 49;
 
     /// Constants describing CYCLE state.
     /// State transition flow is:
@@ -2841,11 +2843,12 @@ module std::automation_registry_tests {
         });
 
         // 0.002 (*4) - automation_epoch_fee_per_second, 7200 epoch duration
-        let expected_automation_fee = 4 * (max_gas_amount * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100000);
-        expected_current_balance = expected_current_balance - expected_automation_fee;
-        expected_registry_balance = expected_registry_balance + expected_automation_fee;
-        check_account_balance(user_account, expected_current_balance );
-        check_account_balance( registry_fee_address, expected_registry_balance );
+        let expected_automation_fees = 4 * (max_gas_amount * EPOCH_INTERVAL_FOR_TEST_IN_SECS / 100000);
+        expected_current_balance = expected_current_balance - expected_automation_fees;
+        expected_registry_balance = expected_registry_balance + expected_automation_fees;
+        check_account_balance(user_account, expected_current_balance);
+        check_account_balance(registry_fee_address, expected_registry_balance);
+        check_locked_fee(expected_automation_fees);
 
         timestamp::update_global_time_for_test_secs(
             EPOCH_INTERVAL_FOR_TEST_IN_SECS + (EPOCH_INTERVAL_FOR_TEST_IN_SECS / 2)
@@ -2869,6 +2872,8 @@ module std::automation_registry_tests {
         expected_registry_balance = expected_registry_balance - expected_refund;
         check_account_balance(user_account, expected_current_balance);
         check_account_balance(registry_fee_address, expected_registry_balance);
+        // locked cycle fees are deducted by the full cycle fee amount for the user
+        check_locked_fee((expected_automation_fees * 3) / 4);
 
         // Add and stop the task in the same epoch. Task index will be 4
         assert!(automation_registry::get_next_task_index() == 4, 1);
@@ -2903,6 +2908,8 @@ module std::automation_registry_tests {
         expected_refund = automation_fee_cap / REFUND_FACTOR;
         check_account_balance(user_account, expected_current_balance + expected_refund);
         check_account_balance(registry_fee_address, expected_registry_balance - expected_refund);
+        // As long as the task was not active, no locked fee for it will be unlocked
+        check_locked_fee((expected_automation_fees * 3) / 4);
     }
 
     #[test(framework = @supra_framework, user = @0x1cafe, user2 = @0x1cafa)]
@@ -4048,58 +4055,78 @@ module std::automation_registry_tests {
         initialize_registry_test(framework, user);
         let (multisig_address, multisig_signer) = setup_multisig_account(framework, user);
         automation_registry::grant_authorization(framework, multisig_address);
+        let max_gas_amount = 10;
 
         let _ = automation_registry::register_system_task_with_state(
             &multisig_signer,
-            10,
+            max_gas_amount,
             86400,
             ACTIVE
         );
         let _ = automation_registry::register_system_task_with_state(
             &multisig_signer,
-            10,
+            max_gas_amount,
             86400,
             ACTIVE
         );
-        // check account balances after registration
+        // check account balances after registration, no charges are expected
         let registry_fee_address = automation_registry::get_registry_fee_address();
         let user_address = address_of(user);
         check_account_balance(user_address, ACCOUNT_BALANCE);
         check_account_balance(multisig_address, ACCOUNT_BALANCE);
         check_account_balance(registry_fee_address, REGISTRY_DEFAULT_BALANCE);
 
-        assert!(20 == automation_registry::get_system_gas_committed_for_next_cycle(), 1);
+        assert!((2 * max_gas_amount) == automation_registry::get_system_gas_committed_for_next_cycle(), 1);
         let active_task_ids = automation_registry::get_active_task_ids();
         let expected_ids = vector<u64>[0, 1];
         vector::for_each(expected_ids, |task_index| {
             assert!(vector::contains(&active_task_ids, &task_index), 1);
         });
 
-        // Cancel task 2. The committed gas for the next epoch will be updated,
+        let system_task_ids = automation_registry::get_system_task_indexes();
+        vector::for_each(expected_ids, |task_index| {
+            assert!(vector::contains(&system_task_ids, &task_index), 1);
+        });
+        // Cancel second registered task . The committed gas for the next cycle by system tasks will be updated,
         // but when requested active task it will be still available in the list
         automation_registry::cancel_system_task(&multisig_signer, 1);
         // Task will be still available in the registry but with cancelled state
         automation_registry::check_task_state(1, true, CANCELLED);
 
-        assert!(10 == automation_registry::get_system_gas_committed_for_next_cycle(), 1);
+        assert!(max_gas_amount == automation_registry::get_system_gas_committed_for_next_cycle(), 1);
         let active_task_ids = automation_registry::get_active_task_ids();
         vector::for_each(expected_ids, |task_index| {
             assert!(vector::contains(&active_task_ids, &task_index), 1);
+       });
+        let system_task_ids = automation_registry::get_system_task_indexes();
+        vector::for_each(expected_ids, |task_index| {
+            assert!(vector::contains(&system_task_ids, &task_index), 1);
         });
 
-        // Add and cancel the task in the same epoch. Task index will be 4
+        // Add and cancel the task in the same cycle. Task index will be 2
         assert!(automation_registry::get_next_task_index() == 2, 1);
         automation_registry::register_system_task_with_state(&multisig_signer,
             10,
             86400,
             PENDING,
         );
+        let expected_system_ids = vector<u64>[0, 1, 2];
+        let system_task_ids = automation_registry::get_system_task_indexes();
+        vector::for_each(expected_ids, |task_index| {
+            assert!(vector::contains(&system_task_ids, &task_index), 1);
+        });
         automation_registry::cancel_system_task(&multisig_signer, 2);
-        assert!(10 == automation_registry::get_system_gas_committed_for_next_cycle(), 1);
+        assert!(max_gas_amount == automation_registry::get_system_gas_committed_for_next_cycle(), 1);
         let active_task_ids = automation_registry::get_active_task_ids();
         vector::for_each(expected_ids, |task_index| {
             assert!(vector::contains(&active_task_ids, &task_index), 1);
         });
+        let expected_system_ids = vector<u64>[0, 1];
+        let system_task_ids = automation_registry::get_system_task_indexes();
+        vector::for_each(expected_ids, |task_index| {
+            assert!(vector::contains(&system_task_ids, &task_index), 1);
+        });
+
         // there is no task with index 2 and the next task index will be 3.
         assert!(!automation_registry::has_task_with_id(2), 1);
         assert!(automation_registry::get_next_task_index() == 3, 1);
@@ -4202,7 +4229,7 @@ module std::automation_registry_tests {
     }
 
     #[test(framework = @supra_framework, user = @0x1caff)]
-    fun check_system_task_successful_stopped(
+    fun check_system_task_successfully_stopped(
         framework: &signer,
         user: &signer
     ) {
@@ -4259,7 +4286,12 @@ module std::automation_registry_tests {
             assert!(vector::contains(&active_task_ids, &task_index), 2);
         });
 
-        // 0.002 (*4) - automation_epoch_fee_per_second, 7200 epoch duration
+        let system_task_ids = automation_registry::get_system_task_indexes();
+        vector::for_each(expected_ids, |task_index| {
+            assert!(vector::contains(&active_task_ids, &task_index), 2);
+        });
+
+        // No fees are charged
         check_account_balance( multisig_address, ACCOUNT_BALANCE );
         check_account_balance(user_account, ACCOUNT_BALANCE );
         check_account_balance( registry_fee_address, REGISTRY_DEFAULT_BALANCE );
@@ -4311,7 +4343,7 @@ module std::automation_registry_tests {
         assert!(automation_registry::get_next_task_index() == 5, 1);
         assert!(3 * max_gas_amount == automation_registry::get_system_gas_committed_for_next_cycle(), 1);
 
-        // Check balances after test execution
+        // Check balances after test execution, no fees are charged or refunded.
         check_account_balance(multisig_address, ACCOUNT_BALANCE);
         check_account_balance(user_account, ACCOUNT_BALANCE);
         check_account_balance(registry_fee_address, REGISTRY_DEFAULT_BALANCE);
@@ -4394,6 +4426,130 @@ module std::automation_registry_tests {
         automation_registry::revoke_authorization(framework, multisig_address);
         assert!(!automation_registry::is_authorized_account(multisig_address), 3);
         assert!(automation_registry::is_authorized_account(multisig_address2), 4);
+    }
+
+    // -------------------------------------------------------------------------
+    // Tests for register_without_validation (SUPRA_AUTOMATION_V2_1 feature)
+    // -------------------------------------------------------------------------
+
+    /// `register_without_validation` must abort with EDISABLED_AUTOMATION_V2_1_FEATURE when
+    /// SUPRA_AUTOMATION_V2_1 is not enabled.  SUPRA_NATIVE_AUTOMATION and SUPRA_AUTOMATION_V2
+    /// are both enabled by `initialize_registry_test`, but V2_1 is deliberately omitted.
+    #[test(supra_framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = EDISABLED_AUTOMATION_V2_1_FEATURE, location = automation_registry)]
+    fun test_register_without_validation_v2_1_feature_disabled(
+        supra_framework: &signer,
+        user: &signer,
+    ) {
+        initialize_registry_test(supra_framework, user);
+        toggle_custom_feature_flags(
+            supra_framework,
+            vector[features::get_supra_automation_v2_1_feature()],
+            false,
+        );
+        // Expiry must be after the current time plus at least one cycle duration.
+        let expiry_time = EPOCH_INTERVAL_FOR_TEST_IN_SECS + 86400;
+        automation_registry::register_without_validation(
+            user,
+            PAYLOAD,
+            expiry_time,
+            10_000,
+            100,
+            1_000,
+            AUX_DATA,
+        );
+    }
+
+    /// When SUPRA_AUTOMATION_V2_1 is enabled, `register_without_validation` calls
+    /// `get_txn_app_hash()` which requires a real user transaction context.  In a Move unit
+    /// test that context does not exist, so the native function aborts with
+    /// error::invalid_state(ETRANSACTION_CONTEXT_NOT_AVAILABLE) = 196609.
+    #[test(supra_framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = 196609, location = supra_framework::transaction_context)]
+    fun test_register_without_validation_aborts_outside_txn_context(
+        supra_framework: &signer,
+        user: &signer,
+    ) {
+        initialize_registry_test(supra_framework, user);
+        // Enable V2_1 so the feature guard passes; the native should then abort because
+        // there is no real user transaction context in a unit test.
+        toggle_custom_feature_flags(
+            supra_framework,
+            vector[features::get_supra_automation_v2_1_feature()],
+            true,
+        );
+        let expiry_time = EPOCH_INTERVAL_FOR_TEST_IN_SECS + 86400;
+        automation_registry::register_without_validation(
+            user,
+            PAYLOAD,
+            expiry_time,
+            10_000,
+            100,
+            1_000,
+            AUX_DATA,
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Tests for register_system_task_without_validation (SUPRA_AUTOMATION_V2_1 feature)
+    // -------------------------------------------------------------------------
+
+    /// `register_system_task_without_validation` must abort with EDISABLED_AUTOMATION_V2_1_FEATURE
+    /// when SUPRA_AUTOMATION_V2_1 is not enabled.  `initialize_registry_test` enables
+    /// SUPRA_NATIVE_AUTOMATION and SUPRA_AUTOMATION_V2 but deliberately omits V2_1.
+    /// The V2_1 guard fires before any authorization or registry logic is reached, so
+    /// the caller does not need to be an authorized multisig account for this test.
+    #[test(supra_framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = EDISABLED_AUTOMATION_V2_1_FEATURE, location = automation_registry)]
+    fun test_register_system_task_without_validation_v2_1_feature_disabled(
+        supra_framework: &signer,
+        user: &signer,
+    ) {
+        initialize_registry_test(supra_framework, user);
+        toggle_custom_feature_flags(
+            supra_framework,
+            vector[features::get_supra_automation_v2_1_feature()],
+            false,
+        );
+        // V2_1 is not enabled, the function must abort immediately.
+        let expiry_time = EPOCH_INTERVAL_FOR_TEST_IN_SECS + 86400;
+        automation_registry::register_system_task_without_validation(
+            user,
+            PAYLOAD,
+            expiry_time,
+            10_000,
+            SYS_AUX_DATA,
+        );
+    }
+
+    /// When SUPRA_AUTOMATION_V2_1 is enabled, `register_system_task_without_validation` calls
+    /// `transaction_context::get_transaction_consensus_hash()` to obtain the registering
+    /// transaction's consensus hash.  That native requires a real user transaction context which
+    /// does not exist in a Move unit test, so the call aborts with
+    /// error::invalid_state(ETRANSACTION_CONTEXT_NOT_AVAILABLE) = 196609.
+    /// The abort happens before authorization or registry checks, so no multisig setup is needed.
+    #[test(supra_framework = @supra_framework, user = @0x1cafe)]
+    #[expected_failure(abort_code = 196609, location = supra_framework::transaction_context)]
+    fun test_register_system_task_without_validation_aborts_outside_txn_context(
+        supra_framework: &signer,
+        user: &signer,
+    ) {
+        initialize_registry_test(supra_framework, user);
+        // Enable V2_1 so the feature guard passes; the native consensus-hash getter then
+        // aborts because there is no real transaction context available in unit tests.
+        toggle_custom_feature_flags(
+            supra_framework,
+            vector[features::get_supra_automation_v2_1_feature()],
+            true,
+        );
+        let expiry_time = EPOCH_INTERVAL_FOR_TEST_IN_SECS + 86400;
+        automation_registry::register_system_task_without_validation(
+            user,
+            PAYLOAD,
+            expiry_time,
+            10_000,
+            SYS_AUX_DATA,
+        );
     }
 
 }

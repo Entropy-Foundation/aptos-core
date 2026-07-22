@@ -3,6 +3,9 @@
 
 # Module `0x1::dkg`
 
+Deprecated. Replaced by supra_dkg. Retained because the module has already been deployed to
+production.
+
 DKG on-chain states and helper functions.
 
 
@@ -196,20 +199,20 @@ The completed and in-progress DKG sessions.
 ## Constants
 
 
-<a id="0x1_dkg_EDKG_IN_PROGRESS"></a>
-
-
-
-<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_IN_PROGRESS">EDKG_IN_PROGRESS</a>: u64 = 1;
-</code></pre>
-
-
-
 <a id="0x1_dkg_EDKG_NOT_IN_PROGRESS"></a>
 
 
 
 <pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_NOT_IN_PROGRESS">EDKG_NOT_IN_PROGRESS</a>: u64 = 2;
+</code></pre>
+
+
+
+<a id="0x1_dkg_EDKG_IN_PROGRESS"></a>
+
+
+
+<pre><code><b>const</b> <a href="dkg.md#0x1_dkg_EDKG_IN_PROGRESS">EDKG_IN_PROGRESS</a>: u64 = 1;
 </code></pre>
 
 
@@ -237,7 +240,7 @@ Called in genesis to initialize on-chain states.
             supra_framework,
             <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
                 last_completed: std::option::none(),
-                in_progress: std::option::none(),
+                in_progress: std::option::none()
             }
         );
     }
@@ -269,26 +272,25 @@ Abort if a DKG is already in progress.
     dealer_epoch: u64,
     <a href="randomness_config.md#0x1_randomness_config">randomness_config</a>: RandomnessConfig,
     dealer_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;ValidatorConsensusInfo&gt;,
-    target_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;ValidatorConsensusInfo&gt;,
+    target_validator_set: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;ValidatorConsensusInfo&gt;
 ) <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
     <b>let</b> dkg_state = <b>borrow_global_mut</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
     <b>let</b> new_session_metadata = <a href="dkg.md#0x1_dkg_DKGSessionMetadata">DKGSessionMetadata</a> {
         dealer_epoch,
         <a href="randomness_config.md#0x1_randomness_config">randomness_config</a>,
         dealer_validator_set,
-        target_validator_set,
+        target_validator_set
     };
     <b>let</b> start_time_us = <a href="timestamp.md#0x1_timestamp_now_microseconds">timestamp::now_microseconds</a>();
-    dkg_state.in_progress = std::option::some(<a href="dkg.md#0x1_dkg_DKGSessionState">DKGSessionState</a> {
-        metadata: new_session_metadata,
-        start_time_us,
-        transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[],
-    });
+    dkg_state.in_progress = std::option::some(
+        <a href="dkg.md#0x1_dkg_DKGSessionState">DKGSessionState</a> {
+            metadata: new_session_metadata,
+            start_time_us,
+            transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>[]
+        }
+    );
 
-    emit(<a href="dkg.md#0x1_dkg_DKGStartEvent">DKGStartEvent</a> {
-        start_time_us,
-        session_metadata: new_session_metadata,
-    });
+    emit(<a href="dkg.md#0x1_dkg_DKGStartEvent">DKGStartEvent</a> { start_time_us, session_metadata: new_session_metadata });
 }
 </code></pre>
 
@@ -316,7 +318,10 @@ Abort if DKG is not in progress.
 
 <pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="dkg.md#0x1_dkg_finish">finish</a>(transcript: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;) <b>acquires</b> <a href="dkg.md#0x1_dkg_DKGState">DKGState</a> {
     <b>let</b> dkg_state = <b>borrow_global_mut</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
-    <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&dkg_state.in_progress), <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="dkg.md#0x1_dkg_EDKG_NOT_IN_PROGRESS">EDKG_NOT_IN_PROGRESS</a>));
+    <b>assert</b>!(
+        <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(&dkg_state.in_progress),
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="dkg.md#0x1_dkg_EDKG_NOT_IN_PROGRESS">EDKG_NOT_IN_PROGRESS</a>)
+    );
     <b>let</b> session = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_extract">option::extract</a>(&<b>mut</b> dkg_state.in_progress);
     session.transcript = transcript;
     dkg_state.last_completed = <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_some">option::some</a>(session);
@@ -417,7 +422,21 @@ Return the dealer epoch of a <code><a href="dkg.md#0x1_dkg_DKGSessionState">DKGS
 
 
 
-<pre><code><b>invariant</b> [suspendable] <a href="chain_status.md#0x1_chain_status_is_operating">chain_status::is_operating</a>() ==&gt; <b>exists</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
+<pre><code><b>invariant</b> [suspendable] <a href="chain_status.md#0x1_chain_status_is_operating">chain_status::is_operating</a>() ==&gt;
+    <b>exists</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
+</code></pre>
+
+
+
+
+<a id="0x1_dkg_has_incomplete_session"></a>
+
+
+<pre><code><b>fun</b> <a href="dkg.md#0x1_dkg_has_incomplete_session">has_incomplete_session</a>(): bool {
+   <b>if</b> (<b>exists</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework)) {
+       <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_spec_is_some">option::spec_is_some</a>(<b>global</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework).in_progress)
+   } <b>else</b> { <b>false</b> }
+}
 </code></pre>
 
 
@@ -470,21 +489,6 @@ Return the dealer epoch of a <code><a href="dkg.md#0x1_dkg_DKGSessionState">DKGS
 <pre><code><b>requires</b> <b>exists</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework);
 <b>requires</b> <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(<b>global</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework).in_progress);
 <b>aborts_if</b> <b>false</b>;
-</code></pre>
-
-
-
-
-<a id="0x1_dkg_has_incomplete_session"></a>
-
-
-<pre><code><b>fun</b> <a href="dkg.md#0x1_dkg_has_incomplete_session">has_incomplete_session</a>(): bool {
-   <b>if</b> (<b>exists</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework)) {
-       <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_spec_is_some">option::spec_is_some</a>(<b>global</b>&lt;<a href="dkg.md#0x1_dkg_DKGState">DKGState</a>&gt;(@supra_framework).in_progress)
-   } <b>else</b> {
-       <b>false</b>
-   }
-}
 </code></pre>
 
 

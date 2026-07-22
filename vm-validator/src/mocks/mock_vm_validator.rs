@@ -6,11 +6,12 @@ use crate::vm_validator::TransactionValidation;
 use anyhow::Result;
 use aptos_types::{
     account_address::AccountAddress,
+    dkg::transactions::DKGTransactionData,
     state_store::StateView,
     transaction::{SignedTransaction, VMValidatorResult},
     vm_status::StatusCode,
 };
-use aptos_vm::VMValidator;
+use aptos_vm::{move_vm_ext::AptosMoveResolver, VMValidator};
 use move_vm_runtime::ModuleStorage;
 
 pub const ACCOUNT_DNE_TEST_ADD: AccountAddress =
@@ -37,6 +38,14 @@ impl VMValidator for MockVMValidator {
         _transaction: SignedTransaction,
         _state_view: &impl StateView,
         _module_storage: &impl ModuleStorage,
+    ) -> VMValidatorResult {
+        VMValidatorResult::new(None, 0)
+    }
+
+    fn validate_dkg_validator_transaction(
+        &self,
+        _transaction: DKGTransactionData,
+        _resolver: &impl AptosMoveResolver,
     ) -> VMValidatorResult {
         VMValidatorResult::new(None, 0)
     }

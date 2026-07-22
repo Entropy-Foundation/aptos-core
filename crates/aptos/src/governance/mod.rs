@@ -14,7 +14,10 @@ use crate::{
         utils::prompt_yes_with_override,
     },
     governance::utils::*,
-    move_tool::{FrameworkPackageArgs, IncludedArtifacts},
+    move_tool::{
+        FrameworkPackageArgs, IncludedArtifacts,
+        IncludedArtifacts::{All, Sparse},
+    },
     CliCommand, CliResult,
 };
 use aptos_api_types::ViewFunction;
@@ -50,15 +53,13 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
-    fmt::Formatter,
+    fmt::{Display, Formatter},
     fs,
     path::{Path, PathBuf},
+    str::FromStr,
 };
-use std::fmt::Display;
-use std::str::FromStr;
 use supra_aptos::{SupraCommand, SupraCommandArguments};
 use tempfile::TempDir;
-use crate::move_tool::IncludedArtifacts::{All, Sparse};
 
 /// Tool for on-chain governance
 ///
@@ -425,22 +426,24 @@ impl SupraCommand for SubmitProposal {
 
         let payload = if self.args.is_multi_step {
             aptos_stdlib::supra_governance_supra_create_proposal_v2(
-                    script_hash.to_vec(),
-                    self.args.metadata_url.to_string().as_bytes().to_vec(),
-                    metadata_hash.to_hex().as_bytes().to_vec(),
-                    true,
-                )
+                script_hash.to_vec(),
+                self.args.metadata_url.to_string().as_bytes().to_vec(),
+                metadata_hash.to_hex().as_bytes().to_vec(),
+                true,
+            )
         } else {
-          aptos_stdlib::supra_governance_supra_create_proposal(
-                    script_hash.to_vec(),
-                    self.args.metadata_url.to_string().as_bytes().to_vec(),
-                    metadata_hash.to_hex().as_bytes().to_vec(),
-                )
+            aptos_stdlib::supra_governance_supra_create_proposal(
+                script_hash.to_vec(),
+                self.args.metadata_url.to_string().as_bytes().to_vec(),
+                metadata_hash.to_hex().as_bytes().to_vec(),
+            )
         };
         Ok(SupraCommandArguments {
             payload,
             sender_account: self.args.txn_options.sender_account,
-            profile_options: supra_aptos::ProfileOptions::from(self.args.txn_options.profile_options),
+            profile_options: supra_aptos::ProfileOptions::from(
+                self.args.txn_options.profile_options,
+            ),
             rest_options: supra_aptos::RestOptions::from(self.args.txn_options.rest_options),
             gas_options: supra_aptos::GasOptions::from(self.args.txn_options.gas_options),
         })
@@ -727,10 +730,7 @@ impl CliCommand<Vec<TransactionSummary>> for SubmitVote {
         summaries.push(
             self.args
                 .txn_options
-                .submit_transaction(aptos_stdlib::supra_governance_supra_vote(
-                    proposal_id,
-                    vote,
-                ))
+                .submit_transaction(aptos_stdlib::supra_governance_supra_vote(proposal_id, vote))
                 .await
                 .map(TransactionSummary::from)?,
         );
@@ -751,14 +751,13 @@ impl SupraCommand for SubmitVote {
         let vote = self.args.yes;
         let proposal_id = self.args.proposal_id;
 
-        let payload = aptos_stdlib::supra_governance_supra_vote(
-            proposal_id,
-            vote,
-        );
+        let payload = aptos_stdlib::supra_governance_supra_vote(proposal_id, vote);
         Ok(SupraCommandArguments {
             payload,
             sender_account: self.args.txn_options.sender_account,
-            profile_options: supra_aptos::ProfileOptions::from(self.args.txn_options.profile_options),
+            profile_options: supra_aptos::ProfileOptions::from(
+                self.args.txn_options.profile_options,
+            ),
             rest_options: supra_aptos::RestOptions::from(self.args.txn_options.rest_options),
             gas_options: supra_aptos::GasOptions::from(self.args.txn_options.gas_options),
         })
@@ -787,7 +786,9 @@ impl CliCommand<TransactionSummary> for ApproveExecutionHash {
         Ok(self
             .txn_options
             .submit_transaction(
-                aptos_stdlib::supra_governance_add_supra_approved_script_hash_script(self.proposal_id),
+                aptos_stdlib::supra_governance_add_supra_approved_script_hash_script(
+                    self.proposal_id,
+                ),
             )
             .await
             .map(TransactionSummary::from)?)
@@ -797,8 +798,9 @@ impl CliCommand<TransactionSummary> for ApproveExecutionHash {
 #[async_trait]
 impl SupraCommand for ApproveExecutionHash {
     async fn supra_command_arguments(self) -> anyhow::Result<SupraCommandArguments> {
-        let payload =  aptos_stdlib::supra_governance_add_supra_approved_script_hash_script(self.proposal_id);
-        Ok(SupraCommandArguments{
+        let payload =
+            aptos_stdlib::supra_governance_add_supra_approved_script_hash_script(self.proposal_id);
+        Ok(SupraCommandArguments {
             payload,
             sender_account: self.txn_options.sender_account,
             profile_options: supra_aptos::ProfileOptions::from(self.txn_options.profile_options),
@@ -960,7 +962,7 @@ impl SupraCommand for ExecuteProposal {
         let args = vec![TransactionArgument::U64(self.proposal_id)];
         let payload = TransactionPayload::Script(Script::new(bytecode, vec![], args));
 
-        Ok(SupraCommandArguments{
+        Ok(SupraCommandArguments {
             payload,
             sender_account: self.txn_options.sender_account,
             profile_options: supra_aptos::ProfileOptions::from(self.txn_options.profile_options),
@@ -1117,7 +1119,7 @@ impl CliCommand<()> for GenerateUpgradeProposal {
             output,
             testnet,
             next_execution_hash,
-            proposal_type
+            proposal_type,
         } = self;
         let package_path = move_options.get_package_path()?;
         let options = included_artifacts.build_options(&move_options)?;

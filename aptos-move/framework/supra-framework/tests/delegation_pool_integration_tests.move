@@ -14,6 +14,7 @@ module supra_framework::delegation_pool_integration_tests {
     use supra_framework::reconfiguration;
     use supra_framework::pbo_delegation_pool as dp;
     use supra_framework::timestamp;
+    use supra_framework::validator_public_keys;
 
     #[test_only]
     const EPOCH_DURATION: u64 = 60;
@@ -35,9 +36,6 @@ module supra_framework::delegation_pool_integration_tests {
 
     #[test_only]
     const MODULE_EVENT: u64 = 26;
-
-    #[test_only]
-    const CONSENSUS_KEY_1: vector<u8> = x"c1bd3bcb387e4ee9a909f6304a1c9902661b0ecfb1e148c7892b210c7f353dfd";
 
     #[test_only]
     public fun initialize_for_test(supra_framework: &signer) {
@@ -136,7 +134,11 @@ module supra_framework::delegation_pool_integration_tests {
         );
         validator_address = dp::get_owned_pool_address(validator_address);
 
-        stake::rotate_consensus_key(validator, validator_address, CONSENSUS_KEY_1);
+        stake::rotate_consensus_key(
+            validator,
+            validator_address,
+            stake::generate_unique_consensus_pubkey_bytes()
+        );
 
         if (amount > 0) {
             mint_and_add_stake(validator, amount);
@@ -808,8 +810,11 @@ module supra_framework::delegation_pool_integration_tests {
         stake::assert_validator_state(validator_2_address, 100 * ONE_SUPRA, 0, 0, 0, 1);
 
         // Validator 1 rotates consensus key. Validator 2 leaves. Validator 3 joins.
-        let (_sk_1b, _, _) = generate_identity();
-        stake::rotate_consensus_key(validator_1, validator_1_address, CONSENSUS_KEY_1);
+        stake::rotate_consensus_key(
+            validator_1,
+            validator_1_address,
+            stake::generate_unique_consensus_pubkey_bytes()
+        );
         stake::leave_validator_set(validator_2, validator_2_address);
         stake::join_validator_set(validator_3, validator_3_address);
         // Validator 2 is not effectively removed until next epoch.
@@ -876,11 +881,14 @@ module supra_framework::delegation_pool_integration_tests {
         assert!(coin::balance<SupraCoin>(signer::address_of(validator)) == 101 * ONE_SUPRA, 1);
         stake::assert_validator_state(pool_address, 0, 0, 0, 0, 0);
 
-        // Operator can separately rotate consensus key.
-        let (_sk_new, _, _) = generate_identity();
-        stake::rotate_consensus_key(validator, pool_address, CONSENSUS_KEY_1);
+        // Operator can separately rotate consensus key. The submission carries an appended BLS
+        // multisig PoP, which the contract verifies and strips before storing the canonical key.
+        let new_consensus_key = stake::generate_unique_consensus_pubkey_bytes();
+        stake::rotate_consensus_key(validator, pool_address, new_consensus_key);
         let (consensus_pubkey, _, _) = stake::get_validator_config(pool_address);
-        assert!(consensus_pubkey == CONSENSUS_KEY_1, 2);
+        let (expected_stored, _pop) =
+            validator_public_keys::split_consensus_key_and_pop(new_consensus_key);
+        assert!(consensus_pubkey == expected_stored, 2);
 
         // Operator can update network and fullnode addresses.
         stake::update_network_and_fullnode_addresses(validator, pool_address, b"1", b"2");
@@ -1114,7 +1122,11 @@ module supra_framework::delegation_pool_integration_tests {
 
         // Initialize validator config.
         let (_sk_new, _, _) = generate_identity();
-        stake::rotate_consensus_key(validator, validator_address, CONSENSUS_KEY_1);
+        stake::rotate_consensus_key(
+            validator,
+            validator_address,
+            stake::generate_unique_consensus_pubkey_bytes()
+        );
 
         // Join the validator set with enough stake. This now wouldn't fail since the validator config already exists.
         stake::join_validator_set(validator, validator_address);

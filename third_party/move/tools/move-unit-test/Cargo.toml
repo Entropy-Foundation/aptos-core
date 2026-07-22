@@ -53,7 +53,5 @@ name = "move_unit_test_testsuite"
 harness = false
 
 [features]
-table-extension = [
-    "move-vm-test-utils/table-extension"
-]
+table-extension = ["move-vm-test-utils/table-extension"]
 debugging = ["move-vm-runtime/debugging"]

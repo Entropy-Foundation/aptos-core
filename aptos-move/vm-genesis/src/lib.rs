@@ -8,7 +8,7 @@ mod genesis_context;
 
 use crate::genesis_context::GenesisStateView;
 use aptos_crypto::{
-    ed25519,
+    bls12381, ed25519,
     ed25519::{Ed25519PrivateKey, Ed25519PublicKey},
     HashValue, PrivateKey, Uniform,
 };
@@ -36,12 +36,14 @@ use aptos_types::{
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{
         randomness_api_v0_config::{AllowCustomMaxGasFlag, RequiredGasDeposit},
-        AutomationRegistryConfig, FeatureFlag, Features, GasScheduleV2, OnChainConsensusConfig,
+        AutomationRegistryConfig, BanRegistryParameters, FeatureFlag, Features, GasScheduleV2,
+        OnChainConsensusConfig, OnChainEvmConfig, OnChainEvmContractsDetails,
         OnChainEvmGenesisConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig,
         OnChainRandomnessConfig, RandomnessConfigMoveStruct, APTOS_MAX_KNOWN_VERSION,
     },
     state_store::state_key::StateKey,
     transaction::{authenticator::AuthenticationKey, ChangeSet, Transaction, WriteSetPayload},
+    validator_public_keys::ValidatorPublicKeys,
     write_set::{TransactionWrite, WriteOp, WriteSet},
 };
 use aptos_vm::{
@@ -74,10 +76,9 @@ use once_cell::sync::Lazy;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     hash::{Hash, Hasher},
 };
-use std::collections::BTreeMap;
 
 // The seed is arbitrarily picked to produce a consistent key. XXX make this more formal?
 const GENESIS_SEED: [u8; 32] = [42; 32];
@@ -90,7 +91,7 @@ const VERSION_MODULE_NAME: &str = "version";
 const JWK_CONSENSUS_CONFIG_MODULE_NAME: &str = "jwk_consensus_config";
 const JWKS_MODULE_NAME: &str = "jwks";
 const CONFIG_BUFFER_MODULE_NAME: &str = "config_buffer";
-const DKG_MODULE_NAME: &str = "dkg";
+const DKG_MODULE_NAME: &str = "supra_dkg";
 const RANDOMNESS_API_V0_CONFIG_MODULE_NAME: &str = "randomness_api_v0_config";
 const RANDOMNESS_CONFIG_SEQNUM_MODULE_NAME: &str = "randomness_config_seqnum";
 const RANDOMNESS_CONFIG_MODULE_NAME: &str = "randomness_config";
@@ -129,6 +130,7 @@ pub struct GenesisConfiguration {
     pub randomness_config_override: Option<OnChainRandomnessConfig>,
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     pub automation_registry_config: Option<AutomationRegistryConfig>,
+    pub leader_ban_registry_config: Option<BanRegistryParameters>,
     pub initial_jwks: Vec<IssuerJWK>,
     pub keyless_groth16_vk: Option<Groth16VerificationKey>,
 }
@@ -208,26 +210,72 @@ pub fn encode_supra_mainnet_genesis_transaction(
             .map(Features::into_flag_vec),
     );
     initialize_supra_coin(&mut session, &module_storage, &mut traversal_context);
-    initialize_supra_native_automation(&mut session, &module_storage, &mut traversal_context, genesis_config);
-    initialize_on_chain_governance(&mut session, &module_storage, &mut traversal_context, genesis_config);
-    create_accounts(&mut session, &module_storage, &mut traversal_context, accounts);
+    initialize_supra_native_automation(
+        &mut session,
+        &module_storage,
+        &mut traversal_context,
+        genesis_config,
+    );
+    initialize_on_chain_governance(
+        &mut session,
+        &module_storage,
+        &mut traversal_context,
+        genesis_config,
+    );
+    create_accounts(
+        &mut session,
+        &module_storage,
+        &mut traversal_context,
+        accounts,
+    );
 
     if let Some(owner_group) = owner_group {
-        create_multiple_multisig_accounts_with_schema(&mut session, &module_storage, &mut traversal_context, owner_group);
+        create_multiple_multisig_accounts_with_schema(
+            &mut session,
+            &module_storage,
+            &mut traversal_context,
+            owner_group,
+        );
     }
 
-    create_multisig_accounts_with_balance(&mut session, &module_storage, &mut traversal_context, multisig_accounts);
+    create_multisig_accounts_with_balance(
+        &mut session,
+        &module_storage,
+        &mut traversal_context,
+        multisig_accounts,
+    );
 
     // All PBO delegated validators are initialized here
-    create_pbo_delegation_pools(&mut session, &module_storage, &mut traversal_context, delegation_pools);
+    create_pbo_delegation_pools(
+        &mut session,
+        &module_storage,
+        &mut traversal_context,
+        delegation_pools,
+    );
 
-    add_owner_stakes_for_delegation_pools(&mut session, &module_storage, &mut traversal_context, delegation_pools, owner_stake_for_pbo_pool);
+    add_owner_stakes_for_delegation_pools(
+        &mut session,
+        &module_storage,
+        &mut traversal_context,
+        delegation_pools,
+        owner_stake_for_pbo_pool,
+    );
 
     // PBO vesting accounts, employees, investors etc. are placed in their vesting pools
-    create_vesting_without_staking_pools(&mut session, &module_storage, &mut traversal_context, vesting_pools);
+    create_vesting_without_staking_pools(
+        &mut session,
+        &module_storage,
+        &mut traversal_context,
+        vesting_pools,
+    );
 
     // Lock up the remaining available balances of the accounts for TGE
-    create_vesting_without_staking_pools(&mut session, &module_storage, &mut traversal_context, initial_unlock_vesting_pools);
+    create_vesting_without_staking_pools(
+        &mut session,
+        &module_storage,
+        &mut traversal_context,
+        initial_unlock_vesting_pools,
+    );
 
     set_genesis_end(&mut session, &module_storage, &mut traversal_context);
 
@@ -272,6 +320,8 @@ pub fn encode_genesis_transaction_for_testnet(
     gas_schedule: &GasScheduleV2,
     supra_config_bytes: Vec<u8>,
     evm_genesis_config: Option<OnChainEvmGenesisConfig>,
+    evm_contracts_details: Option<OnChainEvmContractsDetails>,
+    evm_scalar_config: Option<OnChainEvmConfig>,
 ) -> Transaction {
     Transaction::GenesisTransaction(WriteSetPayload::Direct(
         encode_genesis_change_set_for_testnet(
@@ -292,6 +342,8 @@ pub fn encode_genesis_transaction_for_testnet(
             gas_schedule,
             supra_config_bytes,
             evm_genesis_config,
+            evm_contracts_details,
+            evm_scalar_config,
         ),
     ))
 }
@@ -314,6 +366,8 @@ pub fn encode_genesis_change_set_for_testnet(
     gas_schedule: &GasScheduleV2,
     supra_config_bytes: Vec<u8>,
     evm_genesis_config: Option<OnChainEvmGenesisConfig>,
+    evm_contracts_details: Option<OnChainEvmContractsDetails>,
+    evm_scalar_config: Option<OnChainEvmConfig>,
 ) -> ChangeSet {
     validate_genesis_config(genesis_config);
     // Create a Move VM session so we can invoke on-chain genesis initializations.
@@ -366,7 +420,12 @@ pub fn encode_genesis_change_set_for_testnet(
     } else {
         initialize_supra_coin(&mut session, &module_storage, &mut traversal_context);
     }
-    initialize_supra_native_automation(&mut session, &module_storage, &mut traversal_context, genesis_config);
+    initialize_supra_native_automation(
+        &mut session,
+        &module_storage,
+        &mut traversal_context,
+        genesis_config,
+    );
     initialize_config_buffer(&mut session, &module_storage, &mut traversal_context);
     initialize_dkg(&mut session, &module_storage, &mut traversal_context);
     initialize_reconfiguration_state(&mut session, &module_storage, &mut traversal_context);
@@ -389,18 +448,56 @@ pub fn encode_genesis_change_set_for_testnet(
         &mut traversal_context,
         genesis_config,
     );
+    initialize_leader_ban_config(
+        &mut session,
+        &module_storage,
+        &mut traversal_context,
+        genesis_config,
+    );
 
     if let Some(evm_genesis_config) = evm_genesis_config {
-        initialize_evm_genesis_config(&mut session, &module_storage, &mut traversal_context, &evm_genesis_config);
+        initialize_evm_genesis_config(
+            &mut session,
+            &module_storage,
+            &mut traversal_context,
+            &evm_genesis_config,
+        );
     }
 
-    create_accounts(&mut session, &module_storage, &mut traversal_context, accounts);
+    if let (Some(evm_contracts_details), Some(evm_scalar_config)) =
+        (evm_contracts_details, evm_scalar_config)
+    {
+        initialize_evm_config(
+            &mut session,
+            &module_storage,
+            &mut traversal_context,
+            evm_contracts_details,
+            evm_scalar_config,
+        );
+    }
+
+    create_accounts(
+        &mut session,
+        &module_storage,
+        &mut traversal_context,
+        accounts,
+    );
 
     if let Some(owner_group) = owner_group {
-        create_multiple_multisig_accounts_with_schema(&mut session, &module_storage, &mut traversal_context, owner_group);
+        create_multiple_multisig_accounts_with_schema(
+            &mut session,
+            &module_storage,
+            &mut traversal_context,
+            owner_group,
+        );
     }
 
-    create_multisig_accounts_with_balance(&mut session, &module_storage, &mut traversal_context, multisig_account);
+    create_multisig_accounts_with_balance(
+        &mut session,
+        &module_storage,
+        &mut traversal_context,
+        multisig_account,
+    );
     initialize_account_abstraction(&mut session, &module_storage, &mut traversal_context);
 
     if validators.len() > 0 {
@@ -412,7 +509,12 @@ pub fn encode_genesis_change_set_for_testnet(
         );
     } else {
         // All PBO delegated validators are initialized here
-        create_pbo_delegation_pools(&mut session, &module_storage, &mut traversal_context, delegation_pools);
+        create_pbo_delegation_pools(
+            &mut session,
+            &module_storage,
+            &mut traversal_context,
+            delegation_pools,
+        );
 
         add_owner_stakes_for_delegation_pools(
             &mut session,
@@ -423,10 +525,20 @@ pub fn encode_genesis_change_set_for_testnet(
         );
 
         // PBO vesting accounts, employees, investors etc. are placed in their vesting pools
-        create_vesting_without_staking_pools(&mut session, &module_storage, &mut traversal_context, vesting_pools);
+        create_vesting_without_staking_pools(
+            &mut session,
+            &module_storage,
+            &mut traversal_context,
+            vesting_pools,
+        );
 
         // Lock up the remaining available balances of the accounts for TGE
-        create_vesting_without_staking_pools(&mut session, &module_storage, &mut traversal_context, initial_unlock_vesting_pools);
+        create_vesting_without_staking_pools(
+            &mut session,
+            &module_storage,
+            &mut traversal_context,
+            initial_unlock_vesting_pools,
+        );
     }
 
     if genesis_config.is_test {
@@ -716,6 +828,26 @@ fn initialize_supra_native_automation(
     );
 }
 
+fn initialize_leader_ban_config(
+    session: &mut SessionExt<impl AptosMoveResolver>,
+    module_storage: &impl AptosModuleStorage,
+    traversal_context: &mut TraversalContext,
+    genesis_config: &GenesisConfiguration,
+) {
+    let Some(config) = &genesis_config.leader_ban_registry_config else {
+        return;
+    };
+    exec_function(
+        session,
+        module_storage,
+        traversal_context,
+        GENESIS_MODULE_NAME,
+        "initialize_leader_ban_registry_config",
+        vec![],
+        config.serialize_into_move_values_with_signer(CORE_CODE_ADDRESS),
+    );
+}
+
 fn initialize_evm_genesis_config(
     session: &mut SessionExt<impl AptosMoveResolver>,
     module_storage: &impl AptosModuleStorage,
@@ -735,6 +867,33 @@ fn initialize_evm_genesis_config(
         serialize_values(&vec![
             MoveValue::Signer(CORE_CODE_ADDRESS),
             MoveValue::vector_u8(evm_genesis_config_bytes),
+        ]),
+    );
+}
+
+fn initialize_evm_config(
+    session: &mut SessionExt<impl AptosMoveResolver>,
+    module_storage: &impl AptosModuleStorage,
+    traversal_context: &mut TraversalContext,
+    evm_contracts_details: OnChainEvmContractsDetails,
+    evm_scalar_config: OnChainEvmConfig,
+) {
+    let (contract_names, contract_addresses) = evm_contracts_details.to_move_values();
+    let (config_keys, config_values) = evm_scalar_config.to_move_values();
+
+    exec_function(
+        session,
+        module_storage,
+        traversal_context,
+        GENESIS_MODULE_NAME,
+        "initialize_evm_config",
+        vec![],
+        serialize_values(&vec![
+            MoveValue::Signer(CORE_CODE_ADDRESS),
+            contract_names,
+            contract_addresses,
+            config_keys,
+            config_values,
         ]),
     );
 }
@@ -1124,8 +1283,8 @@ fn create_accounts(
         exec_function(
             session,
             module_storage,
-        traversal_context,
-        GENESIS_MODULE_NAME,
+            traversal_context,
+            GENESIS_MODULE_NAME,
             "create_accounts",
             vec![],
             serialized_values,
@@ -1137,7 +1296,7 @@ fn create_accounts(
 /// the required accounts, sets the validator operators for each validator owner, and sets the
 /// validator config on-chain.
 fn create_and_initialize_validators(
-    session: &mut SessionExt<impl AptosMoveResolver>, 
+    session: &mut SessionExt<impl AptosMoveResolver>,
     module_storage: &impl ModuleStorage,
     traversal_context: &mut TraversalContext,
     validators: &[Validator],
@@ -1213,7 +1372,6 @@ fn create_multiple_multisig_accounts_with_schema(
 }
 
 fn create_multisig_accounts_with_balance(
-
     session: &mut SessionExt<impl AptosMoveResolver>,
     module_storage: &impl AptosModuleStorage,
     traversal_context: &mut TraversalContext,
@@ -1628,7 +1786,35 @@ impl TestValidator {
         let auth_key = AuthenticationKey::ed25519(&key.public_key());
         let owner_address = auth_key.account_address();
         let consensus_key = ed25519::PrivateKey::generate(rng);
-        let consensus_pubkey = consensus_key.public_key().to_bytes().to_vec();
+        let network_pubkey_bytes = consensus_key.public_key().to_bytes().to_vec();
+        let bls_key = bls12381::PrivateKey::generate(rng);
+        let bls_pubkey_bytes = bls12381::PublicKey::from(&bls_key).to_bytes().to_vec();
+        let cg_pubkey_bytes = {
+            let mut cg_rng = crypto::bls12381::cl_utils::rng();
+            crypto::bls12381::cg_encryption::keygen(&mut cg_rng, &[])
+                .expect("CG keygen must succeed")
+                .1
+                .to_vec()
+        };
+        let supra_ed_key = ed25519::PrivateKey::generate(rng);
+        let supra_ed_pubkey_bytes = supra_ed_key.public_key().to_bytes().to_vec();
+        // When SUPRA_BLS_KEYS feature is enabled (default), the genesis validator key must be
+        // BCS-encoded ValidatorPublicKeys, not a plain ed25519 key.
+        let validator_public_keys = ValidatorPublicKeys::new(
+            network_pubkey_bytes,
+            bls_pubkey_bytes,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            cg_pubkey_bytes,
+            supra_ed_pubkey_bytes,
+        );
+        let consensus_pubkey =
+            bcs::to_bytes(&validator_public_keys).expect("ValidatorPublicKeys must serialize");
         let network_address = [0u8; 0].to_vec();
         let full_node_network_address = [0u8; 0].to_vec();
 
@@ -1695,6 +1881,7 @@ pub fn generate_test_genesis(
             randomness_config_override: None,
             jwk_consensus_config_override: None,
             automation_registry_config: Some(AutomationRegistryConfig::default()),
+            leader_ban_registry_config: Some(BanRegistryParameters::default()),
             initial_jwks: vec![],
             keyless_groth16_vk: None,
         },
@@ -1702,6 +1889,8 @@ pub fn generate_test_genesis(
         &OnChainExecutionConfig::default_for_genesis(),
         &default_gas_schedule(),
         b"test".to_vec(),
+        None,
+        None,
         None,
     );
     (genesis, test_validators)
@@ -1734,6 +1923,8 @@ pub fn generate_mainnet_genesis(
         &default_gas_schedule(),
         b"test".to_vec(),
         None,
+        None,
+        None,
     );
     (genesis, test_validators)
 }
@@ -1765,6 +1956,7 @@ fn mainnet_genesis_config() -> GenesisConfiguration {
         randomness_config_override: None,
         jwk_consensus_config_override: None,
         automation_registry_config: Some(AutomationRegistryConfig::default()),
+        leader_ban_registry_config: Some(BanRegistryParameters::default()),
         initial_jwks: vec![],
         keyless_groth16_vk: None,
     }
@@ -1922,8 +2114,10 @@ pub fn test_mainnet_end_to_end() {
         TOTAL_SUPPLY - (21 * pbo_balance) - (7 * operator_balance) - (9 * employee_balance);
 
     use aptos_types::{
-        account_address, on_chain_config::ValidatorSet, state_store::state_key::StateKey,
-        write_set::TransactionWrite, write_set::WriteSet
+        account_address,
+        on_chain_config::ValidatorSet,
+        state_store::state_key::StateKey,
+        write_set::{TransactionWrite, WriteSet},
     };
 
     let balance = 10_000_000 * APTOS_COINS_BASE_WITH_DECIMALS;

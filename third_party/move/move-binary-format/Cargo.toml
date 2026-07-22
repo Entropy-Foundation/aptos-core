@@ -32,5 +32,10 @@ serde_json = { workspace = true }
 
 [features]
 default = []
-fuzzing = ["proptest", "proptest-derive", "arbitrary", "dearbitrary", "move-core-types/fuzzing"]
+fuzzing = [
+  "proptest",
+  "proptest-derive",
+  "arbitrary",
+  "dearbitrary", "move-core-types/fuzzing",
+]
 testing = []

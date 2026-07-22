@@ -191,6 +191,7 @@ fn test_staking_rewards() {
     harness.new_block_with_metadata(validator_2_address, vec![]);
 
     // Enable rewards rate decrease and change rewards config. In production it requires governance.
+    // This also enables the feature as by default is is disabled.
     let core_resources =
         harness.new_account_at(AccountAddress::from_hex_literal("0xA550C18").unwrap());
     let script_code = PROPOSAL_SCRIPTS

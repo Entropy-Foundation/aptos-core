@@ -76,8 +76,8 @@ use std::{
     str::FromStr,
 };
 pub use stored_package::*;
-use tokio::task;
 use supra_aptos::{SupraCommand, SupraCommandArguments};
+use tokio::task;
 use url::Url;
 
 pub mod aptos_debug_natives;
@@ -210,7 +210,8 @@ impl FrameworkPackageArgs {
         prompt_options: PromptOptions,
     ) -> CliTypedResult<()> {
         const SUPRA_FRAMEWORK: &str = "SupraFramework";
-        const SUPRA_FRAMEWORK_GIT_PATH: &str = "https://github.com/Entropy-Foundation/aptos-core.git";
+        const SUPRA_FRAMEWORK_GIT_PATH: &str =
+            "https://github.com/Entropy-Foundation/aptos-core.git";
         const SUBDIR_PATH: &str = "aptos-move/framework/supra-framework";
         const DEFAULT_BRANCH: &str = "dev";
 
@@ -441,7 +442,7 @@ impl CliCommand<Vec<String>> for CompilePackage {
 /// Compiles a Move script into bytecode
 ///
 /// Compiles a script into bytecode and provides a hash of the bytecode.
-/// This can then be run with `aptos move run-script`
+/// This can then be run with `supra move tool run-script`
 #[derive(Parser)]
 pub struct CompileScript {
     #[clap(long, value_parser)]
@@ -532,7 +533,7 @@ pub struct TestPackage {
     )]
     pub instruction_execution_bound: u64,
 
-    /// Collect coverage information for later use with the various `aptos move coverage` subcommands
+    /// Collect coverage information for later use with the various `supra move tool coverage` subcommands
     #[clap(long = "coverage")]
     pub compute_coverage: bool,
 
@@ -638,7 +639,7 @@ impl CliCommand<&'static str> for TestPackage {
             };
             summary.coverage()?;
 
-            println!("Please use `aptos move coverage -h` for more detailed source or bytecode test coverage of this package");
+            println!("Please use `supra move tool coverage -h` for more detailed source or bytecode test coverage of this package");
         }
 
         match result {
@@ -894,10 +895,7 @@ impl FromStr for IncludedArtifacts {
 }
 
 impl IncludedArtifacts {
-    pub fn build_options(
-        self,
-        move_options: &MovePackageOptions,
-    ) -> CliTypedResult<BuildOptions> {
+    pub fn build_options(self, move_options: &MovePackageOptions) -> CliTypedResult<BuildOptions> {
         self.build_options_with_experiments(move_options, vec![], false)
     }
 
@@ -2775,6 +2773,13 @@ impl ArgWithType {
         match self._ty {
             FunctionArgType::Address => self.bcs_value_to_json::<AccountAddress>(),
             FunctionArgType::Bool => self.bcs_value_to_json::<bool>(),
+            // The Supra RPC view endpoint expects a `vector<u8>` argument as a hex string, not a JSON array of bytes.
+            FunctionArgType::Hex if self._vector_depth == 0 => {
+                let bytes = bcs::from_bytes::<Vec<u8>>(&self.arg)
+                    .map_err(|err| CliError::UnexpectedError(err.to_string()))?;
+                serde_json::to_value(HexEncodedBytes(bytes).to_string())
+                    .map_err(|err| CliError::UnexpectedError(err.to_string()))
+            },
             FunctionArgType::Hex => self.bcs_value_to_json::<Vec<u8>>(),
             FunctionArgType::String => self.bcs_value_to_json::<String>(),
             FunctionArgType::U8 => self.bcs_value_to_json::<u8>(),

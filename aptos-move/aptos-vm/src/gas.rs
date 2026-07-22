@@ -11,17 +11,20 @@ use aptos_gas_schedule::{
 };
 use aptos_logger::{enabled, Level};
 use aptos_memory_usage_tracker::MemoryTrackedGasMeter;
-use aptos_types::on_chain_config::{FeatureFlag, Features};
-use aptos_types::transaction::{RawTransaction, TransactionPayload};
-use aptos_types::transaction::automation::RegistrationParams;
+use aptos_types::{
+    on_chain_config::{FeatureFlag, Features},
+    transaction::{automation::RegistrationParams, RawTransaction, TransactionPayload},
+};
 use aptos_vm_logging::{log_schema::AdapterLogSchema, speculative_log, speculative_warn};
 use aptos_vm_types::{
     resolver::BlockSynchronizationKillSwitch,
     storage::{space_pricing::DiskSpacePricing, StorageGasParameters},
 };
-use move_core_types::vm_status::{StatusCode, VMStatus};
+use move_core_types::{
+    gas_algebra::{NumArgs, NumBytes},
+    vm_status::{StatusCode, VMStatus},
+};
 use move_vm_runtime::ModuleStorage;
-use move_core_types::gas_algebra::NumBytes;
 
 /// This is used until gas version 18, which introduces a configurable entry for this.
 const MAXIMUM_APPROVED_TRANSACTION_SIZE_LEGACY: u64 = 1024 * 1024;
@@ -51,7 +54,7 @@ pub fn make_prod_gas_meter<T: BlockSynchronizationKillSwitch>(
 }
 
 /// Invariants facilitating gas checks of the transactions.
-pub (crate) struct TransactionGasCheckInvariants {
+pub(crate) struct TransactionGasCheckInvariants {
     pub(crate) gas_unit_price: FeePerGasUnit,
     pub(crate) max_gas_amount: Gas,
     pub(crate) transaction_size: NumBytes,
@@ -76,7 +79,13 @@ pub(crate) fn check_gas(
         script_size: txn_metadata.script_size,
         is_keyless: txn_metadata.is_keyless(),
     };
-    check_gas_for_parameters(gas_params, gas_feature_version, txn_gas_metadata, is_approved_gov_script, log_context)?;
+    check_gas_for_parameters(
+        gas_params,
+        gas_feature_version,
+        txn_gas_metadata,
+        is_approved_gov_script,
+        log_context,
+    )?;
     let txn_gas_params = &gas_params.vm.txn;
     // If this is for a potentially new account, ensure there's enough gas to cover storage, execution, and IO costs.
     // TODO: This isn't the cleaning code, thus we localize it just here and will remove it
@@ -132,11 +141,11 @@ pub(crate) fn check_automation_task_gas(
     log_context: &AdapterLogSchema,
 ) -> Result<(), VMStatus> {
     if !features.is_enabled(FeatureFlag::SUPRA_AUTOMATION_PAYLOAD_GAS_CHECK) {
-        return Ok(())
+        return Ok(());
     }
-    let size_in_bytes = RawTransaction::estimate_size_in_bytes(
-        TransactionPayload::EntryFunction(registration_params.automated_function().clone()),
-    );
+    let size_in_bytes = RawTransaction::estimate_size_in_bytes(TransactionPayload::EntryFunction(
+        registration_params.automated_function().clone(),
+    ));
     let gas_check_invariants = TransactionGasCheckInvariants {
         gas_unit_price: registration_params.gas_price_cap().into(),
         max_gas_amount: registration_params.max_gas_amount().into(),
@@ -154,33 +163,35 @@ pub(crate) fn check_automation_task_gas(
     match results {
         Ok(_) => Ok(()),
         Err(VMStatus::Error {
-            status_code, sub_status, message
-        } )=> {
+            status_code,
+            sub_status,
+            message,
+        }) => {
             let mapped_status = match status_code {
                 StatusCode::EXCEEDED_MAX_TRANSACTION_SIZE => {
                     StatusCode::AUTOMATION_PAYLOAD_EXCEEDED_MAX_TRANSACTION_SIZE
-                }
+                },
                 StatusCode::MAX_GAS_UNITS_EXCEEDS_MAX_GAS_UNITS_BOUND => {
                     StatusCode::AUTOMATION_TASK_MAX_GAS_UNITS_EXCEEDS_MAX_GAS_UNITS_BOUND
-                }
+                },
                 StatusCode::MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS => {
                     StatusCode::AUTOMATION_TASK_MAX_GAS_UNITS_BELOW_MIN_TRANSACTION_GAS_UNITS
-                }
+                },
                 StatusCode::GAS_UNIT_PRICE_BELOW_MIN_BOUND => {
                     StatusCode::AUTOMATION_TASK_GAS_PRICE_CAP_BELOW_MIN_BOUND
-                }
+                },
                 StatusCode::GAS_UNIT_PRICE_ABOVE_MAX_BOUND => {
                     StatusCode::AUTOMATION_TASK_GAS_PRICE_CAP_ABOVE_MAX_BOUND
-                }
-                _ => status_code
+                },
+                _ => status_code,
             };
             Err(VMStatus::Error {
                 status_code: mapped_status,
                 sub_status,
                 message,
             })
-        }
-        Err(v) =>  Err(v),
+        },
+        Err(v) => Err(v),
     }
 }
 
@@ -242,8 +253,7 @@ pub(crate) fn check_gas_for_parameters(
             log_context,
             format!(
                 "[VM] Gas unit error; max {}, submitted {}",
-                txn_gas_params.maximum_number_of_gas_units,
-                txn_gas_metadata.max_gas_amount
+                txn_gas_params.maximum_number_of_gas_units, txn_gas_metadata.max_gas_amount
             ),
         );
         return Err(VMStatus::error(
@@ -269,8 +279,7 @@ pub(crate) fn check_gas_for_parameters(
             log_context,
             format!(
                 "[VM] Gas unit error; min {}, submitted {}",
-                total_rounded,
-                txn_gas_metadata.max_gas_amount
+                total_rounded, txn_gas_metadata.max_gas_amount
             ),
         );
         return Err(VMStatus::error(
@@ -289,8 +298,7 @@ pub(crate) fn check_gas_for_parameters(
             log_context,
             format!(
                 "[VM] Gas unit error; min {}, submitted {}",
-                txn_gas_params.min_price_per_gas_unit,
-                txn_gas_metadata.gas_unit_price
+                txn_gas_params.min_price_per_gas_unit, txn_gas_metadata.gas_unit_price
             ),
         );
         return Err(VMStatus::error(
@@ -305,8 +313,7 @@ pub(crate) fn check_gas_for_parameters(
             log_context,
             format!(
                 "[VM] Gas unit error; max {}, submitted {}",
-                txn_gas_params.max_price_per_gas_unit,
-                txn_gas_metadata.gas_unit_price
+                txn_gas_params.max_price_per_gas_unit, txn_gas_metadata.gas_unit_price
             ),
         );
         return Err(VMStatus::error(

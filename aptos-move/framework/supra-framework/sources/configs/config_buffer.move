@@ -20,6 +20,7 @@ module supra_framework::config_buffer {
 
     use supra_framework::system_addresses;
 
+    friend supra_framework::evm_config;
     friend supra_framework::evm_genesis_config;
     friend supra_framework::consensus_config;
     friend supra_framework::execution_config;
@@ -33,6 +34,8 @@ module supra_framework::config_buffer {
     friend supra_framework::randomness_config_seqnum;
     friend supra_framework::version;
     friend supra_framework::automation_registry;
+    friend supra_framework::dkg_config;
+    friend supra_framework::leader_ban_registry_config;
 
     /// Config buffer operations failed with permission denied.
     const ESTD_SIGNER_NEEDED: u64 = 1;

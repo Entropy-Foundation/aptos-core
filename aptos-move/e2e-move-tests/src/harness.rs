@@ -40,7 +40,8 @@ use claims::assert_ok;
 use move_core_types::{
     language_storage::{StructTag, TypeTag},
     move_resource::MoveStructType,
-    value::MoveValue,vm_status::VMStatus
+    value::MoveValue,
+    vm_status::VMStatus,
 };
 use move_package::package_hooks::register_package_hooks;
 use once_cell::sync::Lazy;
@@ -56,7 +57,7 @@ use std::{
 // Code representing successful transaction, used for run_block_in_parts_and_check
 pub const SUCCESS: u64 = 0;
 
-const DEFAULT_GAS_UNIT_PRICE: u64 = 100;
+const DEFAULT_GAS_UNIT_PRICE: u64 = 100000;
 
 static CACHED_BUILT_PACKAGES: Lazy<Mutex<HashMap<PathBuf, Arc<anyhow::Result<BuiltPackage>>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
@@ -94,7 +95,7 @@ pub enum BlockSplit {
 }
 
 impl MoveHarness {
-    const DEFAULT_MAX_GAS_PER_TXN: u64 = 2_000_000;
+    const DEFAULT_MAX_GAS_PER_TXN: u64 = 100_000_000;
 
     /// Creates a new harness.
     pub fn new() -> Self {

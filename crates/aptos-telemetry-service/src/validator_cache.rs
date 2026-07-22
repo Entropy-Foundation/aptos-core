@@ -199,7 +199,7 @@ mod tests {
         let validator_info = ValidatorInfo::new(
             PeerId::random(),
             10,
-            ValidatorConfig::new(keypair.public_key, vec![0, 0], vec![0, 0], 2),
+            ValidatorConfig::legacy_new_do_not_use(keypair.public_key, vec![0, 0], vec![0, 0], 2),
         );
         let validator_set = ValidatorSet::new(vec![validator_info]);
 
@@ -242,7 +242,7 @@ mod tests {
         let validator_info = ValidatorInfo::new(
             PeerId::random(),
             10,
-            ValidatorConfig::new(
+            ValidatorConfig::legacy_new_do_not_use(
                 keypair.public_key,
                 bcs::to_bytes(&vec![NetworkAddress::from_str("/dns/a5f3d921730874389bb2f66275f163a5-8f14ad5b5e992c1c.elb.ap-southeast-1.amazonaws.com/tcp/6180/noise-ik/0xc5edf62233096df793b554e1013b07c83d01b3cf50c14ac83a0a7e0cfe340426/handshake/0").unwrap()]).unwrap(),
                 bcs::to_bytes(&vec![NetworkAddress::from_str("/dns/fullnode0.testnet.aptoslabs.com/tcp/6182/noise-ik/0xea19ab47ed9191865f15d85d751ed0663205c0b2f0f465714b1947c023715973/handshake/0").unwrap()]).unwrap(),

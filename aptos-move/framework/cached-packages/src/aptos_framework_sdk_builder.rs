@@ -779,6 +779,11 @@ pub enum EntryFunctionCall {
         amount: u64,
     },
 
+    PboDelegationPoolAdminIncreaseLastUnlockPeriod {
+        pool_address: AccountAddress,
+        additional_periods: u64,
+    },
+
     /// Allows a delegator to delegate its voting power to a voter. If this delegator already has a delegated voter,
     /// this change won't take effects until the next lockup period.
     PboDelegationPoolDelegateVotingPower {
@@ -915,6 +920,15 @@ pub enum EntryFunctionCall {
         unlock_denominator: u64,
         unlock_start_time: u64,
         unlock_duration: u64,
+    },
+
+    PboDelegationPoolUpdateUnlockingScheduleUnchecked {
+        pool_address: AccountAddress,
+        unlock_numerators: Vec<u64>,
+        unlock_denominator: u64,
+        unlock_start_time: u64,
+        unlock_duration: u64,
+        last_unlock_period: u64,
     },
 
     /// Withdraw `amount` of owned inactive stake from the delegation pool at `pool_address`.
@@ -1227,7 +1241,7 @@ pub enum EntryFunctionCall {
     },
 
     /// Change epoch immediately.
-    /// If `RECONFIGURE_WITH_DKG` is enabled and we are in the middle of a DKG,
+    /// If `SUPRA_DKG` is enabled and we are in the middle of a DKG,
     /// stop waiting for DKG and enter the new epoch without randomness.
     ///
     /// WARNING: currently only used by tests. In most cases you should use `reconfigure()` instead.
@@ -1241,12 +1255,12 @@ pub enum EntryFunctionCall {
     /// Manually reconfigure. Called at the end of a governance txn that alters on-chain configs.
     ///
     /// WARNING: this function always ensures a reconfiguration starts, but when the reconfiguration finishes depends.
-    /// - If feature `RECONFIGURE_WITH_DKG` is disabled, it finishes immediately.
+    /// - If feature `SUPRA_DKG` is disabled, it finishes immediately.
     ///   - At the end of the calling transaction, we will be in a new epoch.
-    /// - If feature `RECONFIGURE_WITH_DKG` is enabled, it starts DKG, and the new epoch will start in a block prologue after DKG finishes.
+    /// - If feature `SUPRA_DKG` is enabled, it starts DKG, and the new epoch will start in a block prologue after DKG finishes.
     ///
     /// This behavior affects when an update of an on-chain config (e.g. `ConsensusConfig`, `Features`) takes effect,
-    /// since such updates are applied whenever we enter an new epoch.
+    /// since such updates are applied whenever we enter a new epoch.
     SupraGovernanceReconfigure {},
 
     /// Create a single-step proposal with the backing `stake_pool`.
@@ -1386,6 +1400,11 @@ pub enum EntryFunctionCall {
     /// Call `vest` for many vesting contracts.
     VestingVestMany {
         contract_addresses: Vec<AccountAddress>,
+    },
+
+    VestingWithoutStakingAdminDelayVesting {
+        contract_address: AccountAddress,
+        delay_periods: u64,
     },
 
     /// Withdraw all funds to the preset vesting contract's withdrawal address. This can only be called if the contract
@@ -1947,6 +1966,13 @@ impl EntryFunctionCall {
                 pool_address,
                 amount,
             } => pbo_delegation_pool_add_stake(pool_address, amount),
+            PboDelegationPoolAdminIncreaseLastUnlockPeriod {
+                pool_address,
+                additional_periods,
+            } => pbo_delegation_pool_admin_increase_last_unlock_period(
+                pool_address,
+                additional_periods,
+            ),
             PboDelegationPoolDelegateVotingPower {
                 pool_address,
                 new_voter,
@@ -2061,6 +2087,21 @@ impl EntryFunctionCall {
                 unlock_denominator,
                 unlock_start_time,
                 unlock_duration,
+            ),
+            PboDelegationPoolUpdateUnlockingScheduleUnchecked {
+                pool_address,
+                unlock_numerators,
+                unlock_denominator,
+                unlock_start_time,
+                unlock_duration,
+                last_unlock_period,
+            } => pbo_delegation_pool_update_unlocking_schedule_unchecked(
+                pool_address,
+                unlock_numerators,
+                unlock_denominator,
+                unlock_start_time,
+                unlock_duration,
+                last_unlock_period,
             ),
             PboDelegationPoolWithdraw {
                 pool_address,
@@ -2320,6 +2361,10 @@ impl EntryFunctionCall {
             } => vesting_update_voter(contract_address, new_voter),
             VestingVest { contract_address } => vesting_vest(contract_address),
             VestingVestMany { contract_addresses } => vesting_vest_many(contract_addresses),
+            VestingWithoutStakingAdminDelayVesting {
+                contract_address,
+                delay_periods,
+            } => vesting_without_staking_admin_delay_vesting(contract_address, delay_periods),
             VestingWithoutStakingAdminWithdraw { contract_address } => {
                 vesting_without_staking_admin_withdraw(contract_address)
             },
@@ -4334,6 +4379,27 @@ pub fn pbo_delegation_pool_add_stake(
     ))
 }
 
+pub fn pbo_delegation_pool_admin_increase_last_unlock_period(
+    pool_address: AccountAddress,
+    additional_periods: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("pbo_delegation_pool").to_owned(),
+        ),
+        ident_str!("admin_increase_last_unlock_period").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&pool_address).unwrap(),
+            bcs::to_bytes(&additional_periods).unwrap(),
+        ],
+    ))
+}
+
 /// Allows a delegator to delegate its voting power to a voter. If this delegator already has a delegated voter,
 /// this change won't take effects until the next lockup period.
 pub fn pbo_delegation_pool_delegate_voting_power(
@@ -4721,6 +4787,35 @@ pub fn pbo_delegation_pool_update_unlocking_schedule(
             bcs::to_bytes(&unlock_denominator).unwrap(),
             bcs::to_bytes(&unlock_start_time).unwrap(),
             bcs::to_bytes(&unlock_duration).unwrap(),
+        ],
+    ))
+}
+
+pub fn pbo_delegation_pool_update_unlocking_schedule_unchecked(
+    pool_address: AccountAddress,
+    unlock_numerators: Vec<u64>,
+    unlock_denominator: u64,
+    unlock_start_time: u64,
+    unlock_duration: u64,
+    last_unlock_period: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("pbo_delegation_pool").to_owned(),
+        ),
+        ident_str!("update_unlocking_schedule_unchecked").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&pool_address).unwrap(),
+            bcs::to_bytes(&unlock_numerators).unwrap(),
+            bcs::to_bytes(&unlock_denominator).unwrap(),
+            bcs::to_bytes(&unlock_start_time).unwrap(),
+            bcs::to_bytes(&unlock_duration).unwrap(),
+            bcs::to_bytes(&last_unlock_period).unwrap(),
         ],
     ))
 }
@@ -5727,7 +5822,7 @@ pub fn supra_governance_add_supra_approved_script_hash_script(
 }
 
 /// Change epoch immediately.
-/// If `RECONFIGURE_WITH_DKG` is enabled and we are in the middle of a DKG,
+/// If `SUPRA_DKG` is enabled and we are in the middle of a DKG,
 /// stop waiting for DKG and enter the new epoch without randomness.
 ///
 /// WARNING: currently only used by tests. In most cases you should use `reconfigure()` instead.
@@ -5767,12 +5862,12 @@ pub fn supra_governance_force_end_epoch_test_only() -> TransactionPayload {
 /// Manually reconfigure. Called at the end of a governance txn that alters on-chain configs.
 ///
 /// WARNING: this function always ensures a reconfiguration starts, but when the reconfiguration finishes depends.
-/// - If feature `RECONFIGURE_WITH_DKG` is disabled, it finishes immediately.
+/// - If feature `SUPRA_DKG` is disabled, it finishes immediately.
 ///   - At the end of the calling transaction, we will be in a new epoch.
-/// - If feature `RECONFIGURE_WITH_DKG` is enabled, it starts DKG, and the new epoch will start in a block prologue after DKG finishes.
+/// - If feature `SUPRA_DKG` is enabled, it starts DKG, and the new epoch will start in a block prologue after DKG finishes.
 ///
 /// This behavior affects when an update of an on-chain config (e.g. `ConsensusConfig`, `Features`) takes effect,
-/// since such updates are applied whenever we enter an new epoch.
+/// since such updates are applied whenever we enter a new epoch.
 pub fn supra_governance_reconfigure() -> TransactionPayload {
     TransactionPayload::EntryFunction(EntryFunction::new(
         ModuleId::new(
@@ -6248,6 +6343,27 @@ pub fn vesting_vest_many(contract_addresses: Vec<AccountAddress>) -> Transaction
         ident_str!("vest_many").to_owned(),
         vec![],
         vec![bcs::to_bytes(&contract_addresses).unwrap()],
+    ))
+}
+
+pub fn vesting_without_staking_admin_delay_vesting(
+    contract_address: AccountAddress,
+    delay_periods: u64,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        ModuleId::new(
+            AccountAddress::new([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]),
+            ident_str!("vesting_without_staking").to_owned(),
+        ),
+        ident_str!("admin_delay_vesting").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&contract_address).unwrap(),
+            bcs::to_bytes(&delay_periods).unwrap(),
+        ],
     ))
 }
 
@@ -7551,6 +7667,21 @@ mod decoder {
         }
     }
 
+    pub fn pbo_delegation_pool_admin_increase_last_unlock_period(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(
+                EntryFunctionCall::PboDelegationPoolAdminIncreaseLastUnlockPeriod {
+                    pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
+                    additional_periods: bcs::from_bytes(script.args().get(1)?).ok()?,
+                },
+            )
+        } else {
+            None
+        }
+    }
+
     pub fn pbo_delegation_pool_delegate_voting_power(
         payload: &TransactionPayload,
     ) -> Option<EntryFunctionCall> {
@@ -7782,6 +7913,25 @@ mod decoder {
                     unlock_denominator: bcs::from_bytes(script.args().get(2)?).ok()?,
                     unlock_start_time: bcs::from_bytes(script.args().get(3)?).ok()?,
                     unlock_duration: bcs::from_bytes(script.args().get(4)?).ok()?,
+                },
+            )
+        } else {
+            None
+        }
+    }
+
+    pub fn pbo_delegation_pool_update_unlocking_schedule_unchecked(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(
+                EntryFunctionCall::PboDelegationPoolUpdateUnlockingScheduleUnchecked {
+                    pool_address: bcs::from_bytes(script.args().get(0)?).ok()?,
+                    unlock_numerators: bcs::from_bytes(script.args().get(1)?).ok()?,
+                    unlock_denominator: bcs::from_bytes(script.args().get(2)?).ok()?,
+                    unlock_start_time: bcs::from_bytes(script.args().get(3)?).ok()?,
+                    unlock_duration: bcs::from_bytes(script.args().get(4)?).ok()?,
+                    last_unlock_period: bcs::from_bytes(script.args().get(5)?).ok()?,
                 },
             )
         } else {
@@ -8690,6 +8840,19 @@ mod decoder {
         }
     }
 
+    pub fn vesting_without_staking_admin_delay_vesting(
+        payload: &TransactionPayload,
+    ) -> Option<EntryFunctionCall> {
+        if let TransactionPayload::EntryFunction(script) = payload {
+            Some(EntryFunctionCall::VestingWithoutStakingAdminDelayVesting {
+                contract_address: bcs::from_bytes(script.args().get(0)?).ok()?,
+                delay_periods: bcs::from_bytes(script.args().get(1)?).ok()?,
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn vesting_without_staking_admin_withdraw(
         payload: &TransactionPayload,
     ) -> Option<EntryFunctionCall> {
@@ -9168,6 +9331,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
             Box::new(decoder::pbo_delegation_pool_add_stake),
         );
         map.insert(
+            "pbo_delegation_pool_admin_increase_last_unlock_period".to_string(),
+            Box::new(decoder::pbo_delegation_pool_admin_increase_last_unlock_period),
+        );
+        map.insert(
             "pbo_delegation_pool_delegate_voting_power".to_string(),
             Box::new(decoder::pbo_delegation_pool_delegate_voting_power),
         );
@@ -9227,6 +9394,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "pbo_delegation_pool_update_unlocking_schedule".to_string(),
             Box::new(decoder::pbo_delegation_pool_update_unlocking_schedule),
+        );
+        map.insert(
+            "pbo_delegation_pool_update_unlocking_schedule_unchecked".to_string(),
+            Box::new(decoder::pbo_delegation_pool_update_unlocking_schedule_unchecked),
         );
         map.insert(
             "pbo_delegation_pool_withdraw".to_string(),
@@ -9529,6 +9700,10 @@ static SCRIPT_FUNCTION_DECODER_MAP: once_cell::sync::Lazy<EntryFunctionDecoderMa
         map.insert(
             "vesting_vest_many".to_string(),
             Box::new(decoder::vesting_vest_many),
+        );
+        map.insert(
+            "vesting_without_staking_admin_delay_vesting".to_string(),
+            Box::new(decoder::vesting_without_staking_admin_delay_vesting),
         );
         map.insert(
             "vesting_without_staking_admin_withdraw".to_string(),
