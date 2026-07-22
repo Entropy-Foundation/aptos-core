@@ -61,9 +61,9 @@ pub use self::{
         OnChainEvmContractsDetails,
     },
     evm_genesis_config::{
-        ContractKind, GenesisEvmContract, GenesisEvmEOA, OnChainEvmGenesisConfig,
-        EVM_GENESIS_EVENT_MOVE_TYPE_TAG,
-    },
+        ContractKind, GenesisEvmContract, TransactionKind, GenesisEvmTransaction, GenesisEvmEOA, OnChainEvmGenesisConfig,
+        EVM_GENESIS_EVENT_MOVE_TYPE_TAG
+    },    
     execution_config::{
         BlockGasLimitType, ExecutionConfigV1, ExecutionConfigV2, ExecutionConfigV4,
         OnChainExecutionConfig, TransactionDeduperType, TransactionShufflerType,

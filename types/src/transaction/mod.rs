@@ -61,7 +61,9 @@ pub mod webauthn;
 pub use self::block_epilogue::{BlockEndInfo, BlockEpiloguePayload, FeeDistribution};
 use crate::{
     block_metadata_ext::BlockMetadataExt,
+   
     contract_event::TransactionEvent,
+   
     executable::ModulePath,
     fee_statement::FeeStatement,
     function_info::FunctionInfo,
@@ -69,12 +71,14 @@ use crate::{
     move_utils::MemberId,
     on_chain_config::{FeatureFlag, Features},
     proof::accumulator::InMemoryEventAccumulator,
+    serde_helper::vec_bytes,
     state_store::{state_key::StateKey, state_value::StateValue},
     transaction::{
         automated_transaction::AutomatedTransaction,
         automation::{AutomationRegistryRecord, RegistrationParams},
     },
     validator_txn::ValidatorTransaction,
+   
     write_set::TransactionWrite,
 };
 pub use block_output::BlockOutput;

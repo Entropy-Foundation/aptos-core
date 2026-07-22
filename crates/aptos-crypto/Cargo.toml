@@ -59,11 +59,6 @@ static_assertions = { workspace = true }
 thiserror = { workspace = true }
 tiny-keccak = { workspace = true }
 typenum = { workspace = true }
-utoipa = { features = [
-  "non_strict_integers",
-  "preserve_order",
-  "uuid",
-], optional = true, workspace = true }
 x25519-dalek = { workspace = true }
 
 [dev-dependencies]

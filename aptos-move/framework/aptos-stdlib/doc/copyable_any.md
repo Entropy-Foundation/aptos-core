@@ -9,8 +9,10 @@
 -  [Constants](#@Constants_0)
 -  [Function `pack`](#0x1_copyable_any_pack)
 -  [Function `new`](#0x1_copyable_any_new)
+-  [Function `new`](#0x1_copyable_any_new)
 -  [Function `unpack`](#0x1_copyable_any_unpack)
 -  [Function `type_name`](#0x1_copyable_any_type_name)
+-  [Function `is_empty`](#0x1_copyable_any_is_empty)
 -  [Function `is_empty`](#0x1_copyable_any_is_empty)
 -  [Specification](#@Specification_1)
     -  [Function `pack`](#@Specification_1_pack)
@@ -23,6 +25,7 @@
 <b>use</b> <a href="from_bcs.md#0x1_from_bcs">0x1::from_bcs</a>;
 <b>use</b> <a href="../../move-stdlib/doc/string.md#0x1_string">0x1::string</a>;
 <b>use</b> <a href="type_info.md#0x1_type_info">0x1::type_info</a>;
+<b>use</b> <a href="../../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 <b>use</b> <a href="../../move-stdlib/doc/vector.md#0x1_vector">0x1::vector</a>;
 </code></pre>
 
@@ -99,6 +102,39 @@ also required from <code>T</code>.
         type_name: <a href="type_info.md#0x1_type_info_type_name">type_info::type_name</a>&lt;T&gt;(),
         data: <a href="../../move-stdlib/doc/bcs.md#0x1_bcs_to_bytes">bcs::to_bytes</a>(&x)
     }
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_copyable_any_new"></a>
+
+## Function `new`
+
+Construct an <code><a href="copyable_any.md#0x1_copyable_any_Any">Any</a></code> directly from a pre-known type-name string and
+already-BCS-encoded data bytes.  Use this only when the type name is
+obtained from a trusted source (e.g. <code><a href="type_info.md#0x1_type_info_type_name">type_info::type_name</a>&lt;T&gt;()</code> or a
+constant produced by the same) and the data bytes are the BCS encoding
+of a value of that type.  Prefer <code><a href="copyable_any.md#0x1_copyable_any_pack">pack</a>&lt;T&gt;</code> whenever the concrete type
+is statically known at the call site, as it is safer and self-validating.
+
+This constructor exists primarily for genesis and governance scripts that
+receive pre-serialised values from the Rust layer.
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="copyable_any.md#0x1_copyable_any_new">new</a>(type_name: <a href="../../move-stdlib/doc/string.md#0x1_string_String">string::String</a>, data: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="copyable_any.md#0x1_copyable_any_Any">copyable_any::Any</a>
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="copyable_any.md#0x1_copyable_any_new">new</a>(type_name: String, data: <a href="../../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): <a href="copyable_any.md#0x1_copyable_any_Any">Any</a> {
+    <a href="copyable_any.md#0x1_copyable_any_Any">Any</a> { type_name, data }
 }
 </code></pre>
 

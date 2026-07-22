@@ -33,6 +33,16 @@ SUPRA_ETH_TRIE feature APIs are disabled.
 
 
 
+<a id="0x1_eth_trie_ETH_TRIE_ROOT_HASH_LENGTH"></a>
+
+The trie root hash must be exactly 32 bytes (a keccak256 / H256 hash).
+
+
+<pre><code><b>const</b> <a href="eth_trie.md#0x1_eth_trie_ETH_TRIE_ROOT_HASH_LENGTH">ETH_TRIE_ROOT_HASH_LENGTH</a>: u64 = 32;
+</code></pre>
+
+
+
 <a id="0x1_eth_trie_verify_eth_trie_inclusion_proof"></a>
 
 ## Function `verify_eth_trie_inclusion_proof`
@@ -119,6 +129,11 @@ Note: no inclusion or exclusion checks are done
     proof: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;&gt;
 ): (bool, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;) {
     <b>assert</b>!(<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_eth_trie_enabled">features::supra_eth_trie_enabled</a>(), <a href="eth_trie.md#0x1_eth_trie_EETH_TRIE_FEATURE_DISABLED">EETH_TRIE_FEATURE_DISABLED</a>);
+    // A wrong-length root cannot match <a href="../../aptos-stdlib/doc/any.md#0x1_any">any</a> trie node, so reject it <b>as</b> an invalid proof
+    // before reaching the <b>native</b> (which also guards against this).
+    <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_length">vector::length</a>(&root) != <a href="eth_trie.md#0x1_eth_trie_ETH_TRIE_ROOT_HASH_LENGTH">ETH_TRIE_ROOT_HASH_LENGTH</a>) {
+        <b>return</b> (<b>false</b>, <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_empty">vector::empty</a>&lt;u8&gt;())
+    };
     <a href="eth_trie.md#0x1_eth_trie_native_verify_proof_eth_trie">native_verify_proof_eth_trie</a>(root, key, proof)
 }
 </code></pre>

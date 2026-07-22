@@ -7,6 +7,7 @@
 pub mod access_path;
 pub mod account_address;
 pub mod account_config;
+pub mod aptos_dkg;
 pub mod block_info;
 pub mod block_metadata;
 pub mod block_metadata_ext;

@@ -882,12 +882,6 @@ impl AptosVM {
             self.mark_unbiasable(session);
         }
 
-        if is_approved_gov_script {
-            // If governance is honest then it will not attempt test-and-abort attacks to abuse
-            // randomness.
-            self.mark_unbiasable(session);
-        }
-
         session.execute_loaded_function(func, args, gas_meter, traversal_context, code_storage)?;
         Ok(())
     }
@@ -1875,7 +1869,6 @@ impl AptosVM {
                 module_storage,
             )?;
         }
-
         // Account Abstraction dispatchable authentication.
         let senders = transaction_data.senders();
         let proofs = transaction_data.authentication_proofs();
@@ -1988,7 +1981,6 @@ impl AptosVM {
             // randomness.
             self.mark_unbiasable(session);
         }
-
         // The prologue MUST be run AFTER any validation. Otherwise you may run prologue and hit
         // SEQUENCE_NUMBER_TOO_NEW if there is more than one transaction from the same sender and
         // end up skipping validation.
@@ -3350,7 +3342,6 @@ impl VMValidator for AptosVM {
 
         result
     }
-
     fn validate_dkg_validator_transaction(
         &self,
         dkg_transaction: DKGTransactionData,

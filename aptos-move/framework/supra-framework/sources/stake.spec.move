@@ -137,7 +137,7 @@ spec supra_framework::stake {
         let is_public_key_validated = aptos_std::ed25519::spec_public_key_validate_internal(
             consensus_pubkey,
         );
-        aborts_if !is_public_key_validated;
+        aborts_if !is_public_key_validated;*/
         let addr = signer::address_of(account);
         let post_addr = signer::address_of(account);
         let allowed = global<AllowedValidators>(@supra_framework);

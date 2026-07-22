@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    dkg::{
+    aptos_dkg::{
         dummy_dkg::{DummyDKG, DummyDKGTranscript, DummySecret},
         DKGSessionMetadata, DKGTrait,
     },

@@ -128,11 +128,8 @@ impl AutomationRegistrationTestContext {
         let account_create_txn = multisig_owner1
             .account()
             .transaction()
-            // The SUP#3 gas-schedule update raised storage fees ~1000x, so creating the
-            // multisig account (and its new state slots) now costs ~1.7M gas units at this
-            // gas unit price. Budget enough headroom for it.
-            .max_gas_amount(1_000_000)
-            .gas_unit_price(100_000)
+            .max_gas_amount(5_000_000)
+            .gas_unit_price(100)
             .payload(create_multisig_payload)
             .sequence_number(0)
             .sign();
@@ -141,8 +138,7 @@ impl AutomationRegistrationTestContext {
         let transfer_txn = multisig_owner1
             .account()
             .transaction()
-            .gas_unit_price(100_000)
-            .max_gas_amount(1000)
+            .max_gas_amount(5_000_000)
             .payload(aptos_stdlib::supra_account_transfer(
                 multisig_address,
                 10_000_000,
@@ -557,20 +553,25 @@ impl AutomationRegistrationTestContext {
         // EntryFunction shape) execute here — only the Move code inside `register` runs.
         // This means `payload_bytes` is stored verbatim, even if it encodes a call to a
         // non-existent module/function.
-        self.executor
-            .exec("automation_registry", "register", vec![], vec![
-                MoveValue::Signer(owner_address)
-                    .simple_serialize()
-                    .expect("Signer serialization must not fail"),
-                bcs::to_bytes(&payload_bytes).expect("payload bytes must be BCS-serialisable"),
-                bcs::to_bytes(&expiry_time).expect("expiry_time must be BCS-serialisable"),
-                bcs::to_bytes(&max_gas_amount).expect("max_gas_amount must be BCS-serialisable"),
-                bcs::to_bytes(&gas_price_cap).expect("gas_price_cap must be BCS-serialisable"),
-                bcs::to_bytes(&automation_fee_cap)
-                    .expect("automation_fee_cap must be BCS-serialisable"),
-                bcs::to_bytes(&tx_hash).expect("tx_hash must be BCS-serialisable"),
-                bcs::to_bytes(&aux_data).expect("aux_data must be BCS-serialisable"),
-            ]);
+        self.executor.exec("automation_registry", "register", vec![], vec![
+            MoveValue::Signer(owner_address)
+                .simple_serialize()
+                .expect("Signer serialization must not fail"),
+            bcs::to_bytes(&payload_bytes)
+                .expect("payload bytes must be BCS-serialisable"),
+            bcs::to_bytes(&expiry_time)
+                .expect("expiry_time must be BCS-serialisable"),
+            bcs::to_bytes(&max_gas_amount)
+                .expect("max_gas_amount must be BCS-serialisable"),
+            bcs::to_bytes(&gas_price_cap)
+                .expect("gas_price_cap must be BCS-serialisable"),
+            bcs::to_bytes(&automation_fee_cap)
+                .expect("automation_fee_cap must be BCS-serialisable"),
+            bcs::to_bytes(&tx_hash)
+                .expect("tx_hash must be BCS-serialisable"),
+            bcs::to_bytes(&aux_data)
+                .expect("aux_data must be BCS-serialisable"),
+        ]);
     }
 }
 

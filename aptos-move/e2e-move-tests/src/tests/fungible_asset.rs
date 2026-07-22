@@ -14,6 +14,7 @@ use aptos_types::{
 use move_core_types::{
     identifier::Identifier,
     language_storage::{StructTag, TypeTag},
+    move_resource::MoveStructType,
 };
 use once_cell::sync::Lazy;
 use serde::Deserialize;

@@ -44,14 +44,6 @@ fn run_on_large_stack<F: FnOnce() + Send + 'static>(f: F) {
 
 /// Raw abort code emitted by `automation_registry` when a required feature is disabled.
 /// This is NOT wrapped with error::invalid_state — it is the plain u64 constant 15.
-const EDISABLED_AUTOMATION_FEATURE: u64 = 15;
-
-// -----------------------------------------------------------------------
-// Module-level abort code constant (mirrors Move's EDISABLED_AUTOMATION_V2_1_FEATURE = 49)
-// -----------------------------------------------------------------------
-
-/// Raw abort code emitted by `automation_registry v2.1` when a required feature is disabled.
-/// This is NOT wrapped with error::invalid_state — it is the plain u64 constant 49.
 const EDISABLED_AUTOMATION_V2_1_FEATURE: u64 = 49;
 
 // -----------------------------------------------------------------------
@@ -80,9 +72,10 @@ fn setup_harness_with_v2_1() -> MoveHarness {
 
 /// Same setup but deliberately *without* SUPRA_AUTOMATION_V2_1, to test the disabled path.
 fn setup_harness_without_v2_1() -> MoveHarness {
-    let mut h = MoveHarness::new_with_features(vec![FeatureFlag::SUPRA_NATIVE_AUTOMATION], vec![
-        FeatureFlag::SUPRA_AUTOMATION_V2_1,
-    ]);
+    let mut h = MoveHarness::new_with_features(
+        vec![FeatureFlag::SUPRA_NATIVE_AUTOMATION],
+        vec![FeatureFlag::SUPRA_AUTOMATION_V2_1],
+    );
     h.executor
         .exec("automation_registry", "on_new_epoch", vec![], vec![]);
     h
@@ -136,7 +129,11 @@ fn get_task_details(h: &mut MoveHarness, task_index: u64) -> AutomationTaskMetaD
 ///
 /// Returning the `SignedTransaction` before submission allows the caller to compute its
 /// Keccak-256 hash and then verify that the same bytes end up stored in the registry.
-fn build_register_txn(h: &mut MoveHarness, user: &Account, expiry_time: u64) -> SignedTransaction {
+fn build_register_txn(
+    h: &mut MoveHarness,
+    user: &Account,
+    expiry_time: u64,
+) -> SignedTransaction {
     h.create_entry_function(
         user,
         str::parse("0xDEADBEEF::automation_contract_test::register_via_contract").unwrap(),
@@ -257,7 +254,7 @@ fn test_register_without_validation_from_smart_contract() {
 }
 
 /// Verifies that calling `register_via_contract` when SUPRA_AUTOMATION_V2_1 is disabled
-/// aborts with EDISABLED_AUTOMATION_V2_1_FEATURE = 49.
+/// aborts with EDISABLED_AUTOMATION_FEATURE = 15.
 ///
 /// This ensures the feature gate in `register_without_validation` is enforced and that
 /// the function cannot be used before the binary upgrade is rolled out to all nodes.

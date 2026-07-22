@@ -12,7 +12,9 @@ use aptos_gas_schedule::{
 use aptos_logger::{enabled, Level};
 use aptos_memory_usage_tracker::MemoryTrackedGasMeter;
 use aptos_types::{
-    on_chain_config::{FeatureFlag, Features},
+    on_chain_config::{
+        ConfigStorage, FeatureFlag, Features, GasSchedule, GasScheduleV2, OnChainConfig,
+    },
     transaction::{automation::RegistrationParams, RawTransaction, TransactionPayload},
 };
 use aptos_vm_logging::{log_schema::AdapterLogSchema, speculative_log, speculative_warn};
