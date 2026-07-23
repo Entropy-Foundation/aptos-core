@@ -25,9 +25,9 @@ use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
     on_chain_config::{
-        AutomationRegistryConfig, Features, GasScheduleV2, OnChainConsensusConfig,
-        OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig,
-        BanRegistryParameters,
+        AutomationRegistryConfig, BanRegistryParameters, Features, GasScheduleV2,
+        OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig,
+        OnChainRandomnessConfig,
     },
     transaction::Transaction,
     waypoint::Waypoint,
@@ -83,7 +83,7 @@ pub struct GenesisInfo {
     pub randomness_config_override: Option<OnChainRandomnessConfig>,
     pub jwk_consensus_config_override: Option<OnChainJWKConsensusConfig>,
     pub automation_registry_config: Option<AutomationRegistryConfig>,
-    pub leader_ban_registry_config: Option<BanRegistryParameters>
+    pub leader_ban_registry_config: Option<BanRegistryParameters>,
 }
 
 impl GenesisInfo {

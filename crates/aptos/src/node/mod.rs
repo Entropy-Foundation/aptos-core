@@ -902,7 +902,10 @@ impl TryFrom<&ValidatorInfo> for ValidatorInfoSummary {
     fn try_from(info: &ValidatorInfo) -> Result<Self, Self::Error> {
         let config = info.config();
         let config = ValidatorConfig {
-            consensus_public_key: config.legacy_consensus_public_key_do_not_use().to_bytes().to_vec(),
+            consensus_public_key: config
+                .legacy_consensus_public_key_do_not_use()
+                .to_bytes()
+                .to_vec(),
             validator_network_addresses: config.validator_network_addresses.clone(),
             fullnode_network_addresses: config.fullnode_network_addresses.clone(),
             validator_index: config.validator_index,

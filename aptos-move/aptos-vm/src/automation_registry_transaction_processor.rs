@@ -15,8 +15,7 @@ use aptos_types::{
     on_chain_config::FeatureFlag,
     transaction::{
         automation::{AutomationRegistryAction, AutomationRegistryRecord},
-        ExecutionStatus,
-        TransactionStatus,
+        ExecutionStatus, TransactionStatus,
     },
 };
 use aptos_vm_logging::log_schema::AdapterLogSchema;

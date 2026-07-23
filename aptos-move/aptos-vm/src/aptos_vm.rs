@@ -807,11 +807,10 @@ impl AptosVM {
             let module_id = traversal_context
                 .referenced_module_ids
                 .alloc(entry_fn.module().clone());
-            session.check_dependencies_and_charge_gas(
-                gas_meter,
-                traversal_context,
-                [(module_id.address(), module_id.name())],
-            )?;
+            session.check_dependencies_and_charge_gas(gas_meter, traversal_context, [(
+                module_id.address(),
+                module_id.name(),
+            )])?;
         }
 
         let function =
@@ -1055,11 +1054,10 @@ impl AptosVM {
             let module_id = traversal_context
                 .referenced_module_ids
                 .alloc(registration_params.module_id().clone());
-            session.check_dependencies_and_charge_gas(
-                gas_meter,
-                traversal_context,
-                [(module_id.address(), module_id.name())],
-            )?;
+            session.check_dependencies_and_charge_gas(gas_meter, traversal_context, [(
+                module_id.address(),
+                module_id.name(),
+            )])?;
         }
         let args = registration_params.serialized_args_with_sender_and_parent_hash(
             sender,
@@ -2367,7 +2365,7 @@ impl AptosVM {
         // during epoch change) remain unaffected by test-and-abort attacks, which the bias-ability
         // check is intended to protect against. Similarly, governance is expected not to attempt to
         // bias randomness results. This allows us to continue to manually force epoch changes via
-        // governance when necessary, which would otherwise be impossible due to 
+        // governance when necessary, which would otherwise be impossible due to
         // reconfiguration_with_dkg::try_start relying on access to randomness,
         if self.features().is_enabled(FeatureFlag::SUPRA_DKG) {
             session

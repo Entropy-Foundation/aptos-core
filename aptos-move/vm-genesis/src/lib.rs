@@ -8,8 +8,7 @@ mod genesis_context;
 
 use crate::genesis_context::GenesisStateView;
 use aptos_crypto::{
-    bls12381,
-    ed25519,
+    bls12381, ed25519,
     ed25519::{Ed25519PrivateKey, Ed25519PublicKey},
     HashValue, PrivateKey, Uniform,
 };
@@ -19,7 +18,7 @@ use aptos_gas_schedule::{
 };
 use aptos_types::{
     account_address::{create_resource_address, create_seed_for_pbo_module},
-    account_config::{self, CORE_CODE_ADDRESS, aptos_test_root_address, events::NewEpochEvent},
+    account_config::{self, aptos_test_root_address, events::NewEpochEvent, CORE_CODE_ADDRESS},
     chain_id::ChainId,
     contract_event::{ContractEvent, ContractEventV1},
     jwks::{
@@ -27,11 +26,16 @@ use aptos_types::{
         secure_test_rsa_jwk,
     },
     keyless::{
-        self, DEVNET_VERIFICATION_KEY, Groth16VerificationKey, KEYLESS_ACCOUNT_MODULE_NAME, test_utils::get_sample_iss
+        self, test_utils::get_sample_iss, Groth16VerificationKey, DEVNET_VERIFICATION_KEY,
+        KEYLESS_ACCOUNT_MODULE_NAME,
     },
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{
-        APTOS_MAX_KNOWN_VERSION, AutomationRegistryConfig, BanRegistryParameters, FeatureFlag, Features, GasScheduleV2, OnChainConsensusConfig, OnChainEvmGenesisConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig, RandomnessConfigMoveStruct, randomness_api_v0_config::{AllowCustomMaxGasFlag, RequiredGasDeposit}
+        randomness_api_v0_config::{AllowCustomMaxGasFlag, RequiredGasDeposit},
+        AutomationRegistryConfig, BanRegistryParameters, FeatureFlag, Features, GasScheduleV2,
+        OnChainConsensusConfig, OnChainEvmConfig, OnChainEvmContractsDetails,
+        OnChainEvmGenesisConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig,
+        OnChainRandomnessConfig, RandomnessConfigMoveStruct, APTOS_MAX_KNOWN_VERSION,
     },
     transaction::{authenticator::AuthenticationKey, ChangeSet, Transaction, WriteSetPayload},
     validator_public_keys::ValidatorPublicKeys,
@@ -56,7 +60,6 @@ use std::{
     collections::BTreeSet,
     hash::{Hash, Hasher},
 };
-use aptos_types::on_chain_config::{OnChainEvmContractsDetails, OnChainEvmConfig};
 
 // The seed is arbitrarily picked to produce a consistent key. XXX make this more formal?
 const GENESIS_SEED: [u8; 32] = [42; 32];
@@ -250,7 +253,7 @@ pub fn encode_genesis_transaction_for_testnet(
     supra_config_bytes: Vec<u8>,
     evm_genesis_config: Option<OnChainEvmGenesisConfig>,
     evm_contracts_details: Option<OnChainEvmContractsDetails>,
-    evm_scalar_config: Option<OnChainEvmConfig>
+    evm_scalar_config: Option<OnChainEvmConfig>,
 ) -> Transaction {
     Transaction::GenesisTransaction(WriteSetPayload::Direct(
         encode_genesis_change_set_for_testnet(
@@ -272,7 +275,7 @@ pub fn encode_genesis_transaction_for_testnet(
             supra_config_bytes,
             evm_genesis_config,
             evm_contracts_details,
-            evm_scalar_config
+            evm_scalar_config,
         ),
     ))
 }
@@ -296,8 +299,7 @@ pub fn encode_genesis_change_set_for_testnet(
     supra_config_bytes: Vec<u8>,
     evm_genesis_config: Option<OnChainEvmGenesisConfig>,
     evm_contracts_details: Option<OnChainEvmContractsDetails>,
-    evm_scalar_config: Option<OnChainEvmConfig>
-
+    evm_scalar_config: Option<OnChainEvmConfig>,
 ) -> ChangeSet {
     validate_genesis_config(genesis_config);
     // Create a Move VM session so we can invoke on-chain genesis initializations.
@@ -600,10 +602,7 @@ fn initialize_supra_native_automation(
     );
 }
 
-fn initialize_leader_ban_config(
-    session: &mut SessionExt,
-    genesis_config: &GenesisConfiguration,
-) {
+fn initialize_leader_ban_config(session: &mut SessionExt, genesis_config: &GenesisConfiguration) {
     let Some(config) = &genesis_config.leader_ban_registry_config else {
         return;
     };
@@ -635,11 +634,7 @@ fn initialize_evm_genesis_config(
     );
 }
 
-fn initialize_evm_scalar_config(
-    session: &mut SessionExt,
-    evm_scalar_config: OnChainEvmConfig,
-) {
-
+fn initialize_evm_scalar_config(session: &mut SessionExt, evm_scalar_config: OnChainEvmConfig) {
     let (config_keys, config_values) = evm_scalar_config.to_move_values();
 
     exec_function(
@@ -650,7 +645,7 @@ fn initialize_evm_scalar_config(
         serialize_values(&vec![
             MoveValue::Signer(CORE_CODE_ADDRESS),
             config_keys,
-            config_values
+            config_values,
         ]),
     );
 }
@@ -659,7 +654,6 @@ fn initialize_evm_contracts_details(
     session: &mut SessionExt,
     evm_contracts_details: OnChainEvmContractsDetails,
 ) {
-
     let (contract_names, contract_addresses) = evm_contracts_details.to_move_values();
 
     exec_function(

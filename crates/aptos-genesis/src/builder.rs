@@ -28,7 +28,9 @@ use aptos_types::{
     account_address::AccountAddress,
     chain_id::ChainId,
     on_chain_config::{
-        AutomationRegistryConfig, BanRegistryParameters, Features, GasScheduleV2, OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig, OnChainRandomnessConfig
+        AutomationRegistryConfig, BanRegistryParameters, Features, GasScheduleV2,
+        OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig,
+        OnChainRandomnessConfig,
     },
     transaction::Transaction,
     waypoint::Waypoint,

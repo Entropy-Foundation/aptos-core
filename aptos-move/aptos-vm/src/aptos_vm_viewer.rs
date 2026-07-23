@@ -11,8 +11,8 @@ use aptos_types::{
     state_store::StateView,
     transaction::{EntryFunction, ViewFunction, ViewFunctionOutput},
 };
-use move_core_types::account_address::AccountAddress;
 use aptos_vm_logging::log_schema::AdapterLogSchema;
+use move_core_types::account_address::AccountAddress;
 
 /// Move VM with only view function API.
 /// Convenient to use when more than one view function needs to be executed on the same state-view,

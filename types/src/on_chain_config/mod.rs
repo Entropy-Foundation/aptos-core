@@ -57,11 +57,12 @@ pub use self::{
         ValidatorTxnConfig,
     },
     evm_config::{
-        EvmContractName, EvmScalarConfigKey, OnChainEvmConfig, OnChainEvmContractsDetails, evm_address_as_account_address
+        evm_address_as_account_address, EvmContractName, EvmScalarConfigKey, OnChainEvmConfig,
+        OnChainEvmContractsDetails,
     },
     evm_genesis_config::{
-        TransactionKind, GenesisEvmTransaction, GenesisEvmEOA, OnChainEvmGenesisConfig,
-        EVM_GENESIS_EVENT_MOVE_TYPE_TAG
+        GenesisEvmEOA, GenesisEvmTransaction, OnChainEvmGenesisConfig, OnChainEvmGenesisConfigV1,
+        TransactionKind, EVM_GENESIS_EVENT_MOVE_TYPE_TAG,
     },
     execution_config::{
         BlockGasLimitType, ExecutionConfigV1, ExecutionConfigV2, ExecutionConfigV4,
