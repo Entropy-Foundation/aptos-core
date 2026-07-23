@@ -8,7 +8,8 @@ use aptos_types::{
     chain_id::ChainId,
     network_address::{DnsName, NetworkAddress, Protocol},
     on_chain_config::{
-        AutomationRegistryConfig, BanRegistryParameters, OnChainConsensusConfig, OnChainExecutionConfig, OnChainJWKConsensusConfig
+        AutomationRegistryConfig, BanRegistryParameters, OnChainConsensusConfig,
+        OnChainExecutionConfig, OnChainJWKConsensusConfig,
     },
     transaction::authenticator::AuthenticationKey,
 };

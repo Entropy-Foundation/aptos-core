@@ -1,7 +1,6 @@
 // Copyright (c) Supra Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt::Display;
 use super::OnChainConfig;
 use crate::chain_id::ChainId;
 use anyhow::{anyhow, Result};
@@ -10,10 +9,11 @@ use move_core_types::{
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 
 /// The Genesis configuration for EVM that can only be set once at genesis epoch.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct OnChainEvmGenesisConfig {
+pub struct OnChainEvmGenesisConfigV1 {
     /// The EVM chain ID, derived from the Move chain ID.
     pub chain_id: u64,
     /// The EOA configurations for pre-funding at genesis.
@@ -22,7 +22,29 @@ pub struct OnChainEvmGenesisConfig {
     pub contracts: Vec<GenesisEvmTransaction>,
 }
 
-impl Display for OnChainEvmGenesisConfig {
+impl OnChainEvmGenesisConfigV1 {
+    /// Create a new OnChainEvmGenesisConfigV1 with the given parameters.
+    pub fn new(
+        chain_id: ChainId,
+        eoas: Vec<GenesisEvmEOA>,
+        contracts: Vec<GenesisEvmTransaction>,
+    ) -> Self {
+        let chain_id = Self::derive_evm_chain_id_from_move_chain_id(chain_id);
+
+        Self {
+            chain_id,
+            eoas,
+            contracts,
+        }
+    }
+
+    /// Derive the EVM chain ID from the Move chain ID.
+    fn derive_evm_chain_id_from_move_chain_id(move_chain_id: ChainId) -> u64 {
+        let chain_id = move_chain_id.id() as u64;
+        chain_id << 32 | chain_id << 16 | chain_id
+    }
+}
+impl Display for OnChainEvmGenesisConfigV1 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -30,7 +52,6 @@ impl Display for OnChainEvmGenesisConfig {
             self.chain_id, self.eoas, self.contracts.iter().map(|c| format!("\n\t\t{}", c)).collect::<Vec<_>>().join(", "),
         )
     }
-
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -82,26 +103,51 @@ impl Display for GenesisEvmTransaction {
     }
 }
 
+/// The Genesis configuration for EVM that can only be set once at genesis epoch.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub enum OnChainEvmGenesisConfig {
+    V1(OnChainEvmGenesisConfigV1),
+}
+
+impl From<OnChainEvmGenesisConfigV1> for OnChainEvmGenesisConfig {
+    fn from(v1: OnChainEvmGenesisConfigV1) -> Self {
+        Self::V1(v1)
+    }
+}
+
+impl Display for OnChainEvmGenesisConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OnChainEvmGenesisConfig::V1(config) => {
+                write!(f, "{config}")
+            },
+        }
+    }
+}
+
 impl OnChainEvmGenesisConfig {
-    /// Create a new OnChainEvmGenesisConfig with the given parameters.
+    /// Create a new [OnChainEvmGenesisConfig::V1] with the given parameters.
     pub fn new(
         chain_id: ChainId,
         eoas: Vec<GenesisEvmEOA>,
         contracts: Vec<GenesisEvmTransaction>,
     ) -> Self {
-        let chain_id = Self::derive_evm_chain_id_from_move_chain_id(chain_id);
-
-        Self {
-            chain_id,
-            eoas,
-            contracts,
-        }
+        Self::V1(OnChainEvmGenesisConfigV1::new(chain_id, eoas, contracts))
     }
 
-    /// Derive the EVM chain ID from the Move chain ID.
-    fn derive_evm_chain_id_from_move_chain_id(move_chain_id: ChainId) -> u64 {
-        let chain_id = move_chain_id.id() as u64;
-        chain_id << 32 | chain_id << 16 | chain_id
+    pub fn chain_id(&self) -> u64 {
+        let Self::V1(v1) = self;
+        v1.chain_id
+    }
+
+    pub fn try_into_v1(self) -> Option<OnChainEvmGenesisConfigV1> {
+        let Self::V1(v1) = self;
+        Some(v1)
+    }
+
+    pub fn try_as_v1(&self) -> Option<&OnChainEvmGenesisConfigV1> {
+        let Self::V1(v1) = self;
+        Some(&v1)
     }
 }
 

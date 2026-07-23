@@ -72,10 +72,9 @@ fn setup_harness_with_v2_1() -> MoveHarness {
 
 /// Same setup but deliberately *without* SUPRA_AUTOMATION_V2_1, to test the disabled path.
 fn setup_harness_without_v2_1() -> MoveHarness {
-    let mut h = MoveHarness::new_with_features(
-        vec![FeatureFlag::SUPRA_NATIVE_AUTOMATION],
-        vec![FeatureFlag::SUPRA_AUTOMATION_V2_1],
-    );
+    let mut h = MoveHarness::new_with_features(vec![FeatureFlag::SUPRA_NATIVE_AUTOMATION], vec![
+        FeatureFlag::SUPRA_AUTOMATION_V2_1,
+    ]);
     h.executor
         .exec("automation_registry", "on_new_epoch", vec![], vec![]);
     h
@@ -129,11 +128,7 @@ fn get_task_details(h: &mut MoveHarness, task_index: u64) -> AutomationTaskMetaD
 ///
 /// Returning the `SignedTransaction` before submission allows the caller to compute its
 /// Keccak-256 hash and then verify that the same bytes end up stored in the registry.
-fn build_register_txn(
-    h: &mut MoveHarness,
-    user: &Account,
-    expiry_time: u64,
-) -> SignedTransaction {
+fn build_register_txn(h: &mut MoveHarness, user: &Account, expiry_time: u64) -> SignedTransaction {
     h.create_entry_function(
         user,
         str::parse("0xDEADBEEF::automation_contract_test::register_via_contract").unwrap(),

@@ -179,7 +179,10 @@ impl TransactionMetadata {
         };
         // Safe: txn_consensus_hash is always populated from HashValue::keccak_256_of or txn.hash(),
         // both of which produce exactly 32 bytes.
-        let txn_consensus_hash: [u8; 32] = self.txn_consensus_hash.as_slice().try_into()
+        let txn_consensus_hash: [u8; 32] = self
+            .txn_consensus_hash
+            .as_slice()
+            .try_into()
             .expect("txn_consensus_hash is always a 32-byte Keccak-256 hash");
         UserTransactionContext::new(
             self.sender,

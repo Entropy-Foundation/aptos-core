@@ -1034,6 +1034,7 @@ impl From<(&ContractEvent, serde_json::Value)> for EventV2 {
 
 impl TryFrom<EventV1> for EventV2 {
     type Error = AnyhowError;
+
     fn try_from(event_v1: EventV1) -> Result<Self, Self::Error> {
         let EventV1 {
             guid,
