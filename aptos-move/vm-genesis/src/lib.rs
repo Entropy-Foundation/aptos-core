@@ -79,7 +79,6 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     hash::{Hash, Hasher},
 };
-use aptos_types::on_chain_config::{OnChainEvmContractsDetails, OnChainEvmConfig};
 
 // The seed is arbitrarily picked to produce a consistent key. XXX make this more formal?
 const GENESIS_SEED: [u8; 32] = [42; 32];
@@ -466,11 +465,11 @@ pub fn encode_genesis_change_set_for_testnet(
     }
 
     if let Some(evm_contracts_details) = evm_contracts_details {
-        initialize_evm_contracts_details(&mut session, evm_contracts_details);
+        initialize_evm_contracts_details(&mut session, &module_storage, &mut traversal_context, evm_contracts_details);
     }
 
     if let Some(evm_scalar_config) = evm_scalar_config {
-        initialize_evm_scalar_config(&mut session, evm_scalar_config);
+        initialize_evm_scalar_config(&mut session, &module_storage, &mut traversal_context, evm_scalar_config);
     }
 
     create_accounts(

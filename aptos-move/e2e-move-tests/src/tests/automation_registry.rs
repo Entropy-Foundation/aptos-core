@@ -39,11 +39,11 @@ fn run_on_large_stack<F: FnOnce() + Send + 'static>(f: F) {
 }
 
 // -----------------------------------------------------------------------
-// Module-level abort code constant (mirrors Move's EDISABLED_AUTOMATION_FEATURE = 15)
+// Module-level abort code constant (mirrors Move's EDISABLED_AUTOMATION_V2_1_FEATURE = 49)
 // -----------------------------------------------------------------------
 
-/// Raw abort code emitted by `automation_registry` when a required feature is disabled.
-/// This is NOT wrapped with error::invalid_state — it is the plain u64 constant 15.
+/// Raw abort code emitted by `automation_registry v2.1` when a required feature is disabled.
+/// This is NOT wrapped with error::invalid_state — it is the plain u64 constant 49.
 const EDISABLED_AUTOMATION_V2_1_FEATURE: u64 = 49;
 
 // -----------------------------------------------------------------------
@@ -254,7 +254,7 @@ fn test_register_without_validation_from_smart_contract() {
 }
 
 /// Verifies that calling `register_via_contract` when SUPRA_AUTOMATION_V2_1 is disabled
-/// aborts with EDISABLED_AUTOMATION_FEATURE = 15.
+/// aborts with EDISABLED_AUTOMATION_V2_1_FEATURE = 49.
 ///
 /// This ensures the feature gate in `register_without_validation` is enforced and that
 /// the function cannot be used before the binary upgrade is rolled out to all nodes.
