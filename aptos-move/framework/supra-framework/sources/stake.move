@@ -881,6 +881,30 @@ module supra_framework::stake {
         keys_bytes
     }
 
+    /// Returns true iff the v2 validator-identity format is enforced and `consensus_pubkey` is still a
+    /// legacy (pre-v2) bare ed25519 key. Mirrors the detection in `validate_consensus_public_key`: a
+    /// bare ed25519 key parses via `new_validated_public_key_from_bytes`, while a v2 BCS blob does not.
+    /// Such a key cannot be deserialized into the v2 `ValidatorPublicKeys` format that DKG and
+    /// consensus require, so the validator is dropped from the active set (same effect as falling below
+    /// the minimum stake) until it rotates.
+    fun is_unrotated_legacy_key(consensus_pubkey: &vector<u8>): bool {
+        features::supra_validator_identity_v2_enabled()
+            && option::is_some(
+                &ed25519::new_validated_public_key_from_bytes(*consensus_pubkey)
+            )
+    }
+
+    /// Active-set membership test applied identically when previewing the next validator set
+    /// (`compute_next_validator_set_internal`) and when committing it (`on_new_epoch`): a validator is
+    /// retained iff it meets the minimum stake AND (under the v2 identity format) still carries a valid
+    /// v2 consensus key. Centralizing this keeps the DKG receiver committee / `set_dkg_output_keys`
+    /// (which read the preview) consistent with the committed set / consensus committee.
+    fun is_eligible_active_validator(
+        voting_power: u64, minimum_stake: u64, consensus_pubkey: &vector<u8>
+    ): bool {
+        voting_power >= minimum_stake && !is_unrotated_legacy_key(consensus_pubkey)
+    }
+
     /// Aborts if any validator other than `self_addr` in the next validator set
     /// (the union of `active_validators` and `pending_active`) already uses
     /// `consensus_pubkey` as its latest on-chain consensus key.
@@ -1899,8 +1923,11 @@ module supra_framework::stake {
             let new_validator_info =
                 generate_validator_info(pool_address, stake_pool, *validator_config);
 
-            // A validator needs at least the min stake required to join the validator set.
-            if (new_validator_info.voting_power >= minimum_stake) {
+            if (is_eligible_active_validator(
+                new_validator_info.voting_power,
+                minimum_stake,
+                &validator_config.consensus_pubkey
+            )) {
                 spec {
                     assume total_voting_power + new_validator_info.voting_power
                         <= MAX_U128;
@@ -2041,6 +2068,7 @@ module supra_framework::stake {
             assume num_cur_actives + num_cur_pending_actives <= MAX_U64;
         };
         let num_candidates = num_cur_actives + num_cur_pending_actives;
+
         while ({
             spec {
                 invariant candidate_idx <= num_candidates;
@@ -2117,6 +2145,7 @@ module supra_framework::stake {
                 vector::push_back(&mut new_active_validators, new_validator_info);
                 num_new_actives = num_new_actives + 1;
             };
+
             candidate_idx = candidate_idx + 1;
         };
 

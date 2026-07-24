@@ -8,14 +8,13 @@ use crate::{
 };
 use aptos_types::{
     state_store::StateView,
-    transaction::{EntryFunction, ViewFunction, ViewFunctionOutput},
+    transaction::{ViewFunction, ViewFunctionOutput},
 };
 use aptos_vm_environment::environment::AptosEnvironment;
 use aptos_vm_logging::log_schema::AdapterLogSchema;
 use aptos_vm_types::{
     module_and_script_storage::AsAptosCodeStorage, resolver::NoopBlockSynchronizationKillSwitch,
 };
-use move_core_types::account_address::AccountAddress;
 use move_vm_runtime::module_traversal::{TraversalContext, TraversalStorage};
 
 /// Move VM with only view function API.

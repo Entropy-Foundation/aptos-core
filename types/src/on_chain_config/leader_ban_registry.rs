@@ -1,5 +1,3 @@
-use crate::on_chain_config::OnChainConfig;
-use anyhow::{format_err, Result};
 use derive_getters::Getters;
 use derive_more::Constructor;
 use move_core_types::{
@@ -7,6 +5,9 @@ use move_core_types::{
     value::{serialize_values, MoveValue},
 };
 use serde::{Deserialize, Serialize};
+use anyhow::{format_err, Result};
+
+use crate::on_chain_config::OnChainConfig;
 
 /// Configuration for a [`BanRegistry`]. Stored in the Move state and updated via governance.
 ///
@@ -20,7 +21,7 @@ pub enum BanRegistryParameters {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct MoveBanRegistryParams {
     pub config: Vec<u8>,
-    pub version: u8,
+    pub version: u8
 }
 
 impl Default for BanRegistryParameters {
@@ -34,32 +35,26 @@ impl OnChainConfig for BanRegistryParameters {
     const TYPE_IDENTIFIER: &'static str = "BanRegistryParameters";
 
     fn deserialize_default_impl(bytes: &[u8]) -> Result<Self> {
-        let move_ban_registry = bcs::from_bytes::<MoveBanRegistryParams>(bytes).map_err(|e| {
-            format_err!("[on-chain config] Failed to deserialize into config: {}", e)
-        })?;
+        let move_ban_registry = bcs::from_bytes::<MoveBanRegistryParams>(bytes)
+            .map_err(|e| format_err!("[on-chain config] Failed to deserialize into config: {}", e))?;
         match move_ban_registry.version {
             0 => {
                 let params_v0 = bcs::from_bytes::<BanRegistryParametersV0>(&move_ban_registry.config)
                 .map_err(|e| format_err!("[on-chain config] Failed to deserialize into config BanRegistryParametersV0: {}", e))?;
                 Ok(BanRegistryParameters::V0(params_v0))
             },
-            _ => Err(format_err!(
-                "[on-chain config] Failed to deserialize into config: Invalid Version: {}",
-                move_ban_registry.version
-            )),
+            _ => {
+                Err(format_err!("[on-chain config] Failed to deserialize into config: Invalid Version: {}", move_ban_registry.version))
+            }
         }
     }
 }
 
 impl BanRegistryParameters {
-    pub fn serialize_into_move_values_with_signer(
-        &self,
-        signer_address: AccountAddress,
-    ) -> Vec<Vec<u8>> {
-        let arguments: Vec<MoveValue> = match &self {
+    pub fn serialize_into_move_values_with_signer(&self, signer_address: AccountAddress) -> Vec<Vec<u8>> {
+        let arguments:Vec<MoveValue> = match &self {
             BanRegistryParameters::V0(ban_registry_parameters_v0) => {
-                let params_bytes = bcs::to_bytes(ban_registry_parameters_v0)
-                    .expect("serialisation of leader ban config failed");
+                let params_bytes = bcs::to_bytes(ban_registry_parameters_v0).expect("serialisation of leader ban config failed");
                 vec![
                     MoveValue::Signer(signer_address),
                     MoveValue::vector_u8(params_bytes),
@@ -74,7 +69,7 @@ impl BanRegistryParameters {
 ///
 /// BCS field order **must** match the Move struct `BanRegistryParametersV0`:
 /// `initial_elections_denied, max_elections_denied, minimum_unbanned_proposers, probation_elections`.
-///
+/// 
 /// The [`Default`] values of the parameters disable banning.
 #[derive(Clone, Constructor, Debug, Default, Deserialize, Eq, PartialEq, Getters, Serialize)]
 pub struct BanRegistryParametersV0 {

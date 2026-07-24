@@ -160,7 +160,6 @@ pub trait VMValidator {
         module_storage: &impl ModuleStorage,
     ) -> VMValidatorResult;
 
-    // TODO: pass state view and module storage here.
     fn validate_dkg_validator_transaction(
         &self,
         dkg_transaction: DKGTransactionData,

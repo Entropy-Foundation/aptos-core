@@ -301,15 +301,22 @@ module supra_framework::genesis {
         evm_genesis_config::initialize(supra_framework, evm_genesis_config);
     }
 
-    /// Initialize the EVM config.
-    fun initialize_evm_config(
+    /// Initialize the EVM scalar config map.
+    fun initialize_evm_scalar_config(
         supra_framework: &signer,
-        contract_names: vector<String>,
-        contract_addresses: vector<address>,
         config_keys: vector<String>,
         config_values: vector<u128>
     ) {
-        evm_config::initialize(supra_framework, contract_names, contract_addresses, config_keys, config_values);
+        evm_config::initialize_scalar_config(supra_framework, config_keys, config_values);
+    }
+
+    /// Initialize the EVM contracts address map.
+    fun initialize_evm_contracts_details(
+        supra_framework: &signer,
+        contract_names: vector<String>,
+        contract_addresses: vector<address>,
+    ) {
+        evm_config::initialize_contracts_details(supra_framework, contract_names, contract_addresses);
     }
 
     /// Initialize the leader ban config
@@ -1356,12 +1363,15 @@ module supra_framework::genesis {
         let shareholders = vector[@0x121343, @0x121344];
         create_account(supra_framework, admin_address, 0);
         create_account(supra_framework, withdrawal_address, 0);
-        vector::for_each_ref(&shareholders, |addr| {
-            let addr: address = *addr;
-            if (!account::exists_at(addr)) {
-                create_account(supra_framework, addr, 100 * ONE_SUPRA);
-            };
-        });
+        vector::for_each_ref(
+            &shareholders,
+            |addr| {
+                let addr: address = *addr;
+                if (!account::exists_at(addr)) {
+                    create_account(supra_framework, addr, 100 * ONE_SUPRA);
+                };
+            }
+        );
         let cliff_period_in_seconds = 100;
         let period_duration_in_seconds = 200;
         let pool_config = VestingPoolsMap {

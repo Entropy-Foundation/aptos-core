@@ -123,7 +123,6 @@ pub fn generate_upgrade_proposals(
                 account,
                 move_script_path.clone(),
                 next_execution_hash_bytes,
-                todo!("function_name"),
             )?;
         } else if is_testnet {
             // If we're generating a single-step proposal on testnet

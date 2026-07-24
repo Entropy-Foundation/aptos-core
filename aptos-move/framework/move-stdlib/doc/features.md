@@ -399,7 +399,7 @@ Lifetime: transient
 Whether to calculate the transaction fee for distribution.
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION">CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION</a>: u64 = 108;
+<pre><code><b>const</b> <a href="features.md#0x1_features_CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION">CALCULATE_TRANSACTION_FEE_FOR_DISTRIBUTION</a>: u64 = 110;
 </code></pre>
 
 
@@ -589,7 +589,7 @@ Lifetime: transient
 Whether to distribute transaction fee to validators.
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_DISTRIBUTE_TRANSACTION_FEE">DISTRIBUTE_TRANSACTION_FEE</a>: u64 = 109;
+<pre><code><b>const</b> <a href="features.md#0x1_features_DISTRIBUTE_TRANSACTION_FEE">DISTRIBUTE_TRANSACTION_FEE</a>: u64 = 111;
 </code></pre>
 
 
@@ -892,7 +892,7 @@ Whether orderless transactions are enabled.
 Lifetime: transient
 
 
-<pre><code><b>const</b> <a href="features.md#0x1_features_ORDERLESS_TRANSACTIONS">ORDERLESS_TRANSACTIONS</a>: u64 = 107;
+<pre><code><b>const</b> <a href="features.md#0x1_features_ORDERLESS_TRANSACTIONS">ORDERLESS_TRANSACTIONS</a>: u64 = 108;
 </code></pre>
 
 

@@ -41,7 +41,7 @@ use aptos_crypto::{
     bls12381::{PublicKey, Signature},
     HashValue,
 };
-use aptos_framework::natives::{code::PublishRequest, randomness::RandomnessContext};
+use aptos_framework::natives::{code::PublishRequest};
 use aptos_gas_algebra::{Gas, GasQuantity, NumBytes, Quant};
 use aptos_gas_meter::{AptosGasMeter, GasAlgebra};
 use aptos_gas_schedule::{
@@ -74,7 +74,7 @@ use aptos_types::{
     function_info::FunctionInfo,
     move_utils::as_move_value::AsMoveValue,
     on_chain_config::{
-        new_epoch_event_key, ApprovedExecutionHashes, ConfigStorage, ConfigurationResource,
+        ApprovedExecutionHashes, ConfigStorage, ConfigurationResource,
         FeatureFlag, Features, OnChainConfig, TimedFeatureFlag, TimedFeatures,
     },
     randomness::Randomness,
@@ -875,12 +875,6 @@ impl AptosVM {
             &func,
             self.features().is_enabled(FeatureFlag::STRUCT_CONSTRUCTORS),
         )?;
-
-        if is_approved_gov_script {
-            // If governance is honest then it will not attempt test-and-abort attacks to abuse
-            // randomness.
-            self.mark_unbiasable(session);
-        }
 
         if is_approved_gov_script {
             // If governance is honest then it will not attempt test-and-abort attacks to abuse
@@ -1875,7 +1869,6 @@ impl AptosVM {
                 module_storage,
             )?;
         }
-
         // Account Abstraction dispatchable authentication.
         let senders = transaction_data.senders();
         let proofs = transaction_data.authentication_proofs();
@@ -1988,7 +1981,6 @@ impl AptosVM {
             // randomness.
             self.mark_unbiasable(session);
         }
-
         // The prologue MUST be run AFTER any validation. Otherwise you may run prologue and hit
         // SEQUENCE_NUMBER_TOO_NEW if there is more than one transaction from the same sender and
         // end up skipping validation.
@@ -3350,7 +3342,6 @@ impl VMValidator for AptosVM {
 
         result
     }
-
     fn validate_dkg_validator_transaction(
         &self,
         dkg_transaction: DKGTransactionData,

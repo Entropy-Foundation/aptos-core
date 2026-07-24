@@ -925,8 +925,6 @@ V1 to V2 on active chains
         <a href="timestamp.md#0x1_timestamp_now_seconds">timestamp::now_seconds</a>() &lt; txn_expiration_time,
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ETRANSACTION_EXPIRED">PROLOGUE_ETRANSACTION_EXPIRED</a>),
     );
-    // TODO check whether is makes sense <b>to</b> do authenthicator key check <b>as</b> it was done in scope of common
-    // prologue. It might not be necessary <b>as</b> automated transactions are system created.
 
     // Task is not gas-less/<a href="transaction_validation.md#0x1_transaction_validation_GST">GST</a>,
     // gas-less automated transactions are not charged so no need <b>to</b> check eligability <b>to</b> pay the gas-fee.
@@ -944,9 +942,10 @@ V1 to V2 on active chains
                 <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ECANT_PAY_GAS_DEPOSIT">PROLOGUE_ECANT_PAY_GAS_DEPOSIT</a>)
             );
         };
-        <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id">automation_registry::has_sender_active_task_with_id</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&sender), task_index),
-            <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK">PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK</a>))
-    }
+    };
+
+    <b>assert</b>!(<a href="automation_registry.md#0x1_automation_registry_has_sender_active_task_with_id_and_type">automation_registry::has_sender_active_task_with_id_and_type</a>(<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer_address_of">signer::address_of</a>(&sender), task_index, task_type),
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_state">error::invalid_state</a>(<a href="transaction_validation.md#0x1_transaction_validation_PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK">PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK</a>))
 }
 </code></pre>
 

@@ -94,6 +94,8 @@ or if their stake drops below the min required, they would get removed at the en
 -  [Function `initialize_validator_genesis`](#0x1_stake_initialize_validator_genesis)
 -  [Function `initialize_validator_internal`](#0x1_stake_initialize_validator_internal)
 -  [Function `validate_consensus_public_key`](#0x1_stake_validate_consensus_public_key)
+-  [Function `is_unrotated_legacy_key`](#0x1_stake_is_unrotated_legacy_key)
+-  [Function `is_eligible_active_validator`](#0x1_stake_is_eligible_active_validator)
 -  [Function `assert_consensus_pubkey_unique_in_next_validator_set`](#0x1_stake_assert_consensus_pubkey_unique_in_next_validator_set)
 -  [Function `assert_consensus_pubkey_unique_in_validator_list`](#0x1_stake_assert_consensus_pubkey_unique_in_validator_list)
 -  [Function `assert_network_addresses_unique_in_next_validator_set`](#0x1_stake_assert_network_addresses_unique_in_next_validator_set)
@@ -3100,6 +3102,70 @@ proof-of-possession (mirrors <code>rotate_consensus_key</code> / <code>rotate_co
 
 </details>
 
+<a id="0x1_stake_is_unrotated_legacy_key"></a>
+
+## Function `is_unrotated_legacy_key`
+
+Returns true iff the v2 validator-identity format is enforced and <code>consensus_pubkey</code> is still a
+legacy (pre-v2) bare ed25519 key. Mirrors the detection in <code>validate_consensus_public_key</code>: a
+bare ed25519 key parses via <code>new_validated_public_key_from_bytes</code>, while a v2 BCS blob does not.
+Such a key cannot be deserialized into the v2 <code>ValidatorPublicKeys</code> format that DKG and
+consensus require, so the validator is dropped from the active set (same effect as falling below
+the minimum stake) until it rotates.
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_is_unrotated_legacy_key">is_unrotated_legacy_key</a>(consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_is_unrotated_legacy_key">is_unrotated_legacy_key</a>(consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): bool {
+    <a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_supra_validator_identity_v2_enabled">features::supra_validator_identity_v2_enabled</a>()
+        && <a href="../../aptos-stdlib/../move-stdlib/doc/option.md#0x1_option_is_some">option::is_some</a>(
+            &<a href="../../aptos-stdlib/doc/ed25519.md#0x1_ed25519_new_validated_public_key_from_bytes">ed25519::new_validated_public_key_from_bytes</a>(*consensus_pubkey)
+        )
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_stake_is_eligible_active_validator"></a>
+
+## Function `is_eligible_active_validator`
+
+Active-set membership test applied identically when previewing the next validator set
+(<code>compute_next_validator_set_internal</code>) and when committing it (<code>on_new_epoch</code>): a validator is
+retained iff it meets the minimum stake AND (under the v2 identity format) still carries a valid
+v2 consensus key. Centralizing this keeps the DKG receiver committee / <code>set_dkg_output_keys</code>
+(which read the preview) consistent with the committed set / consensus committee.
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_is_eligible_active_validator">is_eligible_active_validator</a>(voting_power: u64, minimum_stake: u64, consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_is_eligible_active_validator">is_eligible_active_validator</a>(
+    voting_power: u64, minimum_stake: u64, consensus_pubkey: &<a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
+): bool {
+    voting_power &gt;= minimum_stake && !<a href="stake.md#0x1_stake_is_unrotated_legacy_key">is_unrotated_legacy_key</a>(consensus_pubkey)
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_stake_assert_consensus_pubkey_unique_in_next_validator_set"></a>
 
 ## Function `assert_consensus_pubkey_unique_in_next_validator_set`
@@ -4773,8 +4839,11 @@ power.
         <b>let</b> new_validator_info =
             <a href="stake.md#0x1_stake_generate_validator_info">generate_validator_info</a>(pool_address, stake_pool, *validator_config);
 
-        // A validator needs at least the <b>min</b> <a href="stake.md#0x1_stake">stake</a> required <b>to</b> join the validator set.
-        <b>if</b> (new_validator_info.voting_power &gt;= minimum_stake) {
+        <b>if</b> (<a href="stake.md#0x1_stake_is_eligible_active_validator">is_eligible_active_validator</a>(
+            new_validator_info.voting_power,
+            minimum_stake,
+            &validator_config.consensus_pubkey
+        )) {
             <b>spec</b> {
                 <b>assume</b> total_voting_power + new_validator_info.voting_power
                     &lt;= MAX_U128;
@@ -4995,6 +5064,7 @@ New joiners (<code>pending_active</code>) always read from <code><a href="stake.
         <b>assume</b> num_cur_actives + num_cur_pending_actives &lt;= <a href="stake.md#0x1_stake_MAX_U64">MAX_U64</a>;
     };
     <b>let</b> num_candidates = num_cur_actives + num_cur_pending_actives;
+
     <b>while</b> ({
         <b>spec</b> {
             <b>invariant</b> candidate_idx &lt;= num_candidates;
@@ -5071,6 +5141,7 @@ New joiners (<code>pending_active</code>) always read from <code><a href="stake.
             <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_push_back">vector::push_back</a>(&<b>mut</b> new_active_validators, new_validator_info);
             num_new_actives = num_new_actives + 1;
         };
+
         candidate_idx = candidate_idx + 1;
     };
 
@@ -5921,6 +5992,195 @@ Returns validator's next epoch voting power, including pending_active, active, a
 <b>global</b> <a href="stake.md#0x1_stake_ghost_active_num">ghost_active_num</a>: u64;
 <a id="0x1_stake_ghost_pending_inactive_num"></a>
 <b>global</b> <a href="stake.md#0x1_stake_ghost_pending_inactive_num">ghost_pending_inactive_num</a>: u64;
+</code></pre>
+
+
+
+
+<a id="0x1_stake_spec_validator_indices_are_valid"></a>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_validator_indices_are_valid">spec_validator_indices_are_valid</a>(validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="stake.md#0x1_stake_ValidatorInfo">ValidatorInfo</a>&gt;): bool {
+   <a href="stake.md#0x1_stake_spec_validator_indices_are_valid_addr">spec_validator_indices_are_valid_addr</a>(validators, <a href="stake.md#0x1_stake_spec_validator_index_upper_bound">spec_validator_index_upper_bound</a>()) &&
+       <a href="stake.md#0x1_stake_spec_validator_indices_are_valid_config">spec_validator_indices_are_valid_config</a>(validators, <a href="stake.md#0x1_stake_spec_validator_index_upper_bound">spec_validator_index_upper_bound</a>())
+}
+</code></pre>
+
+
+
+
+<a id="0x1_stake_spec_validator_indices_are_valid_addr"></a>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_validator_indices_are_valid_addr">spec_validator_indices_are_valid_addr</a>(validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="stake.md#0x1_stake_ValidatorInfo">ValidatorInfo</a>&gt;, upper_bound: u64): bool {
+   <b>forall</b> i in 0..len(validators):
+       <b>global</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(validators[i].addr).validator_index &lt; upper_bound
+}
+</code></pre>
+
+
+
+
+<a id="0x1_stake_spec_validator_indices_are_valid_config"></a>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_validator_indices_are_valid_config">spec_validator_indices_are_valid_config</a>(validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="stake.md#0x1_stake_ValidatorInfo">ValidatorInfo</a>&gt;, upper_bound: u64): bool {
+   <b>forall</b> i in 0..len(validators):
+       validators[i].config.validator_index &lt; upper_bound
+}
+</code></pre>
+
+
+
+
+<a id="0x1_stake_spec_validator_indices_active_pending_inactive"></a>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_validator_indices_active_pending_inactive">spec_validator_indices_active_pending_inactive</a>(validator_set: <a href="stake.md#0x1_stake_ValidatorSet">ValidatorSet</a>): bool {
+   len(validator_set.pending_inactive) + len(validator_set.active_validators) == <a href="stake.md#0x1_stake_spec_validator_index_upper_bound">spec_validator_index_upper_bound</a>()
+}
+</code></pre>
+
+
+
+
+<a id="0x1_stake_spec_validator_index_upper_bound"></a>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_validator_index_upper_bound">spec_validator_index_upper_bound</a>(): u64 {
+   len(<b>global</b>&lt;<a href="stake.md#0x1_stake_ValidatorPerformance">ValidatorPerformance</a>&gt;(@supra_framework).validators)
+}
+</code></pre>
+
+
+
+
+<a id="0x1_stake_spec_has_stake_pool"></a>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_has_stake_pool">spec_has_stake_pool</a>(a: <b>address</b>): bool {
+   <b>exists</b>&lt;<a href="stake.md#0x1_stake_StakePool">StakePool</a>&gt;(a)
+}
+</code></pre>
+
+
+
+
+<a id="0x1_stake_spec_has_validator_config"></a>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_has_validator_config">spec_has_validator_config</a>(a: <b>address</b>): bool {
+   <b>exists</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(a)
+}
+</code></pre>
+
+
+
+
+<a id="0x1_stake_spec_rewards_amount"></a>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_rewards_amount">spec_rewards_amount</a>(
+   stake_amount: u64,
+   num_successful_proposals: u64,
+   num_total_proposals: u64,
+   rewards_rate: u64,
+   rewards_rate_denominator: u64,
+): u64;
+</code></pre>
+
+
+
+
+<a id="0x1_stake_spec_contains"></a>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_contains">spec_contains</a>(validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="stake.md#0x1_stake_ValidatorInfo">ValidatorInfo</a>&gt;, addr: <b>address</b>): bool {
+   <b>exists</b> i in 0..len(validators): validators[i].addr == addr
+}
+</code></pre>
+
+
+
+
+<a id="0x1_stake_spec_is_current_epoch_validator"></a>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_is_current_epoch_validator">spec_is_current_epoch_validator</a>(pool_address: <b>address</b>): bool {
+   <b>let</b> validator_set = <b>global</b>&lt;<a href="stake.md#0x1_stake_ValidatorSet">ValidatorSet</a>&gt;(@supra_framework);
+   !<a href="stake.md#0x1_stake_spec_contains">spec_contains</a>(validator_set.pending_active, pool_address)
+       && (<a href="stake.md#0x1_stake_spec_contains">spec_contains</a>(validator_set.active_validators, pool_address)
+       || <a href="stake.md#0x1_stake_spec_contains">spec_contains</a>(validator_set.pending_inactive, pool_address))
+}
+</code></pre>
+
+
+
+
+<a id="0x1_stake_ResourceRequirement"></a>
+
+
+<pre><code><b>schema</b> <a href="stake.md#0x1_stake_ResourceRequirement">ResourceRequirement</a> {
+    <b>requires</b> <b>exists</b>&lt;<a href="stake.md#0x1_stake_SupraCoinCapabilities">SupraCoinCapabilities</a>&gt;(@supra_framework);
+    <b>requires</b> <b>exists</b>&lt;<a href="stake.md#0x1_stake_ValidatorPerformance">ValidatorPerformance</a>&gt;(@supra_framework);
+    <b>requires</b> <b>exists</b>&lt;<a href="stake.md#0x1_stake_ValidatorSet">ValidatorSet</a>&gt;(@supra_framework);
+    <b>requires</b> <b>exists</b>&lt;StakingConfig&gt;(@supra_framework);
+    <b>requires</b> <b>exists</b>&lt;StakingRewardsConfig&gt;(@supra_framework) || !<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_spec_periodical_reward_rate_decrease_enabled">features::spec_periodical_reward_rate_decrease_enabled</a>();
+    <b>requires</b> <b>exists</b>&lt;<a href="timestamp.md#0x1_timestamp_CurrentTimeMicroseconds">timestamp::CurrentTimeMicroseconds</a>&gt;(@supra_framework);
+}
+</code></pre>
+
+
+
+
+<a id="0x1_stake_spec_get_reward_rate_1"></a>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_get_reward_rate_1">spec_get_reward_rate_1</a>(config: StakingConfig): num {
+   <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_spec_periodical_reward_rate_decrease_enabled">features::spec_periodical_reward_rate_decrease_enabled</a>()) {
+       <b>let</b> epoch_rewards_rate = <b>global</b>&lt;<a href="staking_config.md#0x1_staking_config_StakingRewardsConfig">staking_config::StakingRewardsConfig</a>&gt;(@supra_framework).rewards_rate;
+       <b>if</b> (epoch_rewards_rate.value == 0) {
+           0
+       } <b>else</b> {
+           <b>let</b> denominator_0 = aptos_std::fixed_point64::spec_divide_u128(<a href="staking_config.md#0x1_staking_config_MAX_REWARDS_RATE">staking_config::MAX_REWARDS_RATE</a>, epoch_rewards_rate);
+           <b>let</b> denominator = <b>if</b> (denominator_0 &gt; <a href="stake.md#0x1_stake_MAX_U64">MAX_U64</a>) {
+               <a href="stake.md#0x1_stake_MAX_U64">MAX_U64</a>
+           } <b>else</b> {
+               denominator_0
+           };
+           <b>let</b> nominator = aptos_std::fixed_point64::spec_multiply_u128(denominator, epoch_rewards_rate);
+           nominator
+       }
+   } <b>else</b> {
+           config.rewards_rate
+   }
+}
+</code></pre>
+
+
+
+
+<a id="0x1_stake_spec_get_reward_rate_2"></a>
+
+
+<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_get_reward_rate_2">spec_get_reward_rate_2</a>(config: StakingConfig): num {
+   <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_spec_periodical_reward_rate_decrease_enabled">features::spec_periodical_reward_rate_decrease_enabled</a>()) {
+       <b>let</b> epoch_rewards_rate = <b>global</b>&lt;<a href="staking_config.md#0x1_staking_config_StakingRewardsConfig">staking_config::StakingRewardsConfig</a>&gt;(@supra_framework).rewards_rate;
+       <b>if</b> (epoch_rewards_rate.value == 0) {
+           1
+       } <b>else</b> {
+           <b>let</b> denominator_0 = aptos_std::fixed_point64::spec_divide_u128(<a href="staking_config.md#0x1_staking_config_MAX_REWARDS_RATE">staking_config::MAX_REWARDS_RATE</a>, epoch_rewards_rate);
+           <b>let</b> denominator = <b>if</b> (denominator_0 &gt; <a href="stake.md#0x1_stake_MAX_U64">MAX_U64</a>) {
+               <a href="stake.md#0x1_stake_MAX_U64">MAX_U64</a>
+           } <b>else</b> {
+               denominator_0
+           };
+           denominator
+       }
+   } <b>else</b> {
+           config.rewards_rate_denominator
+   }
+}
 </code></pre>
 
 
@@ -6872,195 +7132,6 @@ Returns validator's next epoch voting power, including pending_active, active, a
    <b>forall</b> i in 0..len(addrs):
        <a href="stake.md#0x1_stake_spec_has_stake_pool">spec_has_stake_pool</a>(addrs[i]) &&
            <a href="stake.md#0x1_stake_spec_has_validator_config">spec_has_validator_config</a>(addrs[i])
-}
-</code></pre>
-
-
-
-
-<a id="0x1_stake_spec_validator_indices_are_valid"></a>
-
-
-<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_validator_indices_are_valid">spec_validator_indices_are_valid</a>(validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="stake.md#0x1_stake_ValidatorInfo">ValidatorInfo</a>&gt;): bool {
-   <a href="stake.md#0x1_stake_spec_validator_indices_are_valid_addr">spec_validator_indices_are_valid_addr</a>(validators, <a href="stake.md#0x1_stake_spec_validator_index_upper_bound">spec_validator_index_upper_bound</a>()) &&
-       <a href="stake.md#0x1_stake_spec_validator_indices_are_valid_config">spec_validator_indices_are_valid_config</a>(validators, <a href="stake.md#0x1_stake_spec_validator_index_upper_bound">spec_validator_index_upper_bound</a>())
-}
-</code></pre>
-
-
-
-
-<a id="0x1_stake_spec_validator_indices_are_valid_addr"></a>
-
-
-<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_validator_indices_are_valid_addr">spec_validator_indices_are_valid_addr</a>(validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="stake.md#0x1_stake_ValidatorInfo">ValidatorInfo</a>&gt;, upper_bound: u64): bool {
-   <b>forall</b> i in 0..len(validators):
-       <b>global</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(validators[i].addr).validator_index &lt; upper_bound
-}
-</code></pre>
-
-
-
-
-<a id="0x1_stake_spec_validator_indices_are_valid_config"></a>
-
-
-<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_validator_indices_are_valid_config">spec_validator_indices_are_valid_config</a>(validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="stake.md#0x1_stake_ValidatorInfo">ValidatorInfo</a>&gt;, upper_bound: u64): bool {
-   <b>forall</b> i in 0..len(validators):
-       validators[i].config.validator_index &lt; upper_bound
-}
-</code></pre>
-
-
-
-
-<a id="0x1_stake_spec_validator_indices_active_pending_inactive"></a>
-
-
-<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_validator_indices_active_pending_inactive">spec_validator_indices_active_pending_inactive</a>(validator_set: <a href="stake.md#0x1_stake_ValidatorSet">ValidatorSet</a>): bool {
-   len(validator_set.pending_inactive) + len(validator_set.active_validators) == <a href="stake.md#0x1_stake_spec_validator_index_upper_bound">spec_validator_index_upper_bound</a>()
-}
-</code></pre>
-
-
-
-
-<a id="0x1_stake_spec_validator_index_upper_bound"></a>
-
-
-<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_validator_index_upper_bound">spec_validator_index_upper_bound</a>(): u64 {
-   len(<b>global</b>&lt;<a href="stake.md#0x1_stake_ValidatorPerformance">ValidatorPerformance</a>&gt;(@supra_framework).validators)
-}
-</code></pre>
-
-
-
-
-<a id="0x1_stake_spec_has_stake_pool"></a>
-
-
-<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_has_stake_pool">spec_has_stake_pool</a>(a: <b>address</b>): bool {
-   <b>exists</b>&lt;<a href="stake.md#0x1_stake_StakePool">StakePool</a>&gt;(a)
-}
-</code></pre>
-
-
-
-
-<a id="0x1_stake_spec_has_validator_config"></a>
-
-
-<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_has_validator_config">spec_has_validator_config</a>(a: <b>address</b>): bool {
-   <b>exists</b>&lt;<a href="stake.md#0x1_stake_ValidatorConfig">ValidatorConfig</a>&gt;(a)
-}
-</code></pre>
-
-
-
-
-<a id="0x1_stake_spec_rewards_amount"></a>
-
-
-<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_rewards_amount">spec_rewards_amount</a>(
-   stake_amount: u64,
-   num_successful_proposals: u64,
-   num_total_proposals: u64,
-   rewards_rate: u64,
-   rewards_rate_denominator: u64,
-): u64;
-</code></pre>
-
-
-
-
-<a id="0x1_stake_spec_contains"></a>
-
-
-<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_contains">spec_contains</a>(validators: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;<a href="stake.md#0x1_stake_ValidatorInfo">ValidatorInfo</a>&gt;, addr: <b>address</b>): bool {
-   <b>exists</b> i in 0..len(validators): validators[i].addr == addr
-}
-</code></pre>
-
-
-
-
-<a id="0x1_stake_spec_is_current_epoch_validator"></a>
-
-
-<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_is_current_epoch_validator">spec_is_current_epoch_validator</a>(pool_address: <b>address</b>): bool {
-   <b>let</b> validator_set = <b>global</b>&lt;<a href="stake.md#0x1_stake_ValidatorSet">ValidatorSet</a>&gt;(@supra_framework);
-   !<a href="stake.md#0x1_stake_spec_contains">spec_contains</a>(validator_set.pending_active, pool_address)
-       && (<a href="stake.md#0x1_stake_spec_contains">spec_contains</a>(validator_set.active_validators, pool_address)
-       || <a href="stake.md#0x1_stake_spec_contains">spec_contains</a>(validator_set.pending_inactive, pool_address))
-}
-</code></pre>
-
-
-
-
-<a id="0x1_stake_ResourceRequirement"></a>
-
-
-<pre><code><b>schema</b> <a href="stake.md#0x1_stake_ResourceRequirement">ResourceRequirement</a> {
-    <b>requires</b> <b>exists</b>&lt;<a href="stake.md#0x1_stake_SupraCoinCapabilities">SupraCoinCapabilities</a>&gt;(@supra_framework);
-    <b>requires</b> <b>exists</b>&lt;<a href="stake.md#0x1_stake_ValidatorPerformance">ValidatorPerformance</a>&gt;(@supra_framework);
-    <b>requires</b> <b>exists</b>&lt;<a href="stake.md#0x1_stake_ValidatorSet">ValidatorSet</a>&gt;(@supra_framework);
-    <b>requires</b> <b>exists</b>&lt;StakingConfig&gt;(@supra_framework);
-    <b>requires</b> <b>exists</b>&lt;StakingRewardsConfig&gt;(@supra_framework) || !<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_spec_periodical_reward_rate_decrease_enabled">features::spec_periodical_reward_rate_decrease_enabled</a>();
-    <b>requires</b> <b>exists</b>&lt;<a href="timestamp.md#0x1_timestamp_CurrentTimeMicroseconds">timestamp::CurrentTimeMicroseconds</a>&gt;(@supra_framework);
-}
-</code></pre>
-
-
-
-
-<a id="0x1_stake_spec_get_reward_rate_1"></a>
-
-
-<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_get_reward_rate_1">spec_get_reward_rate_1</a>(config: StakingConfig): num {
-   <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_spec_periodical_reward_rate_decrease_enabled">features::spec_periodical_reward_rate_decrease_enabled</a>()) {
-       <b>let</b> epoch_rewards_rate = <b>global</b>&lt;<a href="staking_config.md#0x1_staking_config_StakingRewardsConfig">staking_config::StakingRewardsConfig</a>&gt;(@supra_framework).rewards_rate;
-       <b>if</b> (epoch_rewards_rate.value == 0) {
-           0
-       } <b>else</b> {
-           <b>let</b> denominator_0 = aptos_std::fixed_point64::spec_divide_u128(<a href="staking_config.md#0x1_staking_config_MAX_REWARDS_RATE">staking_config::MAX_REWARDS_RATE</a>, epoch_rewards_rate);
-           <b>let</b> denominator = <b>if</b> (denominator_0 &gt; <a href="stake.md#0x1_stake_MAX_U64">MAX_U64</a>) {
-               <a href="stake.md#0x1_stake_MAX_U64">MAX_U64</a>
-           } <b>else</b> {
-               denominator_0
-           };
-           <b>let</b> nominator = aptos_std::fixed_point64::spec_multiply_u128(denominator, epoch_rewards_rate);
-           nominator
-       }
-   } <b>else</b> {
-           config.rewards_rate
-   }
-}
-</code></pre>
-
-
-
-
-<a id="0x1_stake_spec_get_reward_rate_2"></a>
-
-
-<pre><code><b>fun</b> <a href="stake.md#0x1_stake_spec_get_reward_rate_2">spec_get_reward_rate_2</a>(config: StakingConfig): num {
-   <b>if</b> (<a href="../../aptos-stdlib/../move-stdlib/doc/features.md#0x1_features_spec_periodical_reward_rate_decrease_enabled">features::spec_periodical_reward_rate_decrease_enabled</a>()) {
-       <b>let</b> epoch_rewards_rate = <b>global</b>&lt;<a href="staking_config.md#0x1_staking_config_StakingRewardsConfig">staking_config::StakingRewardsConfig</a>&gt;(@supra_framework).rewards_rate;
-       <b>if</b> (epoch_rewards_rate.value == 0) {
-           1
-       } <b>else</b> {
-           <b>let</b> denominator_0 = aptos_std::fixed_point64::spec_divide_u128(<a href="staking_config.md#0x1_staking_config_MAX_REWARDS_RATE">staking_config::MAX_REWARDS_RATE</a>, epoch_rewards_rate);
-           <b>let</b> denominator = <b>if</b> (denominator_0 &gt; <a href="stake.md#0x1_stake_MAX_U64">MAX_U64</a>) {
-               <a href="stake.md#0x1_stake_MAX_U64">MAX_U64</a>
-           } <b>else</b> {
-               denominator_0
-           };
-           denominator
-       }
-   } <b>else</b> {
-           config.rewards_rate_denominator
-   }
 }
 </code></pre>
 

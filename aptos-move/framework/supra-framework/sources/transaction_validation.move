@@ -392,7 +392,7 @@ module supra_framework::transaction_validation {
             };
         };
         
-        assert!(automation_registry::has_sender_active_task_with_id_and_type(address_of(&sender), task_index, task_type),
+        assert!(automation_registry::has_sender_active_task_with_id_and_type(signer::address_of(&sender), task_index, task_type),
             error::invalid_state(PROLOGUE_ENO_ACTIVE_AUTOMATED_TASK))
     }
 

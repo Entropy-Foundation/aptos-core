@@ -3,7 +3,7 @@
 
 use crate::{payload::TDataInfo, utils::PayloadTxnsSize};
 use anyhow::{bail, ensure, Context};
-use aptos_crypto::{bls12381, ed25519, CryptoMaterialError, HashValue};
+use aptos_crypto::{ed25519, CryptoMaterialError, HashValue};
 use aptos_crypto_derive::{BCSCryptoHash, CryptoHasher};
 use aptos_types::{
     aggregate_signature::AggregateSignature, ledger_info::SignatureWithStatus,

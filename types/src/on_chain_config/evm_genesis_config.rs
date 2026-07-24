@@ -19,7 +19,7 @@ pub struct OnChainEvmGenesisConfig {
     /// The EOA configurations for pre-funding at genesis.
     pub eoas: Vec<GenesisEvmEOA>,
     /// The contract configurations for deployment at genesis.
-    pub contracts: Vec<GenesisEvmContract>,
+    pub contracts: Vec<GenesisEvmTransaction>,
 }
 
 impl Display for OnChainEvmGenesisConfig {
@@ -42,16 +42,16 @@ pub struct GenesisEvmEOA {
 
 /// The Creator address and nonce determines the contract' deployment address.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub enum ContractKind {
+pub enum TransactionKind {
     /// Default contract creation API
     Create,
-    /// EVM address that creates a contract.
+    /// Call target address.
     Call(String),
 }
 
 /// The Creator address and nonce determines the contract' deployment address.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct GenesisEvmContract {
+pub struct GenesisEvmTransaction {
     /// The creator address of the contract.
     pub creator: String,
     /// The nonce of the creator.
@@ -61,16 +61,16 @@ pub struct GenesisEvmContract {
     /// The bytecode of the contract to deploy.
     pub bytecode: Vec<u8>,
     /// Type of the contract
-    pub kind: ContractKind,
-    /// Precalculated address of the contract
-    pub deploy_address: String,
+    pub kind: TransactionKind,
+    /// Precalculated address of the contract, if transaction kind is Create/Create2
+    pub deploy_address: Option<String>,
 }
 
-impl Display for GenesisEvmContract {
+impl Display for GenesisEvmTransaction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "GenesisEvmContract {{ creator: {}, nonce: {}, amount: {}, bytecode: {} bytes, kind: {:?}, deploy_address: {} }}",
+            "GenesisEvmTransaction {{ creator: {}, nonce: {}, amount: {}, bytecode: {} bytes, kind: {:?}, deploy_address: {:?} }}",
             self.creator,
             self.nonce,
             self.amount,
@@ -86,7 +86,7 @@ impl OnChainEvmGenesisConfig {
     pub fn new(
         chain_id: ChainId,
         eoas: Vec<GenesisEvmEOA>,
-        contracts: Vec<GenesisEvmContract>,
+        contracts: Vec<GenesisEvmTransaction>,
     ) -> Self {
         let chain_id = Self::derive_evm_chain_id_from_move_chain_id(chain_id);
 
